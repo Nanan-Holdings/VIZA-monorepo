@@ -1,0 +1,99 @@
+# ========================================
+# Agent Backend - Cloud Build Config
+# ========================================
+# MONOREPO SETUP: Cloud Build trigger should be configured with:
+#   - Build type: Cloud Build configuration file (yaml or json)
+#   - Cloud Build configuration file location: /agent-backend/cloudbuild.yaml
+#   - DO NOT use "Dockerfile" or "Buildpack" build types
+# The build context and Dockerfile paths are relative to repo root.
+# ========================================
+
+steps:
+  # Build the Docker image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '--no-cache'
+      - '-t'
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - '-f'
+      - agent-backend/Dockerfile.cloudrun
+      - agent-backend
+    id: Build
+
+  # Push the built image to Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push
+
+  # Deploy to Cloud Run with runtime environment variables
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - '--platform=managed'
+      - >-
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$TRIGGER_NAME
+      - '--region=$_DEPLOY_REGION'
+      - '--service-account=$_CLOUD_RUN_SERVICE_ACCOUNT'
+      # Runtime environment variables
+      - '--set-env-vars'
+      - >-
+        NODE_ENV=staging,GCP_PROJECT_ID=$_AR_PROJECT_ID,NEXT_PUBLIC_SUPABASE_URL=$_NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY=$_NEXT_PUBLIC_SUPABASE_ANON_KEY,LAB_REPORT_API_BASE=$_LAB_REPORT_API_BASE,LOG_LEVEL=info
+      # Secrets from Secret Manager
+      - '--update-secrets'
+      - >-
+        DATABASE_URL=VIZA_DATABASE_URL:latest,SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GOOGLE_AI_API_KEY=GOOGLE_AI_API_KEY:latest
+      # Resource configuration (more CPU/memory for AI workloads)
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--min-instances=1'
+      - '--max-instances=10'
+      - '--timeout=300'
+      - '--port=8080'
+      # WebSocket support (session affinity + HTTP/1.1 for Socket.IO)
+      - '--session-affinity'
+      - '--no-use-http2'
+      - '--quiet'
+    id: Deploy
+    entrypoint: gcloud
+
+images:
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: ph-senate
+  _PLATFORM: managed
+  _SERVICE_NAME: agent-backend-staging
+  _DEPLOY_REGION: asia-southeast1
+  _AR_HOSTNAME: asia-southeast1-docker.pkg.dev
+  _CLOUD_RUN_SERVICE_ACCOUNT: "90232041254-compute@developer.gserviceaccount.com"
+
+  # ========================================
+  # RUNTIME VARIABLES (Server-side only)
+  # ========================================
+  # ⚠️ SET THESE IN CLOUD BUILD TRIGGER SUBSTITUTION VARIABLES — NOT HERE
+  _NEXT_PUBLIC_SUPABASE_URL: "REPLACE_VIA_TRIGGER"
+  _NEXT_PUBLIC_SUPABASE_ANON_KEY: "REPLACE_VIA_TRIGGER"
+  _LAB_REPORT_API_BASE: "REPLACE_VIA_TRIGGER"
+
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - agent-backend
+  - medical-agent
+

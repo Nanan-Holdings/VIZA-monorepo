@@ -1,0 +1,827 @@
+,,,General (no gender split),,,,,,Male (if gender split),,,,,,Female (if gender split),,,,,
+Name,Type,Gender_Specific,H1,B1,H2,B2,H3,B3,H1,B1,H2,B2,H3,B3,H1,B1,H2,B2,H3,B3
+Health Score,Metric,No,What is your Health Score?,"Your Health Score is a 0-100 snapshot of your overall health. Think of it as a progress report for your body—built from key areas like Heart & Vascular Health, metabolism, liver and kidney function, hormones, and inflammation.
+ 
+ We grade each area based on your biomarker results, then combine them into one easy-to-track number. What makes this different? We don't just use textbook 'normal' ranges. Our optimal ranges are grounded in longevity science and data from healthier, longer-lived populations.",Why does it matter?,"Your Health Score gives you a single number to track over time. Instead of wondering what 84 different biomarkers mean individually, you get one clear signal: are you heading in the right direction?
+ 
+ It's not about perfection. It's about progress.",Why is an optimal level important?,"A higher Health Score reflects better function across multiple body systems. Scores above 70 suggest your body is performing well. Scores below 50 indicate areas that could benefit from attention.
+ 
+ Small improvements in several areas compound into meaningful gains in how you feel—and how you age.",,,,,,,,,,,,
+Cholesterol Risk Ratio,Metric,No,What is Cholesterol Risk Ratio?,"This ratio compares your total cholesterol to your HDL ('good') cholesterol. It's calculated by dividing Total Cholesterol by HDL.
+ 
+ Why a ratio? Because context matters. You could have 'high' total cholesterol but still have a healthy ratio if your HDL is doing its job.",Why does it matter?,"A lower ratio means better protection. Your HDL helps sweep excess cholesterol out of your arteries, reducing plaque buildup.
+ 
+ Target: Less than 4.5 is healthy. Under 3.5 is optimal.",Why is an optimal level important?,"An optimal ratio of under 3.5 indicates your protective cholesterol is keeping pace with total cholesterol. This balance significantly reduces your risk of heart disease and stroke.
+ 
+ Raising HDL through exercise, healthy fats, and lifestyle changes can improve your ratio even if total cholesterol stays the same.",,,,,,,,,,,,
+Insulin Resistance Indicator,Metric,No,What is Insulin Resistance Indicator?,"This metric is calculated by dividing your Triglycerides by your HDL cholesterol. It's a simple but powerful proxy for how well your body responds to insulin.
+ 
+ When your cells become resistant to insulin, your body compensates by raising triglycerides and lowering HDL—making this ratio an early warning signal.",Why does it matter?,"Insulin resistance is often the first domino to fall before metabolic issues, weight gain, and even type 2 diabetes. Catching it early gives you time to act.
+ 
+ Target: Less than 2 is optimal. Above 3 suggests early insulin resistance worth addressing.",Why is an optimal level important?,"Keeping this ratio under 2 means your cells are responding well to insulin. Your body efficiently manages blood sugar without overworking your pancreas.
+ 
+ This is one of the most lifestyle-responsive markers. Diet changes—especially reducing refined carbs and sugar—can improve it within weeks.",,,,,,,,,,,,
+Kidney Health Score,Metric,No,What is Kidney Health Score?,"This score is your BUN (blood urea nitrogen) divided by your creatinine. Both are waste products your kidneys filter out—but they're affected by different things.
+ 
+ The ratio helps distinguish between dehydration, protein intake issues, and actual kidney function problems.",Why does it matter?,"Your kidneys filter about 200 liters of blood daily. This simple ratio helps confirm they're doing their job well.
+ 
+ A high ratio often just means you're dehydrated or eating a lot of protein—easy fixes.",Why is an optimal level important?,"An optimal range of 10-20 indicates your kidneys are efficiently filtering waste and you're well-hydrated.
+ 
+ Below 10 may suggest low protein intake or liver issues. Above 20 often points to dehydration—drink more water and retest.",,,,,,,,,,,,
+Liver Health Ratio,Metric,No,What is Liver Health Ratio?,"This is your AST divided by your ALT—two liver enzymes that tell different stories. ALT is more specific to the liver, while AST is also found in your heart and muscles.
+ 
+ The ratio helps distinguish between liver-specific issues and other causes of elevated enzymes.",Why does it matter?,"A ratio above 2 with elevated enzymes can suggest alcohol-related liver stress. A lower ratio typically points to non-alcoholic fatty liver.
+ 
+ This metric adds context—because numbers alone don't tell the whole story.",Why is an optimal level important?,"An optimal ratio of 0.8-1.0 suggests balanced liver enzyme activity with no obvious pattern of damage.
+ 
+ Your liver is remarkably resilient—it can regenerate. Catching imbalances early means lifestyle changes can fully reverse most liver stress.",,,,,,,,,,,,
+Immune Stress Index,Metric,No,What is Immune Stress Index?,"Also known as the Neutrophil-to-Lymphocyte Ratio (NLR), this compares two types of white blood cells. Neutrophils respond to acute stress and infection. Lymphocytes handle long-term immune memory.
+ 
+ When you're under chronic stress—physical, emotional, or from illness—neutrophils go up and lymphocytes go down.",Why does it matter?,"This ratio is a remarkably simple indicator of systemic stress—it correlates with everything from recovery time to long-term disease risk.
+ 
+ Target: Under 3 is healthy. Above 3 suggests your body is dealing with chronic stress or low-grade inflammation.",Why is an optimal level important?,"An optimal NLR under 2 indicates a balanced immune system not under chronic strain.
+ 
+ Elevated levels respond to stress management, better sleep, and addressing underlying inflammation. It's one of the markers that reflects your overall lifestyle burden.",,,,,,,,,,,,
+Bad Cholesterol Total,Metric,No,What is Bad Cholesterol Total?,"This is your Total Cholesterol minus your HDL ('good') cholesterol. What's left is all the potentially harmful cholesterol—the stuff that can build up in your arteries.
+ 
+ It's sometimes called 'non-HDL cholesterol' and includes LDL, VLDL, and other atherogenic particles.",Why does it matter?,"This metric captures all the 'bad actors' in one number, making it more comprehensive than LDL alone.
+ 
+ Target: Under 130 mg/dL. If high, focus on reducing saturated fats, increasing fiber, and staying active.",Why is an optimal level important?,"Keeping non-HDL cholesterol under 100 mg/dL significantly reduces plaque formation in your arteries.
+ 
+ Unlike total cholesterol, this number is always actionable—lower is better, and every 10 mg/dL reduction meaningfully cuts cardiovascular risk.",,,,,,,,,,,,
+Systemic Inflammation Score,Metric,No,What is Systemic Inflammation Score?,"This score combines neutrophils, platelets, and lymphocytes into one inflammation index: (Neutrophils × Platelets) / Lymphocytes.
+ 
+ It's more comprehensive than looking at any single marker, giving you a fuller picture of your body's inflammatory state.",Why does it matter?,"Chronic inflammation is linked to nearly every major disease—heart disease, diabetes, cancer, dementia. Tracking this score helps you catch it early.
+ 
+ Target: Under 500. Higher values suggest your immune system is in a heightened state.",Why is an optimal level important?,"Optimal levels under 400 indicate your body isn't fighting a chronic battle you don't know about.
+ 
+ Anti-inflammatory lifestyle factors—omega-3s, vegetables, quality sleep, stress management—can meaningfully move this number.",,,,,,,,,,,,
+Insulin Resistance Score,Metric,No,What is Insulin Resistance Score?,"This is the HOMA-IR score: (Fasting Insulin × Fasting Glucose) / 405. It's the gold standard for estimating insulin resistance from a simple blood test.
+ 
+ The formula models how well your pancreas and liver are working together to regulate blood sugar.",Why does it matter?,"This score can catch metabolic problems years before blood sugar rises. It's like seeing the check engine light before your car breaks down.
+ 
+ Target: Under 1.0 is optimal. Under 2.0 is healthy. Above 2.5 indicates insulin resistance.",Why is an optimal level important?,"A HOMA-IR under 1.0 means your cells respond efficiently to insulin and your pancreas isn't overworking.
+ 
+ This is highly responsive to lifestyle. Weight loss, exercise, and reducing refined carbohydrates can dramatically improve insulin sensitivity.",,,,,,,,,,,,
+Iron Utilization %,Metric,No,What is Iron Utilization?,"This percentage shows how much of your iron-carrying capacity is actually being used. It's calculated as (Serum Iron / TIBC) × 100.
+ 
+ Think of it like fuel efficiency—how well your body is absorbing and using the iron available to it.",Why does it matter?,"Below 20% suggests iron deficiency. Above 50% may indicate iron overload.
+ 
+ This metric helps distinguish between true iron deficiency and other causes of fatigue.",Why is an optimal level important?,"An optimal range of 25-35% means your body has enough iron without excess accumulation.
+ 
+ Iron is essential for energy and oxygen transport, but too much is harmful. This percentage helps you stay in the healthy zone.",,,,,,,,,,,,
+Androgen Index,Metric,Yes,What is Androgen Index?,"The Free Androgen Index estimates how much testosterone is actually available for your body to use. Formula: (Total Testosterone / SHBG) × 100.
+ 
+ SHBG is a protein that binds testosterone, making it inactive. This index tells you what's actually 'free' and working.",Why does it matter?,"Your total testosterone can look fine while your actual usable testosterone is low—if SHBG is high. This index catches that.
+ 
+ Optimal ranges differ by gender and age, making it a key marker of hormonal vitality.",Why is an optimal level important?,"Optimal FAI ensures enough bioavailable testosterone for energy, mood, muscle maintenance, and libido.
+ 
+ If your FAI is low despite normal total testosterone, the focus shifts to reducing SHBG rather than increasing testosterone.",What is Androgen Index?,"The Free Androgen Index estimates how much testosterone is actually available for your body to use. Formula: (Total Testosterone / SHBG) × 100.
+ 
+ SHBG is a protein that binds testosterone, making it inactive. This index tells you what's actually 'free' and working.",Why does it matter?,"Your total testosterone can look fine while your actual usable testosterone is low—if SHBG is high. This index catches that.
+ 
+ For men, optimal FAI is typically 30-150. Below 30 may explain symptoms despite 'normal' testosterone levels.",Why is an optimal level important?,"Optimal FAI for men ensures enough bioavailable testosterone for energy, mood, muscle maintenance, libido, and overall vitality.
+ 
+ If your FAI is low despite normal total testosterone, the focus shifts to reducing SHBG through lifestyle changes or addressing underlying causes.",What is Androgen Index?,"The Free Androgen Index estimates how much testosterone is actually available for your body to use. Formula: (Total Testosterone / SHBG) × 100.
+ 
+ SHBG is a protein that binds testosterone, making it inactive. This index tells you what's actually 'free' and working.",Why does it matter?,"For women, FAI helps assess androgen levels—important for energy, libido, and detecting conditions like PCOS.
+ 
+ Optimal FAI for women is typically 1-10. Elevated levels may indicate excess androgen activity.",Why is an optimal level important?,"Optimal FAI for women supports healthy energy and libido without excess androgen effects like acne or unwanted hair growth.
+ 
+ If FAI is elevated, it may warrant further evaluation for conditions like PCOS that respond well to treatment."
+Calculated Free Testosterone,Metric,Yes,What is Calculated Free Testosterone?,"This uses the Vermeulen equation—a validated formula combining Total Testosterone, SHBG, and Albumin—to calculate your free (unbound) testosterone.
+ 
+ It's more accurate than the Free Androgen Index and can validate directly measured free testosterone.",Why does it matter?,"Only 2-3% of testosterone is 'free' and active. The rest is bound to proteins. This calculation gives you the most accurate picture of what's actually available to your tissues.
+ 
+ If your total testosterone looks normal but you have symptoms, this metric often reveals the real story.",Why is an optimal level important?,"Optimal free testosterone means your tissues are receiving adequate hormone signaling for muscle, bone, mood, and metabolic health.
+ 
+ Because it's calculated from multiple factors, optimizing free testosterone may involve addressing SHBG, albumin, or total testosterone—depending on what's driving your result.",What is Calculated Free Testosterone?,"This uses the Vermeulen equation—a validated formula combining Total Testosterone, SHBG, and Albumin—to calculate your free (unbound) testosterone.
+ 
+ It's more accurate than the Free Androgen Index and considered the gold standard for assessing bioavailable testosterone.",Why does it matter?,"Only 2-3% of testosterone is 'free' and active. The rest is bound to proteins.
+ 
+ For men, optimal free testosterone is typically 9-30 ng/dL. If your total testosterone looks normal but you have symptoms like fatigue or low libido, free testosterone often reveals the issue.",Why is an optimal level important?,"Optimal free testosterone for men ensures adequate hormone signaling for muscle mass, bone density, mood, energy, and sexual function.
+ 
+ If low despite normal total testosterone, the focus shifts to factors affecting SHBG—like thyroid function, liver health, or body composition.",What is Calculated Free Testosterone?,"This uses the Vermeulen equation—a validated formula combining Total Testosterone, SHBG, and Albumin—to calculate your free (unbound) testosterone.
+ 
+ For women, even small amounts of free testosterone are important for energy, libido, and overall vitality.",Why does it matter?,"Only 1-2% of testosterone is 'free' and active in women. This calculation shows what's actually available to your tissues.
+ 
+ Optimal free testosterone for women is typically 0.3-1.9 ng/dL. Too low can affect energy and libido. Too high may indicate PCOS or other conditions.",Why is an optimal level important?,"Optimal free testosterone for women supports healthy energy, mood, libido, and muscle tone—without excess androgenic effects.
+ 
+ Both low and high levels are actionable. Low levels may improve with lifestyle changes; high levels warrant investigation for underlying causes."
+Longevity Score (Age-Adjusted),Metric,No,What is your Longevity Score?,"This score compares your IGF-1 (a growth hormone marker) to others your age using a Z-score. It shows whether your growth hormone status is optimal, average, or below average for your age group.
+ 
+ IGF-1 is linked to muscle maintenance, metabolism, and overall vitality.",Why does it matter?,"IGF-1 is a double-edged sword. Too low and you may struggle with recovery and energy. Too high has been linked to accelerated aging.
+ 
+ The sweet spot? Moderate-to-optimal levels for your age.",Why is an optimal level important?,"An optimal age-adjusted IGF-1 supports healthy muscle maintenance, recovery, and metabolic function without the downsides of excess growth signaling.
+ 
+ This balance is associated with healthy aging and longevity in population studies.",,,,,,,,,,,,
+Biological Age (PhenoAge),Metric,No,What is Biological Age?,"Your chronological age is how many birthdays you've had. Your biological age reflects how your body is actually aging at a cellular level.
+ 
+ We calculate this using PhenoAge—a peer-reviewed algorithm developed by Yale scientist Morgan Levine, PhD—using nine key biomarkers including albumin, glucose, creatinine, and inflammatory markers.",Why does it matter?,"Based on a 23-year study of nearly 10,000 people, PhenoAge predicts mortality and disease risk better than chronological age alone.
+ 
+ Your biological age isn't fixed. Unlike your birthday, it responds to lifestyle changes.",Why is an optimal level important?,"A biological age younger than your chronological age indicates your body is aging more slowly than average—associated with longer healthspan and reduced disease risk.
+ 
+ Track it over time to see if your habits are helping you age slower—or faster. It's one of the most meaningful metrics for longevity.",,,,,,,,,,,,
+Heart Disease Risk Index,Metric,No,What is Heart Disease Risk Index?,"This is the Atherogenic Index of Plasma (AIP): log(Triglycerides / HDL). The logarithmic formula makes it more sensitive to subtle changes in your lipid balance.
+ 
+ It's been shown to correlate strongly with cardiovascular risk—often better than traditional cholesterol measures.",Why does it matter?,"This index reflects the quality of your cholesterol particles, not just the quantity.
+ 
+ Target: Under 0.11 is low risk. Between 0.11-0.21 is intermediate. Above 0.21 is elevated risk.",Why is an optimal level important?,"An optimal AIP under 0.1 indicates favorable lipid particle characteristics—larger, fluffier LDL particles that are less likely to cause arterial damage.
+ 
+ This index responds well to dietary changes, especially reducing refined carbohydrates and increasing omega-3 fatty acids.",,,,,,,,,,,,
+Particle Number vs Size,Metric,No,What is Particle Number vs Size?,"This ratio compares ApoB (which counts LDL particles) to LDL cholesterol (which measures cholesterol carried by LDL). Formula: ApoB / LDL Cholesterol.
+ 
+ A high ratio suggests you have many small, dense LDL particles—which are more dangerous than fewer, larger ones.",Why does it matter?,"Two people can have identical LDL cholesterol, but very different risks—because particle size matters.
+ 
+ Small, dense LDL particles penetrate artery walls more easily. Target: Under 0.8.",Why is an optimal level important?,"An optimal ratio under 0.8 indicates larger, less dangerous LDL particles. This pattern is associated with significantly lower cardiovascular risk.
+ 
+ If your ratio is high, lifestyle interventions like reducing refined carbs and increasing exercise can shift particle size favorably.",,,,,,,,,,,,
+Testosterone Vitality Score,Metric,Yes,What is Testosterone Vitality Score?,"This score shows where your testosterone falls compared to others your age—as a percentile ranking. It uses your testosterone Z-score adjusted for your age group.
+ 
+ Instead of just 'normal' or 'abnormal,' you see exactly how you compare to your peers.",Why does it matter?,"Normal' is a wide range. You could be at the 10th percentile or the 90th—both technically 'normal.'
+ 
+ This score tells you where you actually stand. If you're at the 25th percentile and experiencing symptoms, that context matters.",Why is an optimal level important?,"Being in the upper half of the normal range for your age (50th percentile or above) is associated with better energy, mood, body composition, and metabolic health.
+ 
+ If you're in the lower quartile with symptoms, there may be room for optimization even if technically 'normal.'",What is Testosterone Vitality Score?,"This score shows where your testosterone falls compared to other men your age—as a percentile ranking. It uses your testosterone Z-score adjusted for your age group.
+ 
+ Instead of just 'normal' or 'abnormal,' you see exactly how you compare to your peers.",Why does it matter?,"Normal' testosterone for men spans a huge range—300 to 1000+ ng/dL. You could be at the 10th percentile or the 90th—both technically 'normal.'
+ 
+ This score tells you where you actually stand. If you're at the 25th percentile with fatigue and low libido, that context matters.",Why is an optimal level important?,"Being in the upper half of normal for your age (50th percentile or above) is associated with better energy, mood, muscle mass, and metabolic health in men.
+ 
+ If you're in the lower quartile with symptoms, optimization through lifestyle or treatment may help—even if you're technically 'normal.'",What is Testosterone Vitality Score?,"This score shows where your testosterone falls compared to other women your age—as a percentile ranking.
+ 
+ For women, testosterone is produced in smaller amounts but still plays an important role in energy, libido, and overall vitality.",Why does it matter?,"Low testosterone in women can cause fatigue, low libido, and mood changes. But the 'normal' range is wide.
+ 
+ This score shows where you fall relative to peers—helping contextualize your symptoms.",Why is an optimal level important?,"For women, mid-range testosterone supports healthy energy, mood, and sexual function without excess androgenic effects.
+ 
+ If you're in the lower percentiles with symptoms like persistent fatigue or low libido, there may be room for optimization."
+Estrogen Balance Ratio,Metric,Yes,What is Estrogen Balance Ratio?,"This ratio compares Estradiol to Total Testosterone. It shows how much of your testosterone is being converted to estrogen through a process called aromatization.
+ 
+ For men: A balanced ratio means healthy testosterone signaling. For women: It helps assess hormonal balance.",Why does it matter?,"Especially critical for men on testosterone therapy. If too much testosterone converts to estrogen, you may experience unwanted effects.
+ 
+ This ratio helps optimize hormone therapy and identify when intervention might be helpful.",Why is an optimal level important?,"An optimal ratio ensures testosterone and estrogen are in proper balance for your sex—supporting mood, body composition, bone health, and overall hormonal health.
+ 
+ Imbalances are often correctable through lifestyle changes or, when necessary, medical intervention.",What is Estrogen Balance Ratio?,"This ratio compares your Estradiol to Total Testosterone. It shows how much of your testosterone is being converted to estrogen through aromatization.
+ 
+ In men, some estrogen is necessary and healthy—but too much relative to testosterone causes problems.",Why does it matter?,"If too much testosterone converts to estrogen, you may experience water retention, mood changes, or gynecomastia (breast tissue growth).
+ 
+ This is especially important to monitor during testosterone therapy.",Why is an optimal level important?,"An optimal ratio for men maintains enough estrogen for bone and brain health while preserving testosterone's benefits for energy, muscle, and mood.
+ 
+ Excess aromatization often improves with body fat reduction, as fat tissue contains aromatase enzyme.",What is Estrogen Balance Ratio?,"This ratio compares your Estradiol to Total Testosterone. In women, this balance shifts throughout the menstrual cycle and changes significantly with menopause.
+ 
+ It reflects the relative dominance of estrogen versus androgen activity.",Why does it matter?,"The balance between estrogen and testosterone affects mood, energy, body composition, and reproductive health.
+ 
+ This ratio helps interpret your hormone status in context rather than looking at single values.",Why is an optimal level important?,"An optimal ratio for women supports healthy menstrual function, mood stability, and overall hormonal wellness.
+ 
+ Imbalances may manifest as PMS symptoms, irregular cycles, or menopausal symptoms—many of which respond to targeted support."
+Metabolic Health Score,Metric,No,What is Metabolic Health Score?,"This composite score (0-10) combines six key metabolic markers: Glucose, HbA1c, Insulin, Triglycerides, HDL, and waist circumference.
+ 
+ It's based on the criteria for metabolic syndrome—but instead of a yes/no diagnosis, you get a continuous score.",Why does it matter?,"Studies suggest only 12% of adults are metabolically healthy by strict criteria. This score helps you see where you stand—and track improvement over time.
+ 
+ Even moving from 4 to 6 represents meaningful progress in reducing your risk.",Why is an optimal level important?,"A Metabolic Health Score above 8 indicates excellent metabolic function—efficient blood sugar regulation, healthy lipids, and low disease risk.
+ 
+ This score is highly responsive to lifestyle. Diet, exercise, sleep, and stress management can all move it significantly.",,,,,,,,,,,,
+Metabolic Age,Metric,No,What is Metabolic Age?,"Your Metabolic Age translates your metabolic markers into an age equivalent. If your metabolic markers match those typical of a 35-year-old, your metabolic age is 35—regardless of your actual age.
+ 
+ It's a more intuitive way to understand your metabolic health.",Why does it matter?,"A metabolic age younger than your chronological age means your metabolism is performing well. Older means there's room for improvement.
+ 
+ The gap is highly responsive to lifestyle changes—especially diet and exercise.",Why is an optimal level important?,"A metabolic age at or below your chronological age indicates your body is processing energy efficiently and not accumulating metabolic damage faster than expected.
+ 
+ Reducing metabolic age through lifestyle changes translates directly into reduced risk of diabetes, heart disease, and other metabolic conditions.",,,,,,,,,,,,
+Hormone Age,Metric,Yes,What is Hormone Age?,"Your Hormone Age compares your hormone levels to population averages at different ages. If your hormones resemble those of a typical 40-year-old, your hormone age is 40.
+ 
+ It's calculated from key hormones like testosterone, estrogen, DHEA-S, and thyroid markers.",Why does it matter?,"Hormones decline naturally with age—but the rate varies dramatically between individuals. Some 50-year-olds have hormone profiles of 35-year-olds.
+ 
+ Tracking your hormone age helps you understand if your hormonal decline is typical or accelerated.",Why is an optimal level important?,"A hormone age at or below your chronological age indicates your endocrine system is aging well—associated with better energy, mood, body composition, and quality of life.
+ 
+ Lifestyle factors like sleep, stress management, and exercise can slow hormonal aging.",What is Hormone Age?,"Your Hormone Age compares your hormone levels to population averages at different ages. If your hormones resemble those of a typical 40-year-old man, your hormone age is 40.
+ 
+ It's calculated from key hormones including testosterone, DHEA-S, and thyroid markers.",Why does it matter?,"Testosterone and other hormones decline about 1-2% per year after 30—but the rate varies dramatically. Some 50-year-old men have hormone profiles of 35-year-olds.
+ 
+ This metric helps you understand if your decline is typical or accelerated.",Why is an optimal level important?,"A hormone age at or below your chronological age indicates your endocrine system is aging well—supporting energy, muscle mass, mood, and sexual function.
+ 
+ Lifestyle optimization can slow hormonal aging; sometimes hormone therapy is appropriate if decline is significant.",What is Hormone Age?,"Your Hormone Age compares your hormone levels to population averages at different ages. It accounts for the natural hormonal transitions women experience.
+ 
+ It's calculated from key hormones including estrogen, progesterone, DHEA-S, and thyroid markers.",Why does it matter?,"Women's hormones fluctuate with menstrual cycles and change dramatically with perimenopause and menopause. This metric contextualizes where you are in that journey.
+ 
+ It helps identify if hormonal changes are age-appropriate or accelerated.",Why is an optimal level important?,"A hormone age appropriate for your life stage indicates healthy hormonal transition—whether you're pre-menopausal, perimenopausal, or post-menopausal.
+ 
+ Understanding your hormone age helps guide decisions about lifestyle support or hormone therapy."
+Pace of Aging,Metric,No,What is your Pace of Aging?,"Your Pace of Aging measures how fast you're aging for every calendar year. It's calculated by comparing changes in your biological age over time.
+ 
+ A pace of 1.0 means you're aging at a normal rate. Below 1.0 means you're aging slower. Above 1.0 means faster.",Why does it matter?,"If your pace is 0.9, you're aging about 0.9 biological years for every calendar year—effectively slowing down the clock.
+ 
+ This metric requires at least two tests over time to track.",Why is an optimal level important?,"An optimal pace under 1.0 means your lifestyle interventions are working—you're accumulating biological damage slower than the calendar suggests.
+ 
+ This is the ultimate validation that your health efforts are paying off in measurable biological terms.",,,,,,,,,,,,
+Liver Fibrosis Risk,Metric,No,What is Liver Fibrosis Risk?,"This score estimates your risk of liver scarring (fibrosis) using a validated formula: (Age × AST) / (Platelets × √ALT).
+ 
+ It's called the FIB-4 score and was developed to identify liver fibrosis without invasive biopsies.",Why does it matter?,"With fatty liver disease on the rise, this score helps catch liver damage early—when it's still reversible.
+ 
+ Target: Under 1.45 indicates low risk. Between 1.45-3.25 is intermediate. Above 3.25 suggests advanced fibrosis risk.",Why is an optimal level important?,"A FIB-4 score under 1.0 indicates healthy liver tissue with no evidence of scarring.
+ 
+ Early-stage fatty liver is completely reversible with lifestyle changes. This score helps you act before permanent damage occurs.",,,,,,,,,,,,
+Heart Age,Metric,No,What is Heart Age?,"Your Heart Age estimates how old your cardiovascular system is based on risk factors like cholesterol, blood pressure, and smoking status.
+ 
+ A 40-year-old with poor cardiovascular markers might have a heart age of 55. A healthy 55-year-old might have a heart age of 45.",Why does it matter?,"Heart disease remains a leading cause of death. Your heart age makes this risk personal and understandable.
+ 
+ The gap between your heart age and actual age represents the years you can potentially gain back through lifestyle changes.",Why is an optimal level important?,"A heart age at or below your chronological age indicates your cardiovascular system is aging well—with clean arteries and efficient function.
+ 
+ Every year of heart age you reduce through lifestyle changes (or treatment) translates into meaningful reductions in heart attack and stroke risk.",,,,,,,,,,,,
+Longevity Score,Metric,No,What is your Longevity Score?,"This 0-100 composite score combines all your aging-related biomarkers into one number. It includes biological age, metabolic health, inflammation, hormones, and organ function.
+ 
+ Think of it as a comprehensive assessment of your aging trajectory.",Why does it matter?,"Rather than obsessing over individual markers, this score gives you the big picture. Are you aging well overall?
+ 
+ It's designed to track progress over time. Even small improvements reflect meaningful changes in your healthspan potential.",Why is an optimal level important?,"A Longevity Score above 70 indicates you're aging well across multiple dimensions—not just avoiding disease, but optimizing function and vitality.
+ 
+ This score responds to comprehensive lifestyle optimization. Improvements here mean you're extending not just lifespan, but healthspan.",,,,,,,,,,,,
+Inflammation Score,Metric,No,What is your Inflammation Score?,"This 0-10 composite combines multiple inflammation markers: CRP, white blood cells, neutrophils, NLR (neutrophil-lymphocyte ratio), and SII (systemic immune-inflammation index).
+ 
+ It's more comprehensive than looking at CRP alone.",Why does it matter?,"Chronic low-grade inflammation is linked to nearly every age-related disease—from heart disease to dementia.
+ 
+ Most people don't know they have it. This score makes the invisible visible.",Why is an optimal level important?,"An Inflammation Score under 3 indicates your body isn't fighting chronic, low-grade inflammation that accelerates aging.
+ 
+ Anti-inflammatory lifestyle factors—omega-3s, colorful vegetables, quality sleep, stress management, and regular movement—can significantly improve this score.",,,,,,,,,,,,
+Thyroid Conversion Efficiency,Metric,No,What is Thyroid Conversion Efficiency?,"This ratio (Free T3 / Free T4) shows how well your body converts the inactive thyroid hormone (T4) to the active form (T3).
+ 
+ Your thyroid produces mostly T4, which then gets converted to T3 in your liver, gut, and other tissues. T3 is what your cells actually use.",Why does it matter?,"You can have normal TSH and T4 but still feel thyroid symptoms if conversion is impaired. Stress, inflammation, and nutrient deficiencies can all block this conversion.
+ 
+ This ratio helps identify conversion problems that standard thyroid tests miss.",Why is an optimal level important?,"An optimal conversion ratio indicates your body is efficiently activating thyroid hormone—supporting metabolism, energy, and body temperature regulation.
+ 
+ Poor conversion often responds to addressing underlying causes like selenium deficiency, gut health, or chronic stress.",,,,,,,,,,,,
+Thyroid Feedback Score,Metric,No,What is Thyroid Feedback Score?,"This ratio (TSH / Free T3) assesses the communication loop between your pituitary gland and thyroid. TSH is the signal telling your thyroid to work. Free T3 is the result.
+ 
+ A healthy ratio suggests good pituitary-thyroid communication.",Why does it matter?,"Sometimes the feedback loop itself is off. Your pituitary might not be responding appropriately to thyroid hormone levels.
+ 
+ This score adds another layer of insight—especially useful if standard tests look normal but something still feels off.",Why is an optimal level important?,"An optimal feedback score indicates proper communication between your brain and thyroid—the pituitary appropriately responds to thyroid hormone levels.
+ 
+ Abnormal feedback can indicate pituitary issues, thyroid resistance, or non-thyroidal illness syndrome.",,,,,,,,,,,,
+Immune Balance Ratio,Metric,No,What is Immune Balance Ratio?,"This ratio (Lymphocytes / Monocytes) compares your adaptive immune cells (lymphocytes) to your innate immune cells (monocytes).
+ 
+ Lymphocytes provide targeted, long-term immunity. Monocytes are first responders. The balance reflects your immune system status.",Why does it matter?,"An imbalanced ratio can suggest chronic infection, immune suppression, or inflammatory conditions.
+ 
+ This metric provides context for your immune function beyond just white blood cell count.",Why is an optimal level important?,"An optimal ratio indicates balanced immune function—your body maintains proper surveillance without chronic activation.
+ 
+ If imbalanced, investigation for underlying infections, autoimmune activity, or other immune challenges may be warranted.",,,,,,,,,,,,
+Platelet Inflammation Index,Metric,No,What is Platelet Inflammation Index?,"This ratio (Platelets / Lymphocytes) links two systems: clotting and immunity. When inflammation is present, both platelet counts and this ratio tend to increase.
+ 
+ It's another window into systemic inflammation and thrombotic (clotting) risk.",Why does it matter?,"Chronic inflammation increases both your risk of disease and blood clot formation. This index captures both dimensions.
+ 
+ Elevated levels have been associated with cardiovascular events and poorer outcomes in various conditions.",Why is an optimal level important?,"An optimal ratio indicates low systemic inflammation and normal clotting tendency.
+ 
+ Anti-inflammatory lifestyle measures that improve this ratio also reduce both cardiovascular disease and clotting risk.",,,,,,,,,,,,
+Remnant Cholesterol,Metric,No,What is Remnant Cholesterol?,"Remnant cholesterol is what's left after you subtract HDL and LDL from Total Cholesterol. It represents cholesterol carried by triglyceride-rich particles—VLDL and their remnants.
+ 
+ These particles are particularly good at penetrating artery walls and causing damage.",Why does it matter?,"Research shows remnant cholesterol is an independent risk factor for heart disease—separate from LDL.
+ 
+ If your LDL is controlled but cardiovascular risk persists, remnant cholesterol might be the missing piece. Target: Under 30 mg/dL.",Why is an optimal level important?,"Optimal remnant cholesterol under 20 mg/dL indicates efficient triglyceride metabolism and reduced arterial damage from these particularly harmful particles.
+ 
+ Remnant cholesterol responds well to reducing refined carbohydrates, losing excess weight, and improving insulin sensitivity.",,,,,,,,,,,,
+Fatty Liver Risk Score,Metric,No,What is Fatty Liver Risk Score?,"This composite score estimates your risk of non-alcoholic fatty liver disease (NAFLD) using multiple factors: age, BMI, liver enzymes (AST, ALT), platelets, albumin, and diabetes status.
+ 
+ It's designed to identify fatty liver without imaging studies.",Why does it matter?,"Fatty liver disease affects an estimated 25% of adults globally—and most don't know they have it. Early stages are completely reversible.
+ 
+ This score helps catch fatty liver early, when lifestyle changes can make the biggest difference.",Why is an optimal level important?,"A low Fatty Liver Risk Score indicates healthy liver fat content and low risk of progression to more serious liver disease.
+ 
+ Early fatty liver responds dramatically to lifestyle changes—weight loss, reduced sugar intake, and regular exercise can completely reverse it.",,,,,,,,,,,,
+Uric Acid,Marker,Yes,What is Uric Acid?,"Uric acid is a waste product created when your body breaks down purines—compounds found in certain foods and naturally in your cells.
+ 
+ Normally, your kidneys filter it out. But when levels get too high, uric acid can form crystals in your joints (causing gout) or signal metabolic issues.",Why does it matter?,"Beyond gout, elevated uric acid is linked to metabolic syndrome, heart disease, and kidney stones. It's often one of the earliest signs that your metabolism is under stress.
+ 
+ Foods high in purines include red meat, organ meats, shellfish, and beer.",Why is an optimal level important?,"Optimal uric acid (under 6 mg/dL) indicates efficient purine metabolism and healthy kidney clearance. At this level, crystal formation risk is minimal.
+ 
+ Reducing alcohol, fructose, and purine-rich foods can often normalize elevated levels.",What is Uric Acid?,"Uric acid is a waste product created when your body breaks down purines—compounds found in certain foods and naturally in your cells.
+ 
+ Men typically have higher uric acid levels than women, and gout affects men much more commonly.",Why does it matter?,"Beyond gout, elevated uric acid is linked to metabolic syndrome, heart disease, and kidney stones. For men, optimal is under 7 mg/dL, with under 6 being ideal.
+ 
+ Foods high in purines include red meat, organ meats, shellfish, and beer.",Why is an optimal level important?,"For men, keeping uric acid under 6 mg/dL virtually eliminates gout risk and indicates healthy metabolic function.
+ 
+ Lifestyle changes—reducing alcohol, fructose, and purine-rich foods—can often normalize levels without medication.",What is Uric Acid?,"Uric acid is a waste product created when your body breaks down purines. Women typically have lower levels than men due to estrogen's effect on kidney excretion.
+ 
+ After menopause, uric acid levels often rise as estrogen declines.",Why does it matter?,"Beyond gout (less common in women), elevated uric acid signals metabolic stress and increased cardiovascular risk. For women, optimal is under 6 mg/dL.
+ 
+ Levels may rise after menopause, making monitoring more important.",Why is an optimal level important?,"For women, optimal uric acid (under 5 mg/dL) indicates healthy metabolism and kidney function.
+ 
+ Post-menopausal women should pay particular attention to rising levels as a marker of metabolic and cardiovascular risk."
+Apolipoprotein B,Marker,No,What is Apolipoprotein B?,"ApoB is a protein that sits on the surface of 'bad' cholesterol particles. Since each particle has exactly one ApoB molecule, measuring ApoB tells you the actual number of dangerous particles in your blood.
+ 
+ Think of it as counting bullets rather than measuring gunpowder.",Why does it matter?,"Two people can have the same LDL cholesterol but vastly different ApoB counts. The person with more particles has higher risk.
+ 
+ Many cardiologists now consider ApoB the single best predictor of cardiovascular disease. Target: under 90 mg/dL.",Why is an optimal level important?,"Optimal ApoB under 80 mg/dL (or under 60 if you have risk factors) means fewer particles available to penetrate artery walls and form plaques.
+ 
+ ApoB responds to diet, lifestyle, and medications. It's the most actionable cardiovascular risk marker.",,,,,,,,,,,,
+Lipoprotein (a),Marker,No,What is Lipoprotein (a)?,"Lp(a) is a sticky variant of LDL cholesterol. It's almost entirely determined by your genes—you're born with your level, and lifestyle changes barely move it.
+ 
+ It acts like LDL's more dangerous cousin: more inflammatory, more likely to cause clots.",Why does it matter?,"Elevated Lp(a) is an independent risk factor for heart disease. About 20% of people have high levels.
+ 
+ Target: under 30 mg/dL is low risk. Because it's genetic, knowing your level helps you manage other risk factors more aggressively if needed.",Why is an optimal level important?,"Optimal Lp(a) under 30 mg/dL means this genetic risk factor isn't adding to your cardiovascular burden.
+ 
+ If elevated, it can't be changed much through lifestyle—but knowing allows you to be more aggressive about controlling every other risk factor you can modify.",,,,,,,,,,,,
+ALP,Marker,No,What is ALP?,"Alkaline phosphatase (ALP) is an enzyme found mainly in your liver, bones, and bile ducts. When these tissues are damaged or actively growing, ALP leaks into your blood.
+ 
+ It's not specific to one organ, so elevated levels need context from other markers.",Why does it matter?,"High ALP can indicate bile duct obstruction, liver disease, or bone conditions.
+ 
+ Moderately elevated ALP with normal liver enzymes often points to bone issues. Elevated ALP with elevated GGT typically suggests liver or bile duct problems.",Why is an optimal level important?,"Optimal ALP in the mid-normal range indicates healthy liver, bone, and bile duct function without active tissue damage or turnover.
+ 
+ Very low ALP is also worth noting—it can indicate nutritional deficiencies (zinc, magnesium) or rare genetic conditions.",,,,,,,,,,,,
+Bilirubin - Total,Marker,No,What is Bilirubin?,"Bilirubin is a yellow pigment created when your body breaks down old red blood cells. Your liver processes it for excretion.
+ 
+ Mildly elevated bilirubin with no other abnormalities is often Gilbert's syndrome—a harmless genetic condition affecting about 5% of people.",Why does it matter?,"High bilirubin can indicate liver problems, bile duct blockage, or excessive red blood cell breakdown.
+ 
+ Interestingly, mildly elevated bilirubin from Gilbert's syndrome may actually be protective—bilirubin is a potent antioxidant.",Why is an optimal level important?,"Optimal bilirubin in the low-normal range indicates healthy red blood cell turnover and liver processing.
+ 
+ If mildly elevated with normal liver enzymes, Gilbert's syndrome is likely—and associated with cardiovascular protection due to bilirubin's antioxidant properties.",,,,,,,,,,,,
+Albumin,Marker,No,What is Albumin?,"Albumin is the most abundant protein in your blood, made by your liver. It acts like a cargo ship—transporting hormones, vitamins, and medications throughout your body.
+ 
+ Your albumin level reflects both Liver Health and nutritional status.",Why does it matter?,"Low albumin can indicate liver disease, malnutrition, kidney disease, or chronic inflammation. It's also a component of the PhenoAge biological age calculation.
+ 
+ Higher albumin (within range) is associated with better longevity.",Why is an optimal level important?,"Optimal albumin in the upper-normal range (4.0-5.0 g/dL) is strongly associated with longevity and overall health.
+ 
+ Maintaining optimal albumin requires adequate protein intake and healthy Liver Health—both fundamental to healthy aging.",,,,,,,,,,,,
+GGT,Marker,Yes,What is GGT?,"GGT (gamma-glutamyl transferase) is a liver enzyme particularly sensitive to alcohol and bile duct problems. It's often one of the first markers to rise when the liver is stressed.
+ 
+ Unlike ALT and AST, GGT isn't found in muscles—making it more specific to liver issues.",Why does it matter?,"Elevated GGT is a sensitive marker for alcohol use, fatty liver, and bile duct obstruction.
+ 
+ Research also links elevated GGT to cardiovascular disease and diabetes risk. For optimal health, lower is generally better.",Why is an optimal level important?,"Optimal GGT in the lower portion of normal indicates healthy Liver Health without oxidative stress.
+ 
+ GGT responds quickly to reducing alcohol, improving diet, and losing excess weight—often one of the first markers to improve.",What is GGT?,"GGT (gamma-glutamyl transferase) is a liver enzyme particularly sensitive to alcohol and bile duct problems. Men typically have higher GGT than women.
+ 
+ It's often one of the first markers to rise when the liver is stressed.",Why does it matter?,"Elevated GGT is a sensitive marker for alcohol use, fatty liver, and bile duct obstruction. For men, optimal is under 30 U/L.
+ 
+ Research links elevated GGT to cardiovascular disease and diabetes risk—independent of alcohol use.",Why is an optimal level important?,"For men, GGT under 25 U/L indicates minimal liver stress and is associated with lower cardiovascular risk.
+ 
+ GGT responds quickly to reducing alcohol, improving diet, and losing excess weight.",What is GGT?,"GGT (gamma-glutamyl transferase) is a liver enzyme particularly sensitive to alcohol and bile duct problems. Women typically have lower GGT than men.
+ 
+ It's often one of the first markers to rise when the liver is stressed.",Why does it matter?,"Elevated GGT is a sensitive marker for fatty liver and bile duct issues. For women, optimal is under 20 U/L.
+ 
+ Even within 'normal' range, higher GGT is linked to metabolic and cardiovascular risk.",Why is an optimal level important?,"For women, GGT under 15 U/L indicates healthy Liver Health and minimal oxidative stress.
+ 
+ GGT responds quickly to lifestyle improvements—it's often one of the first markers to normalize."
+Urea (BUN),Marker,No,What is Urea?,"Urea (measured as BUN—blood urea nitrogen) is a waste product created when your body breaks down protein. Your kidneys filter it out and excrete it in urine.
+ 
+ It reflects both kidney function and protein metabolism.",Why does it matter?,"High BUN can indicate kidney problems, dehydration, high protein diet, or internal bleeding. Low BUN might suggest liver issues or inadequate protein intake.
+ 
+ The BUN/Creatinine ratio helps distinguish kidney problems from dehydration.",Why is an optimal level important?,"Optimal BUN (10-20 mg/dL) indicates healthy kidney function, adequate hydration, and balanced protein intake.
+ 
+ Dehydration is the most common cause of mild elevation—often resolved simply by drinking more water.",,,,,,,,,,,,
+Sodium,Marker,No,What is Sodium?,"Sodium is an essential electrolyte that helps regulate fluid balance, blood pressure, nerve function, and muscle contractions.
+ 
+ Despite concerns about dietary sodium, blood sodium levels are rarely affected by salt intake alone—your kidneys adjust.",Why does it matter?,"Abnormal sodium usually reflects a problem with fluid balance or hormones, not diet. Low sodium can cause confusion and fatigue. High sodium is often from dehydration.
+ 
+ Both extremes can be serious. When it drifts, it's worth investigating why.",Why is an optimal level important?,"Optimal sodium (138-142 mEq/L) ensures proper nerve function, muscle contraction, and fluid balance.
+ 
+ Persistent abnormalities warrant investigation—they often point to underlying conditions affecting hormone regulation or kidney function.",,,,,,,,,,,,
+Potassium,Marker,No,What is Potassium?,"Potassium is an electrolyte critical for heart rhythm, muscle function, and nerve signaling. Most of your body's potassium is inside cells.
+ 
+ Small changes in blood potassium can have big effects on your heart.",Why does it matter?,"Both high and low potassium can cause dangerous heart rhythm problems. This is why it's monitored closely with certain medications.
+ 
+ Bananas get all the credit, but potatoes, spinach, and beans are even better potassium sources.",Why is an optimal level important?,"Optimal potassium (4.0-4.5 mEq/L) ensures stable heart rhythm and proper muscle and nerve function.
+ 
+ Most people don't get enough potassium from diet. If low, increasing potassium-rich foods can help—but supplements should only be taken under medical guidance.",,,,,,,,,,,,
+Chloride,Marker,No,What is Chloride?,"Chloride is an electrolyte that works alongside sodium to maintain fluid balance and blood pressure. It's also essential for producing stomach acid.
+ 
+ Chloride typically moves in the same direction as sodium—they're partners in fluid regulation.",Why does it matter?,"Abnormal chloride levels usually indicate fluid or acid-base imbalances. Low chloride can result from vomiting or certain medications.
+ 
+ It's rarely concerning in isolation—context from other electrolytes tells the full story.",Why is an optimal level important?,"Optimal chloride maintains proper acid-base balance and supports healthy stomach acid production for digestion.
+ 
+ Chloride abnormalities are usually secondary to other issues—treating the underlying cause normalizes chloride.",,,,,,,,,,,,
+Bicarbonate (CO2),Marker,No,What is Bicarbonate?,"Bicarbonate is your body's main buffer—it helps maintain proper blood pH. Despite being labeled 'CO2' on some panels, it's measuring bicarbonate.
+ 
+ Your kidneys and lungs work together to keep bicarbonate levels stable.",Why does it matter?,"Low bicarbonate can indicate metabolic acidosis—your body is too acidic. High bicarbonate might suggest metabolic alkalosis.
+ 
+ Your body fights hard to keep pH in range. Abnormal bicarbonate means something is challenging that system.",Why is an optimal level important?,"Optimal bicarbonate (23-28 mEq/L) indicates your body is maintaining proper acid-base balance—essential for enzyme function and cellular health.
+ 
+ Abnormalities often point to kidney issues, respiratory problems, or metabolic conditions that warrant further evaluation.",,,,,,,,,,,,
+TSH,Marker,No,What is TSH?,"TSH (thyroid-stimulating hormone) is your pituitary gland's signal to your thyroid. When thyroid hormone is low, TSH goes up. When thyroid hormone is high, TSH drops.
+ 
+ This feedback loop makes TSH the primary screening test for thyroid problems.",Why does it matter?,"High TSH suggests hypothyroidism (underactive thyroid). Low TSH suggests hyperthyroidism (overactive thyroid).
+ 
+ Optimal TSH is debated, but most longevity-focused practitioners prefer levels between 1.0-2.5 mIU/L.",Why is an optimal level important?,"Optimal TSH (1.0-2.5 mIU/L) indicates your thyroid is producing adequate hormone without your pituitary having to 'shout' for more.
+ 
+ Thyroid function affects every cell in your body—metabolism, energy, weight, mood, cognition. Optimization can be transformative.",,,,,,,,,,,,
+Free T4,Marker,No,What is Free T4?,"Free T4 is the unbound, active form of thyroxine—one of two main thyroid hormones. Your thyroid produces mostly T4, which then gets converted to the more potent T3.
+ 
+ 'Free' means it's not attached to carrier proteins—so it's available for your cells to use.",Why does it matter?,"Free T4 confirms what TSH is suggesting. High TSH with low Free T4 confirms hypothyroidism. Low TSH with high Free T4 confirms hyperthyroidism.
+ 
+ For people on thyroid medication, Free T4 helps ensure the dose is right.",Why is an optimal level important?,"Optimal Free T4 in the upper half of normal ensures adequate substrate for T3 conversion—supporting metabolism, energy, and cognitive function.
+ 
+ If Free T4 is optimal but symptoms persist, the issue may be with T4-to-T3 conversion.",,,,,,,,,,,,
+Free T3,Marker,No,What is Free T3?,"Free T3 is the active form of thyroid hormone—about 4× more potent than T4. It's what actually enters your cells and controls your metabolism, energy, and body temperature.
+ 
+ Most T3 is made by converting T4 in tissues like your liver and gut.",Why does it matter?,"You can have normal TSH and T4 but still feel hypothyroid symptoms if T3 is low—this is a conversion problem.
+ 
+ Free T3 is the most complete picture of what your cells are actually receiving.",Why is an optimal level important?,"Optimal Free T3 in the upper half of normal (3.0-4.0 pg/mL) indicates your tissues are receiving adequate active thyroid hormone.
+ 
+ Low Free T3 despite normal T4 suggests conversion issues—often improved by addressing selenium status, gut health, or chronic stress.",,,,,,,,,,,,
+Total Testosterone,Marker,Yes,What is Total Testosterone?,"Total testosterone measures all the testosterone in your blood—bound to proteins and free. For men, it's the primary male hormone. For women, it's important for energy and libido in smaller amounts.
+ 
+ It's the starting point for any hormone evaluation.",Why does it matter?,"Low testosterone can cause fatigue, low libido, depression, and loss of muscle mass. In women, high testosterone may indicate PCOS.
+ 
+ Testosterone naturally declines about 1-2% per year after 30. Knowing your level helps determine if symptoms are testosterone-related.",Why is an optimal level important?,"Optimal testosterone supports energy, mood, muscle mass, bone density, and sexual function.
+ 
+ For both men and women, levels in the upper portion of the age-appropriate range are associated with better quality of life and metabolic health.",What is Total Testosterone?,"Total testosterone measures all the testosterone in your blood. For men, it's the primary hormone driving muscle mass, bone density, mood, libido, and energy.
+ 
+ It's the starting point for any hormone evaluation.",Why does it matter?,"Low testosterone causes fatigue, low libido, depression, erectile dysfunction, and loss of muscle mass. The 'normal' range (300-1000 ng/dL) is wide—optimal is different from normal.
+ 
+ Testosterone naturally declines about 1-2% per year after 30.",Why is an optimal level important?,"Optimal testosterone for men (500-900 ng/dL) supports energy, mood, muscle mass, bone density, and sexual function.
+ 
+ If you're at the lower end of 'normal' with symptoms, optimization through lifestyle or treatment can be transformative.",What is Total Testosterone?,"Total testosterone measures all the testosterone in your blood. For women, small amounts support energy, libido, muscle tone, and bone density.
+ 
+ Women produce testosterone in the ovaries and adrenal glands—about 1/10th to 1/20th of male levels.",Why does it matter?,"Low testosterone in women can cause fatigue, low libido, and depression. High testosterone may indicate PCOS and can cause acne, unwanted hair growth, or irregular periods.
+ 
+ Normal range for women: 15-70 ng/dL.",Why is an optimal level important?,"Optimal testosterone for women supports healthy energy, mood, and libido without excess androgenic effects.
+ 
+ Both low and high levels are actionable—low may benefit from DHEA or other support; high warrants evaluation for PCOS or other causes."
+Estradiol,Marker,Yes,What is Estradiol?,"Estradiol is the primary estrogen in your body. In women, it regulates the menstrual cycle and supports bone health. In men, small amounts are important for bone health and libido.
+ 
+ In women, levels fluctuate dramatically throughout the menstrual cycle.",Why does it matter?,"For women: Low estradiol can cause hot flashes, bone loss, and vaginal dryness. For men: Too much can cause water retention and mood issues.
+ 
+ It's particularly important to monitor if on testosterone therapy, as testosterone can convert to estradiol.",Why is an optimal level important?,"Optimal estradiol supports bone health, cardiovascular protection, brain function, and overall well-being.
+ 
+ Levels vary significantly by sex, age, and (for women) menstrual cycle timing—interpretation requires context.",What is Estradiol?,"Estradiol is the primary estrogen. Men produce small amounts that are important for bone health, libido, and brain function.
+ 
+ Most male estradiol comes from converting testosterone through an enzyme called aromatase.",Why does it matter?,"Too little estradiol in men can cause bone loss and joint pain. Too much can cause water retention, mood changes, and gynecomastia.
+ 
+ Optimal for men: 20-35 pg/mL. This is especially important to monitor during testosterone therapy.",Why is an optimal level important?,"Optimal estradiol for men (20-35 pg/mL) supports bone and brain health while avoiding excess estrogen effects.
+ 
+ If too high, reducing body fat (which contains aromatase) or medical interventions can help. If too low during TRT, dose adjustments may be needed.",What is Estradiol?,"Estradiol is your primary estrogen. It regulates your menstrual cycle, maintains bone density, supports vaginal and skin health, and protects your heart and brain.
+ 
+ Levels fluctuate dramatically throughout your cycle and decline significantly with menopause.",Why does it matter?,"Low estradiol causes hot flashes, vaginal dryness, bone loss, mood changes, and cognitive effects. Timing matters—levels vary from 30 to 400+ pg/mL depending on your cycle phase.
+ 
+ Post-menopause, levels drop below 30 pg/mL.",Why is an optimal level important?,"Optimal estradiol for your life stage protects bones, heart, and brain while supporting quality of life.
+ 
+ If symptomatic from low estradiol (especially in perimenopause or menopause), hormone therapy is an option to discuss with your doctor."
+FSH,Marker,Yes,What is FSH?,"FSH (follicle-stimulating hormone) comes from your pituitary gland. In women, it drives egg development. In men, it stimulates sperm production.
+ 
+ It's part of the feedback loop between your brain and reproductive organs.",Why does it matter?,"In women: Rising FSH indicates approaching menopause. Very high FSH confirms menopause.
+ 
+ In men: Elevated FSH with low testosterone suggests the testes aren't responding properly. This distinction guides treatment decisions.",Why is an optimal level important?,"Optimal FSH indicates healthy communication between your pituitary and reproductive organs.
+ 
+ Abnormal FSH helps distinguish between primary gonadal problems versus pituitary/hypothalamic issues—guiding appropriate treatment.",What is FSH?,"FSH (follicle-stimulating hormone) comes from your pituitary gland and stimulates sperm production in your testes.
+ 
+ It's part of the feedback loop that regulates testosterone production.",Why does it matter?,"Elevated FSH with low testosterone suggests your testes aren't responding properly (primary hypogonadism). Normal/low FSH with low testosterone suggests a pituitary issue (secondary hypogonadism).
+ 
+ This distinction determines treatment approach.",Why is an optimal level important?,"Optimal FSH (1.5-12.4 mIU/mL) indicates healthy testicular function and proper pituitary signaling.
+ 
+ If trying to conceive, FSH is important for assessing sperm production capacity.",What is FSH?,"FSH (follicle-stimulating hormone) comes from your pituitary gland and drives egg development in your ovaries.
+ 
+ It fluctuates throughout your cycle, lowest mid-cycle and rising as you approach menopause.",Why does it matter?,"Rising FSH is one of the first signs of approaching menopause—your pituitary is 'shouting louder' at aging ovaries. FSH above 25-30 typically indicates perimenopause; above 40 confirms menopause.
+ 
+ FSH also helps assess fertility.",Why is an optimal level important?,"Optimal FSH for your age and life stage indicates healthy ovarian reserve and proper hormonal feedback.
+ 
+ Tracking FSH can help predict and prepare for menopausal transition, allowing proactive management of symptoms."
+LH,Marker,Yes,What is LH?,"LH (luteinizing hormone) triggers ovulation in women and testosterone production in men. It works alongside FSH to regulate reproduction.
+ 
+ In women, the LH surge triggers ovulation mid-cycle.",Why does it matter?,"In women: LH helps track ovulation for fertility. Abnormal LH/FSH ratios may indicate PCOS.
+ 
+ In men: High LH with low testosterone suggests the testes aren't responding. Low LH with low testosterone suggests a pituitary issue.",Why is an optimal level important?,"Optimal LH indicates proper pituitary signaling and healthy gonadal response.
+ 
+ Like FSH, LH helps distinguish primary from secondary hormonal problems—essential for choosing the right treatment approach.",What is LH?,"LH (luteinizing hormone) from your pituitary gland tells your testes to produce testosterone.
+ 
+ It works alongside FSH to regulate male hormone production.",Why does it matter?,"High LH with low testosterone means your testes aren't responding (primary hypogonadism). Low LH with low testosterone means your pituitary isn't signaling properly (secondary hypogonadism).
+ 
+ This determines treatment approach—testosterone vs. medications that stimulate natural production.",Why is an optimal level important?,"Optimal LH (1.7-8.6 mIU/mL) indicates your pituitary is appropriately signaling and your testes are responding.
+ 
+ During testosterone therapy, LH is suppressed—if fertility preservation matters, this needs to be considered.",What is LH?,"LH (luteinizing hormone) triggers ovulation. The mid-cycle LH surge releases the egg from your ovary.
+ 
+ It works alongside FSH to regulate your menstrual cycle and hormone production.",Why does it matter?,"The LH surge is used to predict ovulation in fertility tracking. Abnormally high baseline LH relative to FSH may indicate PCOS.
+ 
+ Like FSH, LH rises with menopause as your pituitary works harder to stimulate aging ovaries.",Why is an optimal level important?,"Optimal LH varies dramatically through your cycle—what matters is the pattern and ratio to FSH.
+ 
+ An LH/FSH ratio above 2-3 (outside the ovulatory surge) may suggest PCOS and warrant further evaluation."
+Progesterone,Marker,Yes,What is Progesterone?,"Progesterone prepares your uterus for pregnancy and maintains early pregnancy. It's produced after ovulation, and levels rise in the second half of the menstrual cycle.
+ 
+ In men, small amounts are produced by the adrenals.",Why does it matter?,"In women: Low progesterone can cause PMS symptoms, irregular periods, and difficulty maintaining pregnancy. Timing matters—it should be measured 7 days after ovulation.
+ 
+ For men: It's rarely a primary concern but helpful in complete hormone assessments.",Why is an optimal level important?,"Optimal progesterone (at the right cycle time) indicates healthy ovulation and luteal function.
+ 
+ For women with PMS, heavy periods, or fertility challenges, progesterone status is often a key piece of the puzzle.",What is Progesterone?,"Progesterone is produced in small amounts by the adrenal glands in men. It serves as a precursor to other hormones and has calming effects.
+ 
+ It's not typically a focus in men's health but is included in comprehensive panels.",Why does it matter?,"In men, progesterone plays a minor role compared to testosterone. Very low levels might suggest adrenal insufficiency. Very high levels are uncommon and would warrant investigation.
+ 
+ It's mainly useful for completing the full hormone picture.",Why is an optimal level important?,"For men, progesterone in normal range supports overall hormonal balance and may have calming effects.
+ 
+ Abnormal levels are uncommon but can point to adrenal issues worth investigating.",What is Progesterone?,"Progesterone prepares your uterus for pregnancy and maintains early pregnancy. After ovulation, your corpus luteum produces progesterone, causing the rise in the second half of your cycle.
+ 
+ It also has calming, anti-anxiety effects.",Why does it matter?,"Low progesterone can cause PMS symptoms (especially anxiety and mood swings), heavy periods, spotting before your period, and difficulty maintaining pregnancy.
+ 
+ Timing matters—it should be measured about 7 days after ovulation (around day 21 of a 28-day cycle).",Why is an optimal level important?,"Optimal progesterone in the luteal phase (above 10-15 ng/mL) indicates healthy ovulation and supports pregnancy if conception occurs.
+ 
+ If low, progesterone support may help with PMS symptoms, cycle regularity, and fertility."
+Prolactin,Marker,Yes,What is Prolactin?,"Prolactin stimulates breast milk production. In non-pregnant, non-breastfeeding people, it should be relatively low.
+ 
+ Elevated prolactin can suppress other hormones, affecting fertility and libido.",Why does it matter?,"High prolactin can cause irregular periods, infertility, low libido, and erectile dysfunction. Common causes include medications, stress, thyroid problems, and pituitary tumors (usually benign).
+ 
+ If elevated, there's usually a treatable cause.",Why is an optimal level important?,"Optimal prolactin allows normal function of other reproductive hormones.
+ 
+ Elevated prolactin is almost always treatable—identifying the cause (medication, thyroid, pituitary adenoma) guides effective treatment.",What is Prolactin?,"Prolactin is primarily known for stimulating breast milk, but men produce it too. In men, elevated prolactin suppresses testosterone production.
+ 
+ It should be relatively low in men.",Why does it matter?,"High prolactin in men can cause low libido, erectile dysfunction, infertility, and even breast tissue growth. It also suppresses testosterone.
+ 
+ Common causes: medications (especially psychiatric drugs), pituitary tumors, or chronic stress.",Why is an optimal level important?,"Optimal prolactin under 15 ng/mL in men allows healthy testosterone production and sexual function.
+ 
+ If elevated, investigation for underlying cause is important—most causes are treatable.",What is Prolactin?,"Prolactin stimulates breast milk production. Outside of pregnancy and breastfeeding, it should be relatively low.
+ 
+ Elevated prolactin suppresses ovulation and can affect fertility.",Why does it matter?,"High prolactin can cause irregular periods, missed periods, infertility, low libido, and sometimes milky breast discharge.
+ 
+ Common causes: pregnancy, breastfeeding, stress, thyroid problems, medications, or pituitary tumors (usually benign).",Why is an optimal level important?,"Optimal prolactin (under 25 ng/mL when not pregnant/breastfeeding) allows normal ovulation and menstrual cycles.
+ 
+ If elevated, identifying the cause leads to effective treatment—most causes are very treatable."
+DHEA-S,Marker,Yes,What is DHEA-S?,"DHEA-S is a hormone produced by your adrenal glands. It's a precursor—your body converts it into testosterone and estrogen as needed.
+ 
+ DHEA-S declines steadily with age, which has made it a target of longevity research.",Why does it matter?,"Low DHEA-S is associated with fatigue, low libido, depression, and cognitive decline. Some consider it a marker of 'adrenal reserve.'
+ 
+ Knowing your level helps determine if DHEA optimization makes sense for you.",Why is an optimal level important?,"Optimal DHEA-S for your age supports energy, immune function, and provides substrate for sex hormone production.
+ 
+ DHEA supplementation is available over-the-counter, but testing before and during supplementation ensures appropriate dosing.",What is DHEA-S?,"DHEA-S is produced by your adrenal glands and serves as a precursor to testosterone. Men typically have higher levels than women.
+ 
+ It declines steadily with age—levels at 70 are about 20% of what they were at 25.",Why does it matter?,"Low DHEA-S in men is associated with fatigue, low libido, depression, and reduced immune function.
+ 
+ Optimal levels for men vary by age—what's normal at 25 is different from what's normal at 60.",Why is an optimal level important?,"Optimal DHEA-S provides your body with adequate precursor for testosterone production and supports overall vitality.
+ 
+ Supplementation is possible but should be guided by testing—excess DHEA can convert to estrogen.",What is DHEA-S?,"DHEA-S is produced by your adrenal glands and serves as a precursor to both testosterone and estrogen.
+ 
+ It declines steadily with age and can be particularly relevant as ovarian hormone production decreases with menopause.",Why does it matter?,"Low DHEA-S in women is associated with fatigue, low libido, mood changes, and bone loss. It becomes relatively more important after menopause.
+ 
+ Very high DHEA-S may indicate PCOS or adrenal issues.",Why is an optimal level important?,"Optimal DHEA-S provides your body with precursor hormones, supporting energy, libido, and bone health—especially important as ovarian hormone production declines.
+ 
+ Supplementation may help some women but should be guided by testing."
+Vitamin B12,Marker,No,What is Vitamin B12?,"Vitamin B12 is essential for nerve function, red blood cell production, and DNA synthesis. Your body can't make it—you get it from animal products or supplements.
+ 
+ It's stored in the liver, so deficiency develops slowly.",Why does it matter?,"B12 deficiency causes fatigue, weakness, nerve damage, cognitive problems, and anemia. It's common in vegetarians/vegans and older adults.
+ 
+ Optimal B12 is likely higher than 'normal' suggests. Many practitioners aim for levels above 500 pg/mL.",Why is an optimal level important?,"Optimal B12 (500-1000 pg/mL) ensures healthy nerve function, energy production, and methylation—a critical cellular process.
+ 
+ Deficiency is easily corrected with supplements or injections. Catching it early prevents irreversible nerve damage.",,,,,,,,,,,,
+PSA Profile (Free + Total),Marker,Yes (Male only),What is PSA?,"PSA (prostate-specific antigen) is a protein produced by the prostate gland. The PSA test measures this level as a screening tool for prostate health.
+ 
+ The ratio of Free to Total PSA helps distinguish cancer from benign conditions.",Why does it matter?,"Elevated PSA can indicate prostate cancer, but also benign enlargement or prostatitis. The Free PSA percentage helps—higher free PSA suggests benign causes.
+ 
+ PSA screening is recommended for men over 50, or earlier if you have risk factors.",Why is an optimal level important?,"Optimal PSA (under 2.5 ng/mL for most men, with Free PSA above 25%) indicates low risk of prostate cancer.
+ 
+ Regular monitoring establishes your baseline—changes over time (PSA velocity) are often more meaningful than a single value.",What is PSA?,"PSA (prostate-specific antigen) is a protein produced by your prostate gland. It's the primary screening test for prostate health.
+ 
+ The ratio of Free to Total PSA helps distinguish cancer from benign causes of elevation.",Why does it matter?,"Elevated PSA can indicate prostate cancer, but most elevations are from benign enlargement (BPH) or inflammation. Free PSA percentage helps distinguish—higher free PSA suggests benign causes.
+ 
+ Screening typically starts at 50, or earlier with risk factors.",Why is an optimal level important?,"Optimal PSA under 2.5 ng/mL with Free PSA above 25% indicates low prostate cancer risk.
+ 
+ Establishing your baseline and tracking changes (PSA velocity) is more valuable than any single reading. Testosterone therapy may increase PSA—monitoring is important.",,,,,,
+Homocysteine,Marker,No,What is Homocysteine?,"Homocysteine is an amino acid produced during protein metabolism. Your body normally converts it into other substances using B vitamins (B12, folate, B6).
+ 
+ It's a marker of both cardiovascular risk and B vitamin status.",Why does it matter?,"Elevated homocysteine damages blood vessel walls and increases clotting risk. It's associated with heart disease, stroke, and cognitive decline.
+ 
+ Target: Under 10 μmol/L. Elevated levels often respond well to B vitamin supplementation.",Why is an optimal level important?,"Optimal homocysteine under 8 μmol/L indicates efficient B vitamin metabolism and reduced vascular and cognitive risk.
+ 
+ This is one of the most treatable risk factors—B vitamins (especially methylated forms) can normalize levels in most people.",,,,,,,,,,,,
+Anti-TPO,Marker,No,What is Anti-TPO?,"Anti-TPO (thyroid peroxidase antibodies) are immune proteins that attack your thyroid. They indicate autoimmune thyroid disease—specifically Hashimoto's thyroiditis.
+ 
+ You can have these antibodies for years before thyroid function actually changes.",Why does it matter?,"Elevated Anti-TPO means your immune system is attacking your thyroid. Even with normal TSH, it predicts future thyroid problems.
+ 
+ If you have symptoms but normal thyroid labs, Anti-TPO can explain why.",Why is an optimal level important?,"Optimal Anti-TPO (undetectable or very low) indicates no autoimmune thyroid activity.
+ 
+ If elevated, monitoring thyroid function more closely is warranted. Some evidence suggests addressing gut health and inflammation may reduce antibody levels.",,,,,,,,,,,,
+Anti-Thyroglobulin,Marker,No,What is Anti-Thyroglobulin?,"Anti-Thyroglobulin antibodies attack thyroglobulin—a protein your thyroid uses to make hormones. Like Anti-TPO, they indicate autoimmune thyroid disease.
+ 
+ Some people have one antibody without the other. Testing both gives a complete picture.",Why does it matter?,"Elevated TgAb confirms autoimmune thyroid activity. Combined with Anti-TPO, it strongly suggests Hashimoto's thyroiditis.
+ 
+ In people treated for thyroid cancer, TgAb can interfere with monitoring.",Why is an optimal level important?,"Optimal Anti-Thyroglobulin (undetectable or very low) indicates no autoimmune thyroid activity.
+ 
+ Elevation predicts future thyroid dysfunction and warrants closer monitoring, even if current thyroid function is normal.",,,,,,,,,,,,
+Folate,Marker,No,What is Folate?,"Folate (vitamin B9) is essential for DNA synthesis, red blood cell production, and cell division. It's particularly critical during pregnancy.
+ 
+ RBC folate measures your long-term stores, while serum folate reflects recent intake.",Why does it matter?,"Low folate causes anemia, elevated homocysteine, and can contribute to fatigue and cognitive issues.
+ 
+ If you're planning pregnancy, adequate folate is non-negotiable. For everyone else, it's important for homocysteine management.",Why is an optimal level important?,"Optimal folate supports DNA repair, cell division, and keeps homocysteine in check.
+ 
+ Folate is easily obtained from leafy greens, beans, and fortified foods—or supplements. Some people with MTHFR variants may benefit from methylated folate forms.",,,,,,,,,,,,
+Magnesium,Marker,No,What is Magnesium?,"Magnesium is involved in over 300 enzymatic reactions—muscle function, nerve transmission, blood sugar control, blood pressure regulation. It's essential for energy production.
+ 
+ Only 1% of body magnesium is in your blood, making blood tests somewhat limited.",Why does it matter?,"Deficiency is remarkably common—up to 50% of people don't get enough. Symptoms include muscle cramps, fatigue, anxiety, and poor sleep.
+ 
+ Blood magnesium can look normal even when you're deficient.",Why is an optimal level important?,"Optimal serum magnesium (above 2.0 mg/dL) suggests adequate body stores—though this test can miss mild deficiency.
+ 
+ Most people benefit from magnesium-rich foods (nuts, seeds, leafy greens) or supplements, especially if experiencing related symptoms.",,,,,,,,,,,,
+TIBC,Marker,No,What is TIBC?,"TIBC (Total Iron Binding Capacity) measures your blood's capacity to transport iron. It reflects how much transferrin—the protein that carries iron—is available.
+ 
+ When iron is low, your body makes more transferrin (high TIBC). When iron is high, transferrin decreases.",Why does it matter?,"TIBC helps distinguish causes of iron problems. High TIBC with low iron suggests iron deficiency. Low TIBC with high iron suggests iron overload.
+ 
+ The Iron Utilization % gives you a clearer picture than either number alone.",Why is an optimal level important?,"Optimal TIBC in the mid-normal range (250-370 μg/dL) indicates balanced iron status—neither deficiency nor overload.
+ 
+ TIBC is most useful interpreted alongside serum iron and ferritin for a complete iron picture.",,,,,,,,,,,,
+Complete Blood Count (14 panel),Marker,No,What is a Complete Blood Count?,"A CBC measures the cells in your blood: red blood cells (carry oxygen), white blood cells (fight infection), and platelets (help clotting).
+ 
+ It's one of the most common and informative blood tests—a window into your overall health.",Why does it matter?,"Abnormal CBC can indicate anemia, infection, immune problems, clotting disorders, or even blood cancers.
+ 
+ Many individual markers from the CBC feed into calculated metrics like inflammation scores and biological age.",Why is an optimal level important?,"Optimal CBC values indicate healthy oxygen-carrying capacity, balanced immune function, and proper clotting ability.
+ 
+ The CBC is foundational—it often reveals issues that other tests then investigate more specifically.",,,,,,,,,,,,
+Glucose (FBS),Marker,No,What is Fasting Glucose?,"Fasting glucose measures the sugar in your blood after not eating for 8-12 hours. It's your baseline blood sugar level.
+ 
+ Your body tightly regulates glucose because both high and low levels can cause problems.",Why does it matter?,"Elevated fasting glucose is a sign of prediabetes or diabetes. Even levels at the high end of 'normal' are associated with increased health risks.
+ 
+ Optimal: under 90 mg/dL. Prediabetes: 100-125. Diabetes: 126+.",Why is an optimal level important?,"Optimal fasting glucose under 85 mg/dL indicates efficient insulin function and healthy blood sugar regulation.
+ 
+ Blood sugar responds dramatically to diet and exercise—it's one of the most modifiable metabolic markers.",,,,,,,,,,,,
+HbA1c,Marker,No,What is HbA1c?,"HbA1c measures the percentage of your hemoglobin (oxygen-carrying protein in red blood cells) that has sugar attached. It reflects your average blood sugar over the past 2-3 months.
+ 
+ Unlike fasting glucose, it's not affected by what you ate yesterday.",Why does it matter?,"HbA1c is the gold standard for diagnosing and monitoring diabetes. But even in non-diabetics, it's a powerful predictor of health outcomes.
+ 
+ Optimal: under 5.4%. Prediabetes: 5.7-6.4%. Diabetes: 6.5%+.",Why is an optimal level important?,"Optimal HbA1c under 5.3% indicates excellent average blood sugar control over the past 2-3 months.
+ 
+ Lower HbA1c is associated with reduced risk of diabetes, heart disease, and other complications—and it responds to lifestyle changes.",,,,,,,,,,,,
+Insulin,Marker,No,What is Fasting Insulin?,"Insulin is the hormone that moves sugar from your blood into your cells. Fasting insulin measures how much your pancreas needs to produce to keep blood sugar normal.
+ 
+ High fasting insulin suggests your cells are resisting insulin's signal.",Why does it matter?,"Insulin rises years before glucose does. Catching high insulin early—insulin resistance—gives you time to reverse course before prediabetes or diabetes develops.
+ 
+ Optimal: under 8 μIU/mL. Above 12 suggests insulin resistance.",Why is an optimal level important?,"Optimal fasting insulin under 6 μIU/mL indicates excellent insulin sensitivity—your pancreas doesn't have to work hard to maintain normal blood sugar.
+ 
+ This is one of the earliest and most actionable metabolic markers—it responds quickly to diet and exercise changes.",,,,,,,,,,,,
+Total Cholesterol,Marker,No,What is Total Cholesterol?,"Total cholesterol is the sum of all cholesterol in your blood—HDL, LDL, and other types. Cholesterol is essential for making hormones, vitamin D, and cell membranes.
+ 
+ By itself, total cholesterol is less informative than the breakdown.",Why does it matter?,"Very high total cholesterol can indicate cardiovascular risk. Very low might suggest nutritional deficiencies or other issues.
+ 
+ The ratio of total to HDL cholesterol (Cholesterol Risk Ratio) is more predictive than total cholesterol alone.",Why is an optimal level important?,"Optimal total cholesterol depends on the composition. A total of 220 with high HDL is different from 220 with low HDL.
+ 
+ Focus on the ratios and component parts (LDL, HDL, triglycerides) rather than total cholesterol alone.",,,,,,,,,,,,
+HDL Cholesterol,Marker,Yes,What is HDL Cholesterol?,"HDL is often called 'good' cholesterol because it helps remove excess cholesterol from your blood and arteries, carrying it back to the liver for disposal.
+ 
+ Higher HDL is generally better—it's protective against heart disease.",Why does it matter?,"Low HDL is an independent risk factor for heart disease. It's part of the metabolic syndrome criteria.
+ 
+ Exercise, healthy fats (especially olive oil and fatty fish), and moderate alcohol can raise HDL.",Why is an optimal level important?,"Optimal HDL (above 50-60 mg/dL) provides robust protection against arterial plaque formation.
+ 
+ HDL is somewhat harder to raise than LDL is to lower—but exercise is particularly effective.",What is HDL Cholesterol?,"HDL is 'good' cholesterol that helps remove excess cholesterol from your blood and arteries. Men typically have lower HDL than women.
+ 
+ Higher HDL is protective against heart disease.",Why does it matter?,"Low HDL is an independent risk factor for heart disease. For men, the minimum target is 40 mg/dL—but optimal is above 50 mg/dL.
+ 
+ Exercise, healthy fats, and moderate alcohol can raise HDL.",Why is an optimal level important?,"For men, optimal HDL above 50 mg/dL provides significant cardiovascular protection.
+ 
+ HDL responds particularly well to exercise—it's one of the best reasons to stay active.",What is HDL Cholesterol?,"HDL is 'good' cholesterol that helps remove excess cholesterol from your blood and arteries. Women typically have higher HDL than men—partly due to estrogen.
+ 
+ Higher HDL is protective against heart disease.",Why does it matter?,"Low HDL is a risk factor for heart disease. For women, the minimum target is 50 mg/dL—but optimal is above 60 mg/dL.
+ 
+ HDL may decline after menopause as estrogen decreases.",Why is an optimal level important?,"For women, optimal HDL above 60 mg/dL provides significant cardiovascular protection.
+ 
+ Maintaining HDL through menopause is important—exercise, healthy fats, and potentially hormone therapy can help."
+LDL Cholesterol,Marker,No,What is LDL Cholesterol?,"LDL is often called 'bad' cholesterol because it can deposit cholesterol in your artery walls, forming plaques that narrow blood vessels.
+ 
+ But not all LDL is created equal—particle size matters too.",Why does it matter?,"High LDL is the primary target for cardiovascular risk reduction. Many experts now prefer ApoB as a more accurate measure of LDL particles.
+ 
+ Optimal: under 100 mg/dL. Under 70 if you have high risk or existing heart disease.",Why is an optimal level important?,"Optimal LDL (under 100 mg/dL, or under 70 with risk factors) reduces the cholesterol available to form arterial plaques.
+ 
+ LDL responds well to diet (reducing saturated fat, increasing fiber) and medications when needed.",,,,,,,,,,,,
+Triglycerides,Marker,No,What are Triglycerides?,"Triglycerides are the most common type of fat in your blood. Your body converts excess calories—especially from carbs and alcohol—into triglycerides for storage.
+ 
+ They're measured after fasting to get a baseline level.",Why does it matter?,"High triglycerides increase cardiovascular risk and are a key marker of metabolic dysfunction. They're often the first lipid to improve with dietary changes.
+ 
+ Optimal: under 100 mg/dL. Above 150 is elevated. Above 500 requires treatment.",Why is an optimal level important?,"Optimal triglycerides under 80 mg/dL indicate efficient fat metabolism and low metabolic risk.
+ 
+ Triglycerides are extremely responsive to reducing refined carbohydrates, sugar, and alcohol—often improving dramatically within weeks.",,,,,,,,,,,,
+ALT,Marker,Yes,What is ALT?,"ALT (alanine aminotransferase) is an enzyme found mainly in your liver. When liver cells are damaged, ALT leaks into your blood.
+ 
+ It's one of the most specific markers for liver health.",Why does it matter?,"Elevated ALT indicates liver stress—from fatty liver, hepatitis, medications, or other causes. Even levels at the high end of 'normal' may indicate early fatty liver.
+ 
+ Optimal: under 25 U/L for men, under 19 U/L for women (stricter than standard ranges).",Why is an optimal level important?,"Optimal ALT in the lower portion of normal indicates healthy liver cells without ongoing damage.
+ 
+ ALT often improves quickly with lifestyle changes—reducing alcohol, losing weight, and improving diet.",What is ALT?,"ALT (alanine aminotransferase) is an enzyme found mainly in your liver. When liver cells are damaged, ALT leaks into your blood.
+ 
+ Men typically have slightly higher ALT than women.",Why does it matter?,"Elevated ALT indicates liver stress. For men, the standard 'normal' range goes up to 56 U/L, but optimal is under 25 U/L.
+ 
+ Even levels in the 30s may indicate early fatty liver disease.",Why is an optimal level important?,"For men, optimal ALT under 25 U/L indicates healthy liver tissue without significant fat accumulation or damage.
+ 
+ ALT responds well to reducing alcohol, losing excess weight, and addressing fatty liver.",What is ALT?,"ALT (alanine aminotransferase) is an enzyme found mainly in your liver. When liver cells are damaged, ALT leaks into your blood.
+ 
+ Women typically have lower ALT than men.",Why does it matter?,"Elevated ALT indicates liver stress. For women, the standard 'normal' range goes up to 40 U/L, but optimal is under 19 U/L.
+ 
+ Even levels in the 20s may warrant attention.",Why is an optimal level important?,"For women, optimal ALT under 19 U/L indicates healthy liver tissue without significant fat accumulation or damage.
+ 
+ ALT responds well to lifestyle changes—weight management, reducing alcohol, and improving diet."
+AST,Marker,No,What is AST?,"AST (aspartate aminotransferase) is an enzyme found in your liver, heart, and muscles. When these tissues are damaged, AST leaks into your blood.
+ 
+ Because it's not specific to the liver, it's usually interpreted alongside ALT.",Why does it matter?,"Elevated AST with elevated ALT usually indicates liver problems. Elevated AST with normal ALT might be from muscle damage, intense exercise, or heart issues.
+ 
+ The AST/ALT ratio (Liver Health Ratio) helps distinguish different causes.",Why is an optimal level important?,"Optimal AST in the lower-normal range indicates healthy liver, muscle, and heart tissue.
+ 
+ If AST is elevated but ALT is normal, consider recent strenuous exercise as a possible cause before assuming liver problems.",,,,,,,,,,,,
+Creatinine (eGFR),Marker,Yes,What is Creatinine?,"Creatinine is a waste product from muscle metabolism. Your kidneys filter it out at a steady rate, making it a reliable marker of kidney function.
+ 
+ eGFR (estimated glomerular filtration rate) converts creatinine into an estimate of how well your kidneys are filtering.",Why does it matter?,"High creatinine/low eGFR suggests your kidneys aren't filtering well. This can be from kidney disease, dehydration, or certain medications.
+ 
+ eGFR above 90 is normal. 60-89 may indicate mild kidney dysfunction. Below 60 warrants investigation.",Why is an optimal level important?,"Optimal eGFR above 90 mL/min indicates your kidneys are efficiently filtering waste from your blood.
+ 
+ Protecting kidney function is important—staying hydrated, managing blood pressure, and avoiding nephrotoxic medications helps preserve kidney health.",What is Creatinine?,"Creatinine is a waste product from muscle metabolism. Men typically have higher creatinine than women due to greater muscle mass.
+ 
+ eGFR adjusts for this, giving a standardized measure of kidney function.",Why does it matter?,"For men, higher creatinine is expected due to muscle mass. eGFR above 90 is normal. Below 60 indicates significant kidney dysfunction.
+ 
+ Muscle-building supplements containing creatine can raise creatinine without affecting actual kidney function.",Why is an optimal level important?,"For men, optimal eGFR above 90 mL/min indicates healthy kidney filtration.
+ 
+ Stay hydrated, manage blood pressure, and be cautious with supplements and medications that can affect kidney function.",What is Creatinine?,"Creatinine is a waste product from muscle metabolism. Women typically have lower creatinine than men due to less muscle mass.
+ 
+ eGFR adjusts for this, giving a standardized measure of kidney function.",Why does it matter?,"For women, even mildly elevated creatinine may be significant. eGFR above 90 is normal. Below 60 indicates significant kidney dysfunction.
+ 
+ eGFR naturally declines somewhat with age.",Why is an optimal level important?,"For women, optimal eGFR above 90 mL/min indicates healthy kidney filtration.
+ 
+ Protecting kidney function is especially important with age—stay hydrated and manage blood pressure."
+CRP (high sensitive),Marker,No,What is hs-CRP?,"High-sensitivity CRP (C-reactive protein) is made by your liver in response to inflammation. It's a general marker of inflammation anywhere in your body.
+ 
+ The 'high-sensitivity' version can detect lower levels, important for cardiovascular risk assessment.",Why does it matter?,"Elevated hs-CRP is associated with cardiovascular disease, diabetes, and other chronic conditions. It's an independent risk factor for heart disease.
+ 
+ Optimal: under 1.0 mg/L. 1-3 is average risk. Above 3 is elevated risk (unless you have an acute infection).",Why is an optimal level important?,"Optimal hs-CRP under 0.5 mg/L indicates minimal systemic inflammation and lower cardiovascular risk.
+ 
+ CRP responds to lifestyle factors—weight loss, exercise, omega-3s, and reducing sugar can all lower it.",,,,,,,,,,,,
+Cortisol,Marker,No,What is Cortisol?,"Cortisol is your body's main stress hormone, produced by your adrenal glands. It follows a daily rhythm—highest in the morning, lowest at night.
+ 
+ It helps regulate metabolism, immune function, and the stress response.",Why does it matter?,"High cortisol can indicate chronic stress, Cushing's syndrome, or just a stressful morning. Low cortisol might suggest adrenal insufficiency.
+ 
+ Timing matters—morning cortisol should be measured within an hour of waking for accurate interpretation.",Why is an optimal level important?,"Optimal morning cortisol indicates healthy adrenal function and appropriate stress response capability.
+ 
+ Chronic elevation from ongoing stress can be addressed through stress management, sleep optimization, and sometimes adaptogenic supplements.",,,,,,,,,,,,
+Iron,Marker,Yes,What is Serum Iron?,"Serum iron measures the amount of iron circulating in your blood. Iron is essential for carrying oxygen in red blood cells and for energy production.
+ 
+ Serum iron fluctuates daily and after meals, so it's usually interpreted with other iron markers.",Why does it matter?,"Low iron can cause fatigue, weakness, and anemia. High iron (iron overload) can damage organs over time.
+ 
+ Serum iron alone isn't enough—you need ferritin and TIBC to understand your full iron status.",Why is an optimal level important?,"Optimal serum iron indicates adequate iron for oxygen transport and energy production.
+ 
+ Interpret iron alongside ferritin and TIBC for the complete picture—all three together reveal whether you're deficient, optimal, or overloaded.",What is Serum Iron?,"Serum iron measures the iron circulating in your blood. Men typically have higher iron stores than women (no monthly iron loss through menstruation).
+ 
+ Iron is essential for oxygen transport and energy production.",Why does it matter?,"Low iron causes fatigue and anemia. But men are more at risk for iron overload—a condition that causes organ damage over time.
+ 
+ Men with high iron should be screened for hemochromatosis (genetic iron overload).",Why is an optimal level important?,"For men, optimal iron supports energy without risking iron overload. Ferritin is a better marker of stores.
+ 
+ If ferritin is high (above 300 ng/mL), investigate further—hemochromatosis is common and treatable.",What is Serum Iron?,"Serum iron measures the iron circulating in your blood. Women of reproductive age are more prone to iron deficiency due to menstrual blood loss.
+ 
+ Iron is essential for oxygen transport and energy production.",Why does it matter?,"Low iron is one of the most common causes of fatigue in women. Heavy periods increase the risk.
+ 
+ Iron needs change with menstrual status, pregnancy, and menopause.",Why is an optimal level important?,"For women, optimal iron prevents the fatigue and other symptoms of deficiency that are so common.
+ 
+ If periods are heavy, proactive iron monitoring and supplementation may be needed to maintain optimal levels."
+Ferritin,Marker,Yes,What is Ferritin?,"Ferritin is your body's iron storage protein. It reflects how much iron you have in reserve—your body's iron bank account.
+ 
+ It's the most useful single marker for assessing iron status.",Why does it matter?,"Low ferritin causes fatigue and eventually anemia—often before other iron markers change. High ferritin can indicate iron overload or inflammation.
+ 
+ Optimal: 50-150 ng/mL for most people. Athletes and menstruating women may need higher levels.",Why is an optimal level important?,"Optimal ferritin ensures adequate iron reserves for energy, exercise recovery, and immune function.
+ 
+ Low ferritin is easily treated with iron supplements. High ferritin needs investigation—it could be inflammation or iron overload.",What is Ferritin?,"Ferritin is your body's iron storage protein. Men typically have higher ferritin than women and rarely become deficient without blood loss.
+ 
+ It's the best single marker for iron status.",Why does it matter?,"For men, the bigger concern is often iron overload, not deficiency. Ferritin above 300 ng/mL warrants investigation for hemochromatosis.
+ 
+ Optimal for men: 50-150 ng/mL. Low ferritin causes fatigue; high ferritin can damage organs.",Why is an optimal level important?,"For men, optimal ferritin (50-150 ng/mL) supports energy without risking iron overload.
+ 
+ If ferritin is high, genetic testing for hemochromatosis is reasonable—it's common (1 in 200 people) and very treatable with regular blood donation.",What is Ferritin?,"Ferritin is your body's iron storage protein. Women of reproductive age commonly have low ferritin due to menstrual blood loss.
+ 
+ It's the most useful marker for iron status.",Why does it matter?,"Low ferritin is extremely common in women and causes fatigue, hair loss, poor exercise tolerance, and eventually anemia.
+ 
+ Optimal for women: 50-150 ng/mL. Many women function best above 70 ng/mL.",Why is an optimal level important?,"For women, optimal ferritin (50-150 ng/mL) supports energy, hair health, exercise performance, and overall vitality.
+ 
+ If periods are heavy or you're experiencing fatigue or hair loss, checking and optimizing ferritin often helps dramatically."
+Vitamin D,Marker,No,What is Vitamin D?,"Vitamin D is actually a hormone that your skin produces from sunlight. It's essential for bone health, immune function, mood, and much more.
+ 
+ Deficiency is extremely common, especially in places where people avoid sun exposure.",Why does it matter?,"Low vitamin D is linked to osteoporosis, depression, immune dysfunction, and increased risk of various diseases.
+ 
+ Optimal: 40-60 ng/mL. Many people are deficient despite living in tropical climates—indoor lifestyles and sun avoidance are common causes.",Why is an optimal level important?,"Optimal vitamin D (40-60 ng/mL) supports bone health, immune function, mood, and may reduce risk of various diseases.
+ 
+ Most people need supplementation to reach optimal levels, especially with indoor lifestyles. Testing guides appropriate dosing.",,,,,,,,,,,,
+Free Testosterone,Marker,Yes,What is Free Testosterone?,"Free testosterone is the small fraction (2-3%) of testosterone that isn't bound to proteins. It's the testosterone that's actually available for your tissues to use.
+ 
+ The rest is bound to SHBG (tightly) or albumin (loosely).",Why does it matter?,"You can have normal total testosterone but low free testosterone—explaining symptoms despite 'normal' levels.
+ 
+ Free testosterone is particularly useful when SHBG is abnormal, as it shows what's actually bioavailable.",Why is an optimal level important?,"Optimal free testosterone ensures adequate hormone actually reaches your tissues for its effects on energy, mood, muscle, and sexual function.
+ 
+ If free testosterone is low despite normal total, the focus shifts to factors affecting SHBG.",What is Free Testosterone?,"Free testosterone is the 2-3% of testosterone not bound to proteins—it's what's actually available for your tissues to use.
+ 
+ Total testosterone can look normal while free testosterone is low, especially if SHBG is elevated.",Why does it matter?,"For men, optimal free testosterone is typically 9-30 ng/dL. If you have symptoms like fatigue or low libido despite 'normal' total testosterone, low free testosterone may be the issue.
+ 
+ Free testosterone is what your cells actually respond to.",Why is an optimal level important?,"For men, optimal free testosterone (15-25 ng/dL) ensures adequate hormone for energy, mood, muscle mass, and sexual function.
+ 
+ If low despite normal total testosterone, addressing SHBG (through thyroid optimization, liver health, body composition) may help.",What is Free Testosterone?,"Free testosterone is the small fraction of testosterone not bound to proteins. For women, even tiny amounts of free testosterone matter for energy and libido.
+ 
+ It represents what's actually available to your tissues.",Why does it matter?,"For women, optimal free testosterone is typically 0.3-1.9 ng/dL. Low levels can cause fatigue and low libido. High levels may indicate PCOS.
+ 
+ It's useful when symptoms don't match total testosterone levels.",Why is an optimal level important?,"For women, optimal free testosterone supports energy, libido, and vitality without excess androgenic effects.
+ 
+ Both low and high levels are actionable—low may respond to DHEA; high warrants PCOS evaluation."
+SHBG,Marker,Yes,What is SHBG?,"SHBG (sex hormone-binding globulin) is a protein that binds testosterone and estrogen, controlling how much is 'free' and active. High SHBG means less free hormone.
+ 
+ SHBG is produced by the liver and responds to various factors.",Why does it matter?,"High SHBG can make you functionally low in testosterone even with normal total levels. Low SHBG can mean too much free hormone.
+ 
+ Factors that raise SHBG: aging, hyperthyroidism, low body weight. Factors that lower it: obesity, insulin resistance, hypothyroidism.",Why is an optimal level important?,"Optimal SHBG allows appropriate amounts of free hormones to reach your tissues.
+ 
+ If SHBG is too high or low, addressing the underlying cause (thyroid, insulin resistance, body composition) often helps normalize it.",What is SHBG?,"SHBG (sex hormone-binding globulin) binds testosterone, controlling how much is 'free' and active. High SHBG means less bioavailable testosterone.
+ 
+ SHBG increases with age, thyroid hormone, and low body weight. It decreases with obesity and insulin resistance.",Why does it matter?,"For men, high SHBG can cause low testosterone symptoms despite normal total testosterone. Normal male SHBG: 10-57 nmol/L.
+ 
+ If SHBG is high, increasing testosterone or addressing the cause (thyroid, body composition) may help.",Why is an optimal level important?,"For men, optimal SHBG (20-40 nmol/L) allows adequate free testosterone while providing appropriate regulation.
+ 
+ Very low SHBG (from insulin resistance) or very high SHBG both cause problems. Addressing the underlying cause is key.",What is SHBG?,"SHBG (sex hormone-binding globulin) binds both testosterone and estrogen, controlling how much is 'free' and active.
+ 
+ Women typically have higher SHBG than men, especially on oral contraceptives or HRT.",Why does it matter?,"For women, low SHBG (from insulin resistance or PCOS) can mean too much free testosterone, causing acne and unwanted hair growth. Very high SHBG can cause low libido.
+ 
+ Normal female SHBG: 18-144 nmol/L (varies widely).",Why is an optimal level important?,"For women, optimal SHBG maintains hormonal balance—enough free testosterone for energy and libido, but not so much that it causes androgenic symptoms.
+ 
+ If SHBG is low (with PCOS features), improving insulin sensitivity often helps."
+IGF-1,Marker,No,What is IGF-1?,"IGF-1 (insulin-like growth factor 1) is produced mainly by your liver in response to growth hormone. It's the main mediator of growth hormone's effects in your body.
+ 
+ It influences muscle growth, bone density, and metabolism.",Why does it matter?,"Low IGF-1 can cause fatigue, muscle loss, and poor recovery. Very high IGF-1 has been linked to accelerated aging and cancer risk in some studies.
+ 
+ The sweet spot appears to be moderate-to-optimal levels for your age—neither too low nor too high.",Why is an optimal level important?,"Optimal IGF-1 for your age supports muscle maintenance, recovery, and metabolic health without the downsides of excess growth signaling.
+ 
+ IGF-1 responds to protein intake, sleep, and exercise. Optimization focuses on lifestyle rather than supplementation in most cases.",,,,,,,,,,,,

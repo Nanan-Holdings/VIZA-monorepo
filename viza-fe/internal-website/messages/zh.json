@@ -1,0 +1,813 @@
+{
+  "common": {
+    "loading": "正在加载您的仪表板...",
+    "error": "发生错误",
+    "searchLanguage": "搜索语言...",
+    "noLanguagesFound": "未找到语言"
+  },
+  "nav": {
+    "home": "首页",
+    "application": "申请",
+    "chat": "聊天",
+    "documents": "文件",
+    "inviteFriends": "邀请朋友"
+  },
+  "menu": {
+    "inviteFriends": "邀请朋友",
+    "settings": "设置",
+    "help": "帮助",
+    "logout": "退出登录",
+    "loggingOut": "正在退出..."
+  },
+  "session": {
+    "invalidatedTitle": "会话已失效",
+    "invalidatedBody": "另一个患者视图已在其他标签页中打开。出于安全原因，此会话已被终止。",
+    "invalidatedHint": "请关闭此标签页并使用新的患者视图标签页。"
+  },
+  "home": {
+    "welcomeBack": "欢迎回来，{name}。",
+    "vizaApplication": "这是您的VIZA申请",
+    "recentActivity": "最近活动",
+    "noRecentActivity": "暂无最近活动。开始您的申请以在此查看更新。",
+    "loadingDashboard": "正在加载您的仪表板...",
+    "authError": "认证失败。请重新点击链接。",
+    "dashboardError": "加载仪表板时发生错误",
+    "application": "申请",
+    "indonesia": "印度尼西亚",
+    "touristVisaB211A": "旅游签证 B211A",
+    "notStarted": "未开始",
+    "submitted": "提交于 {date}",
+    "documentsTitle": "文件",
+    "ofRequired": "共需 {total} 份",
+    "percentComplete": "已完成 {pct}%",
+    "quickActions": {
+      "title": "快捷操作",
+      "continueWithAI": "继续与AI对话",
+      "uploadDocuments": "上传文件",
+      "viewApplication": "查看申请"
+    },
+    "emptyApplication": {
+      "noActiveApplication": "暂无活跃申请",
+      "subtitle": "立即开始您的印尼旅游签证申请。",
+      "cta": "开始印尼签证申请"
+    },
+    "statusLabels": {
+      "draft": "草稿",
+      "in_progress": "进行中",
+      "submitted": "已提交",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    },
+    "docLabels": {
+      "passport_copy": "护照复印件",
+      "photo": "照片",
+      "flight_booking": "航班预订",
+      "hotel_booking": "酒店预订",
+      "travel_itinerary": "旅行行程",
+      "bank_statement": "银行对账单"
+    },
+    "activity": {
+      "applicationSubmitted": "申请已提交",
+      "applicationCreated": "申请已创建",
+      "visaType": "印度尼西亚旅游签证 B211A",
+      "documentUploaded": "{docType} 已上传",
+      "documentRejected": "文件被拒绝——请重新上传",
+      "documentReceived": "文件已收到",
+      "justNow": "刚刚",
+      "minutesAgo": "{count}分钟前",
+      "hoursAgo": "{count}小时前",
+      "daysAgo": "{count}天前"
+    },
+    "visaTimeline": {
+      "heading": "印度尼西亚旅游签证 B211A",
+      "subheading": "完成每个步骤以提交您的签证申请",
+      "stages": {
+        "application": {
+          "title": "完善您的申请",
+          "subtitle": "填写个人信息、护照和旅行详情",
+          "badge": "开始"
+        },
+        "documents": {
+          "title": "上传您的文件",
+          "subtitle": "B211A旅游签证需要6份文件",
+          "badge": "尚未完成"
+        },
+        "submit": {
+          "title": "提交申请",
+          "subtitle": "检查所有内容并提交给我们的处理团队",
+          "badge": "尚未完成"
+        },
+        "review": {
+          "title": "审核中",
+          "subtitle": "通常在3个工作日内处理",
+          "badge": "等待中"
+        },
+        "decision": {
+          "title": "决定",
+          "subtitle": "签证获批并将电子签证文件发送给您",
+          "badge": "等待中"
+        }
+      }
+    }
+  },
+  "services": {
+    "title": "服务",
+    "scheduled": "已预约",
+    "yourHistory": "您的历史",
+    "reschedule": "重新预约",
+    "cancel": "取消",
+    "cancelling": "取消中...",
+    "cannotReschedule": "24小时内无法重新预约",
+    "comingSoon": "即将推出",
+    "noScheduledServices": "没有已预约的服务",
+    "noScheduledDescription": "您没有即将到来的服务。浏览下方推荐的检测项目开始使用。",
+    "noServiceHistory": "没有服务历史",
+    "noHistoryDescription": "您尚未完成任何服务。您的历史记录将显示在此处。",
+    "cancelDialog": {
+      "title": "取消已预约的服务？",
+      "keep": "保留"
+    },
+    "recommended": {
+      "heading": "为您推荐",
+      "subheading": "我们的热门检测推荐"
+    },
+    "personalized": {
+      "heading": "个性化推荐",
+      "subheading": "基于您的个人资料和健康数据的检测"
+    },
+    "upcoming": {
+      "heading": "即将推出的检测",
+      "subheading": "我们正在开发的新检测项目"
+    },
+    "marketplace": {
+      "supplement": {
+        "title": "营养品商城",
+        "description": "300+精选长寿产品的内部价格"
+      },
+      "service": {
+        "title": "处方药商城",
+        "description": "获取精选处方药如药物或肽类"
+      }
+    },
+    "cards": {
+      "bloodPanel": {
+        "title": "血液检测",
+        "description": "40+项生物标志物的全面综合血液检测。",
+        "cta": "包含在您的计划中"
+      },
+      "advancedBloodPanel": {
+        "title": "高级血液检测",
+        "description": "130+项生物标志物的全面综合血液检测。",
+        "cta": "开始使用",
+        "badge": "推荐"
+      },
+      "glp1": {
+        "title": "GLP-1 治疗",
+        "description": "您可能适合接受GLP-1治疗。了解它如何帮助您。",
+        "cta": "开始使用"
+      },
+      "allergyTesting": {
+        "title": "食物和环境过敏检测",
+        "description": "确定您的特定食物和环境过敏源。",
+        "cta": "即将推出"
+      },
+      "cancerTest": {
+        "title": "Grail Galleri 多癌检测",
+        "description": "通过这项全面检测提前了解您的癌症风险。可检测超过100种癌症。",
+        "cta": "即将推出"
+      },
+      "dexaScan": {
+        "title": "DEXA 骨密度扫描",
+        "description": "测量您的骨密度和骨质疏松风险。",
+        "cta": "即将推出"
+      },
+      "gutMicrobiome": {
+        "title": "肠道微生物检测",
+        "description": "分析您的肠道微生物组以了解消化健康。",
+        "cta": "即将推出"
+      },
+      "toxicology": {
+        "title": "环境毒理学检测",
+        "description": "分析您的环境毒素和暴露情况。",
+        "cta": "即将推出"
+      }
+    }
+  },
+  "application": {
+    "title": "印度尼西亚旅游签证 B211A",
+    "saving": "保存中...",
+    "edit": "编辑",
+    "stepOf": "第 {current} 步，共 {total} 步：{name}",
+    "steps": {
+      "personalInfo": {
+        "name": "个人信息",
+        "description": "全名、出生日期、国籍"
+      },
+      "passport": {
+        "name": "护照",
+        "description": "护照号码、日期、签发国"
+      },
+      "travelDetails": {
+        "name": "旅行详情",
+        "description": "到达、离开、住宿"
+      },
+      "documents": {
+        "name": "文件",
+        "description": "上传全部6份必要文件"
+      },
+      "review": {
+        "name": "审核",
+        "description": "确认您的信息正确"
+      },
+      "status": {
+        "name": "状态",
+        "description": "申请已提交"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "未经认证",
+      "failedToSave": "保存失败",
+      "failedToSubmit": "提交失败",
+      "profileNotFound": "未找到个人资料",
+      "noApplicationFound": "未找到申请"
+    }
+  },
+  "applicationSteps": {
+    "continue": "继续",
+    "submit": "提交",
+    "confirm": "确认",
+    "cancel": "取消",
+    "edit": "编辑",
+    "select": "选择...",
+    "uploadFailed": "上传失败",
+    "upload": "上传",
+    "replace": "替换",
+    "personalInfo": {
+      "fullName": "全名（与护照一致）",
+      "fullNamePlaceholder": "张三",
+      "dateOfBirth": "出生日期",
+      "dateOfBirthPlaceholder": "选择出生日期",
+      "placeOfBirth": "出生地",
+      "placeOfBirthPlaceholder": "城市，国家",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "other": "其他",
+      "nationality": "国籍",
+      "nationalityPlaceholder": "如：中国",
+      "occupation": "职业",
+      "occupationPlaceholder": "如：软件工程师",
+      "currentAddress": "现居地址",
+      "currentAddressPlaceholder": "街道，城市，国家"
+    },
+    "passport": {
+      "passportNumber": "护照号码",
+      "passportNumberPlaceholder": "PA1234567",
+      "issueDate": "签发日期",
+      "issueDatePlaceholder": "选择签发日期",
+      "expiryDate": "到期日期",
+      "expiryDatePlaceholder": "选择到期日期",
+      "issuingCountry": "签发国家",
+      "issuingCountryPlaceholder": "如：中国",
+      "issuingAuthority": "签发机关",
+      "issuingAuthorityPlaceholder": "如：出入境管理局"
+    },
+    "travel": {
+      "arrivalDate": "到达日期",
+      "arrivalDatePlaceholder": "选择到达日期",
+      "departureDate": "离开日期",
+      "departureDatePlaceholder": "选择离开日期",
+      "portOfEntry": "入境口岸",
+      "portOfEntryPlaceholder": "如：伍拉·赖国际机场（巴厘岛）",
+      "purposeOfVisit": "访问目的",
+      "selectPurpose": "选择目的...",
+      "tourism": "旅游",
+      "business": "商务",
+      "socialCultural": "社交/文化",
+      "familyVisit": "探亲",
+      "accommodationName": "住宿名称",
+      "accommodationNamePlaceholder": "酒店/民宿名称",
+      "accommodationAddress": "住宿地址",
+      "accommodationAddressPlaceholder": "印度尼西亚完整地址"
+    },
+    "documentUpload": {
+      "title": "文件上传",
+      "description": "上传印度尼西亚B211A旅游签证申请所需的全部文件。",
+      "uploadAllToContinue": "上传全部 {count} 份文件以继续。",
+      "docs": {
+        "passport_copy": "护照资料页（扫描件或照片）",
+        "photo": "近期护照尺寸照片",
+        "flight_booking": "航班预订确认",
+        "hotel_booking": "酒店/住宿预订",
+        "travel_itinerary": "旅行行程",
+        "bank_statement": "银行对账单（最近3个月）"
+      }
+    },
+    "review": {
+      "title": "审核您的申请",
+      "personalInformation": "个人信息",
+      "fullName": "全名",
+      "dateOfBirth": "出生日期",
+      "placeOfBirth": "出生地",
+      "gender": "性别",
+      "nationality": "国籍",
+      "occupation": "职业",
+      "address": "地址",
+      "passportDetails": "护照信息",
+      "passportNumber": "护照号码",
+      "issueDate": "签发日期",
+      "expiryDate": "到期日期",
+      "issuingCountry": "签发国家",
+      "issuingAuthority": "签发机关",
+      "travelInformation": "旅行信息",
+      "arrivalDate": "到达日期",
+      "departureDate": "离开日期",
+      "portOfEntry": "入境口岸",
+      "purpose": "目的",
+      "accommodation": "住宿",
+      "reviewMessage": "提交前请仔细检查您的信息。",
+      "confirmAndSubmit": "确认并提交"
+    },
+    "status": {
+      "title": "申请已提交",
+      "confirmationNumber": "确认号",
+      "submittedOn": "提交日期",
+      "estimatedProcessing": "预计处理时间",
+      "businessDays": "个工作日",
+      "message": "您的申请已提交至印度尼西亚电子签证门户。签证获批后您将收到电子邮件确认。请保存您的确认号以供参考。",
+      "viewReceipt": "查看收据",
+      "done": "完成"
+    },
+    "documentChecklist": {
+      "missingDocuments": "缺失文件（{count}）",
+      "missingDescription": "以下文件在提交申请前仍需上传：",
+      "uploadNow": "好的，我现在就上传",
+      "docs": {
+        "passport_copy": "护照资料页",
+        "photo": "护照尺寸照片",
+        "flight_booking": "航班预订确认",
+        "hotel_booking": "酒店预订确认",
+        "travel_itinerary": "旅行行程",
+        "bank_statement": "银行对账单（3个月）"
+      }
+    },
+    "statusCard": {
+      "applicationStatus": "申请状态",
+      "draft": "草稿",
+      "inProgress": "进行中",
+      "submitted": "已提交",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    }
+  },
+  "documents": {
+    "title": "文件",
+    "loading": "正在加载文件...",
+    "documentsUploaded": "已上传 {count}/{total} 份文件",
+    "percentComplete": "已完成 {pct}%",
+    "rejected": "被拒绝：",
+    "upload": "上传",
+    "uploading": "上传中...",
+    "reupload": "重新上传",
+    "replace": "替换",
+    "statusLabels": {
+      "uploaded": "已上传",
+      "validated": "已验证",
+      "missing": "缺失",
+      "rejected": "已拒绝"
+    },
+    "requiredDocs": {
+      "passport_copy": {
+        "label": "护照复印件",
+        "description": "护照资料页"
+      },
+      "photo": {
+        "label": "照片",
+        "description": "近期护照尺寸照片，白色背景"
+      },
+      "flight_booking": {
+        "label": "航班预订",
+        "description": "往返航班预订确认"
+      },
+      "hotel_booking": {
+        "label": "酒店预订",
+        "description": "住宿确认"
+      },
+      "travel_itinerary": {
+        "label": "旅行行程",
+        "description": "详细旅行计划"
+      },
+      "bank_statement": {
+        "label": "银行对账单",
+        "description": "最近3个月，显示充足资金"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "未经认证。请登录。",
+      "noProfile": "未找到申请人资料。请完成注册。",
+      "noApplication": "未找到申请。请开始您的申请。",
+      "uploadFailed": "上传失败：{message}",
+      "completeApplicationFirst": "请先完成您的申请，然后再上传文件。"
+    }
+  },
+  "chat": {
+    "searchChats": "搜索聊天",
+    "searchPlaceholder": "搜索聊天...",
+    "noResults": "未找到结果",
+    "sessionHistory": "会话历史",
+    "noConversations": "暂无对话",
+    "chatWith": "与",
+    "vizaAI": "VIZA AI",
+    "vizaAIDescription": "签证指导、文件帮助和问答",
+    "immediate": "即时回复",
+    "askSupportTeam": "咨询支持团队",
+    "supportDescription": "复杂问题和客户服务",
+    "supportResponseTime": "工作日<24小时",
+    "inputPlaceholder": "询问关于您的签证申请...",
+    "supportComingSoon": "支持团队聊天即将推出",
+    "connectionReconnecting": "连接问题 - 正在重新连接...",
+    "connectedSending": "已连接 - 正在发送排队消息",
+    "agentNotified": "您的签证顾问已收到此对话通知",
+    "failedToStart": "无法开始对话",
+    "willSendWhenConnected": "连接后将发送消息"
+  },
+  "inviteFriends": {
+    "heroTitle": "邀请您的朋友",
+    "heroSubtitle": "赚取奖励",
+    "referHeading": "推荐朋友赚取 ₱9,999",
+    "referDescription": "与朋友和家人分享您的专属推荐链接。当他们注册后，你们各自将获得 ₱9,999 可在VIZA服务中使用。",
+    "referralLink": "推荐链接",
+    "loadingLink": "正在加载您的链接...",
+    "copyLink": "复制链接",
+    "copied": "已复制！",
+    "orInviteViaEmail": "或通过电子邮件邀请",
+    "emailPlaceholder": "您朋友的电子邮件",
+    "sendInvite": "发送邀请",
+    "sending": "发送中...",
+    "howItWorks": "如何运作",
+    "steps": {
+      "share": {
+        "title": "分享您的专属链接",
+        "description": "使用您的专属推荐链接邀请朋友加入VIZA"
+      },
+      "give": {
+        "title": "赠送朋友 ₱9,999",
+        "description": "当您的朋友加入VIZA时，他们将获得 ₱9,999 在VIZA服务中使用"
+      },
+      "earn": {
+        "title": "赚取 ₱9,999 积分",
+        "description": "您的每位朋友使用您的链接注册，您也将获得 ₱9,999。"
+      },
+      "redeem": {
+        "title": "兑换您的积分",
+        "description": "在VIZA服务页面使用您的积分。"
+      }
+    },
+    "faqTitle": "常见问题",
+    "faqs": {
+      "whenReward": {
+        "question": "我什么时候能获得奖励？",
+        "answer": "您的奖励将在您的朋友完成首次购买后24小时内计入您的账户。"
+      },
+      "howUseCredit": {
+        "question": "如何使用积分？",
+        "answer": "积分可在购买VIZA服务页面的任何服务时在结账时使用。"
+      },
+      "whoEligible": {
+        "question": "谁有资格？",
+        "answer": "仅限新会员。每位新会员一次折扣。"
+      }
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "loading": "正在加载您的设置...",
+    "tabs": {
+      "billing": "账单",
+      "account": "账户"
+    },
+    "account": {
+      "title": "账户",
+      "email": "电子邮件",
+      "displayName": "显示名称",
+      "namePlaceholder": "您的全名",
+      "saveChanges": "保存更改",
+      "saving": "保存中...",
+      "failedToSave": "保存失败。",
+      "saved": "已保存。"
+    },
+    "signOut": {
+      "title": "退出登录",
+      "description": "从此设备退出您的账户。",
+      "button": "退出登录"
+    },
+    "billing": {
+      "title": "账单",
+      "noPaymentMethods": "没有付款方式",
+      "noPaymentDescription": "账单和付款管理即将推出。如需更新账单信息，请联系客服。"
+    }
+  },
+  "help": {
+    "heroTitle": "帮助中心",
+    "heroSubtitle": "查找答案、指南和账户支持。",
+    "quickLinks": {
+      "title": "快捷链接",
+      "accountProfile": {
+        "title": "账户和个人资料",
+        "description": "更新您的个人资料、密码和偏好设置。"
+      },
+      "referrals": {
+        "title": "推荐",
+        "description": "邀请朋友并追踪您的奖励。"
+      },
+      "payments": {
+        "title": "付款和积分",
+        "description": "查看交易、积分和收据。"
+      }
+    },
+    "guides": {
+      "title": "指南",
+      "gettingStarted": {
+        "title": "入门",
+        "completeProfile": "完善您的个人资料",
+        "addPayment": "添加付款方式",
+        "exploreServices": "探索服务"
+      },
+      "usingCredits": {
+        "title": "使用您的积分",
+        "whereApply": "积分适用范围",
+        "expiration": "过期规则",
+        "troubleshooting": "故障排除"
+      },
+      "privacy": {
+        "title": "隐私和安全",
+        "dataUsage": "数据使用",
+        "securityTips": "账户安全提示",
+        "twoFactor": "双重认证支持"
+      }
+    },
+    "faqTitle": "常见问题",
+    "faqs": {
+      "resetPassword": {
+        "question": "如何重置密码？",
+        "answer": "前往设置，打开安全部分重置密码。输入当前密码，然后两次输入新密码确认。更改立即生效。"
+      },
+      "seeCredits": {
+        "question": "在哪里查看积分？",
+        "answer": "积分显示在设置页面的账单部分，也会在您确认购买前的结账页面显示。"
+      },
+      "referrals": {
+        "question": "推荐如何运作？",
+        "answer": "从推荐朋友页面分享您的专属推荐链接。当朋友注册并完成首次购买后，你们各自将获得 ₱9,999 积分用于VIZA服务。"
+      },
+      "bookBloodTest": {
+        "question": "如何预约血液检测？",
+        "answer": "导航到服务标签，选择符合您目标的血液检测。按照预约流程选择日期和时间。您可以在已预约标签中查看和管理即将到来的预约。"
+      },
+      "labResults": {
+        "question": "何时收到实验室结果？",
+        "answer": "结果通常在抽血后3-5个工作日内可用。报告准备好后您会收到通知，可在数据标签中查看。"
+      },
+      "updateInfo": {
+        "question": "如何更新个人信息？",
+        "answer": "前往设置，选择个人资料标签。您可以更新姓名、出生日期、电话号码和地址。点击保存以应用更改。"
+      },
+      "updatePayment": {
+        "question": "如何添加或更新付款方式？",
+        "answer": "账单和付款方式管理目前由线下处理。请联系我们的客服团队更新您的账单信息。"
+      },
+      "cancelReschedule": {
+        "question": "可以取消或重新预约已预定的服务吗？",
+        "answer": "可以。打开服务标签，进入已预约预约。选择您要管理的预约，按提示重新预约或取消。"
+      },
+      "dataPrivate": {
+        "question": "我的健康数据是否保密？",
+        "answer": "是的。您的健康数据被安全存储，仅您和您的指定医疗团队可以访问。我们绝不会将个人健康信息出售给第三方。"
+      },
+      "contactSupport": {
+        "question": "如何联系客服？",
+        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.com 联系我们。"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "登录您的账户",
+      "noAccount": "还没有账户？",
+      "signUp": "注册",
+      "emailPlaceholder": "输入您的电子邮件",
+      "sendingCode": "正在发送验证码...",
+      "loginButton": "登录",
+      "noAccountFound": "未找到与此电子邮件关联的账户。请联系客服。",
+      "failedToSendCode": "发送验证码失败",
+      "noAccountWithEmail": "未找到与此电子邮件关联的账户",
+      "notRegistered": "此电子邮件未注册为申请人。",
+      "authFailed": "认证失败。请重试。",
+      "unexpectedError": "发生意外错误。请重试。",
+      "failedToResend": "重新发送验证码失败。",
+      "checkEmail": "查看您的邮箱",
+      "sentCodeTo": "我们已发送8位验证码到",
+      "clickLink": "点击邮件中的链接登录。",
+      "resendIn": "{seconds}秒后重新发送",
+      "resendCode": "重新发送验证码",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款"
+    },
+    "signup": {
+      "title": "申请您的账户",
+      "subtitle": "输入您的电子邮件，如果您符合条件，我们的团队将发送邀请。",
+      "emailPlaceholder": "输入您的电子邮件",
+      "invalidEmail": "请输入有效的电子邮件地址。",
+      "submitting": "提交中...",
+      "requestInvite": "申请邀请",
+      "thankYou": "谢谢。如果您符合访问条件，我们将通过电子邮件通知您。",
+      "urgentAccess": "如需紧急访问，请联系 support@viza.com。",
+      "backToLogin": "返回登录",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款"
+    },
+    "register": {
+      "accountCreated": "账户已创建！",
+      "accountCreatedMessage": "您的账户已成功创建。您现在可以登录开始使用VIZA。",
+      "goToLogin": "前往登录",
+      "validatingReferral": "正在验证推荐...",
+      "referredBy": "由 {name} 推荐——您将获得 ₱9,999 积分！",
+      "noReferralCode": "未找到推荐码。请使用有效的推荐链接注册。",
+      "invalidReferralCode": "无效的推荐码。请检查您的链接并重试。",
+      "createAccount": "创建您的账户",
+      "alreadyHaveAccount": "已有账户？",
+      "logIn": "登录",
+      "fullNamePlaceholder": "输入全名",
+      "emailPlaceholder": "输入您的电子邮件",
+      "creatingAccount": "正在创建账户...",
+      "signUpButton": "注册",
+      "agreeToTerms": "我同意",
+      "termsOfService": "服务条款",
+      "and": "和",
+      "privacyPolicy": "隐私政策",
+      "pleaseAgree": "请同意服务条款和隐私政策",
+      "invalidReferralLink": "无效的推荐链接",
+      "registrationFailed": "注册失败",
+      "unexpectedError": "发生意外错误。请重试。"
+    },
+    "loginForm": {
+      "email": "电子邮件地址",
+      "emailPlaceholder": "you@example.com",
+      "password": "密码",
+      "forgotPassword": "忘记密码？",
+      "passwordPlaceholder": "输入您的密码",
+      "signingIn": "正在登录...",
+      "signIn": "登录"
+    },
+    "polaroids": {
+      "sanFrancisco": "旧金山",
+      "newYork": "纽约",
+      "tokyo": "东京",
+      "sydney": "悉尼",
+      "beijing": "北京",
+      "egypt": "埃及",
+      "pisa": "比萨",
+      "singapore": "新加坡"
+    }
+  },
+  "terms": {
+    "title": "服务条款",
+    "subtitle": "管理您使用我们平台的规则和指南。",
+    "sections": {
+      "acceptance": {
+        "title": "接受条款",
+        "p1": "访问或使用 VIZA 平台即表示您同意受这些服务条款的约束。如果您不同意这些条款，请不要使用我们的服务。",
+        "p2": "这些条款适用于平台的所有用户，包括患者、注册会员以及访问我们服务的任何访客。"
+      },
+      "services": {
+        "title": "我们的服务",
+        "intro": "VIZA 提供远程医疗平台，将患者与持证医疗专业人员连接起来，提供咨询、实验室预约、健康评估和相关健康服务。",
+        "item1": "与持证医生进行在线医疗咨询。",
+        "item2": "血液检测预约和实验室结果交付。",
+        "item3": "通过服务市场购买营养品和产品。",
+        "item4": "个性化行动计划和健康建议。",
+        "item5": "为您的健康之旅提供礼宾支持。",
+        "disclaimer": "我们的平台不能替代紧急医疗护理。如果您正在经历医疗紧急情况，请立即联系当地紧急服务。"
+      },
+      "eligibility": {
+        "title": "资格",
+        "intro": "要使用我们的服务，您必须：",
+        "item1": "年满18岁，或获得父母或监护人的同意。",
+        "item2": "注册时提供准确、最新和完整的信息。",
+        "item3": "维护您的账户凭证安全。",
+        "item4": "居住在我们提供服务的地区。"
+      },
+      "responsibilities": {
+        "title": "用户责任",
+        "intro": "使用我们的平台时，您同意：",
+        "item1": "在咨询和问卷中提供真实和完整的健康信息。",
+        "item2": "负责任地遵循我们持证专业人员提供的医疗建议。",
+        "item3": "不与任何其他人共享您的账户凭证。",
+        "item4": "不将平台用于任何非法或未经授权的目的。",
+        "item5": "如果您怀疑有任何未经授权的账户访问，请立即通知我们。"
+      },
+      "visa": {
+        "title": "医疗免责声明",
+        "p1": "我们平台上的医疗服务由独立持证医师和医疗保健专业人员提供。VIZA 促进您获得这些专业人员的服务，但本身不从事医疗实践。",
+        "p2": "通过我们平台提供的健康信息仅供参考，不能替代专业医疗建议、诊断或治疗。如有任何疑问，请咨询您的医生或其他合格的医疗保健提供者。"
+      },
+      "payments": {
+        "title": "付款和积分",
+        "p1": "在我们的平台上进行购买即表示您授权我们通过您选择的付款方式收取适用费用。所有价格以菲律宾比索（PHP）显示。",
+        "p2": "通过推荐或促销获得的积分没有现金价值，不可转让。",
+        "p3": "退款受我们的退款政策和适用的菲律宾消费者保护法约束。",
+        "p4": "订阅费用（如有）预先计费，除法律要求外不可退款。"
+      },
+      "ip": {
+        "title": "知识产权",
+        "p1": "VIZA 平台上的所有内容、功能和操作——包括文本、图形、标识和软件——均为 VIZA 的专有财产，受适用知识产权法保护。未经我们明确书面许可，您不得复制、分发或创建衍生作品。"
+      },
+      "liability": {
+        "title": "责任限制",
+        "p1": "在法律允许的最大范围内，VIZA 不对因您使用或无法使用我们的服务而产生的任何间接、附带、特殊、后果性或惩罚性损害承担责任。我们对您因这些条款产生的任何索赔的总责任不超过您在索赔前十二个月内向我们支付的金额。"
+      },
+      "termination": {
+        "title": "终止",
+        "p1": "我们保留自行决定暂停或终止您访问平台的权利，恕不另行通知，原因包括我们认为违反这些服务条款或对其他用户、我们或第三方有害的行为。",
+        "p2": "您可以随时通过联系我们的客服团队关闭您的账户。终止不影响在终止日期之前产生的任何权利或义务。"
+      },
+      "changes": {
+        "title": "条款变更",
+        "p1": "我们可能会不时更新这些服务条款。我们将通过在此页面上发布更新后的条款来通知您重大变更。在变更生效后继续使用我们的平台即表示您接受修订后的条款。"
+      },
+      "law": {
+        "title": "管辖法律",
+        "p1": "这些服务条款受菲律宾共和国法律管辖并据此解释。因这些条款产生的任何争议应受菲律宾法院的专属管辖。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.com。"
+      }
+    }
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "subtitle": "我们如何收集、使用和保护您的个人信息。",
+    "sections": {
+      "introduction": {
+        "title": "简介",
+        "p1": "VIZA（\u201c我们\u201d）致力于保护您的隐私。本隐私政策说明了当您使用我们的平台和相关服务时，我们如何收集、使用、披露和保护您的信息。",
+        "p2": "访问或使用我们的服务即表示您同意按照本政策收集和使用信息。请在使用我们的平台之前仔细阅读。"
+      },
+      "collect": {
+        "title": "我们收集的信息",
+        "intro": "我们收集您直接提供给我们的信息以及通过您使用我们服务生成的信息。",
+        "item1": "个人标识信息，如您的姓名、电子邮件地址、电话号码和出生日期。",
+        "item2": "健康和医疗信息，包括实验室结果、生命体征、病史、过敏史和当前用药。",
+        "item3": "通过我们的支付提供商安全处理的付款信息。",
+        "item4": "您与我们医疗团队之间的通信，包括咨询记录和消息。",
+        "item5": "设备和使用数据，如IP地址、浏览器类型和访问的页面。"
+      },
+      "use": {
+        "title": "我们如何使用您的信息",
+        "intro": "我们使用收集的信息来提供和改进我们的服务，包括：",
+        "item1": "提供远程医疗咨询、实验室预约和处方服务。",
+        "item2": "就您的健康、预约和订单与您沟通。",
+        "item3": "通过我们的平台处理付款和履行订单。",
+        "item4": "提高我们健康评估的准确性和质量。",
+        "item5": "遵守适用的法律、法规和医疗标准。",
+        "noSell": "我们绝不会将您的个人或健康信息出售给第三方用于营销目的。"
+      },
+      "sharing": {
+        "title": "信息共享",
+        "intro": "我们仅在以下有限情况下共享您的信息：",
+        "item1": "与参与您护理的持证医疗专业人员。",
+        "item2": "与履行您订单所需的可信服务提供商（如实验室、药房）。",
+        "item3": "与支付处理商安全完成交易。",
+        "item4": "法律、法院命令或适用法规要求时。",
+        "item5": "经您明确同意用于任何其他目的。"
+      },
+      "security": {
+        "title": "数据安全",
+        "p1": "我们实施行业标准的安全措施，以保护您的信息免受未经授权的访问、更改、披露或销毁。这些措施包括传输和存储加密、基于角色的访问控制以及定期安全审查。",
+        "p2": "虽然我们采取了所有合理的预防措施，但没有任何互联网传输方法是100%安全的。我们建议您保护好您的账户凭证，如果您怀疑有未经授权的访问，请立即通知我们。"
+      },
+      "rights": {
+        "title": "您的权利",
+        "intro": "您对您的个人信息享有以下权利：",
+        "access": "访问：请求获取我们持有的关于您的个人信息副本。",
+        "correction": "更正：请求更正不准确或不完整的信息。",
+        "deletion": "删除：请求删除您的个人信息，但须遵守法律和医疗记录保留义务。",
+        "portability": "可携带性：在适用的情况下，请求以机器可读格式获取您的数据。",
+        "withdrawal": "撤回同意：随时撤回对非必要数据处理的同意。"
+      },
+      "retention": {
+        "title": "数据保留",
+        "p1": "我们保留您的个人和健康信息，只要提供我们的服务和遵守适用法律所必需。医疗记录可能按照菲律宾医疗法规的要求保留最低期限。"
+      },
+      "changes": {
+        "title": "政策变更",
+        "p1": "我们可能会不时更新本隐私政策。我们将通过在此页面上发布新政策并更新生效日期来通知您任何重大变更。我们建议您定期查看本政策。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.com。"
+      }
+    }
+  }
+}

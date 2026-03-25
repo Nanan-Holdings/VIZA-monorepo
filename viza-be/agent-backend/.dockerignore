@@ -1,0 +1,72 @@
+# Node modules (will be installed during build)
+node_modules/
+npm-debug.log
+
+# Environment files (secrets should come from Secret Manager)
+.env
+.env.*
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Test files
+tests/
+*.test.ts
+*.spec.ts
+*.test.js
+*.spec.js
+vitest.config.ts
+
+# Documentation
+*.md
+docs/
+README.md
+CHANGELOG.md
+
+# Build output (will be regenerated)
+dist/
+
+# Development files
+.eslintrc*
+eslint.config.js
+.prettierrc*
+# NOTE: tsconfig.json is needed for TypeScript build - do NOT exclude
+
+# Scripts (not needed in production)
+scripts/
+datasets/
+
+# Drizzle files (migrations run separately)
+drizzle.config.ts
+database/
+
+# Cloud Build files (not needed in container)
+cloudbuild.yaml
+cloudbuild-*.yaml
+trigger-config.yaml
+Dockerfile
+Dockerfile.*
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+

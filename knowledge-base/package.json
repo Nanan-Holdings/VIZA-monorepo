@@ -1,0 +1,20 @@
+{
+  "name": "knowledge-base",
+  "version": "1.0.0",
+  "description": "VIZA knowledge base ingest scripts for Indonesia B211A tourist visa",
+  "scripts": {
+    "ingest-indonesia": "ts-node scripts/ingest-indonesia-tourist.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.3.1",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

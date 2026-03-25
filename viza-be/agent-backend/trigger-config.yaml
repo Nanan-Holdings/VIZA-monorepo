@@ -1,0 +1,31 @@
+# Cloud Build Trigger Configuration for agent-backend-staging
+# Import this via: gcloud builds triggers import --source=trigger-config.yaml
+
+name: agent-backend-staging
+description: Build and deploy agent-backend to Cloud Run on push to main
+serviceAccount: projects/ph-senate/serviceAccounts/90232041254-compute@developer.gserviceaccount.com
+includeBuildLogs: INCLUDE_BUILD_LOGS_WITH_STATUS
+github:
+  owner: carbonsynctech
+  name: viza-monorepo
+  push:
+    branch: ^main$
+filename: agent-backend/cloudbuild.yaml
+includedFiles:
+  - agent-backend/**
+substitutions:
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: ph-senate
+  _PLATFORM: managed
+  _SERVICE_NAME: agent-backend-staging
+  _DEPLOY_REGION: asia-southeast1
+  _AR_HOSTNAME: asia-southeast1-docker.pkg.dev
+  # ⚠️ SET THESE IN CLOUD BUILD TRIGGER SUBSTITUTION VARIABLES — NOT HERE
+  _NEXT_PUBLIC_SUPABASE_URL: "REPLACE_VIA_TRIGGER"
+  _NEXT_PUBLIC_SUPABASE_ANON_KEY: "REPLACE_VIA_TRIGGER"
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - agent-backend
+  - medical-agent
+

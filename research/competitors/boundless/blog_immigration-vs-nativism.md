@@ -1,0 +1,307 @@
+Published Time: 2025-12-06T04:47:04.895Z
+
+# Nativism and Immigration
+
+[**Start Your Visa Application Today!**](https://boundlessimmigration.typeform.com/to/WbspxfM9?)
+
+[![Image 1](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/69093bc5ccc966e0a95993fe_close_x.svg)](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[![Image 2: Boundless Logo](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a2e9b76ea37c7e45801fe8_Boundless%20Logo.svg)](https://www.boundless.com/?r=0)
+
+Why Boundless
+
+Back
+
+#### Why Boundless
+
+[About Us](https://www.boundless.com/why-boundless)[Our Attorneys](https://www.boundless.com/drafts/attorneys-archives)[Careers](https://www.boundless.com/careers/)[Press](https://www.boundless.com/press)[Company News](https://www.boundless.com/blog)[Contact Us](https://www.boundless.com/contact)
+
+For Business
+
+Back
+
+#### For Business
+
+BUSINESS SOLUTIONS
+
+[Case Management](https://www.boundless.com/services/business/case-lifecycle-management)[Workflow Automation](https://www.boundless.com/services/business/petition-workflow-automation)[Employee Engagement](https://www.boundless.com/services/business/employee-engagement)[Legal Support](https://www.boundless.com/services/business/integrated-legal-support)[Compliance Management](https://www.boundless.com/services/business/compliance-risk-management)[HR System Integration](https://www.boundless.com/services/business/hr-system-integration)
+
+BY INDUSTRY
+
+[Healthcare & Life Sciences](https://www.boundless.com/services/business/healthcare-lifescience)[Construction & Engineering](https://www.boundless.com/services/business/engineering)[Technology & Science](https://www.boundless.com/services/business/technology-science-ai)[Financial Services](https://www.boundless.com/services/business/financial-services)
+
+BY VISA TYPE
+
+[H-1B](https://www.boundless.com/immigration-resources/the-h-1b-visa-explained)[EB-1A](https://www.boundless.com/services/individuals/eb-1a)[TN](https://www.boundless.com/immigration-resources/tn-status-explained)[L-1](https://www.boundless.com/immigration-resources/l-1-visa-explained)[O-1](https://www.boundless.com/services/individuals/the-o-1-visa-for-extraordinary-individuals)
+
+[**Business Overview**](https://www.boundless.com/services/business)
+
+[**Contact Us**](https://www.boundless.com/contact)
+
+[##### Corporate Immigration Modernization Building an Immigration Program You Control ![Image 3](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68dc4be7ea02b1edb7e1c66d_simple_texture.avif)](https://www.boundless.com/lp/corporate-immigration-modernization-white-paper/)
+
+[**See all business resources**](https://www.boundless.com/business-immigration-resources)
+
+For Individuals
+
+Back
+
+#### For Individuals
+
+FAMILY-BASED IMMIGRATION
+
+[Marriage Green Card via Adjustment of Status](https://www.boundless.com/services/individuals/marriage-green-card-adjustment-of-status)[Marriage Green Card for an Immigrant Spouse](https://www.boundless.com/services/individuals/marriage-green-card-outside-the-us)[K-1 Fiancé Visa](https://www.boundless.com/services/individuals/k1-fiance-visa)[Removal of Conditions](https://www.boundless.com/services/individuals/remove-conditions-on-your-green-card)[B1/B2 Tourism Visas](https://www.boundless.com/services/individuals/b-1-b-2-travel-visa)
+
+CAREER-BASED IMMIGRATION
+
+[EB-1A](https://www.boundless.com/services/individuals/eb-1a)[E-2 Treaty Investor Visa](https://www.boundless.com/services/individuals/e-2-investor-visa-for-entrepreneurs)[O-1 Visa for Extraordinary Individuals](https://www.boundless.com/services/individuals/the-o-1-visa-for-extraordinary-individuals)[B1/B2 Business Trip Visa](https://www.boundless.com/services/individuals/b-1-b-2-travel-visa)
+
+[**Individuals Overview**](https://www.boundless.com/services/individuals)
+
+[E/O Visa Eligibility](https://boundlessimmigration.typeform.com/to/K0lTIRIn)
+
+![Image 4: A woman happily looks up, her husband and child look at her also looking happy, they seem to walk near a beach.](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68d1ed5f0f4ecf1ac7cfb451_home-individuals.avif)
+
+###### Explore visas that match your path
+
+Wherever you go, Boundless is with you from start to finish.
+
+[**Get Started**](https://explore.boundless.com/)
+
+Resources
+
+Back
+
+#### Resources
+
+[Immigration Resources for Individuals](https://www.boundless.com/immigration-resources)[Immigration Resources for Businesses](https://www.boundless.com/business-immigration-resources)[Research and Reports](https://www.boundless.com/research-reports)[Blog](https://www.boundless.com/blog)
+
+WHITEPAPER
+
+###### Corporate Immigration Modernization: Building an Immigration Program You Control
+
+[Get the whitepaper](https://www.boundless.com/lp/corporate-immigration-modernization-white-paper/)
+
+![Image 5](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68d159ee3d9e97e6eb02e0d6_search.svg)
+
+Back
+
+QUICK LINKS
+
+[Business Resources](https://www.boundless.com/business-immigration-resources)[Individual Resources](https://www.boundless.com/immigration-resources)[Visa Bulletin](https://www.boundless.com/blog/visa-bulletin)
+
+[Log In](https://www.boundless.com/login)
+
+Author:
+
+Alison Moodie
+
+**Updated**
+
+August 28, 2024
+
+Immigration History
+
+# Nativism and Immigration
+
+From colonial times to today, tensions between nativists and immigrants have been a recurring theme throughout American history.
+
+![Image 6](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/68c381087914cf1dc969e735_image-37.jpeg)
+
+Table of Contents
+
+![Image 7](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68d13f70e8299972665f61af_Polygon%201%20(2).svg)
+
+[Example H2](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[Example H3](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[Example H4](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[Example H5](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[Example H6](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+![Image 8](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/68c3bcd91012160cfdd0dc10_image-30-700x623.png)
+
+An anti-Catholic editorial cartoon from 1943
+
+From the earliest days of European colonialism to the present, tensions between so-called nativists and immigrants have been a recurring theme in American history. During colonial times and in the United States' first decades, nativist sympathies focused on suspicions of Catholics, who often had connections to England and America's sometime rivals France and Spain. U.S. Catholics’ ties to a global church hierarchy headed by the Pope stoked fears of foreign conspiracies to undermine the new republic. During the Jacksonian era, anti-Catholic newspapers flourished and native Protestant and Irish Catholic gangs squared off in American cities. In 1845 [anti-Irish nativist riots](https://en.wikipedia.org/wiki/Philadelphia_nativist_riots) shook Philadelphia.
+
+{{newsletter-component}}
+
+The [Irish Potato Famine](https://www.history.com/topics/irish-potato-famine), which began in 1847, spurred huge waves of immigration — over the next eight years 2.75 million immigrants came to the United States, largely from Ireland. The most influential nativist group of the era, the [Know-Nothing Party](https://www.smithsonianmag.com/history/immigrants-conspiracies-and-secret-society-launched-american-nativism-180961915/), was formed in part out of fear of growing Catholic influence in the Democratic Party. The Know-Nothing Party (so named because their fear of conspiracy led members to habitually deny knowledge of their party's workings) renamed itself the American Party and nominated former president Millard Fillmore in the 1856 Presidential Election (he lost to James Buchanan). The Know-Nothings' influence faded during the Civil War.
+
+During the second half of the 19th century, large numbers of immigrants from southern and eastern Europe came to the United States. The majority of these were Catholics or Jews, and few of them spoke English. This wave of immigration spurred a new nativist reaction championed by many Progressive politicians, who stoked fears that foreigners were taking the country from native-born Americans. During the era, relatively small numbers of Japanese and [Chinese immigrants](https://www.boundless.com/immigration-resources/by-country/china/) stoked nativist fears in the western U.S., spurring the [1882 Chinese Exclusion Act](http://ocp.hul.harvard.edu/immigration/exclusion.html).
+
+During World War I, anti-German sentiment flared in the U.S., spurring harassment of German immigrants and their descendants. After the war, the turmoil of the Russian Revolution led to "Red Scares" that targeted Eastern European immigrants — many of them U.S. citizens — whose leftist politics led them to be viewed as subversives. Meanwhile, anti-Catholic sentiment rose again with the founding, in 1915, of the modern [Ku Klux Klan](https://www.theatlantic.com/politics/archive/2016/12/second-klan/509468/), which harassed Catholics, Jews, and immigrants as well as African Americans. In the American Southwest and California, anti-Mexican sentiment led to mass deportations in the 1920s and 1930s.
+
+Nativist sentiment declined in the decades after World War II, in large part due to the longstanding effects of the Immigration Act of 1924, which had severely restricted immigration from non-northern-European countries: there were simply fewer immigrants to be alarmed about. The [Immigration and Nationality Act of 1965](https://en.wikipedia.org/wiki/Immigration_and_Nationality_Act_of_1965) and a follow-up act [in 1990](https://en.wikipedia.org/wiki/Immigration_Act_of_1990) opened up U.S. immigration to people from all over the world again. In recent decades, nativist sentiment has risen again in some quarters, in part over concerns about the millions of undocumented immigrants, mostly from Mexico and Central America, who live and work in the U.S.
+
+## Not what you were looking for?
+
+If you were expecting a textbook or academic study website, you may be looking for the former Boundless website. [Boundless Immigration](https://www.boundless.com/) empowers families to navigate the immigration system more confidently, rapidly, and affordably with the help of our award-winning software and independent [immigration lawyers](https://www.boundless.com/attorneys/).
+
+Learn more about [marriage green cards](https://www.boundless.com/immigration-resources/marriage-based-green-cards-explained/) and [U.S. citizenship](https://www.boundless.com/immigration-resources/naturalization-explained/) in our [immigration resource library](https://www.boundless.com/immigration-resources/).
+
+No items found.
+
+No items found.
+
+![Image 9](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 10](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 11](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 12](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 13](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 14](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 15](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 16](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 17](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+![Image 18](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b6a07b6588e35fdb5e04f1_Icons%20(3).svg)
+
+Subscribe to our newsletter
+
+Get peace of mind with attorney-reviewed forms, step-by-step instructions, and live support — all for one flat fee.
+
+Thank you! Your submission has been received!
+
+Oops! Something went wrong while submitting the form.
+
+![Image 19](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b97936e2b340d734e03cef_Placeholder%20Image%20(8).png)
+
+[](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+[](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+Name
+
+**Company**
+
+**Number**
+
+**Team**
+
+Full name
+
+Test
+
+14
+
+Team name
+
+Full name
+
+Company
+
+14
+
+Team name
+
+Full name
+
+Company
+
+14
+
+Team name
+
+Full name
+
+Company
+
+14
+
+Team name
+
+Full name
+
+Company
+
+14
+
+Team name
+
+[![Image 20: The icon of a page of paper symbolizing files](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a5c116919ee34692909c9d_file.svg)](https://www.boundless.com/blog/immigration-vs-nativism#)[![Image 21: The icon of a page of paper symbolizing files](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a5c116919ee34692909c9d_file.svg)](https://www.boundless.com/blog/immigration-vs-nativism#)[![Image 22: The icon of a page of paper symbolizing files](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a5c116919ee34692909c9d_file.svg)](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+![Image 23](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b97936e2b340d734e03cef_Placeholder%20Image%20(8).png)
+
+[**Get the guide**](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+![Image 24](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68b97c5d1b296bc56706103c_Frame%202087326194%20(1).png)
+
+![Image 25](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/68adc1963f4aa359063960fa_alison-moodie.jpg)
+
+Alison Moodie
+
+Head of Content
+
+[Request a consultation](https://www.boundless.com/contact)
+
+[**Copy Link**](https://www.boundless.com/blog/immigration-vs-nativism#)
+
+### Related Articles
+
+[U.S. Immigration News ###### Visa Bulletin for April 2026 Check the April Visa Bulletin now to see if your priority date is current and you can start your green card application process. ![Image 26](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/68ded0f132463d1a23af5163_1025_Visa%20Bulletin.jpg)](https://www.boundless.com/blog/visa-bulletin)
+
+[U.S. Immigration News ###### U.S. Cuts Citizenship Renunciation Fee by 80% — What It Means A long-contested fee drops from $2,350 to $450, making it easier for Americans abroad to give up citizenship. ![Image 27](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/69ba68b1a889ed76a53e8c8c_AdobeStock_636438580.jpeg)](https://www.boundless.com/blog/us-citizenship-renunciation-fee-cut)
+
+[U.S. Immigration News ###### State Department Brings Back Passport Requirement for Diversity Visa Lottery A new final rule will require many green card lottery entrants to submit passport details and a passport scan at the time of entry. ![Image 28](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/69b3cd303fe190e11c9dab1f_AdobeStock_520350072.jpeg)](https://www.boundless.com/blog/diversity-visa-passport-requirement-2026)
+
+[U.S. Immigration News ###### This Week in Immigration: March 13, 2026 This week's round-up of the biggest, need-to-know immigration news, brought to you by Boundless Immigration. ![Image 29](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/6930e7954c94b5b8d3390426_AdobeStock_1077382038.jpeg)](https://www.boundless.com/blog/boundless-weekly-immigration-news)
+
+[Business Immigration ###### USCIS Updates Form I-129 Ahead of H-1B Cap Season Employers will need to provide more detail about job requirements and wage levels when filing H-1B petitions ![Image 30](https://cdn.prod.website-files.com/68a3050860dd863f875cffa9/69aae83849569bd0bc05bf9b_AdobeStock_558703997.jpeg)](https://www.boundless.com/blog/uscis-new-form-i129-h1b-wage-level)
+
+[**All Articles**](https://www.boundless.com/blog)
+
+### Start your journey
+
+[**Check Eligibility**](https://explore.boundless.com/)
+
+4 months
+
+625
+
+675
+
+BUSINESS SOLUTIONS
+
+[Business Services](https://www.boundless.com/services/business)[Case Management](https://www.boundless.com/services/business/case-lifecycle-management)[Workflow Automation](https://www.boundless.com/services/business/petition-workflow-automation)[Employee Engagement](https://www.boundless.com/services/business/employee-engagement)[Legal Support](https://www.boundless.com/services/business/integrated-legal-support)[Compliance Management](https://www.boundless.com/services/business/compliance-risk-management)[HR System Integration](https://www.boundless.com/services/business/hr-system-integration)
+
+FAMILY IMMIGRATION
+
+[Guide to Family Immigration](https://www.boundless.com/immigration-resources/complete-guide-to-family-based-immigration/)[Green Cards](https://www.boundless.com/immigration-resources/the-green-card-explained/)[Marriage Based](https://www.boundless.com/immigration-resources/marriage-based-green-cards-explained/)[K-1 Fiancé Visa](https://www.boundless.com/immigration-resources/k-1-fiancee-visa-explained/)[Removal of Conditions](https://www.boundless.com/immigration-resources/conditional-permanent-residency/)[Adjustment of Status](https://www.boundless.com/immigration-resources/adjustment-status-process-explained/)[B1 / B2 Visitor Visa](https://www.boundless.com/immigration-resources/b-1-b-2-visitor-visa-explained/)[Student Visas](https://www.boundless.com/immigration-resources/us-student-visas-explained/)[Citizenship](https://www.boundless.com/immigration-resources/naturalization-explained/)
+
+WORK VISAS
+
+[Guide to Work Visas](https://www.boundless.com/immigration-resources/types-of-us-work-visas/)[EAD Cards](https://www.boundless.com/immigration-resources/form-i766-ead-card/)[H-1B](https://www.boundless.com/immigration-resources/the-h-1b-visa-explained/)[EB-1](https://www.boundless.com/immigration-resources/eb-1-visa-explained/)[EB-2](https://www.boundless.com/immigration-resources/eb2-visa-explained/)[EB-3](https://www.boundless.com/immigration-resources/eb-3-visa-explained/)[O-1](https://www.boundless.com/immigration-resources/o-1-visa-explained/)[L-1](https://www.boundless.com/immigration-resources/l-1-visa-explained/)[E-2](https://www.boundless.com/immigration-resources/e-2-visa-explained-2/)[PERM](https://www.boundless.com/immigration-resources/perm-application-cost-approval/)
+
+Resources
+
+[U.S. Immigration 101](https://www.boundless.com/immigration-resources/us-immigration-explained/)[Family & Individual Guides](https://www.boundless.com/immigration-resources/)[Business Immigration Guides](https://www.boundless.com/business-immigration-resources/)[Visa Bulletin](https://www.boundless.com/blog/visa-bulletin/)[Immigration Forms](https://www.boundless.com/immigration-resources/uscis-gov-immigration-forms-and-fees/)[Processing Times](https://www.boundless.com/immigration-resources/uscis-processing-times/)[Immigration Research](https://www.boundless.com/research/)
+
+company
+
+[Our Expertise](https://www.boundless.com/about/)[Our Leadership](https://www.boundless.com/why-boundless#leadership)[Our Lawyers](https://www.boundless.com/drafts/attorneys-archives)[Boundless Services](https://www.boundless.com/services/)[Careers](https://www.boundless.com/careers/)[Company News](https://www.boundless.com/press/)[Blog](https://www.boundless.com/blog)[Press](https://www.boundless.com/press)[Media Resources](https://www.boundless.com/media)[Research &Reports](https://www.boundless.com/research-reports)
+
+[![Image 31: Boundless Logo](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a5ac0814c1f39fd337da2b_logo%20(7).svg)](https://www.boundless.com/?r=0)
+
+©2017 - 2026, Boundless Immigration Inc.
+
+[Privacy](https://www.boundless.com/privacy/)[Security](https://www.boundless.com/security/)[Editorial](https://www.boundless.com/editorial-policy/)[Terms](https://www.boundless.com/terms/)[Contact Boundless](https://www.boundless.com/contact)
+
+Disclaimer: Boundless Immigration, Inc. is not a law firm. Legal services are provided by Boundless Legal Services, a law firm wholly owned and controlled by licensed attorneys. Boundless Legal Service's attorneys are authorized to provide legal services in all 50 states and exercise independent professional judgment. For legal advice specific to your case, please consult with a licensed attorney. Nothing on this website, including guides and resources, is intended to be legal advice, and use of this site does not create an attorney-client relationship. Boundless Immigration is not affiliated with or endorsed by United States Citizenship and Immigration Services (USCIS) or any other government agency. Blank immigration forms and instructions are available for free at the USCIS website. Use of this site is subject to our Privacy Policy and Terms of Use. If you have any questions, please contact us at [attorneys@boundless.com](mailto:attorneys@boundless.com) .
+
+![Image 32: Better Business Bureau (BBB) logo with text B and B on a blue background.](https://cdn.prod.website-files.com/689e09427059afed9bd7b4a5/68a5ae052b174e240e4f7f16_BBB%20Logo%20(1).avif)
+
+[300 Lenora Street #521, Seattle, WA 98121](https://goo.gl/maps/BcMhPgwp1JGCVet59)[(855) 268 - 6353](tel:1-855-268-6353)[be@boundless.com](mailto:be@boundless.com)
+
+[](https://www.facebook.com/ChooseBoundless/)[](https://twitter.com/chooseboundless)[](https://www.linkedin.com/company/boundless-immigration/)

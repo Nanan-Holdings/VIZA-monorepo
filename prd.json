@@ -1,0 +1,336 @@
+{
+    "project": "viza",
+    "branchName": "feat/viza-platform",
+    "description": "VIZA AI visa application platform - Indonesian tourist visa B211A demo",
+    "userStories": [
+        {
+            "id": "US-001",
+            "title": "Create VIZA database schema and Drizzle migrations",
+            "description": "As a developer, I want a clean VIZA database schema so the app has the correct tables for visa applications.",
+            "acceptanceCriteria": [
+                "Drizzle schema files created for: applicant_profiles, applications, application_documents, submission_queue, visa_chat_sessions, visa_chat_messages, visa_documents, visa_chunks",
+                "visa_chunks has embedding column of type vector(1536) for OpenAI text-embedding-3-small",
+                "applicant_profiles.language_pref defaults to 'en'",
+                "applications.country defaults to 'indonesia', visa_type defaults to 'tourist_b211a', status defaults to 'draft'",
+                "Drizzle config points to Supabase project: https://oyjxdzsoejraedqghndi.supabase.co",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/db",
+                "viza-be/agent-backend/drizzle.config.ts",
+                "viza-be/agent-backend/drizzle"
+            ],
+            "priority": 1,
+            "passes": true,
+            "notes": "Create schema files under src/db/ matching the VIZA data model. The Supabase project URL is https://oyjxdzsoejraedqghndi.supabase.co. The pgvector extension must be enabled on the Supabase project (add a note in README or migration). Use Drizzle ORM patterns. Do not touch any frontend files."
+        },
+        {
+            "id": "US-002",
+            "title": "Write agent soul and wire Anthropic Claude SDK as AI provider",
+            "description": "As a developer, I want the chatbot to use Claude as its AI model with a VIZA visa assistant persona.",
+            "acceptanceCriteria": [
+                "src/agent/soul.md written for VIZA visa assistant - English only, warm and practical, guides applicants through Indonesian tourist visa application",
+                "Anthropic SDK (@anthropic-ai/sdk) is used directly for all AI calls",
+                "Model used is claude-sonnet-4-5",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/agent",
+                "viza-be/agent-backend/src/agent/soul.md",
+                "viza-be/agent-backend/package.json"
+            ],
+            "priority": 2,
+            "passes": true,
+            "notes": "Use direct Anthropic SDK calls with claude-sonnet-4-5. The soul.md should describe: VIZA visa assistant, English Phase 1, warm tone, explains why each document is needed, does not make applicants feel stupid, knows Indonesian tourist visa B211A requirements."
+        },
+        {
+            "id": "US-003",
+            "title": "Build knowledge domain with VisaKnowledgeService and OpenAI embeddings",
+            "description": "As a developer, I want a RAG knowledge service that queries VIZA visa requirements using OpenAI text-embedding-3-small for semantic search.",
+            "acceptanceCriteria": [
+                "VisaKnowledgeService created with OpenAI text-embedding-3-small (1536 dimensions) via openai npm package",
+                "Semantic search queries visa_chunks table via pgvector cosine similarity",
+                "Tool: query-visa-requirements({ country, visa_type, query }) returns relevant passages",
+                "Tool: get-document-checklist({ country, visa_type }) returns structured required documents list for Indonesia tourist_b211a",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/agent/domains/knowledge",
+                "viza-be/agent-backend/package.json"
+            ],
+            "priority": 3,
+            "passes": true,
+            "notes": "The pgvector search should filter by country and visa_type metadata columns. Indonesia B211A required docs hardcoded as fallback if DB is empty: passport bio page, photo, flight booking, hotel booking, travel itinerary, bank statement."
+        },
+        {
+            "id": "US-004",
+            "title": "Build domains/application - visa application state management tools",
+            "description": "As a developer, I want agent tools to read and write visa application state from Supabase so the chatbot can track document collection progress.",
+            "acceptanceCriteria": [
+                "domains/application created with visa application management tools",
+                "Tool: get-application-status({ applicationId }) returns current application row + all application_documents rows",
+                "Tool: update-application-field({ applicationId, field, value }) patches applications or applicant_profiles table",
+                "Tool: check-document-completeness({ applicationId }) returns list of missing required document types for Indonesia tourist_b211a",
+                "Tool: mark-document-received({ applicationId, documentType, storagePath }) inserts or updates application_documents row",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/agent/domains/application"
+            ],
+            "priority": 4,
+            "passes": true,
+            "notes": "Required document types for Indonesia B211A: passport_copy, photo, flight_booking, hotel_booking, travel_itinerary, bank_statement. The check-document-completeness tool should compare uploaded docs against this list and return what is missing."
+        },
+        {
+            "id": "US-005",
+            "title": "Build domains/submission, escalation, and conversation",
+            "description": "As a developer, I want the submission, escalation and conversation domains implemented for the VIZA visa context.",
+            "acceptanceCriteria": [
+                "domains/submission created - tool: trigger-submission({ applicationId }) validates all docs present then inserts into submission_queue table with status='pending'",
+                "trigger-submission returns error if required documents are missing",
+                "domains/escalation created - escalate-to-agent tool for visa-related escalations",
+                "domains/conversation created with visa_chat_sessions and visa_chat_messages tables",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/agent/domains/submission",
+                "viza-be/agent-backend/src/agent/domains/escalation",
+                "viza-be/agent-backend/src/agent/domains/conversation"
+            ],
+            "priority": 5,
+            "passes": true,
+            "notes": "The trigger-submission tool must first call check-document-completeness - if anything is missing, return an error message listing what is needed. Only insert into submission_queue when all 6 required documents are present."
+        },
+        {
+            "id": "US-006",
+            "title": "Implement Socket.io component protocol - shared TypeScript types",
+            "description": "As a developer, I want typed definitions for the inline component events so both the backend and frontend share the same contract.",
+            "acceptanceCriteria": [
+                "Shared types file defines ComponentEvent and ComponentCompleteEvent interfaces",
+                "ComponentEvent has: type='component', component (enum of all step + primitive component names), componentId (uuid), props (typed per component)",
+                "ComponentCompleteEvent has: type='component_complete', componentId, result",
+                "Component names enum includes: PersonalInfoStep, PassportStep, TravelInfoStep, DocumentUploadStep, ReviewStep, StatusStep, FileUploadCard, DatePickerCard, FormCard, DocumentChecklistCard, ConfirmationCard, StatusCard",
+                "Backend emits ComponentEvent via Socket.io when agent tool requests a component render",
+                "Backend receives ComponentCompleteEvent and passes result back to agent as tool response",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/agent-backend/src/types",
+                "viza-be/agent-backend/src/websockets"
+            ],
+            "priority": 6,
+            "passes": true,
+            "notes": "Add a types/components.ts file with the full component protocol types. Update the websocket handler to emit component events from the agent and receive component_complete events from the client. The agent should be able to call a tool like render-component({ component: 'PassportStep', props: { prefill: {...} } }) which triggers the Socket.io emit."
+        },
+        {
+            "id": "US-007",
+            "title": "Frontend foundation - apply VIZA brand: fonts, colors, border radius, layout",
+            "description": "As a developer, I want the frontend to use VIZA brand identity with Switzer/Inter fonts and navy color palette.",
+            "acceptanceCriteria": [
+                "app/fonts.ts uses next/font/local for Switzer (public/fonts/switzer/Switzer-Variable.woff2) and Inter (public/fonts/inter/Inter-Variable.ttf)",
+                "app/layout.tsx applies font CSS variables: className includes switzer.variable and inter.variable on body",
+                "globals.css h1-h6 use var(--font-switzer), body uses var(--font-inter)",
+                "tailwind.config.ts brand color #03346E as brand-500/DEFAULT, full scale from 50-900",
+                "tailwind.config.ts --radius is 0.25rem (lg=4px, md=3px, sm=2px)",
+                "tailwind.config.ts font-heading/font-switzer = Switzer, font-sans/font-inter = Inter",
+                "App name set to 'VIZA' in metadata, title tags, layout",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/fonts.ts",
+                "viza-fe/internal-website/app/layout.tsx",
+                "viza-fe/internal-website/app/globals.css",
+                "viza-fe/internal-website/tailwind.config.ts",
+                "viza-fe/internal-website/app/client/layout.tsx"
+            ],
+            "priority": 7,
+            "passes": true,
+            "notes": "Font files are already in place: public/fonts/switzer/Switzer-Variable.woff2 and public/fonts/inter/Inter-Variable.ttf. The tailwind brand scale: 50=#EEF3FA, 100=#D4E0F0, 200=#AABFDF, 300=#7A9DCE, 400=#3D6DAD, 500=#03346E, 600=#022B5C, 700=#01214A, 800=#011737, 900=#000D21. Preserve existing layout structure, spacing, component hierarchy, and sizing. Only change: font families, brand color, and app name text."
+        },
+        {
+            "id": "US-008",
+            "title": "Build login page and /onboarding multi-step form",
+            "description": "As a new user, I want to log in with VIZA branding and complete an onboarding form so my applicant profile is saved before I start the visa application.",
+            "acceptanceCriteria": [
+                "Login page styled with VIZA branding (logo text, page title, button labels)",
+                "/client/onboarding page built with 4 steps: (1) full name/DOB/nationality, (2) passport number/issue date/expiry/issuing country, (3) travel dates/purpose, (4) email/phone/WeChat",
+                "On completion, data saved to applicant_profiles table via Supabase",
+                "onboarding_done set to true in applicant_profiles on completion",
+                "Returning users who have completed onboarding are redirected past /onboarding",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/client/(auth)",
+                "viza-fe/internal-website/app/client/onboarding"
+            ],
+            "priority": 8,
+            "passes": true,
+            "notes": "Preserve existing layout structure, spacing, card sizes, form field sizing, and visual hierarchy. Use VIZA brand colors and fonts. The onboarding page should use a step-by-step multi-step structure with visa applicant fields. Do not build the backend API - use Supabase client directly from the frontend."
+        },
+        {
+            "id": "US-009",
+            "title": "Build shared application step components",
+            "description": "As a developer, I want self-contained step components that work both in the /application page and as inline chat components.",
+            "acceptanceCriteria": [
+                "components/application-steps/ directory created with 6 components: PersonalInfoStep, PassportStep, TravelInfoStep, DocumentUploadStep, ReviewStep, StatusStep",
+                "Each component accepts: data props (prefill values), applicationId, onComplete callback (called with collected data)",
+                "PersonalInfoStep fields: fullName, dateOfBirth, placeOfBirth, gender, nationality, occupation, address",
+                "PassportStep fields: passportNumber, issueDate, expiryDate, issuingCountry, issuingAuthority",
+                "TravelInfoStep fields: arrivalDate, departureDate, portOfEntry, purpose, accommodationName, accommodationAddress",
+                "DocumentUploadStep renders one FileUploadCard per required document type (passport_copy, photo, flight_booking, hotel_booking, travel_itinerary, bank_statement)",
+                "ReviewStep renders read-only summary of all filled data with Edit buttons per section",
+                "StatusStep renders submission confirmation: confirmationNumber, submittedAt, estimatedProcessingDays, receiptUrl",
+                "All components use Shadcn UI, Switzer font for headings, Inter for body",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/components/application-steps"
+            ],
+            "priority": 9,
+            "passes": true,
+            "notes": "Follow the established visual patterns in the codebase: same card padding, same label/input sizing, same button styles, same spacing scale. Use Shadcn UI components. Switzer for headings, Inter for body/labels. Brand color #03346E for primary actions. DocumentUploadStep should upload to Supabase Storage bucket 'application-documents' under path: {userId}/{applicationId}/{documentType}/{filename}."
+        },
+        {
+            "id": "US-010",
+            "title": "Build /application page - step-by-step visa portal flow",
+            "description": "As an applicant, I want a structured step-by-step page that mirrors the evisa.imigrasi.go.id portal flow so I can fill my application directly.",
+            "acceptanceCriteria": [
+                "app/client/application/page.tsx created",
+                "Step progress bar at top showing all 6 steps with status: Complete / In Progress / Locked",
+                "Steps mounted in sequence using the 6 components from US-009",
+                "Current step state persisted to Supabase (applications + applicant_profiles + application_documents tables)",
+                "Completed steps show a summary with Edit button to return",
+                "Locked steps show a disabled preview",
+                "Navigation sidebar updated to include /application link",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/client/application",
+                "viza-fe/internal-website/components/client/sidebar",
+                "viza-fe/internal-website/components/client/nav"
+            ],
+            "priority": 10,
+            "passes": true,
+            "notes": "Build following the existing visual patterns of the codebase - same card styles, same spacing, same button sizing as seen in other client pages. The step progress bar should use the same visual language as existing progress indicators in the app. Use brand-500 (#03346E) for completed step indicators."
+        },
+        {
+            "id": "US-011",
+            "title": "Build /home application dashboard",
+            "description": "As an applicant, I want a dashboard home page showing my active visa application status and quick actions.",
+            "acceptanceCriteria": [
+                "app/client/home/page.tsx built as VIZA application dashboard",
+                "Active application card: Indonesia flag, visa type label, status badge (Draft/In Progress/Submitted/Approved/Rejected) with appropriate colors",
+                "Progress bar: count of uploaded documents vs 6 required, percentage complete",
+                "Quick action buttons: 'Continue with AI' links to /client/chat, 'Upload Documents' links to /client/application step 4, 'View Application' links to /client/application",
+                "Recent activity feed: last 5 events from application_documents uploads and application status changes",
+                "Empty state for users with no application: CTA button 'Start your Indonesia visa application'",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/client/home",
+                "viza-fe/internal-website/components/client/home"
+            ],
+            "priority": 11,
+            "passes": true,
+            "notes": "Preserve the overall layout structure - card grid layout, sidebar + main content split, spacing, and visual hierarchy. Status badge colors: Draft=gray, In Progress=brand-400, Submitted=brand-500, Approved=green, Rejected=red. Keep any skeleton/loading states that already exist."
+        },
+        {
+            "id": "US-012",
+            "title": "Build /chat VIZA AI chatbot with inline component rendering",
+            "description": "As an applicant, I want to chat with the VIZA AI assistant and have it render interactive forms and upload cards inline in the conversation.",
+            "acceptanceCriteria": [
+                "app/client/chat/page.tsx created with full chat interface",
+                "Socket.io connection to chatbot backend with streaming token support",
+                "Incoming component events from backend render the matching React component inline in the chat thread",
+                "component_complete events sent back to backend when user submits a step component",
+                "Supports all 6 step components (PersonalInfoStep etc) and 6 primitive components (FileUploadCard etc) as inline renders",
+                "Session history sidebar shows past conversations",
+                "English only - no language switching UI",
+                "VIZA assistant name and avatar used",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/client/chat",
+                "viza-fe/internal-website/components/client/chat"
+            ],
+            "priority": 12,
+            "passes": true,
+            "notes": "Preserve the chat UI structure - message layout, input area sizing, sidebar width, message bubble styles, streaming animation. When a Socket.io 'component' event arrives, render the matching React component inline in the message thread between messages. When onComplete fires, emit component_complete back to server. Import step components from components/application-steps/."
+        },
+        {
+            "id": "US-013",
+            "title": "Build /documents page and /settings page",
+            "description": "As an applicant, I want to see all my uploaded documents with their status, and manage my account settings.",
+            "acceptanceCriteria": [
+                "app/client/documents/page.tsx created with document management interface",
+                "Document grid: one card per document type (6 required), shows filename/thumbnail if uploaded, missing state if not",
+                "Each card shows status badge: uploaded / validated / missing / rejected",
+                "Rejected cards show rejection reason",
+                "Upload button on missing/rejected cards opens file picker and uploads to Supabase Storage",
+                "Progress summary at top: X of 6 documents uploaded",
+                "app/client/settings page styled with VIZA branding and page title 'Account Settings'",
+                "Settings page: profile info edit, password change, notification preferences - no language toggle (Phase 2)",
+                "Navigation sidebar updated with correct links: Home, Application, Chat, Documents, Settings",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-fe/internal-website/app/client/documents",
+                "viza-fe/internal-website/app/client/settings",
+                "viza-fe/internal-website/components/client/sidebar",
+                "viza-fe/internal-website/components/client/nav"
+            ],
+            "priority": 13,
+            "passes": true,
+            "notes": "For /documents, use a grid/card layout structure with document type cards. Keep consistent card dimensions and grid columns. For /settings, minimal changes - preserve the settings layout, update text labels. For navigation sidebar: preserve the sidebar structure and spacing, set nav items to the 5 VIZA pages (Home, Application, Chat, Documents, Settings). Do not change sidebar width, padding, or icon sizing."
+        },
+        {
+            "id": "US-014",
+            "title": "Build knowledge base ingest script for Indonesia B211A",
+            "description": "As a developer, I want a script that scrapes Indonesian tourist visa requirements and ingests them into the visa_chunks table with OpenAI embeddings.",
+            "acceptanceCriteria": [
+                "knowledge-base/scripts/ingest-indonesia-tourist.ts created",
+                "Script fetches content from evisa.imigrasi.go.id and imigrasi.go.id",
+                "Content chunked into paragraphs (~500 tokens each)",
+                "Each chunk embedded using OpenAI text-embedding-3-small (1536 dim)",
+                "Chunks inserted into visa_documents + visa_chunks tables with country='indonesia', visa_type='tourist_b211a'",
+                "document_type assigned per chunk: requirements | process | faq | form_fields | common_mistakes",
+                "Script runnable via: cd knowledge-base && npx ts-node scripts/ingest-indonesia-tourist.ts",
+                "Existing chunks for same country/visa_type deleted before re-ingesting (idempotent)",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "knowledge-base/scripts",
+                "knowledge-base/package.json",
+                "knowledge-base/tsconfig.json"
+            ],
+            "priority": 14,
+            "passes": true,
+            "notes": "Create the knowledge-base/ package from scratch if it does not exist. Use the openai npm package for embeddings. The SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and OPENAI_API_KEY are available as env vars. Include a hardcoded fallback dataset of Indonesia B211A requirements in case scraping fails (the 6 required documents + fees + processing time)."
+        },
+        {
+            "id": "US-015",
+            "title": "Build browser automation submission service",
+            "description": "As a visa agency, I want an automated service that fills and submits the Indonesian e-visa application on behalf of the applicant.",
+            "acceptanceCriteria": [
+                "viza-be/submission-service/ created as a standalone Node.js + TypeScript service",
+                "package.json with playwright, @supabase/supabase-js, dotenv dependencies",
+                "Main loop polls submission_queue table for status='pending' items every 30 seconds",
+                "For each pending item: loads applicant_profiles + applications + application_documents from Supabase",
+                "Downloads documents from Supabase Storage to temp directory",
+                "Playwright opens evisa.imigrasi.go.id and attempts to fill the application form",
+                "On success: updates applications.status='submitted', applications.confirmation_number, applications.submitted_at",
+                "On success: marks submission_queue item as done",
+                "On failure: increments attempts, sets last_error, retries up to 3 times",
+                "After 3 failures: sends alert email via Resend API (RESEND_API_KEY in env)",
+                "README documents how to run and deploy to Railway",
+                "Typecheck passes"
+            ],
+            "scopeFiles": [
+                "viza-be/submission-service"
+            ],
+            "priority": 15,
+            "passes": true,
+            "notes": "Create this as a new standalone service directory. It runs independently of the chatbot backend. The Playwright automation will need to map evisa.imigrasi.go.id form fields to applicant data. Since the portal may change, build the form-fill logic as a separate mappings file that is easy to update. If the portal requires account creation or login, scaffold that step too but add a TODO comment. RESEND_API_KEY is available as an env var. The alert email should go to the service operator (hardcode edward.zehua.zhang@gmail.com for now)."
+        }
+    ]
+}

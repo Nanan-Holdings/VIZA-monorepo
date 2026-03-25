@@ -1,0 +1,8 @@
+# viza-cms specific ignores
+# (Most patterns inherited from root .gitignore)
+
+# Migration scripts — progress and logs
+scripts/.migration-progress.json
+scripts/.env.migration
+scripts/migration-dump/
+scripts/logs/

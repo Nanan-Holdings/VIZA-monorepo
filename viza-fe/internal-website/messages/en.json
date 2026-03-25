@@ -1,0 +1,714 @@
+{
+  "common": {
+    "loading": "Loading your dashboard...",
+    "error": "An error occurred",
+    "searchLanguage": "Search language...",
+    "noLanguagesFound": "No languages found"
+  },
+  "nav": {
+    "home": "Home",
+    "application": "Application",
+    "chat": "Chat",
+    "documents": "Documents",
+    "inviteFriends": "Invite Friends"
+  },
+  "menu": {
+    "inviteFriends": "Invite Friends",
+    "settings": "Settings",
+    "help": "Help",
+    "logout": "Logout",
+    "loggingOut": "Logging out..."
+  },
+  "session": {
+    "invalidatedTitle": "Session No Longer Active",
+    "invalidatedBody": "Another user view was opened in a different tab. This session has been invalidated for security.",
+    "invalidatedHint": "Please close this tab and use the new user view tab."
+  },
+  "home": {
+    "welcomeBack": "Welcome back, {name}.",
+    "vizaApplication": "Here is your VIZA Application",
+    "recentActivity": "Recent Activity",
+    "noRecentActivity": "No recent activity yet. Start your application to see updates here.",
+    "loadingDashboard": "Loading your dashboard...",
+    "authError": "Authentication failed. Please try clicking the link again.",
+    "dashboardError": "An error occurred while loading your dashboard",
+    "application": "Application",
+    "indonesia": "Indonesia",
+    "touristVisaB211A": "Tourist Visa B211A",
+    "notStarted": "Not started",
+    "submitted": "Submitted {date}",
+    "documentsTitle": "Documents",
+    "ofRequired": "of {total} required",
+    "percentComplete": "{pct}% complete",
+    "quickActions": {
+      "title": "Quick Actions",
+      "continueWithAI": "Continue with AI",
+      "uploadDocuments": "Upload Documents",
+      "viewApplication": "View Application"
+    },
+    "emptyApplication": {
+      "noActiveApplication": "No active application",
+      "subtitle": "Start your Indonesian tourist visa application today.",
+      "cta": "Start your Indonesia visa application"
+    },
+    "statusLabels": {
+      "draft": "Draft",
+      "in_progress": "In Progress",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "docLabels": {
+      "passport_copy": "Passport Copy",
+      "photo": "Photo",
+      "flight_booking": "Flight Booking",
+      "hotel_booking": "Hotel Booking",
+      "travel_itinerary": "Travel Itinerary",
+      "bank_statement": "Bank Statement"
+    },
+    "activity": {
+      "applicationSubmitted": "Application submitted",
+      "applicationCreated": "Application created",
+      "visaType": "Indonesia Tourist Visa B211A",
+      "documentUploaded": "{docType} uploaded",
+      "documentRejected": "Document rejected — please re-upload",
+      "documentReceived": "Document received",
+      "justNow": "Just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
+    "visaTimeline": {
+      "heading": "Indonesia Tourist Visa B211A",
+      "subheading": "Complete each step to submit your visa application",
+      "stages": {
+        "application": {
+          "title": "Complete your application",
+          "subtitle": "Fill in personal info, passport and travel details",
+          "badge": "Start"
+        },
+        "documents": {
+          "title": "Upload your documents",
+          "subtitle": "6 documents required for the B211A tourist visa",
+          "badge": "Not yet"
+        },
+        "submit": {
+          "title": "Submit application",
+          "subtitle": "Review everything and submit to our processing team",
+          "badge": "Not yet"
+        },
+        "review": {
+          "title": "Under review",
+          "subtitle": "Typically processed within 3 business days",
+          "badge": "Awaiting"
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "Visa approved and e-visa document sent to you",
+          "badge": "Awaiting"
+        }
+      }
+    }
+  },
+  "services": {
+    "title": "Services",
+    "scheduled": "Scheduled",
+    "yourHistory": "Your history",
+    "reschedule": "Reschedule",
+    "cancel": "Cancel",
+    "cancelling": "Cancelling...",
+    "cannotReschedule": "Cannot reschedule within 24 hours",
+    "comingSoon": "Coming Soon",
+    "noScheduledServices": "No scheduled services",
+    "noScheduledDescription": "You don't have any upcoming services. Browse our recommended tests below to get started.",
+    "noServiceHistory": "No service history",
+    "noHistoryDescription": "You haven't completed any services yet. Your history will appear here.",
+    "cancelDialog": {
+      "title": "Cancel scheduled service?",
+      "keep": "Keep"
+    },
+    "recommended": {
+      "heading": "Recommended for you",
+      "subheading": "Our top test recommendations"
+    },
+    "personalized": {
+      "heading": "Personalized recommendations",
+      "subheading": "Tests based on your profile and health data"
+    },
+    "upcoming": {
+      "heading": "Upcoming tests",
+      "subheading": "New tests we're working on"
+    },
+    "marketplace": {
+      "supplement": {
+        "title": "Supplement Marketplace",
+        "description": "Insider prices on 300+ curated longevity products"
+      },
+      "service": {
+        "title": "Service Marketplace",
+        "description": "Access to curated RX's like documents or peptides"
+      }
+    },
+    "cards": {
+      "bloodPanel": {
+        "title": "Blood Panel",
+        "description": "40+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "Included in your plan"
+      },
+      "advancedBloodPanel": {
+        "title": "Advanced Blood Panel",
+        "description": "130+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "Get Started",
+        "badge": "Recommended"
+      },
+      "glp1": {
+        "title": "GLP-1 Treatment",
+        "description": "You may be a candidate for GLP-1 service. See how it could help you.",
+        "cta": "Get Started"
+      },
+      "allergyTesting": {
+        "title": "Food & Environmental Allergy Testing",
+        "description": "Determine your specific food and environmental allergies.",
+        "cta": "Coming Soon"
+      },
+      "cancerTest": {
+        "title": "Grail Galleri Multi Cancer Test",
+        "description": "Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
+        "cta": "Coming Soon"
+      },
+      "dexaScan": {
+        "title": "DEXA Bone Density Scan",
+        "description": "Measure your bone density and risk of osteoporosis.",
+        "cta": "Coming Soon"
+      },
+      "gutMicrobiome": {
+        "title": "Gut Microbiome Testing",
+        "description": "Analyze your gut microbiome to understand your digestive health.",
+        "cta": "Coming Soon"
+      },
+      "toxicology": {
+        "title": "Environmental Toxicology Testing",
+        "description": "Analyze your environmental toxins and exposure.",
+        "cta": "Coming Soon"
+      }
+    }
+  },
+  "application": {
+    "title": "Indonesia Tourist Visa B211A",
+    "saving": "Saving...",
+    "edit": "Edit",
+    "stepOf": "Step {current} of {total}: {name}",
+    "steps": {
+      "personalInfo": { "name": "Personal Info", "description": "Full name, date of birth, nationality" },
+      "passport": { "name": "Passport", "description": "Passport number, dates, issuing country" },
+      "travelDetails": { "name": "Travel Details", "description": "Arrival, departure, accommodation" },
+      "documents": { "name": "Documents", "description": "Upload all 6 required documents" },
+      "review": { "name": "Review", "description": "Confirm your details are correct" },
+      "status": { "name": "Status", "description": "Application submitted" }
+    },
+    "errors": {
+      "notAuthenticated": "Not authenticated",
+      "failedToSave": "Failed to save",
+      "failedToSubmit": "Failed to submit",
+      "profileNotFound": "Profile not found",
+      "noApplicationFound": "No application found"
+    }
+  },
+  "applicationSteps": {
+    "continue": "Continue",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "select": "Select...",
+    "uploadFailed": "Upload failed",
+    "upload": "Upload",
+    "replace": "Replace",
+    "personalInfo": {
+      "fullName": "Full name (as on passport)",
+      "fullNamePlaceholder": "John Smith",
+      "dateOfBirth": "Date of birth",
+      "dateOfBirthPlaceholder": "Select date of birth",
+      "placeOfBirth": "Place of birth",
+      "placeOfBirthPlaceholder": "City, Country",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "nationality": "Nationality",
+      "nationalityPlaceholder": "e.g. Australian",
+      "occupation": "Occupation",
+      "occupationPlaceholder": "e.g. Software Engineer",
+      "currentAddress": "Current address",
+      "currentAddressPlaceholder": "Street, City, Country"
+    },
+    "passport": {
+      "passportNumber": "Passport number",
+      "passportNumberPlaceholder": "PA1234567",
+      "issueDate": "Issue date",
+      "issueDatePlaceholder": "Select issue date",
+      "expiryDate": "Expiry date",
+      "expiryDatePlaceholder": "Select expiry date",
+      "issuingCountry": "Issuing country",
+      "issuingCountryPlaceholder": "e.g. Australia",
+      "issuingAuthority": "Issuing authority",
+      "issuingAuthorityPlaceholder": "e.g. Department of Home Affairs"
+    },
+    "travel": {
+      "arrivalDate": "Arrival date",
+      "arrivalDatePlaceholder": "Select arrival date",
+      "departureDate": "Departure date",
+      "departureDatePlaceholder": "Select departure date",
+      "portOfEntry": "Port of entry",
+      "portOfEntryPlaceholder": "e.g. Ngurah Rai International Airport (Bali)",
+      "purposeOfVisit": "Purpose of visit",
+      "selectPurpose": "Select purpose...",
+      "tourism": "Tourism",
+      "business": "Business",
+      "socialCultural": "Social / Cultural",
+      "familyVisit": "Family Visit",
+      "accommodationName": "Accommodation name",
+      "accommodationNamePlaceholder": "Hotel / Airbnb name",
+      "accommodationAddress": "Accommodation address",
+      "accommodationAddressPlaceholder": "Full address in Indonesia"
+    },
+    "documentUpload": {
+      "title": "Document Upload",
+      "description": "Upload all required documents for your Indonesia B211A tourist visa application.",
+      "uploadAllToContinue": "Upload all {count} documents to continue.",
+      "docs": {
+        "passport_copy": "Passport bio page (scan or photo)",
+        "photo": "Recent passport-size photo",
+        "flight_booking": "Flight booking confirmation",
+        "hotel_booking": "Hotel / accommodation booking",
+        "travel_itinerary": "Travel itinerary",
+        "bank_statement": "Bank statement (last 3 months)"
+      }
+    },
+    "review": {
+      "title": "Review Your Application",
+      "personalInformation": "Personal Information",
+      "fullName": "Full name",
+      "dateOfBirth": "Date of birth",
+      "placeOfBirth": "Place of birth",
+      "gender": "Gender",
+      "nationality": "Nationality",
+      "occupation": "Occupation",
+      "address": "Address",
+      "passportDetails": "Passport Details",
+      "passportNumber": "Passport number",
+      "issueDate": "Issue date",
+      "expiryDate": "Expiry date",
+      "issuingCountry": "Issuing country",
+      "issuingAuthority": "Issuing authority",
+      "travelInformation": "Travel Information",
+      "arrivalDate": "Arrival date",
+      "departureDate": "Departure date",
+      "portOfEntry": "Port of entry",
+      "purpose": "Purpose",
+      "accommodation": "Accommodation",
+      "reviewMessage": "Please review your details carefully before submitting.",
+      "confirmAndSubmit": "Confirm & Submit"
+    },
+    "status": {
+      "title": "Application Submitted",
+      "confirmationNumber": "Confirmation number",
+      "submittedOn": "Submitted on",
+      "estimatedProcessing": "Estimated processing",
+      "businessDays": "business days",
+      "message": "Your application has been submitted to the Indonesian e-visa portal. You will receive an email confirmation once your visa is approved. Keep your confirmation number for reference.",
+      "viewReceipt": "View Receipt",
+      "done": "Done"
+    },
+    "documentChecklist": {
+      "missingDocuments": "Missing Documents ({count})",
+      "missingDescription": "The following documents are still required before your application can be submitted:",
+      "uploadNow": "Got it, I'll upload them now",
+      "docs": {
+        "passport_copy": "Passport bio page",
+        "photo": "Passport-size photo",
+        "flight_booking": "Flight booking confirmation",
+        "hotel_booking": "Hotel booking confirmation",
+        "travel_itinerary": "Travel itinerary",
+        "bank_statement": "Bank statement (3 months)"
+      }
+    },
+    "statusCard": {
+      "applicationStatus": "Application Status",
+      "draft": "Draft",
+      "inProgress": "In Progress",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "loading": "Loading documents...",
+    "documentsUploaded": "{count} of {total} documents uploaded",
+    "percentComplete": "{pct}% complete",
+    "rejected": "Rejected: ",
+    "upload": "Upload",
+    "uploading": "Uploading...",
+    "reupload": "Re-upload",
+    "replace": "Replace",
+    "statusLabels": {
+      "uploaded": "Uploaded",
+      "validated": "Validated",
+      "missing": "Missing",
+      "rejected": "Rejected"
+    },
+    "requiredDocs": {
+      "passport_copy": { "label": "Passport Copy", "description": "Bio-data page of your passport" },
+      "photo": { "label": "Photo", "description": "Recent passport-size photo, white background" },
+      "flight_booking": { "label": "Flight Booking", "description": "Return flight booking confirmation" },
+      "hotel_booking": { "label": "Hotel Booking", "description": "Accommodation confirmation" },
+      "travel_itinerary": { "label": "Travel Itinerary", "description": "Detailed travel plan" },
+      "bank_statement": { "label": "Bank Statement", "description": "Last 3 months, showing sufficient funds" }
+    },
+    "errors": {
+      "notAuthenticated": "Not authenticated. Please log in.",
+      "noProfile": "No applicant profile found. Please complete onboarding.",
+      "noApplication": "No application found. Please start your application.",
+      "uploadFailed": "Upload failed: {message}",
+      "completeApplicationFirst": "Please complete your application first before uploading documents."
+    }
+  },
+  "chat": {
+    "searchChats": "Search chats",
+    "searchPlaceholder": "Search chats...",
+    "noResults": "No results found",
+    "sessionHistory": "Session History",
+    "noConversations": "No conversations yet",
+    "chatWith": "Chat with",
+    "vizaAI": "VIZA AI",
+    "vizaAIDescription": "Visa guidance, document help, and Q&A",
+    "immediate": "Immediate",
+    "askSupportTeam": "Ask the Support Team",
+    "supportDescription": "Complex topics and customer service",
+    "supportResponseTime": "<24h on weekdays",
+    "inputPlaceholder": "Ask about your visa application...",
+    "supportComingSoon": "Support team chat coming soon",
+    "connectionReconnecting": "Connection issue - reconnecting...",
+    "connectedSending": "Connected - sending queued messages",
+    "agentNotified": "Your visa agent has been notified about this conversation",
+    "failedToStart": "Failed to start conversation",
+    "willSendWhenConnected": "Message will be sent when connected"
+  },
+  "inviteFriends": {
+    "heroTitle": "Refer your friends",
+    "heroSubtitle": "Earn rewards",
+    "referHeading": "Refer your friends and earn ₱9,999",
+    "referDescription": "Share your unique referral link with friends and family. When they sign up, you'll each receive ₱9,999 to spend in VIZA Services.",
+    "referralLink": "Referral link",
+    "loadingLink": "Loading your link...",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "orInviteViaEmail": "or invite via email",
+    "emailPlaceholder": "Your friend's email",
+    "sendInvite": "Send invite",
+    "sending": "Sending...",
+    "howItWorks": "How it works",
+    "steps": {
+      "share": { "title": "Share your unique link", "description": "Invite your friends to join VIZA using your unique referral link" },
+      "give": { "title": "Give ₱9,999 to your friends", "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services" },
+      "earn": { "title": "Earn ₱9,999 in credit", "description": "You'll also receive ₱9,999 for every friend who signs up with your link." },
+      "redeem": { "title": "Redeem your credits", "description": "Use your credits in the VIZA Services page." }
+    },
+    "faqTitle": "Frequently Asked Questions",
+    "faqs": {
+      "whenReward": { "question": "When do I get my reward?", "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase." },
+      "howUseCredit": { "question": "How do I use the credit?", "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page." },
+      "whoEligible": { "question": "Who's eligible?", "answer": "New members only. One discount per new member." }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "loading": "Loading your settings...",
+    "tabs": { "billing": "Billing", "account": "Account" },
+    "account": {
+      "title": "Account",
+      "email": "Email",
+      "displayName": "Display Name",
+      "namePlaceholder": "Your full name",
+      "saveChanges": "Save changes",
+      "saving": "Saving...",
+      "failedToSave": "Failed to save.",
+      "saved": "Saved."
+    },
+    "signOut": {
+      "title": "Sign Out",
+      "description": "Sign out of your account on this device.",
+      "button": "Sign out"
+    },
+    "billing": {
+      "title": "Billing",
+      "noPaymentMethods": "No payment methods",
+      "noPaymentDescription": "Billing and payment management will be available here soon. Contact support if you need to update your billing details."
+    }
+  },
+  "help": {
+    "heroTitle": "Help Center",
+    "heroSubtitle": "Find answers, guides, and support for your account.",
+    "quickLinks": {
+      "title": "Quick links",
+      "accountProfile": { "title": "Account & Profile", "description": "Update your profile details, password, and preferences." },
+      "referrals": { "title": "Referrals", "description": "Invite friends and track your rewards." },
+      "payments": { "title": "Payments & Credits", "description": "View transactions, credits, and receipts." }
+    },
+    "guides": {
+      "title": "Guides",
+      "gettingStarted": {
+        "title": "Getting started",
+        "completeProfile": "Complete your profile",
+        "addPayment": "Add a payment method",
+        "exploreServices": "Explore services"
+      },
+      "usingCredits": {
+        "title": "Using your credits",
+        "whereApply": "Where credits apply",
+        "expiration": "Expiration rules",
+        "troubleshooting": "Troubleshooting"
+      },
+      "privacy": {
+        "title": "Privacy & security",
+        "dataUsage": "Data usage",
+        "securityTips": "Account security tips",
+        "twoFactor": "Two-factor support"
+      }
+    },
+    "faqTitle": "Frequently Asked Questions",
+    "faqs": {
+      "resetPassword": { "question": "How do I reset my password?", "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately." },
+      "seeCredits": { "question": "Where can I see my credits?", "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase." },
+      "referrals": { "question": "How do referrals work?", "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services." },
+      "bookBloodTest": { "question": "How do I book a blood test?", "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab." },
+      "labResults": { "question": "When will I receive my results?", "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab." },
+      "updateInfo": { "question": "How do I update my personal information?", "answer": "Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes." },
+      "updatePayment": { "question": "How do I add or update a payment method?", "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details." },
+      "cancelReschedule": { "question": "Can I cancel or reschedule a booked service?", "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel." },
+      "dataPrivate": { "question": "Is my health data private?", "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties." },
+      "contactSupport": { "question": "How do I contact support?", "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com." }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login to your account",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "emailPlaceholder": "Enter your email",
+      "sendingCode": "Sending code...",
+      "loginButton": "Login",
+      "noAccountFound": "No account found with this email. Please contact support.",
+      "failedToSendCode": "Failed to send code",
+      "noAccountWithEmail": "No account found with this email",
+      "notRegistered": "This email is not registered as an applicant.",
+      "authFailed": "Authentication failed. Please try again.",
+      "unexpectedError": "An unexpected error occurred. Please try again.",
+      "failedToResend": "Failed to resend code.",
+      "checkEmail": "Check your email",
+      "sentCodeTo": "We sent an 8-digit code to",
+      "clickLink": "Click the link in your email to sign in.",
+      "resendIn": "Resend in {seconds}s",
+      "resendCode": "Resend code",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "signup": {
+      "title": "Request your account",
+      "subtitle": "Enter your email and our team will send an invite if you are eligible.",
+      "emailPlaceholder": "Enter your email",
+      "invalidEmail": "Please enter a valid email address.",
+      "submitting": "Submitting...",
+      "requestInvite": "Request Invite",
+      "thankYou": "Thanks. We will email you if you are eligible for access.",
+      "urgentAccess": "For urgent access, contact support at support@viza.com.",
+      "backToLogin": "Back to Login",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "register": {
+      "accountCreated": "Account Created!",
+      "accountCreatedMessage": "Your account has been created successfully. You can now log in to start using VIZA.",
+      "goToLogin": "Go to Login",
+      "validatingReferral": "Validating referral...",
+      "referredBy": "Referred by {name} — you'll get ₱9,999 credit!",
+      "noReferralCode": "No referral code found. Please use a valid referral link to sign up.",
+      "invalidReferralCode": "Invalid referral code. Please check your link and try again.",
+      "createAccount": "Create your account",
+      "alreadyHaveAccount": "Already have an account?",
+      "logIn": "Log in",
+      "fullNamePlaceholder": "Enter Full Name",
+      "emailPlaceholder": "Enter your email",
+      "creatingAccount": "Creating account...",
+      "signUpButton": "Sign Up",
+      "agreeToTerms": "I agree to the",
+      "termsOfService": "Terms of Service",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy",
+      "pleaseAgree": "Please agree to the Terms of Service and Privacy Policy",
+      "invalidReferralLink": "Invalid referral link",
+      "registrationFailed": "Registration failed",
+      "unexpectedError": "An unexpected error occurred. Please try again."
+    },
+    "loginForm": {
+      "email": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "passwordPlaceholder": "Enter your password",
+      "signingIn": "Signing in...",
+      "signIn": "Sign in"
+    },
+    "polaroids": {
+      "sanFrancisco": "San Francisco",
+      "newYork": "New York",
+      "tokyo": "Tokyo",
+      "sydney": "Sydney",
+      "beijing": "Beijing",
+      "egypt": "Egypt",
+      "pisa": "Pisa",
+      "singapore": "Singapore"
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "subtitle": "The rules and guidelines that govern your use of our platform.",
+    "sections": {
+      "acceptance": {
+        "title": "Acceptance of terms",
+        "p1": "By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
+        "p2": "These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
+      },
+      "services": {
+        "title": "Our services",
+        "intro": "VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
+        "item1": "Online visa consultations with licensed consultants.",
+        "item2": "Blood panel bookings and lab result delivery.",
+        "item3": "Supplement and product purchases through the Services marketplace.",
+        "item4": "Personalized action plans and health recommendations.",
+        "item5": "Concierge support for your health journey.",
+        "disclaimer": "Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
+      },
+      "eligibility": {
+        "title": "Eligibility",
+        "intro": "To use our services, you must:",
+        "item1": "Be at least 18 years of age, or have parental or guardian consent.",
+        "item2": "Provide accurate, current, and complete information when registering.",
+        "item3": "Maintain the security of your account credentials.",
+        "item4": "Reside in a location where our services are available."
+      },
+      "responsibilities": {
+        "title": "User responsibilities",
+        "intro": "When using our platform, you agree to:",
+        "item1": "Provide truthful and complete health information during consultations and questionnaires.",
+        "item2": "Follow visa advice provided by our licensed professionals responsibly.",
+        "item3": "Not share your account credentials with any other person.",
+        "item4": "Not use the platform for any unlawful or unauthorized purpose.",
+        "item5": "Notify us promptly if you suspect any unauthorized access to your account."
+      },
+      "visa": {
+        "title": "Visa disclaimer",
+        "p1": "The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
+        "p2": "Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
+      },
+      "payments": {
+        "title": "Payments and credits",
+        "p1": "By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
+        "p2": "Credits earned through referrals or promotions have no cash value and cannot be transferred.",
+        "p3": "Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
+        "p4": "Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
+      },
+      "ip": {
+        "title": "Intellectual property",
+        "p1": "All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
+      },
+      "liability": {
+        "title": "Limitation of liability",
+        "p1": "To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
+      },
+      "termination": {
+        "title": "Termination",
+        "p1": "We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
+        "p2": "You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
+      },
+      "changes": {
+        "title": "Changes to these terms",
+        "p1": "We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
+      },
+      "law": {
+        "title": "Governing law",
+        "p1": "These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
+      },
+      "contact": {
+        "title": "Contact us",
+        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.com."
+      }
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "subtitle": "How we collect, use, and protect your personal information.",
+    "sections": {
+      "introduction": {
+        "title": "Introduction",
+        "p1": "VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
+        "p2": "By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
+      },
+      "collect": {
+        "title": "Information we collect",
+        "intro": "We collect information that you provide directly to us and information generated through your use of our services.",
+        "item1": "Personal identifiers such as your name, email address, phone number, and date of birth.",
+        "item2": "Health and visa information including results, profile data, visa history, allergies, and current documents.",
+        "item3": "Payment information processed securely through our payment providers.",
+        "item4": "Communications between you and our visa team, including consultation notes and messages.",
+        "item5": "Device and usage data such as IP address, browser type, and pages visited."
+      },
+      "use": {
+        "title": "How we use your information",
+        "intro": "We use the information we collect to deliver and improve our services, including:",
+        "item1": "Providing visa services consultations, lab bookings, and service services.",
+        "item2": "Communicating with you about your health, appointments, and orders.",
+        "item3": "Processing payments and fulfilling orders through our platform.",
+        "item4": "Improving the accuracy and quality of our health assessments.",
+        "item5": "Complying with applicable laws, regulations, and visa standards.",
+        "noSell": "We never sell your personal or health information to third parties for marketing purposes."
+      },
+      "sharing": {
+        "title": "Sharing your information",
+        "intro": "We may share your information only in the following limited circumstances:",
+        "item1": "With licensed visa professionals involved in your care.",
+        "item2": "With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
+        "item3": "With payment processors to complete transactions securely.",
+        "item4": "When required by law, court order, or applicable regulation.",
+        "item5": "With your explicit consent for any other purpose."
+      },
+      "security": {
+        "title": "Data security",
+        "p1": "We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
+        "p2": "While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
+      },
+      "rights": {
+        "title": "Your rights",
+        "intro": "You have the following rights regarding your personal information:",
+        "access": "Access: Request a copy of the personal information we hold about you.",
+        "correction": "Correction: Request that inaccurate or incomplete information be corrected.",
+        "deletion": "Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
+        "portability": "Portability: Request your data in a machine-readable format where applicable.",
+        "withdrawal": "Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
+      },
+      "retention": {
+        "title": "Data retention",
+        "p1": "We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
+      },
+      "changes": {
+        "title": "Changes to this policy",
+        "p1": "We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
+      },
+      "contact": {
+        "title": "Contact us",
+        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+      }
+    }
+  }
+}

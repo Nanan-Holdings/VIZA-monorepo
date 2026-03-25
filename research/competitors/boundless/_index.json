@@ -1,0 +1,3075 @@
+{
+  "scraped": [
+    {
+      "url": "https://www.boundless.com/services/individuals",
+      "title": "services_individuals",
+      "file": "services_individuals.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business",
+      "title": "services_business",
+      "file": "services_business.md"
+    },
+    {
+      "url": "https://www.boundless.com/why-boundless",
+      "title": "why-boundless",
+      "file": "why-boundless.md"
+    },
+    {
+      "url": "https://www.boundless.com/contact",
+      "title": "contact",
+      "file": "contact.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources",
+      "title": "immigration-resources",
+      "file": "immigration-resources.md"
+    },
+    {
+      "url": "https://www.boundless.com/all-resources-index",
+      "title": "all-resources-index",
+      "file": "all-resources-index.md"
+    },
+    {
+      "url": "https://www.boundless.com/business-immigration-resources",
+      "title": "business-immigration-resources",
+      "file": "business-immigration-resources.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog",
+      "title": "blog",
+      "file": "blog.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports",
+      "title": "research-reports",
+      "file": "research-reports.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/petition-workflow-automation",
+      "title": "services_business_petition-workflow-automation",
+      "file": "services_business_petition-workflow-automation.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/integrated-legal-support",
+      "title": "services_business_integrated-legal-support",
+      "file": "services_business_integrated-legal-support.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/hr-system-integration",
+      "title": "services_business_hr-system-integration",
+      "file": "services_business_hr-system-integration.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/employee-engagement",
+      "title": "services_business_employee-engagement",
+      "file": "services_business_employee-engagement.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/compliance-risk-management",
+      "title": "services_business_compliance-risk-management",
+      "file": "services_business_compliance-risk-management.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/case-lifecycle-management",
+      "title": "services_business_case-lifecycle-management",
+      "file": "services_business_case-lifecycle-management.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/technology-science-ai",
+      "title": "services_business_technology-science-ai",
+      "file": "services_business_technology-science-ai.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/healthcare-lifescience",
+      "title": "services_business_healthcare-lifescience",
+      "file": "services_business_healthcare-lifescience.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/engineering",
+      "title": "services_business_engineering",
+      "file": "services_business_engineering.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/eb-1a",
+      "title": "services_individuals_eb-1a",
+      "file": "services_individuals_eb-1a.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/the-o-1-visa-for-extraordinary-individuals",
+      "title": "services_individuals_the-o-1-visa-for-extraordinary-individuals",
+      "file": "services_individuals_the-o-1-visa-for-extraordinary-individuals.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/remove-conditions-on-your-green-card",
+      "title": "services_individuals_remove-conditions-on-your-green-card",
+      "file": "services_individuals_remove-conditions-on-your-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/e-2-investor-visa-for-entrepreneurs",
+      "title": "services_individuals_e-2-investor-visa-for-entrepreneurs",
+      "file": "services_individuals_e-2-investor-visa-for-entrepreneurs.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/marriage-green-card-outside-the-us",
+      "title": "services_individuals_marriage-green-card-outside-the-us",
+      "file": "services_individuals_marriage-green-card-outside-the-us.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/k1-fiance-visa",
+      "title": "services_individuals_k1-fiance-visa",
+      "file": "services_individuals_k1-fiance-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/marriage-green-card-adjustment-of-status",
+      "title": "services_individuals_marriage-green-card-adjustment-of-status",
+      "file": "services_individuals_marriage-green-card-adjustment-of-status.md"
+    },
+    {
+      "url": "https://www.boundless.com/all-articles",
+      "title": "all-articles",
+      "file": "all-articles.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/b-1-b-2-travel-visa",
+      "title": "services_individuals_b-1-b-2-travel-visa",
+      "file": "services_individuals_b-1-b-2-travel-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/careers",
+      "title": "careers",
+      "file": "careers.md"
+    },
+    {
+      "url": "https://www.boundless.com/satisfaction-guarantee",
+      "title": "satisfaction-guarantee",
+      "file": "satisfaction-guarantee.md"
+    },
+    {
+      "url": "https://www.boundless.com/data-deletion-restoration-policy",
+      "title": "data-deletion-restoration-policy",
+      "file": "data-deletion-restoration-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/ask-my-attorney",
+      "title": "ask-my-attorney",
+      "file": "ask-my-attorney.md"
+    },
+    {
+      "url": "https://www.boundless.com/terms",
+      "title": "terms",
+      "file": "terms.md"
+    },
+    {
+      "url": "https://www.boundless.com/security",
+      "title": "security",
+      "file": "security.md"
+    },
+    {
+      "url": "https://www.boundless.com/editorial-policy",
+      "title": "editorial-policy",
+      "file": "editorial-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/soc2",
+      "title": "soc2",
+      "file": "soc2.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/individuals/us-citizenship-naturalization",
+      "title": "services_individuals_us-citizenship-naturalization",
+      "file": "services_individuals_us-citizenship-naturalization.md"
+    },
+    {
+      "url": "https://www.boundless.com/press",
+      "title": "press",
+      "file": "press.md"
+    },
+    {
+      "url": "https://www.boundless.com/media",
+      "title": "media",
+      "file": "media.md"
+    },
+    {
+      "url": "https://www.boundless.com/payment-plan",
+      "title": "payment-plan",
+      "file": "payment-plan.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs",
+      "title": "faqs",
+      "file": "faqs.md"
+    },
+    {
+      "url": "https://www.boundless.com/services/business/financial-services",
+      "title": "services_business_financial-services",
+      "file": "services_business_financial-services.md"
+    },
+    {
+      "url": "https://www.boundless.com",
+      "title": "https:__www.boundless.com",
+      "file": "https:__www.boundless.com.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/1-million-indians-stuck-green-card-backlog",
+      "title": "blog_1-million-indians-stuck-green-card-backlog",
+      "file": "blog_1-million-indians-stuck-green-card-backlog.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/11-common-travel-visa-myths-debunked",
+      "title": "blog_11-common-travel-visa-myths-debunked",
+      "file": "blog_11-common-travel-visa-myths-debunked.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/11-things-to-know-about-american-culture-new-immigrant",
+      "title": "blog_11-things-to-know-about-american-culture-new-immigrant",
+      "file": "blog_11-things-to-know-about-american-culture-new-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/2025-travel-ban-us-employers",
+      "title": "blog_2025-travel-ban-us-employers",
+      "file": "blog_2025-travel-ban-us-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/3-misconceptions-about-ea-credential-building",
+      "title": "blog_3-misconceptions-about-ea-credential-building",
+      "file": "blog_3-misconceptions-about-ea-credential-building.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/3-quick-easy-ways-contact-uscis",
+      "title": "blog_3-quick-easy-ways-contact-uscis",
+      "file": "blog_3-quick-easy-ways-contact-uscis.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/5-reasons-why-startups-should-hire-foreign-talent",
+      "title": "blog_5-reasons-why-startups-should-hire-foreign-talent",
+      "file": "blog_5-reasons-why-startups-should-hire-foreign-talent.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/5-red-flags-to-watch-for-when-choosing-an-attorney-for-your-extraordinary-ability-case",
+      "title": "blog_5-red-flags-to-watch-for-when-choosing-an-attorney-for-your-extraordinary-ability-case",
+      "file": "blog_5-red-flags-to-watch-for-when-choosing-an-attorney-for-your-extraordinary-ability-case.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/5-strategies-onboarding-program-foreign-hires",
+      "title": "blog_5-strategies-onboarding-program-foreign-hires",
+      "file": "blog_5-strategies-onboarding-program-foreign-hires.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/5-tips-for-immigration-success-graduate-students",
+      "title": "blog_5-tips-for-immigration-success-graduate-students",
+      "file": "blog_5-tips-for-immigration-success-graduate-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/5-ways-90-day-fiance-differs-from-real-life",
+      "title": "blog_5-ways-90-day-fiance-differs-from-real-life",
+      "file": "blog_5-ways-90-day-fiance-differs-from-real-life.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/60s-immigration",
+      "title": "blog_60s-immigration",
+      "file": "blog_60s-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/7-facts-hr-needs-to-know-when-sponsoring-h-1b-employee",
+      "title": "blog_7-facts-hr-needs-to-know-when-sponsoring-h-1b-employee",
+      "file": "blog_7-facts-hr-needs-to-know-when-sponsoring-h-1b-employee.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/7-steps-to-onboard-h-1b-hire",
+      "title": "blog_7-steps-to-onboard-h-1b-hire",
+      "file": "blog_7-steps-to-onboard-h-1b-hire.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/7-ways-to-improve-your-i-9-process",
+      "title": "blog_7-ways-to-improve-your-i-9-process",
+      "file": "blog_7-ways-to-improve-your-i-9-process.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/90-day-rule",
+      "title": "blog_90-day-rule",
+      "file": "blog_90-day-rule.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/a-guide-to-promoting-an-h-1b-employee",
+      "title": "blog_a-guide-to-promoting-an-h-1b-employee",
+      "file": "blog_a-guide-to-promoting-an-h-1b-employee.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/a-managers-guide-to-ice-visits-preparation-and-response",
+      "title": "blog_a-managers-guide-to-ice-visits-preparation-and-response",
+      "file": "blog_a-managers-guide-to-ice-visits-preparation-and-response.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/a-short-history-lgbtq-immigration-policy",
+      "title": "blog_a-short-history-lgbtq-immigration-policy",
+      "file": "blog_a-short-history-lgbtq-immigration-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-address-history",
+      "title": "blog_aaia-address-history",
+      "file": "blog_aaia-address-history.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-adjustment-of-status-deployed-abroad",
+      "title": "blog_aaia-adjustment-of-status-deployed-abroad",
+      "file": "blog_aaia-adjustment-of-status-deployed-abroad.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-can-i-visit-while-working-on-green-card-application",
+      "title": "blog_aaia-can-i-visit-while-working-on-green-card-application",
+      "file": "blog_aaia-can-i-visit-while-working-on-green-card-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-did-not-file-taxes",
+      "title": "blog_aaia-did-not-file-taxes",
+      "file": "blog_aaia-did-not-file-taxes.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-documentarily-qualified",
+      "title": "blog_aaia-documentarily-qualified",
+      "file": "blog_aaia-documentarily-qualified.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-documents-joint-sponsor",
+      "title": "blog_aaia-documents-joint-sponsor",
+      "file": "blog_aaia-documents-joint-sponsor.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-english-green-card-interview",
+      "title": "blog_aaia-english-green-card-interview",
+      "file": "blog_aaia-english-green-card-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-expedite-nvc-application",
+      "title": "blog_aaia-expedite-nvc-application",
+      "file": "blog_aaia-expedite-nvc-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-expedite-work-travel-permits",
+      "title": "blog_aaia-expedite-work-travel-permits",
+      "file": "blog_aaia-expedite-work-travel-permits.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-fail-citizenship-test",
+      "title": "blog_aaia-fail-citizenship-test",
+      "file": "blog_aaia-fail-citizenship-test.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-green-card-sponsor-moves-abroad",
+      "title": "blog_aaia-green-card-sponsor-moves-abroad",
+      "file": "blog_aaia-green-card-sponsor-moves-abroad.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-how-soon-after-i-marry-a-u-s-citizen-can-i-become-a-citizen",
+      "title": "blog_aaia-how-soon-after-i-marry-a-u-s-citizen-can-i-become-a-citizen",
+      "file": "blog_aaia-how-soon-after-i-marry-a-u-s-citizen-can-i-become-a-citizen.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-how-to-extend-k-2-visa",
+      "title": "blog_aaia-how-to-extend-k-2-visa",
+      "file": "blog_aaia-how-to-extend-k-2-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-interpreter-interview",
+      "title": "blog_aaia-interpreter-interview",
+      "file": "blog_aaia-interpreter-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-joint-sponsor-family-member",
+      "title": "blog_aaia-joint-sponsor-family-member",
+      "file": "blog_aaia-joint-sponsor-family-member.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-lost-passport",
+      "title": "blog_aaia-lost-passport",
+      "file": "blog_aaia-lost-passport.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-medical-exam-k-1-visa",
+      "title": "blog_aaia-medical-exam-k-1-visa",
+      "file": "blog_aaia-medical-exam-k-1-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-missed-green-card-interview",
+      "title": "blog_aaia-missed-green-card-interview",
+      "file": "blog_aaia-missed-green-card-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-moved-after-form-i-130-consular-processing",
+      "title": "blog_aaia-moved-after-form-i-130-consular-processing",
+      "file": "blog_aaia-moved-after-form-i-130-consular-processing.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-new-job-after-filing-green-card",
+      "title": "blog_aaia-new-job-after-filing-green-card",
+      "file": "blog_aaia-new-job-after-filing-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-ready-to-be-scheduled-for-an-interview",
+      "title": "blog_aaia-ready-to-be-scheduled-for-an-interview",
+      "file": "blog_aaia-ready-to-be-scheduled-for-an-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-reschedule-interview",
+      "title": "blog_aaia-reschedule-interview",
+      "file": "blog_aaia-reschedule-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-signing-marriage-green-card-application",
+      "title": "blog_aaia-signing-marriage-green-card-application",
+      "file": "blog_aaia-signing-marriage-green-card-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-switching-from-tn-visa-to-green-card",
+      "title": "blog_aaia-switching-from-tn-visa-to-green-card",
+      "file": "blog_aaia-switching-from-tn-visa-to-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/aaia-will-marijuana-use-impact-my-immigration-application",
+      "title": "blog_aaia-will-marijuana-use-impact-my-immigration-application",
+      "file": "blog_aaia-will-marijuana-use-impact-my-immigration-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/about-ketanji-brown-jacksons-immigration-record",
+      "title": "blog_about-ketanji-brown-jacksons-immigration-record",
+      "file": "blog_about-ketanji-brown-jacksons-immigration-record.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/affordable-schools-international-students",
+      "title": "blog_affordable-schools-international-students",
+      "file": "blog_affordable-schools-international-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/alternative-visas-if-you-lose-h-1b-lottery",
+      "title": "blog_alternative-visas-if-you-lose-h-1b-lottery",
+      "file": "blog_alternative-visas-if-you-lose-h-1b-lottery.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/alternatives-to-h1b-visa",
+      "title": "blog_alternatives-to-h1b-visa",
+      "file": "blog_alternatives-to-h1b-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/american-pies-invented-immigrants",
+      "title": "blog_american-pies-invented-immigrants",
+      "file": "blog_american-pies-invented-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/applying-drivers-license-immigrants",
+      "title": "blog_applying-drivers-license-immigrants",
+      "file": "blog_applying-drivers-license-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/as-food-insecurity-rises-immigrants-step-up-to-the-plate",
+      "title": "blog_as-food-insecurity-rises-immigrants-step-up-to-the-plate",
+      "file": "blog_as-food-insecurity-rises-immigrants-step-up-to-the-plate.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/ask-an-immigration-attorney-should-i-include-unauthorized-work-in-my-employment-history",
+      "title": "blog_ask-an-immigration-attorney-should-i-include-unauthorized-work-in-my-employment-history",
+      "file": "blog_ask-an-immigration-attorney-should-i-include-unauthorized-work-in-my-employment-history.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/ask-anjana-dreamer-newlyweds-travel-permits-foreign-assets",
+      "title": "blog_ask-anjana-dreamer-newlyweds-travel-permits-foreign-assets",
+      "file": "blog_ask-anjana-dreamer-newlyweds-travel-permits-foreign-assets.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/average-processing-time-unmarried-children-over-21",
+      "title": "blog_average-processing-time-unmarried-children-over-21",
+      "file": "blog_average-processing-time-unmarried-children-over-21.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/avoid-form-i-130-processing-delays-extra-costs",
+      "title": "blog_avoid-form-i-130-processing-delays-extra-costs",
+      "file": "blog_avoid-form-i-130-processing-delays-extra-costs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/b-2-visa-for-household-members",
+      "title": "blog_b-2-visa-for-household-members",
+      "file": "blog_b-2-visa-for-household-members.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/belize-eligible-for-seasonal-work-visas-after-5-year-ban",
+      "title": "blog_belize-eligible-for-seasonal-work-visas-after-5-year-ban",
+      "file": "blog_belize-eligible-for-seasonal-work-visas-after-5-year-ban.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-affordable-free-wedding-venues",
+      "title": "blog_best-affordable-free-wedding-venues",
+      "file": "blog_best-affordable-free-wedding-venues.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-apps-new-immigrants",
+      "title": "blog_best-apps-new-immigrants",
+      "file": "blog_best-apps-new-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-apps-prepare-u-s-citizenship-test",
+      "title": "blog_best-apps-prepare-u-s-citizenship-test",
+      "file": "blog_best-apps-prepare-u-s-citizenship-test.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-countries-for-tech-workers",
+      "title": "blog_best-countries-for-tech-workers",
+      "file": "blog_best-countries-for-tech-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-dating-apps-websites-immigrants",
+      "title": "blog_best-dating-apps-websites-immigrants",
+      "file": "blog_best-dating-apps-websites-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-employment-apps-websites-immigrants",
+      "title": "blog_best-employment-apps-websites-immigrants",
+      "file": "blog_best-employment-apps-websites-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-finance-apps-immigrants",
+      "title": "blog_best-finance-apps-immigrants",
+      "file": "blog_best-finance-apps-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-travel-insurance-plans-u-s-visa",
+      "title": "blog_best-travel-insurance-plans-u-s-visa",
+      "file": "blog_best-travel-insurance-plans-u-s-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-us-honeymoon-locations",
+      "title": "blog_best-us-honeymoon-locations",
+      "file": "blog_best-us-honeymoon-locations.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/best-worst-cities-immigrants-seeking-american-citizenship",
+      "title": "blog_best-worst-cities-immigrants-seeking-american-citizenship",
+      "file": "blog_best-worst-cities-immigrants-seeking-american-citizenship.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/biden-harris-immigration",
+      "title": "blog_biden-harris-immigration",
+      "file": "blog_biden-harris-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/biden-trump-border-policies",
+      "title": "blog_biden-trump-border-policies",
+      "file": "blog_biden-trump-border-policies.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/birth-celebration-tips-for-immigrant-parents",
+      "title": "blog_birth-celebration-tips-for-immigrant-parents",
+      "file": "blog_birth-celebration-tips-for-immigrant-parents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/black-immigrants-america-report",
+      "title": "blog_black-immigrants-america-report",
+      "file": "blog_black-immigrants-america-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/books",
+      "title": "blog_books",
+      "file": "blog_books.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/books-immigrant-experience",
+      "title": "blog_books-immigrant-experience",
+      "file": "blog_books-immigrant-experience.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/boundless-com-blog-us-visitor-registration-canadians",
+      "title": "blog_boundless-com-blog-us-visitor-registration-canadians",
+      "file": "blog_boundless-com-blog-us-visitor-registration-canadians.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/boundless-report-how-9-11-changed-u-s-immigration-system",
+      "title": "blog_boundless-report-how-9-11-changed-u-s-immigration-system",
+      "file": "blog_boundless-report-how-9-11-changed-u-s-immigration-system.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/boundless-weekly-immigration-news",
+      "title": "blog_boundless-weekly-immigration-news",
+      "file": "blog_boundless-weekly-immigration-news.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/breast-cancer-innovation-the-crucial-role-of-immigrant-scientists-and-researchers",
+      "title": "blog_breast-cancer-innovation-the-crucial-role-of-immigrant-scientists-and-researchers",
+      "file": "blog_breast-cancer-innovation-the-crucial-role-of-immigrant-scientists-and-researchers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/burma-tps-extension",
+      "title": "blog_burma-tps-extension",
+      "file": "blog_burma-tps-extension.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/business-immigration-year-in-review",
+      "title": "blog_business-immigration-year-in-review",
+      "file": "blog_business-immigration-year-in-review.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/can-i-apply-for-b-1-b-2-travel-visa-for-someone-else",
+      "title": "blog_can-i-apply-for-b-1-b-2-travel-visa-for-someone-else",
+      "file": "blog_can-i-apply-for-b-1-b-2-travel-visa-for-someone-else.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/can-undocumented-immigrants-pay-taxes",
+      "title": "blog_can-undocumented-immigrants-pay-taxes",
+      "file": "blog_can-undocumented-immigrants-pay-taxes.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/can-you-get-a-us-tourist-visa-in-time-for-the-2026-world-cup",
+      "title": "blog_can-you-get-a-us-tourist-visa-in-time-for-the-2026-world-cup",
+      "file": "blog_can-you-get-a-us-tourist-visa-in-time-for-the-2026-world-cup.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/canada-australia-green-cards",
+      "title": "blog_canada-australia-green-cards",
+      "file": "blog_canada-australia-green-cards.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/canada-introduces-open-work-permit-for-u-s-h-1b-visa-holders",
+      "title": "blog_canada-introduces-open-work-permit-for-u-s-h-1b-visa-holders",
+      "file": "blog_canada-introduces-open-work-permit-for-u-s-h-1b-visa-holders.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/cannabis-and-immigration",
+      "title": "blog_cannabis-and-immigration",
+      "file": "blog_cannabis-and-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/cannabis-shop-owner-sponsor-relative-green-card",
+      "title": "blog_cannabis-shop-owner-sponsor-relative-green-card",
+      "file": "blog_cannabis-shop-owner-sponsor-relative-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/carnegie-great-immigrants-list",
+      "title": "blog_carnegie-great-immigrants-list",
+      "file": "blog_carnegie-great-immigrants-list.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/carnegie-great-immigrants-list-2025",
+      "title": "blog_carnegie-great-immigrants-list-2025",
+      "file": "blog_carnegie-great-immigrants-list-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/carter",
+      "title": "blog_carter",
+      "file": "blog_carter.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/carter-iran",
+      "title": "blog_carter-iran",
+      "file": "blog_carter-iran.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/cbp-facial-recognition-rule-2025",
+      "title": "blog_cbp-facial-recognition-rule-2025",
+      "file": "blog_cbp-facial-recognition-rule-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/cbp-one-app-privacy-concerns",
+      "title": "blog_cbp-one-app-privacy-concerns",
+      "file": "blog_cbp-one-app-privacy-concerns.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/changing-immigration-provider-for-businesses",
+      "title": "blog_changing-immigration-provider-for-businesses",
+      "file": "blog_changing-immigration-provider-for-businesses.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/chinese-student-visa-revocations-trump",
+      "title": "blog_chinese-student-visa-revocations-trump",
+      "file": "blog_chinese-student-visa-revocations-trump.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/civil-rights",
+      "title": "blog_civil-rights",
+      "file": "blog_civil-rights.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/climate-change-future-of-migration",
+      "title": "blog_climate-change-future-of-migration",
+      "file": "blog_climate-change-future-of-migration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/clinton",
+      "title": "blog_clinton",
+      "file": "blog_clinton.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/cold-war",
+      "title": "blog_cold-war",
+      "file": "blog_cold-war.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/college-scholarships-daca-students",
+      "title": "blog_college-scholarships-daca-students",
+      "file": "blog_college-scholarships-daca-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/common-questions-to-expect-when-entering-or-reentering-the-us",
+      "title": "blog_common-questions-to-expect-when-entering-or-reentering-the-us",
+      "file": "blog_common-questions-to-expect-when-entering-or-reentering-the-us.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/common-travel-visa-denials",
+      "title": "blog_common-travel-visa-denials",
+      "file": "blog_common-travel-visa-denials.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/community-college-benefits-international-students",
+      "title": "blog_community-college-benefits-international-students",
+      "file": "blog_community-college-benefits-international-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/competition",
+      "title": "blog_competition",
+      "file": "blog_competition.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/considerations-for-dol-wage-surveys",
+      "title": "blog_considerations-for-dol-wage-surveys",
+      "file": "blog_considerations-for-dol-wage-surveys.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/consular-affairs-tech-report",
+      "title": "blog_consular-affairs-tech-report",
+      "file": "blog_consular-affairs-tech-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/consulate-vs-embassy-whats-the-difference",
+      "title": "blog_consulate-vs-embassy-whats-the-difference",
+      "file": "blog_consulate-vs-embassy-whats-the-difference.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/coronavirus-immigration",
+      "title": "blog_coronavirus-immigration",
+      "file": "blog_coronavirus-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/corporate-restructuring-impact",
+      "title": "blog_corporate-restructuring-impact",
+      "file": "blog_corporate-restructuring-impact.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/countries-ease-employment-rules-for-immigrants",
+      "title": "blog_countries-ease-employment-rules-for-immigrants",
+      "file": "blog_countries-ease-employment-rules-for-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/couple-marry-over-zoom-while-in-different-countries",
+      "title": "blog_couple-marry-over-zoom-while-in-different-countries",
+      "file": "blog_couple-marry-over-zoom-while-in-different-countries.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/daca-recipients-renew-status-online",
+      "title": "blog_daca-recipients-renew-status-online",
+      "file": "blog_daca-recipients-renew-status-online.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/daca-reddit-faqs",
+      "title": "blog_daca-reddit-faqs",
+      "file": "blog_daca-reddit-faqs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/daca-tax-contributions-boost-economy",
+      "title": "blog_daca-tax-contributions-boost-economy",
+      "file": "blog_daca-tax-contributions-boost-economy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/daca-travel-information",
+      "title": "blog_daca-travel-information",
+      "file": "blog_daca-travel-information.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/demographics-of-undocumented-immigrants-are-changing",
+      "title": "blog_demographics-of-undocumented-immigrants-are-changing",
+      "file": "blog_demographics-of-undocumented-immigrants-are-changing.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/demystifying-non-citizen-voting-in-u-s-federal-elections",
+      "title": "blog_demystifying-non-citizen-voting-in-u-s-federal-elections",
+      "file": "blog_demystifying-non-citizen-voting-in-u-s-federal-elections.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/designing-your-companys-green-card-policy",
+      "title": "blog_designing-your-companys-green-card-policy",
+      "file": "blog_designing-your-companys-green-card-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-accepts-self-identified-gender-immigration-forms",
+      "title": "blog_dhs-accepts-self-identified-gender-immigration-forms",
+      "file": "blog_dhs-accepts-self-identified-gender-immigration-forms.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-embraces-ai-for-faster-fairer-immigration-processes",
+      "title": "blog_dhs-embraces-ai-for-faster-fairer-immigration-processes",
+      "file": "blog_dhs-embraces-ai-for-faster-fairer-immigration-processes.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-ends-automatic-work-permit-extensions",
+      "title": "blog_dhs-ends-automatic-work-permit-extensions",
+      "file": "blog_dhs-ends-automatic-work-permit-extensions.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-launches-sweeping-ai-immigration-plan-a-major-shift-for-2025-and-beyond",
+      "title": "blog_dhs-launches-sweeping-ai-immigration-plan-a-major-shift-for-2025-and-beyond",
+      "file": "blog_dhs-launches-sweeping-ai-immigration-plan-a-major-shift-for-2025-and-beyond.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-removes-romania-from-us-visa-waiver-program",
+      "title": "blog_dhs-removes-romania-from-us-visa-waiver-program",
+      "file": "blog_dhs-removes-romania-from-us-visa-waiver-program.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-shutdown-what-it-means-for-immigration-services",
+      "title": "blog_dhs-shutdown-what-it-means-for-immigration-services",
+      "file": "blog_dhs-shutdown-what-it-means-for-immigration-services.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/dhs-suspends-uscis-ombudsman-office-what-this-means-for-immigrants",
+      "title": "blog_dhs-suspends-uscis-ombudsman-office-what-this-means-for-immigrants",
+      "file": "blog_dhs-suspends-uscis-ombudsman-office-what-this-means-for-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/didnt-get-chosen-for-h-1b-what-f-1-students-should-know",
+      "title": "blog_didnt-get-chosen-for-h-1b-what-f-1-students-should-know",
+      "file": "blog_didnt-get-chosen-for-h-1b-what-f-1-students-should-know.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/diverse-workforce-tips-for-hr-professionals",
+      "title": "blog_diverse-workforce-tips-for-hr-professionals",
+      "file": "blog_diverse-workforce-tips-for-hr-professionals.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/diversity-visa-lottery-winners",
+      "title": "blog_diversity-visa-lottery-winners",
+      "file": "blog_diversity-visa-lottery-winners.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/diversity-visa-passport-requirement-2026",
+      "title": "blog_diversity-visa-passport-requirement-2026",
+      "file": "blog_diversity-visa-passport-requirement-2026.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/diversity-visa-passport-scan-requirement",
+      "title": "blog_diversity-visa-passport-scan-requirement",
+      "file": "blog_diversity-visa-passport-scan-requirement.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/do-i-need-an-immigration-lawyer",
+      "title": "blog_do-i-need-an-immigration-lawyer",
+      "file": "blog_do-i-need-an-immigration-lawyer.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/do-startup-founders-qualify-for-o-1-visa",
+      "title": "blog_do-startup-founders-qualify-for-o-1-visa",
+      "file": "blog_do-startup-founders-qualify-for-o-1-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/e-verify-restored-government-shutdown",
+      "title": "blog_e-verify-restored-government-shutdown",
+      "file": "blog_e-verify-restored-government-shutdown.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/e-verify-revoked-work-permits",
+      "title": "blog_e-verify-revoked-work-permits",
+      "file": "blog_e-verify-revoked-work-permits.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/easiest-countries-to-move",
+      "title": "blog_easiest-countries-to-move",
+      "file": "blog_easiest-countries-to-move.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eb-1a-myths-extraordinary-ability",
+      "title": "blog_eb-1a-myths-extraordinary-ability",
+      "file": "blog_eb-1a-myths-extraordinary-ability.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eb-2-visa-limit-reached-fy-2025",
+      "title": "blog_eb-2-visa-limit-reached-fy-2025",
+      "file": "blog_eb-2-visa-limit-reached-fy-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eb-3-and-ew-visa-categories-reach-annual-cap",
+      "title": "blog_eb-3-and-ew-visa-categories-reach-annual-cap",
+      "file": "blog_eb-3-and-ew-visa-categories-reach-annual-cap.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eb1a-evidence-checklist",
+      "title": "blog_eb1a-evidence-checklist",
+      "file": "blog_eb1a-evidence-checklist.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eb5-fee-reduction-proposal-2025",
+      "title": "blog_eb5-fee-reduction-proposal-2025",
+      "file": "blog_eb5-fee-reduction-proposal-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/economics",
+      "title": "blog_economics",
+      "file": "blog_economics.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/education",
+      "title": "blog_education",
+      "file": "blog_education.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eisenhower",
+      "title": "blog_eisenhower",
+      "file": "blog_eisenhower.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/employer-immigration-compliance-checklist-france",
+      "title": "blog_employer-immigration-compliance-checklist-france",
+      "file": "blog_employer-immigration-compliance-checklist-france.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/eu-visa-policy-strategy-2026",
+      "title": "blog_eu-visa-policy-strategy-2026",
+      "file": "blog_eu-visa-policy-strategy-2026.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/expanded-screening-h1b-h4-social-media-requirement",
+      "title": "blog_expanded-screening-h1b-h4-social-media-requirement",
+      "file": "blog_expanded-screening-h1b-h4-social-media-requirement.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/expats-taxes-survey",
+      "title": "blog_expats-taxes-survey",
+      "file": "blog_expats-taxes-survey.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/family-sponsored-immigrants-immediate-relatives",
+      "title": "blog_family-sponsored-immigrants-immediate-relatives",
+      "file": "blog_family-sponsored-immigrants-immediate-relatives.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/faq-h1b-dependent-employer-compliance",
+      "title": "blog_faq-h1b-dependent-employer-compliance",
+      "file": "blog_faq-h1b-dependent-employer-compliance.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/fast-track-hiring-netherlands",
+      "title": "blog_fast-track-hiring-netherlands",
+      "file": "blog_fast-track-hiring-netherlands.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/fast-track-immigration-options-for-high-skill-talent-in-germany",
+      "title": "blog_fast-track-immigration-options-for-high-skill-talent-in-germany",
+      "file": "blog_fast-track-immigration-options-for-high-skill-talent-in-germany.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/fdr",
+      "title": "blog_fdr",
+      "file": "blog_fdr.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/federal-judge-strikes-down-parole-in-place",
+      "title": "blog_federal-judge-strikes-down-parole-in-place",
+      "file": "blog_federal-judge-strikes-down-parole-in-place.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/federal-judge-temporarily-blocks-trumps-birthright-citizenship-order",
+      "title": "blog_federal-judge-temporarily-blocks-trumps-birthright-citizenship-order",
+      "file": "blog_federal-judge-temporarily-blocks-trumps-birthright-citizenship-order.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/fica-tax-refund-immigrants",
+      "title": "blog_fica-tax-refund-immigrants",
+      "file": "blog_fica-tax-refund-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/finances-immigrants",
+      "title": "blog_finances-immigrants",
+      "file": "blog_finances-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/financial-planning-immigrant-parents",
+      "title": "blog_financial-planning-immigrant-parents",
+      "file": "blog_financial-planning-immigrant-parents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/ford",
+      "title": "blog_ford",
+      "file": "blog_ford.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/foreign-assets-income-requirements",
+      "title": "blog_foreign-assets-income-requirements",
+      "file": "blog_foreign-assets-income-requirements.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/form-i-129-overhaul-what-employers-and-workers-need-to-know",
+      "title": "blog_form-i-129-overhaul-what-employers-and-workers-need-to-know",
+      "file": "blog_form-i-129-overhaul-what-employers-and-workers-need-to-know.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/form-i-9-e-verify-updates",
+      "title": "blog_form-i-9-e-verify-updates",
+      "file": "blog_form-i-9-e-verify-updates.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/former-uscis-officer-answers-immigration-questions",
+      "title": "blog_former-uscis-officer-answers-immigration-questions",
+      "file": "blog_former-uscis-officer-answers-immigration-questions.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/from-refugee-to-rising-star-how-mon-rovias-story-and-music-is-inspiring-change",
+      "title": "blog_from-refugee-to-rising-star-how-mon-rovias-story-and-music-is-inspiring-change",
+      "file": "blog_from-refugee-to-rising-star-how-mon-rovias-story-and-music-is-inspiring-change.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/fy-2027-h1b-registration",
+      "title": "blog_fy-2027-h1b-registration",
+      "file": "blog_fy-2027-h1b-registration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/global-talent-acquisition-for-us-businesses-a-roadmap",
+      "title": "blog_global-talent-acquisition-for-us-businesses-a-roadmap",
+      "file": "blog_global-talent-acquisition-for-us-businesses-a-roadmap.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/globalization",
+      "title": "blog_globalization",
+      "file": "blog_globalization.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/government-monitoring-of-immigrants-social-media",
+      "title": "blog_government-monitoring-of-immigrants-social-media",
+      "file": "blog_government-monitoring-of-immigrants-social-media.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/government-shutdown-what-it-means-for-immigration",
+      "title": "blog_government-shutdown-what-it-means-for-immigration",
+      "file": "blog_government-shutdown-what-it-means-for-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/grace-period-h1b-lay-offs",
+      "title": "blog_grace-period-h1b-lay-offs",
+      "file": "blog_grace-period-h1b-lay-offs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/green-card-backlog-remains-above-400k-april-2022",
+      "title": "blog_green-card-backlog-remains-above-400k-april-2022",
+      "file": "blog_green-card-backlog-remains-above-400k-april-2022.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/green-card-holder-border-rights",
+      "title": "blog_green-card-holder-border-rights",
+      "file": "blog_green-card-holder-border-rights.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/green-card-photo-requirements",
+      "title": "blog_green-card-photo-requirements",
+      "file": "blog_green-card-photo-requirements.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/green-card-processing-time",
+      "title": "blog_green-card-processing-time",
+      "file": "blog_green-card-processing-time.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/green-card-reddit-faqs",
+      "title": "blog_green-card-reddit-faqs",
+      "file": "blog_green-card-reddit-faqs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/guide-to-i-9-compliance",
+      "title": "blog_guide-to-i-9-compliance",
+      "file": "blog_guide-to-i-9-compliance.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h-1b-cap-reached",
+      "title": "blog_h-1b-cap-reached",
+      "file": "blog_h-1b-cap-reached.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h-1b-compliance-site-visits-checklist",
+      "title": "blog_h-1b-compliance-site-visits-checklist",
+      "file": "blog_h-1b-compliance-site-visits-checklist.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h-1b-visa-six-year-limit",
+      "title": "blog_h-1b-visa-six-year-limit",
+      "file": "blog_h-1b-visa-six-year-limit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h1b-biometric-rfe-uscis-requests",
+      "title": "blog_h1b-biometric-rfe-uscis-requests",
+      "file": "blog_h1b-biometric-rfe-uscis-requests.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h1b-h4-visa-appointments-cancelled-social-media-review",
+      "title": "blog_h1b-h4-visa-appointments-cancelled-social-media-review",
+      "file": "blog_h1b-h4-visa-appointments-cancelled-social-media-review.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h1b-wage-based-lottery-fy-2027",
+      "title": "blog_h1b-wage-based-lottery-fy-2027",
+      "file": "blog_h1b-wage-based-lottery-fy-2027.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/h1b-wage-based-selection-rule",
+      "title": "blog_h1b-wage-based-selection-rule",
+      "file": "blog_h1b-wage-based-selection-rule.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/harvard-j1-visa-investigation-employers",
+      "title": "blog_harvard-j1-visa-investigation-employers",
+      "file": "blog_harvard-j1-visa-investigation-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/hiring-foreign-workers-key-us-economy",
+      "title": "blog_hiring-foreign-workers-key-us-economy",
+      "file": "blog_hiring-foreign-workers-key-us-economy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/hiring-international-talent-in-the-uk-a-complete-guide-for-employers",
+      "title": "blog_hiring-international-talent-in-the-uk-a-complete-guide-for-employers",
+      "file": "blog_hiring-international-talent-in-the-uk-a-complete-guide-for-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/holiday-gifts-immigrant-businesses",
+      "title": "blog_holiday-gifts-immigrant-businesses",
+      "file": "blog_holiday-gifts-immigrant-businesses.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/holiday-travel-tips-for-international-employees",
+      "title": "blog_holiday-travel-tips-for-international-employees",
+      "file": "blog_holiday-travel-tips-for-international-employees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/honeymoon-guide-for-couples-from-different-countries",
+      "title": "blog_honeymoon-guide-for-couples-from-different-countries",
+      "file": "blog_honeymoon-guide-for-couples-from-different-countries.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/house-republicans-immigration-fee-hike",
+      "title": "blog_house-republicans-immigration-fee-hike",
+      "file": "blog_house-republicans-immigration-fee-hike.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-do-non-english-speakers-vote",
+      "title": "blog_how-do-non-english-speakers-vote",
+      "file": "blog_how-do-non-english-speakers-vote.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-employers-can-support-immigrant-workers",
+      "title": "blog_how-employers-can-support-immigrant-workers",
+      "file": "blog_how-employers-can-support-immigrant-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-immigration-can-reverse-americas-aging-population-problem",
+      "title": "blog_how-immigration-can-reverse-americas-aging-population-problem",
+      "file": "blog_how-immigration-can-reverse-americas-aging-population-problem.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-long-does-it-take-to-finish-an-immigration-regulation",
+      "title": "blog_how-long-does-it-take-to-finish-an-immigration-regulation",
+      "file": "blog_how-long-does-it-take-to-finish-an-immigration-regulation.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-afford-green-card-application",
+      "title": "blog_how-to-afford-green-card-application",
+      "file": "blog_how-to-afford-green-card-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-apply-for-an-online-travel-visa",
+      "title": "blog_how-to-apply-for-an-online-travel-visa",
+      "file": "blog_how-to-apply-for-an-online-travel-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-apply-u-s-college-international-student",
+      "title": "blog_how-to-apply-u-s-college-international-student",
+      "file": "blog_how-to-apply-u-s-college-international-student.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-attract-and-retain-top-immigrant-talent-after-the-ftcs-non-compete-ban",
+      "title": "blog_how-to-attract-and-retain-top-immigrant-talent-after-the-ftcs-non-compete-ban",
+      "file": "blog_how-to-attract-and-retain-top-immigrant-talent-after-the-ftcs-non-compete-ban.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-buy-a-house-as-a-green-card-holder",
+      "title": "blog_how-to-buy-a-house-as-a-green-card-holder",
+      "file": "blog_how-to-buy-a-house-as-a-green-card-holder.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-contact-your-representative-to-speed-up-your-visa-processing-time",
+      "title": "blog_how-to-contact-your-representative-to-speed-up-your-visa-processing-time",
+      "file": "blog_how-to-contact-your-representative-to-speed-up-your-visa-processing-time.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-create-and-maintain-an-h-1b-public-access-file",
+      "title": "blog_how-to-create-and-maintain-an-h-1b-public-access-file",
+      "file": "blog_how-to-create-and-maintain-an-h-1b-public-access-file.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-disclose-a-family-relationship-on-the-perm-application",
+      "title": "blog_how-to-disclose-a-family-relationship-on-the-perm-application",
+      "file": "blog_how-to-disclose-a-family-relationship-on-the-perm-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-elope-online",
+      "title": "blog_how-to-elope-online",
+      "file": "blog_how-to-elope-online.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-find-support-during-marriage-green-card-process",
+      "title": "blog_how-to-find-support-during-marriage-green-card-process",
+      "file": "blog_how-to-find-support-during-marriage-green-card-process.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-hire-international-students-opt",
+      "title": "blog_how-to-hire-international-students-opt",
+      "file": "blog_how-to-hire-international-students-opt.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-improve-your-business-immigration-process",
+      "title": "blog_how-to-improve-your-business-immigration-process",
+      "file": "blog_how-to-improve-your-business-immigration-process.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-navigate-the-u-s-healthcare-system-as-an-immigrant",
+      "title": "blog_how-to-navigate-the-u-s-healthcare-system-as-an-immigrant",
+      "file": "blog_how-to-navigate-the-u-s-healthcare-system-as-an-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-post-lca-electronically",
+      "title": "blog_how-to-post-lca-electronically",
+      "file": "blog_how-to-post-lca-electronically.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-prepare-for-a-uscis-site-visit",
+      "title": "blog_how-to-prepare-for-a-uscis-site-visit",
+      "file": "blog_how-to-prepare-for-a-uscis-site-visit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-prepare-for-tn-visa-interview-with-cbp",
+      "title": "blog_how-to-prepare-for-tn-visa-interview-with-cbp",
+      "file": "blog_how-to-prepare-for-tn-visa-interview-with-cbp.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-register-to-vote-new-u-s-citizen",
+      "title": "blog_how-to-register-to-vote-new-u-s-citizen",
+      "file": "blog_how-to-register-to-vote-new-u-s-citizen.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-set-up-a-courthouse-wedding",
+      "title": "blog_how-to-set-up-a-courthouse-wedding",
+      "file": "blog_how-to-set-up-a-courthouse-wedding.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-sponsor-refugees",
+      "title": "blog_how-to-sponsor-refugees",
+      "file": "blog_how-to-sponsor-refugees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/how-to-write-the-best-job-description-foreign-worker",
+      "title": "blog_how-to-write-the-best-job-description-foreign-worker",
+      "file": "blog_how-to-write-the-best-job-description-foreign-worker.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/ice-spies-on-majority-of-americans",
+      "title": "blog_ice-spies-on-majority-of-americans",
+      "file": "blog_ice-spies-on-majority-of-americans.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/identify-h-1b-fraud-fake-opt-candidates",
+      "title": "blog_identify-h-1b-fraud-fake-opt-candidates",
+      "file": "blog_identify-h-1b-fraud-fake-opt-candidates.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/illegal-immigration-is-not-an-invasion",
+      "title": "blog_illegal-immigration-is-not-an-invasion",
+      "file": "blog_illegal-immigration-is-not-an-invasion.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-art",
+      "title": "blog_immigrant-art",
+      "file": "blog_immigrant-art.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-chemists",
+      "title": "blog_immigrant-chemists",
+      "file": "blog_immigrant-chemists.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/extraordinary-ability-us-employers",
+      "title": "blog_extraordinary-ability-us-employers",
+      "file": "blog_extraordinary-ability-us-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-credit-card",
+      "title": "blog_immigrant-credit-card",
+      "file": "blog_immigrant-credit-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-parents-challenges",
+      "title": "blog_immigrant-parents-challenges",
+      "file": "blog_immigrant-parents-challenges.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-population-hits-record-high",
+      "title": "blog_immigrant-population-hits-record-high",
+      "file": "blog_immigrant-population-hits-record-high.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-taxes-faq",
+      "title": "blog_immigrant-taxes-faq",
+      "file": "blog_immigrant-taxes-faq.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-voting-rights",
+      "title": "blog_immigrant-voting-rights",
+      "file": "blog_immigrant-voting-rights.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrant-women-united-states",
+      "title": "blog_immigrant-women-united-states",
+      "file": "blog_immigrant-women-united-states.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrants-and-the-oscars-winners-past-and-present",
+      "title": "blog_immigrants-and-the-oscars-winners-past-and-present",
+      "file": "blog_immigrants-and-the-oscars-winners-past-and-present.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrants-competing-for-us-citizenship-show",
+      "title": "blog_immigrants-competing-for-us-citizenship-show",
+      "file": "blog_immigrants-competing-for-us-citizenship-show.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrants-filing-taxes",
+      "title": "blog_immigrants-filing-taxes",
+      "file": "blog_immigrants-filing-taxes.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrants-green-cards-family",
+      "title": "blog_immigrants-green-cards-family",
+      "file": "blog_immigrants-green-cards-family.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrants-nobel-prize",
+      "title": "blog_immigrants-nobel-prize",
+      "file": "blog_immigrants-nobel-prize.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigrate-pets-united-states",
+      "title": "blog_immigrate-pets-united-states",
+      "file": "blog_immigrate-pets-united-states.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-act-1990",
+      "title": "blog_immigration-act-1990",
+      "file": "blog_immigration-act-1990.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-and-the-stem-industry",
+      "title": "blog_immigration-and-the-stem-industry",
+      "file": "blog_immigration-and-the-stem-industry.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-backlog-funding",
+      "title": "blog_immigration-backlog-funding",
+      "file": "blog_immigration-backlog-funding.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-could-help-lower-inflation",
+      "title": "blog_immigration-could-help-lower-inflation",
+      "file": "blog_immigration-could-help-lower-inflation.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-data-points-hr-should-track",
+      "title": "blog_immigration-data-points-hr-should-track",
+      "file": "blog_immigration-data-points-hr-should-track.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-during-american-revolution",
+      "title": "blog_immigration-during-american-revolution",
+      "file": "blog_immigration-during-american-revolution.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-journalist-qa-michelle-hackman-wall-street-journal",
+      "title": "blog_immigration-journalist-qa-michelle-hackman-wall-street-journal",
+      "file": "blog_immigration-journalist-qa-michelle-hackman-wall-street-journal.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-parole-fee-2025",
+      "title": "blog_immigration-parole-fee-2025",
+      "file": "blog_immigration-parole-fee-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-predictions",
+      "title": "blog_immigration-predictions",
+      "file": "blog_immigration-predictions.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-support-applicants-with-disabilities",
+      "title": "blog_immigration-support-applicants-with-disabilities",
+      "file": "blog_immigration-support-applicants-with-disabilities.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-then-and-now",
+      "title": "blog_immigration-then-and-now",
+      "file": "blog_immigration-then-and-now.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-training-tips-for-tech-recruiters",
+      "title": "blog_immigration-training-tips-for-tech-recruiters",
+      "file": "blog_immigration-training-tips-for-tech-recruiters.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-vs-nativism",
+      "title": "blog_immigration-vs-nativism",
+      "file": "blog_immigration-vs-nativism.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/immigration-whites-only",
+      "title": "blog_immigration-whites-only",
+      "file": "blog_immigration-whites-only.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/indians-face-134-year-wait-employment-based-green-card",
+      "title": "blog_indians-face-134-year-wait-employment-based-green-card",
+      "file": "blog_indians-face-134-year-wait-employment-based-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/irs-to-share-immigrant-tax-data-with-ice",
+      "title": "blog_irs-to-share-immigrant-tax-data-with-ice",
+      "file": "blog_irs-to-share-immigrant-tax-data-with-ice.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/j-1-visa-tips",
+      "title": "blog_j-1-visa-tips",
+      "file": "blog_j-1-visa-tips.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/jefferson",
+      "title": "blog_jefferson",
+      "file": "blog_jefferson.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/johnson",
+      "title": "blog_johnson",
+      "file": "blog_johnson.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/kennedy",
+      "title": "blog_kennedy",
+      "file": "blog_kennedy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/know-your-rights-as-an-immigrant",
+      "title": "blog_know-your-rights-as-an-immigrant",
+      "file": "blog_know-your-rights-as-an-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/legal-considerations-for-immigrant-parents",
+      "title": "blog_legal-considerations-for-immigrant-parents",
+      "file": "blog_legal-considerations-for-immigrant-parents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/leverage-international-talent-fastest-growing-jobs",
+      "title": "blog_leverage-international-talent-fastest-growing-jobs",
+      "file": "blog_leverage-international-talent-fastest-growing-jobs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/lgbtq-safe-states",
+      "title": "blog_lgbtq-safe-states",
+      "file": "blog_lgbtq-safe-states.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/lincoln",
+      "title": "blog_lincoln",
+      "file": "blog_lincoln.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/long-distance-relationships-marriage-green-card",
+      "title": "blog_long-distance-relationships-marriage-green-card",
+      "file": "blog_long-distance-relationships-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/map-family-sponsored-immigrants-united-states",
+      "title": "blog_map-family-sponsored-immigrants-united-states",
+      "file": "blog_map-family-sponsored-immigrants-united-states.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/marriage-name-change",
+      "title": "blog_marriage-name-change",
+      "file": "blog_marriage-name-change.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/master-international-candidate-review-process",
+      "title": "blog_master-international-candidate-review-process",
+      "file": "blog_master-international-candidate-review-process.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/mastering-perm-audit-process-tips-hr-professionals",
+      "title": "blog_mastering-perm-audit-process-tips-hr-professionals",
+      "file": "blog_mastering-perm-audit-process-tips-hr-professionals.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/mayors-endorse-heartland-visa-to-boost-struggling-cities",
+      "title": "blog_mayors-endorse-heartland-visa-to-boost-struggling-cities",
+      "file": "blog_mayors-endorse-heartland-visa-to-boost-struggling-cities.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/mental-health-resources-for-immigrants",
+      "title": "blog_mental-health-resources-for-immigrants",
+      "file": "blog_mental-health-resources-for-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/microbiology",
+      "title": "blog_microbiology",
+      "file": "blog_microbiology.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/middle-east-embassy-visa-disruptions-2026",
+      "title": "blog_middle-east-embassy-visa-disruptions-2026",
+      "file": "blog_middle-east-embassy-visa-disruptions-2026.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/mispronounced-names-the-hidden-cost-of-workplace-bias",
+      "title": "blog_mispronounced-names-the-hidden-cost-of-workplace-bias",
+      "file": "blog_mispronounced-names-the-hidden-cost-of-workplace-bias.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/modify-accent-us-immigrant",
+      "title": "blog_modify-accent-us-immigrant",
+      "file": "blog_modify-accent-us-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/more-americans-are-giving-up-us-citizenship",
+      "title": "blog_more-americans-are-giving-up-us-citizenship",
+      "file": "blog_more-americans-are-giving-up-us-citizenship.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/most-effective-evidence-for-eb-1a-visa",
+      "title": "blog_most-effective-evidence-for-eb-1a-visa",
+      "file": "blog_most-effective-evidence-for-eb-1a-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/multicultural-immigrant-parent-tips",
+      "title": "blog_multicultural-immigrant-parent-tips",
+      "file": "blog_multicultural-immigrant-parent-tips.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/mutants-and-migration",
+      "title": "blog_mutants-and-migration",
+      "file": "blog_mutants-and-migration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/myths-about-undocumented-immigrants-in-the-u-s",
+      "title": "blog_myths-about-undocumented-immigrants-in-the-u-s",
+      "file": "blog_myths-about-undocumented-immigrants-in-the-u-s.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/naturalization-eligibility-fact-sheets",
+      "title": "blog_naturalization-eligibility-fact-sheets",
+      "file": "blog_naturalization-eligibility-fact-sheets.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/naturalization-good-moral-character-policy",
+      "title": "blog_naturalization-good-moral-character-policy",
+      "file": "blog_naturalization-good-moral-character-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/navigating-perm-process-timing",
+      "title": "blog_navigating-perm-process-timing",
+      "file": "blog_navigating-perm-process-timing.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/navigating-start-date-h-1b-transfer-employees",
+      "title": "blog_navigating-start-date-h-1b-transfer-employees",
+      "file": "blog_navigating-start-date-h-1b-transfer-employees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/navigating-the-costs-of-hiring-foreign-workers",
+      "title": "blog_navigating-the-costs-of-hiring-foreign-workers",
+      "file": "blog_navigating-the-costs-of-hiring-foreign-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/navigating-us-immigration-electronic-application-systems",
+      "title": "blog_navigating-us-immigration-electronic-application-systems",
+      "file": "blog_navigating-us-immigration-electronic-application-systems.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/nearly-half-fortune-500-companies-founded-by-immigrants",
+      "title": "blog_nearly-half-fortune-500-companies-founded-by-immigrants",
+      "file": "blog_nearly-half-fortune-500-companies-founded-by-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-deal",
+      "title": "blog_new-deal",
+      "file": "blog_new-deal.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-fees-for-work-and-travel-permits",
+      "title": "blog_new-fees-for-work-and-travel-permits",
+      "file": "blog_new-fees-for-work-and-travel-permits.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-health-insurance-requirement-explained",
+      "title": "blog_new-health-insurance-requirement-explained",
+      "file": "blog_new-health-insurance-requirement-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-i94-esta-fees-2025",
+      "title": "blog_new-i94-esta-fees-2025",
+      "file": "blog_new-i94-esta-fees-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-interview-requirement-for-many-spouses-of-u-s-citizens-green-card-holders",
+      "title": "blog_new-interview-requirement-for-many-spouses-of-u-s-citizens-green-card-holders",
+      "file": "blog_new-interview-requirement-for-many-spouses-of-u-s-citizens-green-card-holders.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-report-k-1-visa-processing-times-improve-but-issuances-remain-low",
+      "title": "blog_new-report-k-1-visa-processing-times-improve-but-issuances-remain-low",
+      "file": "blog_new-report-k-1-visa-processing-times-improve-but-issuances-remain-low.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-us-policy-restricts-interview-locations-for-nonimmigrant-visas",
+      "title": "blog_new-us-policy-restricts-interview-locations-for-nonimmigrant-visas",
+      "file": "blog_new-us-policy-restricts-interview-locations-for-nonimmigrant-visas.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-us-visa-bond-could-cost-travelers-up-to-15000",
+      "title": "blog_new-us-visa-bond-could-cost-travelers-up-to-15000",
+      "file": "blog_new-us-visa-bond-could-cost-travelers-up-to-15000.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-uscis-guidance-for-international-students-companies",
+      "title": "blog_new-uscis-guidance-for-international-students-companies",
+      "file": "blog_new-uscis-guidance-for-international-students-companies.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-uscis-process-refugee-work-permits",
+      "title": "blog_new-uscis-process-refugee-work-permits",
+      "file": "blog_new-uscis-process-refugee-work-permits.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/new-uscis-registration-rule-what-hr-teams-need-to-know",
+      "title": "blog_new-uscis-registration-rule-what-hr-teams-need-to-know",
+      "file": "blog_new-uscis-registration-rule-what-hr-teams-need-to-know.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/nonimmigrant-visa-interview-waiver-changes-2025",
+      "title": "blog_nonimmigrant-visa-interview-waiver-changes-2025",
+      "file": "blog_nonimmigrant-visa-interview-waiver-changes-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/number-of-international-students-in-us-stem-jobs-surges-54-percent-in-2024",
+      "title": "blog_number-of-international-students-in-us-stem-jobs-surges-54-percent-in-2024",
+      "file": "blog_number-of-international-students-in-us-stem-jobs-surges-54-percent-in-2024.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/obama",
+      "title": "blog_obama",
+      "file": "blog_obama.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/one-third-immigration-court-cases-children",
+      "title": "blog_one-third-immigration-court-cases-children",
+      "file": "blog_one-third-immigration-court-cases-children.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/out-of-status-green-card-travel",
+      "title": "blog_out-of-status-green-card-travel",
+      "file": "blog_out-of-status-green-card-travel.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/passport-vs-visa",
+      "title": "blog_passport-vs-visa",
+      "file": "blog_passport-vs-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/perm-good-faith-recruitment",
+      "title": "blog_perm-good-faith-recruitment",
+      "file": "blog_perm-good-faith-recruitment.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/perm-priority-dates",
+      "title": "blog_perm-priority-dates",
+      "file": "blog_perm-priority-dates.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/permanent-resident-vs-citizen",
+      "title": "blog_permanent-resident-vs-citizen",
+      "file": "blog_permanent-resident-vs-citizen.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/physics",
+      "title": "blog_physics",
+      "file": "blog_physics.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/physiology",
+      "title": "blog_physiology",
+      "file": "blog_physiology.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/planning-immigration-budget",
+      "title": "blog_planning-immigration-budget",
+      "file": "blog_planning-immigration-budget.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/political-science",
+      "title": "blog_political-science",
+      "file": "blog_political-science.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/population-growth-driven-immigration",
+      "title": "blog_population-growth-driven-immigration",
+      "file": "blog_population-growth-driven-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/pregnant-immigrants-lack-access-to-prenatal-care",
+      "title": "blog_pregnant-immigrants-lack-access-to-prenatal-care",
+      "file": "blog_pregnant-immigrants-lack-access-to-prenatal-care.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/presidential-speeches",
+      "title": "blog_presidential-speeches",
+      "file": "blog_presidential-speeches.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/prevailing-wage-changes-under-trump",
+      "title": "blog_prevailing-wage-changes-under-trump",
+      "file": "blog_prevailing-wage-changes-under-trump.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/preventing-workplace-harassment-h-1b-employees",
+      "title": "blog_preventing-workplace-harassment-h-1b-employees",
+      "file": "blog_preventing-workplace-harassment-h-1b-employees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/project-firewall-h1b-enforcement",
+      "title": "blog_project-firewall-h1b-enforcement",
+      "file": "blog_project-firewall-h1b-enforcement.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/proposed-daca-rule-separating-work-authorization-worries-some",
+      "title": "blog_proposed-daca-rule-separating-work-authorization-worries-some",
+      "file": "blog_proposed-daca-rule-separating-work-authorization-worries-some.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/pros-and-cons-work-visa-sponsorship-u-s",
+      "title": "blog_pros-and-cons-work-visa-sponsorship-u-s",
+      "file": "blog_pros-and-cons-work-visa-sponsorship-u-s.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/pros-cons-applying-temporary-protected-status",
+      "title": "blog_pros-cons-applying-temporary-protected-status",
+      "file": "blog_pros-cons-applying-temporary-protected-status.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/psychology",
+      "title": "blog_psychology",
+      "file": "blog_psychology.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/q-a-with-former-uscis-officer",
+      "title": "blog_q-a-with-former-uscis-officer",
+      "file": "blog_q-a-with-former-uscis-officer.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/q-and-a-uscis-officer-fiance-spouse-visas",
+      "title": "blog_q-and-a-uscis-officer-fiance-spouse-visas",
+      "file": "blog_q-and-a-uscis-officer-fiance-spouse-visas.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/qatar-world-cup-migrant-workers",
+      "title": "blog_qatar-world-cup-migrant-workers",
+      "file": "blog_qatar-world-cup-migrant-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/reagan",
+      "title": "blog_reagan",
+      "file": "blog_reagan.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/real-id-deadline-in-two-months-everything-you-need-to-know",
+      "title": "blog_real-id-deadline-in-two-months-everything-you-need-to-know",
+      "file": "blog_real-id-deadline-in-two-months-everything-you-need-to-know.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/relief-for-now-uscis-narrows-the-reach-of-the-100-000-h-1b-fee",
+      "title": "blog_relief-for-now-uscis-narrows-the-reach-of-the-100-000-h-1b-fee",
+      "file": "blog_relief-for-now-uscis-narrows-the-reach-of-the-100-000-h-1b-fee.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/remote-work-digital-nomads",
+      "title": "blog_remote-work-digital-nomads",
+      "file": "blog_remote-work-digital-nomads.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/reports-of-possible-ice-detentions-at-green-card-interviews-in-san-diego",
+      "title": "blog_reports-of-possible-ice-detentions-at-green-card-interviews-in-san-diego",
+      "file": "blog_reports-of-possible-ice-detentions-at-green-card-interviews-in-san-diego.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/resources-for-hispanic-immigrants",
+      "title": "blog_resources-for-hispanic-immigrants",
+      "file": "blog_resources-for-hispanic-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/resume-tips-new-immigrant",
+      "title": "blog_resume-tips-new-immigrant",
+      "file": "blog_resume-tips-new-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/rights-immigrant-protests",
+      "title": "blog_rights-immigrant-protests",
+      "file": "blog_rights-immigrant-protests.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/risks-waiting-to-apply-green-card",
+      "title": "blog_risks-waiting-to-apply-green-card",
+      "file": "blog_risks-waiting-to-apply-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/roaring-20s",
+      "title": "blog_roaring-20s",
+      "file": "blog_roaring-20s.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/roosevelt",
+      "title": "blog_roosevelt",
+      "file": "blog_roosevelt.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/scotus-rules-on-u-s-citizens-right-to-challenge-spousal-visa-denials",
+      "title": "blog_scotus-rules-on-u-s-citizens-right-to-challenge-spousal-visa-denials",
+      "file": "blog_scotus-rules-on-u-s-citizens-right-to-challenge-spousal-visa-denials.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/self-solemnization-marriage-green-card",
+      "title": "blog_self-solemnization-marriage-green-card",
+      "file": "blog_self-solemnization-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/slowing-immigration-is-worsening-worker-shortages",
+      "title": "blog_slowing-immigration-is-worsening-worker-shortages",
+      "file": "blog_slowing-immigration-is-worsening-worker-shortages.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/sociology",
+      "title": "blog_sociology",
+      "file": "blog_sociology.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/spouses-of-immigrant-workers-biden-administration-settlement",
+      "title": "blog_spouses-of-immigrant-workers-biden-administration-settlement",
+      "file": "blog_spouses-of-immigrant-workers-biden-administration-settlement.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/state-department-announces-new-passport-fair-dates",
+      "title": "blog_state-department-announces-new-passport-fair-dates",
+      "file": "blog_state-department-announces-new-passport-fair-dates.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/state-department-help-travelers-during-crisis-abroad",
+      "title": "blog_state-department-help-travelers-during-crisis-abroad",
+      "file": "blog_state-department-help-travelers-during-crisis-abroad.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/state-department-limits-interview-waivers-for-most-visa-applicants",
+      "title": "blog_state-department-limits-interview-waivers-for-most-visa-applicants",
+      "file": "blog_state-department-limits-interview-waivers-for-most-visa-applicants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/state-department-record-number-visas-first-half-fiscal-year-2024",
+      "title": "blog_state-department-record-number-visas-first-half-fiscal-year-2024",
+      "file": "blog_state-department-record-number-visas-first-half-fiscal-year-2024.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/state-department-will-allow-h-1b-workers-to-renew-visa-in-u-s",
+      "title": "blog_state-department-will-allow-h-1b-workers-to-renew-visa-in-u-s",
+      "file": "blog_state-department-will-allow-h-1b-workers-to-renew-visa-in-u-s.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/student-visa-denials-increase",
+      "title": "blog_student-visa-denials-increase",
+      "file": "blog_student-visa-denials-increase.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/student-visa-social-media-screening",
+      "title": "blog_student-visa-social-media-screening",
+      "file": "blog_student-visa-social-media-screening.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/support-dei-initiatives-with-immigration",
+      "title": "blog_support-dei-initiatives-with-immigration",
+      "file": "blog_support-dei-initiatives-with-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/support-networks-for-immigrant-parents",
+      "title": "blog_support-networks-for-immigrant-parents",
+      "file": "blog_support-networks-for-immigrant-parents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/supporting-employees-not-selected-in-the-h-1b-lottery",
+      "title": "blog_supporting-employees-not-selected-in-the-h-1b-lottery",
+      "file": "blog_supporting-employees-not-selected-in-the-h-1b-lottery.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/supreme-court-rules-courts-cant-review-visa-revocations",
+      "title": "blog_supreme-court-rules-courts-cant-review-visa-revocations",
+      "file": "blog_supreme-court-rules-courts-cant-review-visa-revocations.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tech-companies-hiring-h-1b-workers",
+      "title": "blog_tech-companies-hiring-h-1b-workers",
+      "file": "blog_tech-companies-hiring-h-1b-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/the-future-of-work-is-global",
+      "title": "blog_the-future-of-work-is-global",
+      "file": "blog_the-future-of-work-is-global.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/third-country-travel-visa-appointments",
+      "title": "blog_third-country-travel-visa-appointments",
+      "file": "blog_third-country-travel-visa-appointments.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/third-gender-option-uscis-n-400",
+      "title": "blog_third-gender-option-uscis-n-400",
+      "file": "blog_third-gender-option-uscis-n-400.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tips-for-getting-your-k-1-visa-approved",
+      "title": "blog_tips-for-getting-your-k-1-visa-approved",
+      "file": "blog_tips-for-getting-your-k-1-visa-approved.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tn-status-employer-faqs",
+      "title": "blog_tn-status-employer-faqs",
+      "file": "blog_tn-status-employer-faqs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tn-status-pros-and-cons",
+      "title": "blog_tn-status-pros-and-cons",
+      "file": "blog_tn-status-pros-and-cons.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tn-visa-applicant-faqs",
+      "title": "blog_tn-visa-applicant-faqs",
+      "file": "blog_tn-visa-applicant-faqs.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-5-h-1b-mistakes-companies-make",
+      "title": "blog_top-5-h-1b-mistakes-companies-make",
+      "file": "blog_top-5-h-1b-mistakes-companies-make.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-cities",
+      "title": "blog_top-cities",
+      "file": "blog_top-cities.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-customs-border-travel-faqs-reddit",
+      "title": "blog_top-customs-border-travel-faqs-reddit",
+      "file": "blog_top-customs-border-travel-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-filipino-travel-bloggers",
+      "title": "blog_top-filipino-travel-bloggers",
+      "file": "blog_top-filipino-travel-bloggers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-immigrant-podcasts",
+      "title": "blog_top-immigrant-podcasts",
+      "file": "blog_top-immigrant-podcasts.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-language-apps-immigrants",
+      "title": "blog_top-language-apps-immigrants",
+      "file": "blog_top-language-apps-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-marriage-green-card-faqs-reddit",
+      "title": "blog_top-marriage-green-card-faqs-reddit",
+      "file": "blog_top-marriage-green-card-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-student-visa-faqs-reddit",
+      "title": "blog_top-student-visa-faqs-reddit",
+      "file": "blog_top-student-visa-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-u-s-suburbs-immigrants",
+      "title": "blog_top-u-s-suburbs-immigrants",
+      "file": "blog_top-u-s-suburbs-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-undocumented-immigrant-faqs-reddit",
+      "title": "blog_top-undocumented-immigrant-faqs-reddit",
+      "file": "blog_top-undocumented-immigrant-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-universities-international-students",
+      "title": "blog_top-universities-international-students",
+      "file": "blog_top-universities-international-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-us-citizenship-and-naturalization-faqs-reddit",
+      "title": "blog_top-us-citizenship-and-naturalization-faqs-reddit",
+      "file": "blog_top-us-citizenship-and-naturalization-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/top-us-work-visa-faqs-reddit",
+      "title": "blog_top-us-work-visa-faqs-reddit",
+      "file": "blog_top-us-work-visa-faqs-reddit.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tourist-rights-entering-us",
+      "title": "blog_tourist-rights-entering-us",
+      "file": "blog_tourist-rights-entering-us.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/tps-venezuelans-end-impact-employers",
+      "title": "blog_tps-venezuelans-end-impact-employers",
+      "file": "blog_tps-venezuelans-end-impact-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/travel-visa-tips",
+      "title": "blog_travel-visa-tips",
+      "file": "blog_travel-visa-tips.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/truman",
+      "title": "blog_truman",
+      "file": "blog_truman.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-administration-gold-card",
+      "title": "blog_trump-administration-gold-card",
+      "file": "blog_trump-administration-gold-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-administration-quietly-reinstates-alien-in-immigration-policy-manual",
+      "title": "blog_trump-administration-quietly-reinstates-alien-in-immigration-policy-manual",
+      "file": "blog_trump-administration-quietly-reinstates-alien-in-immigration-policy-manual.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-administration-releases-new-plans-to-enforce-birthright-citizenship-order",
+      "title": "blog_trump-administration-releases-new-plans-to-enforce-birthright-citizenship-order",
+      "file": "blog_trump-administration-releases-new-plans-to-enforce-birthright-citizenship-order.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-administration-revokes-harvards-ability-to-enroll-international-students",
+      "title": "blog_trump-administration-revokes-harvards-ability-to-enroll-international-students",
+      "file": "blog_trump-administration-revokes-harvards-ability-to-enroll-international-students.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-administration-to-propose-new-100000-fee-for-h-1b-visa-applications",
+      "title": "blog_trump-administration-to-propose-new-100000-fee-for-h-1b-visa-applications",
+      "file": "blog_trump-administration-to-propose-new-100000-fee-for-h-1b-visa-applications.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-immigration-policy",
+      "title": "blog_trump-immigration-policy",
+      "file": "blog_trump-immigration-policy.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-immigration-raids-employers",
+      "title": "blog_trump-immigration-raids-employers",
+      "file": "blog_trump-immigration-raids-employers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-new-travel-ban-countries",
+      "title": "blog_trump-new-travel-ban-countries",
+      "file": "blog_trump-new-travel-ban-countries.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-proposes-giving-all-foreign-grads-of-u-s-colleges-green-cards",
+      "title": "blog_trump-proposes-giving-all-foreign-grads-of-u-s-colleges-green-cards",
+      "file": "blog_trump-proposes-giving-all-foreign-grads-of-u-s-colleges-green-cards.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-reduce-family-immigration",
+      "title": "blog_trump-reduce-family-immigration",
+      "file": "blog_trump-reduce-family-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trump-suspends-diversity-visa-lottery",
+      "title": "blog_trump-suspends-diversity-visa-lottery",
+      "file": "blog_trump-suspends-diversity-visa-lottery.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trumps-day-1-immigration-executive-orders",
+      "title": "blog_trumps-day-1-immigration-executive-orders",
+      "file": "blog_trumps-day-1-immigration-executive-orders.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trumps-executive-order-on-english-proficiency-what-employers-of-truck-drivers-need-to-know",
+      "title": "blog_trumps-executive-order-on-english-proficiency-what-employers-of-truck-drivers-need-to-know",
+      "file": "blog_trumps-executive-order-on-english-proficiency-what-employers-of-truck-drivers-need-to-know.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/trumps-staff-and-their-role-in-shaping-immigration-policies",
+      "title": "blog_trumps-staff-and-their-role-in-shaping-immigration-policies",
+      "file": "blog_trumps-staff-and-their-role-in-shaping-immigration-policies.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/u-s-citizens-visa-travel-to-europe",
+      "title": "blog_u-s-citizens-visa-travel-to-europe",
+      "file": "blog_u-s-citizens-visa-travel-to-europe.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/u-s-constitution-immigration",
+      "title": "blog_u-s-constitution-immigration",
+      "file": "blog_u-s-constitution-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/u-s-expands-eligibility-for-stem-work-experience-program",
+      "title": "blog_u-s-expands-eligibility-for-stem-work-experience-program",
+      "file": "blog_u-s-expands-eligibility-for-stem-work-experience-program.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/u-s-immigrants-awarded-nearly-half-of-nobel-prizes-since-2000",
+      "title": "blog_u-s-immigrants-awarded-nearly-half-of-nobel-prizes-since-2000",
+      "file": "blog_u-s-immigrants-awarded-nearly-half-of-nobel-prizes-since-2000.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/u-s-sets-new-record-with-1-1-million-international-students-finds-new-report",
+      "title": "blog_u-s-sets-new-record-with-1-1-million-international-students-finds-new-report",
+      "file": "blog_u-s-sets-new-record-with-1-1-million-international-students-finds-new-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uk-dual-citizen-passport-entry-rule",
+      "title": "blog_uk-dual-citizen-passport-entry-rule",
+      "file": "blog_uk-dual-citizen-passport-entry-rule.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uk-entry-rules-dual-citizens-faq",
+      "title": "blog_uk-entry-rules-dual-citizens-faq",
+      "file": "blog_uk-entry-rules-dual-citizens-faq.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/understanding-uscis-myprogress",
+      "title": "blog_understanding-uscis-myprogress",
+      "file": "blog_understanding-uscis-myprogress.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/undocumented-national-id-cards",
+      "title": "blog_undocumented-national-id-cards",
+      "file": "blog_undocumented-national-id-cards.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/update-address-with-uscis-havent-received-receipt-number",
+      "title": "blog_update-address-with-uscis-havent-received-receipt-number",
+      "file": "blog_update-address-with-uscis-havent-received-receipt-number.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/ur-jaddou-first-woman-lead-uscis",
+      "title": "blog_ur-jaddou-first-woman-lead-uscis",
+      "file": "blog_ur-jaddou-first-woman-lead-uscis.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-airports-travel-guide",
+      "title": "blog_us-airports-travel-guide",
+      "file": "blog_us-airports-travel-guide.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-banking-system-new-immigrants",
+      "title": "blog_us-banking-system-new-immigrants",
+      "file": "blog_us-banking-system-new-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-citizenship-renunciation-fee-cut",
+      "title": "blog_us-citizenship-renunciation-fee-cut",
+      "file": "blog_us-citizenship-renunciation-fee-cut.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-citizenship-test-updated",
+      "title": "blog_us-citizenship-test-updated",
+      "file": "blog_us-citizenship-test-updated.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-embassy-manila-visa-interview-documents",
+      "title": "blog_us-embassy-manila-visa-interview-documents",
+      "file": "blog_us-embassy-manila-visa-interview-documents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-healthcare-tips-for-immigrant-parents",
+      "title": "blog_us-healthcare-tips-for-immigrant-parents",
+      "file": "blog_us-healthcare-tips-for-immigrant-parents.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-immigrant-visa-processing-pause-75-countries",
+      "title": "blog_us-immigrant-visa-processing-pause-75-countries",
+      "file": "blog_us-immigrant-visa-processing-pause-75-countries.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-impact-canadian-immigration",
+      "title": "blog_us-impact-canadian-immigration",
+      "file": "blog_us-impact-canadian-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-more-diverse-than-ever",
+      "title": "blog_us-more-diverse-than-ever",
+      "file": "blog_us-more-diverse-than-ever.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-no-immigrant-visa-processing-70-countries",
+      "title": "blog_us-no-immigrant-visa-processing-70-countries",
+      "file": "blog_us-no-immigrant-visa-processing-70-countries.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-passport-ranking",
+      "title": "blog_us-passport-ranking",
+      "file": "blog_us-passport-ranking.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-pauses-work-visas-for-foreign-truck-drivers-2025",
+      "title": "blog_us-pauses-work-visas-for-foreign-truck-drivers-2025",
+      "file": "blog_us-pauses-work-visas-for-foreign-truck-drivers-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-state-department-introduces-1-dollar-fee-for-dv-lottery-registration",
+      "title": "blog_us-state-department-introduces-1-dollar-fee-for-dv-lottery-registration",
+      "file": "blog_us-state-department-introduces-1-dollar-fee-for-dv-lottery-registration.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-tightens-rules-on-where-immigrant-visa-applicants-can-interview",
+      "title": "blog_us-tightens-rules-on-where-immigrant-visa-applicants-can-interview",
+      "file": "blog_us-tightens-rules-on-where-immigrant-visa-applicants-can-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/us-visa-dropbox-rules-tighten",
+      "title": "blog_us-visa-dropbox-rules-tighten",
+      "file": "blog_us-visa-dropbox-rules-tighten.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-adjusts-how-it-handles-applications-from-countries-under-travel-restrictions",
+      "title": "blog_uscis-adjusts-how-it-handles-applications-from-countries-under-travel-restrictions",
+      "file": "blog_uscis-adjusts-how-it-handles-applications-from-countries-under-travel-restrictions.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-announces-second-h-1b-cap-lottery",
+      "title": "blog_uscis-announces-second-h-1b-cap-lottery",
+      "file": "blog_uscis-announces-second-h-1b-cap-lottery.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-anti-americanism-policy-update",
+      "title": "blog_uscis-anti-americanism-policy-update",
+      "file": "blog_uscis-anti-americanism-policy-update.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-data-green-card-processing-times-field-office-florida",
+      "title": "blog_uscis-data-green-card-processing-times-field-office-florida",
+      "file": "blog_uscis-data-green-card-processing-times-field-office-florida.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-ead-validity-adjustment-of-status-18-months",
+      "title": "blog_uscis-ead-validity-adjustment-of-status-18-months",
+      "file": "blog_uscis-ead-validity-adjustment-of-status-18-months.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-enforcement-powers-green-card",
+      "title": "blog_uscis-enforcement-powers-green-card",
+      "file": "blog_uscis-enforcement-powers-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-family-based-immigration-policy-update-2025",
+      "title": "blog_uscis-family-based-immigration-policy-update-2025",
+      "file": "blog_uscis-family-based-immigration-policy-update-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-fees-to-increase",
+      "title": "blog_uscis-fees-to-increase",
+      "file": "blog_uscis-fees-to-increase.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-form-i-693-policy-update",
+      "title": "blog_uscis-form-i-693-policy-update",
+      "file": "blog_uscis-form-i-693-policy-update.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-fy25-q1-immigration-trends",
+      "title": "blog_uscis-fy25-q1-immigration-trends",
+      "file": "blog_uscis-fy25-q1-immigration-trends.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-launches-new-electronic-payment-option-for-immigration-fees",
+      "title": "blog_uscis-launches-new-electronic-payment-option-for-immigration-fees",
+      "file": "blog_uscis-launches-new-electronic-payment-option-for-immigration-fees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-long-review-times",
+      "title": "blog_uscis-long-review-times",
+      "file": "blog_uscis-long-review-times.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-mandates-form-i-693-submission-with-green-card-applications",
+      "title": "blog_uscis-mandates-form-i-693-submission-with-green-card-applications",
+      "file": "blog_uscis-mandates-form-i-693-submission-with-green-card-applications.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-neighborhood-checks-naturalization",
+      "title": "blog_uscis-neighborhood-checks-naturalization",
+      "file": "blog_uscis-neighborhood-checks-naturalization.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-new-form-i129-h1b-wage-level",
+      "title": "blog_uscis-new-form-i129-h1b-wage-level",
+      "file": "blog_uscis-new-form-i129-h1b-wage-level.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-offers-relief-for-those-stuck-in-employment-visa-backlog",
+      "title": "blog_uscis-offers-relief-for-those-stuck-in-employment-visa-backlog",
+      "file": "blog_uscis-offers-relief-for-those-stuck-in-employment-visa-backlog.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-officer-answers-immigration-questions",
+      "title": "blog_uscis-officer-answers-immigration-questions",
+      "file": "blog_uscis-officer-answers-immigration-questions.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-ombudsman-report",
+      "title": "blog_uscis-ombudsman-report",
+      "file": "blog_uscis-ombudsman-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-photograph-reuse-policy-update",
+      "title": "blog_uscis-photograph-reuse-policy-update",
+      "file": "blog_uscis-photograph-reuse-policy-update.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-premium-processing-fees-increase-march-2026",
+      "title": "blog_uscis-premium-processing-fees-increase-march-2026",
+      "file": "blog_uscis-premium-processing-fees-increase-march-2026.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-q2-fy2025-data",
+      "title": "blog_uscis-q2-fy2025-data",
+      "file": "blog_uscis-q2-fy2025-data.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-quietly-tightens-marriage-green-card-procedures",
+      "title": "blog_uscis-quietly-tightens-marriage-green-card-procedures",
+      "file": "blog_uscis-quietly-tightens-marriage-green-card-procedures.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-registration-requirement-2025",
+      "title": "blog_uscis-registration-requirement-2025",
+      "file": "blog_uscis-registration-requirement-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-releases-new-i-485-form",
+      "title": "blog_uscis-releases-new-i-485-form",
+      "file": "blog_uscis-releases-new-i-485-form.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-removes-60-day-rule-medical-exam-form",
+      "title": "blog_uscis-removes-60-day-rule-medical-exam-form",
+      "file": "blog_uscis-removes-60-day-rule-medical-exam-form.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-removes-another-gender-identity-option-from-immigration-forms",
+      "title": "blog_uscis-removes-another-gender-identity-option-from-immigration-forms",
+      "file": "blog_uscis-removes-another-gender-identity-option-from-immigration-forms.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-removes-biometrics-fee-for-most-immigration-cases",
+      "title": "blog_uscis-removes-biometrics-fee-for-most-immigration-cases",
+      "file": "blog_uscis-removes-biometrics-fee-for-most-immigration-cases.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-scraps-trial-new-naturalization-test",
+      "title": "blog_uscis-scraps-trial-new-naturalization-test",
+      "file": "blog_uscis-scraps-trial-new-naturalization-test.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-suspends-biometrics-requirement",
+      "title": "blog_uscis-suspends-biometrics-requirement",
+      "file": "blog_uscis-suspends-biometrics-requirement.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-tightens-cspa-age-calculation-for-green-card-applicants",
+      "title": "blog_uscis-tightens-cspa-age-calculation-for-green-card-applicants",
+      "file": "blog_uscis-tightens-cspa-age-calculation-for-green-card-applicants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-two-sexes-policy-update",
+      "title": "blog_uscis-two-sexes-policy-update",
+      "file": "blog_uscis-two-sexes-policy-update.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/uscis-updates-guidance-for-eb-2-national-interest-waivers",
+      "title": "blog_uscis-updates-guidance-for-eb-2-national-interest-waivers",
+      "file": "blog_uscis-updates-guidance-for-eb-2-national-interest-waivers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/valentines-day-colombia-flower-industry",
+      "title": "blog_valentines-day-colombia-flower-industry",
+      "file": "blog_valentines-day-colombia-flower-industry.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/visa-bulletin",
+      "title": "blog_visa-bulletin",
+      "file": "blog_visa-bulletin.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/visa-bulletin-archive-for-september-2025",
+      "title": "blog_visa-bulletin-archive-for-september-2025",
+      "file": "blog_visa-bulletin-archive-for-september-2025.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/visa-bulletin-august-2021",
+      "title": "blog_visa-bulletin-august-2021",
+      "file": "blog_visa-bulletin-august-2021.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/visa-integrity-fee",
+      "title": "blog_visa-integrity-fee",
+      "file": "blog_visa-integrity-fee.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/visa-types-for-healthcare-workers",
+      "title": "blog_visa-types-for-healthcare-workers",
+      "file": "blog_visa-types-for-healthcare-workers.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/washington",
+      "title": "blog_washington",
+      "file": "blog_washington.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-happens-child-ages-out-before-green-card",
+      "title": "blog_what-happens-child-ages-out-before-green-card",
+      "file": "blog_what-happens-child-ages-out-before-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-happens-to-u-s-citizen-children-when-their-parents-are-deported",
+      "title": "blog_what-happens-to-u-s-citizen-children-when-their-parents-are-deported",
+      "file": "blog_what-happens-to-u-s-citizen-children-when-their-parents-are-deported.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-hr-can-learn-from-international-employees",
+      "title": "blog_what-hr-can-learn-from-international-employees",
+      "file": "blog_what-hr-can-learn-from-international-employees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-is-a-skills-verification-letter",
+      "title": "blog_what-is-a-skills-verification-letter",
+      "file": "blog_what-is-a-skills-verification-letter.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-is-e-verify",
+      "title": "blog_what-is-e-verify",
+      "file": "blog_what-is-e-verify.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-is-remittance",
+      "title": "blog_what-is-remittance",
+      "file": "blog_what-is-remittance.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-supreme-court-affirmative-action-ruling-means-for-immigrants",
+      "title": "blog_what-supreme-court-affirmative-action-ruling-means-for-immigrants",
+      "file": "blog_what-supreme-court-affirmative-action-ruling-means-for-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-to-consider-when-sending-a-foreign-employee-overseas-for-work",
+      "title": "blog_what-to-consider-when-sending-a-foreign-employee-overseas-for-work",
+      "file": "blog_what-to-consider-when-sending-a-foreign-employee-overseas-for-work.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-to-do-perm-application-denied",
+      "title": "blog_what-to-do-perm-application-denied",
+      "file": "blog_what-to-do-perm-application-denied.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-to-do-travel-visa-overstay",
+      "title": "blog_what-to-do-travel-visa-overstay",
+      "file": "blog_what-to-do-travel-visa-overstay.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/what-trumps-executive-order-making-english-the-official-language-means-for-immigrants",
+      "title": "blog_what-trumps-executive-order-making-english-the-official-language-means-for-immigrants",
+      "file": "blog_what-trumps-executive-order-making-english-the-official-language-means-for-immigrants.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/when-how-contact-uscis-lockbox",
+      "title": "blog_when-how-contact-uscis-lockbox",
+      "file": "blog_when-how-contact-uscis-lockbox.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/who-pays-immigration-fees",
+      "title": "blog_who-pays-immigration-fees",
+      "file": "blog_who-pays-immigration-fees.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/work-and-travel-permit-pros-and-cons",
+      "title": "blog_work-and-travel-permit-pros-and-cons",
+      "file": "blog_work-and-travel-permit-pros-and-cons.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/work-is-the-top-reason-people-immigrate-to-the-us-new-data-shows",
+      "title": "blog_work-is-the-top-reason-people-immigrate-to-the-us-new-data-shows",
+      "file": "blog_work-is-the-top-reason-people-immigrate-to-the-us-new-data-shows.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/work-permit-extension-h1b-l1-spouses",
+      "title": "blog_work-permit-extension-h1b-l1-spouses",
+      "file": "blog_work-permit-extension-h1b-l1-spouses.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/work-visa-compliance-tips-for-hr-professionals",
+      "title": "blog_work-visa-compliance-tips-for-hr-professionals",
+      "file": "blog_work-visa-compliance-tips-for-hr-professionals.md"
+    },
+    {
+      "url": "https://www.boundless.com/blog/year-in-review-immigration",
+      "title": "blog_year-in-review-immigration",
+      "file": "blog_year-in-review-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/5-ways-to-speed-up-visa-processing",
+      "title": "immigration-resources_5-ways-to-speed-up-visa-processing",
+      "file": "immigration-resources_5-ways-to-speed-up-visa-processing.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/adjustment-of-status-vs-consular-processing",
+      "title": "immigration-resources_adjustment-of-status-vs-consular-processing",
+      "file": "immigration-resources_adjustment-of-status-vs-consular-processing.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/apply-citizenship-after-marriage-green-card",
+      "title": "immigration-resources_apply-citizenship-after-marriage-green-card",
+      "file": "immigration-resources_apply-citizenship-after-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/b-1-b-2-visitor-visa-explained",
+      "title": "immigration-resources_b-1-b-2-visitor-visa-explained",
+      "file": "immigration-resources_b-1-b-2-visitor-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/beginners-guide-global-mobility",
+      "title": "immigration-resources_beginners-guide-global-mobility",
+      "file": "immigration-resources_beginners-guide-global-mobility.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/benefits-of-us-citizenship",
+      "title": "immigration-resources_benefits-of-us-citizenship",
+      "file": "immigration-resources_benefits-of-us-citizenship.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/biometrics-appointment",
+      "title": "immigration-resources_biometrics-appointment",
+      "file": "immigration-resources_biometrics-appointment.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/birthright-citizenship-explained",
+      "title": "immigration-resources_birthright-citizenship-explained",
+      "file": "immigration-resources_birthright-citizenship-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/by-country",
+      "title": "immigration-resources_by-country",
+      "file": "immigration-resources_by-country.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/certificate-of-citizenship",
+      "title": "immigration-resources_certificate-of-citizenship",
+      "file": "immigration-resources_certificate-of-citizenship.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/certificate-of-naturalization-explained",
+      "title": "immigration-resources_certificate-of-naturalization-explained",
+      "file": "immigration-resources_certificate-of-naturalization-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/citizenship-test-questions-and-answers",
+      "title": "immigration-resources_citizenship-test-questions-and-answers",
+      "file": "immigration-resources_citizenship-test-questions-and-answers.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/complete-guide-to-family-based-immigration",
+      "title": "immigration-resources_complete-guide-to-family-based-immigration",
+      "file": "immigration-resources_complete-guide-to-family-based-immigration.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/conditional-permanent-residency",
+      "title": "immigration-resources_conditional-permanent-residency",
+      "file": "immigration-resources_conditional-permanent-residency.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/cr1-ir1-spouse-visa",
+      "title": "immigration-resources_cr1-ir1-spouse-visa",
+      "file": "immigration-resources_cr1-ir1-spouse-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/daca-form-i-821d-explained",
+      "title": "immigration-resources_daca-form-i-821d-explained",
+      "file": "immigration-resources_daca-form-i-821d-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/daca-recipients-and-marriage-green-cards",
+      "title": "immigration-resources_daca-recipients-and-marriage-green-cards",
+      "file": "immigration-resources_daca-recipients-and-marriage-green-cards.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/diversity-visa-lottery",
+      "title": "immigration-resources_diversity-visa-lottery",
+      "file": "immigration-resources_diversity-visa-lottery.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/documents-for-k-1-visa",
+      "title": "immigration-resources_documents-for-k-1-visa",
+      "file": "immigration-resources_documents-for-k-1-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/documents-for-travel-visa",
+      "title": "immigration-resources_documents-for-travel-visa",
+      "file": "immigration-resources_documents-for-travel-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/e-2-visa-explained-2",
+      "title": "immigration-resources_e-2-visa-explained-2",
+      "file": "immigration-resources_e-2-visa-explained-2.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/e-3-visa-for-australians-explained",
+      "title": "immigration-resources_e-3-visa-for-australians-explained",
+      "file": "immigration-resources_e-3-visa-for-australians-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/eb2-niw-explained",
+      "title": "immigration-resources_eb2-niw-explained",
+      "file": "immigration-resources_eb2-niw-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/f-1-student-visa-explained",
+      "title": "immigration-resources_f-1-student-visa-explained",
+      "file": "immigration-resources_f-1-student-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/form-i-130-cover-letter",
+      "title": "immigration-resources_form-i-130-cover-letter",
+      "file": "immigration-resources_form-i-130-cover-letter.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/form-i-94-travel-record-card-online",
+      "title": "immigration-resources_form-i-94-travel-record-card-online",
+      "file": "immigration-resources_form-i-94-travel-record-card-online.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/form-i766-ead-card",
+      "title": "immigration-resources_form-i766-ead-card",
+      "file": "immigration-resources_form-i766-ead-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/green-card-benefits",
+      "title": "immigration-resources_green-card-benefits",
+      "file": "immigration-resources_green-card-benefits.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/green-card-vs-visa",
+      "title": "immigration-resources_green-card-vs-visa",
+      "file": "immigration-resources_green-card-vs-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/grounds-of-inadmissibility-explained",
+      "title": "immigration-resources_grounds-of-inadmissibility-explained",
+      "file": "immigration-resources_grounds-of-inadmissibility-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/guides",
+      "title": "immigration-resources_guides",
+      "file": "immigration-resources_guides.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/h-1b-visa-extensions-explained",
+      "title": "immigration-resources_h-1b-visa-extensions-explained",
+      "file": "immigration-resources_h-1b-visa-extensions-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/h-1b-visa-interview-questions",
+      "title": "immigration-resources_h-1b-visa-interview-questions",
+      "file": "immigration-resources_h-1b-visa-interview-questions.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/help-with",
+      "title": "immigration-resources_help-with",
+      "file": "immigration-resources_help-with.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-is-a-fiance-visa-different-from-a-marriage-based-green-card",
+      "title": "immigration-resources_how-is-a-fiance-visa-different-from-a-marriage-based-green-card",
+      "file": "immigration-resources_how-is-a-fiance-visa-different-from-a-marriage-based-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-long-does-k-1-visa-take",
+      "title": "immigration-resources_how-long-does-k-1-visa-take",
+      "file": "immigration-resources_how-long-does-k-1-visa-take.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-long-does-marriage-green-card-take",
+      "title": "immigration-resources_how-long-does-marriage-green-card-take",
+      "file": "immigration-resources_how-long-does-marriage-green-card-take.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-to-apply-us-passport",
+      "title": "immigration-resources_how-to-apply-us-passport",
+      "file": "immigration-resources_how-to-apply-us-passport.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-to-change-status-from-k-1-visa-to-marriage-green-card",
+      "title": "immigration-resources_how-to-change-status-from-k-1-visa-to-marriage-green-card",
+      "file": "immigration-resources_how-to-change-status-from-k-1-visa-to-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-to-check-green-card-status",
+      "title": "immigration-resources_how-to-check-green-card-status",
+      "file": "immigration-resources_how-to-check-green-card-status.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-to-check-uscis-case-status",
+      "title": "immigration-resources_how-to-check-uscis-case-status",
+      "file": "immigration-resources_how-to-check-uscis-case-status.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/how-to-expedite-marriage-green-card",
+      "title": "immigration-resources_how-to-expedite-marriage-green-card",
+      "file": "immigration-resources_how-to-expedite-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/immigration-glossary",
+      "title": "immigration-resources_immigration-glossary",
+      "file": "immigration-resources_immigration-glossary.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/j-1-exchange-visitor-visa-explained",
+      "title": "immigration-resources_j-1-exchange-visitor-visa-explained",
+      "file": "immigration-resources_j-1-exchange-visitor-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/k-1-fiancee-visa-explained",
+      "title": "immigration-resources_k-1-fiancee-visa-explained",
+      "file": "immigration-resources_k-1-fiancee-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/k-1-visa-benefits",
+      "title": "immigration-resources_k-1-visa-benefits",
+      "file": "immigration-resources_k-1-visa-benefits.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/k-1-visa-interview-explained",
+      "title": "immigration-resources_k-1-visa-interview-explained",
+      "file": "immigration-resources_k-1-visa-interview-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/k-1-visa-interview-questions",
+      "title": "immigration-resources_k-1-visa-interview-questions",
+      "file": "immigration-resources_k-1-visa-interview-questions.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/k-1-visa-requirements",
+      "title": "immigration-resources_k-1-visa-requirements",
+      "file": "immigration-resources_k-1-visa-requirements.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/l-1-visa-explained",
+      "title": "immigration-resources_l-1-visa-explained",
+      "file": "immigration-resources_l-1-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/marriage-based-green-cards-explained",
+      "title": "immigration-resources_marriage-based-green-cards-explained",
+      "file": "immigration-resources_marriage-based-green-cards-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/marriage-green-card-divorce",
+      "title": "immigration-resources_marriage-green-card-divorce",
+      "file": "immigration-resources_marriage-green-card-divorce.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/marry-non-u-s-citizen",
+      "title": "immigration-resources_marry-non-u-s-citizen",
+      "file": "immigration-resources_marry-non-u-s-citizen.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/optional-practical-training-explained",
+      "title": "immigration-resources_optional-practical-training-explained",
+      "file": "immigration-resources_optional-practical-training-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/parent-green-card-ir5-visa",
+      "title": "immigration-resources_parent-green-card-ir5-visa",
+      "file": "immigration-resources_parent-green-card-ir5-visa.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/perm-application-cost-approval",
+      "title": "immigration-resources_perm-application-cost-approval",
+      "file": "immigration-resources_perm-application-cost-approval.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/premium-processing-explained",
+      "title": "immigration-resources_premium-processing-explained",
+      "file": "immigration-resources_premium-processing-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/preparing-for-the-marriage-green-card-interview",
+      "title": "immigration-resources_preparing-for-the-marriage-green-card-interview",
+      "file": "immigration-resources_preparing-for-the-marriage-green-card-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/preparing-for-the-medical-exam",
+      "title": "immigration-resources_preparing-for-the-medical-exam",
+      "file": "immigration-resources_preparing-for-the-medical-exam.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/preparing-for-travel-visa-interview",
+      "title": "immigration-resources_preparing-for-travel-visa-interview",
+      "file": "immigration-resources_preparing-for-travel-visa-interview.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/questions-to-expect-in-a-green-card-application",
+      "title": "immigration-resources_questions-to-expect-in-a-green-card-application",
+      "file": "immigration-resources_questions-to-expect-in-a-green-card-application.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/social-security-number-explained",
+      "title": "immigration-resources_social-security-number-explained",
+      "file": "immigration-resources_social-security-number-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/temporary-protected-status",
+      "title": "immigration-resources_temporary-protected-status",
+      "file": "immigration-resources_temporary-protected-status.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/temporary-u-s-visas-explained",
+      "title": "immigration-resources_temporary-u-s-visas-explained",
+      "file": "immigration-resources_temporary-u-s-visas-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/the-advance-parole-travel-document-explained",
+      "title": "immigration-resources_the-advance-parole-travel-document-explained",
+      "file": "immigration-resources_the-advance-parole-travel-document-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/the-green-card-interview-explained",
+      "title": "immigration-resources_the-green-card-interview-explained",
+      "file": "immigration-resources_the-green-card-interview-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/the-h-4-visa-explained",
+      "title": "immigration-resources_the-h-4-visa-explained",
+      "file": "immigration-resources_the-h-4-visa-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/the-history-of-us-immigration-policy-explained",
+      "title": "immigration-resources_the-history-of-us-immigration-policy-explained",
+      "file": "immigration-resources_the-history-of-us-immigration-policy-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/top-10-hard-to-find-immigration-documents-and-how-to-get-them",
+      "title": "immigration-resources_top-10-hard-to-find-immigration-documents-and-how-to-get-them",
+      "file": "immigration-resources_top-10-hard-to-find-immigration-documents-and-how-to-get-them.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/traveling-outside-u-s-green-card-holder",
+      "title": "immigration-resources_traveling-outside-u-s-green-card-holder",
+      "file": "immigration-resources_traveling-outside-u-s-green-card-holder.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/types-of-us-work-visas",
+      "title": "immigration-resources_types-of-us-work-visas",
+      "file": "immigration-resources_types-of-us-work-visas.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/u-s-citizenship-test-explained",
+      "title": "immigration-resources_u-s-citizenship-test-explained",
+      "file": "immigration-resources_u-s-citizenship-test-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/undocumented-spouse",
+      "title": "immigration-resources_undocumented-spouse",
+      "file": "immigration-resources_undocumented-spouse.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/us-immigration-explained",
+      "title": "immigration-resources_us-immigration-explained",
+      "file": "immigration-resources_us-immigration-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/us-student-visas-explained",
+      "title": "immigration-resources_us-student-visas-explained",
+      "file": "immigration-resources_us-student-visas-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/us-visa-applications-explained",
+      "title": "immigration-resources_us-visa-applications-explained",
+      "file": "immigration-resources_us-visa-applications-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/uscis-fee-waivers",
+      "title": "immigration-resources_uscis-fee-waivers",
+      "file": "immigration-resources_uscis-fee-waivers.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/uscis-processing-times",
+      "title": "immigration-resources_uscis-processing-times",
+      "file": "immigration-resources_uscis-processing-times.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/visa-sponsorship-explained",
+      "title": "immigration-resources_visa-sponsorship-explained",
+      "file": "immigration-resources_visa-sponsorship-explained.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/visa-waiver-program",
+      "title": "immigration-resources_visa-waiver-program",
+      "file": "immigration-resources_visa-waiver-program.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/what-documents-for-marriage-green-card",
+      "title": "immigration-resources_what-documents-for-marriage-green-card",
+      "file": "immigration-resources_what-documents-for-marriage-green-card.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/what-is-an-affidavit-of-support",
+      "title": "immigration-resources_what-is-an-affidavit-of-support",
+      "file": "immigration-resources_what-is-an-affidavit-of-support.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/what-is-daca",
+      "title": "immigration-resources_what-is-daca",
+      "file": "immigration-resources_what-is-daca.md"
+    },
+    {
+      "url": "https://www.boundless.com/immigration-resources/what-is-the-national-visa-center",
+      "title": "immigration-resources_what-is-the-national-visa-center",
+      "file": "immigration-resources_what-is-the-national-visa-center.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/black-immigrants-in-the-united-states-status-challenges-and-impacts",
+      "title": "research-reports_black-immigrants-in-the-united-states-status-challenges-and-impacts",
+      "file": "research-reports_black-immigrants-in-the-united-states-status-challenges-and-impacts.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/challenges-and-opportunities-facing-daca-recipients",
+      "title": "research-reports_challenges-and-opportunities-facing-daca-recipients",
+      "file": "research-reports_challenges-and-opportunities-facing-daca-recipients.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/election-impact-on-immigration-policies-and-business-implications",
+      "title": "research-reports_election-impact-on-immigration-policies-and-business-implications",
+      "file": "research-reports_election-impact-on-immigration-policies-and-business-implications.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/family-based-immigration-report",
+      "title": "research-reports_family-based-immigration-report",
+      "file": "research-reports_family-based-immigration-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/h-1b-work-visa-trends",
+      "title": "research-reports_h-1b-work-visa-trends",
+      "file": "research-reports_h-1b-work-visa-trends.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/how-9-11-changed-the-u-s-immigration-system",
+      "title": "research-reports_how-9-11-changed-the-u-s-immigration-system",
+      "file": "research-reports_how-9-11-changed-the-u-s-immigration-system.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/k-1-fiance-visa-report",
+      "title": "research-reports_k-1-fiance-visa-report",
+      "file": "research-reports_k-1-fiance-visa-report.md"
+    },
+    {
+      "url": "https://www.boundless.com/research-reports/why-people-immigrate-us",
+      "title": "research-reports_why-people-immigrate-us",
+      "file": "research-reports_why-people-immigrate-us.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/boundless-acquires-bridge-work-visas",
+      "title": "press_boundless-acquires-bridge-work-visas",
+      "file": "press_boundless-acquires-bridge-work-visas.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/boundless-immigration-raises-25-million",
+      "title": "press_boundless-immigration-raises-25-million",
+      "file": "press_boundless-immigration-raises-25-million.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/boundless-immigration-raises-7-8-million-series-funding-led-foundry-group",
+      "title": "press_boundless-immigration-raises-7-8-million-series-funding-led-foundry-group",
+      "file": "press_boundless-immigration-raises-7-8-million-series-funding-led-foundry-group.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/boundless-is-open-for-business",
+      "title": "press_boundless-is-open-for-business",
+      "file": "press_boundless-is-open-for-business.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/boundless-launches-rebrand-new-services",
+      "title": "press_boundless-launches-rebrand-new-services",
+      "file": "press_boundless-launches-rebrand-new-services.md"
+    },
+    {
+      "url": "https://www.boundless.com/press/why-i-founded-boundless",
+      "title": "press_why-i-founded-boundless",
+      "file": "press_why-i-founded-boundless.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/can-a-usa-company-hire-foreign-employee",
+      "title": "faqs_can-a-usa-company-hire-foreign-employee",
+      "file": "faqs_can-a-usa-company-hire-foreign-employee.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/do-companies-sponsor-green-cards",
+      "title": "faqs_do-companies-sponsor-green-cards",
+      "file": "faqs_do-companies-sponsor-green-cards.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/fiance-vs-marriage-visa-speed",
+      "title": "faqs_fiance-vs-marriage-visa-speed",
+      "file": "faqs_fiance-vs-marriage-visa-speed.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/green-card-through-marriage",
+      "title": "faqs_green-card-through-marriage",
+      "file": "faqs_green-card-through-marriage.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/how-long-does-it-take-for-a-company-to-sponsor-an-immigrant",
+      "title": "faqs_how-long-does-it-take-for-a-company-to-sponsor-an-immigrant",
+      "file": "faqs_how-long-does-it-take-for-a-company-to-sponsor-an-immigrant.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/how-much-does-it-cost-to-sponsor-someone-to-live-in-the-usa",
+      "title": "faqs_how-much-does-it-cost-to-sponsor-someone-to-live-in-the-usa",
+      "file": "faqs_how-much-does-it-cost-to-sponsor-someone-to-live-in-the-usa.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/k-1-visa-lawyer-worth-it",
+      "title": "faqs_k-1-visa-lawyer-worth-it",
+      "file": "faqs_k-1-visa-lawyer-worth-it.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/k1-visa-denied",
+      "title": "faqs_k1-visa-denied",
+      "file": "faqs_k1-visa-denied.md"
+    },
+    {
+      "url": "https://www.boundless.com/faqs/what-is-fastest-way-get-greencard",
+      "title": "faqs_what-is-fastest-way-get-greencard",
+      "file": "faqs_what-is-fastest-way-get-greencard.md"
+    }
+  ],
+  "failed": [
+    {
+      "url": "https://www.boundless.com/blog/extraordinary-ability-us-employers",
+      "error": "HTTPSConnectionPool(host='r.jina.ai', port=443): Read timed out. (read timeout=30)"
+    }
+  ]
+}

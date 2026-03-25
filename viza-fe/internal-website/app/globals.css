@@ -1,0 +1,213 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* =============================================================
+   VIZA Typography
+   Switzer    -> headings/titles (h1-h6, .font-heading)
+   Geist Sans -> body, UI, display text (default)
+   ============================================================= */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-switzer), system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Utility: hide scrollbars for horizontal scroll strips (scoped via class) */
+.ay-scrollbar-hide {
+  -ms-overflow-style: none; /* IE/Edge legacy */
+  scrollbar-width: none; /* Firefox */
+}
+
+.ay-scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Visible scrollbar for scrollable panels */
+.ay-scrollbar-visible {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(163, 163, 163, 0.7) transparent;
+}
+
+.ay-scrollbar-visible::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ay-scrollbar-visible::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ay-scrollbar-visible::-webkit-scrollbar-thumb {
+  background-color: rgba(163, 163, 163, 0.7);
+  border-radius: 999px;
+}
+
+.ay-scrollbar-visible::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Responsive filter bar - stacks on mobile */
+.ay-filter-responsive {
+  @apply flex flex-col sm:flex-row gap-3 sm:gap-4;
+}
+
+/* Full-width select on mobile */
+.ay-select-responsive {
+  @apply w-full sm:w-auto;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 213 95% 22%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 213 95% 22%;
+    --radius: 0.25rem;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Client portal typography tweaks */
+.client-shell {
+  letter-spacing: -0.011em;
+}
+
+/* React Big Calendar Customization */
+.rbc-calendar {
+  font-family: system-ui, sans-serif;
+}
+
+.rbc-today {
+  background-color: hsl(213 95% 22% / 0.1);
+}
+
+.rbc-header {
+  padding: 12px 3px;
+  font-weight: 600;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-toolbar button {
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.rbc-toolbar button:hover {
+  background-color: hsl(var(--accent));
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: #03346E;
+  color: white;
+  border-color: #03346E;
+}
+
+.rbc-toolbar button.rbc-active:hover {
+  background-color: #022B5C;
+}
+
+.rbc-event {
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.rbc-event:focus {
+  outline: 2px solid #03346E;
+}
+
+/* Hide default time label in week/day views - show our custom content instead */
+.rbc-event-label {
+  display: none;
+}
+
+/* Ensure event content displays properly */
+.rbc-event-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* LARGER TIME SLOTS - gives events more room for content */
+.rbc-time-slot {
+  min-height: 40px;
+}
+
+/* Make time slots taller in week/day views */
+.rbc-timeslot-group {
+  min-height: 80px;
+}
+
+/* Ensure text is visible on colored backgrounds */
+.rbc-event {
+  font-size: 11px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+/* Events in day/week view */
+.rbc-day-slot .rbc-event {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 3px 5px;
+  overflow: hidden;
+}
+
+/* Time column styling */
+.rbc-time-gutter {
+  font-size: 11px;
+}
+
+/* Improve readability of overlapping events */
+.rbc-day-slot .rbc-events-container {
+  margin-right: 2px;
+}
+
+/* CSS variables for navigation color transitions */
+:root {
+  --nav-text-color: #000000;
+  --nav-stroke-color: #000000;
+}
+
+/* Smooth color transitions for navigation elements */
+.client-navbar h1,
+.client-navbar button,
+.client-navbar svg path {
+  transition: color 0.6s ease-in-out, stroke 0.6s ease-in-out, fill 0.6s ease-in-out !important;
+}
