@@ -21,7 +21,9 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx src/db/migrate.ts",
     "ingest:faqs": "tsx scripts/ingest-faqs.ts",
-    "seed:form-fields": "tsx scripts/seed-visa-form-fields.ts"
+    "seed:form-fields": "tsx scripts/seed-visa-form-fields.ts",
+    "seed:ds160-form-fields": "tsx scripts/seed-ds160-form-fields.ts",
+    "ingest:ds160-rag": "tsx scripts/ingest-ds160-rag.ts"
   },
   "keywords": [
     "visa",

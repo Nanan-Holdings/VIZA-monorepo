@@ -256,3 +256,128 @@ export const knowledgeBaseUpdates = pgTable("knowledge_base_updates", {
 
 export type KnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferSelect;
 export type NewKnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferInsert;
+
+// =============================================================================
+// DS-160 PROFILE EXTENSIONS
+// DS-160 specific data not covered by applicantProfiles — linked via applicant_id
+// =============================================================================
+
+export const ds160OtherNames = pgTable("ds160_other_names", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  surname: text("surname").notNull(),
+  givenNames: text("given_names").notNull(),
+  nameType: text("name_type"), // maiden | alias | professional | religious | other
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160OtherNationalities = pgTable("ds160_other_nationalities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  country: text("country").notNull(),
+  currentlyHeld: boolean("currently_held").notNull().default(true),
+  hasPassport: boolean("has_passport"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160SocialMedia = pgTable("ds160_social_media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  platform: text("platform").notNull(),
+  handle: text("handle").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160LostPassports = pgTable("ds160_lost_passports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  passportNumber: text("passport_number").notNull(),
+  issuingCountry: text("issuing_country").notNull(),
+  explanation: text("explanation"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160UsRelatives = pgTable("ds160_us_relatives", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  name: text("name").notNull(),
+  relationship: text("relationship").notNull(),
+  immigrationStatus: text("immigration_status"),
+  isImmediate: boolean("is_immediate").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160PreviousEmployers = pgTable("ds160_previous_employers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  employerName: text("employer_name").notNull(),
+  addressLine1: text("address_line1"),
+  city: text("city"),
+  stateProvince: text("state_province"),
+  country: text("country"),
+  phone: text("phone"),
+  jobTitle: text("job_title"),
+  startDate: text("start_date"),   // YYYY-MM
+  endDate: text("end_date"),       // YYYY-MM
+  monthlySalary: text("monthly_salary"),
+  salaryCurrency: text("salary_currency"),
+  duties: text("duties"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160SecurityAnswers = pgTable("ds160_security_answers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  questionKey: text("question_key").notNull(),
+  answer: boolean("answer").notNull(),
+  explanation: text("explanation"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160TravelCompanions = pgTable("ds160_travel_companions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  surname: text("surname").notNull(),
+  givenNames: text("given_names").notNull(),
+  relationship: text("relationship"),
+  groupName: text("group_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160InterviewRecords = pgTable("ds160_interview_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  scheduledDate: text("scheduled_date"),  // YYYY-MM-DD
+  scheduledTime: text("scheduled_time"),  // HH:MM
+  location: text("location"),
+  outcome: text("outcome"),
+  outcomeDate: text("outcome_date"),
+  refusalCode: text("refusal_code"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ds160Payments = pgTable("ds160_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  mrvFeeAmount: text("mrv_fee_amount"),
+  mrvFeeCurrency: text("mrv_fee_currency").default("USD"),
+  receiptNumber: text("receipt_number"),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  paymentMethod: text("payment_method"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// Types
+export type Ds160OtherName = typeof ds160OtherNames.$inferSelect;
+export type Ds160OtherNationality = typeof ds160OtherNationalities.$inferSelect;
+export type Ds160SocialMedia = typeof ds160SocialMedia.$inferSelect;
+export type Ds160LostPassport = typeof ds160LostPassports.$inferSelect;
+export type Ds160UsRelative = typeof ds160UsRelatives.$inferSelect;
+export type Ds160PreviousEmployer = typeof ds160PreviousEmployers.$inferSelect;
+export type Ds160SecurityAnswer = typeof ds160SecurityAnswers.$inferSelect;
+export type Ds160TravelCompanion = typeof ds160TravelCompanions.$inferSelect;
+export type Ds160InterviewRecord = typeof ds160InterviewRecords.$inferSelect;
+export type Ds160Payment = typeof ds160Payments.$inferSelect;
