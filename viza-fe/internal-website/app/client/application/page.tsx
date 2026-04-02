@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
+import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
+import { type WizardStep } from "@/types/visa-form-fields";
 import {
   PersonalInfoStep,
   PassportStep,
@@ -247,6 +249,20 @@ export default function ApplicationPage() {
     name: t(`steps.${key}.name`),
     description: t(`steps.${key}.description`),
   }));
+
+  // DB-driven steps (loaded from visa_form_fields table)
+  // Falls back to hardcoded STEPS if DB returns empty
+  const [dbSteps, setDbSteps] = useState<WizardStep[]>([]);
+
+  useEffect(() => {
+    getVisaFormSteps("B211A")
+      .then((steps) => {
+        if (steps.length > 0) setDbSteps(steps);
+      })
+      .catch(() => {
+        // Silent fallback to hardcoded steps
+      });
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
