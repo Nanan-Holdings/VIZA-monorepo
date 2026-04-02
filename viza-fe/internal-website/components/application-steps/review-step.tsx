@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, CheckCircle2 } from "lucide-react";
+import { Pencil, CheckCircle2, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
@@ -55,6 +56,121 @@ function Section({
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// Validation Panel — calls AI validation endpoint before submission
+// ---------------------------------------------------------------------------
+
+interface FieldError { field: string; message: string; }
+interface ValidationResult {
+  valid: boolean;
+  errors: FieldError[];
+  warnings: FieldError[];
+  blocked: boolean;
+}
+
+function ValidationPanel({ applicationId, onProceed }: { applicationId: string; onProceed: () => void }) {
+  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [result, setResult] = useState<ValidationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runValidation() {
+    if (!applicationId) { onProceed(); return; }
+    setState("loading");
+    setError(null);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080"}/api/validate-application`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+      if (!res.ok) throw new Error(`Validation service returned ${res.status}`);
+      const data: ValidationResult = await res.json();
+      setResult(data);
+      setState("done");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Validation failed";
+      setError(msg);
+      setState("idle");
+    }
+  }
+
+  const hasErrors = (result?.errors?.length ?? 0) > 0;
+  const hasWarnings = (result?.warnings?.length ?? 0) > 0;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Errors */}
+      {state === "done" && hasErrors && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+          <div className="flex items-center gap-2 mb-2 text-red-700">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <p className="text-sm font-semibold">Application has errors — please fix before submitting</p>
+          </div>
+          <ul className="flex flex-col gap-1">
+            {result!.errors.map((e, i) => (
+              <li key={i} className="text-xs text-red-600">• <span className="font-medium">{e.field}:</span> {e.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {state === "done" && hasWarnings && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2 mb-2 text-amber-700">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <p className="text-sm font-semibold">Warnings — review before submitting</p>
+          </div>
+          <ul className="flex flex-col gap-1">
+            {result!.warnings.map((w, i) => (
+              <li key={i} className="text-xs text-amber-700">• <span className="font-medium">{w.field}:</span> {w.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* All good */}
+      {state === "done" && !hasErrors && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <p className="text-sm">Application validated — ready to submit</p>
+        </div>
+      )}
+
+      {/* Validation error */}
+      {error && (
+        <p className="text-xs text-red-500">⚠️ {error} — you can still submit below.</p>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-col gap-2">
+        {state !== "done" && (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-[#03346E] text-[#03346E] hover:bg-[#03346E]/5"
+            onClick={runValidation}
+            disabled={state === "loading"}
+          >
+            {state === "loading" ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Validating…</>
+            ) : "Validate Application"}
+          </Button>
+        )}
+
+        <Button
+          className="bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-50"
+          disabled={state === "done" && hasErrors}
+          onClick={onProceed}
+        >
+          {state === "done" && hasWarnings && !hasErrors ? "Submit (with warnings)" : "Confirm & Submit"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComplete }: ReviewStepProps) {
   const t = useTranslations("applicationSteps");
 
@@ -96,17 +212,7 @@ export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComp
           </Section>
         )}
 
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <p className="text-sm">{t("review.reviewMessage")}</p>
-        </div>
-
-        <Button
-          className="bg-brand-500 hover:bg-brand-600 text-white"
-          onClick={() => onComplete({ confirmed: true })}
-        >
-          {t("review.confirmAndSubmit")}
-        </Button>
+        <ValidationPanel applicationId={_applicationId} onProceed={() => onComplete({ confirmed: true })} />
       </CardContent>
     </Card>
   );
