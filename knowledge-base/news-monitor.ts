@@ -2,6 +2,7 @@ import axios from "axios";
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Load environment variables from .env file (from knowledge-base root directory)
 dotenv.config({ path: path.resolve(__dirname, ".env") });
@@ -307,6 +308,103 @@ async function fetchFromMediaStackAPI(): Promise<any[]> {
   }
 }
 
+
+// =============================================================================
+// SUPABASE + TELEGRAM PIPELINE (Option B)
+// =============================================================================
+
+function getSupabase(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+async function insertKnowledgeBaseUpdates(articles: any[]): Promise<Map<string, string>> {
+  const idMap = new Map<string, string>(); // url -> id
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.warn("⚠️  Supabase not configured, skipping knowledge_base_updates insert");
+    return idMap;
+  }
+
+  const rows = articles.map((a: any) => ({
+    article_url: a.url || "",
+    headline: a.title || "",
+    source: a.source?.name || a.source || "",
+    published_at: a.publishedAt || null,
+    status: "pending_review",
+  }));
+
+  const { data, error } = await supabase
+    .from("knowledge_base_updates")
+    .upsert(rows, { onConflict: "article_url", ignoreDuplicates: false })
+    .select("id, article_url");
+
+  if (error) {
+    console.error("❌ Failed to insert knowledge_base_updates:", error.message);
+    return idMap;
+  }
+
+  (data || []).forEach((row: any) => idMap.set(row.article_url, row.id));
+  console.log(`✅ Inserted ${data?.length ?? 0} articles into knowledge_base_updates`);
+  return idMap;
+}
+
+async function sendTelegramNotification(article: any, id: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID || "-1003767157934";
+
+  if (!token || token === "your_telegram_bot_token_here") {
+    console.warn(`⚠️  TELEGRAM_BOT_TOKEN not set, skipping notification for: ${article.title}`);
+    return;
+  }
+
+  const text = [
+    "🗞️ *New visa update detected*",
+    "",
+    `*Source:* ${escapeMarkdown(article.source?.name || article.source || "Unknown")}`,
+    `*Headline:* ${escapeMarkdown(article.title || "")}`,
+    "",
+    article.url || "",
+  ].join("\n");
+
+  const payload = {
+    chat_id: chatId,
+    text,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "✅ Approve Re-ingest", callback_data: `approve_${id}` },
+        { text: "❌ Dismiss", callback_data: `dismiss_${id}` },
+      ]],
+    },
+  };
+
+  try {
+    await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, payload);
+    console.log(`📱 Telegram notification sent for: ${article.title}`);
+  } catch (err: any) {
+    console.error(`❌ Telegram send failed: ${err.message}`);
+  }
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
+}
+
+async function runTelegramPipeline(articles: any[]): Promise<void> {
+  if (articles.length === 0) return;
+
+  console.log(`\n📡 Running Telegram pipeline for ${articles.length} articles...`);
+  const idMap = await insertKnowledgeBaseUpdates(articles);
+
+  for (const article of articles) {
+    const id = idMap.get(article.url || "") || "unknown";
+    await sendTelegramNotification(article, id);
+  }
+}
+
 // === MAIN FUNCTION ===
 
 async function monitorAllNews() {
@@ -462,6 +560,12 @@ async function monitorAllNews() {
     console.log(`   📰 Other sources: ${allRejectedArticles.length} titles`);
   } catch (error: any) {
     console.error(`❌ Error saving file: ${error.message}`);
+  }
+
+  // === TELEGRAM PIPELINE (Option B) ===
+  // Insert approved articles into knowledge_base_updates + send Telegram notifications
+  if (allCollectedArticles.length > 0) {
+    await runTelegramPipeline(allCollectedArticles);
   }
 }
 
