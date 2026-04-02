@@ -6,6 +6,7 @@ import {
 	boolean,
 	date,
 	integer,
+	jsonb,
 	customType,
 } from "drizzle-orm/pg-core";
 
@@ -207,3 +208,51 @@ export type NewVisaDocument = typeof visaDocuments.$inferInsert;
 
 export type VisaChunk = typeof visaChunks.$inferSelect;
 export type NewVisaChunk = typeof visaChunks.$inferInsert;
+
+// =============================================================================
+// VISA FORM FIELDS
+// Dynamic form field definitions for each visa type, drives the wizard UI
+// field_type: text | select | date | file | radio | checkbox | textarea
+// =============================================================================
+
+export const visaFormFields = pgTable("visa_form_fields", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	visaType: text("visa_type").notNull().default("B211A"),
+	fieldName: text("field_name").notNull(),
+	label: text("label").notNull(),
+	fieldType: text("field_type").notNull(),
+	required: boolean("required").notNull().default(false),
+	stepNumber: integer("step_number").notNull(),
+	stepName: text("step_name"),
+	displayOrder: integer("display_order").notNull(),
+	placeholder: text("placeholder"),
+	validationRules: jsonb("validation_rules"),
+	options: jsonb("options"),
+	conditionalLogic: jsonb("conditional_logic"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type VisaFormField = typeof visaFormFields.$inferSelect;
+export type NewVisaFormField = typeof visaFormFields.$inferInsert;
+
+// =============================================================================
+// KNOWLEDGE BASE UPDATES
+// Tracks news articles detected by news-monitor for review/re-ingest workflow
+// status: pending_review | approved | dismissed
+// =============================================================================
+
+export const knowledgeBaseUpdates = pgTable("knowledge_base_updates", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	articleUrl: text("article_url").notNull(),
+	headline: text("headline").notNull(),
+	source: text("source").notNull(),
+	publishedAt: timestamp("published_at", { withTimezone: true }),
+	status: text("status").notNull().default("pending_review"),
+	triggeredAt: timestamp("triggered_at", { withTimezone: true }).defaultNow(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type KnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferSelect;
+export type NewKnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferInsert;
