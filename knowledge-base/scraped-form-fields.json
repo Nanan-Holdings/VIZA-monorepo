@@ -1,0 +1,1491 @@
+{
+  "scraped_at": "2026-04-02",
+  "visa_type": "B211A",
+  "source_url": "https://evisa.imigrasi.go.id",
+  "total_steps": 6,
+  "total_fields": 31,
+  "notes": [
+    "Deep application form (steps 2-5) requires authenticated session on evisa.imigrasi.go.id",
+    "Fields mapped from: live HTML scrape (step 1) + VIZA app source code analysis (steps 2-6)",
+    "Country options include 221 countries with UUID values",
+    "Step 1 is the public visa selection page",
+    "Steps 2-5 are the authenticated B211A application form",
+    "Step 6 is the review/submit step"
+  ],
+  "fields": [
+    {
+      "field_name": "selectCountry",
+      "label": "Passport / Country / Region",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1,
+        "message": "Please select your country/region"
+      },
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id",
+      "conditional_logic": null,
+      "options": [
+        {
+          "value": "df26b6b5-b957-44fc-8775-5a307aff676c",
+          "text": "ALBANIA"
+        },
+        {
+          "value": "ee9a47a3-c229-4384-a00e-c5d3132a2b6a",
+          "text": "ALGERIA"
+        },
+        {
+          "value": "f57b1c29-b107-402d-a33c-2198d61dee4a",
+          "text": "AMERICAN SAMOA"
+        },
+        {
+          "value": "7fc48e74-1a09-4edd-9bca-d6622ea82b1e",
+          "text": "ANDORRA"
+        },
+        {
+          "value": "2cd8b0e4-f9a4-44f5-8014-23f1f03d3193",
+          "text": "ANGOLA"
+        },
+        {
+          "value": "7d9c632d-106a-40b5-b4de-d46572bdb18e",
+          "text": "ANGUILLA"
+        },
+        {
+          "value": "dab42168-cd9e-4e6f-86ec-a1a773d34684",
+          "text": "ANTIGUA AND BARBUDA"
+        },
+        {
+          "value": "7a0eaa53-353b-4206-9299-1badcdb0fdf1",
+          "text": "ARGENTINA"
+        },
+        {
+          "value": "e7bcd2e1-fb4b-4748-8fce-b2d0e3b3827c",
+          "text": "ARMENIA"
+        },
+        {
+          "value": "46283cb1-d406-47c1-86fd-8c308ffa173a",
+          "text": "AUSTRALIA"
+        },
+        {
+          "value": "727e690b-fc21-4b8a-b17f-1de1616433b7",
+          "text": "AUSTRIA"
+        },
+        {
+          "value": "a11144b1-8228-42d5-8242-a0f529c0de10",
+          "text": "AZERBAIJAN"
+        },
+        {
+          "value": "0685586c-7e37-4aa1-8020-f4aa453e9472",
+          "text": "BAHAMAS"
+        },
+        {
+          "value": "f3373174-008f-4f5c-b902-e79763719c64",
+          "text": "BAHRAIN"
+        },
+        {
+          "value": "a14de768-1e37-4d93-8def-352266de349a",
+          "text": "BANGLADESH"
+        },
+        {
+          "value": "02054c21-3f67-4fe3-95bc-d20106985e49",
+          "text": "BARBADOS"
+        },
+        {
+          "value": "9ff91215-8e06-45b4-8f88-f7685d249358",
+          "text": "BELARUS"
+        },
+        {
+          "value": "94629b00-f4c4-46bd-b263-cc7c53f8b9d9",
+          "text": "BELGIUM"
+        },
+        {
+          "value": "ada414e8-6fd5-4b69-82eb-89472e20d3be",
+          "text": "BELIZE"
+        },
+        {
+          "value": "88a03b34-1b9e-4bd6-ba7b-2a7bd8838c24",
+          "text": "BENIN"
+        },
+        {
+          "value": "50425995-e990-47c5-8e5e-882840ef2b7a",
+          "text": "BERMUDA"
+        },
+        {
+          "value": "4528297b-9315-45f8-adf1-3a5f0b7e994f",
+          "text": "BHUTAN"
+        },
+        {
+          "value": "bdc856ae-6948-4381-9648-8fc41bef7577",
+          "text": "BOLIVIA"
+        },
+        {
+          "value": "fa943b74-22e9-4650-bccb-14b466bde722",
+          "text": "BOSNIA AND HERZEGOVINA"
+        },
+        {
+          "value": "f98613a2-3816-4af6-8d27-e7edc2e67366",
+          "text": "BOTSWANA"
+        },
+        {
+          "value": "cf4dfdbe-327b-4c9a-bd39-441a338cd276",
+          "text": "BRAZIL"
+        },
+        {
+          "value": "687653fc-236b-4bc8-baf8-88a81f17618a",
+          "text": "BRUNEI DARUSSALAM"
+        },
+        {
+          "value": "7345359f-4f82-4089-a153-acf32254b0a3",
+          "text": "BULGARIA"
+        },
+        {
+          "value": "83c3ceed-af1c-4b06-bb4a-0217712043c8",
+          "text": "BURKINA FASO"
+        },
+        {
+          "value": "ff78c621-fa7f-467b-812c-9912e88ac430",
+          "text": "BURUNDI"
+        },
+        {
+          "value": "3f387ed5-13e6-42b8-ba77-84f281d995f7",
+          "text": "CAMBODIA"
+        },
+        {
+          "value": "1d91caf5-bcf2-4e4b-8c77-7d62781bf220",
+          "text": "CAMEROON"
+        },
+        {
+          "value": "47db151f-ce3e-406d-b707-8fcdfd088a61",
+          "text": "CANADA"
+        },
+        {
+          "value": "3ecf1c2c-de95-4811-9e5e-4b03816a108a",
+          "text": "CAPE VERDE"
+        },
+        {
+          "value": "0c72f1ee-2e31-4713-86ac-e079c0f994e7",
+          "text": "CENTRAL AFRICAN REPUBLIC"
+        },
+        {
+          "value": "abbd5561-fde5-42e5-8237-382ab808ec8f",
+          "text": "CHAD"
+        },
+        {
+          "value": "0c597abe-9cf2-4171-8449-06bcc928afd8",
+          "text": "CHILE"
+        },
+        {
+          "value": "883891b6-1c3f-41c3-9279-4745f63575cb",
+          "text": "CHINA"
+        },
+        {
+          "value": "13fdc3be-15a8-435f-a47a-885f8b687894",
+          "text": "CHRISTMAS ISLAND"
+        },
+        {
+          "value": "4579581c-68de-41c6-bd7b-e68a90db20d4",
+          "text": "COCOS ISLANDS"
+        },
+        {
+          "value": "76578a13-3e64-41da-8d91-deef561311c2",
+          "text": "COLOMBIA"
+        },
+        {
+          "value": "e350c59c-5236-4207-8ef9-88e4aebeda9d",
+          "text": "COMOROS"
+        },
+        {
+          "value": "41d426c7-b47f-4e73-a810-dc78bcaae82f",
+          "text": "CONGO REPUBLIC"
+        },
+        {
+          "value": "d16f1de8-e959-4569-89ab-0e165456eeb0",
+          "text": "COSTA RICA"
+        },
+        {
+          "value": "a93f74b3-fcc6-473c-89f9-0e7af7d7f6b6",
+          "text": "CROATIA"
+        },
+        {
+          "value": "4f6e354a-ca46-49f3-b035-8188b2d1f6b6",
+          "text": "CUBA"
+        },
+        {
+          "value": "8e5508a3-0173-4be4-bdc8-23986b9179d7",
+          "text": "CYPRUS"
+        },
+        {
+          "value": "318736c7-f14f-4560-a65a-8c2304ea6805",
+          "text": "CZECH REPUBLIC"
+        },
+        {
+          "value": "7d5d09ba-f7a2-4780-a730-ac5749aeae88",
+          "text": "DEMOCRATIC REPUBLIC OF CONGO"
+        },
+        {
+          "value": "25d567a3-7a4e-4248-9800-647028da9b71",
+          "text": "DENMARK"
+        },
+        {
+          "value": "79c7ec19-d69c-48f4-9cbc-96110e24667d",
+          "text": "DJIBOUTI"
+        },
+        {
+          "value": "ac9f23a8-fd8e-4877-bab8-367ce26cbb06",
+          "text": "DOMINICA"
+        },
+        {
+          "value": "0df2afd4-1945-40c3-a3bb-bcc1fa8ab081",
+          "text": "DOMINICAN REPUBLIC"
+        },
+        {
+          "value": "c7339e3d-cbe9-4893-af6f-0bdc4b6ebd26",
+          "text": "ECUADOR"
+        },
+        {
+          "value": "29a5479e-3e9a-4fe6-a4b2-705de1654fb7",
+          "text": "EGYPT"
+        },
+        {
+          "value": "c20c9d1a-3d42-48c1-8033-12a837058ba6",
+          "text": "EL SALVADOR"
+        },
+        {
+          "value": "70003abd-8f1e-4baa-b513-a406405c85bd",
+          "text": "EQUATORIAL GUINEA"
+        },
+        {
+          "value": "e9ab2043-0c97-4c52-b103-8118861898d0",
+          "text": "ERITREA"
+        },
+        {
+          "value": "448fa696-e0ca-4e5f-89cd-671f04d48c9f",
+          "text": "ESTONIA"
+        },
+        {
+          "value": "a0a10b9e-3157-4d65-84c3-e96bc8a99979",
+          "text": "ETHIOPIA"
+        },
+        {
+          "value": "6906664e-9925-4ffb-bf88-567e8bf19113",
+          "text": "FALKLAND ISLANDS"
+        },
+        {
+          "value": "7238722f-5081-47e2-aa2b-0867b6d6a3ae",
+          "text": "FAROE ISLANDS"
+        },
+        {
+          "value": "67f91d7d-5166-44d3-b050-45fe4fa6bad7",
+          "text": "FIJI"
+        },
+        {
+          "value": "52006b57-7b02-4902-b55d-0dadc577b75c",
+          "text": "FINLAND"
+        },
+        {
+          "value": "23e8665d-2f2c-4841-acf6-6a2cac358ed4",
+          "text": "FRANCE"
+        },
+        {
+          "value": "b62eb44a-686b-4452-ae09-637e23feb251",
+          "text": "FRENCH GUIANA"
+        },
+        {
+          "value": "38381f24-d8fb-42e4-ba80-f0b1451e5577",
+          "text": "GABON"
+        },
+        {
+          "value": "41d04ba0-6764-4b55-88ed-e1f776743128",
+          "text": "GAMBIA"
+        },
+        {
+          "value": "f851c74a-b9dc-4d9d-a99c-65b6a69afe95",
+          "text": "GEORGIA"
+        },
+        {
+          "value": "2d7c66c1-9341-459c-83a8-8138766b133c",
+          "text": "GERMANY"
+        },
+        {
+          "value": "012e51a0-4e9c-4dfd-8438-b4cc375fb0ed",
+          "text": "GHANA"
+        },
+        {
+          "value": "47aa18d9-ed29-4250-9206-6f0cdaec94ff",
+          "text": "GREECE"
+        },
+        {
+          "value": "9d14a529-4116-449f-818f-538994ae14c8",
+          "text": "GRENADA"
+        },
+        {
+          "value": "0fc0a977-8120-4b88-90ef-d4a94c7824e1",
+          "text": "GUAM"
+        },
+        {
+          "value": "0159ccc8-a34c-4a6d-846f-510296a43536",
+          "text": "GUATEMALA"
+        },
+        {
+          "value": "5cd3306f-e3de-4031-b1f4-fb5d07e4de70",
+          "text": "GUINEA"
+        },
+        {
+          "value": "e04e1e50-e2a8-4b11-97c3-f0c8d759af9a",
+          "text": "GUINEA-BISSAU"
+        },
+        {
+          "value": "77774317-99e1-43c3-ada2-62aaf1a22f81",
+          "text": "GUYANA"
+        },
+        {
+          "value": "91d309f2-de3f-40bb-80e7-4b68077fdc33",
+          "text": "HAITI"
+        },
+        {
+          "value": "20246314-d590-47d9-9f86-59b0740185b0",
+          "text": "HEARD AND KEPULAUAN MCDONALD"
+        },
+        {
+          "value": "cbe8fb4d-7ba4-4108-b379-0abf0b85569a",
+          "text": "HOLY SEE (VATICAN CITY STATE)"
+        },
+        {
+          "value": "1fee433d-5093-4752-bd18-019be82ebcae",
+          "text": "HONDURAS"
+        },
+        {
+          "value": "2ecd2c23-33ff-4624-80d3-900777e7801e",
+          "text": "HONG KONG SAR"
+        },
+        {
+          "value": "5d2f2361-562a-4f59-84f7-a8dabb127add",
+          "text": "HUNGARY"
+        },
+        {
+          "value": "e6ff784e-9de7-44a8-9f67-2c3beecd2efc",
+          "text": "ICELAND"
+        },
+        {
+          "value": "f51f4255-1b0b-4a1b-be01-4bc82909c33e",
+          "text": "INDIA"
+        },
+        {
+          "value": "66c0c992-6f20-4464-afa0-160e48985792",
+          "text": "IRAN"
+        },
+        {
+          "value": "d106dd98-25c4-489d-ae37-a73bdf0b4b7d",
+          "text": "IRAQ"
+        },
+        {
+          "value": "43f85fba-b363-4c2e-aa27-83fb1a9da94c",
+          "text": "IRELAND"
+        },
+        {
+          "value": "a24388f2-c0a5-4807-894c-de6823a79a3f",
+          "text": "ITALY"
+        },
+        {
+          "value": "7dc9c73c-4c60-4ebc-bd41-13010e8c2952",
+          "text": "IVORY COAST"
+        },
+        {
+          "value": "652d4cc5-c90a-44d0-866e-94167c3dbd3b",
+          "text": "JAMAICA"
+        },
+        {
+          "value": "1beaa902-fae3-4733-984d-437375211a3d",
+          "text": "JAPAN"
+        },
+        {
+          "value": "4c108286-8eb9-48dc-9590-4a0a3cfe2b40",
+          "text": "JORDAN"
+        },
+        {
+          "value": "4f68af57-24fc-4da3-9524-5a344f7ade7d",
+          "text": "KAZAKHSTAN"
+        },
+        {
+          "value": "009337db-a9ad-43af-b823-c95aca6798b9",
+          "text": "KENYA"
+        },
+        {
+          "value": "e8db8ddf-218a-407d-8065-485693228e9e",
+          "text": "KIRIBATI"
+        },
+        {
+          "value": "6d8dc2ec-dbc0-4416-a3e1-553935ee4f23",
+          "text": "KUWAIT"
+        },
+        {
+          "value": "6214e7cd-b344-4698-ae88-d32b80cc26f3",
+          "text": "KYRGYZSTAN"
+        },
+        {
+          "value": "af83f9ed-713c-4ae6-a588-c3c79fe58d44",
+          "text": "LATVIA"
+        },
+        {
+          "value": "477fc793-7ad7-4955-af53-09d9ffd197b8",
+          "text": "LEBANON"
+        },
+        {
+          "value": "ceef5a50-b212-4f03-b132-1db4fa3ee8d9",
+          "text": "LESOTHO"
+        },
+        {
+          "value": "a6f469cc-61ca-4640-a200-350e33630a7a",
+          "text": "LIBYA"
+        },
+        {
+          "value": "97dc8df9-6382-47c4-abcb-af92e0833ab3",
+          "text": "LIECHTENSTEIN"
+        },
+        {
+          "value": "f0127376-b8cc-49b6-ba94-90137d5c9912",
+          "text": "LITHUANIA"
+        },
+        {
+          "value": "b2ac4801-ca60-4fd1-9a09-9de023939a17",
+          "text": "LUXEMBOURG"
+        },
+        {
+          "value": "63ad0853-32f7-444a-94d3-1db1515f6411",
+          "text": "MACAO SAR"
+        },
+        {
+          "value": "ca2e8749-8c9c-48ea-8dbe-1d3733ffaf70",
+          "text": "MACEDONIA"
+        },
+        {
+          "value": "22f9fd8e-f208-49c9-8afd-968066319f12",
+          "text": "MADAGASCAR"
+        },
+        {
+          "value": "d2a7beda-5424-4d51-ae10-f37ca2f470c5",
+          "text": "MALAWI"
+        },
+        {
+          "value": "18ea95db-04a0-4564-a871-2d89bf9b6bd5",
+          "text": "MALAYSIA"
+        },
+        {
+          "value": "96304e76-87c2-4ea2-979d-d1dd0a3a8e09",
+          "text": "MALDIVES"
+        },
+        {
+          "value": "5e7032d6-4a29-412a-b1f0-6a88556862be",
+          "text": "MALI"
+        },
+        {
+          "value": "71757f61-a945-4ab0-bccd-3eba9e29ce9b",
+          "text": "MALTA"
+        },
+        {
+          "value": "16826ffe-2e3e-4e26-89a5-2b18b17b61ab",
+          "text": "MARSHALL ISLANDS"
+        },
+        {
+          "value": "b42a1a3a-0b9d-4aea-b586-0d1174ee186b",
+          "text": "MARTINIQUE"
+        },
+        {
+          "value": "b5ec75db-b92d-4b7e-ad2b-d97d132d00cb",
+          "text": "MAURITANIA"
+        },
+        {
+          "value": "a8c9190a-f11a-42f6-914e-32907a9b8c50",
+          "text": "MAURITIUS"
+        },
+        {
+          "value": "89b96bc1-e4ee-433c-953a-d5c5316ad3d8",
+          "text": "MEXICO"
+        },
+        {
+          "value": "a44b74e8-c562-4890-bc31-41aa2dc81bad",
+          "text": "MICRONESIA"
+        },
+        {
+          "value": "e8548c39-a894-4283-8792-1c54b601bd13",
+          "text": "MOLDOVA REPUBLIC"
+        },
+        {
+          "value": "c17c385d-793f-42bf-be59-dd910d88e345",
+          "text": "MONACO"
+        },
+        {
+          "value": "c9464187-3364-4455-9637-a4801beb1293",
+          "text": "MONGOLIA"
+        },
+        {
+          "value": "b12556a9-7ee3-43b8-8630-7b99643d2419",
+          "text": "MONTENEGRO"
+        },
+        {
+          "value": "c3243433-9264-4e49-964b-478fa69ca1b2",
+          "text": "MONTSERRAT"
+        },
+        {
+          "value": "ae28d967-9143-4a3c-88c9-32ecda8a5f14",
+          "text": "MOROCCO"
+        },
+        {
+          "value": "aa50af6e-ffda-421a-8b07-bbd8376ffcbe",
+          "text": "MOZAMBIQUE"
+        },
+        {
+          "value": "63419316-d037-4edc-ab35-d3bd8da1487c",
+          "text": "MYANMAR"
+        },
+        {
+          "value": "bb48769c-3071-42bb-813e-645f18b1ff0b",
+          "text": "NAMIBIA"
+        },
+        {
+          "value": "6039f928-3802-4d23-a715-694f48fcbce3",
+          "text": "NAURU"
+        },
+        {
+          "value": "8da9858f-bdf2-4b6b-9429-238ebec039dd",
+          "text": "NEPAL"
+        },
+        {
+          "value": "220ac96a-b9c9-4f77-8711-677004adaee2",
+          "text": "NETHERLANDS"
+        },
+        {
+          "value": "58a3d993-cd92-43d7-a52d-696b5080d8aa",
+          "text": "NETHERLANDSE ANTILLES"
+        },
+        {
+          "value": "79270a70-6cd0-44a6-9166-7db6d90c976a",
+          "text": "NEW CALEDONIA"
+        },
+        {
+          "value": "ef268b73-8b9e-478f-a459-32058e33b1f3",
+          "text": "NEW ZEALAND"
+        },
+        {
+          "value": "6206cd29-800f-46b1-8a8d-a8cd70123281",
+          "text": "NICARAGUA"
+        },
+        {
+          "value": "edc16d7a-71ac-45ac-8e22-315f2ec89d96",
+          "text": "NIGER"
+        },
+        {
+          "value": "f565a323-3bae-4dcb-b32e-95c6f1819c0f",
+          "text": "North Macedonia"
+        },
+        {
+          "value": "f322b0c9-61a5-4ee8-9cdb-f046a5245e6b",
+          "text": "NORWAY"
+        },
+        {
+          "value": "6aa75c1b-e7eb-43f8-88d7-1f0ad5764b43",
+          "text": "OMAN"
+        },
+        {
+          "value": "d6adb2da-a3d0-4143-bcc5-1651b0671851",
+          "text": "PAKISTAN"
+        },
+        {
+          "value": "90782348-c645-4400-84cb-2c4307e2d374",
+          "text": "PALAU"
+        },
+        {
+          "value": "e7b5ec63-4203-4668-a377-dd2b526682df",
+          "text": "PALESTINE"
+        },
+        {
+          "value": "ec76dc7f-faca-4bfd-b76d-3de68e0cf280",
+          "text": "PANAMA"
+        },
+        {
+          "value": "275b19e4-50a1-41c7-b6d8-cfbbdb03d046",
+          "text": "PAPUA NEW GUINEA"
+        },
+        {
+          "value": "e58d82e1-a65c-410a-ac8a-866c6f25da9f",
+          "text": "PARAGUAY"
+        },
+        {
+          "value": "50ebf46b-2f8e-4345-bc0c-461857b06847",
+          "text": "PEOPLE'S DEMOCRATIC REPUBLIC OF LAOS"
+        },
+        {
+          "value": "e5f942ed-23fd-4f2d-a5d4-97399753ec08",
+          "text": "PERU"
+        },
+        {
+          "value": "8db55c27-d5c2-4cf7-bbaa-6db35fe3863d",
+          "text": "PHILIPPINES"
+        },
+        {
+          "value": "fae13c7a-c6cb-48ea-9eeb-b622022ace25",
+          "text": "PITCAIRN"
+        },
+        {
+          "value": "733b9eb2-8fea-49ab-9b7d-ba9d56ac0108",
+          "text": "POLAND"
+        },
+        {
+          "value": "56a88b66-0733-422d-b3cc-e04273ad84b6",
+          "text": "POLYNESIA FRENCH"
+        },
+        {
+          "value": "2fe14725-2c04-4c6a-963c-dcde840dcfd5",
+          "text": "PORTUGAL"
+        },
+        {
+          "value": "ff4c5ef0-b98c-4316-93a1-401d0e503d23",
+          "text": "QATAR"
+        },
+        {
+          "value": "4f322842-9fd6-4166-a48a-79a9a3d4f78e",
+          "text": "REFUGEES (CONVENTION ARTICLE 1, 1951)"
+        },
+        {
+          "value": "47a06713-9373-4392-8b9e-7c64866d6db6",
+          "text": "REFUGEES (NON CONVENTION ARTICLE 1, 1951)"
+        },
+        {
+          "value": "0e63775f-7370-4203-9ff4-8a7ce1b83da5",
+          "text": "REPUBLIC OF KOREA"
+        },
+        {
+          "value": "89ee80a3-b660-44cc-b09d-9e8b02df327c",
+          "text": "REPUBLIC OF SOUTH AFRICA"
+        },
+        {
+          "value": "cd630114-9710-49a8-a450-9eff8b9f7966",
+          "text": "ROMANIA"
+        },
+        {
+          "value": "c9927f33-3778-4955-a5ed-5be3fe3c2c86",
+          "text": "RUSSIA"
+        },
+        {
+          "value": "fb80a5a2-7da4-4684-9a08-ac9935a7687c",
+          "text": "RWANDA"
+        },
+        {
+          "value": "652bdc10-1147-4da7-b87d-0a2d87f456ff",
+          "text": "SAINT KITTS AND NEVIS"
+        },
+        {
+          "value": "b72c2f44-6a70-44cc-92c9-e14f791ed3a0",
+          "text": "SAINT LUCIA"
+        },
+        {
+          "value": "57c54eb4-4317-4873-b20f-9eca9db38461",
+          "text": "SAINT VINCENT AND GRENADINES"
+        },
+        {
+          "value": "1ff2297d-ca8a-41d0-8ed3-835773306c91",
+          "text": "SAMOA"
+        },
+        {
+          "value": "1bd460aa-a6f7-4517-b557-68c9a5c4b575",
+          "text": "SAN MARINO"
+        },
+        {
+          "value": "a6945046-ca8d-4df0-9d85-76605233e7cd",
+          "text": "SAO TOME AND PRINCIPE"
+        },
+        {
+          "value": "36cb6d47-cfd4-42a0-ac3d-398d76f932c3",
+          "text": "SAUDI ARABIA"
+        },
+        {
+          "value": "02b4584f-7c26-4b8f-8d07-7d79552045a7",
+          "text": "SENEGAL"
+        },
+        {
+          "value": "77514d20-e823-4134-9be1-663279285570",
+          "text": "SERBIA"
+        },
+        {
+          "value": "9a5bf6eb-bdd3-46ce-9298-325ee83c6e8a",
+          "text": "SEYCHELLES"
+        },
+        {
+          "value": "536c5bbc-9d92-4831-856f-0b4183866560",
+          "text": "SIERRA LEONE"
+        },
+        {
+          "value": "76f0332d-ff00-4e69-acda-73d153c6ce66",
+          "text": "SINGAPORE"
+        },
+        {
+          "value": "2c48b68b-5184-4d9f-9635-b4376855f832",
+          "text": "SLOVAKIA"
+        },
+        {
+          "value": "95c29f1b-464b-4985-b5f2-9589e977cd65",
+          "text": "SLOVENIA"
+        },
+        {
+          "value": "a6cc707d-cb28-4fff-aca0-8d7cb53e003b",
+          "text": "SOLOMON ISLANDS"
+        },
+        {
+          "value": "4a72d20d-8764-4f24-a6c5-5733637e0947",
+          "text": "SOUTH SUDAN"
+        },
+        {
+          "value": "a7391e9c-7a1f-4184-bb40-b8d82b001643",
+          "text": "SPAIN"
+        },
+        {
+          "value": "c0d856c9-bac0-4566-aeb6-db30d16b611c",
+          "text": "SRI LANKA"
+        },
+        {
+          "value": "f5d95a4d-2857-44fe-a124-1c041aab463a",
+          "text": "SUDAN"
+        },
+        {
+          "value": "0697ba08-aea2-40cb-b54a-4dddf66cc568",
+          "text": "SURINAME"
+        },
+        {
+          "value": "aef055ad-cac8-4258-8ce5-fdf9215c408d",
+          "text": "SWAZILAND"
+        },
+        {
+          "value": "5285ce98-204f-42c7-9a8b-0ce793992540",
+          "text": "SWEDEN"
+        },
+        {
+          "value": "4b8a01ac-ebac-4157-ba96-52a42452b8fc",
+          "text": "SWITZERLAND"
+        },
+        {
+          "value": "a4c2a6b9-599e-4f32-a2cb-a7a8c419d3fd",
+          "text": "SYRIA"
+        },
+        {
+          "value": "cab7f051-6e1e-40e8-bc1d-304c7d718205",
+          "text": "TAIWAN"
+        },
+        {
+          "value": "4e06dd54-cb40-4689-ba37-d52ee18b6232",
+          "text": "TAJIKISTAN"
+        },
+        {
+          "value": "781d5b7f-8d72-4ab6-bb85-9d84c7002655",
+          "text": "TANZANIA"
+        },
+        {
+          "value": "568938de-3757-4038-ab10-9515de53dcde",
+          "text": "THAILAND"
+        },
+        {
+          "value": "92991bf5-3eb4-4bcd-a9cd-eb3791f61855",
+          "text": "TIMOR LESTE"
+        },
+        {
+          "value": "4472c324-c691-41ef-993f-1fdc68bdaeb4",
+          "text": "TOGO"
+        },
+        {
+          "value": "176b7997-cf5d-411c-a018-35cc462ff214",
+          "text": "TOKELAU"
+        },
+        {
+          "value": "5da97514-d2f2-49e2-8b3c-c2cd837076c9",
+          "text": "TONGA"
+        },
+        {
+          "value": "7052f57f-ed0f-4af7-a2bd-c56add55c58b",
+          "text": "TRINIDAD AND TOBAGO"
+        },
+        {
+          "value": "d43d13b8-c1f6-4b99-96fc-46f8566cf2f8",
+          "text": "TUNISIA"
+        },
+        {
+          "value": "ef010e72-e3d1-47af-81eb-c801725dfd56",
+          "text": "TURKIYE"
+        },
+        {
+          "value": "d86a010c-3d78-4e3c-a0a2-a8c28ba2faa5",
+          "text": "TURKMENISTAN"
+        },
+        {
+          "value": "0fe8945a-3d4b-4f2b-81be-50211982d6d6",
+          "text": "TUVALU"
+        },
+        {
+          "value": "77291ff1-eab3-4a48-b4f8-a554edb33c54",
+          "text": "UGANDA"
+        },
+        {
+          "value": "e01dfda0-5841-4395-8073-995bac33530c",
+          "text": "UKRAINE"
+        },
+        {
+          "value": "97ed438c-9faf-4f9c-a407-72e3718ca022",
+          "text": "UNITED ARAB EMIRATES"
+        },
+        {
+          "value": "94ce109e-b072-4229-9285-cf9cacc8fb2d",
+          "text": "UNITED KINGDOM - BRITISH CITIZEN"
+        },
+        {
+          "value": "c51ba964-c230-4826-a1d8-3cfad5bb0399",
+          "text": "UNITED KINGDOM - BRITISH INDIAN OCEAN TERRITORY"
+        },
+        {
+          "value": "ce4f1b79-54ee-4690-adcd-81c58eabb966",
+          "text": "UNITED KINGDOM - BRITISH NATIONALITY OVERSEAS"
+        },
+        {
+          "value": "87a991cb-73cb-4c99-b663-2ef257e2f6b1",
+          "text": "UNITED KINGDOM - BRITISH OVERSEAS CITIZEN"
+        },
+        {
+          "value": "96d8e937-6bd6-4ef8-a347-7d24854f5575",
+          "text": "UNITED KINGDOM - BRITISH OVERSEAS TERRITORIES CITIZEN"
+        },
+        {
+          "value": "47abd687-fcad-4d49-96ae-522a9d5fd67b",
+          "text": "UNITED KINGDOM - BRITISH PROTECTED PERSON"
+        },
+        {
+          "value": "864e7171-3d6c-4d8c-8b47-9137dee08ad1",
+          "text": "UNITED KINGDOM - BRITISH SUBJECT"
+        },
+        {
+          "value": "9b23d98e-5f93-47c0-bc86-7c01185dc7a7",
+          "text": "UNITED STATES OF AMERICA"
+        },
+        {
+          "value": "11c74c93-1660-4ada-afd2-32ba5c8531de",
+          "text": "UNSPECIFIED NATIONALITY"
+        },
+        {
+          "value": "2b5383fd-857a-4d13-9da2-6cc8817d94e4",
+          "text": "URUGUAY"
+        },
+        {
+          "value": "78743012-4d5f-499c-b1f7-87a30df735f9",
+          "text": "UZBEKISTAN"
+        },
+        {
+          "value": "402de03b-eba7-4fca-ab14-5a1c8efeeec7",
+          "text": "VANUATU"
+        },
+        {
+          "value": "41b2e501-26aa-4787-97fa-56af1e94b82c",
+          "text": "VENEZUELA"
+        },
+        {
+          "value": "e3838f92-2f1d-449c-b6b8-76b089027f0a",
+          "text": "VIETNAM"
+        },
+        {
+          "value": "60bef538-a6cd-4a75-9187-b74d247bcfec",
+          "text": "VIRGIN ISLANDS (UNITED STATES OF AMERICA)"
+        },
+        {
+          "value": "2781ca6c-143b-4a52-8dcc-89c7dc398147",
+          "text": "VIRGINS ISLANDS (UNITED KINGDOM)"
+        },
+        {
+          "value": "b805f46e-31a9-4ba7-8e87-c093af0b2ba0",
+          "text": "WITHOUT CITIZENSHIP (STATELESS, TH 1954 CONVENTION ARTICLE 1)"
+        },
+        {
+          "value": "e8324fd1-9cee-4772-97af-651408c0bab9",
+          "text": "YEMEN"
+        },
+        {
+          "value": "16543ea3-11bd-4551-9d9e-44abbec77c25",
+          "text": "ZAMBIA"
+        },
+        {
+          "value": "e0ea4fa1-498e-4d95-89eb-24415907dcab",
+          "text": "ZIMBABWE"
+        }
+      ]
+    },
+    {
+      "field_name": "selectParentActivity",
+      "label": "Visa Category",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 2,
+      "source": "evisa.imigrasi.go.id",
+      "options": [
+        "General, Family, or Social",
+        "Investment, Business, or Government",
+        "Professional or Employment",
+        "Study, Courses, Training or Research",
+        "Sport or Performer",
+        "Journalist or Film",
+        "Silver Hair & Retirement",
+        "Second Home",
+        "Golden Visa",
+        "Diaspora",
+        "Work and Holiday",
+        "Ex Dual Citizenship"
+      ],
+      "conditional_logic": null
+    },
+    {
+      "field_name": "selectActivity",
+      "label": "Purpose of Visit",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 3,
+      "source": "evisa.imigrasi.go.id",
+      "options": [
+        "Parent of Indonesian Citizen",
+        "Tourism, Family Visit, and Transit",
+        "Medical Treatment",
+        "Social",
+        "Family Dependant"
+      ],
+      "conditional_logic": "Depends on selectParentActivity. For General/Social: shows Tourism, Parent of Indonesian Citizen, Medical Treatment, Social, Family Dependant"
+    },
+    {
+      "field_name": "selectVisa",
+      "label": "Visa Type",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 4,
+      "source": "evisa.imigrasi.go.id",
+      "options": [
+        {
+          "value": "f6993617-3cd2-4d1f-883c-58f4a20630c0",
+          "text": "A1 - Visa Exemption Tourism"
+        },
+        {
+          "value": "4eb7326f-ddfb-4e61-a24a-fb02adceb67f",
+          "text": "B1 - Tourist (Visa On Arrival)"
+        },
+        {
+          "value": "aff9642b-0b57-443f-8de1-a51601de0ebb",
+          "text": "C1 - Tourist Single Entry Visitor Visa - 60 Days"
+        },
+        {
+          "value": "ed42d3d7-3271-4a8a-b82d-c44d62039794",
+          "text": "D1 - Tourist Multiple Entry Visa (1 Year)"
+        },
+        {
+          "value": "f4f35f97-4ee5-4024-98a1-95b6d4bc5487",
+          "text": "D1 - Tourist Multiple Entry Visa (2 Years)"
+        },
+        {
+          "value": "1ebd5b09-844d-4139-8a8f-e4852a14ec9d",
+          "text": "D1 - Tourist Multiple Entry Visa (5 Years)"
+        }
+      ],
+      "conditional_logic": "Depends on selectActivity. For Tourism: shows A1, B1, C1, D1, B211A"
+    },
+    {
+      "field_name": "selectStay",
+      "label": "Duration of Stay",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 5,
+      "source": "evisa.imigrasi.go.id",
+      "options": [
+        "60 Days"
+      ],
+      "conditional_logic": "Depends on selectVisa. B211A: 30 or 60 days. Can be extended up to 180 days total."
+    },
+    {
+      "field_name": "decisionLetterNumber",
+      "label": "Decision Letter Number",
+      "field_type": "text",
+      "required": false,
+      "placeholder": null,
+      "validation_rules": null,
+      "step_number": 1,
+      "step_name": "Visa Selection",
+      "display_order": 6,
+      "source": "evisa.imigrasi.go.id",
+      "conditional_logic": "Only required for certain visa extensions/reconsiderations"
+    },
+    {
+      "field_name": "fullName",
+      "label": "Full name (as on passport)",
+      "field_type": "text",
+      "required": true,
+      "placeholder": "John Smith",
+      "validation_rules": {
+        "min": 2,
+        "max": 100,
+        "pattern": "^[a-zA-Z ]+$",
+        "message": "Must match passport exactly"
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "dateOfBirth",
+      "label": "Date of birth",
+      "field_type": "date",
+      "required": true,
+      "placeholder": "DD/MM/YYYY",
+      "validation_rules": {
+        "format": "DD/MM/YYYY",
+        "min_age": 0,
+        "max_age": 120
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 2,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "placeOfBirth",
+      "label": "Place of birth",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "City, Country",
+      "validation_rules": {
+        "max": 100
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 3,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "gender",
+      "label": "Gender",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 4,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "options": [
+        "Male",
+        "Female",
+        "Other"
+      ],
+      "conditional_logic": null
+    },
+    {
+      "field_name": "nationality",
+      "label": "Nationality",
+      "field_type": "text",
+      "required": true,
+      "placeholder": "e.g. Australian",
+      "validation_rules": {
+        "min": 2,
+        "max": 50
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 5,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "occupation",
+      "label": "Occupation",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "e.g. Software Engineer",
+      "validation_rules": {
+        "max": 100
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 6,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "address",
+      "label": "Current address",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "Street, City, Country",
+      "validation_rules": {
+        "max": 200
+      },
+      "step_number": 2,
+      "step_name": "Personal Information",
+      "display_order": 7,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "passportNumber",
+      "label": "Passport number",
+      "field_type": "text",
+      "required": true,
+      "placeholder": "PA1234567",
+      "validation_rules": {
+        "min": 6,
+        "max": 20,
+        "pattern": "^[A-Z0-9]+$",
+        "message": "Alphanumeric, uppercase"
+      },
+      "step_number": 3,
+      "step_name": "Passport Details",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "passportIssueDate",
+      "label": "Passport issue date",
+      "field_type": "date",
+      "required": true,
+      "placeholder": "DD/MM/YYYY",
+      "validation_rules": {
+        "format": "DD/MM/YYYY",
+        "max": "today",
+        "message": "Must be in the past"
+      },
+      "step_number": 3,
+      "step_name": "Passport Details",
+      "display_order": 2,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "passportExpiryDate",
+      "label": "Passport expiry date",
+      "field_type": "date",
+      "required": true,
+      "placeholder": "DD/MM/YYYY",
+      "validation_rules": {
+        "format": "DD/MM/YYYY",
+        "min_months_from_arrival": 6,
+        "message": "Passport must be valid for at least 6 months from intended arrival date"
+      },
+      "step_number": 3,
+      "step_name": "Passport Details",
+      "display_order": 3,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "issuingCountry",
+      "label": "Issuing country",
+      "field_type": "text",
+      "required": true,
+      "placeholder": "e.g. Australia",
+      "validation_rules": {
+        "min": 2,
+        "max": 60
+      },
+      "step_number": 3,
+      "step_name": "Passport Details",
+      "display_order": 4,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "issuingAuthority",
+      "label": "Issuing authority",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "e.g. Department of Home Affairs",
+      "validation_rules": {
+        "max": 100
+      },
+      "step_number": 3,
+      "step_name": "Passport Details",
+      "display_order": 5,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "arrivalDate",
+      "label": "Intended arrival date",
+      "field_type": "date",
+      "required": true,
+      "placeholder": "DD/MM/YYYY",
+      "validation_rules": {
+        "format": "DD/MM/YYYY",
+        "min": "today+1",
+        "message": "Must be a future date"
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "departureDate",
+      "label": "Intended departure date",
+      "field_type": "date",
+      "required": true,
+      "placeholder": "DD/MM/YYYY",
+      "validation_rules": {
+        "format": "DD/MM/YYYY",
+        "after": "arrivalDate",
+        "max_days_from_arrival": 60,
+        "message": "Must be after arrival and within 60 days for B211A (30-day) or 60-day visa"
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 2,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": "Max stay depends on selectStay: 30 or 60 days"
+    },
+    {
+      "field_name": "portOfEntry",
+      "label": "Intended port of entry",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "e.g. Ngurah Rai International Airport (Bali)",
+      "validation_rules": {
+        "max": 100
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 3,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "purposeOfVisit",
+      "label": "Purpose of visit",
+      "field_type": "select",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "min": 1
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 4,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "options": [
+        "Tourism",
+        "Business",
+        "Social / Cultural",
+        "Family Visit"
+      ],
+      "conditional_logic": null
+    },
+    {
+      "field_name": "accommodationName",
+      "label": "Accommodation name",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "Hotel / Airbnb name",
+      "validation_rules": {
+        "max": 150
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 5,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "accommodationAddress",
+      "label": "Accommodation address in Indonesia",
+      "field_type": "text",
+      "required": false,
+      "placeholder": "Full address in Indonesia",
+      "validation_rules": {
+        "max": 200
+      },
+      "step_number": 4,
+      "step_name": "Travel Details",
+      "display_order": 6,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "passport_copy",
+      "label": "Passport bio page (scan or clear photo)",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png",
+          "pdf"
+        ],
+        "max_size_mb": 5,
+        "message": "Clear scan of passport biographical page"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "photo",
+      "label": "Recent passport-size photo",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png"
+        ],
+        "max_size_mb": 2,
+        "dimensions": "white background, face clearly visible",
+        "message": "Recent colour photo, white background, full face"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 2,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "flight_booking",
+      "label": "Flight booking confirmation",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png",
+          "pdf"
+        ],
+        "max_size_mb": 5,
+        "message": "Return/onward flight booking showing entry and exit from Indonesia"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 3,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "hotel_booking",
+      "label": "Hotel / accommodation booking",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png",
+          "pdf"
+        ],
+        "max_size_mb": 5,
+        "message": "Confirmed hotel booking or proof of accommodation in Indonesia"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 4,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "travel_itinerary",
+      "label": "Travel itinerary",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png",
+          "pdf"
+        ],
+        "max_size_mb": 5,
+        "message": "Detailed itinerary of planned activities in Indonesia"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 5,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "bank_statement",
+      "label": "Bank statement (last 3 months)",
+      "field_type": "file",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "accepted_formats": [
+          "jpg",
+          "jpeg",
+          "png",
+          "pdf"
+        ],
+        "max_size_mb": 10,
+        "min_months": 3,
+        "message": "Bank statements showing sufficient funds for duration of stay"
+      },
+      "step_number": 5,
+      "step_name": "Document Upload",
+      "display_order": 6,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": null
+    },
+    {
+      "field_name": "review_confirmation",
+      "label": "I confirm all details are accurate and match my travel documents",
+      "field_type": "checkbox",
+      "required": true,
+      "placeholder": null,
+      "validation_rules": {
+        "must_be_true": true,
+        "message": "You must confirm your details before submitting"
+      },
+      "step_number": 6,
+      "step_name": "Review & Submit",
+      "display_order": 1,
+      "source": "evisa.imigrasi.go.id / VIZA app",
+      "conditional_logic": "All previous steps must be complete"
+    }
+  ]
+}
