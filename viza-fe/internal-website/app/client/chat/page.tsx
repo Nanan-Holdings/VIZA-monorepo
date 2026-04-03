@@ -41,7 +41,7 @@ export default async function ChatPage() {
     <ChatClient
       userId={userId}
       initialSessions={sessions}
-      initialActiveSession={null}
+      initialActiveSession={sessions[0] || null}
       initialMessages={recentMessagesResult.messages}
       initialCheckpoints={checkpointsResult.previews}
       isFirstTimeUser={recentMessagesResult.isFirstTimeUser}

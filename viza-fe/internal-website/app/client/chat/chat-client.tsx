@@ -290,7 +290,13 @@ export function ChatClient({
     initialActiveSession?.id || null
   );
 
-  const [showChat, setShowChat] = useState(!!initialActiveSession || initialMessages.length > 0);
+  const [showChat, setShowChat] = useState(() => {
+    // Persist chat view across remounts via sessionStorage
+    if (typeof window !== "undefined" && sessionStorage.getItem("viza_chat_active") === "true") {
+      return true;
+    }
+    return !!initialActiveSession || initialMessages.length > 0;
+  });
   const [showDebug, setShowDebug] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -341,8 +347,21 @@ export function ChatClient({
 
   const flushTokenBuffer = useCallback(() => {
     if (tokenBufferRef.current) {
-      addLog("token", { text: tokenBufferRef.current });
+      const buffered = tokenBufferRef.current;
+      addLog("token", { text: buffered });
       tokenBufferRef.current = "";
+
+      // Push buffered tokens into the streaming message so the UI renders them
+      if (currentMessageIdRef.current) {
+        const msgId = currentMessageIdRef.current;
+        setSocketMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? { ...msg, content: (msg.content || "") + buffered }
+              : msg
+          )
+        );
+      }
     }
     if (tokenFlushTimeoutRef.current) {
       clearTimeout(tokenFlushTimeoutRef.current);
@@ -795,6 +814,9 @@ export function ChatClient({
 
   const handleSendMessage = useCallback(
     async (message: string) => {
+      // Ensure chat view persists across any remounts
+      sessionStorage.setItem("viza_chat_active", "true");
+
       let currentSessionId = sessionId;
 
       if (!currentSessionId || pendingNewConversation) {
@@ -843,6 +865,7 @@ export function ChatClient({
 
   const handleVizaAiClick = useCallback(() => {
     setShowChat(true);
+    sessionStorage.setItem("viza_chat_active", "true");
   }, []);
 
   const handleSupportTeamClick = useCallback(() => {
@@ -1258,7 +1281,7 @@ export function ChatClient({
                 <div
                   ref={messagesContainerRef}
                   onScroll={checkScrollPosition}
-                  className="flex-1 overflow-y-auto space-y-12 mb-0 relative overscroll-y-contain min-h-0 w-full max-w-[900px] mx-auto"
+                  className="flex-1 overflow-y-auto space-y-12 mb-0 relative overscroll-y-contain min-h-0 w-full max-w-[900px] mx-auto pt-10"
                   style={{ WebkitOverflowScrolling: "touch" }}
                 >
                   {continuousChat.isLoadingMore && (
@@ -1283,25 +1306,6 @@ export function ChatClient({
                         <Skeleton className="h-16 w-1/2 rounded-xl" />
                       </div>
                     </div>
-                  )}
-
-                  {/* Welcome message for first-time users */}
-                  {!isLoadingMessages && continuousChat.messages.length === 0 && continuousChat.isFirstTimeUser && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1, duration: 0.3 }}
-                      className="flex gap-3"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-sm font-bold">V</span>
-                      </div>
-                      <div className="bg-white rounded-xl rounded-tl-md border border-gray-100 px-4 py-3 max-w-[85%] shadow-sm">
-                        <p className="text-gray-800 text-sm sm:text-base">
-                          Welcome! I&apos;m VIZA, your Indonesian tourist visa assistant. I can help you understand requirements, check your documents, and guide you through the application process.
-                        </p>
-                      </div>
-                    </motion.div>
                   )}
 
                   {/* Messages with date dividers */}

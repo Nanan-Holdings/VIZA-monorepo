@@ -86,7 +86,7 @@ function renderContent(content: string): React.ReactNode {
                             href={linkMatch[2]}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#c1785d] underline hover:text-[#a86249]"
+                            className="text-brand-500 underline hover:text-brand-600"
                           >
                             {linkMatch[1]}
                           </a>
@@ -113,7 +113,7 @@ export function ChatMessage({
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="bg-[#c1785d] text-white rounded-xl rounded-br-md px-6 py-4 max-w-[85%]">
+        <div className="bg-brand-500 text-white rounded-xl rounded-br-md px-6 py-4 max-w-[85%]">
           <p className="text-base sm:text-lg whitespace-pre-wrap leading-relaxed">{content}</p>
         </div>
       </div>

@@ -77,7 +77,7 @@ export function ChatInput({
         "flex flex-col gap-3 rounded-2xl border bg-white px-5 sm:px-6 pb-5 pt-2 shadow-sm transition-all duration-200",
         disabled
           ? "border-gray-100 opacity-60"
-          : "border-gray-200 hover:border-gray-300 focus-within:border-[#c1785d]"
+          : "border-gray-200 hover:border-gray-300 focus-within:border-brand-500"
       )}
     >
       <textarea
@@ -103,7 +103,7 @@ export function ChatInput({
           className={cn(
             "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200",
             canSend
-              ? "bg-[#c1785d] text-white hover:bg-[#a86249] cursor-pointer"
+              ? "bg-brand-500 text-white hover:bg-brand-600 cursor-pointer"
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           )}
           aria-label={isConnecting ? "Connecting..." : "Send message"}

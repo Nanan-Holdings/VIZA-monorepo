@@ -91,9 +91,9 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
     // Fetch sessions
     const { data: sessions, error } = await adminClient
-      .from("sessions")
+      .from("visa_chat_sessions")
       .select("*")
-      .eq("user_id", userId)
+      .eq("applicant_id", userId)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -108,10 +108,10 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
     // Get first message for each session (for preview)
     const sessionIds = sessions.map((s) => s.id);
     const { data: firstMessages } = await adminClient
-      .from("messages")
+      .from("visa_chat_messages")
       .select("session_id, content")
       .in("session_id", sessionIds)
-      .eq("sender_type", "user")
+      .eq("role", "user")
       .order("created_at", { ascending: true });
 
     // Create a map of session_id -> first user message
@@ -126,12 +126,12 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 
     return sessions.map((session) => ({
       id: session.id,
-      userId: session.user_id,
-      journeyType: session.journey_type,
-      state: session.state,
-      startedAt: session.started_at,
-      endedAt: session.ended_at,
-      metadata: (session.metadata as Record<string, unknown>) || {},
+      userId: session.applicant_id,
+      journeyType: "check_in",
+      state: "active",
+      startedAt: session.created_at,
+      endedAt: session.updated_at,
+      metadata: {},
       createdAt: session.created_at,
       firstMessagePreview: firstMessageMap.get(session.id)?.slice(0, 30) || undefined,
     }));
@@ -159,23 +159,23 @@ export async function getSessionMessages(
 
   // Verify session belongs to user
   const { data: session, error: sessionError } = await adminClient
-    .from("sessions")
-    .select("id, user_id")
+    .from("visa_chat_sessions")
+    .select("id, applicant_id")
     .eq("id", sessionId)
     .single();
 
-  if (sessionError || !session || session.user_id !== userId) {
+  if (sessionError || !session || session.applicant_id !== userId) {
     console.error("Session not found or doesn't belong to user", {
       sessionId,
       userId,
-      sessionUserId: session?.user_id,
+      sessionUserId: session?.applicant_id,
     });
     return [];
   }
 
   // Fetch messages
   const { data: messages, error } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select("*")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
@@ -189,10 +189,10 @@ export async function getSessionMessages(
   return (messages || []).map((msg) => ({
     id: msg.id,
     sessionId: msg.session_id,
-    senderType: msg.sender_type as Message["senderType"],
+    senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
     content: msg.content,
-    intent: msg.intent,
-    riskLevel: msg.risk_level,
+    intent: null,
+    riskLevel: null,
     createdAt: msg.created_at,
   }));
 }
@@ -214,10 +214,9 @@ export async function getLatestActiveSession(
   const adminClient = createAdminClient();
 
   const { data: session, error } = await adminClient
-    .from("sessions")
+    .from("visa_chat_sessions")
     .select("*")
-    .eq("user_id", userId)
-    .eq("state", "active")
+    .eq("applicant_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -233,22 +232,22 @@ export async function getLatestActiveSession(
 
   // Get first user message for preview
   const { data: firstMessage } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select("content")
     .eq("session_id", session.id)
-    .eq("sender_type", "user")
+    .eq("role", "user")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   return {
     id: session.id,
-    userId: session.user_id,
-    journeyType: session.journey_type,
-    state: session.state,
-    startedAt: session.started_at,
-    endedAt: session.ended_at,
-    metadata: (session.metadata as Record<string, unknown>) || {},
+    userId: session.applicant_id,
+    journeyType: "check_in",
+    state: "active",
+    startedAt: session.created_at,
+    endedAt: session.updated_at,
+    metadata: {},
     createdAt: session.created_at,
     firstMessagePreview: firstMessage?.content?.slice(0, 30) || undefined,
   };
@@ -269,12 +268,9 @@ export async function createSession(userId: string): Promise<Session | null> {
   const adminClient = createAdminClient();
 
   const { data: session, error } = await adminClient
-    .from("sessions")
+    .from("visa_chat_sessions")
     .insert({
-      user_id: userId,
-      journey_type: "check_in", // Default journey type
-      state: "active",
-      metadata: {},
+      applicant_id: userId,
     })
     .select()
     .single();
@@ -286,12 +282,12 @@ export async function createSession(userId: string): Promise<Session | null> {
 
   return {
     id: session.id,
-    userId: session.user_id,
-    journeyType: session.journey_type,
-    state: session.state,
-    startedAt: session.started_at,
-    endedAt: session.ended_at,
-    metadata: (session.metadata as Record<string, unknown>) || {},
+    userId: session.applicant_id,
+    journeyType: "check_in",
+    state: "active",
+    startedAt: session.created_at,
+    endedAt: session.updated_at,
+    metadata: {},
     createdAt: session.created_at,
   };
 }
@@ -324,16 +320,16 @@ export async function getMessagePreviews(
 
     // Get user messages with session info
     const { data: messages, error } = await adminClient
-      .from("messages")
+      .from("visa_chat_messages")
       .select(`
         id,
         session_id,
         content,
         created_at,
-        sessions!inner(user_id, created_at)
+        visa_chat_sessions!inner(applicant_id, created_at)
       `)
-      .eq("sender_type", "user")
-      .eq("sessions.user_id", userId)
+      .eq("role", "user")
+      .eq("visa_chat_sessions.applicant_id", userId)
       .gte("created_at", thirtyDaysAgo.toISOString())
       .order("created_at", { ascending: false })
       .range(offset, offset + limit);
@@ -397,19 +393,17 @@ export async function getMessagesAroundCheckpoint(
 
   // First get the target message to find its timestamp
   const { data: targetMsg, error: targetError } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select(`
       id,
       session_id,
-      sender_type,
+      role,
       content,
-      intent,
-      risk_level,
       created_at,
-      sessions!inner(user_id)
+      visa_chat_sessions!inner(applicant_id)
     `)
     .eq("id", messageId)
-    .eq("sessions.user_id", userId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .single();
 
   if (targetError || !targetMsg) {
@@ -421,18 +415,16 @@ export async function getMessagesAroundCheckpoint(
 
   // Get messages before the target (older)
   const { data: beforeMessages } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select(`
       id,
       session_id,
-      sender_type,
+      role,
       content,
-      intent,
-      risk_level,
       created_at,
-      sessions!inner(user_id)
+      visa_chat_sessions!inner(applicant_id)
     `)
-    .eq("sessions.user_id", userId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .gte("created_at", thirtyDaysAgo.toISOString())
     .lt("created_at", targetTimestamp)
     .order("created_at", { ascending: false })
@@ -440,18 +432,16 @@ export async function getMessagesAroundCheckpoint(
 
   // Get messages after the target (newer)
   const { data: afterMessages } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select(`
       id,
       session_id,
-      sender_type,
+      role,
       content,
-      intent,
-      risk_level,
       created_at,
-      sessions!inner(user_id)
+      visa_chat_sessions!inner(applicant_id)
     `)
-    .eq("sessions.user_id", userId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .gt("created_at", targetTimestamp)
     .order("created_at", { ascending: true })
     .limit(after + 1);
@@ -469,10 +459,10 @@ export async function getMessagesAroundCheckpoint(
   const formatMessage = (msg: typeof targetMsg): Message => ({
     id: msg.id,
     sessionId: msg.session_id,
-    senderType: msg.sender_type as Message["senderType"],
+    senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
     content: msg.content,
-    intent: msg.intent,
-    riskLevel: msg.risk_level,
+    intent: null,
+    riskLevel: null,
     createdAt: msg.created_at,
   });
 
@@ -511,18 +501,16 @@ export async function loadMoreHistory(
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { data: messages, error } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select(`
       id,
       session_id,
-      sender_type,
+      role,
       content,
-      intent,
-      risk_level,
       created_at,
-      sessions!inner(user_id)
+      visa_chat_sessions!inner(applicant_id)
     `)
-    .eq("sessions.user_id", userId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .gte("created_at", thirtyDaysAgo.toISOString())
     .lt("created_at", beforeTimestamp)
     .order("created_at", { ascending: false })
@@ -537,10 +525,10 @@ export async function loadMoreHistory(
   const formattedMessages = (messages || []).slice(0, limit).reverse().map((msg) => ({
     id: msg.id,
     sessionId: msg.session_id,
-    senderType: msg.sender_type as Message["senderType"],
+    senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
     content: msg.content,
-    intent: msg.intent,
-    riskLevel: msg.risk_level,
+    intent: null,
+    riskLevel: null,
     createdAt: msg.created_at,
   }));
 
@@ -589,16 +577,16 @@ export async function searchMessages(
 
   // Search using ILIKE for simple text search
   const { data: messages, error, count } = await adminClient
-    .from("messages")
+    .from("visa_chat_messages")
     .select(`
       id,
       session_id,
-      sender_type,
+      role,
       content,
       created_at,
-      sessions!inner(user_id)
+      visa_chat_sessions!inner(applicant_id)
     `, { count: "exact" })
-    .eq("sessions.user_id", userId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .gte("created_at", thirtyDaysAgo.toISOString())
     .ilike("content", `%${query}%`)
     .order("created_at", { ascending: false })
@@ -628,7 +616,7 @@ export async function searchMessages(
       id: msg.id,
       sessionId: msg.session_id,
       content: msg.content,
-      senderType: msg.sender_type as SearchResult["senderType"],
+      senderType: (msg.role === "assistant" ? "agent" : msg.role) as SearchResult["senderType"],
       createdAt: msg.created_at,
       matchSnippet,
     };
@@ -666,18 +654,16 @@ export async function getRecentMessages(
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const { data: messages, error, count } = await adminClient
-      .from("messages")
+      .from("visa_chat_messages")
       .select(`
         id,
         session_id,
-        sender_type,
+        role,
         content,
-        intent,
-        risk_level,
         created_at,
-        sessions!inner(user_id)
+        visa_chat_sessions!inner(applicant_id)
       `, { count: "exact" })
-      .eq("sessions.user_id", userId)
+      .eq("visa_chat_sessions.applicant_id", userId)
       .gte("created_at", thirtyDaysAgo.toISOString())
       .order("created_at", { ascending: false })
       .limit(limit + 1);
@@ -690,10 +676,10 @@ export async function getRecentMessages(
     const formattedMessages = (messages || []).slice(0, limit).reverse().map((msg) => ({
       id: msg.id,
       sessionId: msg.session_id,
-      senderType: msg.sender_type as Message["senderType"],
+      senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
       content: msg.content,
-      intent: msg.intent,
-      riskLevel: msg.risk_level,
+      intent: null,
+      riskLevel: null,
       createdAt: msg.created_at,
     }));
 

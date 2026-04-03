@@ -1,5 +1,9 @@
 import { Namespace, Socket } from 'socket.io';
+import { eq, asc } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
+import { db } from '../db/index.js';
+import { visaChatMessages } from '../db/schema.js';
+import { streamChat } from '../agent/index.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
@@ -15,10 +19,6 @@ interface VisaChatRequest {
 
 /**
  * Register all event handlers for the /visa Socket.IO namespace.
- *
- * The real agent loop is not wired yet — this handler acknowledges the
- * message and returns a placeholder response so the frontend can connect
- * and render without CORS / 404 errors.
  */
 export function registerVisaNamespace(nsp: Namespace): void {
   nsp.on('connection', (socket: Socket) => {
@@ -46,36 +46,91 @@ export function registerVisaNamespace(nsp: Namespace): void {
       const startTime = Date.now();
 
       try {
-        // TODO: Wire up VisaAgent streaming loop here.
-        // For now, echo a placeholder so the UI round-trip works end-to-end.
-
-        // Emit a few tokens to prove streaming works
-        const placeholder =
-          "I'm the VIZA assistant. The agent backend is connected but the AI agent loop hasn't been wired up yet. Stay tuned!";
-
-        // Stream token-by-token (chunked for realism)
-        const chunkSize = 8;
-        for (let i = 0; i < placeholder.length; i += chunkSize) {
-          const chunk = placeholder.slice(i, i + chunkSize);
-          socket.emit('token', {
-            type: 'token',
-            payload: chunk,
-            timestamp: Date.now(),
+        // 1. Save user message to DB (non-fatal — chat still works if DB is down)
+        try {
+          await db.insert(visaChatMessages).values({
+            sessionId: session_id,
+            role: 'user',
+            content: message,
           });
-          // Small delay between chunks to simulate streaming
-          await sleep(30);
+        } catch (dbErr) {
+          logger.warn('Failed to save user message (DB may be unavailable)', dbErr as Error, {
+            sessionId: session_id,
+          });
         }
 
-        // Emit response_complete with the full response
-        socket.emit('response_complete', {
-          type: 'response_complete',
-          sessionId: session_id,
-          userId: user_id,
-          fullResponse: placeholder,
-          toolsUsed: [],
-          escalated: false,
-          duration: Date.now() - startTime,
-          timestamp: Date.now(),
+        // 2. Load conversation history for context (fallback to current message only)
+        let chatHistory: { role: 'user' | 'assistant'; content: string }[] = [
+          { role: 'user', content: message },
+        ];
+
+        try {
+          const history = await db
+            .select({ role: visaChatMessages.role, content: visaChatMessages.content })
+            .from(visaChatMessages)
+            .where(eq(visaChatMessages.sessionId, session_id))
+            .orderBy(asc(visaChatMessages.createdAt))
+            .limit(50);
+
+          if (history.length > 0) {
+            chatHistory = history.map((msg) => ({
+              role: msg.role as 'user' | 'assistant',
+              content: msg.content,
+            }));
+          }
+        } catch (dbErr) {
+          logger.warn('Failed to load chat history (using current message only)', dbErr as Error, {
+            sessionId: session_id,
+          });
+        }
+
+        // 3. Stream response from Claude
+        let fullResponse = '';
+
+        await streamChat(chatHistory, {
+          onToken: (text) => {
+            socket.emit('token', {
+              type: 'token',
+              payload: text,
+              timestamp: Date.now(),
+            });
+          },
+          onComplete: async (response) => {
+            fullResponse = response;
+
+            // 4. Save assistant message to DB
+            try {
+              await db.insert(visaChatMessages).values({
+                sessionId: session_id,
+                role: 'assistant',
+                content: fullResponse,
+              });
+            } catch (dbErr) {
+              logger.error('Failed to save assistant message', dbErr as Error, {
+                sessionId: session_id,
+              });
+            }
+
+            // 5. Emit response_complete
+            socket.emit('response_complete', {
+              type: 'response_complete',
+              sessionId: session_id,
+              userId: user_id,
+              fullResponse,
+              toolsUsed: [],
+              escalated: false,
+              duration: Date.now() - startTime,
+              timestamp: Date.now(),
+            });
+          },
+          onError: (err) => {
+            socket.emit('error', {
+              type: 'error',
+              message: err.message || 'AI agent error',
+              code: 'AGENT_ERROR',
+              timestamp: Date.now(),
+            });
+          },
         });
       } catch (err) {
         logger.error('Error handling visa_chat_message', err as Error, {
@@ -95,7 +150,6 @@ export function registerVisaNamespace(nsp: Namespace): void {
     // ---- component_complete (UI component callback) -------------------------
     socket.on('component_complete', (event: { componentId: string; result: unknown }) => {
       logger.debug('Component completed', { componentId: event.componentId });
-      // TODO: Forward to agent loop when implemented
     });
 
     // ---- disconnect ---------------------------------------------------------
@@ -106,8 +160,4 @@ export function registerVisaNamespace(nsp: Namespace): void {
       });
     });
   });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
