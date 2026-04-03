@@ -1,12 +1,18 @@
 import express from 'express';
+import cors from 'cors';
 import { errorHandler } from './middleware/errorHandler.js';
 import adminRemindersRouter from './routes/admin-reminders.routes.js';
 import telegramWebhookRouter from './routes/telegram-webhook.js';
 import validateApplicationRouter from './routes/validate-application.js';
 
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
 const app = express();
 
 // Middleware
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

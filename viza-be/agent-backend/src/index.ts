@@ -4,15 +4,35 @@ dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import app from './app.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
+import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
 
 const logger = new Logger({ serviceName: 'ServerStartup' });
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
 const server = http.createServer(app);
+
+// Socket.IO — attach to the same HTTP server
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+  transports: ['polling', 'websocket'],
+});
+
+// Register the /visa namespace that the client connects to
+const visaNsp = io.of('/visa');
+registerVisaNamespace(visaNsp);
 
 // Graceful shutdown handlers
 process.on('SIGTERM', () => {
