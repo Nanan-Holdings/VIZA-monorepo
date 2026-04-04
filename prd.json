@@ -41,7 +41,7 @@
                         },
                         {
                             "id":  "US-018",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Create visa_application_answers generic answer store",
                             "description":  "Add field-level answer storage for dynamic visa forms.",
                             "priority":  18,
@@ -60,7 +60,7 @@
                         },
                         {
                             "id":  "US-019",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Create shared_profile_fields completeness tracking",
                             "description":  "Track reusable cross-visa profile groups for prefill and user data reuse.",
                             "priority":  19,
@@ -79,7 +79,7 @@
                         },
                         {
                             "id":  "US-020",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Add package and DS-160 metadata columns to applications",
                             "description":  "Extend applications with package linkage and DS-160 retrieval metadata.",
                             "priority":  20,

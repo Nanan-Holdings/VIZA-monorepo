@@ -83,6 +83,10 @@ export const applications = pgTable("applications", {
 	submittedAt: timestamp("submitted_at", { withTimezone: true }),
 	estimatedProcessingDays: integer("estimated_processing_days"),
 	receiptUrl: text("receipt_url"),
+	visaPackageId: uuid("visa_package_id"),
+	ds160ApplicationId: text("ds160_application_id"),
+	ds160RetrievalUrl: text("ds160_retrieval_url"),
+	ds160DatStoragePath: text("ds160_dat_storage_path"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -424,3 +428,41 @@ export const userPackages = pgTable("user_packages", {
 
 export type UserPackage = typeof userPackages.$inferSelect;
 export type NewUserPackage = typeof userPackages.$inferInsert;
+
+// =============================================================================
+// VISA APPLICATION ANSWERS
+// Generic key-value answer storage for dynamic visa forms
+// Upsert-safe on (application_id, field_name)
+// =============================================================================
+
+export const visaApplicationAnswers = pgTable("visa_application_answers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  fieldName: text("field_name").notNull(),
+  valueText: text("value_text"),
+  valueJson: jsonb("value_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type VisaApplicationAnswer = typeof visaApplicationAnswers.$inferSelect;
+export type NewVisaApplicationAnswer = typeof visaApplicationAnswers.$inferInsert;
+
+// =============================================================================
+// SHARED PROFILE FIELDS
+// Tracks reusable cross-visa profile group completeness
+// field_group: personal | passport | contact | employment | travel_history
+// =============================================================================
+
+export const sharedProfileFields = pgTable("shared_profile_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  fieldGroup: text("field_group").notNull(),
+  isComplete: boolean("is_complete").notNull().default(false),
+  lastVerified: timestamp("last_verified", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SharedProfileField = typeof sharedProfileFields.$inferSelect;
+export type NewSharedProfileField = typeof sharedProfileFields.$inferInsert;
