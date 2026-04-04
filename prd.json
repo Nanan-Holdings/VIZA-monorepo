@@ -294,7 +294,7 @@
                         },
                         {
                             "id":  "US-032",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Add DS-160 storage upload and alert handling",
                             "description":  "Upload saved DS-160 files, store paths, and alert on repeated failure.",
                             "priority":  32,
