@@ -151,7 +151,7 @@
                         },
                         {
                             "id":  "US-024",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Build admin users list page with active package data",
                             "description":  "Create admin list view of Supabase users and their ongoing visa package.",
                             "priority":  24,
