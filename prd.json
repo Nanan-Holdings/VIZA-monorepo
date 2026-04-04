@@ -98,7 +98,7 @@
                         },
                         {
                             "id":  "US-021",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Build GET and POST user package endpoints",
                             "description":  "Implement backend APIs for active package lookup and admin/service package assignment.",
                             "priority":  21,
