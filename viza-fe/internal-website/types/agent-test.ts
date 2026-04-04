@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Agent Test Page Types
  *
  * Types for the agent test chat interface to test the agent-backend.
@@ -158,3 +158,27 @@ export type ConnectionStatus =
   | "connecting"
   | "connected"
   | "error";
+
+// =============================================================================
+// Application Block Event (US-037 / US-038)
+// =============================================================================
+
+export interface ApplicationBlockEvent {
+  type: "application_block";
+  payload: {
+    blockType: string;
+    title: string;
+    description?: string;
+    fields: Array<{
+      name: string;
+      label: string;
+      type: "text" | "date" | "select" | "file";
+      required?: boolean;
+      options?: string[];
+      placeholder?: string;
+    }>;
+    saveTarget: string;
+    applicationId?: string;
+  };
+  timestamp: number;
+}

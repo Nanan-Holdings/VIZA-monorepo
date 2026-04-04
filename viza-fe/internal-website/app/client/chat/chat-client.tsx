@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,6 +14,8 @@ import { io, Socket } from "socket.io-client";
 
 import { useContinuousChat } from "@/hooks/use-continuous-chat";
 import { ChatMessage } from "@/components/client/companion/chat-message";
+import { BlockMessage } from "@/components/client/companion/block-message";
+import type { ApplicationBlockPayload } from "@/components/client/companion/block-message";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
 import { DateDivider, isDifferentDay } from "@/components/client/companion/date-divider";
@@ -31,6 +33,7 @@ import type {
   ResponseCompleteEvent,
   ErrorEvent,
   LogEntry,
+  ApplicationBlockEvent,
 } from "@/types/agent-test";
 
 // Application step components
@@ -128,7 +131,7 @@ function InlineComponent({
     return (
       <div className="flex gap-3">
         <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center flex-shrink-0">
-          <span className="text-brand-500 text-sm">✦</span>
+          <span className="text-brand-500 text-sm">+</span>
         </div>
         <div className="bg-white rounded-xl rounded-tl-md border border-gray-100 px-4 py-3 shadow-sm">
           <p className="text-gray-500 text-sm">{event.component} completed.</p>
@@ -270,6 +273,7 @@ export function ChatClient({
   const [pendingMessages, setPendingMessages] = useState<string[]>([]);
   const [_isNearBottom, setIsNearBottom] = useState(true);
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
+  const [blockMessages, setBlockMessages] = useState<Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>>([]);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -453,6 +457,22 @@ export function ChatClient({
       if (event.type === "component") {
         setPendingComponents((prev) => [...prev, { ...event, completed: false }]);
       }
+    });
+
+    // US-038: application_block from send_application_block tool
+    socket.on("application_block", (event: ApplicationBlockEvent) => {
+      addLog("tool_call", {
+        toolName: "send_application_block",
+        args: event.payload,
+      });
+      setBlockMessages((prev) => [
+        ...prev,
+        {
+          id: `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          payload: event.payload,
+          timestamp: event.timestamp,
+        },
+      ]);
     });
 
     socket.on(
@@ -881,7 +901,7 @@ export function ChatClient({
 
   return (
     <div className="chat-page fixed top-[104px] bottom-0 left-0 right-0 bg-[#fafafa] z-10 border-t border-[#e5e5e5]">
-      {/* Full-width main content — no sidebar */}
+      {/* Full-width main content 鈥?no sidebar */}
       <main className="h-full flex flex-col min-h-0">
         <AnimatePresence mode="wait">
           {!showChat ? (
@@ -1116,7 +1136,7 @@ export function ChatClient({
               </div>
             </motion.div>
           ) : (
-            /* Chat View — full width, no sidebar */
+            /* Chat View 鈥?full width, no sidebar */
             <motion.div
               key="chat"
               initial={{ opacity: 0 }}
@@ -1176,6 +1196,18 @@ export function ChatClient({
                     </motion.div>
                   ))}
 
+                  {/* US-038: application_block messages from the agent tool */}
+                  {blockMessages.map((block) => (
+                    <motion.div
+                      key={block.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <BlockMessage payload={block.payload} />
+                    </motion.div>
+                  ))}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -1215,3 +1247,8 @@ export function ChatClient({
     </div>
   );
 }
+
+
+
+
+
