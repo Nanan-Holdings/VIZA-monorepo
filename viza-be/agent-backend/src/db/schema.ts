@@ -1,4 +1,4 @@
-import {
+﻿import {
 	pgTable,
 	text,
 	timestamp,
@@ -263,7 +263,7 @@ export type NewKnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferInsert;
 
 // =============================================================================
 // DS-160 PROFILE EXTENSIONS
-// DS-160 specific data not covered by applicantProfiles — linked via applicant_id
+// DS-160 specific data not covered by applicantProfiles 鈥?linked via applicant_id
 // =============================================================================
 
 export const ds160OtherNames = pgTable("ds160_other_names", {
@@ -466,3 +466,20 @@ export const sharedProfileFields = pgTable("shared_profile_fields", {
 
 export type SharedProfileField = typeof sharedProfileFields.$inferSelect;
 export type NewSharedProfileField = typeof sharedProfileFields.$inferInsert;
+
+// =============================================================================
+// USER CHAT SESSIONS
+// One persistent chat session per user (single continuous conversation)
+// Linked to their active visa package when applicable
+// =============================================================================
+
+export const userChatSessions = pgTable("user_chat_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	authUserId: uuid("auth_user_id").notNull().unique(),
+	visaPackageId: uuid("visa_package_id"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type UserChatSession = typeof userChatSessions.$inferSelect;
+export type NewUserChatSession = typeof userChatSessions.$inferInsert;
