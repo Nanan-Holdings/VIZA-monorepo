@@ -169,7 +169,7 @@
                         },
                         {
                             "id":  "US-025",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Build admin user detail page and package assignment UX",
                             "description":  "Create detail view plus package assignment modal/flow for a user.",
                             "priority":  25,
