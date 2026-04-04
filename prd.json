@@ -22,7 +22,7 @@
                         },
                         {
                             "id":  "US-017",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Create user_packages assignment table",
                             "description":  "Attach users to active/past visa packages in Supabase.",
                             "priority":  17,
