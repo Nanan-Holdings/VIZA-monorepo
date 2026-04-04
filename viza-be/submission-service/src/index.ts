@@ -16,10 +16,17 @@ import {
   FormFieldMapping,
 } from "./form-mappings";
 import {
+  DS160_PORTAL_URL,
+  DS160_NEXT_SELECTOR,
+  DS160_SAVE_SELECTOR,
+  DS160_MAPPING_GROUPS,
+} from "./ds160-form-mappings";
+import {
   SubmissionQueueItem,
   ApplicantProfile,
   Application,
   ApplicationDocument,
+  VisaApplicationAnswer,
 } from "./types";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -31,11 +38,15 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
   const { data, error } = await supabase
     .from("submission_queue")
     .select("*")
-    .eq("status", "pending")
+    .in("status", ["pending", "ds160_prefill_pending"])
     .lt("attempts", MAX_ATTEMPTS);
 
   if (error) throw new Error(`Failed to fetch submission_queue: ${error.message}`);
   return data ?? [];
+}
+
+function isDs160Job(item: SubmissionQueueItem): boolean {
+  return item.status === "ds160_prefill_pending";
 }
 
 async function markProcessing(queueId: string): Promise<void> {
@@ -292,6 +303,198 @@ async function submitApplication(
   }
 }
 
+// ─── DS-160 Data Loaders ────────────────────────────────────────────────────
+
+async function loadDs160Answers(applicationId: string): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId);
+
+  if (error) throw new Error(`Failed to load DS-160 answers: ${error.message}`);
+
+  const answers: Record<string, string> = {};
+  for (const row of (data ?? []) as VisaApplicationAnswer[]) {
+    const value = row.value_json != null ? String(row.value_json) : row.value_text;
+    if (value) answers[row.field_name] = value;
+  }
+  return answers;
+}
+
+// ─── DS-160 Playwright Prefill ──────────────────────────────────────────────
+
+async function prefillDs160(
+  answers: Record<string, string>,
+  profile: ApplicantProfile
+): Promise<{ applicationId: string; retrievalUrl: string; datFilePath: string }> {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ acceptDownloads: true });
+  const page = await context.newPage();
+
+  try {
+    console.log(`[ds160] Navigating to ${DS160_PORTAL_URL}`);
+    await page.goto(DS160_PORTAL_URL, { waitUntil: "networkidle", timeout: 60_000 });
+
+    // Fill form sections page by page
+    for (const group of DS160_MAPPING_GROUPS) {
+      console.log(`[ds160] Filling section: ${group.name}`);
+      for (const [fieldName, mapping] of Object.entries(group.mappings)) {
+        // Prefer answers from visa_application_answers; fall back to profile fields
+        const value = answers[fieldName] ?? (profile as unknown as Record<string, unknown>)[fieldName] as string | null ?? null;
+        if (!value) continue;
+
+        await fillField(page, mapping, value);
+      }
+
+      // Navigate to next page
+      try {
+        const nextBtn = page.locator(DS160_NEXT_SELECTOR).first();
+        const count = await nextBtn.count();
+        if (count > 0) {
+          await nextBtn.click({ timeout: 10_000 });
+          await page.waitForLoadState("networkidle", { timeout: 30_000 });
+        }
+      } catch {
+        console.warn(`[ds160] Could not navigate after ${group.name} section`);
+      }
+    }
+
+    // Save the application (Save button triggers .dat download)
+    console.log("[ds160] Saving application...");
+    const saveBtn = page.locator(DS160_SAVE_SELECTOR).first();
+
+    // Set up download listener before clicking save
+    const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+    await saveBtn.click({ timeout: 10_000 });
+
+    const download = await downloadPromise;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ds160-dat-"));
+    const datFilePath = path.join(tempDir, download.suggestedFilename() || "ds160.dat");
+    await download.saveAs(datFilePath);
+    console.log(`[ds160] .dat file saved to: ${datFilePath}`);
+
+    // Extract Application ID from the page
+    let ds160AppId = "PENDING";
+    try {
+      const appIdEl = page.locator('[id*="ApplicationID"], [class*="applicationId"], text=/AA[0-9]+/').first();
+      await appIdEl.waitFor({ timeout: 15_000 });
+      ds160AppId = (await appIdEl.textContent())?.trim() ?? "PENDING";
+      // Extract just the ID pattern if mixed with other text
+      const match = ds160AppId.match(/AA\d{10}/);
+      if (match) ds160AppId = match[0];
+    } catch {
+      console.warn("[ds160] Could not extract Application ID from page");
+    }
+
+    // Build retrieval URL
+    const retrievalUrl = ds160AppId !== "PENDING"
+      ? `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${ds160AppId}`
+      : "";
+
+    console.log(`[ds160] Application ID: ${ds160AppId}, Retrieval URL: ${retrievalUrl}`);
+
+    return { applicationId: ds160AppId, retrievalUrl, datFilePath };
+  } finally {
+    await browser.close();
+  }
+}
+
+// ─── DS-160 Storage Upload ──────────────────────────────────────────────────
+
+async function uploadDs160Dat(
+  datFilePath: string,
+  applicationId: string
+): Promise<string> {
+  const fileBuffer = fs.readFileSync(datFilePath);
+  const storagePath = `ds160-dat/${applicationId}/${path.basename(datFilePath)}`;
+
+  const { error } = await supabase.storage
+    .from("application-documents")
+    .upload(storagePath, fileBuffer, {
+      contentType: "application/octet-stream",
+      upsert: true,
+    });
+
+  if (error) throw new Error(`Failed to upload .dat file: ${error.message}`);
+
+  console.log(`[ds160] .dat uploaded to storage: ${storagePath}`);
+  return storagePath;
+}
+
+async function updateDs160Metadata(
+  dbApplicationId: string,
+  ds160AppId: string,
+  retrievalUrl: string,
+  storagePath: string
+): Promise<void> {
+  await supabase
+    .from("applications")
+    .update({
+      ds160_application_id: ds160AppId,
+      ds160_retrieval_url: retrievalUrl,
+      ds160_dat_storage_path: storagePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", dbApplicationId);
+}
+
+// ─── DS-160 Job Processor ───────────────────────────────────────────────────
+
+async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
+  console.log(`[ds160-queue] Processing DS-160 prefill for ${item.application_id} (attempt ${item.attempts + 1})`);
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "ds160_prefill_processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id);
+
+    // Prefill the DS-160 form via Playwright
+    const { applicationId: ds160AppId, retrievalUrl, datFilePath } = await prefillDs160(answers, profile);
+
+    // Upload .dat file to Supabase Storage
+    const storagePath = await uploadDs160Dat(datFilePath, item.application_id);
+
+    // Clean up temp file
+    try { fs.rmSync(path.dirname(datFilePath), { recursive: true, force: true }); } catch { /* ignore */ }
+
+    // Update application with DS-160 metadata
+    await updateDs160Metadata(item.application_id, ds160AppId, retrievalUrl, storagePath);
+
+    // Mark queue item as prefilled
+    await supabase
+      .from("submission_queue")
+      .update({ status: "ds160_prefilled", updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    console.log(`[ds160-queue] Done — DS-160 prefilled for ${item.application_id}`);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[ds160-queue] Error processing ${item.application_id}:`, errorMsg);
+
+    const newAttempts = item.attempts + 1;
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (newAttempts >= MAX_ATTEMPTS) {
+      console.error(`[ds160-queue] Max attempts reached for ${item.application_id} — sending alert`);
+      await sendFailureAlert(item.application_id, `[DS-160 Prefill] ${errorMsg}`);
+    }
+  }
+}
+
 // ─── Main processing loop ────────────────────────────────────────────────────
 
 async function processItem(item: SubmissionQueueItem): Promise<void> {
@@ -351,7 +554,11 @@ async function poll(): Promise<void> {
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
   for (const item of items) {
-    await processItem(item);
+    if (isDs160Job(item)) {
+      await processDs160Item(item);
+    } else {
+      await processItem(item);
+    }
   }
 }
 

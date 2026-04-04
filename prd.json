@@ -259,7 +259,7 @@
                         },
                         {
                             "id":  "US-030",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Add DS-160 queue statuses and orchestration path in submission service",
                             "description":  "Extend queue processing to support DS-160 prefill jobs and statuses.",
                             "priority":  30,
