@@ -4,7 +4,7 @@
     "userStories":  [
                         {
                             "id":  "US-016",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Create visa_packages catalog table",
                             "description":  "Add the product catalog for supported visa offerings.",
                             "priority":  16,
@@ -22,7 +22,7 @@
                         },
                         {
                             "id":  "US-017",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Create user_packages assignment table",
                             "description":  "Attach users to active/past visa packages in Supabase.",
                             "priority":  17,
@@ -41,7 +41,7 @@
                         },
                         {
                             "id":  "US-018",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Create visa_application_answers generic answer store",
                             "description":  "Add field-level answer storage for dynamic visa forms.",
                             "priority":  18,
@@ -60,7 +60,7 @@
                         },
                         {
                             "id":  "US-019",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Create shared_profile_fields completeness tracking",
                             "description":  "Track reusable cross-visa profile groups for prefill and user data reuse.",
                             "priority":  19,
@@ -79,7 +79,7 @@
                         },
                         {
                             "id":  "US-020",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Add package and DS-160 metadata columns to applications",
                             "description":  "Extend applications with package linkage and DS-160 retrieval metadata.",
                             "priority":  20,
@@ -98,7 +98,7 @@
                         },
                         {
                             "id":  "US-021",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Build GET and POST user package endpoints",
                             "description":  "Implement backend APIs for active package lookup and admin/service package assignment.",
                             "priority":  21,
@@ -116,7 +116,7 @@
                         },
                         {
                             "id":  "US-022",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Build generic application answer endpoints",
                             "description":  "Implement backend APIs to read and upsert dynamic visa answers.",
                             "priority":  22,
@@ -134,7 +134,7 @@
                         },
                         {
                             "id":  "US-023",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Build profile prefill endpoint for cross-visa mapping",
                             "description":  "Map applicant profile data into visa-specific field names for prefill.",
                             "priority":  23,
@@ -151,7 +151,7 @@
                         },
                         {
                             "id":  "US-024",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Build admin users list page with active package data",
                             "description":  "Create admin list view of Supabase users and their ongoing visa package.",
                             "priority":  24,
@@ -169,7 +169,7 @@
                         },
                         {
                             "id":  "US-025",
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Build admin user detail page and package assignment UX",
                             "description":  "Create detail view plus package assignment modal/flow for a user.",
                             "priority":  25,
@@ -187,7 +187,7 @@
                         },
                         {
                             "id":  "US-026",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Expand DS-160 field seed for identity and passport sections",
                             "description":  "Seed complete DS-160 metadata for personal information 1/2 and passport sections.",
                             "priority":  26,
@@ -205,7 +205,7 @@
                         },
                         {
                             "id":  "US-027",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Expand DS-160 field seed for travel and payer sections",
                             "description":  "Seed DS-160 travel plan variants, payer variants, and travel companion sections.",
                             "priority":  27,
@@ -223,7 +223,7 @@
                         },
                         {
                             "id":  "US-028",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Expand DS-160 field seed for family, contact, and previous US travel sections",
                             "description":  "Seed DS-160 contact/address, family relatives, and previous US travel metadata.",
                             "priority":  28,
@@ -241,7 +241,7 @@
                         },
                         {
                             "id":  "US-029",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Expand DS-160 field seed for work, education, and security sections",
                             "description":  "Seed DS-160 employment, education, languages/travel history, and security/background fields.",
                             "priority":  29,
