@@ -1,9 +1,9 @@
-import { Namespace, Socket } from 'socket.io';
+﻿import { Namespace, Socket } from 'socket.io';
 import { eq, asc } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
 import { visaChatMessages } from '../db/schema.js';
-import { streamChat } from '../agent/index.js';
+import { streamChat, buildApplicationContext, buildSystemPrompt } from '../agent/index.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
@@ -46,7 +46,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
       const startTime = Date.now();
 
       try {
-        // 1. Save user message to DB (non-fatal — chat still works if DB is down)
+        // 1. Save user message to DB (non-fatal)
         try {
           await db.insert(visaChatMessages).values({
             sessionId: session_id,
@@ -84,54 +84,62 @@ export function registerVisaNamespace(nsp: Namespace): void {
           });
         }
 
-        // 3. Stream response from Claude
+        // 3. Build dynamic system prompt with user application context (US-036)
+        const appContext = await buildApplicationContext(user_id);
+        const dynamicSystemPrompt = buildSystemPrompt(appContext);
+
+        // 4. Stream response from Claude with dynamic system prompt
         let fullResponse = '';
 
-        await streamChat(chatHistory, {
-          onToken: (text) => {
-            socket.emit('token', {
-              type: 'token',
-              payload: text,
-              timestamp: Date.now(),
-            });
-          },
-          onComplete: async (response) => {
-            fullResponse = response;
-
-            // 4. Save assistant message to DB
-            try {
-              await db.insert(visaChatMessages).values({
-                sessionId: session_id,
-                role: 'assistant',
-                content: fullResponse,
+        await streamChat(
+          chatHistory,
+          {
+            onToken: (text) => {
+              socket.emit('token', {
+                type: 'token',
+                payload: text,
+                timestamp: Date.now(),
               });
-            } catch (dbErr) {
-              logger.error('Failed to save assistant message', dbErr as Error, {
-                sessionId: session_id,
-              });
-            }
+            },
+            onComplete: async (response) => {
+              fullResponse = response;
 
-            // 5. Emit response_complete
-            socket.emit('response_complete', {
-              type: 'response_complete',
-              sessionId: session_id,
-              userId: user_id,
-              fullResponse,
-              toolsUsed: [],
-              escalated: false,
-              duration: Date.now() - startTime,
-              timestamp: Date.now(),
-            });
+              // 5. Save assistant message to DB
+              try {
+                await db.insert(visaChatMessages).values({
+                  sessionId: session_id,
+                  role: 'assistant',
+                  content: fullResponse,
+                });
+              } catch (dbErr) {
+                logger.error('Failed to save assistant message', dbErr as Error, {
+                  sessionId: session_id,
+                });
+              }
+
+              // 6. Emit response_complete
+              socket.emit('response_complete', {
+                type: 'response_complete',
+                sessionId: session_id,
+                userId: user_id,
+                fullResponse,
+                toolsUsed: [],
+                escalated: false,
+                duration: Date.now() - startTime,
+                timestamp: Date.now(),
+              });
+            },
+            onError: (err) => {
+              socket.emit('error', {
+                type: 'error',
+                message: err.message || 'AI agent error',
+                code: 'AGENT_ERROR',
+                timestamp: Date.now(),
+              });
+            },
           },
-          onError: (err) => {
-            socket.emit('error', {
-              type: 'error',
-              message: err.message || 'AI agent error',
-              code: 'AGENT_ERROR',
-              timestamp: Date.now(),
-            });
-          },
-        });
+          dynamicSystemPrompt
+        );
       } catch (err) {
         logger.error('Error handling visa_chat_message', err as Error, {
           userId: user_id,
