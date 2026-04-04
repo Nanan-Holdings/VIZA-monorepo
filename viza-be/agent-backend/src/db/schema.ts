@@ -151,6 +151,7 @@ export const visaChatMessages = pgTable("visa_chat_messages", {
 	sessionId: uuid("session_id").notNull(),
 	role: text("role").notNull(),
 	content: text("content").notNull(),
+	blockData: jsonb("block_data"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -483,3 +484,4 @@ export const userChatSessions = pgTable("user_chat_sessions", {
 
 export type UserChatSession = typeof userChatSessions.$inferSelect;
 export type NewUserChatSession = typeof userChatSessions.$inferInsert;
+
