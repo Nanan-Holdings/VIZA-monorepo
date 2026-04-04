@@ -276,7 +276,7 @@
                         },
                         {
                             "id":  "US-031",
-                            "passes":  false,
+                            "passes":  true,
                             "title":  "Implement DS-160 Playwright prefill and save-to-file workflow",
                             "description":  "Automate ceac.state.gov prefill, save application, capture Application ID, and store retrieval metadata.",
                             "priority":  31,
