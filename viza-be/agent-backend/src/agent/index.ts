@@ -271,7 +271,7 @@ export async function streamChat(
 
   try {
     const stream = await client.messages.stream({
-      model: "claude-sonnet-4-5-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: systemPrompt ?? BASE_SYSTEM_PROMPT,
       tools: [SEND_APPLICATION_BLOCK_TOOL],
