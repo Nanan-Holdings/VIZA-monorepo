@@ -381,3 +381,46 @@ export type Ds160SecurityAnswer = typeof ds160SecurityAnswers.$inferSelect;
 export type Ds160TravelCompanion = typeof ds160TravelCompanions.$inferSelect;
 export type Ds160InterviewRecord = typeof ds160InterviewRecords.$inferSelect;
 export type Ds160Payment = typeof ds160Payments.$inferSelect;
+
+// =============================================================================
+// VISA PACKAGES
+// Product catalog for supported visa offerings (country + visa type combos)
+// =============================================================================
+
+export const visaPackages = pgTable("visa_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  priceCents: integer("price_cents"),
+  currency: text("currency").default("USD"),
+  isActive: boolean("is_active").notNull().default(true),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type VisaPackage = typeof visaPackages.$inferSelect;
+export type NewVisaPackage = typeof visaPackages.$inferInsert;
+
+// =============================================================================
+// USER PACKAGES
+// Links users to active/past visa packages
+// status: active | completed | cancelled
+// =============================================================================
+
+export const userPackages = pgTable("user_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authUserId: uuid("auth_user_id").notNull(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  applicationId: uuid("application_id"),
+  status: text("status").notNull().default("active"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type UserPackage = typeof userPackages.$inferSelect;
+export type NewUserPackage = typeof userPackages.$inferInsert;
