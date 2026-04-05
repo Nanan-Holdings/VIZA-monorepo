@@ -1,0 +1,14 @@
+US-016: visa_packages already existed in schema.ts + 0006_visa_packages.sql
+US-017: user_packages already existed in schema.ts + 0006_visa_packages.sql
+US-018: visa_application_answers table added with upsert-safe uniqueness
+US-019: shared_profile_fields table added for cross-visa completeness
+US-020: applications table extended with visa_package_id and ds160 metadata columns
+US-021: GET/POST /api/user/package endpoints with package reassignment
+US-022: GET/POST /api/applications/:id/answers with flat map + upsert
+US-023: GET /api/profile/prefill with DS-160 and Indonesia field mapping
+US-024: Admin users list page at /admin/users with package/status display
+US-025: Admin user detail page at /admin/users/[id] with assign package form
+US-026-029: DS-160 seed script already had complete coverage (steps 1-11)
+US-030: DS-160 queue statuses added, routing in submission service poll
+US-031: DS-160 Playwright prefill + .dat save workflow implemented
+US-032: Supabase storage upload for .dat + failure alerting added

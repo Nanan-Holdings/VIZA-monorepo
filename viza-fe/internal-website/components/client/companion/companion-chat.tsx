@@ -56,7 +56,7 @@ const suggestedPrompts = [
 
 // Agent backend URL (configurable via env)
 const AGENT_BACKEND_URL =
-  process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "https://agent-backend-staging-kxvsjusria-as.a.run.app";
+  process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
 // =============================================================================
 // Component

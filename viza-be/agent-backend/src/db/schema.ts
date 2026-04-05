@@ -1,4 +1,4 @@
-import {
+﻿import {
 	pgTable,
 	text,
 	timestamp,
@@ -83,6 +83,10 @@ export const applications = pgTable("applications", {
 	submittedAt: timestamp("submitted_at", { withTimezone: true }),
 	estimatedProcessingDays: integer("estimated_processing_days"),
 	receiptUrl: text("receipt_url"),
+	visaPackageId: uuid("visa_package_id"),
+	ds160ApplicationId: text("ds160_application_id"),
+	ds160RetrievalUrl: text("ds160_retrieval_url"),
+	ds160DatStoragePath: text("ds160_dat_storage_path"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -147,6 +151,7 @@ export const visaChatMessages = pgTable("visa_chat_messages", {
 	sessionId: uuid("session_id").notNull(),
 	role: text("role").notNull(),
 	content: text("content").notNull(),
+	blockData: jsonb("block_data"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -259,7 +264,7 @@ export type NewKnowledgeBaseUpdate = typeof knowledgeBaseUpdates.$inferInsert;
 
 // =============================================================================
 // DS-160 PROFILE EXTENSIONS
-// DS-160 specific data not covered by applicantProfiles — linked via applicant_id
+// DS-160 specific data not covered by applicantProfiles 鈥?linked via applicant_id
 // =============================================================================
 
 export const ds160OtherNames = pgTable("ds160_other_names", {
@@ -381,3 +386,102 @@ export type Ds160SecurityAnswer = typeof ds160SecurityAnswers.$inferSelect;
 export type Ds160TravelCompanion = typeof ds160TravelCompanions.$inferSelect;
 export type Ds160InterviewRecord = typeof ds160InterviewRecords.$inferSelect;
 export type Ds160Payment = typeof ds160Payments.$inferSelect;
+
+// =============================================================================
+// VISA PACKAGES
+// Product catalog for supported visa offerings (country + visa type combos)
+// =============================================================================
+
+export const visaPackages = pgTable("visa_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  priceCents: integer("price_cents"),
+  currency: text("currency").default("USD"),
+  isActive: boolean("is_active").notNull().default(true),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type VisaPackage = typeof visaPackages.$inferSelect;
+export type NewVisaPackage = typeof visaPackages.$inferInsert;
+
+// =============================================================================
+// USER PACKAGES
+// Links users to active/past visa packages
+// status: active | completed | cancelled
+// =============================================================================
+
+export const userPackages = pgTable("user_packages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authUserId: uuid("auth_user_id").notNull(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  applicationId: uuid("application_id"),
+  status: text("status").notNull().default("active"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type UserPackage = typeof userPackages.$inferSelect;
+export type NewUserPackage = typeof userPackages.$inferInsert;
+
+// =============================================================================
+// VISA APPLICATION ANSWERS
+// Generic key-value answer storage for dynamic visa forms
+// Upsert-safe on (application_id, field_name)
+// =============================================================================
+
+export const visaApplicationAnswers = pgTable("visa_application_answers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  fieldName: text("field_name").notNull(),
+  valueText: text("value_text"),
+  valueJson: jsonb("value_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type VisaApplicationAnswer = typeof visaApplicationAnswers.$inferSelect;
+export type NewVisaApplicationAnswer = typeof visaApplicationAnswers.$inferInsert;
+
+// =============================================================================
+// SHARED PROFILE FIELDS
+// Tracks reusable cross-visa profile group completeness
+// field_group: personal | passport | contact | employment | travel_history
+// =============================================================================
+
+export const sharedProfileFields = pgTable("shared_profile_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  fieldGroup: text("field_group").notNull(),
+  isComplete: boolean("is_complete").notNull().default(false),
+  lastVerified: timestamp("last_verified", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SharedProfileField = typeof sharedProfileFields.$inferSelect;
+export type NewSharedProfileField = typeof sharedProfileFields.$inferInsert;
+
+// =============================================================================
+// USER CHAT SESSIONS
+// One persistent chat session per user (single continuous conversation)
+// Linked to their active visa package when applicable
+// =============================================================================
+
+export const userChatSessions = pgTable("user_chat_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	authUserId: uuid("auth_user_id").notNull().unique(),
+	visaPackageId: uuid("visa_package_id"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type UserChatSession = typeof userChatSessions.$inferSelect;
+export type NewUserChatSession = typeof userChatSessions.$inferInsert;
+

@@ -14,6 +14,7 @@ import type {
   ResponseCompleteEvent,
   ErrorEvent,
   AppLogEvent,
+  ApplicationBlockEvent,
 } from "@/types/agent-test";
 
 interface UseAgentSocketOptions {
@@ -21,6 +22,8 @@ interface UseAgentSocketOptions {
   userId: string;
   sessionId: string;
   onTokenBatch?: (tokens: string) => void;
+  /** Called when the agent emits an application_block tool event (US-038) */
+  onApplicationBlock?: (event: ApplicationBlockEvent) => void;
 }
 
 interface UseAgentSocketReturn {
@@ -44,11 +47,13 @@ const TOKEN_BATCH_INTERVAL = 500;
  * - Auto-reconnect with exponential backoff
  * - Token batching to reduce log noise
  * - Full event logging with expandable data
+ * - US-038: application_block event forwarded via onApplicationBlock callback
  */
 export function useAgentSocket({
   serverUrl,
   userId,
   sessionId,
+  onApplicationBlock,
 }: UseAgentSocketOptions): UseAgentSocketReturn {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -58,6 +63,11 @@ export function useAgentSocket({
   const tokenBufferRef = useRef<string>("");
   const tokenFlushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
+  // Keep onApplicationBlock stable in a ref to avoid reconnect on every render
+  const onApplicationBlockRef = useRef(onApplicationBlock);
+  useEffect(() => {
+    onApplicationBlockRef.current = onApplicationBlock;
+  }, [onApplicationBlock]);
 
   // Generate unique ID
   const generateId = useCallback(() => {
@@ -109,8 +119,6 @@ export function useAgentSocket({
 
     setStatus("connecting");
 
-    // Connect to visa namespace
-    // Use polling first, then upgrade to websocket (more reliable for cloud environments)
     const visaSocket = io(`${serverUrl}/visa`, {
       path: "/socket.io",
       transports: ["polling", "websocket"],
@@ -128,15 +136,12 @@ export function useAgentSocket({
     visaSocket.on("connect", () => {
       setStatus("connected");
       addLog("connected", { socketId: visaSocket.id });
-
-      // Join user room for proactive messages (greetings, check-ins)
       visaSocket.emit("join_room", `user:${userId}`);
     });
 
     visaSocket.on("disconnect", (reason) => {
       setStatus("disconnected");
       addLog("disconnected", { reason });
-      // Flush any remaining tokens
       flushTokenBuffer();
     });
 
@@ -147,10 +152,8 @@ export function useAgentSocket({
 
     // Token streaming
     visaSocket.on("token", (event: TokenEvent) => {
-      // Accumulate tokens in buffer
       tokenBufferRef.current += event.payload;
       scheduleTokenFlush();
-      // Tokens buffered silently — full message revealed on response_complete
     });
 
     // Tool call
@@ -182,10 +185,6 @@ export function useAgentSocket({
 
     // Response complete
     visaSocket.on("response_complete", (event: ResponseCompleteEvent) => {
-      console.log("[response_complete] Full event:", event);
-      console.log("[response_complete] fullResponse:", event.fullResponse);
-      console.log("[response_complete] currentMessageId:", currentMessageIdRef.current);
-
       flushTokenBuffer();
       addLog("response_complete", {
         duration: event.duration,
@@ -194,22 +193,16 @@ export function useAgentSocket({
         responseLength: event.fullResponse?.length || 0,
       });
 
-      // Mark current message as complete
       if (currentMessageIdRef.current) {
         const messageId = currentMessageIdRef.current;
-        console.log("[response_complete] Updating message:", messageId, "with content length:", event.fullResponse?.length);
-        setMessages((prev) => {
-          const updated = prev.map((msg) =>
+        setMessages((prev) =>
+          prev.map((msg) =>
             msg.id === messageId
               ? { ...msg, isStreaming: false, content: event.fullResponse || "" }
               : msg
-          );
-          console.log("[response_complete] Messages after update:", updated.map(m => ({ id: m.id, isStreaming: m.isStreaming, contentLength: m.content.length })));
-          return updated;
-        });
+          )
+        );
         currentMessageIdRef.current = null;
-      } else {
-        console.log("[response_complete] WARNING: currentMessageIdRef is null, cannot update message");
       }
     });
 
@@ -221,7 +214,6 @@ export function useAgentSocket({
         code: event.code,
       });
 
-      // Mark current message as errored
       if (currentMessageIdRef.current) {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -238,9 +230,8 @@ export function useAgentSocket({
       }
     });
 
-    // App log (debug) - backend sends tool_call/tool_result/db_query events via app_log
+    // App log (debug)
     visaSocket.on("app_log", (event: Record<string, unknown>) => {
-      // Backend AppLogEvent has: type, category, name, args, result, query, params, duration, timestamp
       addLog("app_log", {
         type: event.type,
         category: event.category,
@@ -252,26 +243,34 @@ export function useAgentSocket({
       });
     });
 
-    // Proactive messages (reminders, check-ins sent by worker)
-    // Note: Backend already filters by user room, no need to check sessionId here
-    visaSocket.on("proactive_message", (event: { sessionId: string; message: any }) => {
-      console.log("[proactive_message] Received:", event);
+    // Proactive messages
+    visaSocket.on(
+      "proactive_message",
+      (event: { sessionId: string; message: { id: string; content: string; createdAt: string; intent?: string } }) => {
+        const proactiveMessage: ChatMessage = {
+          id: event.message.id,
+          role: "agent",
+          content: event.message.content,
+          timestamp: new Date(event.message.createdAt).getTime(),
+          isStreaming: false,
+        };
+        setMessages((prev) => [...prev, proactiveMessage]);
+        addLog("proactive_message", {
+          intent: event.message.intent,
+          messageId: event.message.id,
+        });
+      }
+    );
 
-      const proactiveMessage: ChatMessage = {
-        id: event.message.id,
-        role: "agent",
-        content: event.message.content,
-        timestamp: new Date(event.message.createdAt).getTime(),
-        isStreaming: false,
-      };
-
-      setMessages((prev) => [...prev, proactiveMessage]);
-      addLog("proactive_message", {
-        intent: event.message.intent,
-        messageId: event.message.id,
+    // US-038: application_block — forward to parent callback
+    visaSocket.on("application_block", (event: ApplicationBlockEvent) => {
+      addLog("tool_call", {
+        toolName: "send_application_block",
+        args: event.payload,
       });
+      onApplicationBlockRef.current?.(event);
     });
-  }, [serverUrl, addLog, flushTokenBuffer, scheduleTokenFlush]);
+  }, [serverUrl, userId, addLog, flushTokenBuffer, scheduleTokenFlush]);
 
   // Disconnect from socket
   const disconnect = useCallback(() => {
@@ -284,7 +283,6 @@ export function useAgentSocket({
   }, [flushTokenBuffer]);
 
   // Send message
-  // sessionIdOverride allows passing a fresh sessionId when state hasn't updated yet
   const sendMessage = useCallback(
     (message: string, sessionIdOverride?: string) => {
       const effectiveSessionId = sessionIdOverride || sessionId;
@@ -299,7 +297,6 @@ export function useAgentSocket({
         return;
       }
 
-      // Add user message to chat
       const userMessageId = generateId();
       const userMessage: ChatMessage = {
         id: userMessageId,
@@ -309,7 +306,6 @@ export function useAgentSocket({
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Create agent message placeholder
       const agentMessageId = generateId();
       const agentMessage: ChatMessage = {
         id: agentMessageId,
@@ -320,15 +316,12 @@ export function useAgentSocket({
       };
       setMessages((prev) => [...prev, agentMessage]);
       currentMessageIdRef.current = agentMessageId;
-      console.log("[sendMessage] Set currentMessageIdRef to:", agentMessageId);
 
-      // Send to server
       const request: VisaChatRequest = {
         user_id: userId,
         session_id: effectiveSessionId,
         message,
       };
-
       socketRef.current.emit("visa_chat_message", request);
     },
     [userId, sessionId, addLog, generateId]
@@ -339,7 +332,7 @@ export function useAgentSocket({
     setLogs([]);
   }, []);
 
-  // Clear messages (for session switching)
+  // Clear messages
   const clearMessages = useCallback(() => {
     setMessages([]);
     currentMessageIdRef.current = null;
