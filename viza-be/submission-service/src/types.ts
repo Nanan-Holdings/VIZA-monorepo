@@ -1,7 +1,15 @@
 export interface SubmissionQueueItem {
   id: string;
   application_id: string;
-  status: "pending" | "processing" | "done" | "failed";
+  status:
+    | "pending"
+    | "processing"
+    | "done"
+    | "failed"
+    | "ds160_prefill_pending"
+    | "ds160_prefill_processing"
+    | "ds160_prefilled"
+    | "ds160_prefill_failed";
   attempts: number;
   last_error: string | null;
   created_at: string;
@@ -42,6 +50,16 @@ export interface Application {
   accommodation_address: string | null;
   confirmation_number: string | null;
   submitted_at: string | null;
+  visa_package_id: string | null;
+  ds160_application_id: string | null;
+  ds160_retrieval_url: string | null;
+  ds160_dat_storage_path: string | null;
+}
+
+export interface VisaApplicationAnswer {
+  field_name: string;
+  value_text: string | null;
+  value_json: unknown;
 }
 
 export interface ApplicationDocument {

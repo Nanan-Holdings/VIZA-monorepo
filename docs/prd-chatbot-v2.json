@@ -1,8 +1,8 @@
-{
+﻿{
     "title":  "VIZA Chatbot v2 - Persistent Visa-Aware AI Assistant",
     "userStories":  [
                         {
-                            "passes":  true,
+                            "passes":  false,
                             "title":  "Render deployment config",
                             "description":  "Create render.yaml at viza-be/agent-backend/. Service name: viza-agent-backend, region: singapore, plan: free, buildCommand: npm install \u0026\u0026 npm run build, startCommand: npm start, healthCheckPath: /health. Env vars: NODE_ENV=production, PORT=10000, ANTHROPIC_API_KEY/SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/CORS_ORIGINS all sync: false. Fix hardcoded GCP URL in companion-chat.tsx: change fallback from https://agent-backend-staging-kxvsjusria-as.a.run.app to http://localhost:3002. Add NEXT_PUBLIC_AGENT_BACKEND_URL to viza-fe/internal-website/.env.example.",
                             "id":  "US-033",

@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getImpersonationSession } from "@/lib/impersonation-session";
@@ -690,5 +690,97 @@ export async function getRecentMessages(
     };
   } catch {
     return { messages: [], hasMoreHistory: false, isFirstTimeUser: true };
+  }
+}
+
+// =============================================================================
+// US-034: Single Persistent Session Per User
+// =============================================================================
+
+export interface UserChatSessionResult {
+  session: {
+    id: string;
+    authUserId: string;
+    visaPackageId: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+  };
+  messages: Message[];
+}
+
+/**
+ * Get or create the single persistent chat session for a user.
+ * Upserts user_chat_sessions by auth_user_id, returns session + last 100 messages.
+ */
+export async function getOrCreateUserSession(
+  userId: string
+): Promise<UserChatSessionResult | null> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    return null;
+  }
+
+  try {
+    const adminClient = createAdminClient();
+
+    // Upsert the single session row for this user
+    const { data: session, error: sessionError } = await adminClient
+      .from("user_chat_sessions")
+      .upsert(
+        { auth_user_id: userId, updated_at: new Date().toISOString() },
+        { onConflict: "auth_user_id" }
+      )
+      .select()
+      .single();
+
+    if (sessionError || !session) {
+      console.error("Error upserting user_chat_sessions:", sessionError);
+      return null;
+    }
+
+    // Fetch last 100 messages across all visa_chat_sessions for this user
+    // (The session id in user_chat_sessions is used as the socket session_id)
+    const { data: messages, error: messagesError } = await adminClient
+      .from("visa_chat_messages")
+      .select(`
+        id,
+        session_id,
+        role,
+        content,
+        created_at,
+        visa_chat_sessions!inner(applicant_id)
+      `)
+      .eq("visa_chat_sessions.applicant_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (messagesError) {
+      console.error("Error fetching messages for user session:", messagesError);
+    }
+
+    const formattedMessages: Message[] = ((messages || []).reverse()).map((msg) => ({
+      id: msg.id,
+      sessionId: msg.session_id,
+      senderType: (msg.role === "assistant" ? "agent" : msg.role) as Message["senderType"],
+      content: msg.content,
+      intent: null,
+      riskLevel: null,
+      createdAt: msg.created_at,
+    }));
+
+    return {
+      session: {
+        id: session.id,
+        authUserId: session.auth_user_id,
+        visaPackageId: session.visa_package_id ?? null,
+        createdAt: session.created_at,
+        updatedAt: session.updated_at,
+      },
+      messages: formattedMessages,
+    };
+  } catch (err) {
+    console.error("getOrCreateUserSession error:", err);
+    return null;
   }
 }

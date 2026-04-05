@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,18 +14,14 @@ import { io, Socket } from "socket.io-client";
 
 import { useContinuousChat } from "@/hooks/use-continuous-chat";
 import { ChatMessage } from "@/components/client/companion/chat-message";
+import { BlockMessage } from "@/components/client/companion/block-message";
+import type { ApplicationBlockPayload } from "@/components/client/companion/block-message";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
-import { ContinuousSidebar } from "@/components/client/companion/continuous-sidebar";
 import { DateDivider, isDifferentDay } from "@/components/client/companion/date-divider";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { HistoryBoundaryMessage } from "@/components/client/companion/history-boundary-message";
-import {
-  createSession,
-  type Session,
-  type Message,
-  type MessagePreview,
-} from "@/app/actions/companion-sessions";
+import type { Message } from "@/app/actions/companion-sessions";
 import type {
   ChatMessage as SocketChatMessage,
   ConnectionStatus,
@@ -37,6 +33,7 @@ import type {
   ResponseCompleteEvent,
   ErrorEvent,
   LogEntry,
+  ApplicationBlockEvent,
 } from "@/types/agent-test";
 
 // Application step components
@@ -56,7 +53,7 @@ import {
 } from "@/components/application-steps";
 import type { DocumentType, FormCardField } from "@/components/application-steps";
 
-// Component protocol types (matches backend types/components.ts)
+// Component protocol types
 enum ComponentName {
   PersonalInfoStep = "PersonalInfoStep",
   PassportStep = "PassportStep",
@@ -101,16 +98,13 @@ const DebugPanel = dynamic(
 
 interface ChatClientProps {
   userId: string;
-  initialSessions: Session[];
-  initialActiveSession: Session | null;
+  initialSessionId: string | null;
   initialMessages: Message[];
-  initialCheckpoints?: MessagePreview[];
-  isFirstTimeUser?: boolean;
 }
 
 // Agent backend URL
 const AGENT_BACKEND_URL =
-  process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "https://agent-backend-staging-kxvsjusria-as.a.run.app";
+  process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
 const TOKEN_BATCH_INTERVAL = 500;
 
@@ -137,7 +131,7 @@ function InlineComponent({
     return (
       <div className="flex gap-3">
         <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center flex-shrink-0">
-          <span className="text-brand-500 text-sm">✓</span>
+          <span className="text-brand-500 text-sm">+</span>
         </div>
         <div className="bg-white rounded-xl rounded-tl-md border border-gray-100 px-4 py-3 shadow-sm">
           <p className="text-gray-500 text-sm">{event.component} completed.</p>
@@ -155,7 +149,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.PassportStep:
       return (
         <PassportStep
@@ -164,7 +157,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.TravelInfoStep:
       return (
         <TravelInfoStep
@@ -173,7 +165,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.DocumentUploadStep:
       return (
         <DocumentUploadStep
@@ -182,15 +173,8 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.ReviewStep:
-      return (
-        <ReviewStep
-          applicationId={applicationId}
-          onComplete={handleComplete}
-        />
-      );
-
+      return <ReviewStep applicationId={applicationId} onComplete={handleComplete} />;
     case ComponentName.StatusStep:
       return (
         <StatusStep
@@ -201,7 +185,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.FileUploadCard:
       return (
         <FileUploadCard
@@ -211,7 +194,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.DatePickerCard:
       return (
         <DatePickerCard
@@ -223,7 +205,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.FormCard:
       return (
         <FormCard
@@ -232,7 +213,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.DocumentChecklistCard:
       return (
         <DocumentChecklistCard
@@ -241,7 +221,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.ConfirmationCard:
       return (
         <ConfirmationCard
@@ -252,7 +231,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     case ComponentName.StatusCard:
       return (
         <StatusCard
@@ -262,7 +240,6 @@ function InlineComponent({
           onComplete={handleComplete}
         />
       );
-
     default:
       return null;
   }
@@ -274,11 +251,8 @@ function InlineComponent({
 
 export function ChatClient({
   userId,
-  initialSessions: _initialSessions,
-  initialActiveSession,
+  initialSessionId,
   initialMessages,
-  initialCheckpoints = [],
-  isFirstTimeUser: initialIsFirstTimeUser = false,
 }: ChatClientProps) {
   const t = useTranslations("chat");
 
@@ -286,30 +260,20 @@ export function ChatClient({
   // Session & UI State
   // ==========================================================================
 
-  const [sessionId, setSessionId] = useState<string | null>(
-    initialActiveSession?.id || null
-  );
-
+  const [sessionId] = useState<string | null>(initialSessionId);
   const [showChat, setShowChat] = useState(() => {
-    // Persist chat view across remounts via sessionStorage
     if (typeof window !== "undefined" && sessionStorage.getItem("viza_chat_active") === "true") {
       return true;
     }
-    return !!initialActiveSession || initialMessages.length > 0;
+    return initialMessages.length > 0 || !!initialSessionId;
   });
-  const [showDebug, setShowDebug] = useState(false);
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
+  const [showDebug] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages] = useState(false);
-
   const [pendingMessages, setPendingMessages] = useState<string[]>([]);
-
   const [_isNearBottom, setIsNearBottom] = useState(true);
-
-  // Component inline state
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
+  const [blockMessages, setBlockMessages] = useState<Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>>([]);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -318,7 +282,7 @@ export function ChatClient({
   const queuedMessageRef = useRef<{ message: string; tempId: string } | null>(null);
 
   // ==========================================================================
-  // Inline Socket Management (with component event support)
+  // Socket Management
   // ==========================================================================
 
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
@@ -329,7 +293,10 @@ export function ChatClient({
   const tokenFlushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
 
-  const generateId = useCallback(() => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, []);
+  const generateId = useCallback(
+    () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    []
+  );
 
   const addLog = useCallback(
     (eventType: LogEntry["eventType"], data: unknown) => {
@@ -351,7 +318,6 @@ export function ChatClient({
       addLog("token", { text: buffered });
       tokenBufferRef.current = "";
 
-      // Push buffered tokens into the streaming message so the UI renders them
       if (currentMessageIdRef.current) {
         const msgId = currentMessageIdRef.current;
         setSocketMessages((prev) =>
@@ -426,7 +392,11 @@ export function ChatClient({
 
     socket.on("escalation", (event: EscalationEvent) => {
       flushTokenBuffer();
-      addLog("escalation", { intent: event.intent, riskLevel: event.riskLevel, reason: event.reason });
+      addLog("escalation", {
+        intent: event.intent,
+        riskLevel: event.riskLevel,
+        reason: event.reason,
+      });
     });
 
     socket.on("response_complete", (event: ResponseCompleteEvent) => {
@@ -459,7 +429,11 @@ export function ChatClient({
         setSocketMessages((prev) =>
           prev.map((msg) =>
             msg.id === currentMessageIdRef.current
-              ? { ...msg, isStreaming: false, content: msg.content || `Error: ${event.message}` }
+              ? {
+                  ...msg,
+                  isStreaming: false,
+                  content: msg.content || `Error: ${event.message}`,
+                }
               : msg
           )
         );
@@ -479,24 +453,44 @@ export function ChatClient({
       });
     });
 
-    // Component inline rendering event
     socket.on("component", (event: ComponentEvent) => {
       if (event.type === "component") {
         setPendingComponents((prev) => [...prev, { ...event, completed: false }]);
       }
     });
 
-    socket.on("proactive_message", (event: { sessionId: string; message: SocketChatMessage }) => {
-      const proactiveMessage: SocketChatMessage = {
-        id: event.message.id,
-        role: "agent",
-        content: event.message.content,
-        timestamp: new Date((event.message as unknown as { createdAt: string }).createdAt).getTime(),
-        isStreaming: false,
-      };
-      setSocketMessages((prev) => [...prev, proactiveMessage]);
-      addLog("proactive_message", { messageId: event.message.id });
+    // US-038: application_block from send_application_block tool
+    socket.on("application_block", (event: ApplicationBlockEvent) => {
+      addLog("tool_call", {
+        toolName: "send_application_block",
+        args: event.payload,
+      });
+      setBlockMessages((prev) => [
+        ...prev,
+        {
+          id: `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          payload: event.payload,
+          timestamp: event.timestamp,
+        },
+      ]);
     });
+
+    socket.on(
+      "proactive_message",
+      (event: { sessionId: string; message: SocketChatMessage }) => {
+        const proactiveMessage: SocketChatMessage = {
+          id: event.message.id,
+          role: "agent",
+          content: event.message.content,
+          timestamp: new Date(
+            (event.message as unknown as { createdAt: string }).createdAt
+          ).getTime(),
+          isStreaming: false,
+        };
+        setSocketMessages((prev) => [...prev, proactiveMessage]);
+        addLog("proactive_message", { messageId: event.message.id });
+      }
+    );
   }, [userId, addLog, flushTokenBuffer, scheduleTokenFlush]);
 
   const disconnect = useCallback(() => {
@@ -523,23 +517,27 @@ export function ChatClient({
       }
 
       const userMessageId = generateId();
-      const userMessage: SocketChatMessage = {
-        id: userMessageId,
-        role: "user",
-        content: message,
-        timestamp: Date.now(),
-      };
-      setSocketMessages((prev) => [...prev, userMessage]);
+      setSocketMessages((prev) => [
+        ...prev,
+        {
+          id: userMessageId,
+          role: "user",
+          content: message,
+          timestamp: Date.now(),
+        },
+      ]);
 
       const agentMessageId = generateId();
-      const agentMessage: SocketChatMessage = {
-        id: agentMessageId,
-        role: "agent",
-        content: "",
-        timestamp: Date.now(),
-        isStreaming: true,
-      };
-      setSocketMessages((prev) => [...prev, agentMessage]);
+      setSocketMessages((prev) => [
+        ...prev,
+        {
+          id: agentMessageId,
+          role: "agent",
+          content: "",
+          timestamp: Date.now(),
+          isStreaming: true,
+        },
+      ]);
       currentMessageIdRef.current = agentMessageId;
 
       const request: VisaChatRequest = {
@@ -547,7 +545,6 @@ export function ChatClient({
         session_id: effectiveSessionId,
         message,
       };
-
       socketRef.current.emit("visa_chat_message", request);
     },
     [userId, sessionId, addLog, generateId]
@@ -555,7 +552,6 @@ export function ChatClient({
 
   const clearLogs = useCallback(() => setLogs([]), []);
 
-  // Handle component completion — emit back to backend
   const handleComponentComplete = useCallback(
     (componentId: string, result: unknown) => {
       const event: ComponentCompleteEvent = {
@@ -565,19 +561,20 @@ export function ChatClient({
       };
       socketRef.current?.emit("component_complete", event);
       setPendingComponents((prev) =>
-        prev.map((c) => (c.componentId === componentId ? { ...c, completed: true } : c))
+        prev.map((c) =>
+          c.componentId === componentId ? { ...c, completed: true } : c
+        )
       );
     },
     []
   );
 
-  // Auto-connect
+  // Auto-connect on mount
   useEffect(() => {
     connect();
     return () => disconnect();
   }, [connect, disconnect]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (tokenFlushTimeoutRef.current) {
@@ -593,8 +590,8 @@ export function ChatClient({
   const continuousChat = useContinuousChat({
     userId,
     initialMessages,
-    initialCheckpoints,
-    isFirstTimeUser: initialIsFirstTimeUser,
+    initialCheckpoints: [],
+    isFirstTimeUser: initialMessages.length === 0,
   });
 
   const {
@@ -604,14 +601,10 @@ export function ChatClient({
     loadMoreHistory,
     jumpToMessage,
     jumpTargetId,
-    refreshCheckpoints,
     addSocketMessage,
     setMessages: setChatMessages,
     setShowNewMessageButton,
     setShowScrollToBottom,
-    pendingNewConversation,
-    setPendingNewConversation,
-    setCurrentSessionId,
   } = continuousChat;
 
   // ==========================================================================
@@ -622,15 +615,16 @@ export function ChatClient({
 
   useEffect(() => {
     const prev = prevSocketMessagesRef.current;
-
     for (let i = 0; i < socketMessages.length; i++) {
       const current = socketMessages[i];
       const previous = prev[i];
       if (current !== previous) {
-        addSocketMessage({ ...current, sessionId: sessionId || undefined } as SocketChatMessage);
+        addSocketMessage({
+          ...current,
+          sessionId: sessionId || undefined,
+        } as SocketChatMessage);
       }
     }
-
     prevSocketMessagesRef.current = socketMessages;
   }, [socketMessages, sessionId, addSocketMessage]);
 
@@ -638,7 +632,10 @@ export function ChatClient({
   // Streaming state
   // ==========================================================================
 
-  const isStreaming = useMemo(() => chatMessages.some((msg) => msg.isStreaming), [chatMessages]);
+  const isStreaming = useMemo(
+    () => chatMessages.some((msg) => msg.isStreaming),
+    [chatMessages]
+  );
 
   const wasStreamingRef = useRef(false);
   useEffect(() => {
@@ -648,7 +645,6 @@ export function ChatClient({
     if (wasStreaming && !isStreaming && queuedMessageRef.current) {
       const { message, tempId } = queuedMessageRef.current;
       queuedMessageRef.current = null;
-
       setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
       socketSendMessage(message, sessionId || undefined);
     }
@@ -664,22 +660,18 @@ export function ChatClient({
 
   const checkScrollPosition = useCallback(() => {
     const container = messagesContainerRef.current;
-    if (!container) return;
+    if (!container || isProgrammaticScrollRef.current) return;
 
-    if (isProgrammaticScrollRef.current) return;
-
-    const threshold = 150;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    const nowNearBottom = distanceFromBottom < threshold;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const nowNearBottom = distanceFromBottom < 150;
 
     if (isNearBottomRef.current !== nowNearBottom) {
       isNearBottomRef.current = nowNearBottom;
       setIsNearBottom(nowNearBottom);
     }
 
-    if (!nowNearBottom) {
-      shouldAutoScrollRef.current = false;
-    }
+    if (!nowNearBottom) shouldAutoScrollRef.current = false;
 
     setShowScrollToBottom(distanceFromBottom > 300);
 
@@ -694,11 +686,8 @@ export function ChatClient({
     if (!container || isLoadingMore) return;
 
     if (prevScrollHeightRef.current > 0) {
-      const newScrollHeight = container.scrollHeight;
-      const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
-      if (scrollDiff > 0) {
-        container.scrollTop = scrollDiff;
-      }
+      const scrollDiff = container.scrollHeight - prevScrollHeightRef.current;
+      if (scrollDiff > 0) container.scrollTop = scrollDiff;
       prevScrollHeightRef.current = 0;
     }
   }, [chatMessages, isLoadingMore]);
@@ -719,40 +708,41 @@ export function ChatClient({
     const currentCount = chatMessages.length;
     prevMessageCountRef.current = currentCount;
 
-    const hasNewMessage = currentCount > prevCount;
-    if (!hasNewMessage) return;
+    if (currentCount <= prevCount) return;
 
     shouldAutoScrollRef.current = true;
 
     if (isNearBottomRef.current && !isLoadingMore) {
       isProgrammaticScrollRef.current = true;
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      setTimeout(() => { isProgrammaticScrollRef.current = false; }, 500);
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 500);
       setShowNewMessageButton(false);
     } else if (!shouldAutoScrollRef.current) {
       const lastMsg = chatMessages[chatMessages.length - 1];
-      if (lastMsg && !lastMsg.isStreaming) {
-        setShowNewMessageButton(true);
-      }
+      if (lastMsg && !lastMsg.isStreaming) setShowNewMessageButton(true);
     }
   }, [chatMessages, isLoadingMore, setShowNewMessageButton]);
 
   useEffect(() => {
     if (!isStreaming) return;
-
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const observer = new MutationObserver(() => {
       if (!shouldAutoScrollRef.current) return;
-
       isProgrammaticScrollRef.current = true;
       container.scrollTop = container.scrollHeight;
-      requestAnimationFrame(() => { isProgrammaticScrollRef.current = false; });
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = false;
+      });
     });
-
-    observer.observe(container, { childList: true, subtree: true, characterData: true });
-
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     return () => observer.disconnect();
   }, [isStreaming]);
 
@@ -760,7 +750,9 @@ export function ChatClient({
     shouldAutoScrollRef.current = true;
     isProgrammaticScrollRef.current = true;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => { isProgrammaticScrollRef.current = false; }, 500);
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 500);
     setShowNewMessageButton(false);
     setIsNearBottom(true);
     isNearBottomRef.current = true;
@@ -769,9 +761,8 @@ export function ChatClient({
   useEffect(() => {
     if (jumpTargetId) {
       const element = document.getElementById(`msg-${jumpTargetId}`);
-      if (element) {
+      if (element)
         element.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
     }
   }, [jumpTargetId]);
 
@@ -783,23 +774,11 @@ export function ChatClient({
     if (status === "error") {
       toast.error(t("connectionReconnecting"));
     } else if (status === "connected" && pendingMessages.length > 0) {
-      for (const msg of pendingMessages) {
-        socketSendMessage(msg);
-      }
+      for (const msg of pendingMessages) socketSendMessage(msg);
       setPendingMessages([]);
       toast.success(t("connectedSending"));
     }
   }, [status, pendingMessages, socketSendMessage]);
-
-  useEffect(() => {
-    const handleFocus = () => refreshCheckpoints();
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [refreshCheckpoints]);
-
-  // ==========================================================================
-  // Escalation detection
-  // ==========================================================================
 
   useEffect(() => {
     const lastLog = logs[logs.length - 1];
@@ -814,21 +793,11 @@ export function ChatClient({
 
   const handleSendMessage = useCallback(
     async (message: string) => {
-      // Ensure chat view persists across any remounts
       sessionStorage.setItem("viza_chat_active", "true");
 
-      let currentSessionId = sessionId;
-
-      if (!currentSessionId || pendingNewConversation) {
-        const newSession = await createSession(userId);
-        if (!newSession) {
-          toast.error(t("failedToStart"));
-          return;
-        }
-        currentSessionId = newSession.id;
-        setSessionId(currentSessionId);
-        setCurrentSessionId(currentSessionId);
-        setPendingNewConversation(false);
+      if (!sessionId) {
+        toast.error(t("failedToStart"));
+        return;
       }
 
       if (status !== "connected") {
@@ -839,28 +808,32 @@ export function ChatClient({
 
       if (isStreaming) {
         if (queuedMessageRef.current) return;
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const tempId = `temp-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`;
         addSocketMessage({
           id: tempId,
           role: "user",
           content: message,
           timestamp: Date.now(),
           isStreaming: false,
-          sessionId: currentSessionId,
+          sessionId: sessionId,
         } as SocketChatMessage);
         queuedMessageRef.current = { message, tempId };
         if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
         }
         return;
       }
 
-      socketSendMessage(message, currentSessionId);
+      socketSendMessage(message, sessionId);
       if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        messagesContainerRef.current.scrollTop =
+          messagesContainerRef.current.scrollHeight;
       }
     },
-    [sessionId, userId, status, socketSendMessage, pendingNewConversation, setCurrentSessionId, setPendingNewConversation, isStreaming, addSocketMessage]
+    [sessionId, status, socketSendMessage, isStreaming, addSocketMessage]
   );
 
   const handleVizaAiClick = useCallback(() => {
@@ -872,18 +845,6 @@ export function ChatClient({
     toast.info(t("supportComingSoon"));
   }, []);
 
-  const handleCheckpointClick = useCallback(async (messageId: string) => {
-    setShowMobileSidebar(false);
-    setShowChat(true);
-    await jumpToMessage(messageId);
-  }, [jumpToMessage]);
-
-  const handleSearchResultClick = useCallback(async (messageId: string) => {
-    setShowMobileSidebar(false);
-    setShowChat(true);
-    await jumpToMessage(messageId);
-  }, [jumpToMessage]);
-
   // ==========================================================================
   // Render messages with dividers
   // ==========================================================================
@@ -893,8 +854,16 @@ export function ChatClient({
     let lastTimestamp: number | null = null;
 
     chatMessages.forEach((msg) => {
-      if (lastTimestamp !== null && isDifferentDay(lastTimestamp, msg.timestamp)) {
-        elements.push(<DateDivider key={`date-${msg.id}`} date={new Date(msg.timestamp)} />);
+      if (
+        lastTimestamp !== null &&
+        isDifferentDay(lastTimestamp, msg.timestamp)
+      ) {
+        elements.push(
+          <DateDivider
+            key={`date-${msg.id}`}
+            date={new Date(msg.timestamp)}
+          />
+        );
       }
 
       if (msg.isStreaming && msg.content === "") {
@@ -932,152 +901,8 @@ export function ChatClient({
 
   return (
     <div className="chat-page fixed top-[104px] bottom-0 left-0 right-0 bg-[#fafafa] z-10 border-t border-[#e5e5e5]">
-      {/* Desktop Sidebar - hidden (available for future use) */}
-      <div className="hidden">
-        <ContinuousSidebar
-          checkpoints={continuousChat.checkpoints}
-          isLoadingCheckpoints={continuousChat.isLoadingCheckpoints}
-          hasMoreCheckpoints={continuousChat.hasMoreCheckpoints}
-          onLoadMoreCheckpoints={continuousChat.loadMoreCheckpoints}
-          onCheckpointClick={handleCheckpointClick}
-          searchQuery={continuousChat.searchQuery}
-          searchResults={continuousChat.searchResults}
-          isSearching={continuousChat.isSearching}
-          hasMoreSearchResults={continuousChat.hasMoreSearchResults}
-          searchTotalCount={continuousChat.searchTotalCount}
-          onSearch={continuousChat.search}
-          onLoadMoreSearchResults={continuousChat.loadMoreSearchResults}
-          onClearSearch={continuousChat.clearSearch}
-          onSearchResultClick={handleSearchResultClick}
-          onNewCareTeamChat={() => {}}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          collapsed={sidebarCollapsed}
-        />
-      </div>
-
-      {/* Main Content */}
+      {/* Full-width main content 鈥?no sidebar */}
       <main className="h-full flex flex-col min-h-0">
-        {/* Mobile Header — only in chat view */}
-        {showChat && (
-          <div className="hidden px-4 sm:px-6 pt-0 pb-2 -mt-2">
-            <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-2 -mx-4 sm:-mx-6 px-4 sm:px-6">
-              <p className="text-[17px] font-medium text-[#3d3d3d] tracking-[-0.2px]">VIZA</p>
-              <button
-                onClick={() => setShowMobileSidebar((prev) => !prev)}
-                className="flex flex-col justify-center gap-1.5 rounded-full p-2 hover:bg-gray-100 transition-colors"
-                aria-label={showMobileSidebar ? "Close chat menu" : "Open chat menu"}
-              >
-                <span className={cn("block h-[2px] w-5 bg-[#6b6b6b] rounded-full transition-transform duration-200", showMobileSidebar && "translate-y-[3.5px] rotate-45")} />
-                <span className={cn("block h-[2px] w-3 bg-[#6b6b6b] rounded-full ml-auto transition-all duration-200", showMobileSidebar && "w-5 -translate-y-[3.5px] -rotate-45")} />
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showMobileSidebar && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-3 pb-2">
-                    {!isMobileSearchActive ? (
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => { setIsMobileSearchActive(true); continuousChat.search(""); }}
-                          className="w-full flex items-center gap-3 py-2.5 px-2 rounded-md text-[#989898] hover:text-gray-700 hover:bg-gray-100/60 transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                          <span className="font-medium text-[15px] leading-[1.6]">{t("searchChats")}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 px-2 py-2.5">
-                        <input
-                          type="text"
-                          autoFocus
-                          placeholder={t("searchPlaceholder")}
-                          value={continuousChat.searchQuery}
-                          onChange={(e) => continuousChat.search(e.target.value)}
-                          className="flex-1 bg-gray-100 outline-none font-medium text-[14px] text-gray-800 px-3 py-2 rounded-md placeholder:text-[rgba(0,0,0,0.35)]"
-                        />
-                        <button
-                          onClick={() => { setIsMobileSearchActive(false); continuousChat.clearSearch(); }}
-                          className="flex items-center justify-center px-3 py-2 rounded-md text-[#989898] hover:text-gray-700 hover:bg-gray-100/60 transition-colors"
-                          aria-label="Close search"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="mt-3 pt-3 border-t border-[#efefef]">
-                      {isMobileSearchActive ? (
-                        <>
-                          <p className="text-xs font-medium text-[rgba(0,0,0,0.3)] uppercase tracking-wider px-2 mb-2">
-                            Search Results {continuousChat.searchTotalCount > 0 && `(${continuousChat.searchTotalCount})`}
-                          </p>
-                          <div className="max-h-[40vh] overflow-y-auto">
-                            {continuousChat.searchResults.length > 0 ? (
-                              <div className="flex flex-col gap-0.5">
-                                {continuousChat.searchResults.map((result) => (
-                                  <button
-                                    key={result.id}
-                                    onClick={() => { handleSearchResultClick(result.id); setIsMobileSearchActive(false); }}
-                                    className="w-full text-left text-sm py-2 px-2 rounded-md text-[rgba(0,0,0,0.35)] hover:text-[rgba(0,0,0,0.6)] hover:bg-gray-100/60 transition-colors truncate"
-                                  >
-                                    {result.content}
-                                  </button>
-                                ))}
-                                {continuousChat.hasMoreSearchResults && (
-                                  <button
-                                    onClick={() => continuousChat.loadMoreSearchResults()}
-                                    className="w-full text-center text-sm py-2 px-2 text-brand-500 hover:bg-gray-100/60 transition-colors"
-                                  >
-                                    Load more results
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-400 px-2">{t("noResults")}</p>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs font-medium text-[rgba(0,0,0,0.3)] uppercase tracking-wider px-2 mb-2">{t("sessionHistory")}</p>
-                          <div className="max-h-[40vh] overflow-y-auto">
-                            {continuousChat.checkpoints.length > 0 ? (
-                              <div className="flex flex-col gap-0.5">
-                                {continuousChat.checkpoints.map((checkpoint) => (
-                                  <button
-                                    key={checkpoint.id}
-                                    onClick={() => handleCheckpointClick(checkpoint.id)}
-                                    className="w-full text-left text-sm py-2 px-2 rounded-md text-[rgba(0,0,0,0.35)] hover:text-[rgba(0,0,0,0.6)] hover:bg-gray-100/60 transition-colors truncate"
-                                  >
-                                    {checkpoint.content}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-400 px-2">{t("noConversations")}</p>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
         <AnimatePresence mode="wait">
           {!showChat ? (
             /* Selection View */
@@ -1092,48 +917,50 @@ export function ChatClient({
               <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-0">
                 <div className="max-w-4xl w-full mx-auto flex flex-col flex-1 justify-between">
                   <div className="w-full flex flex-col gap-3 md:gap-6">
-                    <div className="flex flex-col gap-3">
-                      <h1 className="font-heading font-medium text-[18px] md:text-[24px] lg:text-[28px] leading-[1.3] text-[#3d3d3d] text-center tracking-[-0.54px] md:tracking-[-0.72px] lg:tracking-[-0.84px]">
-                        Hi there, how can we help with your visa?
-                      </h1>
-                    </div>
+                    <h1 className="font-heading font-medium text-[18px] md:text-[24px] lg:text-[28px] leading-[1.3] text-[#3d3d3d] text-center tracking-[-0.54px] md:tracking-[-0.72px] lg:tracking-[-0.84px]">
+                      Hi there, how can we help with your visa?
+                    </h1>
 
                     {/* Mobile cards */}
                     <div className="flex flex-col gap-3 md:hidden w-full">
-                      {/* VIZA AI Card - Mobile */}
                       <motion.button
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleVizaAiClick}
                         className="bg-white relative rounded-[16px] cursor-pointer transition-shadow duration-200 hover:shadow-[0_2px_12px_rgba(194,120,95,0.15)] overflow-hidden"
                       >
-                        <div aria-hidden="true" className="absolute inset-0 border border-brand-500/40 rounded-[16px] pointer-events-none" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 border border-brand-500/40 rounded-[16px] pointer-events-none"
+                        />
                         <div className="relative flex items-center justify-between p-5 gap-4 w-full">
                           <div className="flex flex-col gap-1 items-start flex-1 min-w-0">
                             <h2 className="font-heading font-medium text-[16px] leading-[1.3] text-[#3d3d3d] tracking-[-0.48px] text-left">
                               <span>{t("chatWith")} </span>
-                              <span className="text-brand-500">{t("vizaAI")}</span>
+                              <span className="text-brand-500">
+                                {t("vizaAI")}
+                              </span>
                             </h2>
                             <p className="font-sans font-medium text-[11px] leading-[1.6] text-[rgba(0,0,0,0.45)] text-left">
                               {t("vizaAIDescription")}
                             </p>
                           </div>
-                          <div className="flex gap-1.5 items-center flex-shrink-0">
-                            <span className="font-sans font-medium text-[10px] text-[rgba(0,0,0,0.25)] leading-[1.6] whitespace-nowrap">
-                              {t("immediate")}
-                            </span>
-                          </div>
+                          <span className="font-sans font-medium text-[10px] text-[rgba(0,0,0,0.25)] leading-[1.6] whitespace-nowrap">
+                            {t("immediate")}
+                          </span>
                         </div>
                       </motion.button>
 
-                      {/* Support Team Card - Mobile */}
                       <motion.button
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleSupportTeamClick}
                         className="bg-white relative rounded-[16px] cursor-pointer transition-shadow duration-200 hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden"
                       >
-                        <div aria-hidden="true" className="absolute inset-0 border border-[#e5e5e5] rounded-[16px] pointer-events-none" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 border border-[#e5e5e5] rounded-[16px] pointer-events-none"
+                        />
                         <div className="relative flex items-center justify-between p-5 gap-4 w-full">
                           <div className="flex flex-col gap-1 items-start flex-1 min-w-0">
                             <h2 className="font-heading font-medium text-[16px] leading-[1.3] text-[#3d3d3d] tracking-[-0.48px] text-left">
@@ -1143,29 +970,33 @@ export function ChatClient({
                               {t("supportDescription")}
                             </p>
                           </div>
-                          <div className="flex gap-1.5 items-center flex-shrink-0">
-                            <span className="font-sans font-medium text-[10px] text-[rgba(0,0,0,0.25)] leading-[1.6] whitespace-nowrap">
-                              {t("supportResponseTime")}
-                            </span>
-                          </div>
+                          <span className="font-sans font-medium text-[10px] text-[rgba(0,0,0,0.25)] leading-[1.6] whitespace-nowrap">
+                            {t("supportResponseTime")}
+                          </span>
                         </div>
                       </motion.button>
                     </div>
 
                     {/* Desktop cards */}
                     <div className="hidden md:flex flex-col md:flex-row gap-4 md:gap-[18px] w-full">
-                      {/* VIZA AI Card - Desktop */}
                       <motion.button
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleVizaAiClick}
-                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(194,120,95,0.12)] group overflow-hidden"
+                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(194,120,95,0.12)] overflow-hidden"
                       >
-                        <div aria-hidden="true" className="absolute inset-0 border border-brand-500/40 rounded-[16px] md:rounded-[18px] pointer-events-none" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 border border-brand-500/40 rounded-[16px] md:rounded-[18px] pointer-events-none"
+                        />
                         <div className="relative flex flex-col h-full p-6 md:p-7 lg:p-8 gap-16 md:gap-12 lg:gap-20">
                           <div className="flex items-center justify-between w-full">
                             <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center">
-                              <Sparkle size={18} weight="fill" className="text-white" />
+                              <Sparkle
+                                size={18}
+                                weight="fill"
+                                className="text-white"
+                              />
                             </div>
                             <span className="font-sans font-medium text-[11px] md:text-[12px] text-[rgba(0,0,0,0.25)] leading-[1.6]">
                               {t("immediate")}
@@ -1174,7 +1005,9 @@ export function ChatClient({
                           <div className="flex flex-col gap-2 items-start w-full">
                             <h2 className="font-heading font-medium text-[20px] md:text-[22px] lg:text-[24px] leading-[1.3] text-[#3d3d3d] tracking-[-0.6px] text-left">
                               <span>{t("chatWith")} </span>
-                              <span className="text-brand-500">{t("vizaAI")}</span>
+                              <span className="text-brand-500">
+                                {t("vizaAI")}
+                              </span>
                             </h2>
                             <p className="font-sans font-medium text-[12px] md:text-[13px] leading-[1.6] text-[rgba(0,0,0,0.45)] text-left">
                               {t("vizaAIDescription")}
@@ -1183,26 +1016,45 @@ export function ChatClient({
                         </div>
                       </motion.button>
 
-                      {/* Support Team Card - Desktop */}
                       <motion.button
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleSupportTeamClick}
-                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] group overflow-hidden"
+                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden"
                       >
-                        <div aria-hidden="true" className="absolute inset-0 border border-[#e5e5e5] rounded-[16px] md:rounded-[18px] pointer-events-none" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 border border-[#e5e5e5] rounded-[16px] md:rounded-[18px] pointer-events-none"
+                        />
                         <div className="relative flex flex-col h-full p-6 md:p-7 lg:p-8 gap-16 md:gap-12 lg:gap-20">
                           <div className="flex items-center justify-between w-full">
-                            {/* Team member photos */}
                             <div className="flex items-center -space-x-[10px]">
                               <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden border-2 border-white">
-                                <Image alt="Team member" className="object-cover w-full h-full" src="/images/concierge/team-member-1.png" width={32} height={32} />
+                                <Image
+                                  alt="Team member"
+                                  className="object-cover w-full h-full"
+                                  src="/images/concierge/team-member-1.png"
+                                  width={32}
+                                  height={32}
+                                />
                               </div>
                               <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden border-2 border-white">
-                                <Image alt="Team member" className="object-cover w-full h-full" src="/images/concierge/team-member-2.png" width={32} height={32} />
+                                <Image
+                                  alt="Team member"
+                                  className="object-cover w-full h-full"
+                                  src="/images/concierge/team-member-2.png"
+                                  width={32}
+                                  height={32}
+                                />
                               </div>
                               <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden border-2 border-white">
-                                <Image alt="Team member" className="object-cover w-full h-full" src="/images/concierge/team-member-3.png" width={32} height={32} />
+                                <Image
+                                  alt="Team member"
+                                  className="object-cover w-full h-full"
+                                  src="/images/concierge/team-member-3.png"
+                                  width={32}
+                                  height={32}
+                                />
                               </div>
                             </div>
                             <span className="font-sans font-medium text-[11px] md:text-[12px] text-[rgba(0,0,0,0.25)] leading-[1.6]">
@@ -1232,7 +1084,10 @@ export function ChatClient({
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && inputValue.trim()) {
                               handleVizaAiClick();
-                              setTimeout(() => handleSendMessage(inputValue.trim()), 100);
+                              setTimeout(
+                                () => handleSendMessage(inputValue.trim()),
+                                100
+                              );
                               setInputValue("");
                             }
                           }}
@@ -1243,7 +1098,10 @@ export function ChatClient({
                           onClick={() => {
                             if (inputValue.trim()) {
                               handleVizaAiClick();
-                              setTimeout(() => handleSendMessage(inputValue.trim()), 100);
+                              setTimeout(
+                                () => handleSendMessage(inputValue.trim()),
+                                100
+                              );
                               setInputValue("");
                             }
                           }}
@@ -1251,8 +1109,18 @@ export function ChatClient({
                           aria-label="Send message"
                         >
                           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-500 flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            <svg
+                              className="w-4 h-4 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 10l7-7m0 0l7 7m-7-7v18"
+                              />
                             </svg>
                           </div>
                         </button>
@@ -1260,14 +1128,15 @@ export function ChatClient({
                     </div>
 
                     <p className="font-sans font-normal text-[13px] md:text-[14px] leading-[1.2] text-[rgba(0,0,0,0.25)] text-center px-2">
-                      VIZA AI can make mistakes. Please double-check important information.
+                      VIZA AI can make mistakes. Please double-check important
+                      information.
                     </p>
                   </div>
                 </div>
               </div>
             </motion.div>
           ) : (
-            /* Chat View */
+            /* Chat View 鈥?full width, no sidebar */
             <motion.div
               key="chat"
               initial={{ opacity: 0 }}
@@ -1277,7 +1146,6 @@ export function ChatClient({
               className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-0 pb-4 h-full min-h-0 overflow-hidden"
             >
               <div className="w-full max-w-[980px] flex flex-col flex-1 relative overflow-hidden min-h-0 mx-auto">
-                {/* Messages Area */}
                 <div
                   ref={messagesContainerRef}
                   onScroll={checkScrollPosition}
@@ -1290,7 +1158,9 @@ export function ChatClient({
                     </div>
                   )}
 
-                  {continuousChat.reachedHistoryBoundary && <HistoryBoundaryMessage />}
+                  {continuousChat.reachedHistoryBoundary && (
+                    <HistoryBoundaryMessage />
+                  )}
 
                   {isLoadingMessages && (
                     <div className="space-y-4">
@@ -1301,23 +1171,16 @@ export function ChatClient({
                       <div className="flex justify-end">
                         <Skeleton className="h-12 w-2/3 rounded-xl" />
                       </div>
-                      <div className="flex gap-3">
-                        <Skeleton className="w-8 h-8 rounded-full" />
-                        <Skeleton className="h-16 w-1/2 rounded-xl" />
-                      </div>
                     </div>
                   )}
 
-                  {/* Messages with date dividers */}
                   {!isLoadingMessages && renderMessagesWithDividers()}
 
-                  {/* Thinking indicator */}
                   {isStreaming &&
-                    continuousChat.messages[continuousChat.messages.length - 1]?.content === "" && (
-                      <ThinkingIndicator />
-                    )}
+                    continuousChat.messages[
+                      continuousChat.messages.length - 1
+                    ]?.content === "" && <ThinkingIndicator />}
 
-                  {/* Inline component renders */}
                   {pendingComponents.map((comp) => (
                     <motion.div
                       key={comp.componentId}
@@ -1333,7 +1196,18 @@ export function ChatClient({
                     </motion.div>
                   ))}
 
-                  {/* Scroll anchor */}
+                  {/* US-038: application_block messages from the agent tool */}
+                  {blockMessages.map((block) => (
+                    <motion.div
+                      key={block.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <BlockMessage payload={block.payload} />
+                    </motion.div>
+                  ))}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -1351,7 +1225,8 @@ export function ChatClient({
                     isConnecting={status === "connecting"}
                   />
                   <p className="mt-3 text-center text-sm text-gray-400">
-                    VIZA AI can make mistakes. Please double-check important information.
+                    VIZA AI can make mistakes. Please double-check important
+                    information.
                   </p>
                 </div>
               </div>
@@ -1360,11 +1235,10 @@ export function ChatClient({
         </AnimatePresence>
       </main>
 
-      {/* Debug Panel */}
       {showDebug && (
         <DebugPanel
           isOpen={showDebug}
-          onClose={() => setShowDebug(false)}
+          onClose={() => {}}
           logs={logs}
           onClearLogs={clearLogs}
           status={status}
@@ -1373,3 +1247,8 @@ export function ChatClient({
     </div>
   );
 }
+
+
+
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, CheckCircle2, Lock, ChevronDown, ChevronUp, Pencil } from "lucide-react";
@@ -208,20 +208,7 @@ function CompletedStepSummary({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Locked step placeholder
-// ---------------------------------------------------------------------------
 
-function LockedStepCard({ step }: { step: StepDef }) {
-  return (
-    <div className="rounded-lg border border-gray-100 bg-white p-4 opacity-50">
-      <div className="flex items-center gap-2">
-        <Lock className="h-4 w-4 text-gray-400 shrink-0" />
-        <p className="text-[15px] font-medium text-gray-400">{step.name}</p>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Application data types
@@ -344,6 +331,29 @@ export default function ApplicationPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // US-040: Supabase Realtime — re-fetch data on profile or application UPDATE
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("application-page-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "applicant_profiles" },
+        () => { void loadData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "applications" },
+        () => { void loadData(); }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadData]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -543,17 +553,14 @@ export default function ApplicationPage() {
             </div>
           )}
 
-          {/* Step cards */}
+          {/* Step cards — US-041: all steps clickable, no locked state */}
           <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
             {STEPS.map((step) => {
-              const status: StepStatus =
-                step.id < completedUpTo ? "complete" : step.id === currentStep ? "in_progress" : "locked";
+              const isComplete = step.id < completedUpTo;
+              const isActive = step.id === currentStep;
 
-              if (status === "locked") {
-                return <LockedStepCard key={step.id} step={step} />;
-              }
-
-              if (status === "complete" && step.id !== currentStep) {
+              // Completed steps that are not currently active: show summary, clickable
+              if (isComplete && !isActive) {
                 return (
                   <div key={step.id}>
                     <CompletedStepSummary
@@ -572,10 +579,29 @@ export default function ApplicationPage() {
                 );
               }
 
+              // Inactive steps (not complete, not active) — clickable collapsed card
+              if (!isActive) {
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setCurrentStep(step.id)}
+                    className="w-full rounded-lg border border-gray-100 bg-white p-4 text-left hover:border-gray-200 hover:shadow-sm transition-all duration-150"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="shrink-0 w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center text-xs font-semibold text-gray-400">
+                        {step.id + 1}
+                      </div>
+                      <p className="text-[15px] font-medium text-gray-500">{step.name}</p>
+                    </div>
+                  </button>
+                );
+              }
+
               // Active step - title outside the card, content inside
               return (
                 <div key={step.id} className="flex flex-col gap-4">
-                  {/* Section heading — outside the panel */}
+                  {/* Section heading - outside the panel */}
                   <h2 className="font-heading text-[20px] sm:text-[24px] md:text-[28px] font-medium text-[#3d3d3d] tracking-[-0.5px] sm:tracking-[-0.7px]">
                     {step.name}
                   </h2>
@@ -635,3 +661,5 @@ export default function ApplicationPage() {
     </div>
   );
 }
+
+
