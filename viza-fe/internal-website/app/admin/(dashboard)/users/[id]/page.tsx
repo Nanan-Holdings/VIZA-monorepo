@@ -11,7 +11,7 @@ interface PageProps {
 export default async function AdminUserDetailPage({ params }: PageProps) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || user.role !== "admin") redirect("/login");
+  if (!user || user.role !== "admin") redirect("/admin/login");
 
   const adminClient = createAdminClient();
 
@@ -65,7 +65,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
     return (
       <div className="w-full p-6 md:p-8">
         <p className="text-[#6b6b6b]">User not found.</p>
-        <Link href="/admin/users" className="text-[#C2785F] hover:underline mt-2 inline-block">
+        <Link href="/admin/users" className="text-brand-500 hover:underline mt-2 inline-block">
           Back to users
         </Link>
       </div>
@@ -82,7 +82,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/admin/users" className="text-sm text-[#C2785F] hover:underline mb-1 inline-block">
+          <Link href="/admin/users" className="text-sm text-brand-500 hover:underline mb-1 inline-block">
             &larr; Back to users
           </Link>
           <h1 className="text-2xl font-semibold text-[#232323]">

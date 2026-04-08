@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { User, MapPin, Globe, Briefcase } from "lucide-react";
+import { User, MapPin, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
 
 export interface PersonalInfoData {
   fullName: string;
@@ -114,18 +115,11 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
           </Select>
         </Field>
         <Field label={t("personalInfo.nationality")}>
-          <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
-            <InputGroupAddon align="inline-start">
-              <Globe className="h-4 w-4 text-gray-400" />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder={t("personalInfo.nationalityPlaceholder")}
-              value={data.nationality}
-              onChange={set("nationality")}
-              required
-              className="h-12 text-[15px]"
-            />
-          </InputGroup>
+          <CountryDropdown
+            placeholder={t("personalInfo.nationalityPlaceholder")}
+            defaultValue={data.nationality}
+            onChange={(country) => setData((d) => ({ ...d, nationality: country.name }))}
+          />
         </Field>
       </div>
       <Field label={t("personalInfo.occupation")}>

@@ -212,6 +212,23 @@
       "failedToSubmit": "Failed to submit",
       "profileNotFound": "Profile not found",
       "noApplicationFound": "No application found"
+    },
+    "dynamicSteps": {
+      "Personal Information 1": "Personal Information 1",
+      "Personal Information 2": "Personal Information 2",
+      "Travel Information": "Travel Information",
+      "Travel Companions": "Travel Companions",
+      "Previous U.S. Travel": "Previous U.S. Travel",
+      "Address and Phone": "Address and Phone",
+      "Passport Information": "Passport Information",
+      "U.S. Contact Information": "U.S. Contact Information",
+      "Family Information": "Family Information",
+      "Work/Education/Training": "Work/Education/Training",
+      "Security and Background": "Security and Background"
+    },
+    "dynamicButtons": {
+      "continue": "Continue",
+      "saving": "Saving..."
     }
   },
   "applicationSteps": {

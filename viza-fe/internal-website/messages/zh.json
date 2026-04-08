@@ -230,6 +230,23 @@
       "failedToSubmit": "提交失败",
       "profileNotFound": "未找到个人资料",
       "noApplicationFound": "未找到申请"
+    },
+    "dynamicSteps": {
+      "Personal Information 1": "个人信息 1",
+      "Personal Information 2": "个人信息 2",
+      "Travel Information": "旅行信息",
+      "Travel Companions": "同行人员",
+      "Previous U.S. Travel": "以往赴美记录",
+      "Address and Phone": "地址和电话信息",
+      "Passport Information": "护照信息",
+      "U.S. Contact Information": "美国联系人信息",
+      "Family Information": "家庭信息",
+      "Work/Education/Training": "工作/教育/培训",
+      "Security and Background": "安全与背景"
+    },
+    "dynamicButtons": {
+      "continue": "继续",
+      "saving": "保存中..."
     }
   },
   "applicationSteps": {

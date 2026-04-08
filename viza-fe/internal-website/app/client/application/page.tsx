@@ -1,13 +1,13 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, CheckCircle2, Lock, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
+import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
   PassportStep,
@@ -20,6 +20,7 @@ import {
   type TravelInfoData,
   type DocumentType,
 } from "@/components/application-steps";
+import { DynamicStepForm } from "@/components/dynamic-step-form";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -43,16 +44,16 @@ function VerticalStepSidebar({
   steps,
   currentStep,
   completedUpTo,
+  onStepClick,
 }: {
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
+  onStepClick: (stepId: number) => void;
 }) {
   return (
     <aside className="w-[360px] shrink-0 pl-4 pr-0 pt-9 hidden lg:block z-10 sticky top-0 self-start" style={{ marginTop: "-400px" }}>
       <div className="relative">
-      {/* Dotted vertical line behind the panels, aligned with circle centers */}
-      {/* Circle is 32px (w-8), panel padding-left is 12px (px-3) + card padding 16/24px */}
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
         style={{ left: "calc(16px + 24px + 12px + 16px - 16px)" }}
@@ -63,13 +64,15 @@ function VerticalStepSidebar({
             i < completedUpTo ? "complete" : i === currentStep ? "in_progress" : "locked";
 
           return (
-            <div
+            <button
+              type="button"
               key={step.id}
+              onClick={() => onStepClick(step.id)}
               className={cn(
-                "rounded-xl border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200",
+                "rounded-xl border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
                 status === "in_progress"
                   ? "border-[#03346E] border-[1.5px] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "border-[#efefef]",
+                  : "border-[#efefef] hover:border-gray-300",
               )}
             >
               {/* Circle */}
@@ -78,13 +81,11 @@ function VerticalStepSidebar({
                   "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200",
                   status === "complete" && "bg-[#03346E] border-[#03346E] text-white",
                   status === "in_progress" && "bg-[#03346E] border-[#03346E] text-white shadow-[0_0_0_4px_rgba(3,52,110,0.12)]",
-                  status === "locked" && "bg-white border-gray-200 text-gray-400"
+                  status === "locked" && "bg-white border-gray-200 text-gray-500"
                 )}
               >
                 {status === "complete" ? (
                   <CheckCircle2 className="h-4 w-4" />
-                ) : status === "locked" ? (
-                  <Lock className="h-3 w-3" />
                 ) : (
                   i + 1
                 )}
@@ -96,7 +97,7 @@ function VerticalStepSidebar({
                     "text-[15px]",
                     status === "in_progress" && "font-semibold text-[#03346E]",
                     status === "complete" && "font-medium text-[#03346E]",
-                    status === "locked" && "font-medium text-gray-400"
+                    status === "locked" && "font-medium text-gray-500"
                   )}
                 >
                   {step.name}
@@ -106,7 +107,7 @@ function VerticalStepSidebar({
                   status === "in_progress" ? "text-[#03346E]/60" : "text-gray-400"
                 )}>{step.description}</p>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -123,10 +124,12 @@ function MobileStepBar({
   steps,
   currentStep,
   completedUpTo,
+  onStepClick,
 }: {
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
+  onStepClick: (stepId: number) => void;
 }) {
   const t = useTranslations("application");
   return (
@@ -137,22 +140,22 @@ function MobileStepBar({
             i < completedUpTo ? "complete" : i === currentStep ? "in_progress" : "locked";
           return (
             <div key={step.id} className="flex items-center gap-1 flex-1 min-w-0">
-              <div
+              <button
+                type="button"
+                onClick={() => onStepClick(step.id)}
                 className={cn(
-                  "shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold border-2",
+                  "shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold border-2 cursor-pointer",
                   status === "complete" && "bg-[#03346E] border-[#03346E] text-white",
                   status === "in_progress" && "bg-white border-[#03346E] text-[#03346E]",
-                  status === "locked" && "bg-white border-gray-200 text-gray-400"
+                  status === "locked" && "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                 )}
               >
                 {status === "complete" ? (
                   <CheckCircle2 className="h-3 w-3" />
-                ) : status === "locked" ? (
-                  <Lock className="h-2.5 w-2.5" />
                 ) : (
                   i + 1
                 )}
-              </div>
+              </button>
               {i < steps.length - 1 && (
                 <div
                   className={cn(
@@ -168,42 +171,6 @@ function MobileStepBar({
       <p className="text-xs text-gray-500 mt-3 font-medium">
         {t("stepOf", { current: currentStep + 1, total: steps.length, name: steps[currentStep]?.name })}
       </p>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Completed step summary card
-// ---------------------------------------------------------------------------
-
-function CompletedStepSummary({
-  step,
-  onEdit,
-  isExpanded,
-  onToggle,
-}: {
-  step: StepDef;
-  onEdit: () => void;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const t = useTranslations("application");
-  return (
-    <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-          <p className="text-[15px] font-medium text-green-800">{step.name}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button type="button" variant="ghost" size="sm" onClick={onEdit} className="h-8 px-2 text-xs text-green-700">
-            <Pencil className="h-3 w-3 mr-1" /> {t("edit")}
-          </Button>
-          <button type="button" onClick={onToggle} className="text-green-600 hover:text-green-800">
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -240,21 +207,23 @@ export default function ApplicationPage() {
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
   const [dbSteps, setDbSteps] = useState<WizardStep[]>([]);
+  const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
 
   useEffect(() => {
-    getVisaFormSteps("B211A")
-      .then((steps) => {
-        if (steps.length > 0) setDbSteps(steps);
-      })
-      .catch(() => {
-        // Silent fallback to hardcoded steps
-      });
+    getUserVisaPackage().then((pkg) => {
+      if (pkg) setVisaPackage(pkg);
+      const visaType = pkg?.visa_type ?? "B211A";
+      return getVisaFormSteps(visaType);
+    }).then((steps) => {
+      if (steps.length > 0) setDbSteps(steps);
+    }).catch(() => {
+      // Silent fallback to hardcoded steps
+    });
   }, []);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedUpTo, setCompletedUpTo] = useState(0);
-  const [expandedCompleted, setExpandedCompleted] = useState<Set<number>>(new Set());
   const [appState, setAppState] = useState<ApplicationState>({
     applicationId: null,
     personal: {},
@@ -264,6 +233,19 @@ export default function ApplicationPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Dynamic form answers keyed by field_name
+  const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+
+  // Use DB-driven steps when available, otherwise fall back to hardcoded
+  const useDynamic = dbSteps.length > 0;
+  const tDyn = useTranslations("application.dynamicSteps");
+  const effectiveSteps: StepDef[] = useDynamic
+    ? dbSteps.map((s, i) => ({
+        id: i,
+        name: tDyn.has(s.stepName) ? tDyn(s.stepName as never) : s.stepName,
+        description: `${s.fields.length} ${s.fields.length === 1 ? "field" : "fields"}`,
+      }))
+    : STEPS;
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -442,8 +424,8 @@ export default function ApplicationPage() {
           .insert({
             applicant_id: profile.id,
             status: "draft",
-            country: "indonesia",
-            visa_type: "tourist_b211a",
+            country: visaPackage?.country ?? "indonesia",
+            visa_type: visaPackage?.visa_type ?? "tourist_b211a",
             arrival_date: data.arrivalDate || null,
             departure_date: data.departureDate || null,
             port_of_entry: data.portOfEntry || null,
@@ -469,6 +451,69 @@ export default function ApplicationPage() {
       setAppState((prev) => ({ ...prev, travel: data, applicationId }));
       setCompletedUpTo((c) => Math.max(c, 3));
       setCurrentStep(3);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDynamicStepComplete = async (stepIndex: number, data: Record<string, string>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error(t("errors.notAuthenticated"));
+
+      // Ensure we have a profile
+      const { data: profile } = await supabase
+        .from("applicant_profiles")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (!profile) throw new Error(t("errors.profileNotFound"));
+
+      // Create application if it doesn't exist yet (on first step completion)
+      let applicationId = appState.applicationId;
+      if (!applicationId) {
+        const { data: newApp, error: appError } = await supabase
+          .from("applications")
+          .insert({
+            applicant_id: profile.id,
+            status: "draft",
+            country: visaPackage?.country ?? "united_states",
+            visa_type: visaPackage?.visa_type ?? "DS160",
+          })
+          .select("id")
+          .single();
+        if (appError) throw appError;
+        applicationId = newApp.id;
+        setAppState((prev) => ({ ...prev, applicationId }));
+      }
+
+      // Save answers to visa_application_answers
+      const upserts = Object.entries(data)
+        .filter(([, v]) => v.trim() !== "")
+        .map(([fieldName, value]) => ({
+          application_id: applicationId!,
+          field_name: fieldName,
+          value_text: value,
+          updated_at: new Date().toISOString(),
+        }));
+
+      if (upserts.length > 0) {
+        const { error: upsertError } = await supabase
+          .from("visa_application_answers")
+          .upsert(upserts, { onConflict: "application_id,field_name" });
+        if (upsertError) throw upsertError;
+      }
+
+      // Update local state
+      setDynamicAnswers((prev) => ({ ...prev, ...data }));
+      setCompletedUpTo((c) => Math.max(c, stepIndex + 1));
+      setCurrentStep(stepIndex + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSave"));
     } finally {
@@ -526,18 +571,18 @@ export default function ApplicationPage() {
   return (
     <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto pt-3" style={{ marginLeft: "-20px" }}>
       {/* Left sidebar - desktop only */}
-      <VerticalStepSidebar steps={STEPS} currentStep={currentStep} completedUpTo={completedUpTo} />
+      <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
 
       {/* Main content area */}
       <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 lg:p-8" style={{ marginTop: "-20px", marginLeft: "-60px" }}>
         <div className="max-w-3xl mx-auto">
           {/* Mobile step indicator */}
-          <MobileStepBar steps={STEPS} currentStep={currentStep} completedUpTo={completedUpTo} />
+          <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
 
           {/* Page header */}
           <div className="mb-8 sm:mb-12">
             <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
-              {t("title")}
+              {visaPackage?.name ?? t("title")}
             </h1>
           </div>
 
@@ -553,52 +598,14 @@ export default function ApplicationPage() {
             </div>
           )}
 
-          {/* Step cards — US-041: all steps clickable, no locked state */}
+          {/* Step cards */}
           <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
-            {STEPS.map((step) => {
-              const isComplete = step.id < completedUpTo;
+            {effectiveSteps.map((step) => {
               const isActive = step.id === currentStep;
 
-              // Completed steps that are not currently active: show summary, clickable
-              if (isComplete && !isActive) {
-                return (
-                  <div key={step.id}>
-                    <CompletedStepSummary
-                      step={step}
-                      onEdit={() => setCurrentStep(step.id)}
-                      isExpanded={expandedCompleted.has(step.id)}
-                      onToggle={() =>
-                        setExpandedCompleted((prev) => {
-                          const next = new Set(prev);
-                          next.has(step.id) ? next.delete(step.id) : next.add(step.id);
-                          return next;
-                        })
-                      }
-                    />
-                  </div>
-                );
-              }
+              // Only render the active step — hide all others
+              if (!isActive) return null;
 
-              // Inactive steps (not complete, not active) — clickable collapsed card
-              if (!isActive) {
-                return (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => setCurrentStep(step.id)}
-                    className="w-full rounded-lg border border-gray-100 bg-white p-4 text-left hover:border-gray-200 hover:shadow-sm transition-all duration-150"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="shrink-0 w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center text-xs font-semibold text-gray-400">
-                        {step.id + 1}
-                      </div>
-                      <p className="text-[15px] font-medium text-gray-500">{step.name}</p>
-                    </div>
-                  </button>
-                );
-              }
-
-              // Active step - title outside the card, content inside
               return (
                 <div key={step.id} className="flex flex-col gap-4">
                   {/* Section heading - outside the panel */}
@@ -607,49 +614,63 @@ export default function ApplicationPage() {
                   </h2>
                   {/* Panel card */}
                   <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6">
-                    {step.id === 0 && (
-                      <PersonalInfoStep
-                        prefill={appState.personal}
-                        onComplete={handlePersonalComplete}
+                    {useDynamic ? (
+                      /* Dynamic DB-driven form */
+                      <DynamicStepForm
+                        key={step.id}
+                        step={dbSteps[step.id]}
+                        prefill={dynamicAnswers}
+                        onComplete={(data) => handleDynamicStepComplete(step.id, data)}
+                        saving={saving}
                       />
-                    )}
-                    {step.id === 1 && (
-                      <PassportStep
-                        prefill={appState.passport}
-                        onComplete={handlePassportComplete}
-                      />
-                    )}
-                    {step.id === 2 && (
-                      <TravelInfoStep
-                        prefill={appState.travel}
-                        onComplete={handleTravelComplete}
-                      />
-                    )}
-                    {step.id === 3 && appState.applicationId && (
-                      <DocumentUploadStep
-                        applicationId={appState.applicationId}
-                        onComplete={handleDocumentsComplete}
-                      />
-                    )}
-                    {step.id === 4 && (
-                      <ReviewStep
-                        applicationId={appState.applicationId ?? ""}
-                        data={appState}
-                        onEdit={(section) => {
-                          const sectionMap: Record<string, number> = {
-                            personal: 0, passport: 1, travel: 2, documents: 3,
-                          };
-                          setCurrentStep(sectionMap[section] ?? 0);
-                        }}
-                        onComplete={handleReviewComplete}
-                      />
-                    )}
-                    {step.id === 5 && appState.confirmationNumber && appState.submittedAt && (
-                      <StatusStep
-                        confirmationNumber={appState.confirmationNumber}
-                        submittedAt={appState.submittedAt}
-                        estimatedProcessingDays={5}
-                      />
+                    ) : (
+                      /* Hardcoded B211A steps */
+                      <>
+                        {step.id === 0 && (
+                          <PersonalInfoStep
+                            prefill={appState.personal}
+                            onComplete={handlePersonalComplete}
+                          />
+                        )}
+                        {step.id === 1 && (
+                          <PassportStep
+                            prefill={appState.passport}
+                            onComplete={handlePassportComplete}
+                          />
+                        )}
+                        {step.id === 2 && (
+                          <TravelInfoStep
+                            prefill={appState.travel}
+                            onComplete={handleTravelComplete}
+                          />
+                        )}
+                        {step.id === 3 && appState.applicationId && (
+                          <DocumentUploadStep
+                            applicationId={appState.applicationId}
+                            onComplete={handleDocumentsComplete}
+                          />
+                        )}
+                        {step.id === 4 && (
+                          <ReviewStep
+                            applicationId={appState.applicationId ?? ""}
+                            data={appState}
+                            onEdit={(section) => {
+                              const sectionMap: Record<string, number> = {
+                                personal: 0, passport: 1, travel: 2, documents: 3,
+                              };
+                              setCurrentStep(sectionMap[section] ?? 0);
+                            }}
+                            onComplete={handleReviewComplete}
+                          />
+                        )}
+                        {step.id === 5 && appState.confirmationNumber && appState.submittedAt && (
+                          <StatusStep
+                            confirmationNumber={appState.confirmationNumber}
+                            submittedAt={appState.submittedAt}
+                            estimatedProcessingDays={5}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/select";
 import {
   InputGroup,
-  InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 interface DynamicFormFieldProps {
@@ -119,6 +119,17 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
         </FieldWrapper>
       );
 
+    case "country":
+      return (
+        <FieldWrapper label={label} required={required}>
+          <CountryDropdown
+            placeholder={placeholder ?? "Select a country"}
+            defaultValue={value}
+            onChange={(country) => onChange(country.name)}
+          />
+        </FieldWrapper>
+      );
+
     case "radio": {
       const opts = normaliseOptions(options);
       return (
@@ -146,7 +157,6 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
       return (
         <FieldWrapper label={label} required={required}>
           <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
-            <InputGroupAddon align="inline-start" />
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
               placeholder={placeholder ?? undefined}

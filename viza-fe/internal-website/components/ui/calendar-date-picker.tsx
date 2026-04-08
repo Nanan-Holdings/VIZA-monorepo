@@ -257,7 +257,7 @@ export function CalendarDatePicker({
                           className={cn(
                             'flex-1 px-1 text-xs font-medium rounded transition-colors min-h-[28px]',
                             isDateSelected(day, 'custom')
-                              ? 'bg-[#C2785F] text-white'
+                              ? 'bg-brand-500 text-white'
                               : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                           )}
                         >
@@ -284,7 +284,7 @@ export function CalendarDatePicker({
                             className={cn(
                               'flex-1 px-0.5 py-0.5 text-xs font-medium rounded transition-colors relative',
                               isDateSelected(day, 'morning')
-                                ? 'bg-[#C2785F] text-white'
+                                ? 'bg-brand-500 text-white'
                                 : isExistingSlotSelectedForDeletion(day, 'morning')
                                 ? 'bg-red-500 text-white hover:bg-red-600 border-2 border-red-700'
                                 : hasExistingAvailability(day, 'morning')
@@ -315,7 +315,7 @@ export function CalendarDatePicker({
                             className={cn(
                               'flex-1 px-0.5 py-0.5 text-xs font-medium rounded transition-colors relative',
                               isDateSelected(day, 'evening')
-                                ? 'bg-[#C2785F] text-white'
+                                ? 'bg-brand-500 text-white'
                                 : isExistingSlotSelectedForDeletion(day, 'evening')
                                 ? 'bg-red-500 text-white hover:bg-red-600 border-2 border-red-700'
                                 : hasExistingAvailability(day, 'evening')
@@ -346,7 +346,7 @@ export function CalendarDatePicker({
           </div>
           <div className="flex gap-3 mt-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-[#C2785F]"></div>
+              <div className="w-3 h-3 rounded bg-brand-500"></div>
               <span className="text-xs">Selected to add</span>
             </div>
             <div className="flex items-center gap-2">

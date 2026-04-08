@@ -53,7 +53,7 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
     return (
       <button
         onClick={() => setShowForm(true)}
-        className="px-4 py-2 rounded-lg text-sm font-medium bg-[#C2785F] text-white hover:bg-[#a86450] transition-colors"
+        className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors"
       >
         Assign Package
       </button>
@@ -79,7 +79,7 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
         <button
           onClick={handleAssign}
           disabled={!selectedPackageId || isSubmitting}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#C2785F] text-white hover:bg-[#a86450] transition-colors disabled:opacity-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors disabled:opacity-50"
         >
           {isSubmitting ? "Assigning..." : "Confirm"}
         </button>

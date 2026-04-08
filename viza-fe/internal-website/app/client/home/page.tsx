@@ -17,6 +17,26 @@ import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatu
 import { DocumentProgressCard } from "@/components/client/home/DocumentProgressCard";
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
+import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
+
+// ---------------------------------------------------------------------------
+// Country helpers
+// ---------------------------------------------------------------------------
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  indonesia: "🇮🇩",
+  united_states: "🇺🇸",
+  japan: "🇯🇵",
+  australia: "🇦🇺",
+  singapore: "🇸🇬",
+  china: "🇨🇳",
+  united_kingdom: "🇬🇧",
+  canada: "🇨🇦",
+};
+
+function getCountryFlag(country: string): string {
+  return COUNTRY_FLAGS[country.toLowerCase()] ?? "🌐";
+}
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -136,7 +156,7 @@ function VisaStageCard({ id, title, subtitle, badge, icon, status, href }: {
   return inner;
 }
 
-function VisaTimelineCard() {
+function VisaTimelineCard({ packageName }: { packageName?: string }) {
   const t = useTranslations("home.visaTimeline");
 
   return (
@@ -147,7 +167,7 @@ function VisaTimelineCard() {
       transition={{ duration: 0.4 }}
     >
       <p className="font-heading font-medium leading-[1.3] text-[30px] text-[#3d3d3d] tracking-[-0.9px]">
-        {t("heading")}
+        {packageName || t("heading")}
       </p>
       <p className="font-normal leading-[1.3] text-[20px] text-[rgba(0,0,0,0.45)] tracking-[-0.6px]">
         {t("subheading")}
@@ -182,6 +202,7 @@ export default function HomePage() {
   const [applicantName, setApplicantName] = useState<string | null>(null);
   const [application, setApplication] = useState<ApplicationRow | null>(null);
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -198,7 +219,7 @@ export default function HomePage() {
           id: `app-submitted-${application.id}`,
           eventType: "status_change",
           label: t("activity.applicationSubmitted"),
-          sublabel: t("activity.visaType"),
+          sublabel: visaPackage?.name ?? t("activity.visaType"),
           timestamp: application.submitted_at,
           icon: "check",
         });
@@ -207,7 +228,7 @@ export default function HomePage() {
         id: `app-created-${application.id}`,
         eventType: "application_created",
         label: t("activity.applicationCreated"),
-        sublabel: t("activity.visaType"),
+        sublabel: visaPackage?.name ?? t("activity.visaType"),
         timestamp: application.created_at,
         icon: "clock",
       });
@@ -281,6 +302,11 @@ export default function HomePage() {
           setIsLoading(false);
           return;
         }
+
+        // Fetch assigned visa package
+        getUserVisaPackage().then((pkg) => {
+          if (isMounted && pkg) setVisaPackage(pkg);
+        });
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
@@ -430,10 +456,14 @@ export default function HomePage() {
                     <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
                     <div className="w-full">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-4xl leading-none" role="img" aria-label="Indonesia flag">🇮🇩</span>
+                        <span className="text-4xl leading-none" role="img" aria-label="flag">{visaPackage ? getCountryFlag(visaPackage.country) : "🌐"}</span>
                         <div>
-                          <p className="text-white font-heading font-medium text-[18px] leading-tight">{t("indonesia")}</p>
-                          <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{t("touristVisaB211A")}</p>
+                          <p className="text-white font-heading font-medium text-[18px] leading-tight">
+                            {visaPackage?.name ?? t("emptyApplication.noActiveApplication")}
+                          </p>
+                          {visaPackage?.description && (
+                            <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{visaPackage.description}</p>
+                          )}
                         </div>
                       </div>
                       <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">
@@ -475,7 +505,7 @@ export default function HomePage() {
 
         {/* Timeline / stage cards (only when no application) */}
         {!application && (
-          <VisaTimelineCard />
+          <VisaTimelineCard packageName={visaPackage?.name} />
         )}
 
         {/* Recent Activity Heading */}
