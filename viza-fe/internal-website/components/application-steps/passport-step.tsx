@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ShieldCheck, Globe } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -84,18 +85,11 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
         </Field>
       </div>
       <Field label={t("passport.issuingCountry")}>
-        <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
-          <InputGroupAddon align="inline-start">
-            <Globe className="h-4 w-4 text-gray-400" />
-          </InputGroupAddon>
-          <InputGroupInput
-            placeholder={t("passport.issuingCountryPlaceholder")}
-            value={data.issuingCountry}
-            onChange={set("issuingCountry")}
-            required
-            className="h-12 text-[15px]"
-          />
-        </InputGroup>
+        <CountryDropdown
+          placeholder={t("passport.issuingCountryPlaceholder")}
+          defaultValue={data.issuingCountry}
+          onChange={(country) => setData((d) => ({ ...d, issuingCountry: country.name }))}
+        />
       </Field>
       <Field label={t("passport.issuingAuthority")}>
         <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">

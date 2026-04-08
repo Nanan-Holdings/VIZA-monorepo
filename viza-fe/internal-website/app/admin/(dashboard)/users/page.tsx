@@ -31,7 +31,7 @@ interface ApplicationRow {
 
 export default async function AdminUsersPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "admin") redirect("/login");
+  if (!user || user.role !== "admin") redirect("/admin/login");
 
   const adminClient = createAdminClient();
 
@@ -98,7 +98,7 @@ export default async function AdminUsersPage() {
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/users/${row.id}`}
-                        className="text-[#C2785F] hover:underline font-medium"
+                        className="text-brand-500 hover:underline font-medium"
                       >
                         {row.full_name || "—"}
                       </Link>
@@ -107,7 +107,7 @@ export default async function AdminUsersPage() {
                     <td className="px-4 py-3 text-[#6b6b6b]">{row.nationality || "—"}</td>
                     <td className="px-4 py-3">
                       {pkg?.visa_packages ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgba(194,120,95,0.1)] text-[#C2785F] border border-[rgba(194,120,95,0.3)]">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-500 border border-brand-200">
                           {Array.isArray(pkg.visa_packages) ? pkg.visa_packages[0]?.name : pkg.visa_packages.name}
                         </span>
                       ) : (

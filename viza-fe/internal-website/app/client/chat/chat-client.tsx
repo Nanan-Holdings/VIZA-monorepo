@@ -927,7 +927,7 @@ export function ChatClient({
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleVizaAiClick}
-                        className="bg-white relative rounded-[16px] cursor-pointer transition-shadow duration-200 hover:shadow-[0_2px_12px_rgba(194,120,95,0.15)] overflow-hidden"
+                        className="bg-white relative rounded-[16px] cursor-pointer transition-shadow duration-200 hover:shadow-[0_2px_12px_rgba(3,52,110,0.12)] overflow-hidden"
                       >
                         <div
                           aria-hidden="true"
@@ -983,7 +983,7 @@ export function ChatClient({
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleVizaAiClick}
-                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(194,120,95,0.12)] overflow-hidden"
+                        className="flex-1 bg-white relative rounded-[16px] md:rounded-[18px] cursor-pointer transition-shadow duration-200 shadow-sm hover:shadow-[0_4px_20px_rgba(3,52,110,0.10)] overflow-hidden"
                       >
                         <div
                           aria-hidden="true"

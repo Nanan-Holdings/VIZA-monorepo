@@ -43,12 +43,13 @@ export async function updateSession(request: NextRequest) {
   // This middleware only handles Supabase auth for admin routes
 
   // All paths that require an admin role in the `users` table
-  const isProtectedPath = pathname.startsWith("/admin");
+  const isAdminLogin = pathname === "/admin/login";
+  const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin;
 
   // Protect authenticated routes - redirect to login if not authenticated
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
-    url.pathname = "/client/login";
+    url.pathname = "/admin/login";
     return NextResponse.redirect(url);
   }
 
@@ -67,14 +68,21 @@ export async function updateSession(request: NextRequest) {
     // Block users with no role in the `users` table from accessing any protected path.
     if (!userRole && isProtectedPath) {
       const url = request.nextUrl.clone();
-      url.pathname = "/client/login";
+      url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
 
-    // /admin/* is admin-only — redirect others to client login
-    if (userRole !== "admin" && pathname.startsWith("/admin")) {
+    // /admin/* is admin-only — redirect others to admin login
+    if (userRole !== "admin" && isProtectedPath) {
       const url = request.nextUrl.clone();
-      url.pathname = "/client/login";
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+
+    // Redirect authenticated admins away from admin login page
+    if (userRole === "admin" && isAdminLogin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
       return NextResponse.redirect(url);
     }
   }
