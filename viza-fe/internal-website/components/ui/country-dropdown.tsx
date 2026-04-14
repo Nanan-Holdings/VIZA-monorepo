@@ -1,5 +1,6 @@
 "use client";
-import React, { useCallback, useState, forwardRef, useEffect } from "react";
+import React, { useCallback, useState, forwardRef, useEffect, useMemo } from "react";
+import { useLocale } from "next-intl";
 
 import {
   Command,
@@ -47,6 +48,15 @@ const filteredCountries: Country[] = countries.all.filter(
     country.emoji && country.status !== "deleted" && country.ioc !== "PRK"
 );
 
+function getLocalizedName(alpha2: string, locale: string): string {
+  try {
+    const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+    return displayNames.of(alpha2.toUpperCase()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 const CountryDropdownComponent = (
   {
     onChange,
@@ -59,6 +69,16 @@ const CountryDropdownComponent = (
 ) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Country | null>(null);
+  const locale = useLocale();
+
+  const localizedMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of filteredCountries) {
+      const localized = getLocalizedName(c.alpha2, locale);
+      if (localized) map.set(c.alpha2, localized);
+    }
+    return map;
+  }, [locale]);
 
   useEffect(() => {
     if (!defaultValue) {
@@ -70,11 +90,12 @@ const CountryDropdownComponent = (
         (c) =>
           c.alpha3 === defaultValue ||
           c.alpha2 === defaultValue ||
-          c.name.toLowerCase() === defaultValue.toLowerCase()
+          c.name.toLowerCase() === defaultValue.toLowerCase() ||
+          (localizedMap.get(c.alpha2) ?? "").toLowerCase() === defaultValue.toLowerCase()
       );
       setSelected(match ?? null);
     }
-  }, [defaultValue]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [defaultValue, localizedMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = useCallback(
     (country: Country) => {
@@ -85,12 +106,20 @@ const CountryDropdownComponent = (
     [onChange]
   );
 
+  const getDisplayName = (country: Country) => {
+    const localized = localizedMap.get(country.alpha2);
+    if (localized && localized !== country.name) {
+      return `${localized} (${country.name})`;
+    }
+    return country.name;
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         ref={ref}
         className={cn(
-          "flex h-12 w-full items-center justify-between whitespace-nowrap rounded-lg border border-[#e8e8e8] bg-transparent px-3 py-2 text-[15px] ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:bg-secondary/80",
+          "flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         disabled={disabled}
@@ -104,26 +133,33 @@ const CountryDropdownComponent = (
               />
             </div>
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-              {selected.name}
+              {getDisplayName(selected)}
             </span>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Globe className="h-4 w-4 shrink-0" />
+            <Globe className="h-4 w-4 shrink-0 text-gray-400" />
             {placeholder}
           </div>
         )}
-        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
       </PopoverTrigger>
       <PopoverContent
         collisionPadding={10}
         side="bottom"
         className="min-w-[--radix-popper-anchor-width] p-0"
       >
-        <Command className="w-full">
-          <CommandInput placeholder="Search country..." />
+        <Command
+          className="w-full"
+          filter={(value, search, keywords) => {
+            const haystack = [value, ...(keywords ?? [])].join(" ").toLowerCase();
+            if (haystack.includes(search.toLowerCase())) return 1;
+            return 0;
+          }}
+        >
+          <CommandInput placeholder={locale === "zh" ? "搜索国家..." : "Search country..."} />
           <CommandList className="max-h-[200px] sm:max-h-[270px]">
-            <CommandEmpty>No country found.</CommandEmpty>
+            <CommandEmpty>{locale === "zh" ? "未找到国家" : "No country found."}</CommandEmpty>
             <CommandGroup>
               {filteredCountries
                 .filter((x) => x.name)
@@ -131,6 +167,8 @@ const CountryDropdownComponent = (
                   <CommandItem
                     className="flex items-center w-full gap-2 [&_svg]:size-auto"
                     key={key}
+                    value={option.alpha2}
+                    keywords={[option.name, localizedMap.get(option.alpha2) ?? "", option.alpha3]}
                     onSelect={() => handleSelect(option)}
                   >
                     <div className="flex flex-grow items-center space-x-2 overflow-hidden">
@@ -141,7 +179,7 @@ const CountryDropdownComponent = (
                         />
                       </div>
                       <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                        {option.name}
+                        {getDisplayName(option)}
                       </span>
                     </div>
                     <CheckIcon

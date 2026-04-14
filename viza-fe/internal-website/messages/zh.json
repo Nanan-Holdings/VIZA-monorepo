@@ -253,7 +253,9 @@
     "dynamicButtons": {
       "continue": "继续",
       "saving": "保存中...",
-      "selectFallback": "请选择…"
+      "selectFallback": "请选择…",
+      "addAnother": "添加更多",
+      "remove": "删除"
     }
   },
   "applicationSteps": {

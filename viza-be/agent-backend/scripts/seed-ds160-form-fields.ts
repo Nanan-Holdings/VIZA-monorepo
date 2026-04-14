@@ -12,6 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({ path: path.join(__dirname, "../.env.local") });
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -77,43 +78,13 @@ const FIELDS: FieldDef[] = [
     validation_rules: { has_does_not_apply: true, does_not_apply_label: "Does Not Apply/Technology Not Available" },
   },
   {
-    field_name: "has_telecode",
-    label: "Do you have a telecode that represents your name?",
-    field_type: "radio",
-    required: true,
-    step_number: 1,
-    step_name: "Personal Information 1",
-    display_order: 4,
-    options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
-  },
-  {
-    field_name: "telecode_surname",
-    label: "Telecode Surname",
-    field_type: "text",
-    required: false,
-    step_number: 1,
-    step_name: "Personal Information 1",
-    display_order: 5,
-    conditional_logic: { showIf: "has_telecode === yes" },
-  },
-  {
-    field_name: "telecode_given_names",
-    label: "Telecode Given Names",
-    field_type: "text",
-    required: false,
-    step_number: 1,
-    step_name: "Personal Information 1",
-    display_order: 6,
-    conditional_logic: { showIf: "has_telecode === yes" },
-  },
-  {
     field_name: "other_names_used",
     label: "Have you ever used other names (i.e., maiden, religious, professional, alias, etc.)?",
     field_type: "radio",
     required: true,
     step_number: 1,
     step_name: "Personal Information 1",
-    display_order: 7,
+    display_order: 4,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
   },
   {
@@ -123,7 +94,7 @@ const FIELDS: FieldDef[] = [
     required: false,
     step_number: 1,
     step_name: "Personal Information 1",
-    display_order: 8,
+    display_order: 5,
     placeholder: "e.g., FERNANDEZ GARCIA",
     conditional_logic: { showIf: "other_names_used === yes" },
     validation_rules: { repeatable: true, repeat_group: "other_names" },
@@ -135,10 +106,42 @@ const FIELDS: FieldDef[] = [
     required: false,
     step_number: 1,
     step_name: "Personal Information 1",
-    display_order: 9,
+    display_order: 6,
     placeholder: "e.g., JUAN MIGUEL",
     conditional_logic: { showIf: "other_names_used === yes" },
     validation_rules: { repeatable: true, repeat_group: "other_names" },
+  },
+  {
+    field_name: "has_telecode",
+    label: "Do you have a telecode that represents your name?",
+    field_type: "radio",
+    required: true,
+    step_number: 1,
+    step_name: "Personal Information 1",
+    display_order: 7,
+    options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+  },
+  {
+    field_name: "telecode_surname",
+    label: "Telecode Surname",
+    field_type: "text",
+    required: false,
+    step_number: 1,
+    step_name: "Personal Information 1",
+    display_order: 8,
+    conditional_logic: { showIf: "has_telecode === yes" },
+    validation_rules: { repeatable: true, repeat_group: "telecode" },
+  },
+  {
+    field_name: "telecode_given_names",
+    label: "Telecode Given Names",
+    field_type: "text",
+    required: false,
+    step_number: 1,
+    step_name: "Personal Information 1",
+    display_order: 9,
+    conditional_logic: { showIf: "has_telecode === yes" },
+    validation_rules: { repeatable: true, repeat_group: "telecode" },
   },
   {
     field_name: "sex",
@@ -241,7 +244,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Personal Information 2",
     display_order: 3,
     conditional_logic: { showIf: "other_nationality === yes" },
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_nationality" },
   },
   {
     field_name: "other_nationality_has_passport",
@@ -253,6 +256,7 @@ const FIELDS: FieldDef[] = [
     display_order: 4,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "other_nationality === yes" },
+    validation_rules: { repeatable: true, repeat_group: "other_nationality" },
   },
   {
     field_name: "other_nationality_passport_number",
@@ -263,6 +267,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Personal Information 2",
     display_order: 5,
     conditional_logic: { showIf: "other_nationality_has_passport === yes" },
+    validation_rules: { repeatable: true, repeat_group: "other_nationality" },
   },
   {
     field_name: "permanent_resident_other_country",
@@ -283,7 +288,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Personal Information 2",
     display_order: 7,
     conditional_logic: { showIf: "permanent_resident_other_country === yes" },
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "permanent_resident" },
   },
   {
     field_name: "national_id_number",
@@ -328,7 +333,31 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 1,
     options: [
+      { value: "A", text: "FOREIGN GOVERNMENT OFFICIAL (A)" },
       { value: "B", text: "TEMP. BUSINESS OR PLEASURE VISITOR (B)" },
+      { value: "C", text: "ALIEN IN TRANSIT (C)" },
+      { value: "CW/E2C", text: "CNMI WORKER OR INVESTOR (CW/E2C)" },
+      { value: "D", text: "CREWMEMBER (D)" },
+      { value: "E", text: "TREATY TRADER OR INVESTOR (E)" },
+      { value: "F", text: "ACADEMIC OR LANGUAGE STUDENT (F)" },
+      { value: "G", text: "INTERNATIONAL ORGANIZATION REP./EMP. (G)" },
+      { value: "H", text: "TEMPORARY WORKER (H)" },
+      { value: "I", text: "FOREIGN MEDIA REPRESENTATIVE (I)" },
+      { value: "J", text: "EXCHANGE VISITOR (J)" },
+      { value: "K", text: "FIANCÉ(E) OR SPOUSE OF A U.S. CITIZEN (K)" },
+      { value: "L", text: "INTRACOMPANY TRANSFEREE (L)" },
+      { value: "M", text: "VOCATIONAL/NONACADEMIC STUDENT (M)" },
+      { value: "N", text: "OTHER (N)" },
+      { value: "NATO", text: "NATO STAFF (NATO)" },
+      { value: "O", text: "ALIEN WITH EXTRAORDINARY ABILITY (O)" },
+      { value: "P", text: "INTERNATIONALLY RECOGNIZED ALIEN (P)" },
+      { value: "Q", text: "CULTURAL EXCHANGE VISITOR (Q)" },
+      { value: "R", text: "RELIGIOUS WORKER (R)" },
+      { value: "S", text: "INFORMANT OR WITNESS (S)" },
+      { value: "T", text: "VICTIM OF TRAFFICKING (T)" },
+      { value: "TD/TN", text: "NAFTA PROFESSIONAL (TD/TN)" },
+      { value: "U", text: "VICTIM OF CRIMINAL ACTIVITY (U)" },
+      { value: "PARCIS", text: "PAROLE BENEFICIARY (PARCIS)" },
     ],
   },
   {
@@ -363,7 +392,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 4,
-    validation_rules: { format: "DD-MMM-YYYY" },
+    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "specific_travel_plans" },
     conditional_logic: { showIf: "has_specific_plans === yes" },
   },
   {
@@ -375,6 +404,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 5,
     conditional_logic: { showIf: "has_specific_plans === yes" },
+    validation_rules: { repeatable: true, repeat_group: "specific_travel_plans" },
   },
   {
     field_name: "arrival_city",
@@ -385,6 +415,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 6,
     conditional_logic: { showIf: "has_specific_plans === yes" },
+    validation_rules: { repeatable: true, repeat_group: "specific_travel_plans" },
   },
   {
     field_name: "intended_departure_date",
@@ -394,7 +425,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 7,
-    validation_rules: { format: "DD-MMM-YYYY" },
+    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "specific_travel_plans" },
     conditional_logic: { showIf: "has_specific_plans === yes" },
   },
   {
@@ -406,6 +437,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 8,
     conditional_logic: { showIf: "has_specific_plans === yes" },
+    validation_rules: { repeatable: true, repeat_group: "specific_travel_plans" },
   },
   {
     field_name: "departure_city",
@@ -416,6 +448,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 9,
     conditional_logic: { showIf: "has_specific_plans === yes" },
+    validation_rules: { repeatable: true, repeat_group: "specific_travel_plans" },
   },
   {
     field_name: "planned_location",
@@ -515,6 +548,7 @@ const FIELDS: FieldDef[] = [
     display_order: 18,
     placeholder: "e.g., FERNANDEZ GARCIA",
     conditional_logic: { showIf: "trip_payer_type === other_person" },
+    validation_rules: { repeatable: true, repeat_group: "payer_person" },
   },
   {
     field_name: "payer_given_names",
@@ -526,6 +560,7 @@ const FIELDS: FieldDef[] = [
     display_order: 19,
     placeholder: "e.g., JUAN MIGUEL",
     conditional_logic: { showIf: "trip_payer_type === other_person" },
+    validation_rules: { repeatable: true, repeat_group: "payer_person" },
   },
   {
     field_name: "payer_phone",
@@ -536,6 +571,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 20,
     conditional_logic: { showIf: "trip_payer_type === other_person || trip_payer_type === present_employer || trip_payer_type === employer_in_us" },
+    validation_rules: { repeatable: true, repeat_group: "payer_person" },
   },
   {
     field_name: "payer_email",
@@ -546,7 +582,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 21,
     placeholder: "e.g., emailaddress@example.com",
-    validation_rules: { format: "email", has_does_not_apply: true },
+    validation_rules: { format: "email", has_does_not_apply: true, repeatable: true, repeat_group: "payer_person" },
     conditional_logic: { showIf: "trip_payer_type === other_person" },
   },
   {
@@ -558,6 +594,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 22,
     conditional_logic: { showIf: "trip_payer_type === other_person" },
+    validation_rules: { repeatable: true, repeat_group: "payer_person" },
   },
   {
     field_name: "payer_address_same_as_home",
@@ -569,6 +606,7 @@ const FIELDS: FieldDef[] = [
     display_order: 23,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "trip_payer_type === other_person" },
+    validation_rules: { repeatable: true, repeat_group: "payer_person" },
   },
   {
     field_name: "payer_address_street1",
@@ -579,6 +617,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 24,
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
+    validation_rules: { repeatable: true, repeat_group: "payer_address" },
   },
   {
     field_name: "payer_address_street2",
@@ -588,7 +627,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 25,
-    validation_rules: { optional_label: true },
+    validation_rules: { optional_label: true, repeatable: true, repeat_group: "payer_address" },
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
   },
   {
@@ -600,6 +639,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 26,
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
+    validation_rules: { repeatable: true, repeat_group: "payer_address" },
   },
   {
     field_name: "payer_address_state",
@@ -609,7 +649,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 27,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "payer_address" },
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
   },
   {
@@ -620,7 +660,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 28,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "payer_address" },
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
   },
   {
@@ -631,7 +671,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 29,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "payer_address" },
     conditional_logic: { showIf: "payer_address_same_as_home === no" },
   },
   // --- Payer: OTHER COMPANY/ORGANIZATION fields ---
@@ -644,6 +684,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 30,
     conditional_logic: { showIf: "trip_payer_type === other_company || trip_payer_type === present_employer || trip_payer_type === employer_in_us" },
+    validation_rules: { repeatable: true, repeat_group: "payer_org" },
   },
   {
     field_name: "payer_org_phone",
@@ -654,6 +695,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 31,
     conditional_logic: { showIf: "trip_payer_type === other_company" },
+    validation_rules: { repeatable: true, repeat_group: "payer_org" },
   },
   {
     field_name: "payer_org_relationship",
@@ -664,6 +706,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 32,
     conditional_logic: { showIf: "trip_payer_type === other_company || trip_payer_type === present_employer || trip_payer_type === employer_in_us" },
+    validation_rules: { repeatable: true, repeat_group: "payer_org" },
   },
   {
     field_name: "payer_org_address_street1",
@@ -674,6 +717,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 33,
     conditional_logic: { showIf: "trip_payer_type === other_company" },
+    validation_rules: { repeatable: true, repeat_group: "payer_org" },
   },
   {
     field_name: "payer_org_address_street2",
@@ -683,7 +727,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 34,
-    validation_rules: { optional_label: true },
+    validation_rules: { optional_label: true, repeatable: true, repeat_group: "payer_org" },
     conditional_logic: { showIf: "trip_payer_type === other_company" },
   },
   {
@@ -695,6 +739,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 35,
     conditional_logic: { showIf: "trip_payer_type === other_company" },
+    validation_rules: { repeatable: true, repeat_group: "payer_org" },
   },
   {
     field_name: "payer_org_address_state",
@@ -704,7 +749,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 36,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "payer_org" },
     conditional_logic: { showIf: "trip_payer_type === other_company" },
   },
   {
@@ -715,7 +760,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 37,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "payer_org" },
     conditional_logic: { showIf: "trip_payer_type === other_company" },
   },
   {
@@ -726,7 +771,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 38,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "payer_org" },
     conditional_logic: { showIf: "trip_payer_type === other_company" },
   },
 
@@ -885,7 +930,7 @@ const FIELDS: FieldDef[] = [
     step_number: 5,
     step_name: "Previous U.S. Travel",
     display_order: 8,
-    validation_rules: { format: "DD-MMM-YYYY" },
+    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "previous_visa" },
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
   },
   {
@@ -897,7 +942,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Previous U.S. Travel",
     display_order: 9,
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
-    validation_rules: { has_does_not_apply: true, does_not_apply_label: "Do Not Know" },
+    validation_rules: { has_does_not_apply: true, does_not_apply_label: "Do Not Know", repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_same_type",
@@ -909,6 +954,7 @@ const FIELDS: FieldDef[] = [
     display_order: 10,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
+    validation_rules: { repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_same_country",
@@ -920,6 +966,7 @@ const FIELDS: FieldDef[] = [
     display_order: 11,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
+    validation_rules: { repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_ten_printed",
@@ -931,6 +978,7 @@ const FIELDS: FieldDef[] = [
     display_order: 12,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
+    validation_rules: { repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_lost_stolen",
@@ -942,6 +990,7 @@ const FIELDS: FieldDef[] = [
     display_order: 13,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
+    validation_rules: { repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_lost_year",
@@ -953,6 +1002,7 @@ const FIELDS: FieldDef[] = [
     display_order: 14,
     placeholder: "Year",
     conditional_logic: { showIf: "previous_visa_lost_stolen === yes" },
+    validation_rules: { repeatable: true, repeat_group: "visa_lost_stolen" },
   },
   {
     field_name: "previous_visa_lost_explain",
@@ -963,6 +1013,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Previous U.S. Travel",
     display_order: 15,
     conditional_logic: { showIf: "previous_visa_lost_stolen === yes" },
+    validation_rules: { repeatable: true, repeat_group: "visa_lost_stolen" },
   },
   {
     field_name: "previous_visa_cancelled",
@@ -974,6 +1025,7 @@ const FIELDS: FieldDef[] = [
     display_order: 16,
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
     conditional_logic: { showIf: "has_previous_us_visa === yes" },
+    validation_rules: { repeatable: true, repeat_group: "previous_visa" },
   },
   {
     field_name: "previous_visa_cancelled_explain",
@@ -984,6 +1036,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Previous U.S. Travel",
     display_order: 17,
     conditional_logic: { showIf: "previous_visa_cancelled === yes" },
+    validation_rules: { repeatable: true, repeat_group: "visa_cancelled" },
   },
   {
     field_name: "has_been_refused",
@@ -1004,6 +1057,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Previous U.S. Travel",
     display_order: 19,
     conditional_logic: { showIf: "has_been_refused === yes" },
+    validation_rules: { repeatable: true, repeat_group: "visa_refused" },
   },
   {
     field_name: "immigrant_petition_filed",
@@ -1024,6 +1078,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Previous U.S. Travel",
     display_order: 21,
     conditional_logic: { showIf: "immigrant_petition_filed === yes" },
+    validation_rules: { repeatable: true, repeat_group: "immigrant_petition" },
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1106,6 +1161,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Address and Phone",
     display_order: 8,
     conditional_logic: { showIf: "mailing_same_as_home === no" },
+    validation_rules: { repeatable: true, repeat_group: "mailing_address" },
   },
   {
     field_name: "mailing_address_line2",
@@ -1115,7 +1171,7 @@ const FIELDS: FieldDef[] = [
     step_number: 6,
     step_name: "Address and Phone",
     display_order: 9,
-    validation_rules: { optional_label: true },
+    validation_rules: { optional_label: true, repeatable: true, repeat_group: "mailing_address" },
     conditional_logic: { showIf: "mailing_same_as_home === no" },
   },
   {
@@ -1127,6 +1183,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Address and Phone",
     display_order: 10,
     conditional_logic: { showIf: "mailing_same_as_home === no" },
+    validation_rules: { repeatable: true, repeat_group: "mailing_address" },
   },
   {
     field_name: "mailing_address_state",
@@ -1136,7 +1193,7 @@ const FIELDS: FieldDef[] = [
     step_number: 6,
     step_name: "Address and Phone",
     display_order: 11,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "mailing_address" },
     conditional_logic: { showIf: "mailing_same_as_home === no" },
   },
   {
@@ -1147,7 +1204,7 @@ const FIELDS: FieldDef[] = [
     step_number: 6,
     step_name: "Address and Phone",
     display_order: 12,
-    validation_rules: { has_does_not_apply: true },
+    validation_rules: { has_does_not_apply: true, repeatable: true, repeat_group: "mailing_address" },
     conditional_logic: { showIf: "mailing_same_as_home === no" },
   },
   {
@@ -1158,7 +1215,7 @@ const FIELDS: FieldDef[] = [
     step_number: 6,
     step_name: "Address and Phone",
     display_order: 13,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "mailing_address" },
     conditional_logic: { showIf: "mailing_same_as_home === no" },
   },
   {
@@ -1436,6 +1493,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Passport Information",
     display_order: 11,
     conditional_logic: { showIf: "lost_passport === yes" },
+    validation_rules: { repeatable: true, repeat_group: "lost_passport" },
   },
   {
     field_name: "lost_passport_country",
@@ -1445,7 +1503,7 @@ const FIELDS: FieldDef[] = [
     step_number: 7,
     step_name: "Passport Information",
     display_order: 12,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "lost_passport" },
     conditional_logic: { showIf: "lost_passport === yes" },
   },
   {
@@ -1457,6 +1515,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Passport Information",
     display_order: 13,
     conditional_logic: { showIf: "lost_passport === yes" },
+    validation_rules: { repeatable: true, repeat_group: "lost_passport" },
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1622,6 +1681,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Family Information",
     display_order: 5,
     conditional_logic: { showIf: "father_in_us === yes" },
+    validation_rules: { repeatable: true, repeat_group: "father_us" },
   },
   {
     field_name: "mother_surname",
@@ -1674,6 +1734,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Family Information",
     display_order: 10,
     conditional_logic: { showIf: "mother_in_us === yes" },
+    validation_rules: { repeatable: true, repeat_group: "mother_us" },
   },
   {
     field_name: "spouse_surname",
@@ -1685,6 +1746,7 @@ const FIELDS: FieldDef[] = [
     display_order: 11,
     placeholder: "e.g., FERNANDEZ GARCIA",
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
+    validation_rules: { repeatable: true, repeat_group: "spouse" },
   },
   {
     field_name: "spouse_given_names",
@@ -1696,6 +1758,7 @@ const FIELDS: FieldDef[] = [
     display_order: 12,
     placeholder: "e.g., JUAN MIGUEL",
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
+    validation_rules: { repeatable: true, repeat_group: "spouse" },
   },
   {
     field_name: "spouse_date_of_birth",
@@ -1705,7 +1768,7 @@ const FIELDS: FieldDef[] = [
     step_number: 9,
     step_name: "Family Information",
     display_order: 13,
-    validation_rules: { format: "DD-MMM-YYYY" },
+    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "spouse" },
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
   },
   {
@@ -1716,7 +1779,7 @@ const FIELDS: FieldDef[] = [
     step_number: 9,
     step_name: "Family Information",
     display_order: 14,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "spouse" },
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
   },
   {
@@ -1728,6 +1791,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Family Information",
     display_order: 15,
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
+    validation_rules: { repeatable: true, repeat_group: "spouse" },
   },
   {
     field_name: "spouse_country_of_birth",
@@ -1737,7 +1801,7 @@ const FIELDS: FieldDef[] = [
     step_number: 9,
     step_name: "Family Information",
     display_order: 16,
-    validation_rules: { source: "ISO3166-1" },
+    validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "spouse" },
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
   },
   {
@@ -1753,6 +1817,7 @@ const FIELDS: FieldDef[] = [
       { value: "different", text: "Different Address" },
     ],
     conditional_logic: { showIf: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === civil_union" },
+    validation_rules: { repeatable: true, repeat_group: "spouse" },
   },
   {
     field_name: "has_immediate_us_relatives",

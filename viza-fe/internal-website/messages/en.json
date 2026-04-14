@@ -235,7 +235,9 @@
     "dynamicButtons": {
       "continue": "Continue",
       "saving": "Saving...",
-      "selectFallback": "Select…"
+      "selectFallback": "Select…",
+      "addAnother": "Add another",
+      "remove": "Remove"
     }
   },
   "applicationSteps": {
