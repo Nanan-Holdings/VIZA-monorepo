@@ -9,8 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// @ts-expect-error - package ships UMD data without typed default export
-import countryRegionData from "country-region-data/dist/data-umd";
+import countryRegionData from "country-region-data/data.json";
 
 type Region = {
   name: string;
