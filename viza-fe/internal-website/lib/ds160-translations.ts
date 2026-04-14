@@ -101,6 +101,8 @@ const ZH_LABELS: Record<string, string> = {
   "Previous Visit — Length of Stay": "上次访问——停留时间",
   "Previous Visit — Immigration Status": "上次访问——移民身份",
   "Length of Stay": "停留时间",
+  "Length of Stay (Value)": "停留时间（数值）",
+  "Length of Stay (Unit)": "停留时间（单位）",
   "Do you or did you ever hold a U.S. Driver's License?": "您是否持有或曾持有美国驾照？",
   "Driver's License Number": "驾照号码",
   "Driver's License State": "驾照所在州",
@@ -510,6 +512,11 @@ const ZH_OPTIONS: Record<string, string> = {
   "Do Not Know": "不知道",
   "No Expiration": "无到期日",
   "Does Not Expire": "无到期日",
+  "YEAR(S)": "年",
+  "MONTH(S)": "月",
+  "WEEK(S)": "周",
+  "DAY(S)": "天",
+  "LESS THAN 24 HOURS": "少于24小时",
 };
 
 const TRANSLATIONS: Record<string, {

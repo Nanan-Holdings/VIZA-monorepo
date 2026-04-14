@@ -272,7 +272,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     });
 
   /** Translate and render a single field */
-  const renderField = (field: VisaFormFieldRow, valueKey: string) => {
+  const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
     const label = translateLabel(field.label, locale);
     const rawPlaceholder = field.placeholder
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
@@ -288,6 +288,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         field={{ ...field, label, placeholder, options }}
         value={values[valueKey] ?? ""}
         onChange={(v) => handleChange(valueKey, v)}
+        forceWhiteBackground={forceWhiteBackground}
       />
     );
   };
@@ -344,7 +345,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
                   </div>
                 )}
                 {visibleGroupFields.map((gf) =>
-                  renderField(gf, instanceKey(gf.fieldName, instanceIdx))
+                  renderField(gf, instanceKey(gf.fieldName, instanceIdx), true)
                 )}
               </div>
             ))}
