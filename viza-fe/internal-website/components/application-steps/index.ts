@@ -15,6 +15,9 @@ export { ReviewStep } from "./review-step";
 export { StatusStep } from "./status-step";
 export type { StatusStepProps } from "./status-step";
 
+export { TranslationPanel } from "./translation-panel";
+export type { TranslationPanelProps } from "./translation-panel";
+
 // Primitive components
 export { FileUploadCard } from "./file-upload-card";
 export type { FileUploadCardProps, DocumentType } from "./file-upload-card";

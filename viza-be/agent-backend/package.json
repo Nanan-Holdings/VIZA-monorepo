@@ -36,6 +36,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.67.0",
+		"@google-cloud/translate": "^9.3.0",
 		"@google/generative-ai": "^0.24.0",
 		"@supabase/supabase-js": "^2.74.0",
 		"@types/pdf-parse": "^1.1.5",

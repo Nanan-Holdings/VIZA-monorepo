@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -21,6 +21,11 @@ import {
   type DocumentType,
 } from "@/components/application-steps";
 import { DynamicStepForm } from "@/components/dynamic-step-form";
+import {
+  saveDynamicAnswers,
+  ensureDraftApplication,
+  loadDynamicAnswers,
+} from "@/app/actions/visa-application-answers";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -52,7 +57,7 @@ function VerticalStepSidebar({
   onStepClick: (stepId: number) => void;
 }) {
   return (
-    <aside className="w-[360px] shrink-0 pl-4 pr-0 pt-9 hidden lg:block z-10 sticky top-0 self-start" style={{ marginTop: "-400px" }}>
+    <aside className="w-[360px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="relative">
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
@@ -62,6 +67,7 @@ function VerticalStepSidebar({
         {steps.map((step, i) => {
           const status: StepStatus =
             i < completedUpTo ? "complete" : i === currentStep ? "in_progress" : "locked";
+          const isSelected = i === currentStep;
 
           return (
             <button
@@ -69,10 +75,10 @@ function VerticalStepSidebar({
               key={step.id}
               onClick={() => onStepClick(step.id)}
               className={cn(
-                "rounded-xl border bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
-                status === "in_progress"
-                  ? "border-[#03346E] border-[1.5px] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
-                  : "border-[#efefef] hover:border-gray-300",
+                "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
+                isSelected
+                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "hover:border-gray-300",
               )}
             >
               {/* Circle */}
@@ -85,7 +91,7 @@ function VerticalStepSidebar({
                 )}
               >
                 {status === "complete" ? (
-                  <CheckCircle2 className="h-4 w-4" />
+                  <Check className="h-4 w-4" strokeWidth={3} />
                 ) : (
                   i + 1
                 )}
@@ -151,7 +157,7 @@ function MobileStepBar({
                 )}
               >
                 {status === "complete" ? (
-                  <CheckCircle2 className="h-3 w-3" />
+                  <Check className="h-3 w-3" strokeWidth={3} />
                 ) : (
                   i + 1
                 )}
@@ -208,6 +214,7 @@ export default function ApplicationPage() {
   // Falls back to hardcoded STEPS if DB returns empty
   const [dbSteps, setDbSteps] = useState<WizardStep[]>([]);
   const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
+  const [packageLoaded, setPackageLoaded] = useState(false);
 
   useEffect(() => {
     getUserVisaPackage().then((pkg) => {
@@ -218,6 +225,8 @@ export default function ApplicationPage() {
       if (steps.length > 0) setDbSteps(steps);
     }).catch(() => {
       // Silent fallback to hardcoded steps
+    }).finally(() => {
+      setPackageLoaded(true);
     });
   }, []);
 
@@ -233,6 +242,7 @@ export default function ApplicationPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [translationStatus, setTranslationStatus] = useState<"ok" | "failed" | "pending" | null>(null);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
 
@@ -243,7 +253,11 @@ export default function ApplicationPage() {
   const effectiveSteps: StepDef[] = useDynamic
     ? dbSteps.map((s, i) => ({
         id: i,
-        name: tDyn.has(s.stepName) ? tDyn(s.stepName as never) : s.stepName,
+        name: (() => {
+          // next-intl treats "." as nesting separator, so strip dots for lookup
+          const safeKey = s.stepName.replace(/\./g, "");
+          return tDyn.has(safeKey) ? tDyn(safeKey as never) : s.stepName;
+        })(),
         description: tApp("dynamicStepDescription", { count: s.fields.length }),
       }))
     : STEPS;
@@ -308,6 +322,14 @@ export default function ApplicationPage() {
       const completed = hasPersonal ? (hasPassport ? (hasTravel ? (hasDocuments ? (isSubmitted ? 6 : 4) : 3) : 2) : 1) : 0;
       setCompletedUpTo(completed);
       setCurrentStep(Math.min(completed, 5));
+
+      // Load saved dynamic form answers
+      if (application?.id) {
+        const { answers } = await loadDynamicAnswers(application.id);
+        if (Object.keys(answers).length > 0) {
+          setDynamicAnswers(answers);
+        }
+      }
     }
 
     setLoading(false);
@@ -463,53 +485,21 @@ export default function ApplicationPage() {
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("errors.notAuthenticated"));
-
-      // Ensure we have a profile
-      const { data: profile } = await supabase
-        .from("applicant_profiles")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      if (!profile) throw new Error(t("errors.profileNotFound"));
-
-      // Create application if it doesn't exist yet (on first step completion)
+      // Ensure we have a draft application (server-side, bypasses RLS)
       let applicationId = appState.applicationId;
       if (!applicationId) {
-        const { data: newApp, error: appError } = await supabase
-          .from("applications")
-          .insert({
-            applicant_id: profile.id,
-            status: "draft",
-            country: visaPackage?.country ?? "united_states",
-            visa_type: visaPackage?.visa_type ?? "DS160",
-          })
-          .select("id")
-          .single();
-        if (appError) throw appError;
-        applicationId = newApp.id;
+        const result = await ensureDraftApplication(
+          visaPackage?.country ?? "united_states",
+          visaPackage?.visa_type ?? "DS160"
+        );
+        if (result.error) throw new Error(result.error);
+        applicationId = result.applicationId!;
         setAppState((prev) => ({ ...prev, applicationId }));
       }
 
-      // Save answers to visa_application_answers
-      const upserts = Object.entries(data)
-        .filter(([, v]) => v.trim() !== "")
-        .map(([fieldName, value]) => ({
-          application_id: applicationId!,
-          field_name: fieldName,
-          value_text: value,
-          updated_at: new Date().toISOString(),
-        }));
-
-      if (upserts.length > 0) {
-        const { error: upsertError } = await supabase
-          .from("visa_application_answers")
-          .upsert(upserts, { onConflict: "application_id,field_name" });
-        if (upsertError) throw upsertError;
-      }
+      // Save answers via server action (bypasses RLS)
+      const saveResult = await saveDynamicAnswers(applicationId, data);
+      if (saveResult.error) throw new Error(saveResult.error);
 
       // Update local state
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
@@ -547,6 +537,20 @@ export default function ApplicationPage() {
         submitted_at: new Date().toISOString(),
       }).eq("id", appState.applicationId);
 
+      // Trigger translation (non-blocking — don't prevent submission on failure)
+      let txStatus: "ok" | "failed" = "ok";
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
+        const txRes = await fetch(
+          `${backendUrl}/api/applications/${appState.applicationId}/translate`,
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+        if (!txRes.ok) txStatus = "failed";
+      } catch {
+        txStatus = "failed";
+      }
+      setTranslationStatus(txStatus);
+
       setAppState((prev) => ({
         ...prev,
         submittedAt: new Date().toISOString(),
@@ -561,7 +565,7 @@ export default function ApplicationPage() {
     }
   };
 
-  if (loading) {
+  if (loading || !packageLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
@@ -570,13 +574,13 @@ export default function ApplicationPage() {
   }
 
   return (
-    <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto pt-3" style={{ marginLeft: "-20px" }}>
+    <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
       {/* Left sidebar - desktop only */}
       <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
 
       {/* Main content area */}
-      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 lg:p-8" style={{ marginTop: "-20px", marginLeft: "-60px" }}>
-        <div className="max-w-3xl mx-auto">
+      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px] lg:overflow-y-auto">
+        <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
           {/* Mobile step indicator */}
           <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
 
@@ -614,7 +618,7 @@ export default function ApplicationPage() {
                     {step.name}
                   </h2>
                   {/* Panel card */}
-                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6">
+                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
                     {useDynamic ? (
                       /* Dynamic DB-driven form */
                       <DynamicStepForm
@@ -666,9 +670,16 @@ export default function ApplicationPage() {
                         )}
                         {step.id === 5 && appState.confirmationNumber && appState.submittedAt && (
                           <StatusStep
+                            applicationId={appState.applicationId ?? undefined}
                             confirmationNumber={appState.confirmationNumber}
                             submittedAt={appState.submittedAt}
                             estimatedProcessingDays={5}
+                            translationStatus={translationStatus ?? undefined}
+                            originalData={{
+                              personal: appState.personal,
+                              passport: appState.passport,
+                              travel: appState.travel,
+                            }}
                           />
                         )}
                       </>

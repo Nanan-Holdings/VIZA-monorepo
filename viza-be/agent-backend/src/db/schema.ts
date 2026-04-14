@@ -485,3 +485,26 @@ export const userChatSessions = pgTable("user_chat_sessions", {
 export type UserChatSession = typeof userChatSessions.$inferSelect;
 export type NewUserChatSession = typeof userChatSessions.$inferInsert;
 
+// =============================================================================
+// APPLICATION TRANSLATIONS
+// Stores Chinese→English translations of user-submitted application fields
+// translated_by: google | user
+// =============================================================================
+
+export const applicationTranslations = pgTable("application_translations", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	fieldKey: text("field_key").notNull(),
+	sourceText: text("source_text").notNull(),
+	translatedText: text("translated_text").notNull(),
+	sourceLang: text("source_lang").notNull().default("zh"),
+	targetLang: text("target_lang").notNull().default("en"),
+	translatedBy: text("translated_by").notNull().default("google"),
+	userEdited: boolean("user_edited").notNull().default(false),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ApplicationTranslation = typeof applicationTranslations.$inferSelect;
+export type NewApplicationTranslation = typeof applicationTranslations.$inferInsert;
+

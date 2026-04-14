@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, CheckCircle2, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
+import { SectionRow, Section } from "./review-shared";
 
 interface ReviewStepProps {
   applicationId: string;
@@ -18,42 +19,6 @@ interface ReviewStepProps {
   };
   onEdit?: (section: "personal" | "passport" | "travel" | "documents") => void;
   onComplete: (result: { confirmed: true }) => void;
-}
-
-function SectionRow({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
-  return (
-    <div className="flex justify-between gap-4 py-1.5 border-b border-border/50 last:border-0">
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      <span className="text-sm font-medium text-right">{value}</span>
-    </div>
-  );
-}
-
-function Section({
-  title,
-  children,
-  onEdit,
-  editLabel,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onEdit?: () => void;
-  editLabel?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading font-semibold text-sm text-brand-500">{title}</h3>
-        {onEdit && (
-          <Button type="button" variant="ghost" size="sm" onClick={onEdit} className="h-7 px-2 text-xs">
-            <Pencil className="h-3 w-3 mr-1" /> {editLabel}
-          </Button>
-        )}
-      </div>
-      <div>{children}</div>
-    </div>
-  );
 }
 
 
