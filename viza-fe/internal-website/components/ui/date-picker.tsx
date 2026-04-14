@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { format } from "date-fns"
+import { zhCN, enUS } from "date-fns/locale"
+import { useLocale } from "next-intl"
 import { CalendarDays } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,6 +30,8 @@ export function DatePicker({
   className,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
+  const locale = useLocale()
+  const dateFnsLocale = locale === "zh" ? zhCN : enUS
 
   // Parse YYYY-MM-DD string to Date in local time (avoid timezone offset)
   const date = value ? new Date(value + "T00:00:00") : undefined
@@ -45,19 +49,24 @@ export function DatePicker({
           )}
         >
           <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          {date ? format(date, "PPP") : <span>{placeholder}</span>}
+          {date ? format(date, "PPP", { locale: dateFnsLocale }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
           selected={date}
+          defaultMonth={date}
           onSelect={(d) => {
             if (d) {
               onChange(format(d, "yyyy-MM-dd"))
               setOpen(false)
             }
           }}
+          locale={dateFnsLocale}
+          captionLayout="dropdown"
+          startMonth={new Date(1920, 0)}
+          endMonth={new Date(2036, 11)}
         />
       </PopoverContent>
     </Popover>
