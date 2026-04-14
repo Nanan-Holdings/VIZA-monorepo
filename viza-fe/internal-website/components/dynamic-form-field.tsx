@@ -23,6 +23,7 @@ interface DynamicFormFieldProps {
   field: VisaFormFieldRow;
   value: string;
   onChange: (value: string) => void;
+  forceWhiteBackground?: boolean;
 }
 
 function FieldWrapper({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
@@ -49,9 +50,15 @@ function normaliseOptions(opts: VisaFormFieldRow["options"]): Array<{ value: str
   });
 }
 
-export function DynamicFormField({ field, value, onChange }: DynamicFormFieldProps) {
+export function DynamicFormField({
+  field,
+  value,
+  onChange,
+  forceWhiteBackground = false,
+}: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const { label, fieldType, required, placeholder, options } = field;
+  const whiteControlClass = forceWhiteBackground ? "bg-white hover:bg-white" : "";
 
   switch (fieldType) {
     case "date":
@@ -61,6 +68,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
             value={value}
             onChange={onChange}
             placeholder={placeholder ?? undefined}
+            className={whiteControlClass}
           />
         </FieldWrapper>
       );
@@ -75,6 +83,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
               placeholder={placeholder ?? t("select")}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
+              className={whiteControlClass}
             />
           </FieldWrapper>
         );
@@ -83,7 +92,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
       return (
         <FieldWrapper label={label} required={required}>
           <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground">
+            <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}>
               <SelectValue placeholder={placeholder ?? t("select")} />
             </SelectTrigger>
             <SelectContent>
@@ -105,7 +114,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder ?? undefined}
-            className="rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
+            className={`rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] ${whiteControlClass}`}
           />
         </FieldWrapper>
       );
@@ -128,7 +137,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
     case "file":
       return (
         <FieldWrapper label={label} required={required}>
-          <div className="h-12 rounded-lg border border-dashed border-[#e8e8e8] flex items-center justify-center text-[14px] text-gray-400 bg-gray-50">
+          <div className={`h-12 rounded-lg border border-dashed border-[#e8e8e8] flex items-center justify-center text-[14px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
             {t("upload")}: {label}
           </div>
         </FieldWrapper>
@@ -141,6 +150,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
             placeholder={placeholder ?? t("dynamicField.selectCountry")}
             defaultValue={value}
             onChange={(country) => onChange(country.name)}
+            className={whiteControlClass}
           />
         </FieldWrapper>
       );
@@ -171,7 +181,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
     default: // text, number, email, tel, etc.
       return (
         <FieldWrapper label={label} required={required}>
-          <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
+          <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""}`}>
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
               placeholder={placeholder ?? undefined}
