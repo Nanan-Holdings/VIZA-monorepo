@@ -44,7 +44,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       {step.fields.map((field) => {
         const label = translateLabel(field.label, locale);
         const rawPlaceholder = field.placeholder
-          ?? (field.fieldType === "select" ? "Select…" : null);
+          ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
         const placeholder = translatePlaceholder(rawPlaceholder, locale);
         const options = field.options?.map((opt) => {
           if (typeof opt === "string") {

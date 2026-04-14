@@ -232,21 +232,29 @@
       "noApplicationFound": "未找到申请"
     },
     "dynamicSteps": {
+      "Personal Information": "个人信息",
       "Personal Information 1": "个人信息 1",
       "Personal Information 2": "个人信息 2",
+      "Personal Information II": "个人信息 II",
       "Travel Information": "旅行信息",
       "Travel Companions": "同行人员",
       "Previous U.S. Travel": "以往赴美记录",
+      "Previous US Travel": "以往赴美记录",
       "Address and Phone": "地址和电话信息",
+      "Address and Phone Information": "地址和电话信息",
       "Passport Information": "护照信息",
       "U.S. Contact Information": "美国联系人信息",
+      "US Point of Contact": "美国联系人",
       "Family Information": "家庭信息",
       "Work/Education/Training": "工作/教育/培训",
+      "Work and Education": "工作与教育",
       "Security and Background": "安全与背景"
     },
+    "dynamicStepDescription": "{count, plural, one {# 个字段} other {# 个字段}}",
     "dynamicButtons": {
       "continue": "继续",
-      "saving": "保存中..."
+      "saving": "保存中...",
+      "selectFallback": "请选择…"
     }
   },
   "applicationSteps": {
@@ -320,6 +328,9 @@
         "bank_statement": "银行对账单（最近3个月）"
       }
     },
+    "dynamicField": {
+      "selectCountry": "选择国家"
+    },
     "review": {
       "title": "审核您的申请",
       "personalInformation": "个人信息",
@@ -343,7 +354,17 @@
       "purpose": "目的",
       "accommodation": "住宿",
       "reviewMessage": "提交前请仔细检查您的信息。",
-      "confirmAndSubmit": "确认并提交"
+      "confirmAndSubmit": "确认并提交",
+      "validation": {
+        "failed": "验证失败",
+        "hasErrors": "申请存在错误——请在提交前修正",
+        "hasWarnings": "警告——请在提交前检查",
+        "allGood": "申请已验证——可以提交",
+        "errorFallback": "⚠️ {error}——您仍可在下方提交。",
+        "validating": "验证中…",
+        "validateButton": "验证申请",
+        "submitWithWarnings": "提交（包含警告）"
+      }
     },
     "status": {
       "title": "申请已提交",

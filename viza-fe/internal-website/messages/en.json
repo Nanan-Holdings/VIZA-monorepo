@@ -214,21 +214,29 @@
       "noApplicationFound": "No application found"
     },
     "dynamicSteps": {
+      "Personal Information": "Personal Information",
       "Personal Information 1": "Personal Information 1",
       "Personal Information 2": "Personal Information 2",
+      "Personal Information II": "Personal Information II",
       "Travel Information": "Travel Information",
       "Travel Companions": "Travel Companions",
       "Previous U.S. Travel": "Previous U.S. Travel",
+      "Previous US Travel": "Previous US Travel",
       "Address and Phone": "Address and Phone",
+      "Address and Phone Information": "Address and Phone Information",
       "Passport Information": "Passport Information",
       "U.S. Contact Information": "U.S. Contact Information",
+      "US Point of Contact": "US Point of Contact",
       "Family Information": "Family Information",
       "Work/Education/Training": "Work/Education/Training",
+      "Work and Education": "Work and Education",
       "Security and Background": "Security and Background"
     },
+    "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
     "dynamicButtons": {
       "continue": "Continue",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "selectFallback": "Select…"
     }
   },
   "applicationSteps": {
@@ -302,6 +310,9 @@
         "bank_statement": "Bank statement (last 3 months)"
       }
     },
+    "dynamicField": {
+      "selectCountry": "Select a country"
+    },
     "review": {
       "title": "Review Your Application",
       "personalInformation": "Personal Information",
@@ -325,7 +336,17 @@
       "purpose": "Purpose",
       "accommodation": "Accommodation",
       "reviewMessage": "Please review your details carefully before submitting.",
-      "confirmAndSubmit": "Confirm & Submit"
+      "confirmAndSubmit": "Confirm & Submit",
+      "validation": {
+        "failed": "Validation failed",
+        "hasErrors": "Application has errors — please fix before submitting",
+        "hasWarnings": "Warnings — review before submitting",
+        "allGood": "Application validated — ready to submit",
+        "errorFallback": "⚠️ {error} — you can still submit below.",
+        "validating": "Validating…",
+        "validateButton": "Validate Application",
+        "submitWithWarnings": "Submit (with warnings)"
+      }
     },
     "status": {
       "title": "Application Submitted",
