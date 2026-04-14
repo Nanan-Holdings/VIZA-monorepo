@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { assignUserPackage } from "@/app/actions/user-package";
 
 interface VisaPackage {
   id: string;
@@ -26,16 +27,10 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
     setIsSubmitting(true);
 
     try {
-      const agentBackendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
-      const res = await fetch(`${agentBackendUrl}/api/user/package`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, visaPackageId: selectedPackageId }),
-      });
+      const result = await assignUserPackage(userId, selectedPackageId);
 
-      if (!res.ok) {
-        const body = await res.json();
-        alert(`Failed to assign package: ${body.message}`);
+      if (!result.success) {
+        alert(`Failed to assign package: ${result.error}`);
         return;
       }
 

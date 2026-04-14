@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 export interface UserVisaPackage {
   id: string;
@@ -8,6 +10,54 @@ export interface UserVisaPackage {
   visa_type: string;
   name: string;
   description: string | null;
+}
+
+/**
+ * Assign a visa package to a user (admin only).
+ * Cancels any existing active package before assigning the new one.
+ */
+export async function assignUserPackage(
+  userId: string,
+  visaPackageId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!userId || !visaPackageId) {
+      return { success: false, error: "userId and visaPackageId are required" };
+    }
+
+    const adminClient = createAdminClient();
+
+    // Cancel any existing active package for this user
+    await adminClient
+      .from("user_packages")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("auth_user_id", userId)
+      .eq("status", "active");
+
+    // Assign new package
+    const { error } = await adminClient
+      .from("user_packages")
+      .insert({
+        auth_user_id: userId,
+        visa_package_id: visaPackageId,
+        status: "active",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error("[assignUserPackage] Error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "An error occurred",
+    };
+  }
 }
 
 /**

@@ -16,6 +16,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
+import { useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 interface DynamicFormFieldProps {
@@ -49,6 +50,7 @@ function normaliseOptions(opts: VisaFormFieldRow["options"]): Array<{ value: str
 }
 
 export function DynamicFormField({ field, value, onChange }: DynamicFormFieldProps) {
+  const t = useTranslations("applicationSteps");
   const { label, fieldType, required, placeholder, options } = field;
 
   switch (fieldType) {
@@ -69,7 +71,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
         <FieldWrapper label={label} required={required}>
           <Select value={value} onValueChange={onChange}>
             <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground">
-              <SelectValue placeholder={placeholder ?? "Select…"} />
+              <SelectValue placeholder={placeholder ?? t("select")} />
             </SelectTrigger>
             <SelectContent>
               {opts.map((opt) => (
@@ -114,7 +116,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
       return (
         <FieldWrapper label={label} required={required}>
           <div className="h-12 rounded-lg border border-dashed border-[#e8e8e8] flex items-center justify-center text-[14px] text-gray-400 bg-gray-50">
-            Upload: {label}
+            {t("upload")}: {label}
           </div>
         </FieldWrapper>
       );
@@ -123,7 +125,7 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
       return (
         <FieldWrapper label={label} required={required}>
           <CountryDropdown
-            placeholder={placeholder ?? "Select a country"}
+            placeholder={placeholder ?? t("dynamicField.selectCountry")}
             defaultValue={value}
             onChange={(country) => onChange(country.name)}
           />

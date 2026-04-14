@@ -70,6 +70,7 @@ interface ValidationResult {
 }
 
 function ValidationPanel({ applicationId, onProceed }: { applicationId: string; onProceed: () => void }) {
+  const t = useTranslations("applicationSteps");
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,7 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
       setResult(data);
       setState("done");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Validation failed";
+      const msg = err instanceof Error ? err.message : t("review.validation.failed");
       setError(msg);
       setState("idle");
     }
@@ -105,7 +106,7 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
         <div className="rounded-lg border border-red-200 bg-red-50 p-3">
           <div className="flex items-center gap-2 mb-2 text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">Application has errors — please fix before submitting</p>
+            <p className="text-sm font-semibold">{t("review.validation.hasErrors")}</p>
           </div>
           <ul className="flex flex-col gap-1">
             {result!.errors.map((e, i) => (
@@ -120,7 +121,7 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <div className="flex items-center gap-2 mb-2 text-amber-700">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">Warnings — review before submitting</p>
+            <p className="text-sm font-semibold">{t("review.validation.hasWarnings")}</p>
           </div>
           <ul className="flex flex-col gap-1">
             {result!.warnings.map((w, i) => (
@@ -134,13 +135,13 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
       {state === "done" && !hasErrors && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <p className="text-sm">Application validated — ready to submit</p>
+          <p className="text-sm">{t("review.validation.allGood")}</p>
         </div>
       )}
 
       {/* Validation error */}
       {error && (
-        <p className="text-xs text-red-500">⚠️ {error} — you can still submit below.</p>
+        <p className="text-xs text-red-500">{t("review.validation.errorFallback", { error })}</p>
       )}
 
       {/* Actions */}
@@ -154,8 +155,8 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
             disabled={state === "loading"}
           >
             {state === "loading" ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Validating…</>
-            ) : "Validate Application"}
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("review.validation.validating")}</>
+            ) : t("review.validation.validateButton")}
           </Button>
         )}
 
@@ -164,7 +165,7 @@ function ValidationPanel({ applicationId, onProceed }: { applicationId: string; 
           disabled={state === "done" && hasErrors}
           onClick={onProceed}
         >
-          {state === "done" && hasWarnings && !hasErrors ? "Submit (with warnings)" : "Confirm & Submit"}
+          {state === "done" && hasWarnings && !hasErrors ? t("review.validation.submitWithWarnings") : t("review.confirmAndSubmit")}
         </Button>
       </div>
     </div>

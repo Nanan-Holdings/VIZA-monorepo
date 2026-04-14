@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,9 @@ export function StatusStep({
   onComplete,
 }: StatusStepProps) {
   const t = useTranslations("applicationSteps");
+  const locale = useLocale();
 
-  const submittedDate = new Date(submittedAt).toLocaleDateString("en-AU", {
+  const submittedDate = new Date(submittedAt).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-AU", {
     year: "numeric",
     month: "long",
     day: "numeric",

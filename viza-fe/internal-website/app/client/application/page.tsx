@@ -239,11 +239,12 @@ export default function ApplicationPage() {
   // Use DB-driven steps when available, otherwise fall back to hardcoded
   const useDynamic = dbSteps.length > 0;
   const tDyn = useTranslations("application.dynamicSteps");
+  const tApp = useTranslations("application");
   const effectiveSteps: StepDef[] = useDynamic
     ? dbSteps.map((s, i) => ({
         id: i,
         name: tDyn.has(s.stepName) ? tDyn(s.stepName as never) : s.stepName,
-        description: `${s.fields.length} ${s.fields.length === 1 ? "field" : "fields"}`,
+        description: tApp("dynamicStepDescription", { count: s.fields.length }),
       }))
     : STEPS;
 
