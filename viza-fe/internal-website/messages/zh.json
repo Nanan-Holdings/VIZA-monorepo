@@ -238,12 +238,11 @@
       "Personal Information II": "个人信息 II",
       "Travel Information": "旅行信息",
       "Travel Companions": "同行人员",
-      "Previous U.S. Travel": "以往赴美记录",
       "Previous US Travel": "以往赴美记录",
       "Address and Phone": "地址和电话信息",
       "Address and Phone Information": "地址和电话信息",
       "Passport Information": "护照信息",
-      "U.S. Contact Information": "美国联系人信息",
+      "US Contact Information": "美国联系人信息",
       "US Point of Contact": "美国联系人",
       "Family Information": "家庭信息",
       "Work/Education/Training": "工作/教育/培训",
@@ -353,6 +352,7 @@
       "portOfEntry": "入境口岸",
       "purpose": "目的",
       "accommodation": "住宿",
+      "accommodationAddress": "住宿地址",
       "reviewMessage": "提交前请仔细检查您的信息。",
       "confirmAndSubmit": "确认并提交",
       "validation": {
@@ -365,6 +365,21 @@
         "validateButton": "验证申请",
         "submitWithWarnings": "提交（包含警告）"
       }
+    },
+    "translation": {
+      "tabOriginal": "中文（原文）",
+      "tabEnglish": "英文翻译",
+      "aiTranslated": "自动翻译",
+      "userEdited": "已编辑",
+      "translating": "正在翻译您的申请...",
+      "translationFailed": "自动翻译未能完成。",
+      "retryTranslation": "重试",
+      "editTranslation": "编辑",
+      "saveTranslation": "保存",
+      "sectionPersonal": "个人信息",
+      "sectionPassport": "护照信息",
+      "sectionTravel": "旅行信息",
+      "sectionDynamic": "申请问题"
     },
     "status": {
       "title": "申请已提交",

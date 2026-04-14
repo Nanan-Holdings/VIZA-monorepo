@@ -66,6 +66,19 @@ export function DynamicFormField({ field, value, onChange }: DynamicFormFieldPro
       );
 
     case "select": {
+      // Country fields use source: "ISO3166-1" — render CountryDropdown
+      const isCountry = (field.validationRules as { source?: string } | null)?.source === "ISO3166-1";
+      if (isCountry) {
+        return (
+          <FieldWrapper label={label} required={required}>
+            <CountryDropdown
+              placeholder={placeholder ?? t("select")}
+              defaultValue={value}
+              onChange={(country) => onChange(country.name)}
+            />
+          </FieldWrapper>
+        );
+      }
       const opts = normaliseOptions(options);
       return (
         <FieldWrapper label={label} required={required}>

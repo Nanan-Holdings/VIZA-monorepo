@@ -108,10 +108,10 @@ const CountryDropdownComponent = (
             </span>
           </div>
         ) : (
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <Globe className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Globe className="h-4 w-4 shrink-0" />
             {placeholder}
-          </span>
+          </div>
         )}
         <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>

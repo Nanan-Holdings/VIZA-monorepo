@@ -4,6 +4,10 @@ import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TranslationPanel } from "./translation-panel";
+import type { PersonalInfoData } from "./personal-info-step";
+import type { PassportData } from "./passport-step";
+import type { TravelInfoData } from "./travel-info-step";
 
 export interface StatusStepProps {
   applicationId?: string;
@@ -11,14 +15,23 @@ export interface StatusStepProps {
   submittedAt: string;
   estimatedProcessingDays: number;
   receiptUrl?: string;
+  translationStatus?: "ok" | "failed" | "pending";
+  originalData?: {
+    personal?: Partial<PersonalInfoData>;
+    passport?: Partial<PassportData>;
+    travel?: Partial<TravelInfoData>;
+  };
   onComplete?: (result: { acknowledged: true }) => void;
 }
 
 export function StatusStep({
+  applicationId,
   confirmationNumber,
   submittedAt,
   estimatedProcessingDays,
   receiptUrl,
+  translationStatus,
+  originalData,
   onComplete,
 }: StatusStepProps) {
   const t = useTranslations("applicationSteps");
@@ -67,6 +80,14 @@ export function StatusStep({
               {t("status.viewReceipt")}
             </Button>
           </a>
+        )}
+
+        {applicationId && translationStatus && (
+          <TranslationPanel
+            applicationId={applicationId}
+            originalData={originalData}
+            translationStatus={translationStatus}
+          />
         )}
 
         {onComplete && (

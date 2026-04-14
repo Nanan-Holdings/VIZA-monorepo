@@ -8,6 +8,7 @@ import userPackagesRouter from './routes/user-packages.routes.js';
 import applicationAnswersRouter from './routes/application-answers.routes.js';
 import profilePrefillRouter from './routes/profile-prefill.routes.js';
 import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
+import translationRouter from './routes/translation.routes.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -42,6 +43,9 @@ app.use('/api/applications', applicationAnswersRouter);
 
 // Profile prefill routes
 app.use('/api/profile/prefill', profilePrefillRouter);
+
+// Application translation routes
+app.use('/api/applications', translationRouter);
 
 // Error Handler Middleware
 app.use(errorHandler);

@@ -220,12 +220,11 @@
       "Personal Information II": "Personal Information II",
       "Travel Information": "Travel Information",
       "Travel Companions": "Travel Companions",
-      "Previous U.S. Travel": "Previous U.S. Travel",
-      "Previous US Travel": "Previous US Travel",
+      "Previous US Travel": "Previous U.S. Travel",
       "Address and Phone": "Address and Phone",
       "Address and Phone Information": "Address and Phone Information",
       "Passport Information": "Passport Information",
-      "U.S. Contact Information": "U.S. Contact Information",
+      "US Contact Information": "U.S. Contact Information",
       "US Point of Contact": "US Point of Contact",
       "Family Information": "Family Information",
       "Work/Education/Training": "Work/Education/Training",
@@ -335,6 +334,7 @@
       "portOfEntry": "Port of entry",
       "purpose": "Purpose",
       "accommodation": "Accommodation",
+      "accommodationAddress": "Accommodation address",
       "reviewMessage": "Please review your details carefully before submitting.",
       "confirmAndSubmit": "Confirm & Submit",
       "validation": {
@@ -347,6 +347,21 @@
         "validateButton": "Validate Application",
         "submitWithWarnings": "Submit (with warnings)"
       }
+    },
+    "translation": {
+      "tabOriginal": "中文 (Original)",
+      "tabEnglish": "English Translation",
+      "aiTranslated": "Auto Translated",
+      "userEdited": "Edited",
+      "translating": "Translating your application...",
+      "translationFailed": "Translation could not be completed automatically.",
+      "retryTranslation": "Retry",
+      "editTranslation": "Edit",
+      "saveTranslation": "Save",
+      "sectionPersonal": "Personal Information",
+      "sectionPassport": "Passport Details",
+      "sectionTravel": "Travel Information",
+      "sectionDynamic": "Application Questions"
     },
     "status": {
       "title": "Application Submitted",
