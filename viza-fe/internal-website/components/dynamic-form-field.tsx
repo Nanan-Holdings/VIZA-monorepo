@@ -16,6 +16,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
+import { RegionSelect } from "@/components/ui/region-select";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
@@ -50,6 +57,79 @@ function normaliseOptions(opts: VisaFormFieldRow["options"]): Array<{ value: str
   });
 }
 
+function parseSsnSegments(raw: string): [string, string, string] {
+  const digits = raw.replace(/\D/g, "").slice(0, 9);
+  return [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5, 9)];
+}
+
+function formatSsnSegments(part1: string, part2: string, part3: string): string {
+  if (!part1 && !part2 && !part3) return "";
+  if (!part2 && !part3) return part1;
+  if (!part3) return `${part1}-${part2}`;
+  return `${part1}-${part2}-${part3}`;
+}
+
+function isSsnField(field: VisaFormFieldRow): boolean {
+  const fieldName = field.fieldName.toLowerCase();
+  const label = field.label.toLowerCase();
+  return (
+    fieldName === "us_social_security_number"
+    || label.includes("social security number")
+    || label.includes("社会安全号码")
+  );
+}
+
+function SsnSegmentedInput({
+  value,
+  onChange,
+  required,
+  whiteControlClass,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  required: boolean;
+  whiteControlClass: string;
+}) {
+  const [part1, part2, part3] = parseSsnSegments(value);
+  const digits = `${part1}${part2}${part3}`;
+
+  return (
+    <InputOTP
+      maxLength={9}
+      value={digits}
+      onChange={(nextDigits) => {
+        const clean = nextDigits.replace(/\D/g, "").slice(0, 9);
+        const [a, b, c] = parseSsnSegments(clean);
+        onChange(formatSsnSegments(a, b, c));
+      }}
+      pattern="[0-9]*"
+      inputMode="numeric"
+      containerClassName={`h-12 rounded-lg border border-[#e8e8e8] px-3 focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${whiteControlClass}`}
+      className="w-full"
+      required={required}
+      aria-label="U.S. Social Security Number"
+    >
+      <InputOTPGroup>
+        <InputOTPSlot index={0} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={1} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={2} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+      </InputOTPGroup>
+      <InputOTPSeparator className="mx-0 text-gray-500" />
+      <InputOTPGroup>
+        <InputOTPSlot index={3} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={4} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+      </InputOTPGroup>
+      <InputOTPSeparator className="mx-0 text-gray-500" />
+      <InputOTPGroup>
+        <InputOTPSlot index={5} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={6} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={7} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={8} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+      </InputOTPGroup>
+    </InputOTP>
+  );
+}
+
 export function DynamicFormField({
   field,
   value,
@@ -75,7 +155,9 @@ export function DynamicFormField({
 
     case "select": {
       // Country fields use source: "ISO3166-1" — render CountryDropdown
-      const isCountry = (field.validationRules as { source?: string } | null)?.source === "ISO3166-1";
+      const source = (field.validationRules as { source?: string } | null)?.source;
+      const isCountry = source === "ISO3166-1";
+      const isUsState = source === "US_STATES";
       if (isCountry) {
         return (
           <FieldWrapper label={label} required={required}>
@@ -84,6 +166,19 @@ export function DynamicFormField({
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
               className={whiteControlClass}
+            />
+          </FieldWrapper>
+        );
+      }
+      if (isUsState) {
+        return (
+          <FieldWrapper label={label} required={required}>
+            <RegionSelect
+              countryCode="US"
+              placeholder={placeholder ?? t("select")}
+              defaultValue={value}
+              onChange={(region) => onChange(region.shortCode)}
+              className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}
             />
           </FieldWrapper>
         );
@@ -179,6 +274,19 @@ export function DynamicFormField({
     }
 
     default: // text, number, email, tel, etc.
+      if (isSsnField(field)) {
+        return (
+          <FieldWrapper label={label} required={required}>
+            <SsnSegmentedInput
+              value={value}
+              onChange={onChange}
+              required={required}
+              whiteControlClass={forceWhiteBackground ? "bg-white" : ""}
+            />
+          </FieldWrapper>
+        );
+      }
+
       return (
         <FieldWrapper label={label} required={required}>
           <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""}`}>

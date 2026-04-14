@@ -106,10 +106,20 @@ interface DynamicStepFormProps {
   saving?: boolean;
 }
 
+const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
+  specific_travel_plans: 1,
+};
+
 /** Helper: get the repeat_group name from a field's validationRules */
 function getRepeatGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { repeatable?: boolean; repeat_group?: string } | null;
   return rules?.repeatable && rules.repeat_group ? rules.repeat_group : null;
+}
+
+function getRepeatGroupMax(field: VisaFormFieldRow): number | null {
+  const rules = field.validationRules as { repeatable?: boolean; repeat_group?: string; max_items?: number } | null;
+  if (!rules?.repeatable || !rules.repeat_group) return null;
+  return typeof rules.max_items === "number" && rules.max_items > 0 ? rules.max_items : null;
 }
 
 /** Suffix for repeated instance keys: fieldName__2, fieldName__3, etc. (instance 0 = base) */
@@ -181,6 +191,22 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     return map;
   }, [step.fields]);
 
+  const repeatGroupMax = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const field of step.fields) {
+      const group = getRepeatGroup(field);
+      if (!group) continue;
+
+      const fieldMax = getRepeatGroupMax(field);
+      if (fieldMax !== null) {
+        map[group] = map[group] ? Math.min(map[group], fieldMax) : fieldMax;
+      } else if (!map[group] && REPEAT_GROUP_MAX_OVERRIDES[group]) {
+        map[group] = REPEAT_GROUP_MAX_OVERRIDES[group];
+      }
+    }
+    return map;
+  }, [step.fields]);
+
   // Find all fields whose visibility depends on a given parent field.
   const getDependentFields = useCallback(
     (parentFieldName: string): string[] => {
@@ -218,7 +244,11 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   };
 
   const addGroupInstance = (group: string) => {
-    const count = (groupCounts[group] ?? 1) + 1;
+    const currentCount = groupCounts[group] ?? 1;
+    const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
+    if (currentCount >= max) return;
+
+    const count = currentCount + 1;
     setGroupCounts((prev) => ({ ...prev, [group]: count }));
     // Initialize empty values for the new instance
     setValues((prev) => {
@@ -349,14 +379,16 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
                 )}
               </div>
             ))}
-            <button
-              type="button"
-              onClick={() => addGroupInstance(group)}
-              className="flex items-center gap-1.5 text-[13px] font-medium text-[#03346E] hover:text-[#022a5a] transition-colors self-start cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              {tButtons("addAnother")}
-            </button>
+            {(groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? Number.POSITIVE_INFINITY) && (
+              <button
+                type="button"
+                onClick={() => addGroupInstance(group)}
+                className="flex items-center gap-1.5 text-[13px] font-medium text-[#03346E] hover:text-[#022a5a] transition-colors self-start cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                {tButtons("addAnother")}
+              </button>
+            )}
           </div>
         );
       })}
