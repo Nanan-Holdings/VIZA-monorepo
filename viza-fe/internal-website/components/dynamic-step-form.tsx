@@ -29,26 +29,45 @@ function evaluateShowIf(
   if (logic) {
     const showIf = (logic as { showIf?: string }).showIf;
     if (showIf && typeof showIf === "string") {
-      const conditions = showIf.split("||").map((s) => s.trim());
-      return conditions.some((cond) => {
-        const match = cond.match(/^(\S+)\s*===\s*(\S+)$/);
-        if (!match) return false;
-        const [, fieldName, expected] = match;
-        const actual = (values[fieldName] ?? "").toLowerCase();
-        return actual === expected.toLowerCase();
+      // Resolve target: "_empty" sentinel means the empty string
+      const resolveTarget = (raw: string): string =>
+        raw.toLowerCase() === "_empty" ? "" : raw.toLowerCase();
+
+      // Evaluate a single atomic comparison (=== or !==)
+      const evalAtom = (atom: string): boolean => {
+        const eqMatch = atom.match(/^(\S+)\s*===\s*(\S+)$/);
+        if (eqMatch) {
+          const actual = (values[eqMatch[1]] ?? "").toLowerCase();
+          return actual === resolveTarget(eqMatch[2]);
+        }
+        const neqMatch = atom.match(/^(\S+)\s*!==\s*(\S+)$/);
+        if (neqMatch) {
+          const actual = (values[neqMatch[1]] ?? "").toLowerCase();
+          return actual !== resolveTarget(neqMatch[2]);
+        }
+        return false;
+      };
+
+      // Split by || (OR), then within each by && (AND)
+      const orGroups = showIf.split("||").map((s) => s.trim());
+      return orGroups.some((orGroup) => {
+        const andParts = orGroup.split("&&").map((s) => s.trim());
+        return andParts.every(evalAtom);
       });
     }
   }
 
   // 2. Infer conditional visibility when no explicit logic exists
   if (!logic && allFields) {
-    // 2a. repeat_group → look for "<group>_used" toggle
+    // 2a. repeat_group → look for "<group>_used" or "has_<group>" toggle
     const rules = field.validationRules as { repeat_group?: string } | null;
     const group = rules?.repeat_group;
     if (group) {
-      const toggleName = `${group}_used`;
-      if (allFields.some((f) => f.fieldName === toggleName)) {
-        return (values[toggleName] ?? "").toLowerCase() === "yes";
+      const toggleCandidates = [`${group}_used`, `has_${group}`];
+      for (const toggleName of toggleCandidates) {
+        if (allFields.some((f) => f.fieldName === toggleName)) {
+          return (values[toggleName] ?? "").toLowerCase() === "yes";
+        }
       }
     }
 
@@ -110,6 +129,9 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
   specific_travel_plans: 1,
 };
 
+/** Default max instances for repeatable groups without an explicit max_items */
+const REPEAT_GROUP_DEFAULT_MAX = 5;
+
 /** Helper: get the repeat_group name from a field's validationRules */
 function getRepeatGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { repeatable?: boolean; repeat_group?: string } | null;
@@ -122,9 +144,64 @@ function getRepeatGroupMax(field: VisaFormFieldRow): number | null {
   return typeof rules.max_items === "number" && rules.max_items > 0 ? rules.max_items : null;
 }
 
+/** Detect the "Purpose of Trip to the U.S." field by label */
+function isPurposeOfTripField(field: VisaFormFieldRow): boolean {
+  return field.label.toLowerCase().includes("purpose of trip");
+}
+
+/** Find the B visa category option value from field options */
+function findBOptionValue(options: VisaFormFieldRow["options"]): string | null {
+  if (!options) return null;
+  for (const opt of options) {
+    const val = typeof opt === "string" ? opt : opt.value;
+    if (/\(B\)\s*$/.test(val)) return val;
+  }
+  return null;
+}
+
 /** Suffix for repeated instance keys: fieldName__2, fieldName__3, etc. (instance 0 = base) */
 function instanceKey(fieldName: string, instance: number): string {
   return instance === 0 ? fieldName : `${fieldName}__${instance + 1}`;
+}
+
+/** Get the inline_group from a field's validationRules */
+function getInlineGroup(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { inline_group?: string } | null;
+  return rules?.inline_group ?? null;
+}
+
+/** Group consecutive fields sharing the same inline_group into sub-arrays for row rendering */
+function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow | VisaFormFieldRow[]> {
+  const result: Array<VisaFormFieldRow | VisaFormFieldRow[]> = [];
+  let currentInline: string | null = null;
+  let currentBatch: VisaFormFieldRow[] = [];
+
+  const flush = () => {
+    if (currentBatch.length > 1) {
+      result.push(currentBatch);
+    } else if (currentBatch.length === 1) {
+      result.push(currentBatch[0]);
+    }
+    currentBatch = [];
+    currentInline = null;
+  };
+
+  for (const field of fields) {
+    const ig = getInlineGroup(field);
+    if (ig && ig === currentInline) {
+      currentBatch.push(field);
+    } else {
+      flush();
+      if (ig) {
+        currentInline = ig;
+        currentBatch = [field];
+      } else {
+        result.push(field);
+      }
+    }
+  }
+  flush();
+  return result;
 }
 
 export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicStepFormProps) {
@@ -160,6 +237,11 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         }
       } else {
         init[field.fieldName] = prefill[field.fieldName] ?? "";
+        // Auto-select B for "Purpose of Trip to the U.S."
+        if (!init[field.fieldName] && isPurposeOfTripField(field)) {
+          const bValue = findBOptionValue(field.options);
+          if (bValue) init[field.fieldName] = bValue;
+        }
       }
     }
     return init;
@@ -286,10 +368,60 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     onComplete(values);
   };
 
+  // Detect yes/no toggles that gate subsequent fields until answered.
+  // These are toggles where following fields should be hidden until the user picks Yes or No.
+  const gatingToggles = useMemo(() => {
+    const GATING_LABEL_PATTERNS = [
+      "specific travel plan",
+      "part of a group",
+      "traveling with",
+      "persons traveling with",
+    ];
+    return step.fields
+      .filter((f) =>
+        (f.fieldType === "radio" || f.fieldType === "select") &&
+        GATING_LABEL_PATTERNS.some((p) => f.label.toLowerCase().includes(p))
+      )
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [step.fields]);
+
+  /** Check whether a field should be hidden because a preceding yes/no toggle is unanswered
+   *  or because it requires a specific toggle answer (e.g. companion fields only for "No"). */
+  const isGatedByUnansweredToggle = useCallback((field: VisaFormFieldRow): boolean => {
+    if (field.conditionalLogic) return false; // has explicit DB logic, skip gating
+
+    // Find the nearest preceding gating toggle
+    const precedingToggle = gatingToggles
+      .filter((t) => t.displayOrder < field.displayOrder && t.fieldName !== field.fieldName)
+      .at(-1); // last one = nearest preceding
+
+    if (!precedingToggle) return false;
+
+    const toggleValue = (values[precedingToggle.fieldName] ?? "").trim();
+
+    // Toggle not answered → always hide
+    if (!toggleValue) return true;
+
+    // "Group or organization" toggle: companion person fields only show for "No"
+    const isGroupToggle =
+      precedingToggle.label.toLowerCase().includes("part of a group") ||
+      precedingToggle.label.toLowerCase().includes("group or organization");
+    if (isGroupToggle) {
+      const lbl = field.label.toLowerCase();
+      const isCompanionField =
+        lbl.includes("person traveling") ||
+        lbl.includes("companion") ||
+        lbl.includes("relationship with person");
+      if (isCompanionField && toggleValue.toLowerCase() !== "no") return true;
+    }
+
+    return false;
+  }, [gatingToggles, values]);
+
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = step.fields
     .filter((f) => f.required)
-    .filter((f) => evaluateShowIf(f, values, step.fields))
+    .filter((f) => evaluateShowIf(f, values, step.fields) && !isGatedByUnansweredToggle(f))
     .every((f) => {
       const group = getRepeatGroup(f);
       if (group) {
@@ -307,10 +439,22 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     const rawPlaceholder = field.placeholder
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
     const placeholder = translatePlaceholder(rawPlaceholder, locale);
-    const options = field.options?.map((opt) => {
+
+    // Filter purpose of trip to only show "B" option
+    let fieldOptions = field.options;
+    if (isPurposeOfTripField(field) && fieldOptions) {
+      fieldOptions = fieldOptions.filter((opt) => {
+        const val = typeof opt === "string" ? opt : opt.value;
+        return /\(B\)\s*$/.test(val);
+      });
+    }
+
+    const options = fieldOptions?.map((opt) => {
       if (typeof opt === "string") return translateOptionText(opt, locale);
       return { ...opt, text: translateOptionText(opt.text, locale) };
     }) ?? null;
+
+    const isLockedPurpose = isPurposeOfTripField(field);
 
     return (
       <DynamicFormField
@@ -319,6 +463,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         value={values[valueKey] ?? ""}
         onChange={(v) => handleChange(valueKey, v)}
         forceWhiteBackground={forceWhiteBackground}
+        disabled={isLockedPurpose}
       />
     );
   };
@@ -331,6 +476,8 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       {step.fields.map((field) => {
         // Evaluate conditional logic
         if (!evaluateShowIf(field, values, step.fields)) return null;
+        // Hide fields gated by an unanswered toggle (e.g. travel plans)
+        if (isGatedByUnansweredToggle(field)) return null;
 
         const group = getRepeatGroup(field);
 
@@ -374,12 +521,19 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
                     </button>
                   </div>
                 )}
-                {visibleGroupFields.map((gf) =>
-                  renderField(gf, instanceKey(gf.fieldName, instanceIdx), true)
-                )}
+                {groupFieldsInline(visibleGroupFields).map((item) => {
+                  if (Array.isArray(item)) {
+                    return (
+                      <div key={item.map((f) => f.fieldName).join("-")} className="grid grid-cols-2 gap-3">
+                        {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
+                      </div>
+                    );
+                  }
+                  return renderField(item, instanceKey(item.fieldName, instanceIdx), true);
+                })}
               </div>
             ))}
-            {(groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? Number.POSITIVE_INFINITY) && (
+            {(groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX) && (
               <button
                 type="button"
                 onClick={() => addGroupInstance(group)}
