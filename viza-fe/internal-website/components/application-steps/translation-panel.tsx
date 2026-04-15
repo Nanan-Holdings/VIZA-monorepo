@@ -166,7 +166,7 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
       const data: TranslationMap = await res.json();
       setTranslations(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load translations");
+      setError(err instanceof Error ? err.message : t("translation.translationFailed"));
     } finally {
       setLoading(false);
     }
@@ -183,7 +183,7 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
       if (!res.ok) throw new Error(`Translation failed (${res.status})`);
       await fetchTranslations();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Translation failed");
+      setError(err instanceof Error ? err.message : t("translation.translationFailed"));
     } finally {
       setRetrying(false);
     }

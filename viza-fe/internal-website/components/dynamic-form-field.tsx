@@ -324,7 +324,7 @@ export function DynamicFormField({
 
         return (
           <FieldWrapper label={label} required={required}>
-            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${isOverridden ? "opacity-50" : ""}`}>
+            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed" : ""}`}>
               <InputGroupInput
                 type={fieldType === "text" ? "text" : fieldType}
                 placeholder={placeholder ?? undefined}

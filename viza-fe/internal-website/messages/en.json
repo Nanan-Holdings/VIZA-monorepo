@@ -247,6 +247,21 @@
       "Review": "Review Application",
       "Confirmation": "Confirmation"
     },
+    "dynamicSections": {
+      "personal": "Personal",
+      "travel": "Travel",
+      "travelCompanions": "Travel Companions",
+      "previousTravel": "Previous U.S. Travel",
+      "addressAndPhone": "Address and Phone",
+      "passport": "Passport",
+      "usContact": "U.S. Contact",
+      "family": "Family",
+      "workEducationTraining": "Work / Education / Training",
+      "securityAndBackground": "Security and Background",
+      "photo": "Upload Photo",
+      "review": "Review",
+      "confirmation": "Confirmation"
+    },
     "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
     "photoStepDescription": "Upload your passport-style photo",
     "reviewStepDescription": "Review and confirm your details",

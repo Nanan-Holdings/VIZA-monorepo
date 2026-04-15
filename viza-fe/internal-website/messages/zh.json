@@ -265,6 +265,21 @@
       "Review": "审核申请",
       "Confirmation": "确认"
     },
+    "dynamicSections": {
+      "personal": "个人信息",
+      "travel": "旅行",
+      "travelCompanions": "同行人员",
+      "previousTravel": "以往赴美记录",
+      "addressAndPhone": "地址和电话信息",
+      "passport": "护照信息",
+      "usContact": "美国联系人",
+      "family": "家庭信息",
+      "workEducationTraining": "工作/教育/培训",
+      "securityAndBackground": "安全与背景",
+      "photo": "上传照片",
+      "review": "审核申请",
+      "confirmation": "确认"
+    },
     "dynamicStepDescription": "{count, plural, one {# 个字段} other {# 个字段}}",
     "photoStepDescription": "上传您的护照照片",
     "reviewStepDescription": "审核并确认您的信息",
