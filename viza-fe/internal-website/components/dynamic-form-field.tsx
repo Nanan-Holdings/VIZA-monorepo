@@ -85,11 +85,13 @@ function SsnSegmentedInput({
   onChange,
   required,
   whiteControlClass,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   required: boolean;
   whiteControlClass: string;
+  ariaLabel: string;
 }) {
   const [part1, part2, part3] = parseSsnSegments(value);
   const digits = `${part1}${part2}${part3}`;
@@ -108,7 +110,7 @@ function SsnSegmentedInput({
       containerClassName="h-12"
       className="w-full"
       required={required}
-      aria-label="U.S. Social Security Number"
+      aria-label={ariaLabel}
     >
       <InputOTPGroup>
         <InputOTPSlot index={0} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
@@ -278,7 +280,7 @@ export function DynamicFormField({
       const opts = normaliseOptions(options);
       return (
         <FieldWrapper label={label} required={required}>
-          <div className="flex flex-col gap-2">
+          <div className={`flex ${opts.length <= 2 ? "flex-row gap-6" : "flex-col gap-2"}`}>
             {opts.map((opt) => (
               <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-[14px]">
                 <input
@@ -306,6 +308,7 @@ export function DynamicFormField({
               onChange={onChange}
               required={required}
               whiteControlClass={forceWhiteBackground ? "bg-white" : ""}
+              ariaLabel={t("dynamicField.usSocialSecurityNumber")}
             />
           </FieldWrapper>
         );

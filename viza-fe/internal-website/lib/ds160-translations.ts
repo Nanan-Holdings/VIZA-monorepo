@@ -267,23 +267,38 @@ const ZH_LABELS: Record<string, string> = {
   "Date of Attendance From": "就读起始日期",
   "Date of Attendance To": "就读结束日期",
 
-  // ─── Step 11: Security and Background ───────────────────────────────────
+  // ─── Step 12: Security and Background ───────────────────────────────────
+  // Part 1 — Health & Criminal
+  "Do you have a communicable disease of public health significance? (Communicable diseases of public significance include chancroid, gonorrhea, granuloma inguinale, infectious leprosy, lymphogranuloma venereum, infectious stage syphilis, active tuberculosis, and other diseases as determined by the Department of Health and Human Services.)": "您是否患有具有公共卫生意义的传染病？（具有公共卫生意义的传染病包括软下疳、淋病、腹股沟肉芽肿、传染性麻风病、性病性淋巴肉芽肿、传染期梅毒、活动性结核病以及卫生与公众服务部确定的其他疾病。）",
   "Do you have a communicable disease of public health significance?": "您是否患有具有公共卫生意义的传染病？",
   "Do you have a mental or physical disorder that poses or is likely to pose a threat to the safety or welfare of yourself or others?": "您是否有对自己或他人的安全或福祉构成或可能构成威胁的精神或身体障碍？",
   "Do you have a physical or mental disorder that poses or may pose a threat?": "您是否有可能构成威胁的身体或精神障碍？",
   "Are you or have you ever been a drug abuser or addict?": "您是否是或曾经是吸毒者或有毒瘾？",
   "Have you been a drug abuser or addict?": "您是否曾是吸毒者或有毒瘾？",
+  "Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar action?": "您是否曾因任何违法或犯罪行为被逮捕或定罪（即使已获赦免或大赦）？",
   "Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar legal action?": "您是否曾因任何违法或犯罪行为被逮捕或定罪（即使已获赦免或大赦）？",
   "Have you ever been arrested or convicted for any offense or crime?": "您是否曾因任何违法或犯罪行为被逮捕或定罪？",
+  "Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?": "您是否曾违反或参与违反有关管制物质的法律？",
+  "Are you coming to the United States to engage in prostitution or unlawful commercialized vice or have you been engaged in prostitution or procuring prostitutes within the past 10 years?": "您是否来美国从事卖淫或非法商业化色情活动，或在过去10年内是否曾从事卖淫或招揽卖淫？",
+  "Have you ever been involved in, or do you seek to engage in, money laundering?": "您是否曾参与或试图参与洗钱活动？",
+  "Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?": "您是否曾在美国境内或境外实施或密谋实施人口贩运罪行？",
+  "Have you ever knowingly aided, abetted, assisted or colluded with an individual who has committed, or conspired to commit a severe human trafficking offense in the United States or outside the United States?": "您是否曾故意帮助、教唆、协助或与在美国境内或境外实施或密谋实施严重人口贩运罪行的个人合谋？",
+  "Are you the spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense in the United States or outside the United States and have you within the last five years, knowingly benefited from the trafficking activities?": "您是否是在美国境内或境外实施或密谋实施人口贩运罪行的个人的配偶、儿子或女儿，并且在过去五年内是否故意从贩运活动中获益？",
   "Have you ever been detained, retained, or held for deportation?": "您是否曾被拘留或关押以待驱逐出境？",
   "Have you sought to procure or provide prostitution services?": "您是否曾寻求提供或获取卖淫服务？",
   "Have you engaged in money laundering?": "您是否曾参与洗钱？",
-  "Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?": "您是否曾违反或参与违反有关管制物质的法律？",
+
+  // Part 2 — Terrorism & Security
+  "Do you seek to engage in espionage, sabotage, export control violations, or any other illegal activity while in the United States?": "您是否试图在美国从事间谍、破坏、出口管制违规或其他非法活动？",
   "Do you intend to engage in the United States in espionage, sabotage, export control violations, or any other illegal activity?": "您是否打算在美国从事间谍、破坏、出口管制违规或其他非法活动？",
+  "Do you seek to engage in terrorist activities while in the United States or have you ever engaged in terrorist activities?": "您是否试图在美国从事恐怖活动，或曾经从事过恐怖活动？",
   "Do you intend to engage in the United States in terrorist activities, or have you ever engaged in terrorist activities?": "您是否打算在美国从事恐怖活动，或曾经从事过恐怖活动？",
   "Have you ever engaged in or do you intend to engage in terrorist activities?": "您是否曾经或打算从事恐怖活动？",
   "Have you ever or do you intend to provide financial assistance or other support to terrorists or terrorist organizations?": "您是否曾经或打算向恐怖分子或恐怖组织提供财务援助或其他支持？",
   "Are you a member or representative of a terrorist organization?": "您是否是恐怖组织的成员或代表？",
+  "Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity, including providing financial assistance or other support to terrorists or terrorist organizations, in the last five years?": "您是否是在过去五年内从事过恐怖活动（包括向恐怖分子或恐怖组织提供财务援助或其他支持）的个人的配偶、儿子或女儿？",
+
+  // Part 3 — Human Rights
   "Have you ever ordered, incited, committed, assisted, or otherwise participated in genocide?": "您是否曾下令、煽动、实施、协助或以其他方式参与种族灭绝？",
   "Have you ordered, incited, committed, assisted, or participated in genocide?": "您是否曾下令、煽动、实施、协助或参与种族灭绝？",
   "Have you ever committed, ordered, incited, assisted, or otherwise participated in torture?": "您是否曾实施、下令、煽动、协助或以其他方式参与酷刑？",
@@ -292,13 +307,22 @@ const ZH_LABELS: Record<string, string> = {
   "Have you ever engaged in the recruitment or the use of child soldiers?": "您是否曾招募或使用儿童兵？",
   "Have you, while serving as a government official, been responsible for or directly carried out, at any time, particularly severe violations of religious freedom?": "您在担任政府官员期间，是否曾负责或直接实施过特别严重的宗教自由侵犯行为？",
   "Have you ever been directly involved in the establishment or enforcement of population controls forcing a woman to undergo an abortion against her free choice or a man or a woman to undergo sterilization against his or her free will?": "您是否曾直接参与建立或执行强迫妇女违背自由意愿接受堕胎或强迫男女违背自由意愿接受绝育的人口控制措施？",
+  "Have you ever been directly involved in the coercive transplantation of human organs or bodily tissue?": "您是否曾直接参与强制摘取人体器官或身体组织？",
   "Have you ever been involved in transplant tourism or trafficking?": "您是否曾参与器官移植旅游或贩运？",
+
+  // Part 4 — Immigration Fraud & Removal
+  "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation or other unlawful means?": "您是否曾通过欺诈、故意虚假陈述或其他非法手段试图获取或协助他人获取签证、入境美国或其他移民福利？",
+  "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?": "您是否曾通过欺诈或故意虚假陈述试图获取或协助他人获取签证、入境美国或其他移民福利？",
   "Have you ever been removed or deported from any country?": "您是否曾被任何国家驱逐出境？",
   "Are you subject to a final order of removal, exclusion, or deportation?": "您是否受到最终的遣返、排斥或驱逐令？",
-  "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?": "您是否曾通过欺诈或故意虚假陈述试图获取或协助他人获取签证、入境美国或其他移民福利？",
   "Have you failed to attend a hearing on removability or inadmissibility within the last 5 years?": "您在过去5年内是否未能出席关于可遣返性或不可入境性的听证会？",
   "Have you ever been unlawfully present, overstayed the amount of time granted by an immigration official or violated the terms of a U.S. visa?": "您是否曾非法逗留、超过移民官员批准的时间或违反美国签证条款？",
   "Have you been unlawfully present, overstayed a visa, or violated your status?": "您是否曾非法逗留、超过签证期限或违反身份规定？",
+
+  // Part 5 — Citizenship & Custody
+  "Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court?": "您是否曾在美国境外扣留美国公民儿童，不让美国法院授予合法监护权的人监护？",
+  "Have you voted in the United States in violation of any law or regulation?": "您是否曾违反任何法律法规在美国投票？",
+  "Have you ever renounced United States citizenship for the purposes of avoiding taxation?": "您是否曾为避税目的而放弃美国国籍？",
   "Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court, voted in the United States in violation of any law or regulation, or renounced U.S. citizenship for the purposes of avoiding taxation?": "您是否曾在美国境外扣留美国公民儿童不让美国法院授予合法监护权的人监护、违法在美国投票、或为避税而放弃美国国籍？",
   "Are you coming to the U.S. to practice polygamy?": "您是否来美国实行一夫多妻制？",
   "Have you ever voted in the U.S. in violation of a law?": "您是否曾违法在美国投票？",

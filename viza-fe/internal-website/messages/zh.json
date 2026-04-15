@@ -332,7 +332,8 @@
     "dynamicField": {
       "selectCountry": "选择国家",
       "doNotKnow": "不知道",
-      "doesNotApply": "不适用"
+      "doesNotApply": "不适用",
+      "usSocialSecurityNumber": "美国社会安全号码"
     },
     "review": {
       "title": "审核您的申请",

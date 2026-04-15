@@ -314,7 +314,8 @@
     "dynamicField": {
       "selectCountry": "Select a country",
       "doNotKnow": "Do Not Know",
-      "doesNotApply": "Does Not Apply"
+      "doesNotApply": "Does Not Apply",
+      "usSocialSecurityNumber": "U.S. Social Security Number"
     },
     "review": {
       "title": "Review Your Application",
