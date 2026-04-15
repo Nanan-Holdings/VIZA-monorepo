@@ -31,6 +31,7 @@ interface DynamicFormFieldProps {
   value: string;
   onChange: (value: string) => void;
   forceWhiteBackground?: boolean;
+  disabled?: boolean;
 }
 
 function FieldWrapper({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
@@ -104,27 +105,27 @@ function SsnSegmentedInput({
       }}
       pattern="[0-9]*"
       inputMode="numeric"
-      containerClassName={`h-12 rounded-lg border border-[#e8e8e8] px-3 focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${whiteControlClass}`}
+      containerClassName="h-12"
       className="w-full"
       required={required}
       aria-label="U.S. Social Security Number"
     >
       <InputOTPGroup>
-        <InputOTPSlot index={0} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={1} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={2} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={0} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={1} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={2} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
       </InputOTPGroup>
       <InputOTPSeparator className="mx-0 text-gray-500" />
       <InputOTPGroup>
-        <InputOTPSlot index={3} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={4} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={3} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={4} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
       </InputOTPGroup>
       <InputOTPSeparator className="mx-0 text-gray-500" />
       <InputOTPGroup>
-        <InputOTPSlot index={5} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={6} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={7} className="h-8 w-8 border-0 shadow-none text-[15px]" />
-        <InputOTPSlot index={8} className="h-8 w-8 border-0 shadow-none text-[15px]" />
+        <InputOTPSlot index={5} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={6} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={7} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={8} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
       </InputOTPGroup>
     </InputOTP>
   );
@@ -135,23 +136,46 @@ export function DynamicFormField({
   value,
   onChange,
   forceWhiteBackground = false,
+  disabled = false,
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const { label, fieldType, required, placeholder, options } = field;
   const whiteControlClass = forceWhiteBackground ? "bg-white hover:bg-white" : "";
 
   switch (fieldType) {
-    case "date":
+    case "date": {
+      const dateAllowDoNotKnow = (field.validationRules as { allow_do_not_know?: boolean } | null)?.allow_do_not_know;
+      const dateIsDoNotKnow = value === "DO_NOT_KNOW";
       return (
         <FieldWrapper label={label} required={required}>
-          <DatePicker
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder ?? undefined}
-            className={whiteControlClass}
-          />
+          {!dateIsDoNotKnow && (
+            <DatePicker
+              value={value}
+              onChange={onChange}
+              placeholder={placeholder ?? undefined}
+              className={whiteControlClass}
+            />
+          )}
+          {dateIsDoNotKnow && (
+            <div className={`h-12 rounded-lg border border-[#e8e8e8] flex items-center px-3 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+              {t("dynamicField.doNotKnow")}
+            </div>
+          )}
+          {dateAllowDoNotKnow && (
+            <div className="flex items-center gap-2 mt-1">
+              <Checkbox
+                id={`${field.fieldName}-dontknow`}
+                checked={dateIsDoNotKnow}
+                onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+              />
+              <Label htmlFor={`${field.fieldName}-dontknow`} className="text-[13px] text-gray-500 cursor-pointer">
+                {t("dynamicField.doNotKnow")}
+              </Label>
+            </div>
+          )}
         </FieldWrapper>
       );
+    }
 
     case "select": {
       // Country fields use source: "ISO3166-1" — render CountryDropdown
@@ -186,8 +210,8 @@ export function DynamicFormField({
       const opts = normaliseOptions(options);
       return (
         <FieldWrapper label={label} required={required}>
-          <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}>
+          <Select value={value} onValueChange={onChange} disabled={disabled}>
+            <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
               <SelectValue placeholder={placeholder ?? t("select")} />
             </SelectTrigger>
             <SelectContent>
@@ -287,19 +311,53 @@ export function DynamicFormField({
         );
       }
 
-      return (
-        <FieldWrapper label={label} required={required}>
-          <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""}`}>
-            <InputGroupInput
-              type={fieldType === "text" ? "text" : fieldType}
-              placeholder={placeholder ?? undefined}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              required={required}
-              className="h-12 text-[15px]"
-            />
-          </InputGroup>
-        </FieldWrapper>
-      );
+      {
+        const rules = field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean } | null;
+        const allowDoNotKnow = rules?.allow_do_not_know;
+        const allowDoesNotApply = rules?.allow_does_not_apply;
+        const isDoNotKnow = value === "DO_NOT_KNOW";
+        const isDoesNotApply = value === "DOES_NOT_APPLY";
+        const isOverridden = isDoNotKnow || isDoesNotApply;
+
+        return (
+          <FieldWrapper label={label} required={required}>
+            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${isOverridden ? "opacity-50" : ""}`}>
+              <InputGroupInput
+                type={fieldType === "text" ? "text" : fieldType}
+                placeholder={placeholder ?? undefined}
+                value={isOverridden ? "" : value}
+                onChange={(e) => onChange(e.target.value)}
+                required={required && !isOverridden}
+                disabled={isOverridden || disabled}
+                className="h-12 text-[15px]"
+              />
+            </InputGroup>
+            {allowDoNotKnow && (
+              <div className="flex items-center gap-2 mt-1">
+                <Checkbox
+                  id={`${field.fieldName}-dontknow`}
+                  checked={isDoNotKnow}
+                  onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+                />
+                <Label htmlFor={`${field.fieldName}-dontknow`} className="text-[13px] text-gray-500 cursor-pointer">
+                  {t("dynamicField.doNotKnow")}
+                </Label>
+              </div>
+            )}
+            {allowDoesNotApply && (
+              <div className="flex items-center gap-2 mt-1">
+                <Checkbox
+                  id={`${field.fieldName}-na`}
+                  checked={isDoesNotApply}
+                  onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+                />
+                <Label htmlFor={`${field.fieldName}-na`} className="text-[13px] text-gray-500 cursor-pointer">
+                  {t("dynamicField.doesNotApply")}
+                </Label>
+              </div>
+            )}
+          </FieldWrapper>
+        );
+      }
   }
 }

@@ -233,6 +233,7 @@ const ZH_LABELS: Record<string, string> = {
 
   // ─── Step 10: Work/Education/Training ───────────────────────────────────
   "Primary Occupation": "主要职业",
+  "Specify Other": "请具体说明",
   "Present Occupation": "目前职业",
   "Present Employer or School Name": "当前雇主或学校名称",
   "Current Employer/School Name": "当前雇主/学校名称",

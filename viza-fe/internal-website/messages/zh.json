@@ -330,7 +330,9 @@
       }
     },
     "dynamicField": {
-      "selectCountry": "选择国家"
+      "selectCountry": "选择国家",
+      "doNotKnow": "不知道",
+      "doesNotApply": "不适用"
     },
     "review": {
       "title": "审核您的申请",
