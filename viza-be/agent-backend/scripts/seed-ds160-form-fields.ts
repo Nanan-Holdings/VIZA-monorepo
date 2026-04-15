@@ -722,7 +722,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 18,
     conditional_logic: { showIf: "has_specific_plans === no && intended_length_of_stay_unit !== LESS_THAN_24_HOURS" },
-    validation_rules: { pattern: "^[0-9]{1,3}$" },
+    validation_rules: { pattern: "^[0-9]{1,3}$", inline_group: "intended_stay_length" },
   },
   {
     field_name: "intended_length_of_stay_unit",
@@ -733,6 +733,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 19,
     conditional_logic: { showIf: "has_specific_plans === no" },
+    validation_rules: { inline_group: "intended_stay_length" },
     options: [
       { value: "", text: "-SELECT ONE-" },
       { value: "YEAR(S)", text: "YEAR(S)" },
