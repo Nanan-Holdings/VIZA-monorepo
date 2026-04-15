@@ -517,10 +517,13 @@ const ZH_OPTIONS: Record<string, string> = {
   "PROFESSIONAL": "职业名",
   "Religious Name": "宗教名",
   // Relationship types (SPOUSE, CHILD, SIBLING already defined above)
+  "RELATIVE": "亲属",
   "PARENT": "父母",
   "OTHER RELATIVE": "其他亲属",
   "BUSINESS ASSOCIATE": "商业伙伴",
   "FRIEND": "朋友",
+  "EMPLOYER": "雇主",
+  "SCHOOL OFFICIAL": "学校官员",
   "SCHOOLMATES": "同学",
   // Countries
   "SINGAPORE": "新加坡",

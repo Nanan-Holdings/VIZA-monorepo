@@ -61,6 +61,39 @@ function getInlineGroup(field: VisaFormFieldRow): string | null {
   return rules?.inline_group ?? null;
 }
 
+/** Check if a field should be disabled because a sibling select in its
+ *  inline_group currently has "LESS_THAN_24_HOURS" selected.
+ *  Works for both regular and repeat-group fields by matching instance suffix. */
+function isDisabledByLT24(
+  field: VisaFormFieldRow,
+  valueKey: string,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[],
+): boolean {
+  if (field.fieldType === "select") return false;
+
+  const ig = getInlineGroup(field);
+  if (!ig) return false;
+
+  const suffix = valueKey.substring(field.fieldName.length);
+
+  for (const sibling of allFields) {
+    if (sibling.fieldName === field.fieldName) continue;
+    if (getInlineGroup(sibling) !== ig) continue;
+    if (sibling.fieldType !== "select") continue;
+
+    const hasLT24 = sibling.options?.some((opt) => {
+      const val = typeof opt === "string" ? opt : opt.value;
+      return val === "LESS_THAN_24_HOURS";
+    });
+    if (!hasLT24) continue;
+
+    if (values[sibling.fieldName + suffix] === "LESS_THAN_24_HOURS") return true;
+  }
+
+  return false;
+}
+
 /** Group consecutive fields sharing the same inline_group into sub-arrays for row rendering */
 function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow | VisaFormFieldRow[]> {
   const result: Array<VisaFormFieldRow | VisaFormFieldRow[]> = [];
@@ -212,6 +245,23 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
           next[dep] = "";
         }
       }
+
+      // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
+      if (value === "LESS_THAN_24_HOURS") {
+        const baseFieldName = fieldName.replace(/__\d+$/, "");
+        const suffix = fieldName.substring(baseFieldName.length);
+        const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
+        if (changedField) {
+          const ig = getInlineGroup(changedField);
+          if (ig) {
+            for (const f of step.fields) {
+              if (f.fieldName === baseFieldName || getInlineGroup(f) !== ig || f.fieldType === "select") continue;
+              next[f.fieldName + suffix] = "";
+            }
+          }
+        }
+      }
+
       return next;
     });
   };
@@ -312,7 +362,11 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = step.fields
     .filter((f) => f.required)
-    .filter((f) => evaluateShowIf(f, values, step.fields) && !isGatedByUnansweredToggle(f))
+    .filter((f) => {
+      if (isGatedByUnansweredToggle(f)) return false;
+      if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
+      return evaluateShowIf(f, values, step.fields);
+    })
     .every((f) => {
       const group = getRepeatGroup(f);
       if (group) {
@@ -346,6 +400,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     }) ?? null;
 
     const isLockedPurpose = isPurposeOfTripField(field);
+    const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
 
     return (
       <DynamicFormField
@@ -354,7 +409,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         value={values[valueKey] ?? ""}
         onChange={(v) => handleChange(valueKey, v)}
         forceWhiteBackground={forceWhiteBackground}
-        disabled={isLockedPurpose}
+        disabled={isLockedPurpose || lt24Disabled}
       />
     );
   };
@@ -366,8 +421,8 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {step.fields.map((field) => {
-        // Evaluate conditional logic
-        if (!evaluateShowIf(field, values, step.fields)) return null;
+        // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
+        if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
         // Hide fields gated by an unanswered toggle (e.g. travel plans)
         if (isGatedByUnansweredToggle(field)) return null;
 
@@ -385,7 +440,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
               (f) =>
                 !getRepeatGroup(f) &&
                 getInlineGroup(f) === ig &&
-                evaluateShowIf(f, values, step.fields) &&
+                (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
                 !isGatedByUnansweredToggle(f)
             );
 
@@ -409,7 +464,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         const groupFields = repeatGroupFields[group] ?? [];
         // Check if at least one field in group is visible
         const visibleGroupFields = groupFields.filter((f) =>
-          evaluateShowIf(f, values, step.fields)
+          evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)
         );
         if (visibleGroupFields.length === 0) return null;
 

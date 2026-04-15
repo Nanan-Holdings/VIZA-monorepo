@@ -1,12 +1,13 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Loader2, Check } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
+import { evaluateShowIf } from "@/lib/form-utils";
 import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
@@ -39,9 +40,115 @@ interface StepDef {
   id: number;
   name: string;
   description: string;
+  sourceName?: string;
 }
 
+interface VisibleDynamicStep {
+  step: WizardStep;
+  sourceIndex: number;
+}
+
+type StepSectionKey =
+  | "personal"
+  | "travel"
+  | "travelCompanions"
+  | "previousTravel"
+  | "addressAndPhone"
+  | "passport"
+  | "usContact"
+  | "family"
+  | "workEducationTraining"
+  | "securityAndBackground"
+  | "photo"
+  | "review"
+  | "confirmation";
+
+interface StepSectionDef {
+  key: StepSectionKey;
+  title: string;
+  steps: StepDef[];
+}
+
+const STEP_SECTION_ORDER: StepSectionKey[] = [
+  "personal",
+  "travel",
+  "travelCompanions",
+  "previousTravel",
+  "addressAndPhone",
+  "passport",
+  "usContact",
+  "family",
+  "workEducationTraining",
+  "securityAndBackground",
+  "photo",
+  "review",
+  "confirmation",
+];
+
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "status"] as const;
+
+function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
+  return steps
+    .map((step, sourceIndex) => ({ step, sourceIndex }))
+    .filter(({ step }) => step.fields.some((field) => evaluateShowIf(field, answers, step.fields)));
+}
+
+function getNextVisibleStepId(steps: StepDef[], currentStepId: number): number | null {
+  const currentIndex = steps.findIndex((step) => step.id === currentStepId);
+  if (currentIndex === -1) {
+    return steps[0]?.id ?? null;
+  }
+
+  return steps[currentIndex + 1]?.id ?? null;
+}
+
+function getVisibleStepIndex(steps: StepDef[], currentStepId: number): number {
+  return steps.findIndex((step) => step.id === currentStepId);
+}
+
+function normalizeStepName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getStepSectionKey(step: StepDef): StepSectionKey {
+  const sourceName = normalizeStepName(step.sourceName ?? step.name);
+
+  if (sourceName.startsWith("personal information")) return "personal";
+  if (sourceName.startsWith("travel information")) return "travel";
+  if (sourceName.startsWith("travel companions")) return "travelCompanions";
+  if (sourceName.startsWith("previous us travel")) return "previousTravel";
+  if (sourceName.startsWith("address and phone")) return "addressAndPhone";
+  if (sourceName.includes("passport information")) return "passport";
+  if (sourceName.includes("us contact information") || sourceName.includes("us point of contact")) return "usContact";
+  if (sourceName.startsWith("family information")) return "family";
+  if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
+  if (sourceName.startsWith("security and background")) return "securityAndBackground";
+  if (sourceName.startsWith("upload photo")) return "photo";
+  if (sourceName.startsWith("review")) return "review";
+  if (sourceName.startsWith("confirmation")) return "confirmation";
+
+  return "review";
+}
+
+function buildStepSections(steps: StepDef[], titles: Record<StepSectionKey, string>): StepSectionDef[] {
+  const sectionMap = new Map<StepSectionKey, StepDef[]>();
+
+  for (const step of steps) {
+    const key = getStepSectionKey(step);
+    if (!sectionMap.has(key)) {
+      sectionMap.set(key, []);
+    }
+    sectionMap.get(key)!.push(step);
+  }
+
+  return STEP_SECTION_ORDER
+    .filter((key) => (sectionMap.get(key)?.length ?? 0) > 0)
+    .map((key) => ({
+      key,
+      title: titles[key],
+      steps: sectionMap.get(key) ?? [],
+    }));
+}
 
 // ---------------------------------------------------------------------------
 // Vertical step sidebar
@@ -58,6 +165,9 @@ function VerticalStepSidebar({
   completedUpTo: number;
   onStepClick: (stepId: number) => void;
 }) {
+  const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
+  const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
+
   return (
     <aside className="w-[360px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="relative">
@@ -68,8 +178,8 @@ function VerticalStepSidebar({
       <div className="relative flex flex-col gap-3">
         {steps.map((step, i) => {
           const status: StepStatus =
-            i < completedUpTo ? "complete" : i === currentStep ? "in_progress" : "locked";
-          const isSelected = i === currentStep;
+            i < completedUpTo ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
+          const isSelected = i === activeStepIndex;
 
           return (
             <button
@@ -140,12 +250,15 @@ function MobileStepBar({
   onStepClick: (stepId: number) => void;
 }) {
   const t = useTranslations("application");
+  const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
+  const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
+
   return (
     <div className="lg:hidden mb-6 bg-white rounded-lg border border-gray-100 shadow-sm p-4">
       <div className="flex items-center gap-1">
         {steps.map((step, i) => {
           const status: StepStatus =
-            i < completedUpTo ? "complete" : i === currentStep ? "in_progress" : "locked";
+            i < completedUpTo ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
           return (
             <div key={step.id} className="flex items-center gap-1 flex-1 min-w-0">
               <button
@@ -177,8 +290,348 @@ function MobileStepBar({
         })}
       </div>
       <p className="text-xs text-gray-500 mt-3 font-medium">
-        {t("stepOf", { current: currentStep + 1, total: steps.length, name: steps[currentStep]?.name })}
+        {t("stepOf", { current: activeStepIndex + 1, total: steps.length, name: steps[activeStepIndex]?.name })}
       </p>
+    </div>
+  );
+}
+
+function GroupedStepSidebar({
+  sections,
+  steps,
+  currentStep,
+  completedUpTo,
+  onStepClick,
+}: {
+  sections: StepSectionDef[];
+  steps: StepDef[];
+  currentStep: number;
+  completedUpTo: number;
+  onStepClick: (stepId: number) => void;
+}) {
+  const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
+  const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
+  const getStatus = useCallback((stepId: number, index: number): StepStatus => {
+    return index < completedUpTo ? "complete" : stepId === currentStep ? "in_progress" : "locked";
+  }, [completedUpTo, currentStep]);
+
+  useEffect(() => {
+    setExpandedSections((prev) => {
+      const next = { ...prev };
+      for (const section of sections) {
+        if (next[section.key] === undefined) {
+          next[section.key] = section.steps.some((step) => step.id === currentStep);
+        }
+      }
+      return next;
+    });
+  }, [sections, currentStep]);
+
+  const toggleSection = useCallback((key: StepSectionKey) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !(prev[key] ?? false),
+    }));
+  }, []);
+
+  return (
+    <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+      <div className="space-y-4">
+        {sections.map((section) => {
+          if (section.steps.length === 1) {
+            const step = section.steps[0];
+            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+            const status = getStatus(step.id, stepIndex);
+            const isSelected = step.id === currentStep;
+
+            return (
+              <button
+                type="button"
+                key={section.key}
+                onClick={() => onStepClick(step.id)}
+                className={cn(
+                  "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
+                  isSelected
+                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    : "hover:border-gray-300",
+                )}
+              >
+                <div
+                  className={cn(
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200",
+                    status === "complete" && "bg-[#03346E] border-[#03346E] text-white",
+                    status === "in_progress" && "bg-[#03346E] border-[#03346E] text-white shadow-[0_0_0_4px_rgba(3,52,110,0.12)]",
+                    status === "locked" && "bg-white border-gray-200 text-gray-500"
+                  )}
+                >
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "text-[15px]",
+                      status === "in_progress" && "font-semibold text-[#03346E]",
+                      status === "complete" && "font-medium text-[#03346E]",
+                      status === "locked" && "font-medium text-gray-500"
+                    )}
+                  >
+                    {step.name}
+                  </p>
+                </div>
+              </button>
+            );
+          }
+
+          const activeInSection = section.steps.some((step) => step.id === currentStep);
+          const isExpanded = expandedSections[section.key] ?? activeInSection;
+
+          return (
+            <section
+              key={section.key}
+              className={cn(
+                "rounded-2xl border bg-white shadow-sm overflow-hidden transition-all duration-200",
+                activeInSection ? "border-[#03346E]/30 shadow-[0_8px_24px_rgba(3,52,110,0.08)]" : "border-[#efefef]"
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => toggleSection(section.key)}
+                className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+              >
+                <div className="min-w-0">
+                  <p className={cn("text-[15px] font-semibold leading-tight", activeInSection ? "text-[#03346E]" : "text-[#3d3d3d]")}>{section.title}</p>
+                </div>
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all duration-200",
+                    isExpanded ? "border-[#03346E] bg-[#03346E] text-white" : "border-gray-200 bg-white text-gray-500"
+                  )}
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isExpanded ? "rotate-180" : "")} />
+                </div>
+              </button>
+
+              {isExpanded && <div className="px-3 pb-3">
+                <div className="space-y-2 border-l border-dashed border-gray-200 pl-3">
+                  {section.steps.map((step) => {
+                    const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+                    const status = getStatus(step.id, stepIndex);
+
+                    return (
+                      <button
+                        type="button"
+                        key={step.id}
+                        onClick={() => onStepClick(step.id)}
+                        className={cn(
+                          "w-full rounded-lg px-2 py-2 text-left flex gap-3 items-start transition-all duration-200",
+                          status === "in_progress"
+                            ? "bg-[#f5f9ff]"
+                            : "hover:bg-gray-50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                            status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
+                            status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
+                            status === "locked" && "border-gray-200 bg-white text-gray-500"
+                          )}
+                        >
+                          {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={cn(
+                              "text-[14px] leading-snug",
+                              status === "in_progress" && "font-semibold text-[#03346E]",
+                              status === "complete" && "font-medium text-[#03346E]",
+                              status === "locked" && "font-medium text-gray-600"
+                            )}
+                          >
+                            {step.name}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>}
+            </section>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function GroupedMobileStepBar({
+  sections,
+  steps,
+  currentStep,
+  completedUpTo,
+  onStepClick,
+}: {
+  sections: StepSectionDef[];
+  steps: StepDef[];
+  currentStep: number;
+  completedUpTo: number;
+  onStepClick: (stepId: number) => void;
+}) {
+  const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
+  const currentStepIndex = currentStepIndexById.get(currentStep);
+  const currentSection = sections.find((section) => section.steps.some((step) => step.id === currentStep));
+  const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
+  const getStatus = useCallback((stepId: number, index: number): StepStatus => {
+    return index < completedUpTo ? "complete" : stepId === currentStep ? "in_progress" : "locked";
+  }, [completedUpTo, currentStep]);
+
+  useEffect(() => {
+    setExpandedSections((prev) => {
+      const next = { ...prev };
+      for (const section of sections) {
+        if (next[section.key] === undefined) {
+          next[section.key] = section.steps.some((step) => step.id === currentStep);
+        }
+      }
+      return next;
+    });
+  }, [sections, currentStep]);
+
+  const toggleSection = useCallback((key: StepSectionKey) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !(prev[key] ?? false),
+    }));
+  }, []);
+
+  return (
+    <div className="lg:hidden mb-6 space-y-3">
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p className="text-xs uppercase tracking-[0.18em] text-gray-400 font-semibold">Application sections</p>
+        <p className="mt-2 text-sm font-medium text-[#3d3d3d]">{currentSection?.title ?? "Progress overview"}</p>
+        <p className="mt-1 text-xs text-gray-500">
+          {currentStepIndex !== undefined
+            ? `Step ${currentStepIndex + 1} of ${steps.length}: ${steps[currentStepIndex]?.name}`
+            : "Choose a section below"}
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {sections.map((section) => {
+          if (section.steps.length === 1) {
+            const step = section.steps[0];
+            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+            const status = getStatus(step.id, stepIndex);
+
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => onStepClick(step.id)}
+                className={cn(
+                  "w-full rounded-xl border px-4 py-3 text-left flex gap-3 items-start transition-all duration-200 bg-white",
+                  status === "in_progress"
+                    ? "border-[#03346E] bg-[#f5f9ff]"
+                    : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                )}
+              >
+                <div
+                  className={cn(
+                    "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                    status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
+                    status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
+                    status === "locked" && "border-gray-200 bg-white text-gray-500"
+                  )}
+                >
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "text-[14px] leading-snug",
+                      status === "in_progress" && "font-semibold text-[#03346E]",
+                      status === "complete" && "font-medium text-[#03346E]",
+                      status === "locked" && "font-medium text-gray-600"
+                    )}
+                  >
+                    {step.name}
+                  </p>
+                </div>
+              </button>
+            );
+          }
+
+          const activeInSection = section.steps.some((step) => step.id === currentStep);
+          const isExpanded = expandedSections[section.key] ?? activeInSection;
+
+          return (
+            <section
+              key={section.key}
+              className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden"
+            >
+              <button
+                type="button"
+                onClick={() => toggleSection(section.key)}
+                className="w-full cursor-pointer px-4 py-4 flex items-center justify-between gap-3 text-left"
+              >
+                <div className="min-w-0">
+                  <p className={cn("text-[15px] font-semibold", activeInSection ? "text-[#03346E]" : "text-[#3d3d3d]")}>{section.title}</p>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-400 transition-transform", isExpanded ? "rotate-180 text-[#03346E]" : "")} />
+              </button>
+
+              {isExpanded && <div className="px-4 pb-4">
+                <div className="space-y-2 border-l border-dashed border-gray-200 pl-3">
+                  {section.steps.map((step) => {
+                    const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+                    const status = getStatus(step.id, stepIndex);
+
+                    return (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => onStepClick(step.id)}
+                        className={cn(
+                          "w-full rounded-lg px-2 py-2 text-left flex gap-3 items-start transition-all duration-200",
+                          status === "in_progress"
+                            ? "bg-[#f5f9ff]"
+                            : "bg-transparent hover:bg-gray-50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                            status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
+                            status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
+                            status === "locked" && "border-gray-200 bg-white text-gray-500"
+                          )}
+                        >
+                          {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={cn(
+                              "text-[14px] leading-snug",
+                              status === "in_progress" && "font-semibold text-[#03346E]",
+                              status === "complete" && "font-medium text-[#03346E]",
+                              status === "locked" && "font-medium text-gray-600"
+                            )}
+                          >
+                            {step.name}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -211,6 +664,7 @@ export default function ApplicationPage() {
     id,
     name: t(`steps.${key}.name`),
     description: t(`steps.${key}.description`),
+    sourceName: key,
   }));
 
   // DB-driven steps (loaded from visa_form_fields table)
@@ -259,33 +713,63 @@ export default function ApplicationPage() {
   const reviewStepIndex = dbSteps.length + 1;
   const statusStepIndex = dbSteps.length + 2;
 
+  const visibleDynamicSteps = useMemo(
+    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswers) : []),
+    [dbSteps, dynamicAnswers, useDynamic],
+  );
+
   const effectiveSteps: StepDef[] = useDynamic
     ? [
-        ...dbSteps.map((s, i) => ({
-          id: i,
+        ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
+          id: sourceIndex,
+          sourceName: step.stepName,
           name: (() => {
-            const safeKey = s.stepName.replace(/\./g, "");
-            return tDyn.has(safeKey) ? tDyn(safeKey as never) : s.stepName;
+            const safeKey = step.stepName.replace(/\./g, "");
+            return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
           })(),
-          description: tApp("dynamicStepDescription", { count: s.fields.length }),
+          description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
         {
           id: photoStepIndex,
+          sourceName: "Upload Photo",
           name: tDyn.has("Upload Photo") ? tDyn("Upload Photo" as never) : "Upload Photo",
           description: tApp.has("photoStepDescription") ? tApp("photoStepDescription" as never) : "Upload your passport-style photo",
         },
         {
           id: reviewStepIndex,
+          sourceName: "Review",
           name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         {
           id: statusStepIndex,
+          sourceName: "Confirmation",
           name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]
     : STEPS;
+
+  const dynamicSectionTitles = {
+    personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
+    travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+    travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
+    previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
+    addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
+    passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
+    usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
+    family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
+    workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
+    securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
+    photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
+    review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
+    confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
+  } satisfies Record<StepSectionKey, string>;
+
+  const groupedSections = useMemo(
+    () => (useDynamic ? buildStepSections(effectiveSteps, dynamicSectionTitles) : []),
+    [dynamicSectionTitles, effectiveSteps, useDynamic],
+  );
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -365,6 +849,20 @@ export default function ApplicationPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (!useDynamic || effectiveSteps.length === 0) return;
+    if (effectiveSteps.some((step) => step.id === currentStep)) return;
+
+    const fallbackStep = [...effectiveSteps].reverse().find((step) => step.id < currentStep) ?? effectiveSteps[0];
+    if (fallbackStep && fallbackStep.id !== currentStep) {
+      setCurrentStep(fallbackStep.id);
+      const fallbackIndex = effectiveSteps.findIndex((step) => step.id === fallbackStep.id);
+      if (fallbackIndex >= 0) {
+        setCompletedUpTo((current) => Math.min(current, fallbackIndex));
+      }
+    }
+  }, [currentStep, effectiveSteps, useDynamic]);
 
   // US-040: Supabase Realtime — re-fetch data on profile or application UPDATE
   useEffect(() => {
@@ -532,8 +1030,10 @@ export default function ApplicationPage() {
 
       // Update local state
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
-      setCompletedUpTo((c) => Math.max(c, stepIndex + 1));
-      setCurrentStep(stepIndex + 1);
+      const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
+      const nextStepId = getNextVisibleStepId(effectiveSteps, stepIndex);
+      setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
+      setCurrentStep(nextStepId ?? stepIndex);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSave"));
     } finally {
@@ -571,7 +1071,8 @@ export default function ApplicationPage() {
 
       setDynamicAnswers((prev) => ({ ...prev, photo_path: storagePath }));
       setAppState((prev) => ({ ...prev, photo: storagePath }));
-      setCompletedUpTo((c) => Math.max(c, reviewStepIndex));
+      const photoStepPosition = getVisibleStepIndex(effectiveSteps, photoStepIndex);
+      setCompletedUpTo((c) => Math.max(c, photoStepPosition + 1));
       setCurrentStep(reviewStepIndex);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSave"));
@@ -581,7 +1082,8 @@ export default function ApplicationPage() {
   };
 
   const handlePhotoSkip = () => {
-    setCompletedUpTo((c) => Math.max(c, reviewStepIndex));
+    const photoStepPosition = getVisibleStepIndex(effectiveSteps, photoStepIndex);
+    setCompletedUpTo((c) => Math.max(c, photoStepPosition + 1));
     setCurrentStep(reviewStepIndex);
   };
 
@@ -624,7 +1126,8 @@ export default function ApplicationPage() {
         submittedAt: new Date().toISOString(),
         confirmationNumber: `VIZA-${Date.now().toString(36).toUpperCase()}`,
       }));
-      setCompletedUpTo((c) => Math.max(c, statusStepIndex));
+      const reviewStepPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
+      setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
       setCurrentStep(statusStepIndex);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
@@ -691,13 +1194,33 @@ export default function ApplicationPage() {
   return (
     <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
       {/* Left sidebar - desktop only */}
-      <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+      {useDynamic ? (
+        <GroupedStepSidebar
+          sections={groupedSections}
+          steps={effectiveSteps}
+          currentStep={currentStep}
+          completedUpTo={completedUpTo}
+          onStepClick={setCurrentStep}
+        />
+      ) : (
+        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+      )}
 
       {/* Main content area */}
       <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px] lg:overflow-y-auto">
         <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
           {/* Mobile step indicator */}
-          <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+          {useDynamic ? (
+            <GroupedMobileStepBar
+              sections={groupedSections}
+              steps={effectiveSteps}
+              currentStep={currentStep}
+              completedUpTo={completedUpTo}
+              onStepClick={setCurrentStep}
+            />
+          ) : (
+            <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+          )}
 
           {/* Page header */}
           <div className="mb-8 sm:mb-12">

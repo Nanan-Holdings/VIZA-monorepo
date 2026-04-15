@@ -35,7 +35,7 @@ export function FileUploadCard({ applicationId, documentType, label, onComplete 
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) throw new Error(t("uploadFailed"));
 
       const path = `${user.id}/${applicationId}/${documentType}/${file.name}`;
       const { error } = await supabase.storage
