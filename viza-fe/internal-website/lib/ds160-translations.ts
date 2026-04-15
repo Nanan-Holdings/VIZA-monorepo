@@ -191,7 +191,10 @@ const ZH_LABELS: Record<string, string> = {
   "U.S. Contact — Phone": "美国联系人——电话",
   "U.S. Contact — Email": "美国联系人——邮箱",
 
-  // ─── Step 9: Family Information ─────────────────────────────────────────
+  // ─── Step 1: Personal Information 1 (additional) ─────────────────────────
+  "Other — Please Explain": "其他——请说明",
+
+  // ─── Step 8: Family Information: Relatives ─────────────────────────────
   "Father's Surnames": "父亲姓氏",
   "Father's Given Names": "父亲名字",
   "Father's Date of Birth": "父亲出生日期",
@@ -222,6 +225,36 @@ const ZH_LABELS: Record<string, string> = {
   "Spouse — Date of Birth": "配偶——出生日期",
   "Spouse — Nationality": "配偶——国籍",
   "Spouse — Country of Birth": "配偶——出生国家",
+  // ─── Step 10: Family Information: Partner ─────────────────────────────
+  "Partner's Surnames": "伴侣姓氏",
+  "Partner's Given Names": "伴侣名字",
+  "Partner's Date of Birth": "伴侣出生日期",
+  "Partner's Country/Region of Origin (Nationality)": "伴侣国籍",
+  "Partner's City of Birth": "伴侣出生城市",
+  "Partner's Country/Region of Birth": "伴侣出生国家/地区",
+  "Partner's Address": "伴侣地址",
+
+  // ─── Step 11: Family Information: Deceased Spouse ────────────────────
+  "Deceased Spouse's Surnames": "已故配偶姓氏",
+  "Deceased Spouse's Given Names": "已故配偶名字",
+  "Deceased Spouse's Date of Birth": "已故配偶出生日期",
+  "Deceased Spouse's Country/Region of Origin (Nationality)": "已故配偶国籍",
+  "Deceased Spouse's City of Birth": "已故配偶出生城市",
+  "Deceased Spouse's Country/Region of Birth": "已故配偶出生国家/地区",
+
+  // ─── Step 12: Family Information: Former Spouse ──────────────────────
+  "Number of Former Spouses": "前配偶人数",
+  "Former Spouse's Surnames": "前配偶姓氏",
+  "Former Spouse's Given Names": "前配偶名字",
+  "Former Spouse's Date of Birth": "前配偶出生日期",
+  "Former Spouse's Country/Region of Origin (Nationality)": "前配偶国籍",
+  "Former Spouse's City of Birth": "前配偶出生城市",
+  "Former Spouse's Country/Region of Birth": "前配偶出生国家/地区",
+  "Date of Marriage": "结婚日期",
+  "Date Marriage Ended": "婚姻结束日期",
+  "How the Marriage Ended": "婚姻结束方式",
+  "Country/Region Marriage was Terminated": "婚姻终止国家/地区",
+
   "Do you have any immediate relatives, not including parents, in the United States?": "您在美国是否有直系亲属（不包括父母）？",
   "Do you have any immediate US relatives?": "您在美国是否有直系亲属？",
   "Relative's Surnames": "亲属姓氏",
@@ -248,6 +281,11 @@ const ZH_LABELS: Record<string, string> = {
   "Employment/Study Start Date": "工作/学习开始日期",
   "Monthly Salary in Local Currency": "月薪（当地货币，如适用）",
   "Monthly Salary (in local currency)": "月薪（当地货币，如适用）",
+  "Monthly Income in Local Currency (if employed)": "月收入（当地货币，如受雇）",
+  "Do you have any other relatives in the United States?": "您在美国是否有其他亲属？",
+  "PHYSICAL SCIENCES": "物理科学",
+  "LEGAL PROFESSION": "法律专业",
+  "RELIGIOUS VOCATION": "宗教职业",
   "Briefly Describe Your Duties": "简要描述您的职责（如适用）",
   "Describe Duties": "描述职责（如适用）",
   "Were you previously employed?": "您以前是否有工作？",
@@ -470,10 +508,20 @@ const ZH_OPTIONS: Record<string, string> = {
   "Self Employed": "自雇",
   "Unemployed": "失业",
   // Other name types
+  "Other Name Type": "其他姓名类型",
   "Maiden Name": "婚前姓",
+  "MAIDEN": "婚前姓",
   "Alias": "别名",
+  "ALIAS": "别名",
   "Professional Name": "职业名",
+  "PROFESSIONAL": "职业名",
   "Religious Name": "宗教名",
+  // Relationship types (SPOUSE, CHILD, SIBLING already defined above)
+  "PARENT": "父母",
+  "OTHER RELATIVE": "其他亲属",
+  "BUSINESS ASSOCIATE": "商业伙伴",
+  "FRIEND": "朋友",
+  "SCHOOLMATES": "同学",
   // Countries
   "SINGAPORE": "新加坡",
   "CHINA": "中国",

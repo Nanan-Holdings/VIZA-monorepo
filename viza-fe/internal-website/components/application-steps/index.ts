@@ -10,7 +10,13 @@ export type { TravelInfoData } from "./travel-info-step";
 
 export { DocumentUploadStep } from "./document-upload-step";
 
-export { ReviewStep } from "./review-step";
+export { ReviewStep, ValidationPanel } from "./review-step";
+
+export { DynamicReviewStep } from "./dynamic-review-step";
+export type { DynamicReviewStepProps } from "./dynamic-review-step";
+
+export { PhotoUploadStep } from "./photo-upload-step";
+export type { PhotoUploadStepProps } from "./photo-upload-step";
 
 export { StatusStep } from "./status-step";
 export type { StatusStepProps } from "./status-step";
