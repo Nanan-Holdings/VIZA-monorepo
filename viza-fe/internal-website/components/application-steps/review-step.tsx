@@ -34,7 +34,7 @@ interface ValidationResult {
   blocked: boolean;
 }
 
-function ValidationPanel({ applicationId, onProceed }: { applicationId: string; onProceed: () => void }) {
+export function ValidationPanel({ applicationId, onProceed }: { applicationId: string; onProceed: () => void }) {
   const t = useTranslations("applicationSteps");
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [result, setResult] = useState<ValidationResult | null>(null);

@@ -15,6 +15,8 @@ import {
   DocumentUploadStep,
   ReviewStep,
   StatusStep,
+  PhotoUploadStep,
+  DynamicReviewStep,
   type PersonalInfoData,
   type PassportData,
   type TravelInfoData,
@@ -193,6 +195,7 @@ interface ApplicationState {
   passport: Partial<PassportData>;
   travel: Partial<TravelInfoData>;
   documents: Partial<Record<DocumentType, string>>;
+  photo: string | null;
   confirmationNumber?: string;
   submittedAt?: string;
 }
@@ -239,6 +242,7 @@ export default function ApplicationPage() {
     passport: {},
     travel: {},
     documents: {},
+    photo: null,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -250,16 +254,37 @@ export default function ApplicationPage() {
   const useDynamic = dbSteps.length > 0;
   const tDyn = useTranslations("application.dynamicSteps");
   const tApp = useTranslations("application");
+  // Indices for the extra steps appended after DB-driven form steps
+  const photoStepIndex = dbSteps.length;
+  const reviewStepIndex = dbSteps.length + 1;
+  const statusStepIndex = dbSteps.length + 2;
+
   const effectiveSteps: StepDef[] = useDynamic
-    ? dbSteps.map((s, i) => ({
-        id: i,
-        name: (() => {
-          // next-intl treats "." as nesting separator, so strip dots for lookup
-          const safeKey = s.stepName.replace(/\./g, "");
-          return tDyn.has(safeKey) ? tDyn(safeKey as never) : s.stepName;
-        })(),
-        description: tApp("dynamicStepDescription", { count: s.fields.length }),
-      }))
+    ? [
+        ...dbSteps.map((s, i) => ({
+          id: i,
+          name: (() => {
+            const safeKey = s.stepName.replace(/\./g, "");
+            return tDyn.has(safeKey) ? tDyn(safeKey as never) : s.stepName;
+          })(),
+          description: tApp("dynamicStepDescription", { count: s.fields.length }),
+        })),
+        {
+          id: photoStepIndex,
+          name: tDyn.has("Upload Photo") ? tDyn("Upload Photo" as never) : "Upload Photo",
+          description: tApp.has("photoStepDescription") ? tApp("photoStepDescription" as never) : "Upload your passport-style photo",
+        },
+        {
+          id: reviewStepIndex,
+          name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
+          description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
+        },
+        {
+          id: statusStepIndex,
+          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
+          description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
+        },
+      ]
     : STEPS;
 
   const loadData = useCallback(async () => {
@@ -328,6 +353,10 @@ export default function ApplicationPage() {
         const { answers } = await loadDynamicAnswers(application.id);
         if (Object.keys(answers).length > 0) {
           setDynamicAnswers(answers);
+          // Rehydrate photo path from saved answers
+          if (answers["photo_path"]) {
+            setAppState((prev) => ({ ...prev, photo: answers["photo_path"] }));
+          }
         }
       }
     }
@@ -518,6 +547,92 @@ export default function ApplicationPage() {
     setCurrentStep(4);
   };
 
+  // ── Dynamic-mode photo handlers ─────────────────────────────────────
+  const handlePhotoComplete = async (storagePath: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      let applicationId = appState.applicationId;
+      if (!applicationId) {
+        const result = await ensureDraftApplication(
+          visaPackage?.country ?? "united_states",
+          visaPackage?.visa_type ?? "DS160",
+        );
+        if (result.error) throw new Error(result.error);
+        applicationId = result.applicationId!;
+        setAppState((prev) => ({ ...prev, applicationId }));
+      }
+
+      // Persist photo path as a dynamic answer
+      const saveResult = await saveDynamicAnswers(applicationId, {
+        photo_path: storagePath,
+      });
+      if (saveResult.error) throw new Error(saveResult.error);
+
+      setDynamicAnswers((prev) => ({ ...prev, photo_path: storagePath }));
+      setAppState((prev) => ({ ...prev, photo: storagePath }));
+      setCompletedUpTo((c) => Math.max(c, reviewStepIndex));
+      setCurrentStep(reviewStepIndex);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePhotoSkip = () => {
+    setCompletedUpTo((c) => Math.max(c, reviewStepIndex));
+    setCurrentStep(reviewStepIndex);
+  };
+
+  // ── Dynamic-mode review complete handler ────────────────────────────
+  const handleDynamicReviewComplete = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
+
+      await supabase.from("submission_queue").insert({
+        application_id: appState.applicationId,
+        status: "pending",
+        attempts: 0,
+        created_at: new Date().toISOString(),
+      });
+
+      await supabase.from("applications").update({
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      }).eq("id", appState.applicationId);
+
+      // Trigger translation (non-blocking)
+      let txStatus: "ok" | "failed" = "ok";
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
+        const txRes = await fetch(
+          `${backendUrl}/api/applications/${appState.applicationId}/translate`,
+          { method: "POST", headers: { "Content-Type": "application/json" } },
+        );
+        if (!txRes.ok) txStatus = "failed";
+      } catch {
+        txStatus = "failed";
+      }
+      setTranslationStatus(txStatus);
+
+      setAppState((prev) => ({
+        ...prev,
+        submittedAt: new Date().toISOString(),
+        confirmationNumber: `VIZA-${Date.now().toString(36).toUpperCase()}`,
+      }));
+      setCompletedUpTo((c) => Math.max(c, statusStepIndex));
+      setCurrentStep(statusStepIndex);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleReviewComplete = async () => {
     setSaving(true);
     setError(null);
@@ -620,14 +735,58 @@ export default function ApplicationPage() {
                   {/* Panel card */}
                   <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
                     {useDynamic ? (
-                      /* Dynamic DB-driven form */
-                      <DynamicStepForm
-                        key={step.id}
-                        step={dbSteps[step.id]}
-                        prefill={dynamicAnswers}
-                        onComplete={(data) => handleDynamicStepComplete(step.id, data)}
-                        saving={saving}
-                      />
+                      /* Dynamic DB-driven form + photo/review/status steps */
+                      <>
+                        {/* DB-driven form steps */}
+                        {step.id < photoStepIndex && dbSteps[step.id] && (
+                          <DynamicStepForm
+                            key={step.id}
+                            step={dbSteps[step.id]}
+                            prefill={dynamicAnswers}
+                            onComplete={(data) => handleDynamicStepComplete(step.id, data)}
+                            saving={saving}
+                          />
+                        )}
+
+                        {/* Photo upload step */}
+                        {step.id === photoStepIndex && appState.applicationId && (
+                          <PhotoUploadStep
+                            applicationId={appState.applicationId}
+                            existingPhotoUrl={appState.photo ? undefined : undefined}
+                            onComplete={handlePhotoComplete}
+                            onSkip={handlePhotoSkip}
+                          />
+                        )}
+
+                        {/* Dynamic review step */}
+                        {step.id === reviewStepIndex && appState.applicationId && (
+                          <DynamicReviewStep
+                            applicationId={appState.applicationId}
+                            dynamicAnswers={dynamicAnswers}
+                            dbSteps={dbSteps}
+                            photoPath={appState.photo}
+                            onEdit={(stepIdx) => setCurrentStep(stepIdx)}
+                            onPhotoEdit={() => setCurrentStep(photoStepIndex)}
+                            onComplete={handleDynamicReviewComplete}
+                          />
+                        )}
+
+                        {/* Status/confirmation step */}
+                        {step.id === statusStepIndex && appState.confirmationNumber && appState.submittedAt && (
+                          <StatusStep
+                            applicationId={appState.applicationId ?? undefined}
+                            confirmationNumber={appState.confirmationNumber}
+                            submittedAt={appState.submittedAt}
+                            estimatedProcessingDays={5}
+                            translationStatus={translationStatus ?? undefined}
+                            originalData={{
+                              personal: appState.personal,
+                              passport: appState.passport,
+                              travel: appState.travel,
+                            }}
+                          />
+                        )}
+                      </>
                     ) : (
                       /* Hardcoded B211A steps */
                       <>
