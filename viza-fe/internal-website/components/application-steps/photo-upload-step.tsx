@@ -123,7 +123,7 @@ export function PhotoUploadStep({
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) throw new Error(t("notAuthenticated"));
 
       const path = `${user.id}/${applicationId}/ds160_photo/photo.jpg`;
       const { error: uploadError } = await supabase.storage
@@ -220,7 +220,7 @@ export function PhotoUploadStep({
                     {t("browse")}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    JPEG (.jpg) &middot; Max 240KB
+                    {t("formatSpec")}
                   </p>
                 </div>
               </div>

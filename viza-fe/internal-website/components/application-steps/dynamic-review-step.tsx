@@ -30,6 +30,7 @@ export function DynamicReviewStep({
   onComplete,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
+  const tDyn = useTranslations("application.dynamicSteps");
   const locale = useLocale();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
@@ -58,7 +59,7 @@ export function DynamicReviewStep({
     value: string,
     field?: { fieldType: string; options?: Array<{ value: string; text: string }> | null },
   ): string {
-    if (!value || value === "does_not_apply") return "DOES NOT APPLY";
+    if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
     if (!field?.options || !Array.isArray(field.options)) return value;
 
     // Find matching option text
@@ -96,7 +97,7 @@ export function DynamicReviewStep({
             )}
           </div>
           <span className="text-sm text-muted-foreground">
-            {photoPath ? "Photo Provided" : t("photoUpload.noPhoto")}
+            {photoPath ? t("photoUpload.photoProvided") : t("photoUpload.noPhoto")}
           </span>
         </div>
       </Section>
@@ -128,7 +129,10 @@ export function DynamicReviewStep({
         return (
           <Section
             key={step.stepName}
-            title={step.stepName}
+            title={(() => {
+              const safeKey = step.stepName.replace(/\./g, "");
+              return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+            })()}
             onEdit={() => onEdit(stepIndex)}
             editLabel={t("edit")}
           >

@@ -361,6 +361,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
 
   // Build the ordered list of render items (fields + repeat groups)
   const renderedGroups = new Set<string>();
+  const renderedInlineGroups = new Set<string>();
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -372,8 +373,32 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
 
         const group = getRepeatGroup(field);
 
-        // Non-repeatable field: render normally
+        // Non-repeatable field
         if (!group) {
+          const ig = getInlineGroup(field);
+          if (ig) {
+            // Inline group: render all visible fields in this group together, once
+            if (renderedInlineGroups.has(ig)) return null;
+            renderedInlineGroups.add(ig);
+
+            const inlineFields = step.fields.filter(
+              (f) =>
+                !getRepeatGroup(f) &&
+                getInlineGroup(f) === ig &&
+                evaluateShowIf(f, values, step.fields) &&
+                !isGatedByUnansweredToggle(f)
+            );
+
+            if (inlineFields.length <= 1) {
+              return renderField(inlineFields[0], inlineFields[0].fieldName);
+            }
+
+            return (
+              <div key={`inline-${ig}`} className="grid grid-cols-2 gap-3">
+                {inlineFields.map((f) => renderField(f, f.fieldName))}
+              </div>
+            );
+          }
           return renderField(field, field.fieldName);
         }
 
