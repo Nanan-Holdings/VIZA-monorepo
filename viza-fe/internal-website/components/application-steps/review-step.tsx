@@ -175,6 +175,7 @@ export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComp
             <SectionRow label={t("review.portOfEntry")} value={data.travel.portOfEntry} />
             <SectionRow label={t("review.purpose")} value={data.travel.purpose} />
             <SectionRow label={t("review.accommodation")} value={data.travel.accommodationName} />
+            <SectionRow label={t("review.accommodationAddress")} value={data.travel.accommodationAddress} />
           </Section>
         )}
 

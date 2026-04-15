@@ -2983,48 +2983,65 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 12: Security and Background
   // ═══════════════════════════════════════════════════════════════════════════
+  // All security questions: each radio gets a paired "Explain" textarea (showIf === yes)
   ...([
-    ["has_communicable_disease", "Do you have a communicable disease of public health significance?"],
+    // Part 1 — Health & Criminal
+    ["has_communicable_disease", "Do you have a communicable disease of public health significance? (Communicable diseases of public significance include chancroid, gonorrhea, granuloma inguinale, infectious leprosy, lymphogranuloma venereum, infectious stage syphilis, active tuberculosis, and other diseases as determined by the Department of Health and Human Services.)"],
     ["has_physical_mental_disorder", "Do you have a mental or physical disorder that poses or is likely to pose a threat to the safety or welfare of yourself or others?"],
     ["is_drug_abuser", "Are you or have you ever been a drug abuser or addict?"],
-    ["has_arrest_conviction", "Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar legal action?"],
+    ["has_arrest_conviction", "Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar action?"],
     ["has_violated_controlled_substance", "Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?"],
-    ["intend_espionage", "Do you intend to engage in the United States in espionage, sabotage, export control violations, or any other illegal activity?"],
-    ["intend_terrorist_activity", "Do you intend to engage in the United States in terrorist activities, or have you ever engaged in terrorist activities?"],
+    ["has_prostitution", "Are you coming to the United States to engage in prostitution or unlawful commercialized vice or have you been engaged in prostitution or procuring prostitutes within the past 10 years?"],
+    ["has_money_laundering", "Have you ever been involved in, or do you seek to engage in, money laundering?"],
+    ["has_human_trafficking", "Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?"],
+    ["has_aided_human_trafficking", "Have you ever knowingly aided, abetted, assisted or colluded with an individual who has committed, or conspired to commit a severe human trafficking offense in the United States or outside the United States?"],
+    ["has_trafficking_beneficiary", "Are you the spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense in the United States or outside the United States and have you within the last five years, knowingly benefited from the trafficking activities?"],
+    // Part 2 — Terrorism & Security
+    ["intend_espionage", "Do you seek to engage in espionage, sabotage, export control violations, or any other illegal activity while in the United States?"],
+    ["intend_terrorist_activity", "Do you seek to engage in terrorist activities while in the United States or have you ever engaged in terrorist activities?"],
     ["has_provided_terrorist_support", "Have you ever or do you intend to provide financial assistance or other support to terrorists or terrorist organizations?"],
     ["is_terrorist_member", "Are you a member or representative of a terrorist organization?"],
+    ["is_terrorist_family", "Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity, including providing financial assistance or other support to terrorists or terrorist organizations, in the last five years?"],
+    // Part 3 — Human Rights
     ["has_genocide", "Have you ever ordered, incited, committed, assisted, or otherwise participated in genocide?"],
     ["has_torture", "Have you ever committed, ordered, incited, assisted, or otherwise participated in torture?"],
     ["has_extrajudicial_killings", "Have you committed, ordered, incited, assisted, or otherwise participated in extrajudicial killings, political killings, or other acts of violence?"],
     ["has_child_soldier", "Have you ever engaged in the recruitment or the use of child soldiers?"],
     ["has_religious_freedom_violation", "Have you, while serving as a government official, been responsible for or directly carried out, at any time, particularly severe violations of religious freedom?"],
-    ["has_trafficking", "Have you ever been directly involved in the establishment or enforcement of population controls forcing a woman to undergo an abortion against her free choice or a man or a woman to undergo sterilization against his or her free will?"],
-    ["has_transplant_trafficking", "Have you ever been involved in transplant tourism or trafficking?"],
+    ["has_population_control", "Have you ever been directly involved in the establishment or enforcement of population controls forcing a woman to undergo an abortion against her free choice or a man or a woman to undergo sterilization against his or her free will?"],
+    ["has_coercive_transplant", "Have you ever been directly involved in the coercive transplantation of human organs or bodily tissue?"],
+    // Part 4 — Immigration Fraud & Removal
+    ["has_immigration_fraud", "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation or other unlawful means?"],
     ["has_removal_order", "Have you ever been removed or deported from any country?"],
-    ["has_custody_violation", "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?"],
     ["has_failed_to_attend_removal", "Have you failed to attend a hearing on removability or inadmissibility within the last 5 years?"],
     ["has_unlawful_presence", "Have you ever been unlawfully present, overstayed the amount of time granted by an immigration official or violated the terms of a U.S. visa?"],
-    ["has_withheld_child_custody", "Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court, voted in the United States in violation of any law or regulation, or renounced U.S. citizenship for the purposes of avoiding taxation?"],
-  ] as [string, string][]).map(([fn, lbl], i) => ({
-    field_name: fn,
-    label: lbl,
-    field_type: "radio" as const,
-    required: true,
-    step_number: 12,
-    step_name: "Security and Background",
-    display_order: i + 1,
-    options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
-  })),
-  {
-    field_name: "security_explanation",
-    label: "If you answered 'Yes' to any of the above, please explain",
-    field_type: "textarea",
-    required: false,
-    step_number: 12,
-    step_name: "Security and Background",
-    display_order: 30,
-    conditional_logic: { showIf: "any_security_answer === yes" },
-  },
+    // Part 5 — Citizenship & Custody
+    ["has_withheld_child_custody", "Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court?"],
+    ["has_voted_illegally", "Have you voted in the United States in violation of any law or regulation?"],
+    ["has_renounced_citizenship", "Have you ever renounced United States citizenship for the purposes of avoiding taxation?"],
+  ] as [string, string][]).flatMap(([fn, lbl], i) => [
+    {
+      field_name: fn,
+      label: lbl,
+      field_type: "radio" as const,
+      required: true,
+      step_number: 12,
+      step_name: "Security and Background",
+      display_order: i * 2 + 1,
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+    },
+    {
+      field_name: `${fn}_explain`,
+      label: "Explain",
+      field_type: "textarea" as const,
+      required: true,
+      step_number: 12,
+      step_name: "Security and Background",
+      display_order: i * 2 + 2,
+      conditional_logic: { showIf: `${fn} === yes` },
+      validation_rules: { maxLength: 4000 },
+    },
+  ]),
 ];
 
 async function seed() {
