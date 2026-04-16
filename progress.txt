@@ -34,3 +34,41 @@ Learnings:
 - CEAC page identity is most reliably read from the H2 heading (`#SiteContentPlaceHolder h2`); session-expired banners must be checked first because CEAC can overlay the expiry message while the prior heading is still in the DOM.
 - Keep session bootstrap narrow: this story deliberately does NOT select embassy / solve CAPTCHA / start a new application. Those belong to the navigation layer in US-003.
 ---
+
+## 2026-04-16 - US-003
+- Added `src/ceac/navigator.ts` as the central CEAC page-transition abstraction. All DS-160 forward/back/save moves should route through it so navigation is never timing-only and validation failures surface with page context.
+- Public surface: `advance({ from, to })`, `goBack({ from, to })`, `saveCurrent({ at })`, plus `readValidationMessages` / `hasValidationErrors` helpers. Each transition asserts the origin page identity, clicks the correct CEAC nav button, short-circuits on inline validation errors, then polls for the destination identity via the existing `waitForPage`.
+- Error surface aligns with US-002: CEAC-side validation raises `ValidationFailedError` (with `validationMessages`, origin page, and field/summary split), timing/destination-miss raises `NavigationError`, and session-expired propagates through `waitForPage`'s existing `SessionExpiredError`.
+- Visibility filtering: `readValidationMessages` walks each candidate locator and only keeps `isVisible()` nodes, so inactive `asp:*Validator` spans (rendered `display: none` until CEAC round-trips a failure) do not produce phantom errors.
+- Exported the new navigator surface from `src/ceac/index.ts`. No changes to the legacy worker (`src/index.ts`) per US-003 scope note — integration comes in US-004+.
+- Typecheck (`npm run type-check` in viza-be/submission-service) passes.
+Files changed:
+- viza-be/submission-service/src/ceac/navigator.ts (new)
+- viza-be/submission-service/src/ceac/index.ts (export navigator surface)
+- prd.json (US-003 passes: true)
+- progress.txt (this entry)
+Learnings:
+- CEAC's `asp:ValidationSummary` / per-field validators stay mounted with `display: none`. Filtering by `isVisible()` is the reliable way to read actual errors — `textContent()` alone surfaces stale text.
+- Validation must be checked BEFORE polling for destination identity. If CEAC rejected the submit, the heading never changes, so waiting for the target page wastes the full timeout and throws the wrong error class.
+- `assertFrom` defaults to true for `advance`/`goBack` but false for `saveCurrent`, because Save is frequently called from a page the caller just landed on and re-asserting is noise. Callers that want strict origin checks on Save can still opt in.
+- The `next`/`back` CEAC buttons can both be present simultaneously on intermediate DS-160 pages. Using `isVisible()` + first-match resolution avoids accidentally clicking a disabled/offscreen control.
+---
+
+## 2026-04-16 - US-004
+- Added `src/ceac/checkpoints.ts`: Application ID capture + structured checkpoint emission for the DS-160 flow. Legacy worker (`src/index.ts`) intentionally untouched per the US-004 scope note — integration lands in US-008.
+- `captureApplicationId(page)` is best-effort and non-throwing: it walks every known Application-ID selector, falls back to scanning visible body text against `CEAC_APPLICATION_ID_PATTERN`, and returns `{ applicationId, source, raw? }`. Source is one of `selector` | `body_scan` | `none` so callers can tell "not issued yet" from "capture strategy changed".
+- `CeacCheckpoint` is fully serializable: `at` (ISO-8601), `action`, `pageId`, `heading`, `url`, `applicationId`, optional `runId`, optional `details`. Emission goes through a pluggable `CheckpointSink`; `consoleCheckpointSink` (the default) prints one JSON line per record so logs remain greppable and aggregation-friendly until a durable sink is wired in.
+- `saveAndCheckpoint(page, { at, sink, runId, knownApplicationId, ... })` wraps `navigator.saveCurrent` and emits a `save` checkpoint — the canonical "natural section boundary save" primitive. `recordSectionCheckpoint` and `recordBootstrapCheckpoint` cover the non-save cases (advancing into a new section, and the initial bootstrap baseline).
+- `buildCheckpoint(page, { applicationId, ... })` treats the `applicationId` input as a three-state signal: `undefined` = scan the page now, `string` = use the caller's cached value (avoids redundant DOM scans across a run), `null` = explicitly record "not yet issued". This keeps the Application ID capture cost to once per run.
+- Exported the full surface from `src/ceac/index.ts`. Typecheck (`npm run type-check` in viza-be/submission-service) passes.
+Files changed:
+- viza-be/submission-service/src/ceac/checkpoints.ts (new)
+- viza-be/submission-service/src/ceac/index.ts (export checkpoint surface)
+- prd.json (US-004 passes: true)
+- progress.txt (this entry)
+Learnings:
+- Application ID capture must be non-throwing. CEAC does not render the ID until after the applicant finishes the start/security pages, so an early-page capture attempt is an expected "none" — treating it as an error would spam alerts on every run bootstrap.
+- A three-state `applicationId` input (`undefined` | `string` | `null`) is worth the API complexity: `undefined` triggers a DOM scan, `string` reuses a cached value, `null` records "confirmed not yet issued". Collapsing to a two-state design would have forced either redundant scans or a loss of the "confirmed absent" signal.
+- Checkpoint emission belongs outside the navigator. The navigator already throws structured errors; mixing persistence concerns into it would have made failure-path reasoning harder. A pluggable `CheckpointSink` at the call site keeps the layers clean and lets future stories (US-005 `.dat` artifacts, US-007 screenshots) reuse the same sink abstraction.
+- Body-text fallback for Application ID is safe because the `AA[A-Z0-9]{8,10}` pattern is distinctive enough that false positives are effectively impossible on CEAC pages — no page content uses that format outside the ID itself.
+---
