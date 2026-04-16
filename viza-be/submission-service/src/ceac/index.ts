@@ -82,3 +82,14 @@ export {
   type CeacErrorCode,
   type CeacErrorContext,
 } from "./errors";
+
+export {
+  detectSignAndSubmit,
+  assertSignAndSubmit,
+  stopAtSignAndSubmit,
+  isHandoffReadyOutcome,
+  type SignPageMarkers,
+  type SignPageIdentity,
+  type HandoffReadyOutcome,
+  type StopAtSignOptions,
+} from "./stop-at-sign";
