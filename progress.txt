@@ -11,3 +11,26 @@ Learnings:
 - US-001 is the scope anchor. Later stories (US-002..US-008) must stay inside viza-be/submission-service CEAC modules and must not introduce final submission behavior.
 - Success boundary is arrival at the Sign and Submit page with a retrievable application; never enter passport signature, CAPTCHA, or final submit.
 ---
+
+## 2026-04-16 - US-002
+- Added a dedicated `src/ceac/` module to viza-be/submission-service with session bootstrap, explicit page-identity detection, centralized selectors, and structured errors.
+- `selectors.ts` centralizes CEAC URLs, nav selectors (Next/Back/Save/Save to File), heading selector, validation selectors, Application ID selectors + pattern, session-expired markers, and sign-and-submit page markers.
+- `pages.ts` exposes `CeacPageId` (enum-like union of the DS-160 pages), `detectPage`, `assertPage`, and `waitForPage`. Detection is DOM-based (heading text + body markers), not timing-based: `waitForPage` polls the identity until match or timeout and reports the last observed state.
+- `session.ts` exposes `startCeacSession` which launches Chromium, opens the CEAC start page, asserts we landed on `start`, and returns a `CeacSession` handle with `close()`. Bootstrap failures surface as `SessionBootstrapError` with structured context; browser/context are always cleaned up on failure.
+- `errors.ts` defines `CeacError` (with `code` + `context` for structured logging/alerting) plus focused subclasses: `UnexpectedPageError`, `SessionExpiredError`, `NavigationError`, `ValidationFailedError`, `SessionBootstrapError`.
+- `index.ts` is a thin barrel that re-exports the public surface.
+- No changes to existing worker flow (`src/index.ts`, `ds160-form-mappings.ts`); US-003+ will integrate these helpers incrementally.
+- Used Playwright's locator API instead of `page.evaluate` to avoid pulling DOM types into the submission-service tsconfig.
+Files changed:
+- viza-be/submission-service/src/ceac/errors.ts (new)
+- viza-be/submission-service/src/ceac/selectors.ts (new)
+- viza-be/submission-service/src/ceac/pages.ts (new)
+- viza-be/submission-service/src/ceac/session.ts (new)
+- viza-be/submission-service/src/ceac/index.ts (new)
+- prd.json (US-002 passes: true)
+- progress.txt (this entry)
+Learnings:
+- submission-service's tsconfig excludes DOM types. Any browser-side code must live inside `page.evaluate` callbacks (not type-checked against Node lib) or use Playwright's locator API which is the cleaner default.
+- CEAC page identity is most reliably read from the H2 heading (`#SiteContentPlaceHolder h2`); session-expired banners must be checked first because CEAC can overlay the expiry message while the prior heading is still in the DOM.
+- Keep session bootstrap narrow: this story deliberately does NOT select embassy / solve CAPTCHA / start a new application. Those belong to the navigation layer in US-003.
+---
