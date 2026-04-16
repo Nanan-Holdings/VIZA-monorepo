@@ -63,6 +63,12 @@ export type CeacCheckpointAction =
   | "save_to_file"
   /** Initial capture right after session bootstrap. */
   | "bootstrap"
+  /**
+   * Recorded when the worker reaches the final Sign and Submit page and
+   * stops before any irreversible action (US-006). This is the canonical
+   * successful terminal state for a CEAC autofill run.
+   */
+  | "handoff_ready"
   /** Caller-initiated checkpoint — use sparingly, prefer a specific action. */
   | "manual";
 
