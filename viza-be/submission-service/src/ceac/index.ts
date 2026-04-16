@@ -32,6 +32,33 @@ export {
 } from "./session";
 
 export {
+  advance,
+  goBack,
+  saveCurrent,
+  readValidationMessages,
+  hasValidationErrors,
+  type CeacNavAction,
+  type CeacValidationReport,
+  type NavigateOptions,
+} from "./navigator";
+
+export {
+  captureApplicationId,
+  buildCheckpoint,
+  saveAndCheckpoint,
+  recordSectionCheckpoint,
+  recordBootstrapCheckpoint,
+  consoleCheckpointSink,
+  type ApplicationIdCapture,
+  type CeacCheckpoint,
+  type CeacCheckpointAction,
+  type CheckpointSink,
+  type CheckpointEmitOptions,
+  type SaveAndCheckpointOptions,
+  type BuildCheckpointInput,
+} from "./checkpoints";
+
+export {
   CeacError,
   UnexpectedPageError,
   SessionExpiredError,
