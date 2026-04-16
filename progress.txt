@@ -72,3 +72,23 @@ Learnings:
 - Checkpoint emission belongs outside the navigator. The navigator already throws structured errors; mixing persistence concerns into it would have made failure-path reasoning harder. A pluggable `CheckpointSink` at the call site keeps the layers clean and lets future stories (US-005 `.dat` artifacts, US-007 screenshots) reuse the same sink abstraction.
 - Body-text fallback for Application ID is safe because the `AA[A-Z0-9]{8,10}` pattern is distinctive enough that false positives are effectively impossible on CEAC pages — no page content uses that format outside the ID itself.
 ---
+
+## 2026-04-16 - US-005
+- Added `src/ceac/artifacts.ts`: `.dat` Save-to-File capture + a `RecoveryTracker` that accumulates Application ID, last checkpoint, and the `.dat` artifact across a run, plus `preserveRecoveryOnFailure` for the error path. Legacy worker untouched per the story scope (integration lands in US-008).
+- `captureDatArtifact(page, { outputDir, ... })` clicks CEAC's Save-to-File button, awaits the Playwright `download` event (listener registered BEFORE the click so we don't race CEAC's fast response), saves the `.dat` to disk via `download.saveAs`, and returns a fully-serializable `DatArtifact` (path, suggestedFilename, sizeBytes, capturedAt, sourcePageId, applicationId). Missing button / failed click / missing download each raise a structured `NavigationError` with `action: "save_to_file"` context.
+- `RecoveryTracker` implements the existing `CheckpointSink` interface so callers pass it straight into `saveAndCheckpoint` / `recordSectionCheckpoint` / `captureDatAndCheckpoint`. Every checkpoint updates `lastCheckpoint`; any non-null `applicationId` on a checkpoint is promoted to the tracker-wide value (CEAC surfacing the ID is authoritative). `attachDatArtifact` stores the newest `.dat` (resume flows should use the freshest file) and promotes its `applicationId` as well.
+- `captureDatAndCheckpoint` is the canonical "Save-to-File + checkpoint" primitive — symmetric with US-004's `saveAndCheckpoint`. Tracker precedence: when supplied, the tracker is used as the checkpoint sink (it already forwards to its delegate), keeping recovery state in sync with the checkpoint log without double-wiring.
+- `preserveRecoveryOnFailure` snapshots the tracker, serializes the error (name/message + optional code/context for `CeacError` subclasses), and emits a final `manual` checkpoint with `reason: "run_failed"` carrying the full recovery payload. Page-aware path uses `buildCheckpoint`; if the page is gone it synthesizes a checkpoint so the snapshot still lands in the sink. Wrapped in try/catch to guarantee the preserve path never masks the original error.
+- No changes to `src/ceac/checkpoints.ts`: US-004 already reserved the `save_to_file` action string on the `CeacCheckpointAction` union, so artifacts.ts emits it directly.
+- Exported the new surface from `src/ceac/index.ts`. Typecheck (`npm run type-check` in viza-be/submission-service) passes.
+Files changed:
+- viza-be/submission-service/src/ceac/artifacts.ts (new)
+- viza-be/submission-service/src/ceac/index.ts (export artifact/recovery surface)
+- prd.json (US-005 passes: true)
+- progress.txt (this entry)
+Learnings:
+- Playwright's `download` event can fire before `click()` resolves for small files — register `page.waitForEvent("download", ...)` BEFORE clicking, not after. This is why Playwright's docs show the wait pattern as a Promise-holding variable rather than a sequential call.
+- US-004 reserved the `save_to_file` action value on `CeacCheckpointAction` specifically so US-005 wouldn't need to widen the union. That prior decision kept the change set to artifacts.ts + the index barrel — exactly the minimally-invasive shape the story's scope note called for.
+- Making `RecoveryTracker extends CheckpointSink` (rather than wrapping one) lets callers pass the tracker wherever a sink is accepted. That avoids a second "sink + tracker" wiring everywhere and keeps the Application-ID sync logic in one place. Downside: callers who want both a plain sink AND a tracker must configure the tracker's `delegate` — documented explicitly on `CreateRecoveryTrackerOptions`.
+- Failure-path preservation must be strictly non-throwing. Wrapping `buildCheckpoint` + `sink.record` in try/catch is the only way to guarantee that preserving recovery state never masks the underlying error. The synthetic-checkpoint branch (when `page` is null) exists because the browser/context may already be closed by the time the caller enters its catch block.
+---

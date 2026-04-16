@@ -59,6 +59,20 @@ export {
 } from "./checkpoints";
 
 export {
+  captureDatArtifact,
+  captureDatAndCheckpoint,
+  createRecoveryTracker,
+  preserveRecoveryOnFailure,
+  type DatArtifact,
+  type CaptureDatOptions,
+  type CaptureDatAndCheckpointOptions,
+  type RecoveryMetadata,
+  type RecoveryTracker,
+  type CreateRecoveryTrackerOptions,
+  type PreserveRecoveryOptions,
+} from "./artifacts";
+
+export {
   CeacError,
   UnexpectedPageError,
   SessionExpiredError,
