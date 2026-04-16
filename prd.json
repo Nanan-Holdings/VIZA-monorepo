@@ -1,100 +1,120 @@
 {
-    "title":  "VIZA Chatbot v2 - Persistent Visa-Aware AI Assistant",
-    "userStories":  [
-                        {
-                            "passes":  true,
-                            "title":  "Render deployment config",
-                            "description":  "Create render.yaml at viza-be/agent-backend/. Service name: viza-agent-backend, region: singapore, plan: free, buildCommand: npm install \u0026\u0026 npm run build, startCommand: npm start, healthCheckPath: /health. Env vars: NODE_ENV=production, PORT=10000, ANTHROPIC_API_KEY/SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/CORS_ORIGINS all sync: false. Fix hardcoded GCP URL in companion-chat.tsx: change fallback from https://agent-backend-staging-kxvsjusria-as.a.run.app to http://localhost:3002. Add NEXT_PUBLIC_AGENT_BACKEND_URL to viza-fe/internal-website/.env.example.",
-                            "id":  "US-033",
-                            "scope":  [
-                                          "viza-be/agent-backend/render.yaml",
-                                          "viza-fe/internal-website/components/client/companion/companion-chat.tsx",
-                                          "viza-fe/internal-website/.env.example"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Persistent single session - backend",
-                            "description":  "Migration 0008_user_chat_sessions.sql: CREATE TABLE user_chat_sessions (id UUID PK, auth_user_id UUID UNIQUE NOT NULL REFERENCES auth.users, visa_package_id UUID REFERENCES visa_packages, created_at/updated_at TIMESTAMPTZ). RLS: authenticated users read own row, service_role full access. Also: ALTER TABLE visa_chat_messages ADD COLUMN IF NOT EXISTS block_data JSONB. Add Drizzle schema entries for userChatSessions. Add getOrCreateUserSession(userId) server action in companion-sessions.ts: upsert on auth_user_id unique constraint, return session + last 100 messages ordered by created_at asc.",
-                            "id":  "US-034",
-                            "scope":  [
-                                          "viza-be/agent-backend/drizzle/0008_user_chat_sessions.sql",
-                                          "viza-be/agent-backend/src/db/schema.ts",
-                                          "viza-fe/internal-website/app/actions/companion-sessions.ts"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Persistent single session - frontend",
-                            "description":  "Update ChatPage (app/client/chat/page.tsx): call getOrCreateUserSession(userId) instead of getUserSessions. Pass single session + messages to ChatClient. Update CompanionChat (companion-chat.tsx): remove sessions state array, setSessions, handleSessionSelect, handleNewLabsAiChat, handleNewCareTeamChat. Remove SessionSidebar component entirely - delete the desktop sidebar div and the Sheet mobile sidebar. Chat fills full width. On mount: use the single session from props. Remove new conversation button. Keep all chat functionality (send, receive, scroll, streaming).",
-                            "id":  "US-035",
-                            "scope":  [
-                                          "viza-fe/internal-website/app/client/chat/page.tsx",
-                                          "viza-fe/internal-website/app/client/chat/chat-client.tsx",
-                                          "viza-fe/internal-website/components/client/companion/companion-chat.tsx"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Visa-type-aware agent + application context",
-                            "description":  "In agent/index.ts: add buildSystemPrompt(context: { visaPackage: {name, country, visa_type} | null, applicationSummary: string }): string. Visa-specific system prompt, agent is VIZA AI concierge, tells user to use send_application_block tool when missing fields. Add buildApplicationContext(userId: string): Promise\u003cstring\u003e - queries applicant_profiles, applications, application_documents, user_packages+visa_packages via Supabase service role client. Returns formatted summary string showing COMPLETE/INCOMPLETE per section with MISSING fields listed. In visa-namespace.ts: on each visa_chat_message, fetch visaPackage + call buildApplicationContext(userId), call buildSystemPrompt, inject as system prompt to streamChat. Replace hardcoded SYSTEM_PROMPT.",
-                            "id":  "US-036",
-                            "scope":  [
-                                          "viza-be/agent-backend/src/agent/index.ts",
-                                          "viza-be/agent-backend/src/socket/visa-namespace.ts"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Agent tool use - send_application_block tool",
-                            "description":  "In agent/index.ts: add Anthropic tool definition for send_application_block. Tool input schema: title (string), description (string), blockType (enum: field_group|single_field|document_upload), fields (array of {key, label, type: text|date|select|textarea|file, required, currentValue, options?, placeholder?}), saveTarget (string: personal_info|passport_info|travel_info|visa_answer_{field}|document_{type}), applicationId (string|null). Update streamChat to use tools parameter. When tool_use block detected in stream: emit application_block socket event to user room with block data + generated messageId. Save to visa_chat_messages with role=\u0027block\u0027, content=description, block_data=full block JSON. Then emit tool_result back to continue the agent stream so agent acknowledges the block naturally.",
-                            "id":  "US-037",
-                            "scope":  [
-                                          "viza-be/agent-backend/src/agent/index.ts",
-                                          "viza-be/agent-backend/src/socket/visa-namespace.ts"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "BlockMessage frontend component",
-                            "description":  "Create block-message.tsx in components/client/companion/. Props: { block: ApplicationBlock, onSaved: (blockId: string) =\u003e void }. ApplicationBlock type: {messageId, blockType, title, description, fields: Array\u003c{key,label,type,required,currentValue,options?,placeholder?}\u003e, saveTarget, applicationId}. Renders as white card with subtle border. Field types: text-\u003eInput, date-\u003edate input, select-\u003eSelect, file-\u003efile input. Save button calls POST /api/chat/save-block with {userId, applicationId, saveTarget, values}. States: idle (editable), saving (spinner), saved (green border + checkmark, read-only), error (red + retry). On saved: emit block_saved socket event {blockId, saveTarget, savedValues}, call onSaved prop. Update use-agent-socket.ts: handle application_block socket event, add to messages array with role=block. Update companion-chat.tsx message rendering: when msg.role===block, parse msg.content or block_data and render \u003cBlockMessage\u003e.",
-                            "id":  "US-038",
-                            "scope":  [
-                                          "viza-fe/internal-website/components/client/companion/block-message.tsx",
-                                          "viza-fe/internal-website/components/client/companion/chat-message.tsx",
-                                          "viza-fe/internal-website/hooks/use-agent-socket.ts",
-                                          "viza-fe/internal-website/components/client/companion/companion-chat.tsx"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Save-block API endpoint",
-                            "description":  "Create viza-be/agent-backend/src/routes/chat-save-block.routes.ts. POST /save-block endpoint. Request: {userId, applicationId, saveTarget, values: Record\u003cstring,string\u003e}. Routing: saveTarget===personal_info -\u003e upsert applicant_profiles by auth_user_id (full_name, date_of_birth, gender, nationality, occupation, address, place_of_birth). saveTarget===passport_info -\u003e upsert applicant_profiles (passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, passport_issuing_authority). saveTarget===travel_info -\u003e upsert applications by id=applicationId (arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address). saveTarget starts with visa_answer_ -\u003e upsert visa_application_answers (application_id, field_name=saveTarget.replace(\u0027visa_answer_\u0027,\u0027\u0027), value_text). saveTarget starts with document_ -\u003e insert application_documents (application_id, document_type=saveTarget.replace(\u0027document_\u0027,\u0027\u0027), status=\u0027pending\u0027). Response: {success: true, updatedFields: string[]}. Register in app.ts: app.use(\u0027/api/chat\u0027, chatSaveBlockRouter).",
-                            "id":  "US-039",
-                            "scope":  [
-                                          "viza-be/agent-backend/src/routes/chat-save-block.routes.ts",
-                                          "viza-be/agent-backend/src/app.ts"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Realtime sync on /application page",
-                            "description":  "In app/client/application/page.tsx, add useEffect that creates Supabase Realtime channel subscribed to postgres_changes on applicant_profiles (UPDATE) and applications (UPDATE). On any change event, call loadData() to refresh step data. Clean up channel on unmount. This ensures when the chat saves a block (e.g. travel info), the /application page auto-updates without a full reload.",
-                            "id":  "US-040",
-                            "scope":  [
-                                          "viza-fe/internal-website/app/client/application/page.tsx"
-                                      ]
-                        },
-                        {
-                            "passes":  false,
-                            "title":  "Free step navigation on /application",
-                            "description":  "In application/page.tsx: make all steps freely clickable. In VerticalStepSidebar: add onStepClick prop, wrap each step card in a button onClick={()=\u003eonStepClick(i)}, remove locked styling/cursor-not-allowed. In MobileStepBar: same, make each step circle clickable. Remove LockedStepCard component entirely. In step rendering logic: remove the check that returns LockedStepCard when i \u003e completedUpTo. Keep completedUpTo only for showing CompletedStepSummary (green card with Edit) when i \u003c completedUpTo, vs full form when i \u003e= completedUpTo. Any step can be navigated to freely by clicking sidebar or mobile bar.",
-                            "id":  "US-041",
-                            "scope":  [
-                                          "viza-fe/internal-website/app/client/application/page.tsx"
-                                      ]
-                        }
-                    ],
-    "version":  "1.0",
-    "repo":  "EdwardZehuaZhang/VIZA-monorepo"
+  "project": "VIZA-monorepo",
+  "branchName": "ralph/ds160-ceac-clean",
+  "description": "Implement reliable DS-160 CEAC autofill to the Sign and Submit page without final submission.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Pin CEAC automation scope and handoff contract",
+      "description": "As a developer, I need the CEAC automation scope codified in the repo so the worker targets the Sign and Submit page and stops there.",
+      "acceptanceCriteria": [
+        "docs/prd-ds160-ceac-autofill.md exists in the repo",
+        "prd.json contains DS-160 CEAC autofill stories instead of unrelated chatbot stories",
+        "The repo branch for this run is ralph/ds160-ceac-clean",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Keep this story docs-only and use it to unblock the rest of the CEAC automation run."
+    },
+    {
+      "id": "US-002",
+      "title": "Add CEAC session bootstrap and page identity helpers",
+      "description": "As a worker, I need stable CEAC session and page-detection helpers so I can start and route the DS-160 flow reliably.",
+      "acceptanceCriteria": [
+        "submission-service has CEAC helpers for session start, page identity detection, and common selectors",
+        "Page identity checks are explicit and not based only on timing",
+        "Unexpected page states raise structured errors",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Scope changes to viza-be/submission-service CEAC modules only."
+    },
+    {
+      "id": "US-003",
+      "title": "Normalize page-by-page CEAC navigation",
+      "description": "As a worker, I need deterministic navigation across DS-160 pages so the flow can progress section by section without silent failures.",
+      "acceptanceCriteria": [
+        "CEAC navigation is routed through a central page router or equivalent abstraction",
+        "Next-page transitions verify destination page identity",
+        "Validation failures are detected and surfaced with page context",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Do not add submission behavior; only improve navigation and validation."
+    },
+    {
+      "id": "US-004",
+      "title": "Capture Application ID and save checkpoints",
+      "description": "As ops, I need Application ID capture and save checkpoints so a partially completed DS-160 run remains recoverable.",
+      "acceptanceCriteria": [
+        "The worker captures DS-160 Application ID as early as it becomes available",
+        "The worker performs save/checkpoint actions at natural section boundaries",
+        "Checkpoint metadata is persisted or logged in structured form",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Prefer minimally invasive changes to existing submission-service persistence points."
+    },
+    {
+      "id": "US-005",
+      "title": "Support .dat artifact capture and recovery metadata",
+      "description": "As ops, I need `.dat` artifact handling and recovery metadata so failed or paused runs can be resumed.",
+      "acceptanceCriteria": [
+        "When CEAC offers Save to File, the worker captures the `.dat` artifact path or file output",
+        "Recovery metadata includes Application ID and last successful checkpoint",
+        "Failure paths preserve recovery information when available",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "If full upload/replay is not yet wired, at minimum capture and structure the artifacts and metadata."
+    },
+    {
+      "id": "US-006",
+      "title": "Implement stop-at-sign-page contract",
+      "description": "As VIZA, I need the worker to reach the final Sign and Submit page and stop before irreversible actions.",
+      "acceptanceCriteria": [
+        "The worker detects the final Sign and Submit page using explicit markers",
+        "The worker does not enter passport-number signature",
+        "The worker does not enter CAPTCHA or click final Sign and Submit",
+        "The stop state is logged as a successful handoff-ready outcome",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "This is the core product boundary; do not blur it with auto-submit behavior."
+    },
+    {
+      "id": "US-007",
+      "title": "Add success and failure artifacts for CEAC runs",
+      "description": "As ops, I need screenshots and structured diagnostics so I can verify sign-page reach and debug failures quickly.",
+      "acceptanceCriteria": [
+        "Successful runs store a sign-page screenshot or equivalent artifact reference",
+        "Failure runs store error context with last page/checkpoint",
+        "Artifact paths or references are emitted in worker output/logging",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Treat the sign-page screenshot as proof of success."
+    },
+    {
+      "id": "US-008",
+      "title": "Return handoff-ready result payload",
+      "description": "As internal ops, I need a handoff-ready result payload so I can give the client their Application ID and retrieval instructions.",
+      "acceptanceCriteria": [
+        "Worker success output includes Application ID, stop-state, and available recovery artifacts",
+        "Output clearly distinguishes handoff-ready from submitted",
+        "No code path performs final DS-160 submission",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Keep output contract focused on internal ops handoff, not user-facing UI work."
+    }
+  ]
 }

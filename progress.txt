@@ -1,14 +1,13 @@
-US-016: visa_packages already existed in schema.ts + 0006_visa_packages.sql
-US-017: user_packages already existed in schema.ts + 0006_visa_packages.sql
-US-018: visa_application_answers table added with upsert-safe uniqueness
-US-019: shared_profile_fields table added for cross-visa completeness
-US-020: applications table extended with visa_package_id and ds160 metadata columns
-US-021: GET/POST /api/user/package endpoints with package reassignment
-US-022: GET/POST /api/applications/:id/answers with flat map + upsert
-US-023: GET /api/profile/prefill with DS-160 and Indonesia field mapping
-US-024: Admin users list page at /admin/users with package/status display
-US-025: Admin user detail page at /admin/users/[id] with assign package form
-US-026-029: DS-160 seed script already had complete coverage (steps 1-11)
-US-030: DS-160 queue statuses added, routing in submission service poll
-US-031: DS-160 Playwright prefill + .dat save workflow implemented
-US-032: Supabase storage upload for .dat + failure alerting added
+## 2026-04-16 - US-001
+- Pinned CEAC automation scope: committed docs/prd-ds160-ceac-autofill.md as the authoritative PRD for the DS-160 CEAC autofill flow (stop-at-sign-page contract).
+- Confirmed prd.json now tracks CEAC autofill stories (US-001..US-008), not legacy chatbot stories.
+- Confirmed branch is ralph/ds160-ceac-clean.
+- No code changes; typecheck not applicable (docs-only story).
+Files changed:
+- prd.json (US-001 passes: true)
+- docs/prd-ds160-ceac-autofill.md (committed untracked PRD)
+- progress.txt (new progress log)
+Learnings:
+- US-001 is the scope anchor. Later stories (US-002..US-008) must stay inside viza-be/submission-service CEAC modules and must not introduce final submission behavior.
+- Success boundary is arrival at the Sign and Submit page with a retrievable application; never enter passport signature, CAPTCHA, or final submit.
+---
