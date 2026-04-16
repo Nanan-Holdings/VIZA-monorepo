@@ -70,7 +70,7 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "If full upload/replay is not yet wired, at minimum capture and structure the artifacts and metadata."
     },
     {
