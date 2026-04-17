@@ -115,3 +115,22 @@ Learnings:
 - Tracker snapshot must be read BOTH before (for Application ID / runId context on the checkpoint) AND after (so `lastCheckpoint` in the outcome reflects the stop checkpoint itself). Single-read designs either miss the just-emitted checkpoint or skip the pre-emission context.
 - The `captchaPresent` marker is surfaced on the outcome but not required for identification. CEAC's captcha rendering is flaky; requiring it would cause spurious failures on perfectly valid sign pages. The marker IS surfaced so ops artifacts/screenshots (US-007) can correlate "captcha rendered vs not" across runs.
 ---
+
+## 2026-04-17 - US-007
+- Added `src/ceac/diagnostics.ts`: `ScreenshotArtifact` interface and `tryCaptureScreenshot()` — the single entry point for all screenshot capture in the CEAC module. Non-throwing: returns `null` when the page is unavailable, the directory can't be created, or the write fails.
+- **Success path:** Extended `stopAtSignAndSubmit` (stop-at-sign.ts) with optional `screenshotDir`/`screenshotFilename` options. When provided, captures a full-page sign-page screenshot as proof of reach. The `ScreenshotArtifact` is attached to the `handoff_ready` checkpoint details AND returned on the `HandoffReadyOutcome` as `signPageScreenshot`.
+- **Failure path:** `preserveRecoveryOnFailure` (artifacts.ts) already imported `tryCaptureScreenshot` from `./diagnostics` — that import now resolves. When `screenshotDir` is provided, failure screenshots are captured and attached to the recovery checkpoint's `details.failureScreenshot` and returned on `PreservedRecovery`.
+- **Logging:** Both success and failure screenshots are embedded in checkpoint details, so the console JSON sink (`ceac.checkpoint` log lines) carries the artifact path/metadata. A single log record carries the full diagnostic context.
+- Exported `tryCaptureScreenshot`, `ScreenshotArtifact`, `CaptureScreenshotOptions`, and `PreservedRecovery` from the barrel `index.ts`.
+- Typecheck passes.
+Files changed:
+- viza-be/submission-service/src/ceac/diagnostics.ts (new)
+- viza-be/submission-service/src/ceac/stop-at-sign.ts (add screenshot capture + outcome field)
+- viza-be/submission-service/src/ceac/index.ts (export diagnostics + PreservedRecovery)
+- prd.json (US-007 passes: true)
+- progress.txt (this entry)
+Learnings:
+- The `diagnostics.ts` module was already imported by `artifacts.ts` (US-005) for the failure-path screenshot — creating it retroactively resolved that dangling import without changing artifacts.ts at all. This validates the approach of reserving import paths for upcoming stories.
+- Screenshots should be captured BEFORE the checkpoint is built, so the artifact path lands inside the checkpoint's `details` and a single log record carries both the state transition and the proof. Capturing after would require a second log emission or a retroactive update.
+- Full-page screenshots (`fullPage: true`) are the right default for the sign-page proof because the CAPTCHA and signature field may be below the viewport fold. Failure screenshots use viewport-only (default) because the error context is usually in the visible area and full-page capture is more likely to fail on a broken page.
+---

@@ -59,6 +59,12 @@ export {
 } from "./checkpoints";
 
 export {
+  tryCaptureScreenshot,
+  type ScreenshotArtifact,
+  type CaptureScreenshotOptions,
+} from "./diagnostics";
+
+export {
   captureDatArtifact,
   captureDatAndCheckpoint,
   createRecoveryTracker,
@@ -70,6 +76,7 @@ export {
   type RecoveryTracker,
   type CreateRecoveryTrackerOptions,
   type PreserveRecoveryOptions,
+  type PreservedRecovery,
 } from "./artifacts";
 
 export {

@@ -28,7 +28,8 @@ import path from "node:path";
 import type { Download, Locator, Page } from "@playwright/test";
 import { CEAC_NAV_SELECTORS } from "./selectors";
 import { assertPage, detectPage, type CeacPageId } from "./pages";
-import { NavigationError } from "./errors";
+import { NavigationError, serializeError } from "./errors";
+import { tryCaptureScreenshot, type ScreenshotArtifact } from "./diagnostics";
 import {
   buildCheckpoint,
   captureApplicationId,
@@ -332,6 +333,27 @@ export interface PreserveRecoveryOptions extends CheckpointEmitOptions {
    * browser has already closed or is otherwise unusable.
    */
   page?: Page | null;
+  /**
+   * When provided, capture a failure screenshot into this directory. The
+   * resulting `ScreenshotArtifact` is attached to the failure checkpoint's
+   * `details.failureScreenshot` and included in this function's return.
+   * Capture is non-throwing: if the page is gone or the write fails, the
+   * screenshot field is simply `null` — the rest of the recovery record
+   * still lands. See US-007.
+   */
+  screenshotDir?: string;
+  /** Optional filename override for the failure screenshot. */
+  screenshotFilename?: string;
+}
+
+/**
+ * Result of `preserveRecoveryOnFailure`. Combines the recovery snapshot with
+ * any failure screenshot captured on the error path, so callers constructing
+ * a failure-result payload (US-008) don't have to correlate through the log.
+ */
+export interface PreservedRecovery extends RecoveryMetadata {
+  /** Failure screenshot, if `screenshotDir` was provided and capture succeeded. */
+  failureScreenshot: ScreenshotArtifact | null;
 }
 
 /**
@@ -339,20 +361,36 @@ export interface PreserveRecoveryOptions extends CheckpointEmitOptions {
  * structured checkpoint so ops can reconstruct the last-known-good run
  * context (Application ID + last checkpoint + `.dat` path).
  *
+ * When `screenshotDir` is provided, a best-effort failure screenshot is also
+ * captured and attached to the emitted checkpoint's details (US-007). The
+ * capture is non-throwing, so screenshot absence never masks the original
+ * failure.
+ *
  * Never throws. Failure preservation runs on the error path and must not
  * itself raise an error that would mask the original.
  */
 export async function preserveRecoveryOnFailure(
   options: PreserveRecoveryOptions,
-): Promise<RecoveryMetadata> {
+): Promise<PreservedRecovery> {
   const snapshot = options.tracker.snapshot();
   const sink: CheckpointSink = options.sink ?? consoleCheckpointSink;
   const errorSerialized = serializeError(options.error);
+
+  // Capture screenshot BEFORE the checkpoint so its path can land in the
+  // checkpoint details — then a single log record carries both the error
+  // context and the screenshot reference.
+  const failureScreenshot = options.screenshotDir
+    ? await tryCaptureScreenshot(options.page ?? null, {
+        outputDir: options.screenshotDir,
+        filename: options.screenshotFilename,
+      })
+    : null;
 
   const commonDetails: Record<string, unknown> = {
     reason: "run_failed",
     error: errorSerialized,
     recovery: snapshot,
+    failureScreenshot,
     ...options.details,
   };
 
@@ -383,7 +421,10 @@ export async function preserveRecoveryOnFailure(
     // Swallow — preserving recovery must never itself throw.
   }
 
-  return snapshot;
+  return {
+    ...snapshot,
+    failureScreenshot,
+  };
 }
 
 async function resolveSaveToFileButton(page: Page): Promise<Locator | null> {
@@ -394,20 +435,4 @@ async function resolveSaveToFileButton(page: Page): Promise<Locator | null> {
     if (await node.isVisible()) return node;
   }
   return null;
-}
-
-function serializeError(err: unknown): Record<string, unknown> | null {
-  if (err === undefined || err === null) return null;
-  if (err instanceof Error) {
-    const out: Record<string, unknown> = {
-      name: err.name,
-      message: err.message,
-    };
-    const code = (err as { code?: unknown }).code;
-    if (code !== undefined) out.code = code;
-    const context = (err as { context?: unknown }).context;
-    if (context !== undefined) out.context = context;
-    return out;
-  }
-  return { raw: String(err) };
 }

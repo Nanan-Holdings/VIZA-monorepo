@@ -44,6 +44,7 @@ import {
   type CheckpointSink,
 } from "./checkpoints";
 import type { DatArtifact, RecoveryTracker } from "./artifacts";
+import { tryCaptureScreenshot, type ScreenshotArtifact } from "./diagnostics";
 
 /**
  * Presence of each DOM marker that defines the Sign and Submit page.
@@ -104,6 +105,8 @@ export interface HandoffReadyOutcome {
   lastCheckpoint: CeacCheckpoint | null;
   /** Most recent `.dat` artifact captured on the tracker, if any. */
   datArtifact: DatArtifact | null;
+  /** Sign-page screenshot — proof of successful reach (US-007). */
+  signPageScreenshot: ScreenshotArtifact | null;
 }
 
 /**
@@ -114,6 +117,15 @@ export interface HandoffReadyOutcome {
 export interface StopAtSignOptions extends CheckpointEmitOptions {
   /** Tracker to read recovery state from and to use as the checkpoint sink. */
   tracker?: RecoveryTracker;
+  /**
+   * When provided, capture a sign-page screenshot as proof of successful
+   * reach (US-007). The screenshot is attached to the `handoff_ready`
+   * checkpoint details and returned on the outcome. Capture is best-effort:
+   * screenshot failure never blocks the handoff-ready outcome.
+   */
+  screenshotDir?: string;
+  /** Optional filename override for the sign-page screenshot. */
+  screenshotFilename?: string;
 }
 
 /**
@@ -221,6 +233,17 @@ export async function stopAtSignAndSubmit(
 
   const trackerSnapshot = tracker?.snapshot();
 
+  // Capture sign-page screenshot BEFORE emitting the checkpoint so its path
+  // can be included in the checkpoint details — a single log record then
+  // carries both the handoff-ready state and the proof-of-reach artifact.
+  const signPageScreenshot = options.screenshotDir
+    ? await tryCaptureScreenshot(page, {
+        outputDir: options.screenshotDir,
+        filename: options.screenshotFilename,
+        fullPage: true,
+      })
+    : null;
+
   const checkpoint = await buildCheckpoint(page, {
     action: "handoff_ready",
     // `knownApplicationId` is the three-state signal from US-004:
@@ -235,6 +258,7 @@ export async function stopAtSignAndSubmit(
     runId: options.runId ?? trackerSnapshot?.runId,
     details: {
       signPageMarkers: identity.markers,
+      signPageScreenshot,
       ...options.details,
     },
   });
@@ -257,6 +281,7 @@ export async function stopAtSignAndSubmit(
     checkpoint,
     lastCheckpoint: finalSnapshot?.lastCheckpoint ?? checkpoint,
     datArtifact: finalSnapshot?.datArtifact ?? null,
+    signPageScreenshot,
   };
 }
 

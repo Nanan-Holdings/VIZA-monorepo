@@ -51,6 +51,9 @@ cd viza-fe/internal-website && npm run type-check
 
 # Backend
 cd viza-be/agent-backend && npm run type-check
+
+# Submission service
+cd viza-be/submission-service && npm run type-check
 ```
 
 Only run type-check for packages you modified. Do NOT run `npm install` unless a new dependency is required.
@@ -60,11 +63,11 @@ Only run type-check for packages you modified. Do NOT run `npm install` unless a
 - Supabase service role client: use `getSupabaseClient()` from `src/db/supabase-client.ts` in agent-backend
 - Frontend Supabase: use `createClient()` from `@/lib/supabase/client` (client-side) or `@/lib/supabase/server` (server-side)
 - Admin operations: use `createAdminClient()` from `@/lib/supabase/admin`
-- Socket.IO namespace: `/visa` — all chat events go through here
-- Drizzle migrations: SQL files in `viza-be/agent-backend/drizzle/` — name sequentially (0008_, 0009_, etc.)
+- Socket.IO namespace: `/visa` - all chat events go through here
+- Drizzle migrations: SQL files in `viza-be/agent-backend/drizzle/` - name sequentially (0008_, 0009_, etc.)
 - Server actions: in `viza-fe/internal-website/app/actions/`
 - No `any` types. No unused imports.
-- Follow existing file/component patterns — look at neighbouring files before writing new ones
+- Follow existing file/component patterns - look at neighbouring files before writing new ones
 
 ## Commit Format
 
