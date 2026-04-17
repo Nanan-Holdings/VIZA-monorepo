@@ -91,6 +91,16 @@ export {
 } from "./errors";
 
 export {
+  buildSuccessResult,
+  buildFailureResult,
+  isSuccessResult,
+  isFailureResult,
+  type CeacRunResult,
+  type CeacRunSuccess,
+  type CeacRunFailure,
+} from "./result";
+
+export {
   detectSignAndSubmit,
   assertSignAndSubmit,
   stopAtSignAndSubmit,
