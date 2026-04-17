@@ -14,7 +14,7 @@
         "The PRD explicitly states that CEAC anti-bot / captcha gates are in scope as operational blockers and must be surfaced honestly"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Docs-only anchor story for the new runtime-validation pass. Do not claim live autofill proof until the worker path and smoke diagnostics are real."
     },
     {
