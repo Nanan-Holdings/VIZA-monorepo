@@ -113,3 +113,27 @@ export class SessionBootstrapError extends CeacError {
     this.name = "SessionBootstrapError";
   }
 }
+
+/**
+ * Shape-preserving serialization of an unknown error value for structured
+ * logging and diagnostic payloads.
+ *
+ * Used on failure paths (see `preserveRecoveryOnFailure`, failure diagnostics
+ * in `diagnostics.ts`) so the same error contract lands in every artifact.
+ * Never throws — a garbage input returns a stringified `raw` field.
+ */
+export function serializeError(err: unknown): Record<string, unknown> | null {
+  if (err === undefined || err === null) return null;
+  if (err instanceof Error) {
+    const out: Record<string, unknown> = {
+      name: err.name,
+      message: err.message,
+    };
+    const code = (err as { code?: unknown }).code;
+    if (code !== undefined) out.code = code;
+    const context = (err as { context?: unknown }).context;
+    if (context !== undefined) out.context = context;
+    return out;
+  }
+  return { raw: String(err) };
+}
