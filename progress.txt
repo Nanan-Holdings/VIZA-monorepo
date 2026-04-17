@@ -134,3 +134,21 @@ Learnings:
 - Screenshots should be captured BEFORE the checkpoint is built, so the artifact path lands inside the checkpoint's `details` and a single log record carries both the state transition and the proof. Capturing after would require a second log emission or a retroactive update.
 - Full-page screenshots (`fullPage: true`) are the right default for the sign-page proof because the CAPTCHA and signature field may be below the viewport fold. Failure screenshots use viewport-only (default) because the error context is usually in the visible area and full-page capture is more likely to fail on a broken page.
 ---
+
+## 2026-04-17 - US-008
+- Added `src/ceac/result.ts`: typed `CeacRunResult` discriminated union (`CeacRunSuccess | CeacRunFailure`) as the worker-facing result contract. The `"submitted"` status literal does not exist in the union — no code path performs final DS-160 submission.
+- `CeacRunSuccess` (status `"handoff_ready"`) carries Application ID, sign-page markers, checkpoint, `.dat` artifact, and sign-page screenshot. Built from `HandoffReadyOutcome` via `buildSuccessResult()`.
+- `CeacRunFailure` (status `"failed"`) carries Application ID, serialized error, last checkpoint, `.dat` artifact, and failure screenshot. Built from `RecoveryMetadata` via `buildFailureResult()`.
+- `isSuccessResult()` and `isFailureResult()` type guards exported for downstream discrimination.
+- Exported all result types and helpers from barrel `index.ts`.
+- Legacy worker (`src/index.ts`) intentionally untouched — the result contract is ready for integration but the worker wiring is outside CEAC-module scope.
+- Typecheck passes.
+Files changed:
+- viza-be/submission-service/src/ceac/result.ts (new)
+- viza-be/submission-service/src/ceac/index.ts (export result surface)
+- prd.json (US-008 passes: true)
+- progress.txt (this entry)
+Learnings:
+- The result module is pure types + two thin builder functions. No runtime behavior, no side effects. This keeps the worker integration story (whoever wires the CEAC module into the polling loop) free to choose their own error-handling and persistence strategy.
+- `buildFailureResult` takes `error` as a pre-serialized `Record<string, unknown>` rather than raw `unknown` because `serializeError` should run at the call site, not inside the builder. This avoids a dependency on `errors.ts` and keeps the builder a pure data mapper.
+---
