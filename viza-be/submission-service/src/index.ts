@@ -22,6 +22,16 @@ import {
   DS160_MAPPING_GROUPS,
 } from "./ds160-form-mappings";
 import {
+  startCeacSession,
+  createRecoveryTracker,
+  recordBootstrapCheckpoint,
+  preserveRecoveryOnFailure,
+  buildSuccessResult,
+  buildFailureResult,
+  serializeError,
+  type CeacRunResult,
+} from "./ceac";
+import {
   SubmissionQueueItem,
   ApplicantProfile,
   Application,
@@ -438,42 +448,95 @@ async function updateDs160Metadata(
     .eq("id", dbApplicationId);
 }
 
-// ─── DS-160 Job Processor ───────────────────────────────────────────────────
+// ─── DS-160 Job Processor (CEAC runtime pipeline) ──────────────────────────
 
 async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
-  console.log(`[ds160-queue] Processing DS-160 prefill for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const runId = `ds160-${item.application_id}-${Date.now()}`;
+  console.log(`[ceac] Starting CEAC run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
 
   await supabase
     .from("submission_queue")
     .update({ status: "ds160_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
 
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
+  const session = await startCeacSession({
+    headless: true,
+    acceptDownloads: true,
+    runId,
+  });
+
+  const tracker = createRecoveryTracker({ runId });
+
   try {
-    const { profile, application } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id);
+    // Record bootstrap checkpoint — proves CEAC start page was reached
+    await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
 
-    // Prefill the DS-160 form via Playwright
-    const { applicationId: ds160AppId, retrievalUrl, datFilePath } = await prefillDs160(answers, profile);
+    // ── Fill orchestration placeholder ──────────────────────────────
+    // US-012 will wire page-by-page fill, navigation, save/checkpoint,
+    // and stop-at-sign behavior through the new CEAC runtime helpers.
+    // Until then, the worker bootstraps a CEAC session, proves start-page
+    // access, and terminates with a failure result carrying the bootstrap
+    // checkpoint as recovery context.
+    //
+    // This is intentional: the wiring story (US-010) replaces the legacy
+    // prefillDs160 path with the CEAC session/result contract. The actual
+    // fill logic is a separate story.
+    // ────────────────────────────────────────────────────────────────
 
-    // Upload .dat file to Supabase Storage
-    const storagePath = await uploadDs160Dat(datFilePath, item.application_id);
+    // Until US-012 wires fill orchestration, the run terminates here.
+    // Preserve recovery state so ops can see that the session started
+    // successfully even though fill hasn't been implemented yet.
+    const recovery = await preserveRecoveryOnFailure({
+      tracker,
+      error: new Error("Fill orchestration not yet implemented (see US-012)"),
+      page: session.page,
+      screenshotDir: tempDir,
+    });
 
-    // Clean up temp file
-    try { fs.rmSync(path.dirname(datFilePath), { recursive: true, force: true }); } catch { /* ignore */ }
+    const result: CeacRunResult = buildFailureResult(recovery, {
+      error: serializeError(new Error("Fill orchestration not yet implemented (see US-012)")),
+      failureScreenshot: recovery.failureScreenshot,
+    });
 
-    // Update application with DS-160 metadata
-    await updateDs160Metadata(item.application_id, ds160AppId, retrievalUrl, storagePath);
+    // Persist whatever metadata we have (Application ID may be null at bootstrap)
+    if (result.applicationId) {
+      const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
+      await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
+    }
 
-    // Mark queue item as prefilled
+    // Store the CEAC run result as structured metadata on the queue record
     await supabase
       .from("submission_queue")
-      .update({ status: "ds160_prefilled", updated_at: new Date().toISOString() })
+      .update({
+        status: "ds160_prefill_pending",
+        last_error: "Fill orchestration not yet implemented (see US-012)",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", item.id);
 
-    console.log(`[ds160-queue] Done — DS-160 prefilled for ${item.application_id}`);
+    console.log(`[ceac] Run ${runId} completed — bootstrap verified, fill pending US-012`);
   } catch (err) {
+    const recovery = await preserveRecoveryOnFailure({
+      tracker,
+      error: err,
+      page: session.page,
+      screenshotDir: tempDir,
+    });
+
+    const result: CeacRunResult = buildFailureResult(recovery, {
+      error: serializeError(err),
+      failureScreenshot: recovery.failureScreenshot,
+    });
+
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[ds160-queue] Error processing ${item.application_id}:`, errorMsg);
+    console.error(`[ceac] Run ${runId} failed for ${item.application_id}:`, errorMsg);
+
+    // Persist Application ID if captured before failure
+    if (result.applicationId) {
+      const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
+      await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
+    }
 
     const newAttempts = item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
@@ -489,9 +552,12 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
       .eq("id", item.id);
 
     if (newAttempts >= MAX_ATTEMPTS) {
-      console.error(`[ds160-queue] Max attempts reached for ${item.application_id} — sending alert`);
-      await sendFailureAlert(item.application_id, `[DS-160 Prefill] ${errorMsg}`);
+      console.error(`[ceac] Max attempts reached for ${item.application_id} — sending alert`);
+      await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
     }
+  } finally {
+    await session.close();
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
   }
 }
 

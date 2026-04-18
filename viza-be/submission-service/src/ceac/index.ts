@@ -86,6 +86,7 @@ export {
   NavigationError,
   ValidationFailedError,
   SessionBootstrapError,
+  serializeError,
   type CeacErrorCode,
   type CeacErrorContext,
 } from "./errors";

@@ -28,7 +28,7 @@
         "Typecheck passes"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "This is the core wiring story. Keep scope inside submission-service; do not redesign unrelated queue systems."
     },
     {
