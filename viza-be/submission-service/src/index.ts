@@ -502,15 +502,21 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     }
 
     if (isSuccessResult(result)) {
-      // Handoff-ready: form filled up to Sign and Submit page
+      // Handoff-ready: form filled up to Sign and Submit page.
+      // Persist full CEAC result payload for operator diagnostics.
       await supabase
         .from("submission_queue")
-        .update({ status: "ds160_prefilled", updated_at: new Date().toISOString() })
+        .update({
+          status: "ds160_prefilled",
+          ceac_result_payload: result as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", item.id);
 
       console.log(`[ceac] Run ${runId} handoff_ready for ${item.application_id}`);
     } else {
-      // Orchestrator caught an error internally but preserved recovery state
+      // Orchestrator caught an error internally but preserved recovery state.
+      // Persist the failure result payload so ops can inspect recovery metadata.
       const errorMsg = result.error?.message as string ?? "Unknown orchestration error";
       console.error(`[ceac] Run ${runId} orchestration failed for ${item.application_id}:`, errorMsg);
 
@@ -523,6 +529,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
+          ceac_result_payload: result as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
@@ -547,15 +554,26 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     const errorMsg = err instanceof Error ? err.message : String(err);
 
     // Gate errors (anti-bot, captcha, manual intervention) are external CEAC
-    // blockers — retrying won't help. Mark as blocked immediately and alert.
+    // blockers — retrying won't help. Mark as blocked immediately with
+    // operator-facing context and alert.
     if (isGateError(err)) {
       console.error(`[ceac] Run ${runId} GATED for ${item.application_id}:`, errorMsg);
+
+      // Persist Application ID if captured before gate
+      if (result.applicationId) {
+        const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
+        await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
+      }
 
       await supabase
         .from("submission_queue")
         .update({
           status: "ds160_blocked",
           last_error: `[CEAC gate: ${err.context.details?.gateKind ?? "unknown"}] ${errorMsg}`,
+          ceac_result_payload: {
+            ...result as unknown as Record<string, unknown>,
+            gateContext: err.context,
+          },
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
@@ -583,6 +601,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
+          ceac_result_payload: result as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);

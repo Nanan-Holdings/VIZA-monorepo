@@ -45,3 +45,14 @@ Started: Sat Apr 18 03:20:59     2026
 - Files changed: src/ceac/orchestrator.ts (new), src/ceac/index.ts, src/index.ts, prd.json, progress.txt
 - Typecheck passes
 ---
+
+## 2026-04-18 - US-013
+- Added ds160_blocked status and ceac_result_payload field to SubmissionQueueItem type
+- All three outcome paths now persist structured CEAC result payload:
+  - handoff_ready → ds160_prefilled + full CeacRunSuccess in ceac_result_payload
+  - blocked/manual → ds160_blocked + gate context in ceac_result_payload (no retry)
+  - failed → ds160_prefill_pending/failed + CeacRunFailure in ceac_result_payload (with retry)
+- Gate errors persist Application ID and recovery metadata before marking blocked
+- Files changed: src/types.ts, src/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
