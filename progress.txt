@@ -9,3 +9,14 @@ Started: Sat Apr 18 03:20:59     2026
 - Branch is ralph/ds160-ceac-runtime-validation
 - Files changed: prd.json (marked passes: true), progress.txt
 ---
+
+## 2026-04-18 - US-010
+- Replaced legacy prefillDs160() call in processDs160Item with CEAC runtime pipeline
+- processDs160Item now uses startCeacSession → createRecoveryTracker → recordBootstrapCheckpoint → preserveRecoveryOnFailure → buildFailureResult
+- Added serializeError to CEAC barrel export (ceac/index.ts)
+- Result contract uses CeacRunResult (handoff_ready | failed), never "submitted"
+- Fill orchestration is placeholder pending US-012; worker proves CEAC start-page access
+- Legacy prefillDs160 function retained but no longer called from queue processor
+- Files changed: src/index.ts, src/ceac/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
