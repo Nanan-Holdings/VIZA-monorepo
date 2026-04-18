@@ -43,7 +43,7 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": "Do not attempt to auto-solve captchas. The goal is truthful detection and clean handoff/manual escalation."
     },
     {
