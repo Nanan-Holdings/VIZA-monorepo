@@ -72,7 +72,7 @@
         "Typecheck passes"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": "Prefer minimally invasive persistence changes. Keep existing Supabase tables unless a small targeted extension is truly required."
     },
     {

@@ -9,9 +9,13 @@ export interface SubmissionQueueItem {
     | "ds160_prefill_pending"
     | "ds160_prefill_processing"
     | "ds160_prefilled"
-    | "ds160_prefill_failed";
+    | "ds160_prefill_failed"
+    | "ds160_blocked";
   attempts: number;
   last_error: string | null;
+  /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
+   *  or blocked outcome metadata for operator diagnostics. */
+  ceac_result_payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
