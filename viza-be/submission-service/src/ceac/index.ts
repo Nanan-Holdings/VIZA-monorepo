@@ -117,6 +117,12 @@ export {
 } from "./orchestrator";
 
 export {
+  probeCeacStartPage,
+  type SmokeOutcome,
+  type SmokeResult,
+} from "./smoke";
+
+export {
   detectSignAndSubmit,
   assertSignAndSubmit,
   stopAtSignAndSubmit,

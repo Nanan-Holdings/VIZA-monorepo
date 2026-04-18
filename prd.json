@@ -86,7 +86,7 @@
         "Typecheck passes"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "notes": "This story is about truthful runtime verification, not mocking a fake success. Prefer small scripts/docs over heavyweight test frameworks."
     }
   ]

@@ -56,3 +56,14 @@ Started: Sat Apr 18 03:20:59     2026
 - Files changed: src/types.ts, src/index.ts, prd.json, progress.txt
 - Typecheck passes
 ---
+
+## 2026-04-18 - US-014
+- Created ceac/smoke.ts with probeCeacStartPage() diagnostic function
+- Machine-readable outcomes: start_page (exit 0), anti_bot_gate (exit 1), blocked (exit 2)
+- CLI entry point: npx tsx viza-be/submission-service/src/ceac/smoke.ts [--headed]
+- Returns SmokeResult with outcome, gate details, page identity, and operator summary
+- Created docs/ceac-smoke-test.md with run instructions and outcome interpretation
+- Exported smoke types from barrel (ceac/index.ts)
+- Files changed: src/ceac/smoke.ts (new), src/ceac/index.ts, docs/ceac-smoke-test.md (new), prd.json, progress.txt
+- Typecheck passes
+---
