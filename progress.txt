@@ -31,3 +31,17 @@ Started: Sat Apr 18 03:20:59     2026
 - Files changed: src/ceac/selectors.ts, src/ceac/errors.ts, src/ceac/gates.ts (new), src/ceac/session.ts, src/ceac/index.ts, src/index.ts, prd.json, progress.txt
 - Typecheck passes
 ---
+
+## 2026-04-18 - US-012
+- Created ceac/orchestrator.ts with orchestrateFill() for page-by-page CEAC fill
+- PAGE_FILL_MAP maps CeacPageId to DS160_MAPPING_GROUPS entries
+- Fill-and-advance loop: detectPage → fillPageFields → recordSectionCheckpoint → advance
+- .dat capture at passport and work/education pages via captureDatArtifact
+- Terminal stop via stopAtSignAndSubmit with sign-page screenshot
+- Failure paths use preserveRecoveryOnFailure + buildFailureResult
+- No code path touches passport signature, captcha, or final submit button
+- Wired orchestrateFill into processDs160Item, replacing placeholder
+- processDs160Item now handles handoff_ready (ds160_prefilled) and orchestrator failures
+- Files changed: src/ceac/orchestrator.ts (new), src/ceac/index.ts, src/index.ts, prd.json, progress.txt
+- Typecheck passes
+---

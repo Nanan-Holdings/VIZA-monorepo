@@ -111,6 +111,12 @@ export {
 } from "./result";
 
 export {
+  orchestrateFill,
+  type OrchestrateOptions,
+  type OrchestrateResult,
+} from "./orchestrator";
+
+export {
   detectSignAndSubmit,
   assertSignAndSubmit,
   stopAtSignAndSubmit,
