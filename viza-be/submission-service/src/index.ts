@@ -26,9 +26,9 @@ import {
   createRecoveryTracker,
   recordBootstrapCheckpoint,
   preserveRecoveryOnFailure,
-  buildSuccessResult,
   buildFailureResult,
   serializeError,
+  isGateError,
   type CeacRunResult,
 } from "./ceac";
 import {
@@ -530,30 +530,52 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     });
 
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[ceac] Run ${runId} failed for ${item.application_id}:`, errorMsg);
 
-    // Persist Application ID if captured before failure
-    if (result.applicationId) {
-      const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
-      await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
-    }
+    // Gate errors (anti-bot, captcha, manual intervention) are external CEAC
+    // blockers — retrying won't help. Mark as blocked immediately and alert.
+    if (isGateError(err)) {
+      console.error(`[ceac] Run ${runId} GATED for ${item.application_id}:`, errorMsg);
 
-    const newAttempts = item.attempts + 1;
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "ds160_blocked",
+          last_error: `[CEAC gate: ${err.context.details?.gateKind ?? "unknown"}] ${errorMsg}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
 
-    await supabase
-      .from("submission_queue")
-      .update({
-        status: newStatus,
-        attempts: newAttempts,
-        last_error: errorMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+      await sendFailureAlert(
+        item.application_id,
+        `[CEAC gate detected] ${errorMsg}`,
+      );
+    } else {
+      // Genuine worker/runtime failure — standard retry logic
+      console.error(`[ceac] Run ${runId} failed for ${item.application_id}:`, errorMsg);
 
-    if (newAttempts >= MAX_ATTEMPTS) {
-      console.error(`[ceac] Max attempts reached for ${item.application_id} — sending alert`);
-      await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
+      // Persist Application ID if captured before failure
+      if (result.applicationId) {
+        const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
+        await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
+      }
+
+      const newAttempts = item.attempts + 1;
+      const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
+
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: newStatus,
+          attempts: newAttempts,
+          last_error: errorMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        console.error(`[ceac] Max attempts reached for ${item.application_id} — sending alert`);
+        await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
+      }
     }
   } finally {
     await session.close();

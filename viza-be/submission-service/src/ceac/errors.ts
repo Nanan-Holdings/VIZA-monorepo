@@ -13,7 +13,8 @@ export type CeacErrorCode =
   | "SESSION_EXPIRED"
   | "NAVIGATION_FAILED"
   | "VALIDATION_FAILED"
-  | "SESSION_BOOTSTRAP_FAILED";
+  | "SESSION_BOOTSTRAP_FAILED"
+  | "GATE_DETECTED";
 
 export interface CeacErrorContext {
   /** The page identity the worker expected to be on. */
@@ -111,6 +112,19 @@ export class SessionBootstrapError extends CeacError {
   constructor(message: string, context: CeacErrorContext = {}) {
     super("SESSION_BOOTSTRAP_FAILED", message, context);
     this.name = "SessionBootstrapError";
+  }
+}
+
+/**
+ * Raised when CEAC presents an anti-bot challenge, captcha gate, or other
+ * manual-intervention page that prevents the worker from proceeding. The
+ * worker should not retry automatically — the blocker is an external CEAC
+ * gate, not a transient worker failure.
+ */
+export class GateDetectedError extends CeacError {
+  constructor(message: string, context: CeacErrorContext = {}) {
+    super("GATE_DETECTED", message, context);
+    this.name = "GateDetectedError";
   }
 }
 

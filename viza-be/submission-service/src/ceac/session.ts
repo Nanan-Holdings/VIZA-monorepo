@@ -10,6 +10,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from "@playwri
 import { CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { SessionBootstrapError } from "./errors";
+import { assertNoGate } from "./gates";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -78,6 +79,11 @@ export async function startCeacSession(
         },
       );
     }
+
+    // Check for anti-bot / captcha / manual-intervention gates BEFORE page
+    // identity assertion. A gated page should surface as a structured gate
+    // error, not as an "unexpected page" or "unknown page" failure.
+    await assertNoGate(page);
 
     // Verify we landed somewhere sensible. The start page heading matches
     // "Welcome" / "Start an Application"; if the heading is something else

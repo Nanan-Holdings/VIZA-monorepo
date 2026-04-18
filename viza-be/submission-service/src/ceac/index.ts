@@ -86,10 +86,19 @@ export {
   NavigationError,
   ValidationFailedError,
   SessionBootstrapError,
+  GateDetectedError,
   serializeError,
   type CeacErrorCode,
   type CeacErrorContext,
 } from "./errors";
+
+export {
+  detectGate,
+  assertNoGate,
+  isGateError,
+  type CeacGateKind,
+  type GateDetectionResult,
+} from "./gates";
 
 export {
   buildSuccessResult,

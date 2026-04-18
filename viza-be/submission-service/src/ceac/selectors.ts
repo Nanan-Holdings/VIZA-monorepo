@@ -79,6 +79,43 @@ export const CEAC_SESSION_EXPIRED_MARKERS: readonly RegExp[] = [
  * presence of the passport-number signature input and the final submit
  * button. The worker must stop when these appear.
  */
+/**
+ * Anti-bot, captcha, and manual-intervention gate markers. When CEAC detects
+ * automated traffic it may present a challenge page, a "please verify"
+ * interstitial, or a Cloudflare/WAF block before the DS-160 start page loads.
+ * These markers let the worker detect that state explicitly and surface it
+ * as a structured gate error instead of retrying blindly.
+ */
+export const CEAC_GATE_MARKERS = {
+  /** Body-text patterns that indicate an anti-bot or rate-limit interstitial. */
+  textPatterns: [
+    /access denied/i,
+    /automated access/i,
+    /please verify you are (a )?human/i,
+    /unusual activity/i,
+    /too many requests/i,
+    /rate limit/i,
+    /blocked/i,
+    /security check/i,
+    /challenge/i,
+    /one more step/i,
+    /checking your browser/i,
+    /attention required/i,
+  ] as readonly RegExp[],
+  /** DOM selectors for common captcha / challenge widgets. */
+  captchaSelectors: [
+    'img[id*="Captcha"]',
+    'iframe[src*="recaptcha"]',
+    'iframe[src*="hcaptcha"]',
+    'iframe[src*="challenge"]',
+    '#challenge-form',
+    '.cf-browser-verification',
+    '[id*="captcha"]',
+    '.g-recaptcha',
+    '.h-captcha',
+  ] as readonly string[],
+} as const;
+
 export const CEAC_SIGN_AND_SUBMIT_MARKERS = {
   headingPattern: /sign and submit/i,
   passportSignatureSelector:
