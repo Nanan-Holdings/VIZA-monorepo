@@ -31,3 +31,15 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: types/ds160-intake.ts, personal-info-step.tsx, passport-step.tsx, travel-info-step.tsx, review-step.tsx, translation-panel.tsx, page.tsx, prd.json, progress.txt
 - Learnings: The combined hardcoded steps + dynamic form now covers the full DS-160 schema with no lossy mappings in the hardcoded steps
 ---
+
+## 2026-04-19 - US-018
+- Created app/actions/ds160-normalize.ts with deterministic mapping functions
+- flattenPersonalInfo: maps surname/givenNames/sex/maritalStatus/etc → DS-160 keys
+- flattenPassport: maps passportDocumentType/passportNumber/etc → DS-160 keys
+- flattenTravel: maps purposeOfTrip/dates/usAddress → DS-160 keys + derived date parts and length-of-stay
+- persistDS160AnswerSet: merges hardcoded answers with dynamic answers, upserts to visa_application_answers
+- Wired into both handleDynamicReviewComplete and handleReviewComplete in page.tsx
+- Dynamic answers take precedence over hardcoded-derived answers for same field_name
+- Files changed: app/actions/ds160-normalize.ts (new), app/client/application/page.tsx, prd.json, progress.txt
+- Learnings: Date decomposition (ISO→day/month/year) and length-of-stay derivation are the key deterministic transforms
+---

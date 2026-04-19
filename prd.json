@@ -62,7 +62,7 @@
         "Typecheck passes"
       ],
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "notes": "Derived transforms are acceptable when deterministic; hidden operator assumptions are not."
     },
     {

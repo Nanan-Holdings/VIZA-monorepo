@@ -30,6 +30,7 @@ import {
   ensureDraftApplication,
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
+import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -1226,6 +1227,15 @@ export default function ApplicationPage() {
       const supabase = createClient();
       if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
 
+      // Persist the complete DS-160 answer set from hardcoded steps
+      const normalizeResult = await persistDS160AnswerSet(
+        appState.applicationId,
+        appState.personal,
+        appState.passport,
+        appState.travel,
+      );
+      if (normalizeResult.error) throw new Error(normalizeResult.error);
+
       await supabase.from("submission_queue").insert({
         application_id: appState.applicationId,
         status: "pending",
@@ -1273,6 +1283,15 @@ export default function ApplicationPage() {
     try {
       const supabase = createClient();
       if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
+
+      // Persist the complete DS-160 answer set from hardcoded steps
+      const normalizeResult = await persistDS160AnswerSet(
+        appState.applicationId,
+        appState.personal,
+        appState.passport,
+        appState.travel,
+      );
+      if (normalizeResult.error) throw new Error(normalizeResult.error);
 
       await supabase.from("submission_queue").insert({
         application_id: appState.applicationId,
