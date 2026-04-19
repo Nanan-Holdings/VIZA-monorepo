@@ -10,3 +10,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: prd.json, progress.txt
 - Learnings: PRD already had US-015–US-020 and correct branch; only needed explicit scope declarations
 ---
+
+## 2026-04-19 - US-016
+- Created ds160-coverage-audit.ts in viza-be/submission-service/src/
+- Audit covers all 331 DS-160 fields from seed-ds160-form-fields.ts
+- Results: 9 fields covered directly (2.7%), 20 lossy (6.0%), 302 missing (91.2%)
+- Key lossy mappings identified: full_name→surname/given_names split, placeOfBirth→city/state split, address→structured address, dates→day/month/year parts, accommodationAddress→US address parts
+- Major missing categories: Security (58 fields), Family/Spouse (42), Work/Education (49), Previous US Travel (25), Travel payer (19), US Contact (11)
+- Files changed: viza-be/submission-service/src/ds160-coverage-audit.ts (new), prd.json, progress.txt
+- Learnings: The DS-160 has 331 fields but only 29 have any simplified-form coverage. Huge gap to close.
+---
