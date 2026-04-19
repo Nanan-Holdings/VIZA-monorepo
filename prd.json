@@ -33,7 +33,7 @@
         "Typecheck passes for any code introduced for the audit"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": "Prefer code or structured artifacts that can be rerun over a one-off prose-only audit."
     },
     {
