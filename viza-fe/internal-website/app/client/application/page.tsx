@@ -905,47 +905,56 @@ export default function ApplicationPage() {
       .maybeSingle();
 
     if (profile) {
+      // Load DS-160 answers from visa_application_answers first (the source of truth)
+      let ds160Answers: Record<string, string> = {};
+      if (application?.id) {
+        const { answers } = await loadDynamicAnswers(application.id);
+        ds160Answers = answers;
+      }
+
+      // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
+      const a = ds160Answers;
       setAppState((prev) => ({
         ...prev,
         applicationId: application?.id ?? null,
         personal: {
-          surname: profile.full_name?.split(" ").slice(-1)[0] ?? "",
-          givenNames: profile.full_name?.split(" ").slice(0, -1).join(" ") ?? "",
-          fullNameNativeAlphabet: "",
-          sex: profile.gender ?? "",
-          maritalStatus: "",
-          dateOfBirth: profile.date_of_birth ?? "",
-          cityOfBirth: profile.place_of_birth ?? "",
-          stateOfBirth: "",
-          countryOfBirth: "",
-          nationality: profile.nationality ?? "",
+          surname: a.surname || profile.full_name?.split(" ").slice(-1)[0] || "",
+          givenNames: a.given_names || profile.full_name?.split(" ").slice(0, -1).join(" ") || "",
+          fullNameNativeAlphabet: a.full_name_native_alphabet || "",
+          sex: a.sex || profile.gender || "",
+          maritalStatus: a.marital_status || "",
+          dateOfBirth: a.date_of_birth || profile.date_of_birth || "",
+          cityOfBirth: a.city_of_birth || profile.place_of_birth || "",
+          stateOfBirth: a.state_of_birth || "",
+          countryOfBirth: a.country_of_birth || "",
+          nationality: a.nationality_country || profile.nationality || "",
         },
         passport: {
-          passportDocumentType: "",
-          passportNumber: profile.passport_number ?? "",
-          passportBookNumber: "",
-          passportIssuingCountry: profile.passport_issuing_country ?? "",
-          passportIssuanceCity: "",
-          passportIssuanceDate: profile.passport_issue_date ?? "",
-          passportExpirationDate: profile.passport_expiry_date ?? "",
+          passportDocumentType: a.passport_document_type || "",
+          passportNumber: a.passport_number || profile.passport_number || "",
+          passportBookNumber: a.passport_book_number || "",
+          passportIssuingCountry: a.passport_issuing_country || profile.passport_issuing_country || "",
+          passportIssuanceCity: a.passport_issuance_city || "",
+          passportIssuanceDate: a.passport_issuance_date || profile.passport_issue_date || "",
+          passportExpirationDate: a.passport_expiration_date || profile.passport_expiry_date || "",
         },
         travel: {
-          purposeOfTrip: application?.purpose ?? "",
-          arrivalDate: application?.arrival_date ?? "",
-          departureDate: application?.departure_date ?? "",
-          arrivalCity: application?.port_of_entry ?? "",
-          accommodationName: application?.accommodation_name ?? "",
-          usAddressStreet1: application?.accommodation_address ?? "",
-          usAddressCity: "",
-          usAddressState: "",
-          usAddressZip: "",
+          purposeOfTrip: a.purpose_of_trip || application?.purpose || "",
+          arrivalDate: application?.arrival_date || "",
+          departureDate: application?.departure_date || "",
+          arrivalCity: a.arrival_city || application?.port_of_entry || "",
+          accommodationName: a.planned_location || application?.accommodation_name || "",
+          usAddressStreet1: a.us_address_street1 || application?.accommodation_address || "",
+          usAddressCity: a.us_address_city || "",
+          usAddressState: a.us_address_state || "",
+          usAddressZip: a.us_address_zip || "",
         },
         confirmationNumber: application?.confirmation_number ?? undefined,
         submittedAt: application?.submitted_at ?? undefined,
       }));
 
-      const hasPersonal = !!(profile.full_name && profile.nationality);
-      const hasPassport = !!(profile.passport_number && (profile.passport_expiry_date || profile.passport_issue_date));
+      const hasPersonal = !!(a.surname || profile.full_name) && !!(a.nationality_country || profile.nationality);
+      const hasPassport = !!(a.passport_number || profile.passport_number);
       const hasTravel = !!(application?.arrival_date && application?.departure_date);
       const hasDocuments = application?.status === "submitted" || application?.status === "approved";
       const isSubmitted = application?.status === "submitted" || application?.status === "approved";
@@ -954,15 +963,11 @@ export default function ApplicationPage() {
       setCompletedUpTo(completed);
       setCurrentStep(Math.min(completed, 5));
 
-      // Load saved dynamic form answers
-      if (application?.id) {
-        const { answers } = await loadDynamicAnswers(application.id);
-        if (Object.keys(answers).length > 0) {
-          setDynamicAnswers(answers);
-          // Rehydrate photo path from saved answers
-          if (answers["photo_path"]) {
-            setAppState((prev) => ({ ...prev, photo: answers["photo_path"] }));
-          }
+      // Set dynamic answers for the dynamic form steps
+      if (Object.keys(ds160Answers).length > 0) {
+        setDynamicAnswers(ds160Answers);
+        if (ds160Answers["photo_path"]) {
+          setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
         }
       }
     }
