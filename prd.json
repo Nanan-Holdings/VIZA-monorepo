@@ -76,7 +76,7 @@
         "Typecheck passes"
       ],
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "notes": "Review/edit is fine; primary gap-filling is not."
     },
     {
