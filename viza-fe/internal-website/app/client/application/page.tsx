@@ -908,35 +908,43 @@ export default function ApplicationPage() {
         ...prev,
         applicationId: application?.id ?? null,
         personal: {
-          fullName: profile.full_name ?? "",
+          surname: profile.full_name?.split(" ").slice(-1)[0] ?? "",
+          givenNames: profile.full_name?.split(" ").slice(0, -1).join(" ") ?? "",
+          fullNameNativeAlphabet: "",
+          sex: profile.gender ?? "",
+          maritalStatus: "",
           dateOfBirth: profile.date_of_birth ?? "",
-          placeOfBirth: profile.place_of_birth ?? "",
-          gender: profile.gender ?? "",
+          cityOfBirth: profile.place_of_birth ?? "",
+          stateOfBirth: "",
+          countryOfBirth: "",
           nationality: profile.nationality ?? "",
-          occupation: profile.occupation ?? "",
-          address: profile.address ?? "",
         },
         passport: {
+          passportDocumentType: "",
           passportNumber: profile.passport_number ?? "",
-          issueDate: profile.passport_issue_date ?? "",
-          expiryDate: profile.passport_expiry_date ?? "",
-          issuingCountry: profile.passport_issuing_country ?? "",
-          issuingAuthority: profile.passport_issuing_authority ?? "",
+          passportBookNumber: "",
+          passportIssuingCountry: profile.passport_issuing_country ?? "",
+          passportIssuanceCity: "",
+          passportIssuanceDate: profile.passport_issue_date ?? "",
+          passportExpirationDate: profile.passport_expiry_date ?? "",
         },
         travel: {
+          purposeOfTrip: application?.purpose ?? "",
           arrivalDate: application?.arrival_date ?? "",
           departureDate: application?.departure_date ?? "",
-          portOfEntry: application?.port_of_entry ?? "",
-          purpose: application?.purpose ?? "",
+          arrivalCity: application?.port_of_entry ?? "",
           accommodationName: application?.accommodation_name ?? "",
-          accommodationAddress: application?.accommodation_address ?? "",
+          usAddressStreet1: application?.accommodation_address ?? "",
+          usAddressCity: "",
+          usAddressState: "",
+          usAddressZip: "",
         },
         confirmationNumber: application?.confirmation_number ?? undefined,
         submittedAt: application?.submitted_at ?? undefined,
       }));
 
       const hasPersonal = !!(profile.full_name && profile.nationality);
-      const hasPassport = !!(profile.passport_number && profile.passport_expiry_date);
+      const hasPassport = !!(profile.passport_number && (profile.passport_expiry_date || profile.passport_issue_date));
       const hasTravel = !!(application?.arrival_date && application?.departure_date);
       const hasDocuments = application?.status === "submitted" || application?.status === "approved";
       const isSubmitted = application?.status === "submitted" || application?.status === "approved";
@@ -1024,13 +1032,11 @@ export default function ApplicationPage() {
       await supabase.from("applicant_profiles").upsert(
         {
           auth_user_id: user.id,
-          full_name: data.fullName,
+          full_name: `${data.givenNames} ${data.surname}`.trim(),
           date_of_birth: data.dateOfBirth || null,
-          place_of_birth: data.placeOfBirth || null,
-          gender: data.gender || null,
+          place_of_birth: data.cityOfBirth || null,
+          gender: data.sex || null,
           nationality: data.nationality,
-          occupation: data.occupation || null,
-          address: data.address || null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "auth_user_id" }
@@ -1058,10 +1064,9 @@ export default function ApplicationPage() {
         {
           auth_user_id: user.id,
           passport_number: data.passportNumber,
-          passport_issue_date: data.issueDate || null,
-          passport_expiry_date: data.expiryDate || null,
-          passport_issuing_country: data.issuingCountry,
-          passport_issuing_authority: data.issuingAuthority || null,
+          passport_issue_date: data.passportIssuanceDate || null,
+          passport_expiry_date: data.passportExpirationDate || null,
+          passport_issuing_country: data.passportIssuingCountry,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "auth_user_id" }
@@ -1104,10 +1109,10 @@ export default function ApplicationPage() {
             visa_type: visaPackage?.visa_type ?? "tourist_b211a",
             arrival_date: data.arrivalDate || null,
             departure_date: data.departureDate || null,
-            port_of_entry: data.portOfEntry || null,
-            purpose: data.purpose || null,
+            port_of_entry: data.arrivalCity || null,
+            purpose: data.purposeOfTrip || null,
             accommodation_name: data.accommodationName || null,
-            accommodation_address: data.accommodationAddress || null,
+            accommodation_address: data.usAddressStreet1 || null,
           })
           .select("id")
           .single();
@@ -1117,10 +1122,10 @@ export default function ApplicationPage() {
         await supabase.from("applications").update({
           arrival_date: data.arrivalDate || null,
           departure_date: data.departureDate || null,
-          port_of_entry: data.portOfEntry || null,
-          purpose: data.purpose || null,
+          port_of_entry: data.arrivalCity || null,
+          purpose: data.purposeOfTrip || null,
           accommodation_name: data.accommodationName || null,
-          accommodation_address: data.accommodationAddress || null,
+          accommodation_address: data.usAddressStreet1 || null,
         }).eq("id", applicationId);
       }
 

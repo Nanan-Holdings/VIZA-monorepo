@@ -144,34 +144,35 @@ export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComp
       <CardContent className="flex flex-col gap-4">
         {data?.personal && (
           <Section title={t("review.personalInformation")} onEdit={() => onEdit?.("personal")} editLabel={t("edit")}>
-            <SectionRow label={t("review.fullName")} value={data.personal.fullName} />
+            <SectionRow label={t("review.surname")} value={data.personal.surname} />
+            <SectionRow label={t("review.givenNames")} value={data.personal.givenNames} />
             <SectionRow label={t("review.dateOfBirth")} value={data.personal.dateOfBirth} />
-            <SectionRow label={t("review.placeOfBirth")} value={data.personal.placeOfBirth} />
-            <SectionRow label={t("review.gender")} value={data.personal.gender} />
+            <SectionRow label={t("review.sex")} value={data.personal.sex} />
+            <SectionRow label={t("review.maritalStatus")} value={data.personal.maritalStatus} />
             <SectionRow label={t("review.nationality")} value={data.personal.nationality} />
-            <SectionRow label={t("review.occupation")} value={data.personal.occupation} />
-            <SectionRow label={t("review.address")} value={data.personal.address} />
+            <SectionRow label={t("review.cityOfBirth")} value={data.personal.cityOfBirth} />
+            <SectionRow label={t("review.countryOfBirth")} value={data.personal.countryOfBirth} />
           </Section>
         )}
 
         {data?.passport && (
           <Section title={t("review.passportDetails")} onEdit={() => onEdit?.("passport")} editLabel={t("edit")}>
+            <SectionRow label={t("review.passportType")} value={data.passport.passportDocumentType} />
             <SectionRow label={t("review.passportNumber")} value={data.passport.passportNumber} />
-            <SectionRow label={t("review.issueDate")} value={data.passport.issueDate} />
-            <SectionRow label={t("review.expiryDate")} value={data.passport.expiryDate} />
-            <SectionRow label={t("review.issuingCountry")} value={data.passport.issuingCountry} />
-            <SectionRow label={t("review.issuingAuthority")} value={data.passport.issuingAuthority} />
+            <SectionRow label={t("review.issuingCountry")} value={data.passport.passportIssuingCountry} />
+            <SectionRow label={t("review.issuanceDate")} value={data.passport.passportIssuanceDate} />
+            <SectionRow label={t("review.expiryDate")} value={data.passport.passportExpirationDate} />
           </Section>
         )}
 
         {data?.travel && (
           <Section title={t("review.travelInformation")} onEdit={() => onEdit?.("travel")} editLabel={t("edit")}>
+            <SectionRow label={t("review.purpose")} value={data.travel.purposeOfTrip} />
             <SectionRow label={t("review.arrivalDate")} value={data.travel.arrivalDate} />
             <SectionRow label={t("review.departureDate")} value={data.travel.departureDate} />
-            <SectionRow label={t("review.portOfEntry")} value={data.travel.portOfEntry} />
-            <SectionRow label={t("review.purpose")} value={data.travel.purpose} />
+            <SectionRow label={t("review.arrivalCity")} value={data.travel.arrivalCity} />
             <SectionRow label={t("review.accommodation")} value={data.travel.accommodationName} />
-            <SectionRow label={t("review.accommodationAddress")} value={data.travel.accommodationAddress} />
+            <SectionRow label={t("review.usAddress")} value={[data.travel.usAddressStreet1, data.travel.usAddressCity, data.travel.usAddressState, data.travel.usAddressZip].filter(Boolean).join(", ")} />
           </Section>
         )}
 

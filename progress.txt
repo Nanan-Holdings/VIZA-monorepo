@@ -20,3 +20,14 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: viza-be/submission-service/src/ds160-coverage-audit.ts (new), prd.json, progress.txt
 - Learnings: The DS-160 has 331 fields but only 29 have any simplified-form coverage. Huge gap to close.
 ---
+
+## 2026-04-19 - US-017
+- Created types/ds160-intake.ts with DS160CompleteIntake schema and HARDCODED_TO_DS160_MAP
+- Updated PersonalInfoStep: fullName→surname+givenNames, placeOfBirth→cityOfBirth+stateOfBirth+countryOfBirth, gender→sex, added maritalStatus+fullNameNativeAlphabet
+- Updated PassportStep: added passportDocumentType+passportBookNumber+passportIssuanceCity, renamed issueDate/expiryDate to DS-160-safe names
+- Updated TravelInfoStep: purpose→purposeOfTrip, portOfEntry→arrivalCity, accommodationAddress→structured US address (street/city/state/zip)
+- Updated page.tsx handlers, prefill loading, review-step, translation-panel to match new interfaces
+- Dynamic form (visa_form_fields) already covers all remaining DS-160 fields
+- Files changed: types/ds160-intake.ts, personal-info-step.tsx, passport-step.tsx, travel-info-step.tsx, review-step.tsx, translation-panel.tsx, page.tsx, prd.json, progress.txt
+- Learnings: The combined hardcoded steps + dynamic form now covers the full DS-160 schema with no lossy mappings in the hardcoded steps
+---

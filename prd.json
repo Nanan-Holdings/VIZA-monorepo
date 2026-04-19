@@ -48,7 +48,7 @@
         "Typecheck passes"
       ],
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "notes": "This story is about making the simplified form itself complete, not adding a second hidden completion questionnaire."
     },
     {

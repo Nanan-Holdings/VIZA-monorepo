@@ -132,19 +132,20 @@ function TranslationRow({
 // ---------------------------------------------------------------------------
 
 const FIELD_LABELS: Record<string, string> = {
-  full_name: "review.fullName",
-  place_of_birth: "review.placeOfBirth",
+  surname: "review.surname",
+  given_names: "review.givenNames",
+  city_of_birth: "review.cityOfBirth",
+  country_of_birth: "review.countryOfBirth",
   nationality: "review.nationality",
-  occupation: "review.occupation",
-  address: "review.address",
-  port_of_entry: "review.portOfEntry",
-  purpose: "review.purpose",
+  marital_status: "review.maritalStatus",
+  purpose_of_trip: "review.purpose",
+  arrival_city: "review.arrivalCity",
   accommodation_name: "review.accommodation",
-  accommodation_address: "review.accommodationAddress",
+  us_address_street1: "review.usAddress",
 };
 
-const PERSONAL_FIELDS = ["full_name", "place_of_birth", "nationality", "occupation", "address"];
-const TRAVEL_FIELDS = ["port_of_entry", "purpose", "accommodation_name", "accommodation_address"];
+const PERSONAL_FIELDS = ["surname", "given_names", "city_of_birth", "country_of_birth", "nationality", "marital_status"];
+const TRAVEL_FIELDS = ["purpose_of_trip", "arrival_city", "accommodation_name", "us_address_street1"];
 
 // ---------------------------------------------------------------------------
 // TranslationPanel
@@ -269,19 +270,19 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
         <TabsContent value="zh" className="flex flex-col gap-4 mt-4">
           {originalData?.personal && (
             <Section title={t("translation.sectionPersonal")}>
-              <SectionRow label={t("review.fullName")} value={originalData.personal.fullName} />
-              <SectionRow label={t("review.placeOfBirth")} value={originalData.personal.placeOfBirth} />
+              <SectionRow label={t("review.surname")} value={originalData.personal.surname} />
+              <SectionRow label={t("review.givenNames")} value={originalData.personal.givenNames} />
               <SectionRow label={t("review.nationality")} value={originalData.personal.nationality} />
-              <SectionRow label={t("review.occupation")} value={originalData.personal.occupation} />
-              <SectionRow label={t("review.address")} value={originalData.personal.address} />
+              <SectionRow label={t("review.cityOfBirth")} value={originalData.personal.cityOfBirth} />
+              <SectionRow label={t("review.countryOfBirth")} value={originalData.personal.countryOfBirth} />
             </Section>
           )}
           {originalData?.travel && (
             <Section title={t("translation.sectionTravel")}>
-              <SectionRow label={t("review.portOfEntry")} value={originalData.travel.portOfEntry} />
-              <SectionRow label={t("review.purpose")} value={originalData.travel.purpose} />
+              <SectionRow label={t("review.purpose")} value={originalData.travel.purposeOfTrip} />
+              <SectionRow label={t("review.arrivalCity")} value={originalData.travel.arrivalCity} />
               <SectionRow label={t("review.accommodation")} value={originalData.travel.accommodationName} />
-              <SectionRow label={t("review.accommodationAddress")} value={originalData.travel.accommodationAddress} />
+              <SectionRow label={t("review.usAddress")} value={originalData.travel.usAddressStreet1} />
             </Section>
           )}
         </TabsContent>
