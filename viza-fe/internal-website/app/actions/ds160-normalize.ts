@@ -68,7 +68,10 @@ function flattenTravel(data: Partial<TravelInfoData>): Record<string, string> {
   if (data.purposeOfTrip) answers.purpose_of_trip = data.purposeOfTrip;
   if (data.arrivalCity) answers.arrival_city = data.arrivalCity;
   if (data.accommodationName) answers.planned_location = data.accommodationName;
-  if (data.usAddressStreet1) answers.us_address_street1 = data.usAddressStreet1;
+  if (data.usAddressStreet1) {
+    answers.us_address_street1 = data.usAddressStreet1;
+    answers.us_address_street = data.usAddressStreet1; // CEAC autofill alias
+  }
   if (data.usAddressCity) answers.us_address_city = data.usAddressCity;
   if (data.usAddressState) answers.us_address_state = data.usAddressState;
   if (data.usAddressZip) answers.us_address_zip = data.usAddressZip;
@@ -86,6 +89,7 @@ function flattenTravel(data: Partial<TravelInfoData>): Record<string, string> {
       answers.intended_arrival_date_day = day;
       answers.intended_arrival_date_month = month;
       answers.intended_arrival_date_year = year;
+      answers.intended_arrival_date = data.arrivalDate; // CEAC autofill alias (full date)
     }
   }
 
@@ -107,6 +111,7 @@ function flattenTravel(data: Partial<TravelInfoData>): Record<string, string> {
       const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
       answers.intended_length_of_stay_value = String(diffDays);
       answers.intended_length_of_stay_unit = "D"; // Days
+      answers.intended_length_of_stay = String(diffDays); // CEAC autofill alias
     }
   }
 
