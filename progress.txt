@@ -52,3 +52,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/client/application/page.tsx, prd.json, progress.txt
 - Learnings: The key architectural shift is loading from visa_application_answers first, then falling back to profile
 ---
+
+## 2026-04-19 - US-020
+- Created ds160-completeness-verify.ts with sample payloads for all DS-160 sections
+- Verification proves 100% coverage of all 33 CEAC autofill-mapped keys
+- Classification: 21 direct from hardcoded steps, 1 derived deterministically, 11 from dynamic form
+- Added CEAC alias keys (intended_arrival_date, intended_length_of_stay, us_address_street) to normalization
+- Added national_id_number, us_social_security_number, us_taxpayer_id to dynamic form coverage
+- Files changed: ds160-completeness-verify.ts (new), ds160-normalize.ts, prd.json, progress.txt
+- Learnings: CEAC autofill mappings use different key names than seed script in 3 cases — need alias keys
+---
