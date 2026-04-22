@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { translateLabel, translatePlaceholder, translateOptionText } from "@/lib/ds160-translations";
@@ -59,6 +59,13 @@ function instanceKey(fieldName: string, instance: number): string {
 function getInlineGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { inline_group?: string } | null;
   return rules?.inline_group ?? null;
+}
+
+/** Get the block_group from a field's validationRules — used to wrap
+ *  a set of consecutive non-repeatable fields in a visual container box. */
+function getBlockGroup(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { block_group?: string } | null;
+  return rules?.block_group ?? null;
 }
 
 /** Check if a field should be disabled because a sibling select in its
@@ -417,6 +424,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   // Build the ordered list of render items (fields + repeat groups)
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
+  const renderedBlockGroups = new Set<string>();
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -430,6 +438,48 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
 
         // Non-repeatable field
         if (!group) {
+          // Block group: wrap a consecutive set of non-repeatable fields in a
+          // container box, rendered once for the group.
+          const bg = getBlockGroup(field);
+          if (bg) {
+            if (renderedBlockGroups.has(bg)) return null;
+            renderedBlockGroups.add(bg);
+
+            const blockFields = step.fields.filter(
+              (f) =>
+                !getRepeatGroup(f) &&
+                getBlockGroup(f) === bg &&
+                (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
+                !isGatedByUnansweredToggle(f),
+            );
+
+            if (blockFields.length === 0) return null;
+
+            const renderedInlineInBlock = new Set<string>();
+            return (
+              <div
+                key={`block-${bg}`}
+                className="rounded-lg border border-[#e8e8e8] bg-[#fafafa] p-4 flex flex-col gap-4"
+              >
+                {blockFields.map((f) => {
+                  const inlineInBlock = getInlineGroup(f);
+                  if (inlineInBlock) {
+                    if (renderedInlineInBlock.has(inlineInBlock)) return null;
+                    renderedInlineInBlock.add(inlineInBlock);
+                    const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
+                    if (inlineFields.length <= 1) return renderField(f, f.fieldName, true);
+                    return (
+                      <div key={`inline-${inlineInBlock}`} className="grid grid-cols-2 gap-3">
+                        {inlineFields.map((x) => renderField(x, x.fieldName, true))}
+                      </div>
+                    );
+                  }
+                  return renderField(f, f.fieldName, true);
+                })}
+              </div>
+            );
+          }
+
           const ig = getInlineGroup(field);
           if (ig) {
             // Inline group: render all visible fields in this group together, once
@@ -518,19 +568,15 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
         );
       })}
 
-      <Button
+      <BrandActionButton
         type="submit"
-        disabled={!requiredFilled || saving}
-        className="mt-2 h-12 rounded-full bg-[#03346E] text-[15px] font-medium text-white hover:bg-[#022a5a] disabled:opacity-50"
+        disabled={!requiredFilled}
+        loading={saving}
+        loadingText={tButtons("saving")}
+        className="mt-2"
       >
-        {saving ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> {tButtons("saving")}
-          </span>
-        ) : (
-          tButtons("continue")
-        )}
-      </Button>
+        {tButtons("continue")}
+      </BrandActionButton>
     </form>
   );
 }

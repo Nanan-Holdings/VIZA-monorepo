@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ShieldCheck } from "lucide-react";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
-import { Button } from "@/components/ui/button";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -104,9 +104,9 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
           />
         </InputGroup>
       </Field>
-      <Button type="submit" className="mt-2 h-12 bg-[#03346E] hover:bg-[#03346E]/90 text-white rounded-lg text-[15px] font-medium">
+      <BrandActionButton type="submit" className="mt-2">
         {t("continue")}
-      </Button>
+      </BrandActionButton>
     </form>
   );
 }

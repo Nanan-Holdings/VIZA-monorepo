@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plane, Building2, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -130,9 +130,9 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
           />
         </InputGroup>
       </Field>
-      <Button type="submit" className="mt-2 h-12 bg-[#03346E] hover:bg-[#03346E]/90 text-white rounded-lg text-[15px] font-medium">
+      <BrandActionButton type="submit" className="mt-2">
         {t("continue")}
-      </Button>
+      </BrandActionButton>
     </form>
   );
 }

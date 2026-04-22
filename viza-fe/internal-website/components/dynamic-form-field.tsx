@@ -146,34 +146,51 @@ export function DynamicFormField({
 
   switch (fieldType) {
     case "date": {
-      const dateAllowDoNotKnow = (field.validationRules as { allow_do_not_know?: boolean } | null)?.allow_do_not_know;
+      const dateRules = (field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean } | null);
+      const dateAllowDoNotKnow = dateRules?.allow_do_not_know;
+      const dateAllowDoesNotApply = dateRules?.allow_does_not_apply;
       const dateIsDoNotKnow = value === "DO_NOT_KNOW";
+      const dateIsDoesNotApply = value === "DOES_NOT_APPLY";
+      const dateHasSideCheckbox = dateAllowDoNotKnow || dateAllowDoesNotApply;
+      const datePickerNode = !dateIsDoNotKnow && !dateIsDoesNotApply ? (
+        <DatePicker
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder ?? undefined}
+          className={whiteControlClass}
+        />
+      ) : (
+        <div className={`h-12 rounded-lg border border-[#e8e8e8] flex items-center px-3 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+          {dateIsDoNotKnow ? t("dynamicField.doNotKnow") : t("dynamicField.doesNotApply")}
+        </div>
+      );
+      const sideCheckbox = dateAllowDoNotKnow ? (
+        <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
+          <Checkbox
+            checked={dateIsDoNotKnow}
+            onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+          />
+          {t("dynamicField.doNotKnow")}
+        </label>
+      ) : dateAllowDoesNotApply ? (
+        <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
+          <Checkbox
+            checked={dateIsDoesNotApply}
+            onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+          />
+          {t("dynamicField.doesNotApply")}
+        </label>
+      ) : null;
+
       return (
         <FieldWrapper label={label} required={required}>
-          {!dateIsDoNotKnow && (
-            <DatePicker
-              value={value}
-              onChange={onChange}
-              placeholder={placeholder ?? undefined}
-              className={whiteControlClass}
-            />
-          )}
-          {dateIsDoNotKnow && (
-            <div className={`h-12 rounded-lg border border-[#e8e8e8] flex items-center px-3 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
-              {t("dynamicField.doNotKnow")}
+          {dateHasSideCheckbox ? (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">{datePickerNode}</div>
+              {sideCheckbox}
             </div>
-          )}
-          {dateAllowDoNotKnow && (
-            <div className="flex items-center gap-2 mt-1">
-              <Checkbox
-                id={`${field.fieldName}-dontknow`}
-                checked={dateIsDoNotKnow}
-                onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
-              />
-              <Label htmlFor={`${field.fieldName}-dontknow`} className="text-[13px] text-gray-500 cursor-pointer">
-                {t("dynamicField.doNotKnow")}
-              </Label>
-            </div>
+          ) : (
+            datePickerNode
           )}
         </FieldWrapper>
       );
@@ -315,49 +332,55 @@ export function DynamicFormField({
       }
 
       {
-        const rules = field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean } | null;
+        const rules = field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean; has_does_not_apply?: boolean } | null;
         const allowDoNotKnow = rules?.allow_do_not_know;
-        const allowDoesNotApply = rules?.allow_does_not_apply;
+        const allowDoesNotApply = rules?.allow_does_not_apply || rules?.has_does_not_apply;
         const isDoNotKnow = value === "DO_NOT_KNOW";
         const isDoesNotApply = value === "DOES_NOT_APPLY";
         const isOverridden = isDoNotKnow || isDoesNotApply;
+        const hasSideCheckbox = allowDoNotKnow || allowDoesNotApply;
+
+        const inputNode = (
+          <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
+            <InputGroupInput
+              type={fieldType === "text" ? "text" : fieldType}
+              placeholder={placeholder ?? undefined}
+              value={isOverridden ? "" : value}
+              onChange={(e) => onChange(e.target.value)}
+              required={required && !isOverridden}
+              disabled={isOverridden || disabled}
+              className="h-12 text-[15px]"
+            />
+          </InputGroup>
+        );
+
+        const sideCheckbox = allowDoNotKnow ? (
+          <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
+            <Checkbox
+              checked={isDoNotKnow}
+              onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
+            />
+            {t("dynamicField.doNotKnow")}
+          </label>
+        ) : allowDoesNotApply ? (
+          <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
+            <Checkbox
+              checked={isDoesNotApply}
+              onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+            />
+            {t("dynamicField.doesNotApply")}
+          </label>
+        ) : null;
 
         return (
           <FieldWrapper label={label} required={required}>
-            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed" : ""}`}>
-              <InputGroupInput
-                type={fieldType === "text" ? "text" : fieldType}
-                placeholder={placeholder ?? undefined}
-                value={isOverridden ? "" : value}
-                onChange={(e) => onChange(e.target.value)}
-                required={required && !isOverridden}
-                disabled={isOverridden || disabled}
-                className="h-12 text-[15px]"
-              />
-            </InputGroup>
-            {allowDoNotKnow && (
-              <div className="flex items-center gap-2 mt-1">
-                <Checkbox
-                  id={`${field.fieldName}-dontknow`}
-                  checked={isDoNotKnow}
-                  onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
-                />
-                <Label htmlFor={`${field.fieldName}-dontknow`} className="text-[13px] text-gray-500 cursor-pointer">
-                  {t("dynamicField.doNotKnow")}
-                </Label>
+            {hasSideCheckbox ? (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">{inputNode}</div>
+                {sideCheckbox}
               </div>
-            )}
-            {allowDoesNotApply && (
-              <div className="flex items-center gap-2 mt-1">
-                <Checkbox
-                  id={`${field.fieldName}-na`}
-                  checked={isDoesNotApply}
-                  onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
-                />
-                <Label htmlFor={`${field.fieldName}-na`} className="text-[13px] text-gray-500 cursor-pointer">
-                  {t("dynamicField.doesNotApply")}
-                </Label>
-              </div>
+            ) : (
+              inputNode
             )}
           </FieldWrapper>
         );

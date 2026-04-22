@@ -27,8 +27,15 @@ export function Section({
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-heading font-semibold text-sm text-brand-500">{title}</h3>
         {onEdit && (
-          <Button type="button" variant="ghost" size="sm" onClick={onEdit} className="h-7 px-2 text-xs">
-            <Pencil className="h-3 w-3 mr-1" /> {editLabel}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            className="h-8 rounded-full px-3 text-xs font-semibold text-brand-500 bg-brand-500/10 hover:bg-brand-500/15 hover:text-brand-500 focus-visible:ring-brand-500/40"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editLabel}
           </Button>
         )}
       </div>

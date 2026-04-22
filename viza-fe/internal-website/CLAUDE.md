@@ -1,5 +1,8 @@
 # VIZA Admin Website - Project Documentation
 
+> **UI work on `/client/*` — read `frontend.md` in this directory first.**
+> It is the source of truth for design tokens (brand scale, typography, radius), shadcn conventions, client-shell patterns, and the UX rules distilled from ui-ux-pro-max. Loading it before any `/client` UI change is mandatory.
+
 ## 📋 Project Overview
 
 **VIZA Admin Website** is a comprehensive visa practitioner management system built with Next.js 16, featuring separate portals for admins and administrative staff. The system manages users, visa orders, consultations, services, and visa timelines.
