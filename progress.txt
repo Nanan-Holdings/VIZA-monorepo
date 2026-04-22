@@ -120,3 +120,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: captcha-solver.ts, start-page-captcha.ts, smoke.ts, session.ts, index.ts, ceac-smoke-test.md, prd.json, progress.txt
 - Learnings: session.ts was auto-modified by a linter hook when types changed — need to re-read before editing
 ---
+
+## 2026-04-23 - US-025 (follow-up)
+- Added ds160SecurityBackground1–5Mappings with radio type for all 27 security yes/no questions
+- Added radio type handling in fillPageFields (click radio with value match)
+- Replaced broken DS160_MAPPING_GROUPS index references with named imports in PAGE_FILL_MAP
+- PAGE_FILL_MAP now covers all 18 DS-160 content pages (was 13, security pages were pass-through)
+- Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts
+- Learnings: DS160_MAPPING_GROUPS index references break when new groups are inserted — use named imports
+---
