@@ -26,7 +26,7 @@ interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Pick a date",
+  placeholder,
   className,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
@@ -35,6 +35,9 @@ export function DatePicker({
 
   // Parse YYYY-MM-DD string to Date in local time (avoid timezone offset)
   const date = value ? new Date(value + "T00:00:00") : undefined
+
+  // Locale-aware default placeholder
+  const resolvedPlaceholder = placeholder ?? (locale === "zh" ? "请选择日期" : "Pick a date")
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +52,7 @@ export function DatePicker({
           )}
         >
           <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          {date ? format(date, "PPP", { locale: dateFnsLocale }) : <span>{placeholder}</span>}
+          {date ? format(date, "PPP", { locale: dateFnsLocale }) : <span>{resolvedPlaceholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

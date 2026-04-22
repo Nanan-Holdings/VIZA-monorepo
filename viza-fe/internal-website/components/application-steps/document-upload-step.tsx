@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileUploadCard, type DocumentType } from "./file-upload-card";
 
@@ -55,13 +55,13 @@ export function DocumentUploadStep({ applicationId, documentTypes, onComplete }:
           />
         ))}
 
-        <Button
-          className="mt-2 bg-brand-500 hover:bg-brand-600 text-white"
+        <BrandActionButton
+          className="mt-2"
           disabled={!allUploaded}
           onClick={() => onComplete(uploadedPaths as Record<DocumentType, string>)}
         >
           {t("continue")}
-        </Button>
+        </BrandActionButton>
         {!allUploaded && (
           <p className="text-xs text-center text-muted-foreground">
             {t("documentUpload.uploadAllToContinue", { count: docs.length })}

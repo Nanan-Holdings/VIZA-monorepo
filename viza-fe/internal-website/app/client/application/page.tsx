@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -116,7 +117,7 @@ function getStepSectionKey(step: StepDef): StepSectionKey {
   if (sourceName.startsWith("personal information")) return "personal";
   if (sourceName.startsWith("travel information")) return "travel";
   if (sourceName.startsWith("travel companions")) return "travelCompanions";
-  if (sourceName.startsWith("previous us travel")) return "previousTravel";
+  if (sourceName.startsWith("previous u s travel") || sourceName.startsWith("previous us travel")) return "previousTravel";
   if (sourceName.startsWith("address and phone")) return "addressAndPhone";
   if (sourceName.includes("passport information")) return "passport";
   if (sourceName.includes("us contact information") || sourceName.includes("us point of contact")) return "usContact";
@@ -336,7 +337,7 @@ function GroupedStepSidebar({
 
   return (
     <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
-      <div className="space-y-4">
+      <div className="space-y-3">
         {sections.map((section) => {
           if (section.steps.length === 1) {
             const step = section.steps[0];
@@ -384,66 +385,104 @@ function GroupedStepSidebar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.key] ?? activeInSection;
+          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
+          const completedCount = section.steps.filter((step) => {
+            const i = currentStepIndexById.get(step.id) ?? 0;
+            return i < completedUpTo;
+          }).length;
+          const sectionComplete = completedCount === section.steps.length;
 
           return (
             <section
               key={section.key}
               className={cn(
-                "rounded-2xl border bg-white shadow-sm overflow-hidden transition-all duration-200",
-                activeInSection ? "border-[#03346E]/30 shadow-[0_8px_24px_rgba(3,52,110,0.08)]" : "border-[#efefef]"
+                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
+                activeInSection
+                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "border-[#efefef] hover:border-gray-300 hover:shadow-sm"
               )}
             >
               <button
                 type="button"
                 onClick={() => toggleSection(section.key)}
-                className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+                className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
               >
-                <div className="min-w-0">
-                  <p className={cn("text-[15px] font-semibold leading-tight", activeInSection ? "text-[#03346E]" : "text-[#3d3d3d]")}>{section.title}</p>
-                </div>
+                {/* Circle badge — matches single-step card */}
                 <div
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all duration-200",
-                    isExpanded ? "border-[#03346E] bg-[#03346E] text-white" : "border-gray-200 bg-white text-gray-500"
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200",
+                    sectionComplete && "bg-[#03346E] border-[#03346E] text-white",
+                    activeInSection && !sectionComplete && "bg-[#03346E] border-[#03346E] text-white shadow-[0_0_0_4px_rgba(3,52,110,0.12)]",
+                    !sectionComplete && !activeInSection && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isExpanded ? "rotate-180" : "")} />
+                  {sectionComplete ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : (
+                    firstIndex + 1
+                  )}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "text-[15px] leading-tight truncate",
+                      activeInSection && "font-semibold text-[#03346E]",
+                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
+                      !activeInSection && !sectionComplete && "font-medium text-gray-500"
+                    )}
+                  >
+                    {section.title}
+                  </p>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200",
+                    isExpanded && "rotate-180 text-[#03346E]"
+                  )}
+                />
               </button>
 
-              {isExpanded && <div className="px-3 pb-3">
-                <div className="space-y-2 border-l border-dashed border-gray-200 pl-3">
-                  {section.steps.map((step) => {
-                    const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-                    const status = getStatus(step.id, stepIndex);
+              {isExpanded && (
+                <div className="relative px-5 pb-3 pt-1">
+                  {/* Vertical dashed connector — centered under the header circle (left-5 + 16px) */}
+                  <div
+                    aria-hidden
+                    className="absolute left-[35px] top-3 bottom-4 w-0 border-l-2 border-dashed border-gray-200"
+                  />
+                  <div className="relative space-y-0.5">
+                    {section.steps.map((step) => {
+                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+                      const status = getStatus(step.id, stepIndex);
+                      const isSelected = step.id === currentStep;
 
-                    return (
-                      <button
-                        type="button"
-                        key={step.id}
-                        onClick={() => onStepClick(step.id)}
-                        className={cn(
-                          "w-full rounded-lg px-2 py-2 text-left flex gap-3 items-start transition-all duration-200",
-                          status === "in_progress"
-                            ? "bg-[#f5f9ff]"
-                            : "hover:bg-gray-50"
-                        )}
-                      >
-                        <div
+                      return (
+                        <button
+                          type="button"
+                          key={step.id}
+                          onClick={() => onStepClick(step.id)}
                           className={cn(
-                            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                            status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
-                            status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
-                            status === "locked" && "border-gray-200 bg-white text-gray-500"
+                            "relative w-full flex items-center gap-4 rounded-lg py-2 pr-2 text-left transition-colors cursor-pointer",
+                            isSelected ? "bg-[#f5f9ff]" : "hover:bg-gray-50"
                           )}
                         >
-                          {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
+                          {/* Numbered marker — circle for in-progress/locked, bare check icon for complete */}
+                          <span
+                            className={cn(
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              status === "complete" && "text-[#03346E]",
+                              status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
+                              status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
+                            )}
+                          >
+                            {status === "complete" ? (
+                              <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : (
+                              stepIndex + 1
+                            )}
+                          </span>
                           <p
                             className={cn(
-                              "text-[14px] leading-snug",
+                              "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
                               status === "complete" && "font-medium text-[#03346E]",
                               status === "locked" && "font-medium text-gray-600"
@@ -451,12 +490,12 @@ function GroupedStepSidebar({
                           >
                             {step.name}
                           </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>}
+              )}
             </section>
           );
         })}
@@ -507,14 +546,28 @@ function GroupedMobileStepBar({
 
   return (
     <div className="lg:hidden mb-6 space-y-3">
-      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.18em] text-gray-400 font-semibold">Application sections</p>
-        <p className="mt-2 text-sm font-medium text-[#3d3d3d]">{currentSection?.title ?? "Progress overview"}</p>
-        <p className="mt-1 text-xs text-gray-500">
-          {currentStepIndex !== undefined
-            ? `Step ${currentStepIndex + 1} of ${steps.length}: ${steps[currentStepIndex]?.name}`
-            : "Choose a section below"}
-        </p>
+      <div className="rounded-xl border border-[#efefef] bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] uppercase tracking-[0.15em] text-gray-400 font-semibold">
+              {currentSection?.title ?? "Progress overview"}
+            </p>
+            <p className="mt-1 text-[15px] font-semibold leading-tight text-[#03346E] truncate">
+              {currentStepIndex !== undefined
+                ? steps[currentStepIndex]?.name
+                : "Choose a step below"}
+            </p>
+          </div>
+          <span className="shrink-0 inline-flex items-center rounded-full bg-[#03346E]/10 px-2.5 py-1 text-[12px] font-semibold tabular-nums text-[#03346E]">
+            {currentStepIndex !== undefined ? `${currentStepIndex + 1} / ${steps.length}` : `— / ${steps.length}`}
+          </span>
+        </div>
+        <div className="mt-3 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-[#03346E] transition-all duration-300"
+            style={{ width: `${Math.min(100, (completedUpTo / Math.max(steps.length, 1)) * 100)}%` }}
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -530,18 +583,18 @@ function GroupedMobileStepBar({
                 type="button"
                 onClick={() => onStepClick(step.id)}
                 className={cn(
-                  "w-full rounded-xl border px-4 py-3 text-left flex gap-3 items-start transition-all duration-200 bg-white",
+                  "w-full rounded-xl border bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer",
                   status === "in_progress"
-                    ? "border-[#03346E] bg-[#f5f9ff]"
-                    : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    : "border-[#efefef] active:bg-gray-50"
                 )}
               >
                 <div
                   className={cn(
-                    "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                    status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
-                    status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
-                    status === "locked" && "border-gray-200 bg-white text-gray-500"
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200",
+                    status === "complete" && "bg-[#03346E] border-[#03346E] text-white",
+                    status === "in_progress" && "bg-[#03346E] border-[#03346E] text-white shadow-[0_0_0_4px_rgba(3,52,110,0.12)]",
+                    status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
                   {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
@@ -550,10 +603,10 @@ function GroupedMobileStepBar({
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
-                      "text-[14px] leading-snug",
+                      "text-[15px] leading-tight truncate",
                       status === "in_progress" && "font-semibold text-[#03346E]",
                       status === "complete" && "font-medium text-[#03346E]",
-                      status === "locked" && "font-medium text-gray-600"
+                      status === "locked" && "font-medium text-gray-500"
                     )}
                   >
                     {step.name}
@@ -565,56 +618,103 @@ function GroupedMobileStepBar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.key] ?? activeInSection;
+          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
+          const completedCount = section.steps.filter((step) => {
+            const i = currentStepIndexById.get(step.id) ?? 0;
+            return i < completedUpTo;
+          }).length;
+          const sectionComplete = completedCount === section.steps.length;
 
           return (
             <section
               key={section.key}
-              className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden"
+              className={cn(
+                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
+                activeInSection
+                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  : "border-[#efefef] active:bg-gray-50"
+              )}
             >
               <button
                 type="button"
                 onClick={() => toggleSection(section.key)}
-                className="w-full cursor-pointer px-4 py-4 flex items-center justify-between gap-3 text-left"
+                className="w-full cursor-pointer px-4 py-3.5 flex items-center gap-3 text-left"
               >
-                <div className="min-w-0">
-                  <p className={cn("text-[15px] font-semibold", activeInSection ? "text-[#03346E]" : "text-[#3d3d3d]")}>{section.title}</p>
+                <div
+                  className={cn(
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200",
+                    sectionComplete && "bg-[#03346E] border-[#03346E] text-white",
+                    activeInSection && !sectionComplete && "bg-[#03346E] border-[#03346E] text-white shadow-[0_0_0_4px_rgba(3,52,110,0.12)]",
+                    !sectionComplete && !activeInSection && "bg-white border-gray-200 text-gray-500"
+                  )}
+                >
+                  {sectionComplete ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : (
+                    firstIndex + 1
+                  )}
                 </div>
-                <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-400 transition-transform", isExpanded ? "rotate-180 text-[#03346E]" : "")} />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "text-[15px] leading-tight truncate",
+                      activeInSection && "font-semibold text-[#03346E]",
+                      sectionComplete && !activeInSection && "font-medium text-[#03346E]",
+                      !activeInSection && !sectionComplete && "font-medium text-gray-500"
+                    )}
+                  >
+                    {section.title}
+                  </p>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200",
+                    isExpanded && "rotate-180 text-[#03346E]"
+                  )}
+                />
               </button>
 
-              {isExpanded && <div className="px-4 pb-4">
-                <div className="space-y-2 border-l border-dashed border-gray-200 pl-3">
-                  {section.steps.map((step) => {
-                    const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-                    const status = getStatus(step.id, stepIndex);
+              {isExpanded && (
+                <div className="relative px-4 pb-3 pt-1">
+                  {/* Dashed connector — centered under the 8×8 header circle (left-4 + 16px) */}
+                  <div
+                    aria-hidden
+                    className="absolute left-[31px] top-3 bottom-4 w-0 border-l-2 border-dashed border-gray-200"
+                  />
+                  <div className="relative space-y-0.5">
+                    {section.steps.map((step) => {
+                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
+                      const status = getStatus(step.id, stepIndex);
+                      const isSelected = step.id === currentStep;
 
-                    return (
-                      <button
-                        key={step.id}
-                        type="button"
-                        onClick={() => onStepClick(step.id)}
-                        className={cn(
-                          "w-full rounded-lg px-2 py-2 text-left flex gap-3 items-start transition-all duration-200",
-                          status === "in_progress"
-                            ? "bg-[#f5f9ff]"
-                            : "bg-transparent hover:bg-gray-50"
-                        )}
-                      >
-                        <div
+                      return (
+                        <button
+                          key={step.id}
+                          type="button"
+                          onClick={() => onStepClick(step.id)}
                           className={cn(
-                            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                            status === "complete" && "border-[#03346E] bg-[#03346E] text-white",
-                            status === "in_progress" && "border-[#03346E] bg-white text-[#03346E]",
-                            status === "locked" && "border-gray-200 bg-white text-gray-500"
+                            "relative w-full flex items-center gap-4 rounded-lg py-2 pr-2 text-left transition-colors",
+                            isSelected ? "bg-[#f5f9ff]" : "active:bg-gray-50"
                           )}
                         >
-                          {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
+                          {/* Numbered marker — bare check for complete, circle otherwise */}
+                          <span
+                            className={cn(
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              status === "complete" && "text-[#03346E]",
+                              status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
+                              status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
+                            )}
+                          >
+                            {status === "complete" ? (
+                              <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : (
+                              stepIndex + 1
+                            )}
+                          </span>
                           <p
                             className={cn(
-                              "text-[14px] leading-snug",
+                              "text-[14px] leading-snug min-w-0 flex-1 truncate",
                               status === "in_progress" && "font-semibold text-[#03346E]",
                               status === "complete" && "font-medium text-[#03346E]",
                               status === "locked" && "font-medium text-gray-600"
@@ -622,12 +722,12 @@ function GroupedMobileStepBar({
                           >
                             {step.name}
                           </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>}
+              )}
             </section>
           );
         })}
@@ -659,6 +759,8 @@ interface ApplicationState {
 
 export default function ApplicationPage() {
   const t = useTranslations("application");
+  const searchParams = useSearchParams();
+  const jumpToReview = searchParams.get("step") === "review";
 
   const STEPS: StepDef[] = STEP_KEYS.map((key, id) => ({
     id,
@@ -718,7 +820,11 @@ export default function ApplicationPage() {
     [dbSteps, dynamicAnswers, useDynamic],
   );
 
-  const effectiveSteps: StepDef[] = useDynamic
+  // Steps in DB source order — used only to build the grouped sections.
+  // The displayed/navigated list (`effectiveSteps` below) is reordered to
+  // match the grouped section order so the sidebar numbers stay sequential
+  // (1, 2, 3, 4…) instead of jumping (e.g. 1, 2, 5, 3, 4).
+  const sourceOrderedSteps: StepDef[] = useDynamic
     ? [
         ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
@@ -767,9 +873,16 @@ export default function ApplicationPage() {
   } satisfies Record<StepSectionKey, string>;
 
   const groupedSections = useMemo(
-    () => (useDynamic ? buildStepSections(effectiveSteps, dynamicSectionTitles) : []),
-    [dynamicSectionTitles, effectiveSteps, useDynamic],
+    () => (useDynamic ? buildStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),
+    [dynamicSectionTitles, sourceOrderedSteps, useDynamic],
   );
+
+  // Final list of steps in display order: flattened from grouped sections so
+  // the sidebar index matches navigation order. Falls back to source order
+  // for the hardcoded (non-DB) flow.
+  const effectiveSteps: StepDef[] = useDynamic
+    ? groupedSections.flatMap((section) => section.steps)
+    : sourceOrderedSteps;
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -849,6 +962,19 @@ export default function ApplicationPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Honor ?step=review from the simplified-form redirect: once steps + any
+  // prefilled answers have loaded, jump directly to the Review step.
+  const [reviewJumpHandled, setReviewJumpHandled] = useState(false);
+  useEffect(() => {
+    if (!jumpToReview || reviewJumpHandled || loading) return;
+    const targetId = useDynamic
+      ? (effectiveSteps.find((s) => s.sourceName === "Review")?.id ?? reviewStepIndex)
+      : 4; // STEP_KEYS index of "review"
+    setCurrentStep(targetId);
+    setCompletedUpTo((c) => Math.max(c, targetId));
+    setReviewJumpHandled(true);
+  }, [jumpToReview, reviewJumpHandled, loading, useDynamic, effectiveSteps, reviewStepIndex]);
 
   useEffect(() => {
     if (!useDynamic || effectiveSteps.length === 0) return;

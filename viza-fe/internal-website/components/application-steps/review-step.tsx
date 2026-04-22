@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { BrandActionButton } from "@/components/client/brand-action-button";
+import { CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
@@ -112,26 +112,22 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
       {/* Actions */}
       <div className="flex flex-col gap-2">
         {state !== "done" && (
-          <Button
-            type="button"
-            variant="outline"
-            className="border-[#03346E] text-[#03346E] hover:bg-[#03346E]/5"
+          <BrandActionButton
+            variant="secondary"
             onClick={runValidation}
-            disabled={state === "loading"}
+            loading={state === "loading"}
+            loadingText={t("review.validation.validating")}
           >
-            {state === "loading" ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("review.validation.validating")}</>
-            ) : t("review.validation.validateButton")}
-          </Button>
+            {t("review.validation.validateButton")}
+          </BrandActionButton>
         )}
 
-        <Button
-          className="bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-50"
+        <BrandActionButton
           disabled={state === "done" && hasErrors}
           onClick={onProceed}
         >
           {state === "done" && hasWarnings && !hasErrors ? t("review.validation.submitWithWarnings") : t("review.confirmAndSubmit")}
-        </Button>
+        </BrandActionButton>
       </div>
     </div>
   );

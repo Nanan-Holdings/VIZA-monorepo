@@ -12,6 +12,7 @@ import {
   Crop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { createClient } from "@/lib/supabase/client";
 import {
   validatePhoto,
@@ -412,9 +413,9 @@ export function PhotoUploadStep({
         >
           {t("uploadNew")}
         </Button>
-        <Button
+        <BrandActionButton
           type="button"
-          className="bg-[#03346E] hover:bg-[#03346E]/90 text-white flex-1"
+          className="flex-1"
           onClick={() => {
             if (uploadedPath) {
               onComplete(uploadedPath);
@@ -425,7 +426,7 @@ export function PhotoUploadStep({
           }}
         >
           {t("continue")}
-        </Button>
+        </BrandActionButton>
       </div>
     </div>
   );
