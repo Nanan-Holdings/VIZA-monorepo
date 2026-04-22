@@ -9,7 +9,7 @@
 
 export interface FormFieldMapping {
   selector: string;
-  type: "text" | "select" | "date" | "file";
+  type: "text" | "select" | "date" | "file" | "radio";
   label: string;
 }
 
