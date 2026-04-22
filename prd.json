@@ -37,7 +37,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "notes": "Keep the client narrow \u2014 one function to solve, one to report bad solves. No retry loop inside the client; callers decide retry policy."
     },
     {
