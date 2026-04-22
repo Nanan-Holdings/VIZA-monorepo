@@ -123,6 +123,17 @@ export {
 } from "./smoke";
 
 export {
+  solveImageCaptcha,
+  reportBadCaptcha,
+  TwoCaptchaConfigError,
+  TwoCaptchaApiError,
+  TwoCaptchaZeroBalanceError,
+  TwoCaptchaNetworkError,
+  TwoCaptchaSolveTimeoutError,
+  type CaptchaSolveResult,
+} from "./captcha-solver";
+
+export {
   detectSignAndSubmit,
   assertSignAndSubmit,
   stopAtSignAndSubmit,

@@ -68,3 +68,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: prd.json, progress.txt
 - Learnings: this story is the scope anchor only; no submission-service code changes were required before moving to the implementation stories
 ---
+
+## 2026-04-23 - US-022
+- Created captcha-solver.ts in src/ceac/ with solveImageCaptcha() and reportBadCaptcha()
+- Uses 2captcha v2 JSON API (createTask + getTaskResult polling) with ImageToTextTask type
+- Typed errors: TwoCaptchaConfigError, TwoCaptchaApiError, TwoCaptchaZeroBalanceError, TwoCaptchaNetworkError, TwoCaptchaSolveTimeoutError
+- API key read from env, never appears in error messages or logs
+- Added exports to ceac/index.ts barrel
+- Files changed: src/ceac/captcha-solver.ts (new), src/ceac/index.ts, prd.json, progress.txt
+- Learnings: submission-service node_modules were not installed on this Mac clone; needed npm install before typecheck
+---
