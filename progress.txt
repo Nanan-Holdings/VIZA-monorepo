@@ -62,3 +62,9 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: ds160-completeness-verify.ts (new), ds160-normalize.ts, prd.json, progress.txt
 - Learnings: CEAC autofill mappings use different key names than seed script in 3 cases — need alias keys
 ---
+## 2026-04-22 - US-021
+- Confirmed PRD scope contract pins the CEAC start-page CAPTCHA as solvable via 2captcha, preserves the stop-at-sign handoff, and documents TWOCAPTCHA_API_KEY as env-only configuration
+- Created and worked on branch ralph/ceac-captcha-and-full-page-fill locally on the Mac clone
+- Files changed: prd.json, progress.txt
+- Learnings: this story is the scope anchor only; no submission-service code changes were required before moving to the implementation stories
+---
