@@ -10,7 +10,7 @@
  */
 
 import type { Page } from "@playwright/test";
-import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult } from "./captcha-solver";
+import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "./captcha-solver";
 import { SessionBootstrapError } from "./errors";
 
 // ---------------------------------------------------------------------------
@@ -139,19 +139,25 @@ export async function solveStartPageCaptcha(
   return { status: "solved", solve };
 }
 
+export interface CaptchaSolveWithTelemetry {
+  solve: CaptchaSolveResult;
+  telemetry: CaptchaSolveTelemetry[];
+}
+
 /**
  * Attempt to solve the start-page CAPTCHA with retries.
  *
  * @param page - Playwright page on the CEAC start page.
  * @param maxAttempts - Maximum solve attempts (default 3).
- * @returns The final outcome after all attempts.
+ * @returns The solve result and an array of per-attempt telemetry records.
  * @throws SessionBootstrapError if all attempts are exhausted.
  */
 export async function solveStartPageCaptchaWithRetry(
   page: Page,
   maxAttempts = 3,
-): Promise<CaptchaSolveResult> {
+): Promise<CaptchaSolveWithTelemetry> {
   const attempts: StartPageCaptchaOutcome[] = [];
+  const telemetry: CaptchaSolveTelemetry[] = [];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const outcome = await solveStartPageCaptcha(page);
@@ -159,14 +165,24 @@ export async function solveStartPageCaptchaWithRetry(
 
     switch (outcome.status) {
       case "solved":
-        return outcome.solve;
+        telemetry.push({
+          solveId: outcome.solve.solveId,
+          durationMs: outcome.solve.durationMs,
+          attempt,
+          outcome: "solved",
+        });
+        return { solve: outcome.solve, telemetry };
 
       case "no_captcha":
-        // No CAPTCHA on page — nothing to solve, proceed normally
-        return { text: "", solveId: "", durationMs: 0 };
+        return { solve: { text: "", solveId: "", durationMs: 0 }, telemetry };
 
       case "wrong_answer":
-        // Retry — the CAPTCHA image should have refreshed
+        telemetry.push({
+          solveId: outcome.solve.solveId,
+          durationMs: outcome.solve.durationMs,
+          attempt,
+          outcome: "wrong_answer_retry",
+        });
         if (attempt === maxAttempts) {
           throw new SessionBootstrapError(
             `CAPTCHA solve failed after ${maxAttempts} attempts (last: wrong answer)`,
@@ -174,12 +190,12 @@ export async function solveStartPageCaptchaWithRetry(
               url: page.url(),
               details: {
                 attempts: attempts.map(summarizeOutcome),
+                telemetry,
                 lastValidationHint: outcome.validationHint,
               },
             },
           );
         }
-        // Wait briefly for CAPTCHA image to refresh before retrying
         try {
           await page.waitForTimeout(1_000);
         } catch {
@@ -188,20 +204,25 @@ export async function solveStartPageCaptchaWithRetry(
         continue;
 
       case "failed":
+        telemetry.push({
+          solveId: "",
+          durationMs: 0,
+          attempt,
+          outcome: "failed",
+        });
         throw new SessionBootstrapError(
           `CAPTCHA solve failed: ${outcome.reason}`,
           {
             url: page.url(),
-            details: { attempts: attempts.map(summarizeOutcome) },
+            details: { attempts: attempts.map(summarizeOutcome), telemetry },
           },
         );
     }
   }
 
-  // Should not reach here, but satisfy TypeScript
   throw new SessionBootstrapError("CAPTCHA solve exhausted all attempts", {
     url: page.url(),
-    details: { attempts: attempts.map(summarizeOutcome) },
+    details: { attempts: attempts.map(summarizeOutcome), telemetry },
   });
 }
 

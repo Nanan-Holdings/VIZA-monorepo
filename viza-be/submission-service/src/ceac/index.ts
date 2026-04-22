@@ -119,8 +119,10 @@ export {
 
 export {
   probeCeacStartPage,
+  probeCaptchaSolve,
   type SmokeOutcome,
   type SmokeResult,
+  type CaptchaSmokeResult,
 } from "./smoke";
 
 export {
@@ -132,12 +134,14 @@ export {
   TwoCaptchaNetworkError,
   TwoCaptchaSolveTimeoutError,
   type CaptchaSolveResult,
+  type CaptchaSolveTelemetry,
 } from "./captcha-solver";
 
 export {
   solveStartPageCaptcha,
   solveStartPageCaptchaWithRetry,
   type StartPageCaptchaOutcome,
+  type CaptchaSolveWithTelemetry,
 } from "./start-page-captcha";
 
 export {

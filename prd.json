@@ -99,7 +99,7 @@
         "Typecheck passes"
       ],
       "priority": 26,
-      "passes": false,
+      "passes": true,
       "notes": "This is the verification story \u2014 it proves the captcha + expanded page fill actually unblock real runs, not just schema-level completeness."
     }
   ]

@@ -19,10 +19,12 @@
  * gate checks.
  */
 
-import { chromium, type Browser, type Page } from "@playwright/test";
+import "dotenv/config";
+import { chromium, type Browser } from "@playwright/test";
 import { CEAC_URLS } from "./selectors";
 import { detectPage } from "./pages";
 import { detectGate, type GateDetectionResult } from "./gates";
+import { solveStartPageCaptcha, type StartPageCaptchaOutcome } from "./start-page-captcha";
 
 export type SmokeOutcome = "start_page" | "anti_bot_gate" | "blocked";
 
@@ -145,6 +147,78 @@ export async function probeCeacStartPage(options: {
   }
 }
 
+// ---------------------------------------------------------------------------
+// CAPTCHA solve smoke test (--solve-captcha)
+// ---------------------------------------------------------------------------
+
+export interface CaptchaSmokeResult {
+  /** Whether the solver reached a post-CAPTCHA surface. */
+  reachedPostCaptcha: boolean;
+  /** CAPTCHA solve outcome from solveStartPageCaptcha(). */
+  captchaOutcome: StartPageCaptchaOutcome;
+  /** Page identity after the solve attempt. */
+  postSolvePageId: string;
+  /** ISO-8601 timestamp. */
+  probedAt: string;
+  /** Human-readable summary. */
+  summary: string;
+}
+
+/**
+ * Exercise the CAPTCHA solver against the live CEAC start page.
+ * Reports whether it reached a post-CAPTCHA surface.
+ */
+export async function probeCaptchaSolve(options: {
+  headless?: boolean;
+  timeoutMs?: number;
+} = {}): Promise<CaptchaSmokeResult> {
+  const headless = options.headless ?? true;
+  const timeoutMs = options.timeoutMs ?? 60_000;
+
+  let browser: Browser | null = null;
+
+  try {
+    browser = await chromium.launch({ headless });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.goto(CEAC_URLS.START, {
+      waitUntil: "networkidle",
+      timeout: timeoutMs,
+    });
+
+    const outcome = await solveStartPageCaptcha(page);
+    const postProbe = await detectPage(page);
+
+    const reachedPostCaptcha =
+      outcome.status === "solved" ||
+      outcome.status === "no_captcha" ||
+      (postProbe.id !== "start" && postProbe.id !== "unknown");
+
+    return {
+      reachedPostCaptcha,
+      captchaOutcome: outcome,
+      postSolvePageId: postProbe.id,
+      probedAt: new Date().toISOString(),
+      summary: reachedPostCaptcha
+        ? `CAPTCHA solved. Post-solve page: ${postProbe.id}. Heading: "${postProbe.heading ?? "(none)"}."`
+        : `CAPTCHA NOT solved. Status: ${outcome.status}. Still on: ${postProbe.id}.`,
+    };
+  } catch (err) {
+    return {
+      reachedPostCaptcha: false,
+      captchaOutcome: { status: "failed", reason: err instanceof Error ? err.message : String(err) },
+      postSolvePageId: "error",
+      probedAt: new Date().toISOString(),
+      summary: `CAPTCHA smoke failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  } finally {
+    if (browser) {
+      try { await browser.close(); } catch { /* best-effort */ }
+    }
+  }
+}
+
 // ─── CLI entry point ────────────────────────────────────────────────────────
 
 const isMainModule =
@@ -154,20 +228,35 @@ const isMainModule =
 
 if (isMainModule) {
   const headless = !process.argv.includes("--headed");
+  const solveCaptcha = process.argv.includes("--solve-captcha");
 
-  console.log("[smoke] Probing CEAC DS-160 start page...");
-  console.log(`[smoke] Mode: ${headless ? "headless" : "headed"}`);
-  console.log();
-
-  probeCeacStartPage({ headless }).then((result) => {
-    console.log(JSON.stringify(result, null, 2));
+  if (solveCaptcha) {
+    console.log("[smoke] CAPTCHA solve mode — exercising 2captcha solver against live start page...");
+    console.log(`[smoke] Mode: ${headless ? "headless" : "headed"}`);
     console.log();
-    console.log(`[smoke] Outcome: ${result.outcome}`);
-    console.log(`[smoke] Summary: ${result.summary}`);
 
-    const exitCode = result.outcome === "start_page" ? 0
-      : result.outcome === "anti_bot_gate" ? 1
-      : 2;
-    process.exit(exitCode);
-  });
+    probeCaptchaSolve({ headless }).then((result) => {
+      console.log(JSON.stringify(result, null, 2));
+      console.log();
+      console.log(`[smoke] Reached post-CAPTCHA: ${result.reachedPostCaptcha}`);
+      console.log(`[smoke] Summary: ${result.summary}`);
+      process.exit(result.reachedPostCaptcha ? 0 : 1);
+    });
+  } else {
+    console.log("[smoke] Probing CEAC DS-160 start page...");
+    console.log(`[smoke] Mode: ${headless ? "headless" : "headed"}`);
+    console.log();
+
+    probeCeacStartPage({ headless }).then((result) => {
+      console.log(JSON.stringify(result, null, 2));
+      console.log();
+      console.log(`[smoke] Outcome: ${result.outcome}`);
+      console.log(`[smoke] Summary: ${result.summary}`);
+
+      const exitCode = result.outcome === "start_page" ? 0
+        : result.outcome === "anti_bot_gate" ? 1
+        : 2;
+      process.exit(exitCode);
+    });
+  }
 }

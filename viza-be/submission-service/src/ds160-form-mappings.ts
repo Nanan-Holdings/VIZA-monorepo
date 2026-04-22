@@ -121,6 +121,37 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "US Address ZIP",
   },
+  // Travel Paying — payer questions appear on the Travel Information page
+  travel_payer: {
+    selector: 'select[id*="ddlTRAVEL_WHO_PAY"]',
+    type: "select",
+    label: "Who is paying for your trip?",
+  },
+  payer_surname: {
+    selector: 'input[id*="tbxPAYER_SURNAME"]',
+    type: "text",
+    label: "Payer Surname",
+  },
+  payer_given_names: {
+    selector: 'input[id*="tbxPAYER_GIVEN_NAME"]',
+    type: "text",
+    label: "Payer Given Names",
+  },
+  payer_phone: {
+    selector: 'input[id*="tbxPAYER_TEL"]',
+    type: "text",
+    label: "Payer Phone",
+  },
+  payer_email: {
+    selector: 'input[id*="tbxPAYER_EMAIL"]',
+    type: "text",
+    label: "Payer Email",
+  },
+  payer_relationship: {
+    selector: 'select[id*="ddlPAYER_REL"]',
+    type: "select",
+    label: "Payer Relationship to You",
+  },
 };
 
 export const ds160PassportMappings: Record<string, FormFieldMapping> = {

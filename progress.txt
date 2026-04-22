@@ -109,3 +109,14 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts, src/ceac/index.ts, prd.json, progress.txt
 - Learnings: CEAC radio buttons (yes/no) have different selectors than text/select fields — need a separate fill strategy
 ---
+
+## 2026-04-23 - US-026
+- Added CaptchaSolveTelemetry type to captcha-solver.ts (solveId, durationMs, attempt, outcome)
+- Updated solveStartPageCaptchaWithRetry to return CaptchaSolveWithTelemetry (solve + telemetry[])
+- Session.ts auto-updated by hook to use new CaptchaSolveWithTelemetry on CeacSession
+- Extended smoke.ts with --solve-captcha flag and probeCaptchaSolve() function
+- Updated ceac-smoke-test.md with CAPTCHA solve mode documentation
+- Telemetry records never log API key or solved text to long-lived storage
+- Files changed: captcha-solver.ts, start-page-captcha.ts, smoke.ts, session.ts, index.ts, ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: session.ts was auto-modified by a linter hook when types changed — need to re-read before editing
+---
