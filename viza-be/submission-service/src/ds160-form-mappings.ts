@@ -197,11 +197,291 @@ export const ds160WorkMappings: Record<string, FormFieldMapping> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Personal Information 2 — nationality, other nationalities, IDs
+// Already partially covered by ds160PersonalInfoMappings (fields
+// nationality_country, national_id_number, us_social_security_number,
+// us_taxpayer_id appear on this CEAC page). Extracted here for the
+// orchestrator PAGE_FILL_MAP to map the correct page ID.
+// ---------------------------------------------------------------------------
+export const ds160PersonalInfo2Mappings: Record<string, FormFieldMapping> = {
+  nationality_country: {
+    selector: 'select[id*="ddlAPP_NATL"]',
+    type: "select",
+    label: "Nationality",
+  },
+  other_nationality: {
+    selector: 'select[id*="ddlOTHER_NATL"], input[id*="rblOTHER_NATL"]',
+    type: "select",
+    label: "Other Nationality (Yes/No)",
+  },
+  permanent_resident_other_country: {
+    selector: 'select[id*="ddlPERM_RES_CNTRY"], input[id*="rblPERM_RES"]',
+    type: "select",
+    label: "Permanent Resident of Another Country (Yes/No)",
+  },
+  national_id_number: {
+    selector: 'input[id*="tbxAPP_NATIONAL_ID"]',
+    type: "text",
+    label: "National ID Number",
+  },
+  us_social_security_number: {
+    selector: 'input[id*="tbxAPP_SSN"]',
+    type: "text",
+    label: "US SSN",
+  },
+  us_taxpayer_id: {
+    selector: 'input[id*="tbxAPP_TAX_ID"]',
+    type: "text",
+    label: "US Taxpayer ID",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Travel Companions (step 4)
+// Mostly conditional/repeatable fields. Minimal mapping for the initial
+// radio and group name.
+// ---------------------------------------------------------------------------
+export const ds160TravelCompanionsMappings: Record<string, FormFieldMapping> = {
+  has_companions: {
+    selector: 'select[id*="ddlTRAVEL_COMPANION"], input[id*="rblTRAVEL_COMPANION"]',
+    type: "select",
+    label: "Are there other persons traveling with you?",
+  },
+  companion_group_travel: {
+    selector: 'select[id*="ddlGROUP_TRAVEL"], input[id*="rblGROUP_TRAVEL"]',
+    type: "select",
+    label: "Traveling as part of a group?",
+  },
+  companion_group_name: {
+    selector: 'input[id*="tbxGROUP_NAME"]',
+    type: "text",
+    label: "Group Name",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Previous U.S. Travel (step 5)
+// Complex conditional section. Minimal mapping for top-level yes/no gates.
+// ---------------------------------------------------------------------------
+export const ds160PreviousUsTravelMappings: Record<string, FormFieldMapping> = {
+  has_been_in_us: {
+    selector: 'select[id*="ddlPREV_US_VISIT"], input[id*="rblPREV_US_VISIT"]',
+    type: "select",
+    label: "Have you ever been in the U.S.?",
+  },
+  has_us_visa: {
+    selector: 'select[id*="ddlPREV_VISA_IND"], input[id*="rblPREV_VISA_IND"]',
+    type: "select",
+    label: "Have you ever been issued a U.S. Visa?",
+  },
+  visa_number: {
+    selector: 'input[id*="tbxPREV_VISA_FOIL_NUMBER"]',
+    type: "text",
+    label: "Visa Number",
+  },
+  has_been_refused: {
+    selector: 'select[id*="ddlPREV_VISA_REFUSED"], input[id*="rblPREV_VISA_REFUSED"]',
+    type: "select",
+    label: "Have you ever been refused a U.S. Visa?",
+  },
+  immigrant_petition_filed: {
+    selector: 'select[id*="ddlIV_PETITION"], input[id*="rblIV_PETITION"]',
+    type: "select",
+    label: "Has anyone filed an immigrant petition on your behalf?",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// U.S. Contact Information (step 13)
+// ---------------------------------------------------------------------------
+export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
+  us_contact_surname: {
+    selector: 'input[id*="tbxUS_POC_SURNAME"]',
+    type: "text",
+    label: "US Contact Surname",
+  },
+  us_contact_given_names: {
+    selector: 'input[id*="tbxUS_POC_GIVEN_NAME"]',
+    type: "text",
+    label: "US Contact Given Names",
+  },
+  us_contact_organization: {
+    selector: 'input[id*="tbxUS_POC_ORG"]',
+    type: "text",
+    label: "US Contact Organization",
+  },
+  us_contact_relationship: {
+    selector: 'select[id*="ddlUS_POC_REL"]',
+    type: "select",
+    label: "US Contact Relationship",
+  },
+  us_contact_address_street1: {
+    selector: 'input[id*="tbxUS_POC_ADDR_LN1"]',
+    type: "text",
+    label: "US Contact Street Address",
+  },
+  us_contact_city: {
+    selector: 'input[id*="tbxUS_POC_ADDR_CITY"]',
+    type: "text",
+    label: "US Contact City",
+  },
+  us_contact_state: {
+    selector: 'select[id*="ddlUS_POC_ADDR_STATE"]',
+    type: "select",
+    label: "US Contact State",
+  },
+  us_contact_zip: {
+    selector: 'input[id*="tbxUS_POC_ADDR_ZIP"]',
+    type: "text",
+    label: "US Contact ZIP",
+  },
+  us_contact_phone: {
+    selector: 'input[id*="tbxUS_POC_HOME_TEL"]',
+    type: "text",
+    label: "US Contact Phone",
+  },
+  us_contact_email: {
+    selector: 'input[id*="tbxUS_POC_EMAIL"]',
+    type: "text",
+    label: "US Contact Email",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Family: Relatives (step 8)
+// ---------------------------------------------------------------------------
+export const ds160FamilyRelativesMappings: Record<string, FormFieldMapping> = {
+  father_surname: {
+    selector: 'input[id*="tbxFATHER_SURNAME"]',
+    type: "text",
+    label: "Father's Surname",
+  },
+  father_given_names: {
+    selector: 'input[id*="tbxFATHER_GIVEN_NAME"]',
+    type: "text",
+    label: "Father's Given Names",
+  },
+  mother_surname: {
+    selector: 'input[id*="tbxMOTHER_SURNAME"]',
+    type: "text",
+    label: "Mother's Surname",
+  },
+  mother_given_names: {
+    selector: 'input[id*="tbxMOTHER_GIVEN_NAME"]',
+    type: "text",
+    label: "Mother's Given Names",
+  },
+  has_immediate_us_relatives: {
+    selector: 'select[id*="ddlUS_RELS_IND"], input[id*="rblUS_RELS_IND"]',
+    type: "select",
+    label: "Immediate relatives in the U.S.?",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Family: Spouse (step 9) — conditional on marital status
+// ---------------------------------------------------------------------------
+export const ds160FamilySpouseMappings: Record<string, FormFieldMapping> = {
+  spouse_surname: {
+    selector: 'input[id*="tbxSPOUSE_SURNAME"]',
+    type: "text",
+    label: "Spouse Surname",
+  },
+  spouse_given_names: {
+    selector: 'input[id*="tbxSPOUSE_GIVEN_NAME"]',
+    type: "text",
+    label: "Spouse Given Names",
+  },
+  spouse_date_of_birth: {
+    selector: 'input[id*="tbxSPOUSE_DOB"]',
+    type: "date",
+    label: "Spouse Date of Birth",
+  },
+  spouse_nationality: {
+    selector: 'select[id*="ddlSPOUSE_NATL"]',
+    type: "select",
+    label: "Spouse Nationality",
+  },
+  spouse_city_of_birth: {
+    selector: 'input[id*="tbxSPOUSE_POB_CITY"]',
+    type: "text",
+    label: "Spouse City of Birth",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Work/Education: Previous (step 15)
+// Mostly conditional on has_previous_employer. Minimal mapping.
+// ---------------------------------------------------------------------------
+export const ds160WorkPreviousMappings: Record<string, FormFieldMapping> = {
+  has_previous_employer: {
+    selector: 'select[id*="ddlPREV_EMPL_IND"], input[id*="rblPREV_EMPL"]',
+    type: "select",
+    label: "Were you previously employed?",
+  },
+  prev_employer_name: {
+    selector: 'input[id*="tbxPREV_EMPL_NAME"]',
+    type: "text",
+    label: "Previous Employer Name",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Work/Education: Additional (step 16)
+// Mostly yes/no + conditional explainers. Minimal mapping.
+// ---------------------------------------------------------------------------
+export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
+  has_clan_tribe: {
+    selector: 'select[id*="ddlCLAN_TRIBE_IND"], input[id*="rblCLAN_TRIBE"]',
+    type: "select",
+    label: "Do you belong to a clan or tribe?",
+  },
+  language_name: {
+    selector: 'input[id*="tbxLANGUAGE_NAME"]',
+    type: "text",
+    label: "Language Name",
+  },
+  has_traveled_last_five_years: {
+    selector: 'select[id*="ddlTRAVELED_IND"], input[id*="rblTRAVELED"]',
+    type: "select",
+    label: "Traveled in last 5 years?",
+  },
+  has_specialized_skills: {
+    selector: 'select[id*="ddlSPECIALIZED_SKILLS_IND"], input[id*="rblSPECIALIZED_SKILLS"]',
+    type: "select",
+    label: "Specialized skills (firearms, explosives, etc.)?",
+  },
+  has_served_military: {
+    selector: 'select[id*="ddlMILITARY_SERVICE_IND"], input[id*="rblMILITARY_SERVICE"]',
+    type: "select",
+    label: "Have you ever served in the military?",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Security and Background Parts 1–5 (steps 17–21)
+// These pages are exclusively yes/no radio questions. The orchestrator
+// advances past them without filling — security answers come from the
+// dynamic form and are applied via a separate radio-button fill strategy.
+// TODO(US-follow-up): Implement radio-button fill for security background
+// pages once the CEAC radio element selectors are validated against a live
+// session.
+// ---------------------------------------------------------------------------
+
 // All DS-160 mapping groups in page order
 export const DS160_MAPPING_GROUPS = [
   { name: "Personal Info", mappings: ds160PersonalInfoMappings },
+  { name: "Personal Info 2", mappings: ds160PersonalInfo2Mappings },
   { name: "Travel", mappings: ds160TravelMappings },
+  { name: "Travel Companions", mappings: ds160TravelCompanionsMappings },
+  { name: "Previous US Travel", mappings: ds160PreviousUsTravelMappings },
   { name: "Passport", mappings: ds160PassportMappings },
   { name: "Contact", mappings: ds160ContactMappings },
-  { name: "Work/Education", mappings: ds160WorkMappings },
+  { name: "US Contact", mappings: ds160UsContactMappings },
+  { name: "Family Relatives", mappings: ds160FamilyRelativesMappings },
+  { name: "Family Spouse", mappings: ds160FamilySpouseMappings },
+  { name: "Work/Education Present", mappings: ds160WorkMappings },
+  { name: "Work/Education Previous", mappings: ds160WorkPreviousMappings },
+  { name: "Work/Education Additional", mappings: ds160WorkAdditionalMappings },
 ];

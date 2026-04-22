@@ -114,6 +114,7 @@ export {
   orchestrateFill,
   type OrchestrateOptions,
   type OrchestrateResult,
+  type SectionCoverage,
 } from "./orchestrator";
 
 export {

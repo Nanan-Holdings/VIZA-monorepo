@@ -20,6 +20,14 @@ import * as path from "node:path";
 import { FormFieldMapping } from "../form-mappings";
 import {
   DS160_MAPPING_GROUPS,
+  ds160PersonalInfo2Mappings,
+  ds160TravelCompanionsMappings,
+  ds160PreviousUsTravelMappings,
+  ds160UsContactMappings,
+  ds160FamilyRelativesMappings,
+  ds160FamilySpouseMappings,
+  ds160WorkPreviousMappings,
+  ds160WorkAdditionalMappings,
 } from "../ds160-form-mappings";
 import { detectPage, type CeacPageId } from "./pages";
 import { advance, saveCurrent } from "./navigator";
@@ -53,10 +61,22 @@ import { tryCaptureScreenshot } from "./diagnostics";
  */
 const PAGE_FILL_MAP: Partial<Record<CeacPageId, Record<string, FormFieldMapping>>> = {
   personal_information_1: DS160_MAPPING_GROUPS[0].mappings,
-  travel_information: DS160_MAPPING_GROUPS[1].mappings,
-  passport: DS160_MAPPING_GROUPS[2].mappings,
-  address_and_phone: DS160_MAPPING_GROUPS[3].mappings,
-  work_education_present: DS160_MAPPING_GROUPS[4].mappings,
+  personal_information_2: ds160PersonalInfo2Mappings,
+  travel_information: DS160_MAPPING_GROUPS[2].mappings,
+  travel_companions: ds160TravelCompanionsMappings,
+  previous_us_travel: ds160PreviousUsTravelMappings,
+  address_and_phone: DS160_MAPPING_GROUPS[6].mappings,
+  passport: DS160_MAPPING_GROUPS[5].mappings,
+  us_contact: ds160UsContactMappings,
+  family_relatives: ds160FamilyRelativesMappings,
+  family_spouse: ds160FamilySpouseMappings,
+  work_education_present: DS160_MAPPING_GROUPS[10].mappings,
+  work_education_previous: ds160WorkPreviousMappings,
+  work_education_additional: ds160WorkAdditionalMappings,
+  // Security Background Parts 1–5: pass-through — these pages contain only
+  // yes/no radio buttons. The dynamic form supplies answers, but radio-button
+  // fill requires a different selector strategy than text/select fields.
+  // TODO(US-follow-up): implement radio-button fill for security pages.
 };
 
 /**
@@ -88,11 +108,20 @@ export interface OrchestrateOptions {
   outputDir?: string;
 }
 
+export interface SectionCoverage {
+  /** Sections that had mappings and were filled. */
+  filled: string[];
+  /** Sections that were advanced past without filling. */
+  skipped: string[];
+}
+
 export interface OrchestrateResult {
   /** The typed CEAC run result (handoff_ready or failed). */
   result: CeacRunResult;
   /** .dat artifact if captured during the run. */
   datArtifact: DatArtifact | null;
+  /** Which DS-160 sections were filled vs skipped during the run. */
+  sectionCoverage: SectionCoverage;
 }
 
 /**
@@ -122,6 +151,8 @@ export async function orchestrateFill(
 
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
+  const sectionsFilled: string[] = [];
+  const sectionsSkipped: string[] = [];
 
   try {
     // Fill-and-advance loop: detect current page, fill if we have mappings,
@@ -150,7 +181,7 @@ export async function orchestrateFill(
           }
 
           const result = buildSuccessResult(outcome);
-          return { result, datArtifact };
+          return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
         }
       }
 
@@ -171,8 +202,12 @@ export async function orchestrateFill(
       if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillPageFields(page, mappings, answers, profile);
+        sectionsFilled.push(currentPageId);
       } else {
         console.log(`[orchestrator] No mappings for page: ${currentPageId} — advancing`);
+        if (currentPageId !== "unknown") {
+          sectionsSkipped.push(currentPageId);
+        }
       }
 
       // Record section checkpoint after filling
@@ -231,7 +266,7 @@ export async function orchestrateFill(
       failureScreenshot: recovery.failureScreenshot,
     });
 
-    return { result, datArtifact };
+    return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
   }
 }
 
