@@ -19,15 +19,24 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { FormFieldMapping } from "../form-mappings";
 import {
-  DS160_MAPPING_GROUPS,
+  ds160PersonalInfoMappings,
   ds160PersonalInfo2Mappings,
+  ds160TravelMappings,
   ds160TravelCompanionsMappings,
   ds160PreviousUsTravelMappings,
+  ds160PassportMappings,
+  ds160ContactMappings,
   ds160UsContactMappings,
   ds160FamilyRelativesMappings,
   ds160FamilySpouseMappings,
+  ds160WorkMappings,
   ds160WorkPreviousMappings,
   ds160WorkAdditionalMappings,
+  ds160SecurityBackground1Mappings,
+  ds160SecurityBackground2Mappings,
+  ds160SecurityBackground3Mappings,
+  ds160SecurityBackground4Mappings,
+  ds160SecurityBackground5Mappings,
 } from "../ds160-form-mappings";
 import { detectPage, type CeacPageId } from "./pages";
 import { advance, saveCurrent } from "./navigator";
@@ -60,23 +69,24 @@ import { tryCaptureScreenshot } from "./diagnostics";
  * filling.
  */
 const PAGE_FILL_MAP: Partial<Record<CeacPageId, Record<string, FormFieldMapping>>> = {
-  personal_information_1: DS160_MAPPING_GROUPS[0].mappings,
+  personal_information_1: ds160PersonalInfoMappings,
   personal_information_2: ds160PersonalInfo2Mappings,
-  travel_information: DS160_MAPPING_GROUPS[2].mappings,
+  travel_information: ds160TravelMappings,
   travel_companions: ds160TravelCompanionsMappings,
   previous_us_travel: ds160PreviousUsTravelMappings,
-  address_and_phone: DS160_MAPPING_GROUPS[6].mappings,
-  passport: DS160_MAPPING_GROUPS[5].mappings,
+  address_and_phone: ds160ContactMappings,
+  passport: ds160PassportMappings,
   us_contact: ds160UsContactMappings,
   family_relatives: ds160FamilyRelativesMappings,
   family_spouse: ds160FamilySpouseMappings,
-  work_education_present: DS160_MAPPING_GROUPS[10].mappings,
+  work_education_present: ds160WorkMappings,
   work_education_previous: ds160WorkPreviousMappings,
   work_education_additional: ds160WorkAdditionalMappings,
-  // Security Background Parts 1–5: pass-through — these pages contain only
-  // yes/no radio buttons. The dynamic form supplies answers, but radio-button
-  // fill requires a different selector strategy than text/select fields.
-  // TODO(US-follow-up): implement radio-button fill for security pages.
+  security_background_1: ds160SecurityBackground1Mappings,
+  security_background_2: ds160SecurityBackground2Mappings,
+  security_background_3: ds160SecurityBackground3Mappings,
+  security_background_4: ds160SecurityBackground4Mappings,
+  security_background_5: ds160SecurityBackground5Mappings,
 };
 
 /**
@@ -296,7 +306,17 @@ async function fillPageFields(
         const count = await el.count();
         if (count === 0) continue;
 
-        if (mapping.type === "select") {
+        if (mapping.type === "radio") {
+          // Radio: selector targets the RadioButtonList base ID; find the
+          // specific input whose value matches the answer (e.g. "Y" or "N").
+          const radio = page.locator(`${selector}[value="${value}"]`).first();
+          const radioCount = await radio.count();
+          if (radioCount > 0) {
+            await radio.click({ timeout: 5_000 });
+          } else {
+            continue; // No matching radio option
+          }
+        } else if (mapping.type === "select") {
           await el.selectOption(value, { timeout: 5_000 });
         } else {
           await el.fill(value, { timeout: 5_000 });
