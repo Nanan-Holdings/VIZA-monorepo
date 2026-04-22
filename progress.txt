@@ -99,3 +99,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: src/ceac/selectors.ts, src/ceac/gates.ts, prd.json, progress.txt
 - Learnings: The generic [id*="captcha"] selector was too broad — it matched both the solvable CEAC image and blocking challenge containers
 ---
+
+## 2026-04-23 - US-025
+- Expanded ds160-form-mappings.ts with 8 new mapping groups: PersonalInfo2, TravelCompanions, PreviousUSTravel, USContact, FamilyRelatives, FamilySpouse, WorkPrevious, WorkAdditional
+- Expanded PAGE_FILL_MAP in orchestrator.ts from 5 pages to 13 pages
+- Security Background Parts 1-5 documented as intentional pass-through (TODO: radio-button fill strategy)
+- Added SectionCoverage tracking to OrchestrateResult (filled/skipped arrays)
+- DS160_MAPPING_GROUPS array expanded from 5 to 13 entries, indices updated in PAGE_FILL_MAP
+- Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts, src/ceac/index.ts, prd.json, progress.txt
+- Learnings: CEAC radio buttons (yes/no) have different selectors than text/select fields — need a separate fill strategy
+---

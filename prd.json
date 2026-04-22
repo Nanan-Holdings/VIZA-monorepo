@@ -84,7 +84,7 @@
         "Typecheck passes"
       ],
       "priority": 25,
-      "passes": false,
+      "passes": true,
       "notes": "This is the 'orchestrator page coverage is narrow' gap flagged earlier. The simplified-form-complete run (US-015\u2013US-020) proved the answer set is ready; this wires the worker to actually use it."
     },
     {
