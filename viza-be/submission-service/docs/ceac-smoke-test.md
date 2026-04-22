@@ -70,11 +70,69 @@ When `outcome` is `anti_bot_gate`, the `gate` field contains:
   unexpected page (e.g. outage notice, redirect). Check the `heading` and
   `summary` fields for details.
 
+## CAPTCHA solve mode
+
+To exercise the 2captcha solver against the live CEAC start page:
+
+```bash
+npx tsx viza-be/submission-service/src/ceac/smoke.ts --solve-captcha
+```
+
+With headed browser (visible):
+
+```bash
+npx tsx viza-be/submission-service/src/ceac/smoke.ts --solve-captcha --headed
+```
+
+**Prerequisites:** `TWOCAPTCHA_API_KEY` must be set in
+`viza-be/submission-service/.env`. The API key is never logged or persisted.
+
+### CAPTCHA solve outcomes
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | CAPTCHA solved — reached a post-CAPTCHA surface. |
+| 1 | CAPTCHA NOT solved — solver failed, wrong answer, or no CAPTCHA found. |
+
+### CAPTCHA solve output
+
+```json
+{
+  "reachedPostCaptcha": true,
+  "captchaOutcome": {
+    "status": "solved",
+    "solve": { "text": "...", "solveId": "12345", "durationMs": 18200 }
+  },
+  "postSolvePageId": "start",
+  "probedAt": "2026-04-23T12:00:00.000Z",
+  "summary": "CAPTCHA solved. Post-solve page: start. Heading: ..."
+}
+```
+
+### Interpreting CAPTCHA solve results
+
+- **`reachedPostCaptcha: true`**: The solver decoded the CAPTCHA and the page
+  advanced past the CAPTCHA input. The `postSolvePageId` shows what page the
+  browser landed on after solving.
+
+- **`captchaOutcome.status: "wrong_answer"`**: 2captcha returned a code that
+  CEAC rejected. The bad solve was reported to 2captcha for refund. Retry by
+  running the script again.
+
+- **`captchaOutcome.status: "no_captcha"`**: No CAPTCHA image was detected on
+  the start page. This may mean CEAC has changed its start page layout or the
+  CAPTCHA selector no longer matches.
+
+- **`captchaOutcome.status: "failed"`**: The solver encountered an error
+  (e.g. 2captcha API failure, zero balance, image capture failure). Check the
+  `reason` field for details.
+
 ## Programmatic use
 
 ```typescript
-import { probeCeacStartPage } from "./ceac";
+import { probeCeacStartPage, probeCaptchaSolve } from "./ceac";
 
+// Standard smoke test
 const result = await probeCeacStartPage({ headless: true });
 
 if (result.outcome === "start_page") {
@@ -82,4 +140,8 @@ if (result.outcome === "start_page") {
 } else {
   console.log(`Not ready: ${result.summary}`);
 }
+
+// CAPTCHA solve smoke test
+const captchaResult = await probeCaptchaSolve({ headless: true });
+console.log(`Reached post-CAPTCHA: ${captchaResult.reachedPostCaptcha}`);
 ```

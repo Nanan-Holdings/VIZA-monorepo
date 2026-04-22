@@ -62,3 +62,70 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: ds160-completeness-verify.ts (new), ds160-normalize.ts, prd.json, progress.txt
 - Learnings: CEAC autofill mappings use different key names than seed script in 3 cases — need alias keys
 ---
+## 2026-04-22 - US-021
+- Confirmed PRD scope contract pins the CEAC start-page CAPTCHA as solvable via 2captcha, preserves the stop-at-sign handoff, and documents TWOCAPTCHA_API_KEY as env-only configuration
+- Created and worked on branch ralph/ceac-captcha-and-full-page-fill locally on the Mac clone
+- Files changed: prd.json, progress.txt
+- Learnings: this story is the scope anchor only; no submission-service code changes were required before moving to the implementation stories
+---
+
+## 2026-04-23 - US-022
+- Created captcha-solver.ts in src/ceac/ with solveImageCaptcha() and reportBadCaptcha()
+- Uses 2captcha v2 JSON API (createTask + getTaskResult polling) with ImageToTextTask type
+- Typed errors: TwoCaptchaConfigError, TwoCaptchaApiError, TwoCaptchaZeroBalanceError, TwoCaptchaNetworkError, TwoCaptchaSolveTimeoutError
+- API key read from env, never appears in error messages or logs
+- Added exports to ceac/index.ts barrel
+- Files changed: src/ceac/captcha-solver.ts (new), src/ceac/index.ts, prd.json, progress.txt
+- Learnings: submission-service node_modules were not installed on this Mac clone; needed npm install before typecheck
+---
+
+## 2026-04-23 - US-023
+- Created start-page-captcha.ts with solveStartPageCaptcha() and solveStartPageCaptchaWithRetry()
+- Locates CAPTCHA image via img[id*="Captcha"], screenshots the element, sends to 2captcha
+- Types answer into CaptchaCodeTextBox input, clicks continue/start button
+- Detects wrong-answer validation and calls reportBadCaptcha for refund
+- solveStartPageCaptchaWithRetry() supports up to 3 attempts, throws SessionBootstrapError on exhaustion
+- Files changed: src/ceac/start-page-captcha.ts (new), src/ceac/index.ts, prd.json, progress.txt
+- Learnings: CEAC start page uses a text input with id containing "CaptchaCodeTextBox" for the answer
+---
+
+## 2026-04-23 - US-024
+- Split CEAC_GATE_MARKERS.captchaSelectors into solvableCaptchaSelectors and blockingCaptchaSelectors
+- Solvable: img[id*="Captcha"] (CEAC start-page image CAPTCHA, handled by 2captcha)
+- Blocking: reCAPTCHA, hCaptcha, Cloudflare iframes/forms (still trigger GateDetectedError)
+- Removed generic [id*="captcha"] from blocking list — it matched solvable CEAC elements
+- Gate detection (detectGate/assertNoGate) now only checks blockingCaptchaSelectors
+- Failed CAPTCHA solve → ds160_prefill_failed (SessionBootstrapError), NOT ds160_blocked
+- Files changed: src/ceac/selectors.ts, src/ceac/gates.ts, prd.json, progress.txt
+- Learnings: The generic [id*="captcha"] selector was too broad — it matched both the solvable CEAC image and blocking challenge containers
+---
+
+## 2026-04-23 - US-025
+- Expanded ds160-form-mappings.ts with 8 new mapping groups: PersonalInfo2, TravelCompanions, PreviousUSTravel, USContact, FamilyRelatives, FamilySpouse, WorkPrevious, WorkAdditional
+- Expanded PAGE_FILL_MAP in orchestrator.ts from 5 pages to 13 pages
+- Security Background Parts 1-5 documented as intentional pass-through (TODO: radio-button fill strategy)
+- Added SectionCoverage tracking to OrchestrateResult (filled/skipped arrays)
+- DS160_MAPPING_GROUPS array expanded from 5 to 13 entries, indices updated in PAGE_FILL_MAP
+- Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts, src/ceac/index.ts, prd.json, progress.txt
+- Learnings: CEAC radio buttons (yes/no) have different selectors than text/select fields — need a separate fill strategy
+---
+
+## 2026-04-23 - US-026
+- Added CaptchaSolveTelemetry type to captcha-solver.ts (solveId, durationMs, attempt, outcome)
+- Updated solveStartPageCaptchaWithRetry to return CaptchaSolveWithTelemetry (solve + telemetry[])
+- Session.ts auto-updated by hook to use new CaptchaSolveWithTelemetry on CeacSession
+- Extended smoke.ts with --solve-captcha flag and probeCaptchaSolve() function
+- Updated ceac-smoke-test.md with CAPTCHA solve mode documentation
+- Telemetry records never log API key or solved text to long-lived storage
+- Files changed: captcha-solver.ts, start-page-captcha.ts, smoke.ts, session.ts, index.ts, ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: session.ts was auto-modified by a linter hook when types changed — need to re-read before editing
+---
+
+## 2026-04-23 - US-025 (follow-up)
+- Added ds160SecurityBackground1–5Mappings with radio type for all 27 security yes/no questions
+- Added radio type handling in fillPageFields (click radio with value match)
+- Replaced broken DS160_MAPPING_GROUPS index references with named imports in PAGE_FILL_MAP
+- PAGE_FILL_MAP now covers all 18 DS-160 content pages (was 13, security pages were pass-through)
+- Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts
+- Learnings: DS160_MAPPING_GROUPS index references break when new groups are inserted — use named imports
+---

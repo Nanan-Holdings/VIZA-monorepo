@@ -19,7 +19,24 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { FormFieldMapping } from "../form-mappings";
 import {
-  DS160_MAPPING_GROUPS,
+  ds160PersonalInfoMappings,
+  ds160PersonalInfo2Mappings,
+  ds160TravelMappings,
+  ds160TravelCompanionsMappings,
+  ds160PreviousUsTravelMappings,
+  ds160PassportMappings,
+  ds160ContactMappings,
+  ds160UsContactMappings,
+  ds160FamilyRelativesMappings,
+  ds160FamilySpouseMappings,
+  ds160WorkMappings,
+  ds160WorkPreviousMappings,
+  ds160WorkAdditionalMappings,
+  ds160SecurityBackground1Mappings,
+  ds160SecurityBackground2Mappings,
+  ds160SecurityBackground3Mappings,
+  ds160SecurityBackground4Mappings,
+  ds160SecurityBackground5Mappings,
 } from "../ds160-form-mappings";
 import { detectPage, type CeacPageId } from "./pages";
 import { advance, saveCurrent } from "./navigator";
@@ -52,11 +69,24 @@ import { tryCaptureScreenshot } from "./diagnostics";
  * filling.
  */
 const PAGE_FILL_MAP: Partial<Record<CeacPageId, Record<string, FormFieldMapping>>> = {
-  personal_information_1: DS160_MAPPING_GROUPS[0].mappings,
-  travel_information: DS160_MAPPING_GROUPS[1].mappings,
-  passport: DS160_MAPPING_GROUPS[2].mappings,
-  address_and_phone: DS160_MAPPING_GROUPS[3].mappings,
-  work_education_present: DS160_MAPPING_GROUPS[4].mappings,
+  personal_information_1: ds160PersonalInfoMappings,
+  personal_information_2: ds160PersonalInfo2Mappings,
+  travel_information: ds160TravelMappings,
+  travel_companions: ds160TravelCompanionsMappings,
+  previous_us_travel: ds160PreviousUsTravelMappings,
+  address_and_phone: ds160ContactMappings,
+  passport: ds160PassportMappings,
+  us_contact: ds160UsContactMappings,
+  family_relatives: ds160FamilyRelativesMappings,
+  family_spouse: ds160FamilySpouseMappings,
+  work_education_present: ds160WorkMappings,
+  work_education_previous: ds160WorkPreviousMappings,
+  work_education_additional: ds160WorkAdditionalMappings,
+  security_background_1: ds160SecurityBackground1Mappings,
+  security_background_2: ds160SecurityBackground2Mappings,
+  security_background_3: ds160SecurityBackground3Mappings,
+  security_background_4: ds160SecurityBackground4Mappings,
+  security_background_5: ds160SecurityBackground5Mappings,
 };
 
 /**
@@ -88,11 +118,20 @@ export interface OrchestrateOptions {
   outputDir?: string;
 }
 
+export interface SectionCoverage {
+  /** Sections that had mappings and were filled. */
+  filled: string[];
+  /** Sections that were advanced past without filling. */
+  skipped: string[];
+}
+
 export interface OrchestrateResult {
   /** The typed CEAC run result (handoff_ready or failed). */
   result: CeacRunResult;
   /** .dat artifact if captured during the run. */
   datArtifact: DatArtifact | null;
+  /** Which DS-160 sections were filled vs skipped during the run. */
+  sectionCoverage: SectionCoverage;
 }
 
 /**
@@ -122,6 +161,8 @@ export async function orchestrateFill(
 
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
+  const sectionsFilled: string[] = [];
+  const sectionsSkipped: string[] = [];
 
   try {
     // Fill-and-advance loop: detect current page, fill if we have mappings,
@@ -150,7 +191,7 @@ export async function orchestrateFill(
           }
 
           const result = buildSuccessResult(outcome);
-          return { result, datArtifact };
+          return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
         }
       }
 
@@ -171,8 +212,12 @@ export async function orchestrateFill(
       if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillPageFields(page, mappings, answers, profile);
+        sectionsFilled.push(currentPageId);
       } else {
         console.log(`[orchestrator] No mappings for page: ${currentPageId} — advancing`);
+        if (currentPageId !== "unknown") {
+          sectionsSkipped.push(currentPageId);
+        }
       }
 
       // Record section checkpoint after filling
@@ -231,7 +276,7 @@ export async function orchestrateFill(
       failureScreenshot: recovery.failureScreenshot,
     });
 
-    return { result, datArtifact };
+    return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
   }
 }
 
@@ -261,7 +306,17 @@ async function fillPageFields(
         const count = await el.count();
         if (count === 0) continue;
 
-        if (mapping.type === "select") {
+        if (mapping.type === "radio") {
+          // Radio: selector targets the RadioButtonList base ID; find the
+          // specific input whose value matches the answer (e.g. "Y" or "N").
+          const radio = page.locator(`${selector}[value="${value}"]`).first();
+          const radioCount = await radio.count();
+          if (radioCount > 0) {
+            await radio.click({ timeout: 5_000 });
+          } else {
+            continue; // No matching radio option
+          }
+        } else if (mapping.type === "select") {
           await el.selectOption(value, { timeout: 5_000 });
         } else {
           await el.fill(value, { timeout: 5_000 });

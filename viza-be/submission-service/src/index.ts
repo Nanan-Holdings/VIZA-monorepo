@@ -481,7 +481,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     // Drive page-by-page fill through CEAC navigation/checkpoint helpers.
     // orchestrateFill handles: field filling, page advancement, section
     // checkpoints, .dat capture, and stop-at-sign-and-submit.
-    const { result, datArtifact } = await orchestrateFill(session, {
+    const { result, datArtifact, sectionCoverage } = await orchestrateFill(session, {
       answers,
       profile: profile as unknown as Record<string, unknown>,
       tracker,
@@ -508,7 +508,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         .from("submission_queue")
         .update({
           status: "ds160_prefilled",
-          ceac_result_payload: result as unknown as Record<string, unknown>,
+          ceac_result_payload: { ...result, sectionCoverage } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
@@ -529,7 +529,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
-          ceac_result_payload: result as unknown as Record<string, unknown>,
+          ceac_result_payload: { ...result, sectionCoverage } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);

@@ -114,13 +114,35 @@ export {
   orchestrateFill,
   type OrchestrateOptions,
   type OrchestrateResult,
+  type SectionCoverage,
 } from "./orchestrator";
 
 export {
   probeCeacStartPage,
+  probeCaptchaSolve,
   type SmokeOutcome,
   type SmokeResult,
+  type CaptchaSmokeResult,
 } from "./smoke";
+
+export {
+  solveImageCaptcha,
+  reportBadCaptcha,
+  TwoCaptchaConfigError,
+  TwoCaptchaApiError,
+  TwoCaptchaZeroBalanceError,
+  TwoCaptchaNetworkError,
+  TwoCaptchaSolveTimeoutError,
+  type CaptchaSolveResult,
+  type CaptchaSolveTelemetry,
+} from "./captcha-solver";
+
+export {
+  solveStartPageCaptcha,
+  solveStartPageCaptchaWithRetry,
+  type StartPageCaptchaOutcome,
+  type CaptchaSolveWithTelemetry,
+} from "./start-page-captcha";
 
 export {
   detectSignAndSubmit,
