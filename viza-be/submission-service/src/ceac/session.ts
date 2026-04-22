@@ -11,6 +11,7 @@ import { CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
+import { solveStartPageCaptchaWithRetry, type CaptchaSolveWithTelemetry } from "./start-page-captcha";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -33,18 +34,21 @@ export interface CeacSession {
   readonly context: BrowserContext;
   readonly page: Page;
   readonly runId?: string;
+  /** CAPTCHA solve result and telemetry from session bootstrap, if a CAPTCHA was present. */
+  readonly captchaSolve?: CaptchaSolveWithTelemetry;
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
 }
 
 /**
- * Launch a browser, navigate to the CEAC DS-160 start page, and verify that
- * we actually landed there. Callers receive the underlying Playwright
- * objects plus a `close()` helper.
+ * Launch a browser, navigate to the CEAC DS-160 start page, solve the
+ * start-page image CAPTCHA (if present), and return a session handle.
  *
- * This function is intentionally narrow: it does **not** select embassies,
- * solve CAPTCHAs, or begin a new application. Those steps belong to
- * downstream helpers (US-003+) that build on this bootstrap.
+ * After this function returns, the page has advanced past the start/CAPTCHA
+ * surface. The CAPTCHA solve result (if any) is available on `session.captchaSolve`.
+ *
+ * Does **not** select embassies or begin a new application — those steps
+ * belong to downstream helpers that build on this bootstrap.
  */
 export async function startCeacSession(
   options: CeacSessionOptions = {},
@@ -109,11 +113,37 @@ export async function startCeacSession(
       );
     }
 
+    // ── CAPTCHA solve (US-023) ──────────────────────────────────────────
+    // The CEAC start page contains a solvable image CAPTCHA that must be
+    // completed before the worker can click "Start an Application" and
+    // advance to the DS-160 form pages. Solve it here so downstream code
+    // receives a session that is already past the start/CAPTCHA surface.
+    //
+    // Seam: AFTER assertPage("start") confirms page identity, BEFORE the
+    // session is returned to callers. The solver clicks the continue/start
+    // button as part of submission, advancing the page on success.
+    //
+    // If no CAPTCHA is present (e.g. resumed session), this is a no-op.
+    // On failure after retries, throws SessionBootstrapError.
+    let captchaSolve: CaptchaSolveWithTelemetry | undefined;
+    try {
+      const result = await solveStartPageCaptchaWithRetry(page, 3);
+      // A non-empty solveId means a real CAPTCHA was solved
+      if (result.solve.solveId) {
+        captchaSolve = result;
+      }
+    } catch (err) {
+      // solveStartPageCaptchaWithRetry already throws SessionBootstrapError
+      // on exhausted retries or hard failures — re-throw as-is.
+      throw err;
+    }
+
     const session: CeacSession = {
       browser,
       context,
       page,
       runId: options.runId,
+      captchaSolve,
       close: makeCloser(browser, context),
     };
 

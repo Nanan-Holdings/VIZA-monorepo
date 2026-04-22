@@ -61,6 +61,21 @@ export class TwoCaptchaSolveTimeoutError extends Error {
 }
 
 // ---------------------------------------------------------------------------
+// Telemetry type — persisted in ceac_result_payload
+// ---------------------------------------------------------------------------
+
+export interface CaptchaSolveTelemetry {
+  /** 2captcha task ID. */
+  solveId: string;
+  /** Wall-clock solve duration in milliseconds. */
+  durationMs: number;
+  /** Attempt number within the retry loop (1-based). */
+  attempt: number;
+  /** Final outcome of this attempt. */
+  outcome: "solved" | "wrong_answer_retry" | "failed";
+}
+
+// ---------------------------------------------------------------------------
 // Result type
 // ---------------------------------------------------------------------------
 
