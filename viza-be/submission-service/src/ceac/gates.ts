@@ -1,5 +1,5 @@
 /**
- * CEAC anti-bot and manual-intervention gate detection (US-011).
+ * CEAC anti-bot and manual-intervention gate detection (US-011, US-024).
  *
  * When CEAC detects automated traffic it may present a challenge page,
  * captcha interstitial, Cloudflare/WAF block, or other manual-intervention
@@ -8,8 +8,10 @@
  * retrying blindly or misclassifying the state as a generic unknown-page
  * failure.
  *
- * Detection is read-only — no attempt is made to solve captchas or bypass
- * gates. The goal is truthful detection and clean escalation to ops.
+ * US-024: The CEAC start-page image CAPTCHA (img[id*="Captcha"]) is SOLVABLE
+ * via 2captcha and is NOT treated as a blocking gate. Only unsolvable
+ * challenges (reCAPTCHA, hCaptcha, Cloudflare, WAF) trigger GateDetectedError.
+ * See start-page-captcha.ts for the solver.
  */
 
 import type { Page } from "@playwright/test";
@@ -51,7 +53,7 @@ export interface GateDetectionResult {
  *   1. **Text matching** — scan visible page text (`innerText`) against
  *      `CEAC_GATE_MARKERS.textPatterns`.
  *   2. **Selector matching** — check DOM for captcha/challenge widget
- *      selectors from `CEAC_GATE_MARKERS.captchaSelectors`.
+ *      selectors from `CEAC_GATE_MARKERS.blockingCaptchaSelectors`.
  *
  * Returns a structured result; never throws. Callers decide whether a
  * detected gate is an error or just informational.
@@ -78,9 +80,12 @@ export async function detectGate(page: Page): Promise<GateDetectionResult> {
     }
   }
 
-  // Strategy 2: captcha/challenge selector matching
+  // Strategy 2: blocking captcha/challenge selector matching.
+  // Only check blockingCaptchaSelectors — the solvable CEAC start-page
+  // image CAPTCHA (img[id*="Captcha"]) is handled by start-page-captcha.ts
+  // and must NOT trigger a gate error (US-024).
   const matchedCaptchaSelectors: string[] = [];
-  for (const selector of CEAC_GATE_MARKERS.captchaSelectors) {
+  for (const selector of CEAC_GATE_MARKERS.blockingCaptchaSelectors) {
     try {
       const count = await page.locator(selector).count();
       if (count > 0) {
