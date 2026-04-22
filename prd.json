@@ -68,7 +68,7 @@
         "Typecheck passes"
       ],
       "priority": 24,
-      "passes": false,
+      "passes": true,
       "notes": "The scope contract rejects the assumption that the start-page CAPTCHA is a blocking gate. This story implements that distinction in the gate detector."
     },
     {
