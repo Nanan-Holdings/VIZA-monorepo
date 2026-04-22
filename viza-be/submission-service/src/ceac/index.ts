@@ -134,6 +134,12 @@ export {
 } from "./captcha-solver";
 
 export {
+  solveStartPageCaptcha,
+  solveStartPageCaptchaWithRetry,
+  type StartPageCaptchaOutcome,
+} from "./start-page-captcha";
+
+export {
   detectSignAndSubmit,
   assertSignAndSubmit,
   stopAtSignAndSubmit,
