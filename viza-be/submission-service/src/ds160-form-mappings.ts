@@ -492,13 +492,159 @@ export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
 
 // ---------------------------------------------------------------------------
 // Security and Background Parts 1–5 (steps 17–21)
-// These pages are exclusively yes/no radio questions. The orchestrator
-// advances past them without filling — security answers come from the
-// dynamic form and are applied via a separate radio-button fill strategy.
-// TODO(US-follow-up): Implement radio-button fill for security background
-// pages once the CEAC radio element selectors are validated against a live
-// session.
+// All yes/no radio questions. Selectors target the ASP.NET RadioButtonList
+// base ID; the orchestrator appends [value="…"] at fill time.
 // ---------------------------------------------------------------------------
+
+export const ds160SecurityBackground1Mappings: Record<string, FormFieldMapping> = {
+  has_communicable_disease: {
+    selector: 'input[id*="rblSECURITY_PART1_Q1"]',
+    type: "radio",
+    label: "Communicable Disease",
+  },
+  has_physical_mental_disorder: {
+    selector: 'input[id*="rblSECURITY_PART1_Q2"]',
+    type: "radio",
+    label: "Physical/Mental Disorder",
+  },
+  is_drug_abuser: {
+    selector: 'input[id*="rblSECURITY_PART1_Q3"]',
+    type: "radio",
+    label: "Drug Abuser",
+  },
+};
+
+export const ds160SecurityBackground2Mappings: Record<string, FormFieldMapping> = {
+  has_arrest_conviction: {
+    selector: 'input[id*="rblSECURITY_PART2_Q1"]',
+    type: "radio",
+    label: "Arrest/Conviction",
+  },
+  has_violated_controlled_substance: {
+    selector: 'input[id*="rblSECURITY_PART2_Q2"]',
+    type: "radio",
+    label: "Controlled Substance Violation",
+  },
+  has_prostitution: {
+    selector: 'input[id*="rblSECURITY_PART2_Q3"]',
+    type: "radio",
+    label: "Prostitution",
+  },
+  has_money_laundering: {
+    selector: 'input[id*="rblSECURITY_PART2_Q4"]',
+    type: "radio",
+    label: "Money Laundering",
+  },
+  has_human_trafficking: {
+    selector: 'input[id*="rblSECURITY_PART2_Q5"]',
+    type: "radio",
+    label: "Human Trafficking",
+  },
+  has_aided_human_trafficking: {
+    selector: 'input[id*="rblSECURITY_PART2_Q6"]',
+    type: "radio",
+    label: "Aided Human Trafficking",
+  },
+  has_trafficking_beneficiary: {
+    selector: 'input[id*="rblSECURITY_PART2_Q7"]',
+    type: "radio",
+    label: "Trafficking Beneficiary",
+  },
+};
+
+export const ds160SecurityBackground3Mappings: Record<string, FormFieldMapping> = {
+  intend_espionage: {
+    selector: 'input[id*="rblSECURITY_PART3_Q1"]',
+    type: "radio",
+    label: "Intend Espionage",
+  },
+  intend_terrorist_activity: {
+    selector: 'input[id*="rblSECURITY_PART3_Q2"]',
+    type: "radio",
+    label: "Intend Terrorist Activity",
+  },
+  has_provided_terrorist_support: {
+    selector: 'input[id*="rblSECURITY_PART3_Q3"]',
+    type: "radio",
+    label: "Provided Terrorist Support",
+  },
+  is_terrorist_member: {
+    selector: 'input[id*="rblSECURITY_PART3_Q4"]',
+    type: "radio",
+    label: "Terrorist Organization Member",
+  },
+  is_terrorist_family: {
+    selector: 'input[id*="rblSECURITY_PART3_Q5"]',
+    type: "radio",
+    label: "Terrorist Family Member",
+  },
+  has_genocide: {
+    selector: 'input[id*="rblSECURITY_PART3_Q6"]',
+    type: "radio",
+    label: "Genocide",
+  },
+  has_torture: {
+    selector: 'input[id*="rblSECURITY_PART3_Q7"]',
+    type: "radio",
+    label: "Torture",
+  },
+  has_extrajudicial_killings: {
+    selector: 'input[id*="rblSECURITY_PART3_Q8"]',
+    type: "radio",
+    label: "Extrajudicial Killings",
+  },
+  has_child_soldier: {
+    selector: 'input[id*="rblSECURITY_PART3_Q9"]',
+    type: "radio",
+    label: "Child Soldier",
+  },
+  has_religious_freedom_violation: {
+    selector: 'input[id*="rblSECURITY_PART3_Q10"]',
+    type: "radio",
+    label: "Religious Freedom Violation",
+  },
+  has_population_control: {
+    selector: 'input[id*="rblSECURITY_PART3_Q11"]',
+    type: "radio",
+    label: "Population Control",
+  },
+  has_coercive_transplant: {
+    selector: 'input[id*="rblSECURITY_PART3_Q12"]',
+    type: "radio",
+    label: "Coercive Transplant",
+  },
+};
+
+export const ds160SecurityBackground4Mappings: Record<string, FormFieldMapping> = {
+  has_immigration_fraud: {
+    selector: 'input[id*="rblSECURITY_PART4_Q1"]',
+    type: "radio",
+    label: "Immigration Fraud",
+  },
+  has_removal_order: {
+    selector: 'input[id*="rblSECURITY_PART4_Q2"]',
+    type: "radio",
+    label: "Removal/Deportation Order",
+  },
+};
+
+export const ds160SecurityBackground5Mappings: Record<string, FormFieldMapping> = {
+  has_withheld_child_custody: {
+    selector: 'input[id*="rblSECURITY_PART5_Q1"]',
+    type: "radio",
+    label: "Withheld Child Custody",
+  },
+  has_voted_illegally: {
+    selector: 'input[id*="rblSECURITY_PART5_Q2"]',
+    type: "radio",
+    label: "Voted Illegally",
+  },
+  has_renounced_citizenship: {
+    selector: 'input[id*="rblSECURITY_PART5_Q3"]',
+    type: "radio",
+    label: "Renounced Citizenship",
+  },
+};
 
 // All DS-160 mapping groups in page order
 export const DS160_MAPPING_GROUPS = [
@@ -515,4 +661,9 @@ export const DS160_MAPPING_GROUPS = [
   { name: "Work/Education Present", mappings: ds160WorkMappings },
   { name: "Work/Education Previous", mappings: ds160WorkPreviousMappings },
   { name: "Work/Education Additional", mappings: ds160WorkAdditionalMappings },
+  { name: "Security Background 1", mappings: ds160SecurityBackground1Mappings },
+  { name: "Security Background 2", mappings: ds160SecurityBackground2Mappings },
+  { name: "Security Background 3", mappings: ds160SecurityBackground3Mappings },
+  { name: "Security Background 4", mappings: ds160SecurityBackground4Mappings },
+  { name: "Security Background 5", mappings: ds160SecurityBackground5Mappings },
 ];
