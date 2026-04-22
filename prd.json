@@ -1,97 +1,106 @@
 {
   "project": "VIZA-monorepo",
-  "branchName": "ralph/ds160-simplified-form-complete",
-  "description": "Make the simplified DS-160 intake form fully cover the DS-160 answer schema so the simplified form itself contains the full answer set required for /application and CEAC autofill, rather than relying on /application as a gap-filling flow.",
+  "branchName": "ralph/ceac-captcha-and-full-page-fill",
+  "description": "Unblock the CEAC DS-160 worker end-to-end. Integrate 2captcha's image-to-text service so the CEAC start-page image CAPTCHA is solved programmatically (currently every run fails as 'gated' before a single field is filled), then expand the orchestrator's page fill coverage from 5 pages to the full DS-160 section set now that the simplified intake carries the complete answer set.",
   "scopeContract": {
-    "truthStatement": "The simplified intake form must itself cover the full DS-160 answer set. Every field required by the DS-160 submission must be collectible from the simplified form alone, without relying on a separate gap-filling surface.",
-    "rejectedAssumption": "The /application page is NOT the primary DS-160 gap-filling surface. It exists as a review/edit interface for data already collected by the simplified form. Any design that treats /application as the place where missing DS-160 data is first collected violates this contract.",
-    "designPrinciple": "simplified-form-first: all DS-160-required data originates from the simplified intake. /application may allow corrections but never serves as the primary collection point for missing fields."
+    "truthStatement": "A DS-160 prefill run must succeed end-to-end in headless automation: pass the CEAC start-page CAPTCHA, reach and fill every DS-160 page for which we have answers, and stop at the Sign and Submit page as a handoff. The start-page image CAPTCHA is a solvable challenge, not a blocking anti-bot gate.",
+    "rejectedAssumption": "The start-page image CAPTCHA is NOT an anti-bot wall we must escalate to ops. It is a standard text-in-image CAPTCHA that can be solved via 2captcha's ImageToText API, and must be treated as a routine step of session bootstrap. Separately, true anti-bot gates (Cloudflare, WAF, rate-limit interstitials) remain unsolvable and must continue to escalate as `ds160_blocked`.",
+    "designPrinciple": "solve-what-is-solvable, escalate-what-is-not: the worker owns solving the start-page image CAPTCHA via 2captcha. It does NOT solve the final Sign-and-Submit CAPTCHA (that remains part of the stop-at-sign handoff contract). It does NOT attempt to defeat reCAPTCHA/hCaptcha/Cloudflare — those remain gates.",
+    "integrationNotes": "2captcha API key is read from env var TWOCAPTCHA_API_KEY in viza-be/submission-service/.env (never committed). Use the v2 JSON API at https://api.2captcha.com (createTask + getTaskResult with type 'ImageToTextTask'). Budget ~30s per solve with polling; support wrong-answer retry (CEAC shows a validation message on bad code)."
   },
   "userStories": [
     {
-      "id": "US-015",
-      "title": "Pin the simplified-form-complete scope and truth contract",
-      "description": "As a maintainer, I need the repo PRD to explicitly state that the simplified form itself must fully cover the DS-160 answer set, so Ralph does not optimize for a gap-filling /application flow instead of the real product requirement.",
+      "id": "US-021",
+      "title": "Pin the captcha-solver + full-page-fill scope and truth contract",
+      "description": "As a maintainer, I need the repo PRD to explicitly state that (a) the CEAC start-page image CAPTCHA must be solved via 2captcha rather than escalated as a gate, and (b) orchestrator page fill coverage must expand to the full DS-160 section set now that the simplified intake is complete.",
       "acceptanceCriteria": [
-        "prd.json contains US-015 through US-020 for the simplified-form-complete run",
-        "The repo branch for this run is ralph/ds160-simplified-form-complete",
-        "The PRD explicitly states that the simplified form must itself cover the full DS-160 answer set",
-        "The PRD explicitly rejects the assumption that /application is the primary DS-160 gap-filling surface"
+        "prd.json contains US-021 through US-026 on branch ralph/ceac-captcha-and-full-page-fill",
+        "scopeContract explicitly distinguishes solvable start-page CAPTCHA from unsolvable anti-bot gates",
+        "scopeContract explicitly preserves the stop-at-sign contract — the final Sign-and-Submit CAPTCHA is NOT solved by the worker",
+        "integrationNotes document that TWOCAPTCHA_API_KEY lives in .env, never in committed code or PRD"
       ],
-      "priority": 15,
-      "passes": true,
-      "notes": "This is the scope anchor. The target is DS-160-complete simplified intake, not merely better prefill into a separate completion flow."
+      "priority": 21,
+      "passes": false,
+      "notes": "This is the scope anchor. The goal is one unblocked prefill run end-to-end, not a generic CAPTCHA-bypass framework."
     },
     {
-      "id": "US-016",
-      "title": "Produce a field-by-field DS-160 coverage audit against the simplified form",
-      "description": "As product and engineering, I need a concrete audit of which DS-160 answer fields are already covered by the simplified form and which are missing, so we can make the simplified form genuinely DS-160-complete.",
+      "id": "US-022",
+      "title": "Implement a typed 2captcha ImageToText client module",
+      "description": "As the CEAC worker, I need a small, tested 2captcha client so other modules can submit a CAPTCHA image and receive the decoded text without knowing HTTP details. The client must read its API key from env, support polling with a sane timeout, surface typed errors, and never log the API key.",
       "acceptanceCriteria": [
-        "The repo contains a machine-readable or developer-readable coverage audit that compares DS-160 answer keys against simplified-form coverage",
-        "The audit identifies missing or lossy mappings such as split name fields, structured travel dates, coded travel purpose, address structure, and other DS-160-required fields",
-        "The audit is derived from the actual repo field definitions / mappings rather than a hand-wavy narrative",
-        "Typecheck passes for any code introduced for the audit"
+        "New module at viza-be/submission-service/src/ceac/captcha-solver.ts exposes solveImageCaptcha(imageBuffer: Buffer): Promise<{ text: string; solveId: string; durationMs: number }>",
+        "Uses 2captcha v2 JSON API: POST https://api.2captcha.com/createTask with type 'ImageToTextTask' + base64 body, then poll https://api.2captcha.com/getTaskResult until status 'ready' or timeout",
+        "Reads API key from process.env.TWOCAPTCHA_API_KEY; throws a typed TwoCaptchaConfigError on missing key",
+        "Typed errors for: ERROR_* codes from 2captcha, network timeout, solve timeout (>120s), zero-balance",
+        "The API key never appears in thrown messages or log output",
+        "Exports reportBadCaptcha(solveId) for wrong-answer feedback (2captcha refunds these)",
+        "Typecheck passes in viza-be/submission-service"
       ],
-      "priority": 16,
-      "passes": true,
-      "notes": "Prefer code or structured artifacts that can be rerun over a one-off prose-only audit."
+      "priority": 22,
+      "passes": false,
+      "notes": "Keep the client narrow — one function to solve, one to report bad solves. No retry loop inside the client; callers decide retry policy."
     },
     {
-      "id": "US-017",
-      "title": "Expand the simplified intake schema to cover the full DS-160 answer set",
-      "description": "As a DS-160 applicant, I need the simplified form schema and UI to collect every answer required for the full DS-160 so I do not have to fall back to a second major intake surface to complete my application.",
+      "id": "US-023",
+      "title": "Solve the CEAC start-page CAPTCHA during session bootstrap",
+      "description": "As the CEAC worker, I need session bootstrap to extract the start-page CAPTCHA image, solve it via the 2captcha client, enter the answer into the code input, and proceed past the start page — so that downstream orchestration can actually run instead of every session dying at assertNoGate.",
       "acceptanceCriteria": [
-        "The simplified intake data model includes all fields needed to populate the DS-160 answer schema used by the backend",
-        "Lossy fields are split or restructured where necessary, including name parts, date parts, travel/stay structure, coded values, and other DS-160-required structures",
-        "Any current simplified fields that are too coarse for DS-160 are replaced or complemented with DS-160-safe equivalents",
-        "Frontend and shared types remain internally consistent",
+        "New helper in viza-be/submission-service/src/ceac/ (e.g. start-page-captcha.ts) that: locates the CEAC CAPTCHA image, screenshots or downloads it as a PNG buffer, calls solveImageCaptcha, types the result into the CEAC code input, and returns a typed outcome",
+        "startCeacSession invokes the helper AFTER navigating to the start page and BEFORE assertPage('start') succeeds on the post-CAPTCHA surface — OR — the helper is triggered at the point in the flow where the CAPTCHA actually appears (document the chosen seam in the code)",
+        "On successful solve, the worker clicks START AN APPLICATION (or equivalent) and confirms the next page identity advanced past the start/CAPTCHA surface",
+        "On wrong-answer validation, the worker calls reportBadCaptcha and retries up to 2 times before failing the run",
         "Typecheck passes"
       ],
-      "priority": 17,
-      "passes": true,
-      "notes": "This story is about making the simplified form itself complete, not adding a second hidden completion questionnaire."
+      "priority": 23,
+      "passes": false,
+      "notes": "The CAPTCHA image selector is already listed in CEAC_GATE_MARKERS.captchaSelectors as img[id*=\"Captcha\"]. Use Playwright's page.locator(...).screenshot() to capture just the image region — do NOT send the whole page."
     },
     {
-      "id": "US-018",
-      "title": "Map the complete simplified form deterministically into the DS-160 answer schema",
-      "description": "As the CEAC backend, I need the simplified intake data to map deterministically into the DS-160 answer keys so the resulting answer set is complete and directly usable by /application and the autofill worker.",
+      "id": "US-024",
+      "title": "Stop treating the start-page image CAPTCHA as a blocking gate",
+      "description": "As the CEAC worker, I need gate detection to distinguish the solvable start-page image CAPTCHA from real anti-bot gates (Cloudflare, reCAPTCHA, rate-limit interstitials) so runs aren't misclassified as ds160_blocked when they are actually solvable.",
       "acceptanceCriteria": [
-        "Every DS-160 answer key required by the repo's DS-160 mappings has a deterministic source from the simplified form or a safe derived transform from simplified-form fields",
-        "Normalization code persists the complete DS-160-shaped answer set into the existing answer storage used by /application and the worker",
-        "No required DS-160 keys remain unmapped after a fully completed simplified intake submission",
+        "Gate detection no longer throws GateDetectedError solely because img[id*=\"Captcha\"] is present on the CEAC start page",
+        "Gate detection still throws for iframe[src*=\"recaptcha\"], iframe[src*=\"hcaptcha\"], #challenge-form, .cf-browser-verification, and anti-bot text patterns (access denied, unusual activity, checking your browser, etc.)",
+        "The distinction is explicit in code (e.g. split CEAC_GATE_MARKERS into 'solvable' vs 'blocking'), not a silent loosening of detection",
+        "If the start-page CAPTCHA solve attempt fails after retries, the run fails as ds160_prefill_failed (genuine runtime failure), NOT ds160_blocked",
+        "True anti-bot gates (Cloudflare, reCAPTCHA, text markers) continue to mark items as ds160_blocked and skip retries",
         "Typecheck passes"
       ],
-      "priority": 18,
-      "passes": true,
-      "notes": "Derived transforms are acceptable when deterministic; hidden operator assumptions are not."
+      "priority": 24,
+      "passes": false,
+      "notes": "The scope contract rejects the assumption that the start-page CAPTCHA is a blocking gate. This story implements that distinction in the gate detector."
     },
     {
-      "id": "US-019",
-      "title": "Make /application consume the complete simplified-form-derived DS-160 dataset",
-      "description": "As a user, I need /application to operate on the full DS-160-complete dataset that came from the simplified form, so /application is a review/edit surface rather than the place where missing DS-160 data is first collected.",
+      "id": "US-025",
+      "title": "Expand orchestrator PAGE_FILL_MAP to cover all DS-160 sections the answer set supports",
+      "description": "As the CEAC worker, I need the orchestrator to fill every DS-160 page for which we have answers — not just the 5 currently wired pages — so a prefill run produces a substantially complete DS-160 rather than a mostly-empty one stopped at Sign and Submit.",
       "acceptanceCriteria": [
-        "/application loads and uses the full DS-160 answer set derived from the simplified form",
-        "The /application flow no longer assumes the simplified form is incomplete by design",
-        "If /application still supports edits, those edits operate on the same DS-160 answer model instead of a separate incomplete profile model",
+        "PAGE_FILL_MAP in viza-be/submission-service/src/ceac/orchestrator.ts is extended to cover the remaining DS-160 sections the simplified intake + dynamic form supply answers for (at minimum: security_background, family_relatives, family_spouse, previous_us_travel, us_contact, work_education_previous, work_education_additional, travel_companions, travel_paying)",
+        "Any missing CeacPageId values needed for these pages are added to pages.ts with heading/URL detection rules",
+        "If a DS-160_MAPPING_GROUPS entry for a page does not exist, the story EITHER adds a minimal mapping group using the existing FormFieldMapping shape OR documents in code why the page is intentionally left as a pass-through (with a follow-up TODO tag)",
+        "Pages without any answers for the applicant are advanced past without error (existing behavior preserved)",
+        "A completed run's ceac_result_payload lists which sections were filled vs skipped",
         "Typecheck passes"
       ],
-      "priority": 19,
-      "passes": true,
-      "notes": "Review/edit is fine; primary gap-filling is not."
+      "priority": 25,
+      "passes": false,
+      "notes": "This is the 'orchestrator page coverage is narrow' gap flagged earlier. The simplified-form-complete run (US-015–US-020) proved the answer set is ready; this wires the worker to actually use it."
     },
     {
-      "id": "US-020",
-      "title": "Verify end-to-end DS-160 completeness from simplified intake to backend answer set",
-      "description": "As a maintainer, I need a verification path that proves a fully completed simplified form yields a DS-160-complete answer set in storage and aligns with the backend autofill mappings, so we can trust the simplified intake architecture.",
+      "id": "US-026",
+      "title": "Persist CAPTCHA solve telemetry and prove end-to-end unblocked run",
+      "description": "As an operator, I need each run's ceac_result_payload to record CAPTCHA solve attempts, cost, and duration, and I need a verifiable way to prove the full pipeline now runs end-to-end against the live CEAC start page on a real account.",
       "acceptanceCriteria": [
-        "The repo contains a test, script, or repeatable verification path showing that a complete simplified-form payload yields a complete DS-160 answer set",
-        "Verification checks alignment with the backend DS-160 mappings used by the CEAC worker",
-        "The verification artifacts/docs make it clear which fields are covered directly vs derived deterministically",
-        "Typecheck passes for the implemented solution"
+        "Each CAPTCHA solve records: solveId, durationMs, attempt number (1/2/3), final outcome (solved / wrong_answer_retry / failed), into the structured result payload persisted on submission_queue.ceac_result_payload",
+        "The existing operator smoke script (viza-be/submission-service/src/ceac/smoke.ts) is extended with an optional --solve-captcha flag that exercises the new solver against the live start page and reports whether it reached a post-CAPTCHA surface",
+        "Documentation in viza-be/submission-service/docs/ceac-smoke-test.md is updated to explain the captcha-solve mode and how to interpret its outcomes",
+        "The CAPTCHA solver never logs the API key, the solved text in plaintext into long-lived storage, or the raw CAPTCHA image beyond the scope of a single run",
+        "Typecheck passes"
       ],
-      "priority": 20,
-      "passes": true,
-      "notes": "This is about schema/data completeness verification, not live CEAC execution."
+      "priority": 26,
+      "passes": false,
+      "notes": "This is the verification story — it proves the captcha + expanded page fill actually unblock real runs, not just schema-level completeness."
     }
   ]
 }
