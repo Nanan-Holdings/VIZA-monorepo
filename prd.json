@@ -5,7 +5,7 @@
   "scopeContract": {
     "truthStatement": "A DS-160 prefill run must succeed end-to-end in headless automation: pass the CEAC start-page CAPTCHA, reach and fill every DS-160 page for which we have answers, and stop at the Sign and Submit page as a handoff. The start-page image CAPTCHA is a solvable challenge, not a blocking anti-bot gate.",
     "rejectedAssumption": "The start-page image CAPTCHA is NOT an anti-bot wall we must escalate to ops. It is a standard text-in-image CAPTCHA that can be solved via 2captcha's ImageToText API, and must be treated as a routine step of session bootstrap. Separately, true anti-bot gates (Cloudflare, WAF, rate-limit interstitials) remain unsolvable and must continue to escalate as `ds160_blocked`.",
-    "designPrinciple": "solve-what-is-solvable, escalate-what-is-not: the worker owns solving the start-page image CAPTCHA via 2captcha. It does NOT solve the final Sign-and-Submit CAPTCHA (that remains part of the stop-at-sign handoff contract). It does NOT attempt to defeat reCAPTCHA/hCaptcha/Cloudflare — those remain gates.",
+    "designPrinciple": "solve-what-is-solvable, escalate-what-is-not: the worker owns solving the start-page image CAPTCHA via 2captcha. It does NOT solve the final Sign-and-Submit CAPTCHA (that remains part of the stop-at-sign handoff contract). It does NOT attempt to defeat reCAPTCHA/hCaptcha/Cloudflare \u2014 those remain gates.",
     "integrationNotes": "2captcha API key is read from env var TWOCAPTCHA_API_KEY in viza-be/submission-service/.env (never committed). Use the v2 JSON API at https://api.2captcha.com (createTask + getTaskResult with type 'ImageToTextTask'). Budget ~30s per solve with polling; support wrong-answer retry (CEAC shows a validation message on bad code)."
   },
   "userStories": [
@@ -16,11 +16,11 @@
       "acceptanceCriteria": [
         "prd.json contains US-021 through US-026 on branch ralph/ceac-captcha-and-full-page-fill",
         "scopeContract explicitly distinguishes solvable start-page CAPTCHA from unsolvable anti-bot gates",
-        "scopeContract explicitly preserves the stop-at-sign contract — the final Sign-and-Submit CAPTCHA is NOT solved by the worker",
+        "scopeContract explicitly preserves the stop-at-sign contract \u2014 the final Sign-and-Submit CAPTCHA is NOT solved by the worker",
         "integrationNotes document that TWOCAPTCHA_API_KEY lives in .env, never in committed code or PRD"
       ],
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "notes": "This is the scope anchor. The goal is one unblocked prefill run end-to-end, not a generic CAPTCHA-bypass framework."
     },
     {
@@ -38,22 +38,22 @@
       ],
       "priority": 22,
       "passes": false,
-      "notes": "Keep the client narrow — one function to solve, one to report bad solves. No retry loop inside the client; callers decide retry policy."
+      "notes": "Keep the client narrow \u2014 one function to solve, one to report bad solves. No retry loop inside the client; callers decide retry policy."
     },
     {
       "id": "US-023",
       "title": "Solve the CEAC start-page CAPTCHA during session bootstrap",
-      "description": "As the CEAC worker, I need session bootstrap to extract the start-page CAPTCHA image, solve it via the 2captcha client, enter the answer into the code input, and proceed past the start page — so that downstream orchestration can actually run instead of every session dying at assertNoGate.",
+      "description": "As the CEAC worker, I need session bootstrap to extract the start-page CAPTCHA image, solve it via the 2captcha client, enter the answer into the code input, and proceed past the start page \u2014 so that downstream orchestration can actually run instead of every session dying at assertNoGate.",
       "acceptanceCriteria": [
         "New helper in viza-be/submission-service/src/ceac/ (e.g. start-page-captcha.ts) that: locates the CEAC CAPTCHA image, screenshots or downloads it as a PNG buffer, calls solveImageCaptcha, types the result into the CEAC code input, and returns a typed outcome",
-        "startCeacSession invokes the helper AFTER navigating to the start page and BEFORE assertPage('start') succeeds on the post-CAPTCHA surface — OR — the helper is triggered at the point in the flow where the CAPTCHA actually appears (document the chosen seam in the code)",
+        "startCeacSession invokes the helper AFTER navigating to the start page and BEFORE assertPage('start') succeeds on the post-CAPTCHA surface \u2014 OR \u2014 the helper is triggered at the point in the flow where the CAPTCHA actually appears (document the chosen seam in the code)",
         "On successful solve, the worker clicks START AN APPLICATION (or equivalent) and confirms the next page identity advanced past the start/CAPTCHA surface",
         "On wrong-answer validation, the worker calls reportBadCaptcha and retries up to 2 times before failing the run",
         "Typecheck passes"
       ],
       "priority": 23,
       "passes": false,
-      "notes": "The CAPTCHA image selector is already listed in CEAC_GATE_MARKERS.captchaSelectors as img[id*=\"Captcha\"]. Use Playwright's page.locator(...).screenshot() to capture just the image region — do NOT send the whole page."
+      "notes": "The CAPTCHA image selector is already listed in CEAC_GATE_MARKERS.captchaSelectors as img[id*=\"Captcha\"]. Use Playwright's page.locator(...).screenshot() to capture just the image region \u2014 do NOT send the whole page."
     },
     {
       "id": "US-024",
@@ -74,7 +74,7 @@
     {
       "id": "US-025",
       "title": "Expand orchestrator PAGE_FILL_MAP to cover all DS-160 sections the answer set supports",
-      "description": "As the CEAC worker, I need the orchestrator to fill every DS-160 page for which we have answers — not just the 5 currently wired pages — so a prefill run produces a substantially complete DS-160 rather than a mostly-empty one stopped at Sign and Submit.",
+      "description": "As the CEAC worker, I need the orchestrator to fill every DS-160 page for which we have answers \u2014 not just the 5 currently wired pages \u2014 so a prefill run produces a substantially complete DS-160 rather than a mostly-empty one stopped at Sign and Submit.",
       "acceptanceCriteria": [
         "PAGE_FILL_MAP in viza-be/submission-service/src/ceac/orchestrator.ts is extended to cover the remaining DS-160 sections the simplified intake + dynamic form supply answers for (at minimum: security_background, family_relatives, family_spouse, previous_us_travel, us_contact, work_education_previous, work_education_additional, travel_companions, travel_paying)",
         "Any missing CeacPageId values needed for these pages are added to pages.ts with heading/URL detection rules",
@@ -85,7 +85,7 @@
       ],
       "priority": 25,
       "passes": false,
-      "notes": "This is the 'orchestrator page coverage is narrow' gap flagged earlier. The simplified-form-complete run (US-015–US-020) proved the answer set is ready; this wires the worker to actually use it."
+      "notes": "This is the 'orchestrator page coverage is narrow' gap flagged earlier. The simplified-form-complete run (US-015\u2013US-020) proved the answer set is ready; this wires the worker to actually use it."
     },
     {
       "id": "US-026",
@@ -100,7 +100,7 @@
       ],
       "priority": 26,
       "passes": false,
-      "notes": "This is the verification story — it proves the captcha + expanded page fill actually unblock real runs, not just schema-level completeness."
+      "notes": "This is the verification story \u2014 it proves the captcha + expanded page fill actually unblock real runs, not just schema-level completeness."
     }
   ]
 }
