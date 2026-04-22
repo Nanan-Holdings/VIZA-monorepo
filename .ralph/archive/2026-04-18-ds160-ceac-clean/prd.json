@@ -1,0 +1,93 @@
+{
+  "project": "VIZA-monorepo",
+  "branchName": "ralph/ds160-ceac-runtime-validation",
+  "description": "Make the DS-160 CEAC worker actually executable and testable in production by wiring the live worker to the new CEAC flow, surfacing anti-bot/manual gates honestly, and adding runtime-verifiable smoke diagnostics.",
+  "userStories": [
+    {
+      "id": "US-009",
+      "title": "Pin CEAC runtime-validation scope and truth contract",
+      "description": "As a maintainer, I need the follow-up CEAC runtime-validation scope codified so Ralph works on the real worker/runtime gap instead of assuming the prior PRD proved live autofill.",
+      "acceptanceCriteria": [
+        "docs/prd-ds160-ceac-runtime-validation.md exists in the repo",
+        "prd.json contains CEAC runtime-validation stories US-009 through US-014",
+        "The repo branch for this run is ralph/ds160-ceac-runtime-validation",
+        "The PRD explicitly states that CEAC anti-bot / captcha gates are in scope as operational blockers and must be surfaced honestly"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Docs-only anchor story for the new runtime-validation pass. Do not claim live autofill proof until the worker path and smoke diagnostics are real."
+    },
+    {
+      "id": "US-010",
+      "title": "Replace the legacy DS-160 worker path with the CEAC runtime pipeline",
+      "description": "As ops, I need processDs160Item to use the new CEAC session/navigation/result modules instead of the legacy prefillDs160 prototype so the live worker follows the intended stop-at-sign architecture.",
+      "acceptanceCriteria": [
+        "viza-be/submission-service/src/index.ts no longer relies on the legacy prefillDs160() prototype as the primary DS-160 execution path",
+        "The DS-160 queue processor starts from the CEAC session/bootstrap flow and returns the typed CEAC run result contract",
+        "The success path is structurally aligned with stop-at-sign / handoff_ready rather than final submission",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "This is the core wiring story. Keep scope inside submission-service; do not redesign unrelated queue systems."
+    },
+    {
+      "id": "US-011",
+      "title": "Detect CEAC anti-bot and manual-intervention gates explicitly",
+      "description": "As ops, I need the worker to detect CEAC anti-bot pages, captcha/manual gates, and unsupported start-page states explicitly so the runtime reports blocked/manual-required honestly instead of pretending autofill ran.",
+      "acceptanceCriteria": [
+        "The CEAC start flow detects anti-bot or manual-gate pages explicitly rather than classifying them as generic unknown-page failures",
+        "Worker output/status distinguishes blocked/manual-required from retriable worker failure",
+        "Captured diagnostics include useful operator context such as visible page text, support ID, or other gate markers when available",
+        "The worker avoids silent retry loops when the blocker is an external CEAC anti-bot/manual gate",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Do not attempt to auto-solve captchas. The goal is truthful detection and clean handoff/manual escalation."
+    },
+    {
+      "id": "US-012",
+      "title": "Implement real page-by-page CEAC fill orchestration on the new flow",
+      "description": "As VIZA, I need the new CEAC runtime path to actually drive page-by-page filling, navigation, save/checkpoint behavior, and stop-at-sign behavior so the worker can perform the intended DS-160 autofill when CEAC allows it.",
+      "acceptanceCriteria": [
+        "The wired CEAC runtime path fills supported answer groups through the new navigation/checkpoint helpers instead of the prototype loop",
+        "Application ID capture, save checkpoints, .dat capture, and sign-page artifact capture are reachable from the live worker path",
+        "Failure paths preserve recovery metadata and diagnostics through the new result/failure contract",
+        "No code path enters passport signature, solves the final captcha, or clicks final Sign and Submit",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "This story is about the live worker path only. Keep the stop-at-sign contract intact."
+    },
+    {
+      "id": "US-013",
+      "title": "Persist CEAC runtime outcomes and queue semantics clearly",
+      "description": "As ops, I need the worker to persist handoff-ready, blocked/manual-required, and failed CEAC outcomes clearly so queue state and application metadata reflect what really happened.",
+      "acceptanceCriteria": [
+        "Successful handoff-ready runs persist the CEAC result payload and any available Application ID / retrieval / artifact metadata to the existing application/queue records",
+        "Blocked/manual-required outcomes are stored distinctly from generic failure and include operator-facing context",
+        "Retry and alert behavior differentiates external CEAC gating from genuine worker/runtime failure",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "Prefer minimally invasive persistence changes. Keep existing Supabase tables unless a small targeted extension is truly required."
+    },
+    {
+      "id": "US-014",
+      "title": "Add operator-verifiable CEAC smoke diagnostics and test instructions",
+      "description": "As a maintainer, I need a repeatable smoke/diagnostic path that proves whether CEAC start-page access is available, anti-bot gated, or otherwise blocked so we can test runtime readiness honestly from the machine.",
+      "acceptanceCriteria": [
+        "submission-service includes a documented smoke/diagnostic entry point for CEAC start-page probing",
+        "The smoke path emits a machine-readable outcome such as start_page, anti_bot_gate, or blocked with supporting details",
+        "Docs explain how to run the smoke test and how to interpret blocked/manual-required outcomes",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "This story is about truthful runtime verification, not mocking a fake success. Prefer small scripts/docs over heavyweight test frameworks."
+    }
+  ]
+}

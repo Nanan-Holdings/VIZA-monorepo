@@ -1,0 +1,69 @@
+# Ralph Progress Log
+Started: Sat Apr 18 03:20:59     2026
+---
+
+## 2026-04-18 - US-009
+- Verified all acceptance criteria already met from prior commit (12ca2eb)
+- docs/prd-ds160-ceac-runtime-validation.md exists with full scope, truth contract, anti-bot gates in scope
+- prd.json contains US-009 through US-014
+- Branch is ralph/ds160-ceac-runtime-validation
+- Files changed: prd.json (marked passes: true), progress.txt
+---
+
+## 2026-04-18 - US-010
+- Replaced legacy prefillDs160() call in processDs160Item with CEAC runtime pipeline
+- processDs160Item now uses startCeacSession → createRecoveryTracker → recordBootstrapCheckpoint → preserveRecoveryOnFailure → buildFailureResult
+- Added serializeError to CEAC barrel export (ceac/index.ts)
+- Result contract uses CeacRunResult (handoff_ready | failed), never "submitted"
+- Fill orchestration is placeholder pending US-012; worker proves CEAC start-page access
+- Legacy prefillDs160 function retained but no longer called from queue processor
+- Files changed: src/index.ts, src/ceac/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
+
+## 2026-04-18 - US-011
+- Added CEAC_GATE_MARKERS to selectors.ts (text patterns + captcha selectors)
+- Added GATE_DETECTED error code and GateDetectedError class to errors.ts
+- Created gates.ts module with detectGate(), assertNoGate(), isGateError()
+- Wired assertNoGate() into startCeacSession (session.ts) after navigation, before page identity check
+- Updated processDs160Item to distinguish gate errors (ds160_blocked, no retry) from retriable failures
+- Exported gate types and functions from barrel (ceac/index.ts)
+- Files changed: src/ceac/selectors.ts, src/ceac/errors.ts, src/ceac/gates.ts (new), src/ceac/session.ts, src/ceac/index.ts, src/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
+
+## 2026-04-18 - US-012
+- Created ceac/orchestrator.ts with orchestrateFill() for page-by-page CEAC fill
+- PAGE_FILL_MAP maps CeacPageId to DS160_MAPPING_GROUPS entries
+- Fill-and-advance loop: detectPage → fillPageFields → recordSectionCheckpoint → advance
+- .dat capture at passport and work/education pages via captureDatArtifact
+- Terminal stop via stopAtSignAndSubmit with sign-page screenshot
+- Failure paths use preserveRecoveryOnFailure + buildFailureResult
+- No code path touches passport signature, captcha, or final submit button
+- Wired orchestrateFill into processDs160Item, replacing placeholder
+- processDs160Item now handles handoff_ready (ds160_prefilled) and orchestrator failures
+- Files changed: src/ceac/orchestrator.ts (new), src/ceac/index.ts, src/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
+
+## 2026-04-18 - US-013
+- Added ds160_blocked status and ceac_result_payload field to SubmissionQueueItem type
+- All three outcome paths now persist structured CEAC result payload:
+  - handoff_ready → ds160_prefilled + full CeacRunSuccess in ceac_result_payload
+  - blocked/manual → ds160_blocked + gate context in ceac_result_payload (no retry)
+  - failed → ds160_prefill_pending/failed + CeacRunFailure in ceac_result_payload (with retry)
+- Gate errors persist Application ID and recovery metadata before marking blocked
+- Files changed: src/types.ts, src/index.ts, prd.json, progress.txt
+- Typecheck passes
+---
+
+## 2026-04-18 - US-014
+- Created ceac/smoke.ts with probeCeacStartPage() diagnostic function
+- Machine-readable outcomes: start_page (exit 0), anti_bot_gate (exit 1), blocked (exit 2)
+- CLI entry point: npx tsx viza-be/submission-service/src/ceac/smoke.ts [--headed]
+- Returns SmokeResult with outcome, gate details, page identity, and operator summary
+- Created docs/ceac-smoke-test.md with run instructions and outcome interpretation
+- Exported smoke types from barrel (ceac/index.ts)
+- Files changed: src/ceac/smoke.ts (new), src/ceac/index.ts, docs/ceac-smoke-test.md (new), prd.json, progress.txt
+- Typecheck passes
+---
