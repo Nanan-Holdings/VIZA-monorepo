@@ -1,0 +1,92 @@
+{
+  "project": "VIZA-monorepo",
+  "branchName": "ralph/ds160-simplified-form-complete",
+  "description": "Make the simplified DS-160 intake form fully cover the DS-160 answer schema so the simplified form itself contains the full answer set required for /application and CEAC autofill, rather than relying on /application as a gap-filling flow.",
+  "userStories": [
+    {
+      "id": "US-015",
+      "title": "Pin the simplified-form-complete scope and truth contract",
+      "description": "As a maintainer, I need the repo PRD to explicitly state that the simplified form itself must fully cover the DS-160 answer set, so Ralph does not optimize for a gap-filling /application flow instead of the real product requirement.",
+      "acceptanceCriteria": [
+        "prd.json contains US-015 through US-020 for the simplified-form-complete run",
+        "The repo branch for this run is ralph/ds160-simplified-form-complete",
+        "The PRD explicitly states that the simplified form must itself cover the full DS-160 answer set",
+        "The PRD explicitly rejects the assumption that /application is the primary DS-160 gap-filling surface"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "This is the scope anchor. The target is DS-160-complete simplified intake, not merely better prefill into a separate completion flow."
+    },
+    {
+      "id": "US-016",
+      "title": "Produce a field-by-field DS-160 coverage audit against the simplified form",
+      "description": "As product and engineering, I need a concrete audit of which DS-160 answer fields are already covered by the simplified form and which are missing, so we can make the simplified form genuinely DS-160-complete.",
+      "acceptanceCriteria": [
+        "The repo contains a machine-readable or developer-readable coverage audit that compares DS-160 answer keys against simplified-form coverage",
+        "The audit identifies missing or lossy mappings such as split name fields, structured travel dates, coded travel purpose, address structure, and other DS-160-required fields",
+        "The audit is derived from the actual repo field definitions / mappings rather than a hand-wavy narrative",
+        "Typecheck passes for any code introduced for the audit"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "Prefer code or structured artifacts that can be rerun over a one-off prose-only audit."
+    },
+    {
+      "id": "US-017",
+      "title": "Expand the simplified intake schema to cover the full DS-160 answer set",
+      "description": "As a DS-160 applicant, I need the simplified form schema and UI to collect every answer required for the full DS-160 so I do not have to fall back to a second major intake surface to complete my application.",
+      "acceptanceCriteria": [
+        "The simplified intake data model includes all fields needed to populate the DS-160 answer schema used by the backend",
+        "Lossy fields are split or restructured where necessary, including name parts, date parts, travel/stay structure, coded values, and other DS-160-required structures",
+        "Any current simplified fields that are too coarse for DS-160 are replaced or complemented with DS-160-safe equivalents",
+        "Frontend and shared types remain internally consistent",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": "This story is about making the simplified form itself complete, not adding a second hidden completion questionnaire."
+    },
+    {
+      "id": "US-018",
+      "title": "Map the complete simplified form deterministically into the DS-160 answer schema",
+      "description": "As the CEAC backend, I need the simplified intake data to map deterministically into the DS-160 answer keys so the resulting answer set is complete and directly usable by /application and the autofill worker.",
+      "acceptanceCriteria": [
+        "Every DS-160 answer key required by the repo's DS-160 mappings has a deterministic source from the simplified form or a safe derived transform from simplified-form fields",
+        "Normalization code persists the complete DS-160-shaped answer set into the existing answer storage used by /application and the worker",
+        "No required DS-160 keys remain unmapped after a fully completed simplified intake submission",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": "Derived transforms are acceptable when deterministic; hidden operator assumptions are not."
+    },
+    {
+      "id": "US-019",
+      "title": "Make /application consume the complete simplified-form-derived DS-160 dataset",
+      "description": "As a user, I need /application to operate on the full DS-160-complete dataset that came from the simplified form, so /application is a review/edit surface rather than the place where missing DS-160 data is first collected.",
+      "acceptanceCriteria": [
+        "/application loads and uses the full DS-160 answer set derived from the simplified form",
+        "The /application flow no longer assumes the simplified form is incomplete by design",
+        "If /application still supports edits, those edits operate on the same DS-160 answer model instead of a separate incomplete profile model",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": "Review/edit is fine; primary gap-filling is not."
+    },
+    {
+      "id": "US-020",
+      "title": "Verify end-to-end DS-160 completeness from simplified intake to backend answer set",
+      "description": "As a maintainer, I need a verification path that proves a fully completed simplified form yields a DS-160-complete answer set in storage and aligns with the backend autofill mappings, so we can trust the simplified intake architecture.",
+      "acceptanceCriteria": [
+        "The repo contains a test, script, or repeatable verification path showing that a complete simplified-form payload yields a complete DS-160 answer set",
+        "Verification checks alignment with the backend DS-160 mappings used by the CEAC worker",
+        "The verification artifacts/docs make it clear which fields are covered directly vs derived deterministically",
+        "Typecheck passes for the implemented solution"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": "This is about schema/data completeness verification, not live CEAC execution."
+    }
+  ]
+}
