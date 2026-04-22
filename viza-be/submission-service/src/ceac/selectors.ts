@@ -102,7 +102,32 @@ export const CEAC_GATE_MARKERS = {
     /checking your browser/i,
     /attention required/i,
   ] as readonly RegExp[],
-  /** DOM selectors for common captcha / challenge widgets. */
+  /**
+   * Solvable CAPTCHA selectors — the CEAC start-page image CAPTCHA.
+   * These are NOT treated as blocking gates; the worker solves them via
+   * 2captcha (see start-page-captcha.ts).
+   */
+  solvableCaptchaSelectors: [
+    'img[id*="Captcha"]',
+  ] as readonly string[],
+  /**
+   * Blocking gate selectors — anti-bot challenges the worker cannot solve.
+   * These trigger ds160_blocked classification and skip retries.
+   */
+  blockingCaptchaSelectors: [
+    'iframe[src*="recaptcha"]',
+    'iframe[src*="hcaptcha"]',
+    'iframe[src*="challenge"]',
+    '#challenge-form',
+    '.cf-browser-verification',
+    '.g-recaptcha',
+    '.h-captcha',
+  ] as readonly string[],
+  /**
+   * Combined list for backward compatibility. Gate detection should use
+   * blockingCaptchaSelectors only.
+   * @deprecated Use blockingCaptchaSelectors or solvableCaptchaSelectors.
+   */
   captchaSelectors: [
     'img[id*="Captcha"]',
     'iframe[src*="recaptcha"]',
@@ -110,7 +135,6 @@ export const CEAC_GATE_MARKERS = {
     'iframe[src*="challenge"]',
     '#challenge-form',
     '.cf-browser-verification',
-    '[id*="captcha"]',
     '.g-recaptcha',
     '.h-captcha',
   ] as readonly string[],
