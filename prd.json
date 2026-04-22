@@ -52,7 +52,7 @@
         "Typecheck passes"
       ],
       "priority": 23,
-      "passes": false,
+      "passes": true,
       "notes": "The CAPTCHA image selector is already listed in CEAC_GATE_MARKERS.captchaSelectors as img[id*=\"Captcha\"]. Use Playwright's page.locator(...).screenshot() to capture just the image region \u2014 do NOT send the whole page."
     },
     {

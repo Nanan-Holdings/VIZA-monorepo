@@ -78,3 +78,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: src/ceac/captcha-solver.ts (new), src/ceac/index.ts, prd.json, progress.txt
 - Learnings: submission-service node_modules were not installed on this Mac clone; needed npm install before typecheck
 ---
+
+## 2026-04-23 - US-023
+- Created start-page-captcha.ts with solveStartPageCaptcha() and solveStartPageCaptchaWithRetry()
+- Locates CAPTCHA image via img[id*="Captcha"], screenshots the element, sends to 2captcha
+- Types answer into CaptchaCodeTextBox input, clicks continue/start button
+- Detects wrong-answer validation and calls reportBadCaptcha for refund
+- solveStartPageCaptchaWithRetry() supports up to 3 attempts, throws SessionBootstrapError on exhaustion
+- Files changed: src/ceac/start-page-captcha.ts (new), src/ceac/index.ts, prd.json, progress.txt
+- Learnings: CEAC start page uses a text input with id containing "CaptchaCodeTextBox" for the answer
+---
