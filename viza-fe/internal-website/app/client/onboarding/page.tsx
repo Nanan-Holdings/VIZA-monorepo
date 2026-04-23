@@ -4,6 +4,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getUserVisaPackage } from "@/app/actions/user-package";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -224,20 +225,24 @@ export default function OnboardingPage() {
 
       if (profileError) throw profileError;
 
-      // Insert a draft application row with travel data
+      const assignedPackage = await getUserVisaPackage();
+      const applicantId = (await supabase
+        .from("applicant_profiles")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .single()
+        .then((r) => r.data?.id)) as string;
+
+      // Insert a package-aware draft application row with travel data
       await supabase.from("applications").insert({
-        applicant_id: (await supabase
-          .from("applicant_profiles")
-          .select("id")
-          .eq("auth_user_id", user.id)
-          .single()
-          .then((r) => r.data?.id)) as string,
+        applicant_id: applicantId,
         arrival_date: data.travel.arrivalDate || null,
         departure_date: data.travel.departureDate || null,
         purpose: data.travel.purpose || null,
         status: "draft",
-        country: "indonesia",
-        visa_type: "tourist_b211a",
+        country: assignedPackage?.country ?? "indonesia",
+        visa_type: assignedPackage?.visa_type ?? "tourist_b211a",
+        visa_package_id: assignedPackage?.id ?? null,
       });
 
       router.replace("/client/home");

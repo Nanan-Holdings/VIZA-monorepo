@@ -779,7 +779,7 @@ export default function ApplicationPage() {
   useEffect(() => {
     getUserVisaPackage().then((pkg) => {
       if (pkg) setVisaPackage(pkg);
-      const visaType = pkg?.visa_type ?? "B211A";
+      const visaType = pkg?.visa_type ?? "tourist_b211a";
       return getVisaFormSteps(visaType);
     }).then((steps) => {
       if (steps.length > 0) setDbSteps(steps);
@@ -1153,8 +1153,8 @@ export default function ApplicationPage() {
       let applicationId = appState.applicationId;
       if (!applicationId) {
         const result = await ensureDraftApplication(
-          visaPackage?.country ?? "united_states",
-          visaPackage?.visa_type ?? "DS160"
+          visaPackage?.country ?? "indonesia",
+          visaPackage?.visa_type ?? "tourist_b211a"
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
@@ -1192,8 +1192,8 @@ export default function ApplicationPage() {
       let applicationId = appState.applicationId;
       if (!applicationId) {
         const result = await ensureDraftApplication(
-          visaPackage?.country ?? "united_states",
-          visaPackage?.visa_type ?? "DS160",
+          visaPackage?.country ?? "indonesia",
+          visaPackage?.visa_type ?? "tourist_b211a",
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;

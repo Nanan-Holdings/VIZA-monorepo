@@ -70,7 +70,7 @@ export async function probeCeacStartPage(options: {
 
     try {
       await page.goto(CEAC_URLS.START, {
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: timeoutMs,
       });
     } catch (err) {
@@ -158,10 +158,16 @@ export interface CaptchaSmokeResult {
   captchaOutcome: StartPageCaptchaOutcome;
   /** Page identity after the solve attempt. */
   postSolvePageId: string;
+  /** URL the browser landed on after the solve attempt. */
+  postSolveUrl: string;
+  /** Page heading text after the solve attempt (makes the reached surface explicit). */
+  postSolveHeading: string | null;
   /** ISO-8601 timestamp. */
   probedAt: string;
   /** Human-readable summary. */
   summary: string;
+  /** Error message if the probe failed with an exception. */
+  error: string | null;
 }
 
 /**
@@ -183,7 +189,7 @@ export async function probeCaptchaSolve(options: {
     const page = await context.newPage();
 
     await page.goto(CEAC_URLS.START, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
       timeout: timeoutMs,
     });
 
@@ -199,18 +205,25 @@ export async function probeCaptchaSolve(options: {
       reachedPostCaptcha,
       captchaOutcome: outcome,
       postSolvePageId: postProbe.id,
+      postSolveUrl: postProbe.url,
+      postSolveHeading: postProbe.heading,
       probedAt: new Date().toISOString(),
       summary: reachedPostCaptcha
-        ? `CAPTCHA solved. Post-solve page: ${postProbe.id}. Heading: "${postProbe.heading ?? "(none)"}."`
-        : `CAPTCHA NOT solved. Status: ${outcome.status}. Still on: ${postProbe.id}.`,
+        ? `CAPTCHA solved. Post-solve page: ${postProbe.id}. Heading: ${JSON.stringify(postProbe.heading)}. URL: ${postProbe.url}`
+        : `CAPTCHA NOT solved. Status: ${outcome.status}. Still on: ${postProbe.id}. Heading: ${JSON.stringify(postProbe.heading)}. URL: ${postProbe.url}`,
+      error: null,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     return {
       reachedPostCaptcha: false,
-      captchaOutcome: { status: "failed", reason: err instanceof Error ? err.message : String(err) },
+      captchaOutcome: { status: "failed", reason: message },
       postSolvePageId: "error",
+      postSolveUrl: CEAC_URLS.START,
+      postSolveHeading: null,
       probedAt: new Date().toISOString(),
-      summary: `CAPTCHA smoke failed: ${err instanceof Error ? err.message : String(err)}`,
+      summary: `CAPTCHA smoke failed: ${message}`,
+      error: message,
     };
   } finally {
     if (browser) {

@@ -1,85 +1,83 @@
 {
   "project": "VIZA-monorepo",
   "branchName": "main",
-  "description": "Validate the merged CEAC DS-160 runtime on real execution paths. Prove that the merged CAPTCHA solver + full-page-fill implementation actually works from the live worker entrypoint on main: the smoke path must reach a post-CAPTCHA surface, a real prefill run must no longer die as ds160_blocked at bootstrap, and persisted telemetry/result payloads must truthfully record solve attempts plus filled/skipped sections.",
+  "description": "Add a UK visa application schema extraction and dynamic form-generation workflow to VIZA, modeled on the existing DS-160 approach. The run should identify the official UK visa application journey, capture required fields plus all enumerated options and conditional branches, normalize that into VIZA's visa_form_fields / schema flow, and expose a renderable UK visa form path with truthful documentation of any unsupported source-flow gaps.",
   "scopeContract": {
-    "truthStatement": "Code-complete CEAC automation is not enough. The merged main-branch runtime must be validated through the live worker and smoke paths, with truthful persisted outcomes that distinguish handoff-ready success, runtime failure, and genuine anti-bot/manual blockage.",
-    "rejectedAssumption": "A passing typecheck or completed implementation PRD does NOT prove the CEAC worker is operational on main. The next pass must verify real runtime behavior, not just module existence or static code structure.",
-    "designPrinciple": "runtime-truth-over-static-completeness: prefer live-path validation, persisted evidence, and explicit operator-visible outcomes over inferred success from code shape alone.",
-    "integrationNotes": "Use the merged main branch only. Preserve the stop-at-sign contract. Do not add new bypass behavior for unsupported anti-bot systems. Use existing TWOCAPTCHA_API_KEY env wiring; never commit secrets."
+    "truthStatement": "This run is about official-source-first UK visa form parity: complete field coverage, accurate options, and preserved branching logic are more important than broad but speculative support.",
+    "rejectedAssumption": "A hand-written UK form or a partially copied field list is NOT acceptable proof of parity. The implementation must be grounded in the official UK application flow and document any gaps explicitly.",
+    "designPrinciple": "source-truth-over-manual-approximation: preserve the official field structure, requiredness, options, and conditional logic in a machine-readable VIZA schema before optimizing downstream automation.",
+    "integrationNotes": "Reuse the existing DS-160/dynamic-form patterns where appropriate. Do not hardcode brittle one-off UI-only fields when the underlying schema path can be extended. Do not claim unsupported UK visa categories beyond the canonical v1 journey selected during implementation."
   },
   "userStories": [
     {
-      "id": "US-027",
-      "title": "Pin the CEAC runtime-validation scope and truth contract on main",
-      "description": "As a maintainer, I need the repo PRD to explicitly shift from implementation-complete to runtime-validated on merged main, so Ralph optimizes for live-path proof instead of more speculative feature work.",
+      "id": "UK-001",
+      "title": "Pin the UK visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to one canonical UK visa application journey and its official source entrypoints, so Ralph builds against a concrete, reviewable target instead of a vague 'England visa' concept.",
       "acceptanceCriteria": [
-        "prd.json on main contains US-027 through US-031 for the CEAC runtime-validation run",
-        "branchName is main",
-        "scopeContract explicitly states that runtime validation on merged main is now the goal",
-        "scopeContract explicitly rejects treating typecheck/implementation completion as live proof",
-        "integrationNotes preserve stop-at-sign and env-only secret handling"
+        "prd.json contains UK-001 through UK-005 for this run",
+        "The implementation names the canonical UK visa journey/source URLs used for v1",
+        "The scope contract explicitly prioritizes official-source parity over manual approximation",
+        "Any out-of-scope visa categories or source-flow ambiguities are documented rather than silently assumed"
       ],
-      "priority": 27,
+      "priority": 1,
       "passes": true,
-      "notes": "Scope anchor for the next Ralph pass. The implementation branch is already merged; this run is about proving runtime truth."
+      "notes": "First anchor the target before touching schema or UI."
     },
     {
-      "id": "US-028",
-      "title": "Prove the merged smoke path reaches a post-CAPTCHA CEAC surface",
-      "description": "As an operator, I need the CEAC smoke path on merged main to exercise the new --solve-captcha flow and report whether it reaches a real post-CAPTCHA surface, so we know the bootstrap path works beyond static code checks.",
+      "id": "UK-002",
+      "title": "Model the UK visa field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the UK visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic, so VIZA can render and validate the form accurately.",
       "acceptanceCriteria": [
-        "The smoke path on main is runnable with --solve-captcha from the merged repo state",
-        "The smoke result clearly reports whether it reached a post-CAPTCHA CEAC surface, remained blocked, or failed",
-        "If required, smoke diagnostics are tightened so the reached surface is explicit in structured output",
-        "Typecheck passes for any code/documentation changes made"
+        "A normalized UK visa schema artifact is added or generated in the repo",
+        "The schema captures sections/pages, field ids/names, labels, required flags, and option sets where applicable",
+        "Conditional or dependent questions are represented explicitly instead of being flattened away",
+        "Typecheck passes for any code/schema changes"
       ],
-      "priority": 28,
-      "passes": false,
-      "notes": "This story is about truthful smoke-path verification and operator-facing runtime evidence, not expanding feature scope."
+      "priority": 2,
+      "passes": true,
+      "notes": "Prefer reuse of existing schema patterns over inventing a second incompatible model."
     },
     {
-      "id": "US-029",
-      "title": "Validate one real DS-160 prefill run on the merged worker path",
-      "description": "As an operator, I need one real main-branch DS-160 worker run to use the merged CEAC bootstrap/orchestrator path and no longer die at startup as ds160_blocked solely because the start-page image CAPTCHA exists.",
+      "id": "UK-003",
+      "title": "Wire the UK schema into VIZA's dynamic form path",
+      "description": "As a user, I need the UK visa form to render through the existing dynamic form infrastructure, so UK applicants can complete the flow inside VIZA instead of relying on hardcoded pages.",
       "acceptanceCriteria": [
-        "The live worker entrypoint on main is exercised on a real DS-160 prefill attempt",
-        "The run uses the merged CEAC bootstrap/orchestrator path rather than the legacy prototype path",
-        "If the run cannot complete, the failure mode is classified truthfully with concrete evidence (for example bootstrap runtime failure vs genuine anti-bot/manual gate)",
-        "Typecheck passes for any code changes made to make the worker path truthful/observable"
-      ],
-      "priority": 29,
-      "passes": false,
-      "notes": "This is the first real worker-path proof story. It is acceptable to surface a truthful blocker if CEAC or runtime conditions prevent full success."
-    },
-    {
-      "id": "US-030",
-      "title": "Verify persisted CEAC result payload telemetry on merged main",
-      "description": "As an operator, I need persisted ceac_result_payload data from the merged runtime to record what actually happened \u2014 including CAPTCHA solve attempts and section fill/skip state \u2014 so runtime outcomes can be trusted after the run.",
-      "acceptanceCriteria": [
-        "A merged-main runtime attempt produces or inspects a ceac_result_payload example with CAPTCHA solve telemetry present when applicable",
-        "The payload clearly records filled vs skipped sections for the orchestrator",
-        "The payload classification aligns with the real runtime outcome (handoff_ready, runtime failure, or blocked/manual-required)",
-        "If payload gaps are found, code is updated so persisted results reflect the actual runtime truthfully",
+        "The UK visa type/package is represented in the backend/frontend path needed for dynamic rendering",
+        "The dynamic form flow can load the UK schema and render representative sections/questions",
+        "Any required seed/mapping changes are idempotent and documented",
         "Typecheck passes"
       ],
-      "priority": 30,
-      "passes": false,
-      "notes": "This is the persistence/truthfulness story for the merged runtime pass."
+      "priority": 3,
+      "passes": true,
+      "notes": "Keep changes surgical and aligned with existing visa_form_fields patterns if that is the active renderer source."
     },
     {
-      "id": "US-031",
-      "title": "Document the merged-main CEAC runtime validation procedure and next blocker",
-      "description": "As a maintainer, I need the repo docs and progress log to state exactly how to rerun the merged-main CEAC validation flow and what blocker or success state remains afterward, so future runs do not repeat today\u2019s ambiguity.",
+      "id": "UK-004",
+      "title": "Add operator-visible gap reporting for unsupported UK fields or branches",
+      "description": "As a maintainer, I need unsupported or ambiguous UK source-flow gaps surfaced explicitly, so we do not silently ship an incomplete form while pretending parity is done.",
       "acceptanceCriteria": [
-        "Documentation describes how to run the smoke validation and the real worker-path check from merged main",
-        "Documentation states the observed outcome from this validation pass and the next concrete blocker or next action",
-        "progress.txt is updated with the runtime-validation results and learnings",
-        "Typecheck passes for any code/doc-related changes made"
+        "The implementation documents or flags any unsupported source-flow gaps discovered during extraction",
+        "No missing-field uncertainty is silently ignored in code or docs",
+        "The repo includes a reviewer-usable artifact or note describing what was covered vs deferred",
+        "Typecheck passes"
       ],
-      "priority": 31,
-      "passes": false,
-      "notes": "Close the loop with operator-usable documentation grounded in the actual validation run."
+      "priority": 4,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect."
+    },
+    {
+      "id": "UK-005",
+      "title": "Document the UK visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need the repo docs and progress log to explain how the UK schema was derived, how to rerun or update it, and what the next category/branch expansion should be.",
+      "acceptanceCriteria": [
+        "Documentation explains the chosen official source journey and how the UK schema/form path works",
+        "progress.txt is updated with implementation learnings and remaining blockers",
+        "The next recommended action after the initial UK form pass is stated clearly",
+        "Typecheck passes for any code/doc changes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
     }
   ]
 }

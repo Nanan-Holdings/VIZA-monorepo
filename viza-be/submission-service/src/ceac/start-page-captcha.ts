@@ -20,9 +20,16 @@ import { SessionBootstrapError } from "./errors";
 /** The <img> tag containing the CAPTCHA image. */
 const CAPTCHA_IMAGE_SELECTOR = 'img[id*="Captcha"]';
 
+/** The start-page location selector CEAC requires before enabling Start. */
+const LOCATION_SELECT_SELECTOR =
+  'select[id*="ucLocation_ddlLocation"], select[name*="ucLocation$ddlLocation"]';
+
+/** Default CEAC post/location code used for live runtime validation. */
+const DEFAULT_LOCATION_CODE = process.env.CEAC_LOCATION_CODE?.trim() || "NSS";
+
 /** The text input where the user types the CAPTCHA answer. */
 const CAPTCHA_INPUT_SELECTOR =
-  'input[id*="CaptchaCodeTextBox"], input[id*="captcha" i][type="text"]';
+  'input[id*="IdentifyCaptcha1_txtCodeTextBox"], input[id*="CaptchaCodeTextBox"], input[id*="captcha" i][type="text"]';
 
 // ---------------------------------------------------------------------------
 // Result types
@@ -45,9 +52,10 @@ export type StartPageCaptchaOutcome =
  *  1. Locate the CAPTCHA image via `img[id*="Captcha"]`.
  *  2. Screenshot just the image element to a PNG buffer.
  *  3. Send to 2captcha via `solveImageCaptcha()`.
- *  4. Type the answer into the CAPTCHA text input.
- *  5. Click the continue/next button to submit.
- *  6. Check for validation errors — if the CAPTCHA was wrong, report it.
+ *  4. Select the CEAC location/post so the Start button becomes active.
+ *  5. Type the answer into the CAPTCHA text input.
+ *  6. Click the Start/Continue control to submit.
+ *  7. Check for validation errors — if the CAPTCHA was wrong, report it.
  *
  * Does NOT retry internally — callers decide retry policy.
  */
@@ -79,7 +87,28 @@ export async function solveStartPageCaptcha(
     return { status: "failed", reason: `2captcha solve failed: ${msg}` };
   }
 
-  // 4. Type the answer into the CAPTCHA input
+  // 4. Select the CEAC post/location first — Start stays disabled until valid
+  const locationSelect = page.locator(LOCATION_SELECT_SELECTOR).first();
+  if ((await locationSelect.count()) === 0) {
+    return {
+      status: "failed",
+      reason: "CEAC start page loaded but no location selector was found",
+    };
+  }
+
+  const locationCode = DEFAULT_LOCATION_CODE;
+  try {
+    await locationSelect.selectOption(locationCode);
+    await page.waitForTimeout(2_000);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      status: "failed",
+      reason: `Could not select CEAC location ${locationCode}: ${msg}`,
+    };
+  }
+
+  // 5. Type the answer into the CAPTCHA input
   const captchaInput = page.locator(CAPTCHA_INPUT_SELECTOR).first();
   const inputCount = await captchaInput.count();
   if (inputCount === 0) {
@@ -90,19 +119,25 @@ export async function solveStartPageCaptcha(
   }
   await captchaInput.fill(solve.text);
 
-  // 5. Submit — click the continue/start application link
-  //    CEAC start page uses either a "Continue" link or a submit button
+  // 6. Submit — current CEAC uses START AN APPLICATION (lnkNew)
   const submitSelector =
-    'a[id*="lnkContinue"], input[id*="btnContinue"], input[type="submit"][value*="Continue"], input[type="submit"][value*="Start"]';
+    'a[id*="lnkNew"], a[id*="lnkContinue"], input[id*="btnContinue"], input[type="submit"][value*="Continue"], input[type="submit"][value*="Start"]';
   const submitBtn = page.locator(submitSelector).first();
   if ((await submitBtn.count()) > 0) {
-    await submitBtn.click();
+    try {
+      await submitBtn.click();
+    } catch {
+      await submitBtn.evaluate((el) => {
+        const node = el as { click?: () => void };
+        node.click?.();
+      });
+    }
   } else {
     // Fallback: press Enter on the input
     await captchaInput.press("Enter");
   }
 
-  // 6. Wait briefly for navigation or validation
+  // 7. Wait briefly for navigation or validation
   try {
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
   } catch {

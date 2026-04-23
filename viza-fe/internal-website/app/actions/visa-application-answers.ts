@@ -81,14 +81,37 @@ export async function ensureDraftApplication(
 
     if (!profile) return { error: "Profile not found" };
 
-    // Check for existing application
-    const { data: existing } = await adminClient
+    const { data: activePackage } = await adminClient
+      .from("user_packages")
+      .select("visa_package_id, visa_packages(id, country, visa_type)")
+      .eq("auth_user_id", user.id)
+      .eq("status", "active")
+      .order("assigned_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const pkg = Array.isArray(activePackage?.visa_packages)
+      ? activePackage?.visa_packages[0]
+      : activePackage?.visa_packages;
+
+    const resolvedCountry = pkg?.country ?? country;
+    const resolvedVisaType = pkg?.visa_type ?? visaType;
+    const resolvedVisaPackageId = activePackage?.visa_package_id ?? pkg?.id ?? null;
+
+    // Check for existing application for the same package/type first
+    let existingQuery = adminClient
       .from("applications")
       .select("id")
       .eq("applicant_id", profile.id)
+      .eq("visa_type", resolvedVisaType)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+
+    if (resolvedVisaPackageId) {
+      existingQuery = existingQuery.eq("visa_package_id", resolvedVisaPackageId);
+    }
+
+    const { data: existing } = await existingQuery.maybeSingle();
 
     if (existing) return { applicationId: existing.id };
 
@@ -97,8 +120,9 @@ export async function ensureDraftApplication(
       .insert({
         applicant_id: profile.id,
         status: "draft",
-        country,
-        visa_type: visaType,
+        country: resolvedCountry,
+        visa_type: resolvedVisaType,
+        visa_package_id: resolvedVisaPackageId,
       })
       .select("id")
       .single();
