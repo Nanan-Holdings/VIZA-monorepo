@@ -209,3 +209,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: docs/uk-visa-gap-report.md (new), prd.json, progress.txt
 - Learnings: evaluateShowIf() in dynamic-step-form.tsx may not support || operators — this is a critical verification item before production
 ---
+
+## 2026-04-23 - UK-005
+- Updated docs/uk-visa-scope.md with schema derivation process, rerun instructions, and expansion path
+- Documented how to add new UK visa categories (copy seed, change VISA_TYPE, add migration, run)
+- Listed 3 immediate pre-production actions, 3 short-term (v1.1), and 3 medium-term (v2) next steps
+- Key blocker: verify evaluateShowIf() handles || operators and cross-step conditionals before production
+- Files changed: docs/uk-visa-scope.md, prd.json, progress.txt
+- Learnings: The seed-script-per-visa-type pattern scales well — new categories are isolated and idempotent. The main risk is conditional logic compatibility in the renderer.
+---

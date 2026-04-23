@@ -76,7 +76,7 @@
         "Typecheck passes for any code/doc changes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
     }
   ]
