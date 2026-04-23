@@ -159,3 +159,14 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: src/index.ts, prd.json, progress.txt
 - Learnings: session.captchaSolve contains telemetry from bootstrap but must be explicitly spread into the persisted payload — it doesn't flow through result/orchestrator automatically
 ---
+
+## 2026-04-23 - US-031
+- Added "Runtime validation procedure (merged main)" section to ceac-smoke-test.md
+- Documents Step 1 (smoke validation) and Step 2 (worker-path validation) with expected outcomes
+- Documents what to check in ceac_result_payload (status, sectionCoverage, captchaSolve, applicationId)
+- Documents the three code fixes from US-028/029/030 and their observed outcomes
+- States next blocker: live execution requires TWOCAPTCHA_API_KEY + real applicant data + queue entry
+- progress.txt updated with all runtime-validation learnings
+- Files changed: docs/ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: Runtime validation PRDs should define "what to check" not just "what to run" — operators need structured criteria for pass/fail
+---
