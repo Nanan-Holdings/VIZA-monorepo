@@ -70,7 +70,7 @@ export async function startCeacSession(
 
     try {
       await page.goto(CEAC_URLS.START, {
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: navigationTimeoutMs,
       });
     } catch (err) {
