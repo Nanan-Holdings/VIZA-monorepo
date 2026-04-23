@@ -70,7 +70,7 @@ export async function probeCeacStartPage(options: {
 
     try {
       await page.goto(CEAC_URLS.START, {
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: timeoutMs,
       });
     } catch (err) {
@@ -189,7 +189,7 @@ export async function probeCaptchaSolve(options: {
     const page = await context.newPage();
 
     await page.goto(CEAC_URLS.START, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
       timeout: timeoutMs,
     });
 
