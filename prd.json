@@ -78,7 +78,7 @@
         "Typecheck passes for any code/doc-related changes made"
       ],
       "priority": 31,
-      "passes": false,
+      "passes": true,
       "notes": "Close the loop with operator-usable documentation grounded in the actual validation run."
     }
   ]
