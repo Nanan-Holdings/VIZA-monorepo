@@ -34,7 +34,7 @@
         "Typecheck passes for any code/schema changes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Prefer reuse of existing schema patterns over inventing a second incompatible model."
     },
     {

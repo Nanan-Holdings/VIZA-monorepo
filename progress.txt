@@ -180,3 +180,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: docs/uk-visa-scope.md (new), prd.json, progress.txt
 - Learnings: UK visa system (Access UK) is a single unified platform unlike US (CEAC) — simpler to scope but conditional branching by visit purpose adds complexity
 ---
+
+## 2026-04-23 - UK-002
+- Created seed-uk-standard-visitor-form-fields.ts with 108 field definitions across 11 steps
+- Steps: Personal Details, Passport, Contact Details, Family, Accommodation, Travel History, Trip Details, Employment, Finances, Medical Treatment, Additional Info
+- Conditional logic preserved: partner fields gated on marital_status, employer fields on employment_status, medical on purpose_of_visit, sponsor on who_is_paying
+- Uses same FieldDef interface and upsert pattern as DS-160 seed script
+- visa_type key: UK_STANDARD_VISITOR, typecheck passes
+- Files changed: scripts/seed-uk-standard-visitor-form-fields.ts (new), prd.json, progress.txt
+- Learnings: UK form has fewer total fields than DS-160 (~108 vs ~3000+) but more complex multi-value conditional logic (showIf with || operators)
+---
