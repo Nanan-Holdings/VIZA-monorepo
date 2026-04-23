@@ -110,9 +110,47 @@ The UK schema must be grounded in the actual Access UK application flow. Hand-wr
 
 ---
 
-## 7. Next Steps
+## 7. How the UK Schema Was Derived
 
-1. **UK-002:** Extract and normalize the full field inventory from the Access UK Standard Visitor journey
-2. **UK-003:** Wire the schema into VIZA's dynamic form rendering path
-3. **UK-004:** Produce operator-visible gap report for any unsupported fields/branches
-4. **UK-005:** Document the workflow and expansion path for additional UK visa categories
+The UK Standard Visitor visa schema was built by analyzing the official Access UK application form at `apply-to-visit-or-stay-in-the-uk.homeoffice.gov.uk`. The process:
+
+1. **Identified the canonical journey:** Standard Visitor Visa (tourism/general visit) — the most common UK visa type for VIZA's target users.
+2. **Mapped sections to steps:** The Access UK form presents ~11 logical sections. Each became a `step_number` in the seed script.
+3. **Captured fields with metadata:** Every question was mapped to a `FieldDef` with field_name, label, field_type, required flag, options (for select/radio), and conditional_logic (showIf expressions).
+4. **Preserved branching:** Conditional fields were not flattened — they use `showIf` expressions that reference parent field values (e.g., `marital_status === married`).
+5. **Documented gaps:** Any fields or branches that could not be confirmed or were ambiguous were documented in `docs/uk-visa-gap-report.md`.
+
+### How to Rerun or Update the Schema
+
+1. **Edit the seed script:** `viza-be/agent-backend/scripts/seed-uk-standard-visitor-form-fields.ts`
+2. **Run:** `npx tsx scripts/seed-uk-standard-visitor-form-fields.ts`
+3. The script is idempotent — it deletes all `UK_STANDARD_VISITOR` rows first, then re-inserts.
+4. No frontend deployment needed — the dynamic form loads from the database at runtime.
+
+### How to Add a New UK Visa Category
+
+1. Copy the seed script to `seed-uk-<category>-form-fields.ts`
+2. Change `VISA_TYPE` to a new key (e.g., `UK_SKILLED_WORKER`)
+3. Update the `FIELDS` array with the new form's fields
+4. Add a migration to `drizzle/` inserting into `visa_packages`
+5. Run the seed script
+6. Assign the package to users via the admin interface
+
+---
+
+## 8. Next Recommended Actions
+
+### Immediate (before production)
+1. **Verify `||` conditional logic:** Test that `evaluateShowIf()` in `dynamic-step-form.tsx` handles multi-value `||` expressions. If not, extend the evaluator or simplify the conditions.
+2. **Verify cross-step conditionals:** Medical treatment fields (step 10) are gated on `purpose_of_visit` from step 7. Confirm the dynamic form evaluates conditions across steps.
+3. **Run the seed script** against a staging Supabase instance and walk through all 11 steps.
+
+### Short-term (v1.1)
+4. **Add business-visit sub-journey fields** (conditional on `purpose_of_visit === business`)
+5. **Add previous UK visa details** as a repeatable group
+6. **Extend document upload categories** for UK-specific supporting documents
+
+### Medium-term (v2)
+7. **Dependant applications** — repeatable applicant sections
+8. **Country-specific variations** — TB test requirements, nationality-gated fields
+9. **Access UK Playwright automation** — if automated form submission is desired (mirrors the CEAC/DS-160 submission service)
