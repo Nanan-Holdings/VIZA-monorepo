@@ -129,3 +129,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts
 - Learnings: DS160_MAPPING_GROUPS index references break when new groups are inserted — use named imports
 ---
+
+## 2026-04-23 - US-028
+- Tightened CaptchaSmokeResult with postSolveUrl, postSolveHeading, and error fields
+- Structured output now explicitly identifies the reached post-CAPTCHA surface (page ID, URL, heading)
+- Summary string includes URL for operator logs
+- Updated ceac-smoke-test.md documentation with new output fields and surface identification guidance
+- Typecheck passes on merged main
+- Files changed: src/ceac/smoke.ts, docs/ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: Template literals with embedded double-quotes and nullish coalescing break TS parsing — use JSON.stringify() for safe quoting
+---
