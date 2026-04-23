@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>越南签证助手</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 360px;
+      padding: 0;
+      font-family: 'Segoe UI', 'Microsoft YaHei', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #333;
+    }
+
+    body.standalone {
+      width: auto;
+      min-height: 100vh;
+      padding: 24px 0;
+    }
+    
+    .container {
+      padding: 20px;
+      background: white;
+      border-radius: 0;
+    }
+
+    body.standalone .container {
+      max-width: 420px;
+      margin: 0 auto;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(17, 24, 39, 0.18);
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #2a5298;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      color: #1e3c72;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .status-box {
+      background: linear-gradient(135deg, #e8f5e9, #f1f8f4);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border-left: 4px solid #28a745;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .status-box strong {
+      color: #1e3c72;
+    }
+    
+    .status-box p {
+      margin: 4px 0;
+      color: #555;
+    }
+    
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .btn {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.3s;
+      font-weight: 600;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    
+    .btn-secondary {
+      background: rgba(42, 82, 152, 0.1);
+      color: #1e3c72;
+      border: 1px solid #2a5298;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(42, 82, 152, 0.2);
+    }
+    
+    .features {
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+    
+    .features h3 {
+      color: #1e3c72;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .features ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .features li {
+      padding: 4px 0;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .features li::before {
+      content: '✓';
+      color: #28a745;
+      font-weight: bold;
+    }
+    
+    .full-width {
+      width: 100%;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: white;
+    }
+    
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .alert {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #856404;
+      margin-bottom: 15px;
+    }
+
+    .upload-box {
+      background: #f7faff;
+      border: 1px solid rgba(42, 82, 152, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .upload-box h3 {
+      color: #1e3c72;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .upload-box p {
+      font-size: 12px;
+      color: #5f6b7a;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .upload-field {
+      padding: 10px 0;
+      border-top: 1px dashed rgba(42, 82, 152, 0.15);
+    }
+
+    .upload-field:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .upload-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e3c72;
+      margin-bottom: 6px;
+    }
+
+    .upload-field input[type="file"] {
+      width: 100%;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .upload-status {
+      font-size: 12px;
+      color: #5f6b7a;
+      line-height: 1.5;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .upload-status[data-state="saved"] {
+      color: #1f7a3d;
+      font-weight: 600;
+    }
+
+    .upload-status[data-state="error"] {
+      color: #b42318;
+      font-weight: 600;
+    }
+
+    .upload-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .upload-panel-link {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .btn-small {
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🇻🇳 越南签证助手 v1.2.2</h1>
+      <p>让签证申请变得简单</p>
+    </div>
+    
+    <div class="alert">
+      ℹ️ 插件会在 evisa.gov.vn 网站上自动激活，为你提供完整的申请指导
+    </div>
+    
+    <div class="status-box">
+      <strong>✅ 功能已就绪</strong>
+      <p>• 自动填表 + 中文翻译</p>
+      <p>• 智能引导流程</p>
+      <p>• 详细字段说明</p>
+    </div>
+
+    <div class="upload-box">
+      <h3>📎 自动上传文件</h3>
+      <p>这里选择照片后，插件会把文件保存在本地，并在 eVisa 表单里自动上传头像和护照资料页。大图时请等状态变成“已保存”，或改用独立上传页避免 popup 自动关闭。</p>
+
+      <div class="upload-field">
+        <label for="passportPhotoInput">申请人正面照片</label>
+        <input id="passportPhotoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+        <div class="upload-status" id="passportPhotoStatus" data-state="empty">未选择文件</div>
+        <div class="upload-actions">
+          <button class="btn btn-secondary btn-small" id="clearPassportPhoto" type="button">清除</button>
+        </div>
+      </div>
+
+      <div class="upload-field">
+        <label for="passportCopyInput">护照资料页</label>
+        <input id="passportCopyInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+        <div class="upload-status" id="passportCopyStatus" data-state="empty">未选择文件</div>
+        <div class="upload-actions">
+          <button class="btn btn-secondary btn-small" id="clearPassportCopy" type="button">清除</button>
+        </div>
+      </div>
+
+      <div class="upload-panel-link">
+        <button class="btn btn-secondary btn-small" id="openUploadPanel" type="button">打开独立上传页</button>
+      </div>
+    </div>
+    
+    <div class="quick-actions">
+      <button class="btn btn-primary full-width" id="openSite" style="grid-column: 1 / -1;">
+        🌐 前往申请网站
+      </button>
+      <button class="btn btn-secondary" id="viewGuide">
+        📖 使用指南
+      </button>
+      <button class="btn btn-secondary" id="settings">
+        ⚙️ 设置
+      </button>
+    </div>
+    
+    <div class="features">
+      <h3>🎯 完整申请流程</h3>
+      <ul>
+        <li>点击申请按钮</li>
+        <li>阅读条款（自动检测）</li>
+        <li>一键自动填表</li>
+        <li>提交申请</li>
+      </ul>
+    </div>
+    
+    <div class="footer">
+      <p>所有数据存储在本地，不会上传到任何服务器</p>
+      <p>仅支持 https://evisa.gov.vn 网站</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
