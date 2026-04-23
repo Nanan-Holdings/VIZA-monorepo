@@ -170,3 +170,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: docs/ceac-smoke-test.md, prd.json, progress.txt
 - Learnings: Runtime validation PRDs should define "what to check" not just "what to run" — operators need structured criteria for pass/fail
 ---
+
+## 2026-04-23 - UK-001
+- Created docs/uk-visa-scope.md pinning the canonical UK visa journey to Standard Visitor Visa
+- Canonical source: Access UK at apply-to-visit-or-stay-in-the-uk.homeoffice.gov.uk
+- visa_type key: UK_STANDARD_VISITOR
+- Documented 8 out-of-scope visa categories and 6 known source-flow ambiguities
+- v1 scope: schema extraction + dynamic form rendering only, no Playwright automation
+- Files changed: docs/uk-visa-scope.md (new), prd.json, progress.txt
+- Learnings: UK visa system (Access UK) is a single unified platform unlike US (CEAC) — simpler to scope but conditional branching by visit purpose adds complexity
+---
