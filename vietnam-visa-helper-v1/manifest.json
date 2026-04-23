@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Vietnam Visa Helper v1.2.2",
+  "version": "1.2.2",
+  "description": "Help fill Vietnam visa application forms - Supports automatic identification and auto-fill",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.evisa.gov.vn/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.evisa.gov.vn/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Vietnam Visa Helper v1.2"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
