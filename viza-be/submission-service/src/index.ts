@@ -462,15 +462,16 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     .eq("id", item.id);
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
-  const session = await startCeacSession({
-    headless: true,
-    acceptDownloads: true,
-    runId,
-  });
+  let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
 
   const tracker = createRecoveryTracker({ runId });
 
   try {
+    session = await startCeacSession({
+      headless: true,
+      acceptDownloads: true,
+      runId,
+    });
     // Record bootstrap checkpoint — proves CEAC start page was reached
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
 
@@ -539,12 +540,17 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
       }
     }
   } catch (err) {
-    const recovery = await preserveRecoveryOnFailure({
-      tracker,
-      error: err,
-      page: session.page,
-      screenshotDir: tempDir,
-    });
+    const recovery = session
+      ? await preserveRecoveryOnFailure({
+          tracker,
+          error: err,
+          page: session.page,
+          screenshotDir: tempDir,
+        })
+      : {
+          ...tracker.snapshot(),
+          failureScreenshot: null,
+        };
 
     const result: CeacRunResult = buildFailureResult(recovery, {
       error: serializeError(err),
@@ -612,7 +618,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
       }
     }
   } finally {
-    await session.close();
+    if (session) await session.close();
     try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
   }
 }
