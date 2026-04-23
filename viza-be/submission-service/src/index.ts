@@ -502,6 +502,11 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
       await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, storagePath);
     }
 
+    // Capture CAPTCHA solve telemetry from session bootstrap (if a CAPTCHA was solved)
+    const captchaTelemetry = session.captchaSolve
+      ? { captchaSolve: session.captchaSolve.telemetry }
+      : {};
+
     if (isSuccessResult(result)) {
       // Handoff-ready: form filled up to Sign and Submit page.
       // Persist full CEAC result payload for operator diagnostics.
@@ -509,7 +514,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         .from("submission_queue")
         .update({
           status: "ds160_prefilled",
-          ceac_result_payload: { ...result, sectionCoverage } as unknown as Record<string, unknown>,
+          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
@@ -530,7 +535,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
-          ceac_result_payload: { ...result, sectionCoverage } as unknown as Record<string, unknown>,
+          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
@@ -558,6 +563,9 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     });
 
     const errorMsg = err instanceof Error ? err.message : String(err);
+    const exceptionCaptchaTelemetry = session?.captchaSolve
+      ? { captchaSolve: session.captchaSolve.telemetry }
+      : {};
 
     // Gate errors (anti-bot, captcha, manual intervention) are external CEAC
     // blockers — retrying won't help. Mark as blocked immediately with
@@ -579,6 +587,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           ceac_result_payload: {
             ...result as unknown as Record<string, unknown>,
             gateContext: err.context,
+            ...exceptionCaptchaTelemetry,
           },
           updated_at: new Date().toISOString(),
         })
@@ -607,7 +616,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
-          ceac_result_payload: result as unknown as Record<string, unknown>,
+          ceac_result_payload: { ...result as unknown as Record<string, unknown>, ...exceptionCaptchaTelemetry },
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
