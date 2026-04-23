@@ -49,7 +49,7 @@
         "Typecheck passes for any code changes made to make the worker path truthful/observable"
       ],
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "notes": "This is the first real worker-path proof story. It is acceptable to surface a truthful blocker if CEAC or runtime conditions prevent full success."
     },
     {

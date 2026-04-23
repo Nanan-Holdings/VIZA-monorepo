@@ -139,3 +139,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: src/ceac/smoke.ts, docs/ceac-smoke-test.md, prd.json, progress.txt
 - Learnings: Template literals with embedded double-quotes and nullish coalescing break TS parsing — use JSON.stringify() for safe quoting
 ---
+
+## 2026-04-23 - US-029
+- Fixed critical bug: startCeacSession() was outside the try-catch in processDs160Item
+- Bootstrap failures (GateDetectedError, SessionBootstrapError) were previously uncaught — queue item would stay stuck at ds160_prefill_processing forever
+- Moved startCeacSession inside try-catch so bootstrap errors are classified truthfully (ds160_blocked for gates, retry/ds160_prefill_failed for runtime errors)
+- Session is now nullable; catch block uses tracker.snapshot() fallback when session is null
+- Finally block checks session existence before calling close()
+- Files changed: src/index.ts, prd.json, progress.txt
+- Learnings: Session bootstrap must be inside the error-classification try-catch — any code that can throw GateDetectedError needs to be caught where gate/retry classification happens
+---
