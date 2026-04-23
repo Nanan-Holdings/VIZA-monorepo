@@ -48,7 +48,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Keep changes surgical and aligned with existing visa_form_fields patterns if that is the active renderer source."
     },
     {

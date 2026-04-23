@@ -190,3 +190,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: scripts/seed-uk-standard-visitor-form-fields.ts (new), prd.json, progress.txt
 - Learnings: UK form has fewer total fields than DS-160 (~108 vs ~3000+) but more complex multi-value conditional logic (showIf with || operators)
 ---
+
+## 2026-04-23 - UK-003
+- Created drizzle/0010_uk_standard_visitor_package.sql migration with idempotent INSERT
+- Adds visa_packages row: country=united_kingdom, visa_type=UK_STANDARD_VISITOR
+- No frontend code changes needed — getVisaFormSteps(visaType) already queries dynamically
+- Flow: getUserVisaPackage() → getVisaFormSteps('UK_STANDARD_VISITOR') → DynamicStepForm renders
+- Both agent-backend and frontend typechecks pass
+- Files changed: drizzle/0010_uk_standard_visitor_package.sql (new), prd.json, progress.txt
+- Learnings: VIZA's dynamic form infrastructure is fully visa-type-agnostic — new visa types only need DB rows, no code changes
+---
