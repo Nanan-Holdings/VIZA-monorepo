@@ -103,11 +103,18 @@ npx tsx viza-be/submission-service/src/ceac/smoke.ts --solve-captcha --headed
     "status": "solved",
     "solve": { "text": "...", "solveId": "12345", "durationMs": 18200 }
   },
-  "postSolvePageId": "start",
+  "postSolvePageId": "security_notice",
+  "postSolveUrl": "https://ceac.state.gov/GenNIV/General/...",
+  "postSolveHeading": "Privacy and Security Notice",
   "probedAt": "2026-04-23T12:00:00.000Z",
-  "summary": "CAPTCHA solved. Post-solve page: start. Heading: ..."
+  "summary": "CAPTCHA solved. Post-solve page: security_notice. Heading: \"Privacy and Security Notice\". URL: ...",
+  "error": null
 }
 ```
+
+The `postSolvePageId`, `postSolveUrl`, and `postSolveHeading` fields explicitly
+identify the reached surface. When `reachedPostCaptcha` is true, these fields
+confirm the page advanced beyond the start/CAPTCHA screen.
 
 ### Interpreting CAPTCHA solve results
 

@@ -35,7 +35,7 @@
         "Typecheck passes for any code/documentation changes made"
       ],
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "notes": "This story is about truthful smoke-path verification and operator-facing runtime evidence, not expanding feature scope."
     },
     {
