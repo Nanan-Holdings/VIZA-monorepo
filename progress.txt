@@ -149,3 +149,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: src/index.ts, prd.json, progress.txt
 - Learnings: Session bootstrap must be inside the error-classification try-catch — any code that can throw GateDetectedError needs to be caught where gate/retry classification happens
 ---
+
+## 2026-04-23 - US-030
+- CAPTCHA solve telemetry (session.captchaSolve.telemetry) was missing from all ceac_result_payload persist paths
+- Added captchaSolve telemetry to all three persist paths: success (ds160_prefilled), orchestrator failure, and exception (gate/retry)
+- Exception path uses optional chaining (session?.captchaSolve) since session may be null on bootstrap failure
+- ceac_result_payload now records: result status + sectionCoverage (filled/skipped) + captchaSolve telemetry (solveId, durationMs, attempt, outcome)
+- Payload classification unchanged: handoff_ready, failed, or ds160_blocked — all align with runtime outcome
+- Files changed: src/index.ts, prd.json, progress.txt
+- Learnings: session.captchaSolve contains telemetry from bootstrap but must be explicitly spread into the persisted payload — it doesn't flow through result/orchestrator automatically
+---

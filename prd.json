@@ -64,7 +64,7 @@
         "Typecheck passes"
       ],
       "priority": 30,
-      "passes": false,
+      "passes": true,
       "notes": "This is the persistence/truthfulness story for the merged runtime pass."
     },
     {
