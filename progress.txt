@@ -200,3 +200,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: drizzle/0010_uk_standard_visitor_package.sql (new), prd.json, progress.txt
 - Learnings: VIZA's dynamic form infrastructure is fully visa-type-agnostic — new visa types only need DB rows, no code changes
 ---
+
+## 2026-04-23 - UK-004
+- Created docs/uk-visa-gap-report.md with coverage summary, 8 known gaps, and reviewer checklist
+- Gaps documented: business sub-journey, short-study sub-journey, dependant applications, country-specific TB test, IHS, biometrics, previous visa details, document uploads
+- Flagged 2 conditional logic risks: multi-value || showIf and cross-step conditionals need verification
+- 130 total fields covered across 11 steps; ~65 conditional
+- Files changed: docs/uk-visa-gap-report.md (new), prd.json, progress.txt
+- Learnings: evaluateShowIf() in dynamic-step-form.tsx may not support || operators — this is a critical verification item before production
+---
