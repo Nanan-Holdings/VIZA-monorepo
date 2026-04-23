@@ -1,106 +1,85 @@
 {
   "project": "VIZA-monorepo",
-  "branchName": "ralph/ceac-captcha-and-full-page-fill",
-  "description": "Unblock the CEAC DS-160 worker end-to-end. Integrate 2captcha's image-to-text service so the CEAC start-page image CAPTCHA is solved programmatically (currently every run fails as 'gated' before a single field is filled), then expand the orchestrator's page fill coverage from 5 pages to the full DS-160 section set now that the simplified intake carries the complete answer set.",
+  "branchName": "main",
+  "description": "Validate the merged CEAC DS-160 runtime on real execution paths. Prove that the merged CAPTCHA solver + full-page-fill implementation actually works from the live worker entrypoint on main: the smoke path must reach a post-CAPTCHA surface, a real prefill run must no longer die as ds160_blocked at bootstrap, and persisted telemetry/result payloads must truthfully record solve attempts plus filled/skipped sections.",
   "scopeContract": {
-    "truthStatement": "A DS-160 prefill run must succeed end-to-end in headless automation: pass the CEAC start-page CAPTCHA, reach and fill every DS-160 page for which we have answers, and stop at the Sign and Submit page as a handoff. The start-page image CAPTCHA is a solvable challenge, not a blocking anti-bot gate.",
-    "rejectedAssumption": "The start-page image CAPTCHA is NOT an anti-bot wall we must escalate to ops. It is a standard text-in-image CAPTCHA that can be solved via 2captcha's ImageToText API, and must be treated as a routine step of session bootstrap. Separately, true anti-bot gates (Cloudflare, WAF, rate-limit interstitials) remain unsolvable and must continue to escalate as `ds160_blocked`.",
-    "designPrinciple": "solve-what-is-solvable, escalate-what-is-not: the worker owns solving the start-page image CAPTCHA via 2captcha. It does NOT solve the final Sign-and-Submit CAPTCHA (that remains part of the stop-at-sign handoff contract). It does NOT attempt to defeat reCAPTCHA/hCaptcha/Cloudflare \u2014 those remain gates.",
-    "integrationNotes": "2captcha API key is read from env var TWOCAPTCHA_API_KEY in viza-be/submission-service/.env (never committed). Use the v2 JSON API at https://api.2captcha.com (createTask + getTaskResult with type 'ImageToTextTask'). Budget ~30s per solve with polling; support wrong-answer retry (CEAC shows a validation message on bad code)."
+    "truthStatement": "Code-complete CEAC automation is not enough. The merged main-branch runtime must be validated through the live worker and smoke paths, with truthful persisted outcomes that distinguish handoff-ready success, runtime failure, and genuine anti-bot/manual blockage.",
+    "rejectedAssumption": "A passing typecheck or completed implementation PRD does NOT prove the CEAC worker is operational on main. The next pass must verify real runtime behavior, not just module existence or static code structure.",
+    "designPrinciple": "runtime-truth-over-static-completeness: prefer live-path validation, persisted evidence, and explicit operator-visible outcomes over inferred success from code shape alone.",
+    "integrationNotes": "Use the merged main branch only. Preserve the stop-at-sign contract. Do not add new bypass behavior for unsupported anti-bot systems. Use existing TWOCAPTCHA_API_KEY env wiring; never commit secrets."
   },
   "userStories": [
     {
-      "id": "US-021",
-      "title": "Pin the captcha-solver + full-page-fill scope and truth contract",
-      "description": "As a maintainer, I need the repo PRD to explicitly state that (a) the CEAC start-page image CAPTCHA must be solved via 2captcha rather than escalated as a gate, and (b) orchestrator page fill coverage must expand to the full DS-160 section set now that the simplified intake is complete.",
+      "id": "US-027",
+      "title": "Pin the CEAC runtime-validation scope and truth contract on main",
+      "description": "As a maintainer, I need the repo PRD to explicitly shift from implementation-complete to runtime-validated on merged main, so Ralph optimizes for live-path proof instead of more speculative feature work.",
       "acceptanceCriteria": [
-        "prd.json contains US-021 through US-026 on branch ralph/ceac-captcha-and-full-page-fill",
-        "scopeContract explicitly distinguishes solvable start-page CAPTCHA from unsolvable anti-bot gates",
-        "scopeContract explicitly preserves the stop-at-sign contract \u2014 the final Sign-and-Submit CAPTCHA is NOT solved by the worker",
-        "integrationNotes document that TWOCAPTCHA_API_KEY lives in .env, never in committed code or PRD"
+        "prd.json on main contains US-027 through US-031 for the CEAC runtime-validation run",
+        "branchName is main",
+        "scopeContract explicitly states that runtime validation on merged main is now the goal",
+        "scopeContract explicitly rejects treating typecheck/implementation completion as live proof",
+        "integrationNotes preserve stop-at-sign and env-only secret handling"
       ],
-      "priority": 21,
+      "priority": 27,
       "passes": true,
-      "notes": "This is the scope anchor. The goal is one unblocked prefill run end-to-end, not a generic CAPTCHA-bypass framework."
+      "notes": "Scope anchor for the next Ralph pass. The implementation branch is already merged; this run is about proving runtime truth."
     },
     {
-      "id": "US-022",
-      "title": "Implement a typed 2captcha ImageToText client module",
-      "description": "As the CEAC worker, I need a small, tested 2captcha client so other modules can submit a CAPTCHA image and receive the decoded text without knowing HTTP details. The client must read its API key from env, support polling with a sane timeout, surface typed errors, and never log the API key.",
+      "id": "US-028",
+      "title": "Prove the merged smoke path reaches a post-CAPTCHA CEAC surface",
+      "description": "As an operator, I need the CEAC smoke path on merged main to exercise the new --solve-captcha flow and report whether it reaches a real post-CAPTCHA surface, so we know the bootstrap path works beyond static code checks.",
       "acceptanceCriteria": [
-        "New module at viza-be/submission-service/src/ceac/captcha-solver.ts exposes solveImageCaptcha(imageBuffer: Buffer): Promise<{ text: string; solveId: string; durationMs: number }>",
-        "Uses 2captcha v2 JSON API: POST https://api.2captcha.com/createTask with type 'ImageToTextTask' + base64 body, then poll https://api.2captcha.com/getTaskResult until status 'ready' or timeout",
-        "Reads API key from process.env.TWOCAPTCHA_API_KEY; throws a typed TwoCaptchaConfigError on missing key",
-        "Typed errors for: ERROR_* codes from 2captcha, network timeout, solve timeout (>120s), zero-balance",
-        "The API key never appears in thrown messages or log output",
-        "Exports reportBadCaptcha(solveId) for wrong-answer feedback (2captcha refunds these)",
-        "Typecheck passes in viza-be/submission-service"
+        "The smoke path on main is runnable with --solve-captcha from the merged repo state",
+        "The smoke result clearly reports whether it reached a post-CAPTCHA CEAC surface, remained blocked, or failed",
+        "If required, smoke diagnostics are tightened so the reached surface is explicit in structured output",
+        "Typecheck passes for any code/documentation changes made"
       ],
-      "priority": 22,
-      "passes": true,
-      "notes": "Keep the client narrow \u2014 one function to solve, one to report bad solves. No retry loop inside the client; callers decide retry policy."
+      "priority": 28,
+      "passes": false,
+      "notes": "This story is about truthful smoke-path verification and operator-facing runtime evidence, not expanding feature scope."
     },
     {
-      "id": "US-023",
-      "title": "Solve the CEAC start-page CAPTCHA during session bootstrap",
-      "description": "As the CEAC worker, I need session bootstrap to extract the start-page CAPTCHA image, solve it via the 2captcha client, enter the answer into the code input, and proceed past the start page \u2014 so that downstream orchestration can actually run instead of every session dying at assertNoGate.",
+      "id": "US-029",
+      "title": "Validate one real DS-160 prefill run on the merged worker path",
+      "description": "As an operator, I need one real main-branch DS-160 worker run to use the merged CEAC bootstrap/orchestrator path and no longer die at startup as ds160_blocked solely because the start-page image CAPTCHA exists.",
       "acceptanceCriteria": [
-        "New helper in viza-be/submission-service/src/ceac/ (e.g. start-page-captcha.ts) that: locates the CEAC CAPTCHA image, screenshots or downloads it as a PNG buffer, calls solveImageCaptcha, types the result into the CEAC code input, and returns a typed outcome",
-        "startCeacSession invokes the helper AFTER navigating to the start page and BEFORE assertPage('start') succeeds on the post-CAPTCHA surface \u2014 OR \u2014 the helper is triggered at the point in the flow where the CAPTCHA actually appears (document the chosen seam in the code)",
-        "On successful solve, the worker clicks START AN APPLICATION (or equivalent) and confirms the next page identity advanced past the start/CAPTCHA surface",
-        "On wrong-answer validation, the worker calls reportBadCaptcha and retries up to 2 times before failing the run",
+        "The live worker entrypoint on main is exercised on a real DS-160 prefill attempt",
+        "The run uses the merged CEAC bootstrap/orchestrator path rather than the legacy prototype path",
+        "If the run cannot complete, the failure mode is classified truthfully with concrete evidence (for example bootstrap runtime failure vs genuine anti-bot/manual gate)",
+        "Typecheck passes for any code changes made to make the worker path truthful/observable"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": "This is the first real worker-path proof story. It is acceptable to surface a truthful blocker if CEAC or runtime conditions prevent full success."
+    },
+    {
+      "id": "US-030",
+      "title": "Verify persisted CEAC result payload telemetry on merged main",
+      "description": "As an operator, I need persisted ceac_result_payload data from the merged runtime to record what actually happened \u2014 including CAPTCHA solve attempts and section fill/skip state \u2014 so runtime outcomes can be trusted after the run.",
+      "acceptanceCriteria": [
+        "A merged-main runtime attempt produces or inspects a ceac_result_payload example with CAPTCHA solve telemetry present when applicable",
+        "The payload clearly records filled vs skipped sections for the orchestrator",
+        "The payload classification aligns with the real runtime outcome (handoff_ready, runtime failure, or blocked/manual-required)",
+        "If payload gaps are found, code is updated so persisted results reflect the actual runtime truthfully",
         "Typecheck passes"
       ],
-      "priority": 23,
-      "passes": true,
-      "notes": "The CAPTCHA image selector is already listed in CEAC_GATE_MARKERS.captchaSelectors as img[id*=\"Captcha\"]. Use Playwright's page.locator(...).screenshot() to capture just the image region \u2014 do NOT send the whole page."
+      "priority": 30,
+      "passes": false,
+      "notes": "This is the persistence/truthfulness story for the merged runtime pass."
     },
     {
-      "id": "US-024",
-      "title": "Stop treating the start-page image CAPTCHA as a blocking gate",
-      "description": "As the CEAC worker, I need gate detection to distinguish the solvable start-page image CAPTCHA from real anti-bot gates (Cloudflare, reCAPTCHA, rate-limit interstitials) so runs aren't misclassified as ds160_blocked when they are actually solvable.",
+      "id": "US-031",
+      "title": "Document the merged-main CEAC runtime validation procedure and next blocker",
+      "description": "As a maintainer, I need the repo docs and progress log to state exactly how to rerun the merged-main CEAC validation flow and what blocker or success state remains afterward, so future runs do not repeat today\u2019s ambiguity.",
       "acceptanceCriteria": [
-        "Gate detection no longer throws GateDetectedError solely because img[id*=\"Captcha\"] is present on the CEAC start page",
-        "Gate detection still throws for iframe[src*=\"recaptcha\"], iframe[src*=\"hcaptcha\"], #challenge-form, .cf-browser-verification, and anti-bot text patterns (access denied, unusual activity, checking your browser, etc.)",
-        "The distinction is explicit in code (e.g. split CEAC_GATE_MARKERS into 'solvable' vs 'blocking'), not a silent loosening of detection",
-        "If the start-page CAPTCHA solve attempt fails after retries, the run fails as ds160_prefill_failed (genuine runtime failure), NOT ds160_blocked",
-        "True anti-bot gates (Cloudflare, reCAPTCHA, text markers) continue to mark items as ds160_blocked and skip retries",
-        "Typecheck passes"
+        "Documentation describes how to run the smoke validation and the real worker-path check from merged main",
+        "Documentation states the observed outcome from this validation pass and the next concrete blocker or next action",
+        "progress.txt is updated with the runtime-validation results and learnings",
+        "Typecheck passes for any code/doc-related changes made"
       ],
-      "priority": 24,
-      "passes": true,
-      "notes": "The scope contract rejects the assumption that the start-page CAPTCHA is a blocking gate. This story implements that distinction in the gate detector."
-    },
-    {
-      "id": "US-025",
-      "title": "Expand orchestrator PAGE_FILL_MAP to cover all DS-160 sections the answer set supports",
-      "description": "As the CEAC worker, I need the orchestrator to fill every DS-160 page for which we have answers \u2014 not just the 5 currently wired pages \u2014 so a prefill run produces a substantially complete DS-160 rather than a mostly-empty one stopped at Sign and Submit.",
-      "acceptanceCriteria": [
-        "PAGE_FILL_MAP in viza-be/submission-service/src/ceac/orchestrator.ts is extended to cover the remaining DS-160 sections the simplified intake + dynamic form supply answers for (at minimum: security_background, family_relatives, family_spouse, previous_us_travel, us_contact, work_education_previous, work_education_additional, travel_companions, travel_paying)",
-        "Any missing CeacPageId values needed for these pages are added to pages.ts with heading/URL detection rules",
-        "If a DS-160_MAPPING_GROUPS entry for a page does not exist, the story EITHER adds a minimal mapping group using the existing FormFieldMapping shape OR documents in code why the page is intentionally left as a pass-through (with a follow-up TODO tag)",
-        "Pages without any answers for the applicant are advanced past without error (existing behavior preserved)",
-        "A completed run's ceac_result_payload lists which sections were filled vs skipped",
-        "Typecheck passes"
-      ],
-      "priority": 25,
-      "passes": true,
-      "notes": "This is the 'orchestrator page coverage is narrow' gap flagged earlier. The simplified-form-complete run (US-015\u2013US-020) proved the answer set is ready; this wires the worker to actually use it."
-    },
-    {
-      "id": "US-026",
-      "title": "Persist CAPTCHA solve telemetry and prove end-to-end unblocked run",
-      "description": "As an operator, I need each run's ceac_result_payload to record CAPTCHA solve attempts, cost, and duration, and I need a verifiable way to prove the full pipeline now runs end-to-end against the live CEAC start page on a real account.",
-      "acceptanceCriteria": [
-        "Each CAPTCHA solve records: solveId, durationMs, attempt number (1/2/3), final outcome (solved / wrong_answer_retry / failed), into the structured result payload persisted on submission_queue.ceac_result_payload",
-        "The existing operator smoke script (viza-be/submission-service/src/ceac/smoke.ts) is extended with an optional --solve-captcha flag that exercises the new solver against the live start page and reports whether it reached a post-CAPTCHA surface",
-        "Documentation in viza-be/submission-service/docs/ceac-smoke-test.md is updated to explain the captcha-solve mode and how to interpret its outcomes",
-        "The CAPTCHA solver never logs the API key, the solved text in plaintext into long-lived storage, or the raw CAPTCHA image beyond the scope of a single run",
-        "Typecheck passes"
-      ],
-      "priority": 26,
-      "passes": true,
-      "notes": "This is the verification story \u2014 it proves the captcha + expanded page fill actually unblock real runs, not just schema-level completeness."
+      "priority": 31,
+      "passes": false,
+      "notes": "Close the loop with operator-usable documentation grounded in the actual validation run."
     }
   ]
 }
