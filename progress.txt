@@ -129,3 +129,92 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: ds160-form-mappings.ts, src/ceac/orchestrator.ts
 - Learnings: DS160_MAPPING_GROUPS index references break when new groups are inserted — use named imports
 ---
+
+## 2026-04-23 - US-028
+- Tightened CaptchaSmokeResult with postSolveUrl, postSolveHeading, and error fields
+- Structured output now explicitly identifies the reached post-CAPTCHA surface (page ID, URL, heading)
+- Summary string includes URL for operator logs
+- Updated ceac-smoke-test.md documentation with new output fields and surface identification guidance
+- Typecheck passes on merged main
+- Files changed: src/ceac/smoke.ts, docs/ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: Template literals with embedded double-quotes and nullish coalescing break TS parsing — use JSON.stringify() for safe quoting
+---
+
+## 2026-04-23 - US-029
+- Fixed critical bug: startCeacSession() was outside the try-catch in processDs160Item
+- Bootstrap failures (GateDetectedError, SessionBootstrapError) were previously uncaught — queue item would stay stuck at ds160_prefill_processing forever
+- Moved startCeacSession inside try-catch so bootstrap errors are classified truthfully (ds160_blocked for gates, retry/ds160_prefill_failed for runtime errors)
+- Session is now nullable; catch block uses tracker.snapshot() fallback when session is null
+- Finally block checks session existence before calling close()
+- Files changed: src/index.ts, prd.json, progress.txt
+- Learnings: Session bootstrap must be inside the error-classification try-catch — any code that can throw GateDetectedError needs to be caught where gate/retry classification happens
+---
+
+## 2026-04-23 - US-030
+- CAPTCHA solve telemetry (session.captchaSolve.telemetry) was missing from all ceac_result_payload persist paths
+- Added captchaSolve telemetry to all three persist paths: success (ds160_prefilled), orchestrator failure, and exception (gate/retry)
+- Exception path uses optional chaining (session?.captchaSolve) since session may be null on bootstrap failure
+- ceac_result_payload now records: result status + sectionCoverage (filled/skipped) + captchaSolve telemetry (solveId, durationMs, attempt, outcome)
+- Payload classification unchanged: handoff_ready, failed, or ds160_blocked — all align with runtime outcome
+- Files changed: src/index.ts, prd.json, progress.txt
+- Learnings: session.captchaSolve contains telemetry from bootstrap but must be explicitly spread into the persisted payload — it doesn't flow through result/orchestrator automatically
+---
+
+## 2026-04-23 - US-031
+- Added "Runtime validation procedure (merged main)" section to ceac-smoke-test.md
+- Documents Step 1 (smoke validation) and Step 2 (worker-path validation) with expected outcomes
+- Documents what to check in ceac_result_payload (status, sectionCoverage, captchaSolve, applicationId)
+- Documents the three code fixes from US-028/029/030 and their observed outcomes
+- States next blocker: live execution requires TWOCAPTCHA_API_KEY + real applicant data + queue entry
+- progress.txt updated with all runtime-validation learnings
+- Files changed: docs/ceac-smoke-test.md, prd.json, progress.txt
+- Learnings: Runtime validation PRDs should define "what to check" not just "what to run" — operators need structured criteria for pass/fail
+---
+
+## 2026-04-23 - UK-001
+- Created docs/uk-visa-scope.md pinning the canonical UK visa journey to Standard Visitor Visa
+- Canonical source: Access UK at apply-to-visit-or-stay-in-the-uk.homeoffice.gov.uk
+- visa_type key: UK_STANDARD_VISITOR
+- Documented 8 out-of-scope visa categories and 6 known source-flow ambiguities
+- v1 scope: schema extraction + dynamic form rendering only, no Playwright automation
+- Files changed: docs/uk-visa-scope.md (new), prd.json, progress.txt
+- Learnings: UK visa system (Access UK) is a single unified platform unlike US (CEAC) — simpler to scope but conditional branching by visit purpose adds complexity
+---
+
+## 2026-04-23 - UK-002
+- Created seed-uk-standard-visitor-form-fields.ts with 108 field definitions across 11 steps
+- Steps: Personal Details, Passport, Contact Details, Family, Accommodation, Travel History, Trip Details, Employment, Finances, Medical Treatment, Additional Info
+- Conditional logic preserved: partner fields gated on marital_status, employer fields on employment_status, medical on purpose_of_visit, sponsor on who_is_paying
+- Uses same FieldDef interface and upsert pattern as DS-160 seed script
+- visa_type key: UK_STANDARD_VISITOR, typecheck passes
+- Files changed: scripts/seed-uk-standard-visitor-form-fields.ts (new), prd.json, progress.txt
+- Learnings: UK form has fewer total fields than DS-160 (~108 vs ~3000+) but more complex multi-value conditional logic (showIf with || operators)
+---
+
+## 2026-04-23 - UK-003
+- Created drizzle/0010_uk_standard_visitor_package.sql migration with idempotent INSERT
+- Adds visa_packages row: country=united_kingdom, visa_type=UK_STANDARD_VISITOR
+- No frontend code changes needed — getVisaFormSteps(visaType) already queries dynamically
+- Flow: getUserVisaPackage() → getVisaFormSteps('UK_STANDARD_VISITOR') → DynamicStepForm renders
+- Both agent-backend and frontend typechecks pass
+- Files changed: drizzle/0010_uk_standard_visitor_package.sql (new), prd.json, progress.txt
+- Learnings: VIZA's dynamic form infrastructure is fully visa-type-agnostic — new visa types only need DB rows, no code changes
+---
+
+## 2026-04-23 - UK-004
+- Created docs/uk-visa-gap-report.md with coverage summary, 8 known gaps, and reviewer checklist
+- Gaps documented: business sub-journey, short-study sub-journey, dependant applications, country-specific TB test, IHS, biometrics, previous visa details, document uploads
+- Flagged 2 conditional logic risks: multi-value || showIf and cross-step conditionals need verification
+- 130 total fields covered across 11 steps; ~65 conditional
+- Files changed: docs/uk-visa-gap-report.md (new), prd.json, progress.txt
+- Learnings: evaluateShowIf() in dynamic-step-form.tsx may not support || operators — this is a critical verification item before production
+---
+
+## 2026-04-23 - UK-005
+- Updated docs/uk-visa-scope.md with schema derivation process, rerun instructions, and expansion path
+- Documented how to add new UK visa categories (copy seed, change VISA_TYPE, add migration, run)
+- Listed 3 immediate pre-production actions, 3 short-term (v1.1), and 3 medium-term (v2) next steps
+- Key blocker: verify evaluateShowIf() handles || operators and cross-step conditionals before production
+- Files changed: docs/uk-visa-scope.md, prd.json, progress.txt
+- Learnings: The seed-script-per-visa-type pattern scales well — new categories are isolated and idempotent. The main risk is conditional logic compatibility in the renderer.
+---
