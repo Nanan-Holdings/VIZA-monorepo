@@ -1,8 +1,9 @@
-# Vietnam Visa Extraction Scope — v1 Canonical Journey
+# Vietnam Visa Extraction Scope — v2 Canonical Journey
 
-**Version:** 1.0
+**Version:** 2.0 (live-portal aligned)
 **Status:** Active
 **Created:** 2026-04-24
+**Updated:** 2026-04-24 (v2 — live-portal recon complete)
 
 ---
 
@@ -36,19 +37,24 @@ application form. This is where all applicant data is collected.
 
 ### Application Structure
 
-The `evisa.gov.vn` form collects data across 10 logical sections. Each
-maps to a `step_number` in the seed.
+The live `evisa.gov.vn` form is a **single-page Vue SPA** that
+visually groups its fields into 8 numbered sections plus a declaration
+trailer. The seed models these as 9 `step_number` buckets for
+`DynamicStepForm` chunking — step numbers do not change how answers
+map back to the live form. Section headings below are verbatim from
+the live form as of 2026-04-24.
 
-1. Personal Details
-2. Passport & Identity Documents
-3. Contact Details
-4. Occupation
-5. Trip Information
-6. Accommodation in Vietnam
-7. Border Gates
-8. Purpose-Specific Details
-9. Trip Expenses & Emergency Contact
-10. Declaration
+1. Personal Information — 13 fields
+2. Requested Information — 3 fields
+3. Passport Information — 5 fields
+4. Contact Information — 7 fields
+5. Occupation — 6 fields
+6. Information About the Trip — 18 fields
+7. Accompanying Children Under 14 — 3 fields (repeatable row)
+8. Trip Expenses & Insurance — 3 fields
+9. Declaration — 2 fields
+
+**Total: 60 fields matching live `.ant-form-item` count 1:1.**
 
 ---
 
@@ -87,46 +93,36 @@ seed scripts.
 
 ## 4. Known Source-Flow Ambiguities
 
-The following ambiguities were identified during scope analysis and are
-documented rather than silently assumed:
+The v2 live-portal recon closed the ambiguities around province count,
+border-gate subset, and the previous-visits look-back window (see gap
+report §4). The remaining documented items:
 
 1. **Language surface.** `evisa.gov.vn` ships in English and
    Vietnamese. Field labels and option text differ between the two
-   surfaces. v1 captures the English surface only; Vietnamese labels
-   are a v1.1 concern.
+   surfaces. v2 captures the English surface only; Vietnamese labels
+   are a v2.1 concern.
 
-2. **Province / city input.** The real form lets users free-text the
-   province as well as pick from a dropdown. The seed's 11-entry
-   enum (`PROVINCES` constant) covers the most common destinations
-   plus an `other_province` escape hatch; power users who need a
-   specific less-common province should use the escape hatch and
-   record detail in the residential-address textarea.
+2. **Purpose-of-entry options.** The live form surfaces a 5-option
+   umbrella (Tourism, Visiting relatives, Working, Business, Other)
+   in that exact order. The Vietnam Immigration Department's category
+   guidance lists ~20 sub-purposes (DL, DN, DT, DH, LD, etc.) — but
+   `evisa.gov.vn` collapses them to this umbrella and derives the
+   correct category server-side. We mirror the form surface, not the
+   legal category list.
 
-3. **Border-gate enum subsetting.** As of 2024 Vietnam has ~42
-   designated e-Visa-eligible ports (13 airports + 16 land + 13 sea).
-   v1 captures the 11 most-used ports plus `other_port`. Power users
-   entering via less-common ports should use the escape hatch; v1.1
-   should close this gap.
-
-4. **Purpose-of-entry options.** The extension observed 5 purposes on
-   the live form (Tourist, Visiting relatives, Business, Working,
-   Other). The Vietnam Immigration Department's category guidance
-   lists ~20 sub-purposes (DL, DN, DT, DH, LD, etc.) — but
-   `evisa.gov.vn` collapses them to this 5-option umbrella and
-   derives the correct category server-side. We mirror the form
-   surface, not the legal category list.
-
-5. **Multi-entry fee differences.** Single-entry ($25) and
+3. **Multi-entry fee differences.** Single-entry ($25) and
    multiple-entry ($50) differ only in price and visa-validity
    length, not in the captured field set. Fee logic is a
    post-submission concern handled by the payment gateway — out of
    schema.
 
-6. **Previous Vietnam visits window.** The form asks about prior
-   visits but does not specify a look-back window. v1 defaults to
-   5 years (`visited_vietnam_before`). This matches most visa
-   portals' practice but should be verified on the next live-portal
-   QA pass.
+4. **Ward/commune and residential-address dependent selects.** The
+   live `intended_ward_commune` fetches options server-side on
+   province change, and `residential_address_in_vietnam` is a
+   dependent-select on live (but modelled as text in the seed to avoid
+   blocking on Vietnam's address hierarchy dataset). Both are driver-
+   layer handoffs — the submission automation must cascade province →
+   ward lookups at submit time. See gap report §3.1 and §3.2.
 
 ---
 
@@ -147,7 +143,7 @@ against the official source are flagged in the gap report.
 
 | Component | Approach |
 |-----------|----------|
-| `visa_form_fields` table | New rows with `visa_type = 'VN_E_VISA'` (81 rows) |
+| `visa_form_fields` table | New rows with `visa_type = 'VN_E_VISA'` (60 rows — live-portal aligned) |
 | `visa_packages` table | New row registered via Drizzle migration `0012_vn_e_visa_package.sql` (`country = 'vietnam'`) |
 | Seed script | `scripts/seed-vn-e-visa-form-fields.ts` (idempotent delete + re-insert) |
 | Frontend rendering | No code changes — `DynamicStepForm` is visa-type-agnostic |
@@ -158,35 +154,36 @@ against the official source are flagged in the gap report.
 
 ## 7. How the Vietnam Schema Was Derived
 
-The primary source for the Vietnam E-Visa field inventory is the
-in-repo **`vietnam-visa-helper-v1/`** browser extension (v1.2.1). This
-extension is a Chrome/Edge Manifest V3 plugin that was developed and
-tested against the live `evisa.gov.vn` form to auto-fill Chinese
-applicants' data. Its `background.js` contains a complete
-`fieldMappings` object — the field keys, labels, placeholders, and
-enumerated options it maps to the live DOM are the ground truth for
-what the form asks.
+**v2 (current):** the primary source is the Playwright live-portal
+recon captured on 2026-04-24 via
+`viza-be/submission-service/src/vietnam/form-recon-v3.ts` against
+`https://evisa.gov.vn/e-visa/foreigners`. The tool opens every
+`.ant-select` in turn, scrolls the virtual list to completion, and
+dumps the result to `vn-recon-out-v3/canonical.json`. Every seed field
+carries its live DOM `id` via `validation_rules.live_dom_id`, giving
+downstream submission automation a zero-mapping path from seed to
+live form.
+
+**v1 (superseded):** initial inventory was a reconstruction from
+`vietnam-visa-helper-v1/background.js` (in-repo browser extension,
+v1.2.1). The v2 recon corrected 21 over-specified fields, 3 type
+flips, 1 prompt correction, and the children-table schema — all
+documented in `docs/vietnam-visa-qa-report-2026-04-24.md` §5.
 
 The process:
 
 1. **Identified the canonical journey:** Vietnam E-Visa (general
    e-Visa) — the only Vietnam visa product issuable fully online.
-2. **Extracted fields from the extension:** every entry in
-   `background.js` `fieldMappings` was catalogued, deduplicated, and
-   grouped by logical section.
-3. **Mapped sections to steps:** 10 logical sections were derived
-   from the section comments and user-journey README.
-4. **Captured field metadata:** every field was mapped to a
-   `FieldDef` with field_name, label, field_type, required flag,
-   options (for select/radio), and conditional_logic (showIf).
-5. **Added conditional branches:** under-18, multiple-nationalities,
-   other-passports, purpose sub-journeys, relatives-in-Vietnam,
-   previous-visits, and company-expense-coverage gates were all
-   expressed via `conditional_logic.showIf`.
-6. **Documented gaps:** every field or branch that could not be
-   confirmed against the live form (because `evisa.gov.vn` is behind
-   an agree-and-start gate and cannot be driven by WebFetch) is
-   documented in `docs/vietnam-visa-gap-report.md`.
+2. **Extension-based v1 draft:** extracted `fieldMappings` from
+   `background.js`, catalogued fields, grouped by logical section.
+3. **Live-portal recon (v2):** drove stealth-patched Chromium through
+   the NOTE gate and onto the form, captured every `.ant-form-item`
+   + every `.ant-select` option list with `aria-posinset` dedup.
+4. **Diff and rewrite:** diffed the live canonical JSON against the
+   v1 seed, rewrote the seed with exact slugs/text, exact option
+   orders, and `live_dom_id` annotations.
+5. **Re-seeded:** `Done: 60 rows seeded (60 defined)`, typecheck
+   clean on both agent-backend and submission-service.
 
 ### How to Rerun or Update the Schema
 
@@ -208,46 +205,60 @@ The process:
 
 ## 8. Next Recommended Actions
 
-### Immediate (before production)
-1. **Live-portal QA pass** — walk the 81-field seed against the live
-   `evisa.gov.vn` form with a throwaway account, reconcile any
-   observed drift (labels, option text, new/removed fields).
-2. **Verify cross-step conditionals still work** — `purpose_of_entry`
-   (step 5) gates Step 8 sub-journey fields; ensure `DynamicStepForm`
-   seeds its values state from the full prefill (see playbook §5.3).
-3. **Verify the `||` operator** in `expense_coverage === company || expense_coverage === sponsor` (step 9 sponsor_details) renders as expected.
+### Closed by v2
+- [x] **Live-portal QA pass** — walked the seed against the live form
+      via `form-recon-v3.ts`; 9 of 9 scrapable select option lists
+      captured verbatim, 60 fields aligned 1:1, 21 over-specified
+      fields removed.
+- [x] **Cross-step conditional verified** — `has_violated_vietnam_laws`
+      (step 1) gates `violation_of_vietnam_laws_details` (step 9).
+- [x] **Province / border-gate enums exact** — province list matches
+      Vietnam's 2025 post-reorganization 34-entry canonical list;
+      border-gate list captures all 79 live ports.
 
-### Short-term (v1.1)
-4. **Expand border-gate enum** to the full ~42-port list published by the Ministry of Public Security.
-5. **Add Vietnamese-language labels** as a parallel surface for the Vietnamese-speaking applicant population.
-6. **Add a purpose-specific document checklist** (tourism: return ticket + hotel booking; business: invitation letter; working: labour contract) — lives in `application_documents`, not this schema.
+### Short-term (v2.1)
+1. **Drive a fill-and-submit pass** through the live portal with a
+   throwaway account to confirm the server accepts the slug values we
+   generated from live option text.
+2. **Resolve the ward/commune dependent-select cascade** — prototype
+   the province-change → commune-fetch in the submission driver.
+3. **Add Vietnamese-language labels** as a parallel surface for the
+   Vietnamese-speaking applicant population.
+4. **Add a purpose-specific document checklist** (tourism: return
+   ticket + hotel booking; business: invitation letter; working:
+   labour contract) — lives in `application_documents`, not this
+   schema.
 
-### Medium-term (v2)
-7. **Embassy Tourist Visa (DL)** as a separate package — different
+### Medium-term (v3)
+5. **Embassy Tourist Visa (DL)** as a separate package — different
    lodgement channel, sponsor letter required, longer processing.
-8. **DN1 / DN2 Business Visa** packages — invitation letter handling,
+6. **DN1 / DN2 Business Visa** packages — invitation letter handling,
    Vietnamese enterprise sponsor linkage, work-permit gating.
-9. **evisa.gov.vn Playwright automation** — if automated submission
-   is desired (follow the CEAC/DS-160 pattern; expect CAPTCHA handling and payment-page handoff-at-sign).
+7. **evisa.gov.vn Playwright submission automation** — the `live_dom_id`
+   annotations on every field already give us the selectors; the
+   remaining work is the fill loop, payment handoff, and result polling
+   (follow the CEAC/DS-160 pattern).
 
 ---
 
 ## 9. Source material checklist (honesty disclosure)
 
-- [ ] Live portal was driven end-to-end: **no** — `evisa.gov.vn` is
-      behind an agree-and-start gate and cannot be automated by
-      WebFetch/WebSearch inside this harness. The in-repo extension
-      was driven manually by a human tester (v1.2.1 test reports in
-      `vietnam-visa-helper-v1/test_report.md`) but we have not
-      replicated that walk for this extraction pass.
+- [x] Live portal was driven end-to-end: **yes (observational pass)** —
+      `form-recon-v3.ts` navigates the landing NOTE gate, reaches the
+      form page, captures every `.ant-form-item` and every `.ant-select`
+      option list. No fill/submit was performed (that is a v2.1 item).
 - [ ] Published application PDF consulted: **no** — Vietnam does not
       publish a static PDF of the e-Visa form; the only authoritative
       source is the live SPA.
-- [ ] Caseworker guidance consulted: partially — Vietnam Immigration
+- [x] Caseworker guidance consulted: partially — Vietnam Immigration
       Department public FAQ on `evisa.gov.vn` was read for eligibility,
       fees, and durations.
-- [ ] Legal basis consulted: yes — Resolution 127/NQ-CP (15 Aug 2023,
-      all-nationality eligibility and 90-day extension), Law on Entry,
+- [x] Legal basis consulted: yes — Resolution 127/NQ-CP (15 Aug 2023,
+      all-nationality eligibility and 90-day extension), Resolution
+      60/NQ-TW (June 2025, 63→34 province consolidation), Law on Entry,
       Exit, Transit and Residence of Foreigners (51/2019/QH14).
-- [ ] Live-portal QA pass completed: **no — must be yes before
-      production**. This is the top Immediate action above.
+- [x] Live-portal recon completed: **yes** — captured on 2026-04-24;
+      artifacts in `viza-be/submission-service/vn-recon-out-v3/`.
+- [ ] Live-portal fill-and-submit completed: **no — v2.1 priority**.
+      Required to confirm the server accepts the slug values we
+      generated from live option text.
