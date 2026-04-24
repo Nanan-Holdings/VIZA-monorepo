@@ -577,6 +577,21 @@ const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const UPLOAD_STORAGE_KEY = 'vhUploadDocuments';
 const ALLOWED_UPLOAD_KEYS = new Set(['passport_photo', 'passport_copy']);
 
+function getBundledUploadDocuments() {
+  return {
+    passport_photo: {
+      file_name: 'embedded-passport-photo.png',
+      mime_type: 'image/png',
+      url: chrome.runtime.getURL('embedded-passport-photo.png')
+    },
+    passport_copy: {
+      file_name: 'embedded-passport-copy.png',
+      mime_type: 'image/png',
+      url: chrome.runtime.getURL('embedded-passport-copy.png')
+    }
+  };
+}
+
 function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -694,10 +709,17 @@ function buildUserDataWithStoredUploads(documents) {
   const merged = cloneDeep(userData);
   const sanitizedDocuments = sanitizeUploadDocuments(documents);
   merged.documents = {
-    ...(merged.documents || {}),
+    ...getBundledUploadDocuments(),
     ...sanitizedDocuments
   };
   return merged;
+}
+
+function buildUploadDocumentsResponse(documents) {
+  return {
+    ...getBundledUploadDocuments(),
+    ...sanitizeUploadDocuments(documents)
+  };
 }
 
 function getStoredUploadDocuments(callback) {
@@ -720,7 +742,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'getUploadDocuments') {
     getStoredUploadDocuments((documents) => {
-      sendResponse({ documents });
+      sendResponse({ documents: buildUploadDocumentsResponse(documents) });
     });
     return true;
   }

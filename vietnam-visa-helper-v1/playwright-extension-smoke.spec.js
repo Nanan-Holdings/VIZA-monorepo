@@ -504,6 +504,82 @@ function buildMockPageHtml() {
 </html>`;
 }
 
+function buildControlledStandardInputsHtml() {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Controlled Standard Inputs</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; line-height: 1.4; }
+    .field { margin-bottom: 18px; max-width: 520px; }
+    .field label { display: block; margin-bottom: 6px; font-weight: 600; }
+    input[type="text"], input[type="email"] { width: 100%; padding: 8px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <h1>Controlled Standard Fields</h1>
+
+  <div class="field">
+    <label for="surname">Surname</label>
+    <input id="surname" type="text" placeholder="Surname" data-controlled="true" />
+  </div>
+  <div class="field">
+    <label for="given_name">Given name</label>
+    <input id="given_name" type="text" placeholder="Given name" data-controlled="true" />
+  </div>
+  <div class="field">
+    <label for="passport_number">Passport number</label>
+    <input id="passport_number" type="text" placeholder="Passport number" data-controlled="true" />
+  </div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="Email address" data-controlled="true" />
+  </div>
+
+  <script>
+    (() => {
+      const state = {
+        surname: '',
+        given_name: '',
+        passport_number: '',
+        email: ''
+      };
+
+      const controlledInputs = Array.from(document.querySelectorAll('[data-controlled="true"]'));
+
+      const render = () => {
+        controlledInputs.forEach(input => {
+          input.value = state[input.id] || '';
+        });
+      };
+
+      controlledInputs.forEach(input => {
+        input.addEventListener('input', event => {
+          const isRealInputEvent =
+            typeof InputEvent !== 'undefined' &&
+            event instanceof InputEvent &&
+            typeof event.inputType === 'string';
+
+          if (!isRealInputEvent) return;
+          state[input.id] = input.value;
+        });
+
+        input.addEventListener('blur', () => {
+          input.value = state[input.id] || '';
+        });
+      });
+
+      setTimeout(render, 350);
+      setTimeout(render, 900);
+      setTimeout(render, 1600);
+    })();
+  </script>
+</body>
+</html>`;
+}
+
 function buildMockDatePickerHtml() {
   return `
 <!DOCTYPE html>
@@ -1145,6 +1221,59 @@ test('content script autofill fills logged Ant Select problem cases', async ({ p
   }
 });
 
+test('content script smart standard input filler survives controlled rerenders', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.route('https://www.evisa.gov.vn/mock-controlled-standard-inputs', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildControlledStandardInputsHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-controlled-standard-inputs', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+    await page.waitForFunction(() => typeof window.fillStandardInputSmart === 'function', null, { timeout: 15000 });
+
+    await page.evaluate(async () => {
+      await window.fillStandardInputSmart(
+        document.querySelector('#surname'),
+        'Zhang',
+        { key: 'surname', label_cn: '姓氏' }
+      );
+      await window.fillStandardInputSmart(
+        document.querySelector('#given_name'),
+        'San',
+        { key: 'given_name', label_cn: '名字' }
+      );
+      await window.fillStandardInputSmart(
+        document.querySelector('#passport_number'),
+        'E12345678',
+        { key: 'passport_number', label_cn: '护照号码' }
+      );
+      await window.fillStandardInputSmart(
+        document.querySelector('#email'),
+        'zhangsan@example.com',
+        { key: 'email', label_cn: '电子邮件地址' }
+      );
+    });
+
+    await page.waitForTimeout(2200);
+
+    await expect(page.locator('#surname')).toHaveValue('Zhang', { timeout: 10000 });
+    await expect(page.locator('#given_name')).toHaveValue('San', { timeout: 10000 });
+    await expect(page.locator('#passport_number')).toHaveValue('E12345678', { timeout: 10000 });
+    await expect(page.locator('#email')).toHaveValue('zhangsan@example.com', { timeout: 10000 });
+  } catch (error) {
+    const snippet = consoleLogs.slice(-120).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
 test('content script autofill commits Ant DatePicker values', async ({ page }) => {
   const consoleLogs = [];
   page.on('console', msg => consoleLogs.push(msg.text()));
@@ -1382,6 +1511,125 @@ test('content script autofill assigns stored upload files to file inputs', async
     await expect(page.locator('#passport-status')).toHaveText(/passport-copy\.png/i, { timeout: 10000 });
   } catch (error) {
     const snippet = consoleLogs.slice(-120).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
+test('content script autofill uploads bundled template images when no local upload data exists', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  const portraitBuffer = fs.readFileSync(path.resolve(__dirname, 'embedded-passport-photo.png'));
+  const passportBuffer = fs.readFileSync(path.resolve(__dirname, 'embedded-passport-copy.png'));
+
+  await page.addInitScript(() => {
+    const mockResponse = {
+      userData: {
+        documents: {
+          passport_photo: {
+            file_name: 'embedded-passport-photo.png',
+            mime_type: 'image/png',
+            url: 'https://www.evisa.gov.vn/mock-assets/embedded-passport-photo.png'
+          },
+          passport_copy: {
+            file_name: 'embedded-passport-copy.png',
+            mime_type: 'image/png',
+            url: 'https://www.evisa.gov.vn/mock-assets/embedded-passport-copy.png'
+          }
+        }
+      },
+      fieldMappings: {
+        passport_photo: { label_cn: '照片（正面）' },
+        passport_copy: { label_cn: '护照复印件' }
+      }
+    };
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback(mockResponse);
+          } else if (message && message.action === 'getUploadDocuments') {
+            callback({ documents: mockResponse.userData.documents });
+          } else if (callback) {
+            callback({});
+          }
+        },
+        getURL(relativePath) {
+          return `chrome-extension://mock-extension-id/${relativePath}`;
+        },
+        openOptionsPage() {}
+      },
+      storage: {
+        local: {
+          get(_keys, callback) {
+            callback({});
+          }
+        }
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-upload-form-embedded', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockUploadHtml()
+    });
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-assets/embedded-passport-photo.png', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: portraitBuffer
+    });
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-assets/embedded-passport-copy.png', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: passportBuffer
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-upload-form-embedded', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+    await page.waitForFunction(() => typeof window.fillAllFields === 'function', null, { timeout: 15000 });
+
+    await page.evaluate(async () => {
+      await window.fillAllFields();
+    });
+
+    await page.waitForFunction(() => {
+      const portrait = document.querySelector('#basic_anhMat');
+      const passport = document.querySelector('#basic_anhHoChieu');
+      return portrait?.files?.length === 1 && passport?.files?.length === 1;
+    }, null, { timeout: 10000 });
+
+    const uploadState = await page.evaluate(() => {
+      const portrait = document.querySelector('#basic_anhMat');
+      const passport = document.querySelector('#basic_anhHoChieu');
+      return {
+        portraitName: portrait.files[0].name,
+        portraitSize: portrait.files[0].size,
+        passportName: passport.files[0].name,
+        passportSize: passport.files[0].size
+      };
+    });
+
+    expect(uploadState.portraitName).toBe('embedded-passport-photo.png');
+    expect(uploadState.passportName).toBe('embedded-passport-copy.png');
+    expect(uploadState.portraitSize).toBeGreaterThan(1000);
+    expect(uploadState.passportSize).toBeGreaterThan(1000);
+    expect(consoleLogs.some(line => line.includes('📎 已加载本地上传文件: 2 个'))).toBe(true);
+    await expect(page.locator('#portrait-status')).toHaveText(/embedded-passport-photo\.png/i, { timeout: 10000 });
+    await expect(page.locator('#passport-status')).toHaveText(/embedded-passport-copy\.png/i, { timeout: 10000 });
+  } catch (error) {
+    const snippet = consoleLogs.slice(-160).join('\n');
     throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
   }
 });

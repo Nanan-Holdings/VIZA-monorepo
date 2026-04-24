@@ -980,24 +980,22 @@ async function fillAllFields() {
     standardAttempted++;
     
     try {
+      let filled = false;
+
       if (input.tagName === 'SELECT') {
         fillSelectField(input, value, fieldInfo);
-        standardSuccess++;
-      } else if (input.type === 'date' || isDateField(input)) {
-        fillDateField(input, value, fieldInfo);
-        standardSuccess++;
-      } else if (input.type === 'number') {
-        input.value = value;
-        triggerEvents(input);
-        standardSuccess++;
-        console.log(`  ✅ [${idx}] 数字字段: ${fieldInfo.label_cn} = ${value}`);
+        filled = !!(await waitFor(() => isStandardInputValueApplied(input, value, fieldInfo), 600, 50));
       } else {
-        input.value = value;
-        triggerEvents(input);
-        standardSuccess++;
-        console.log(`  ✅ [${idx}] 文本字段: ${fieldInfo.label_cn} = ${value}`);
+        filled = await fillStandardInputSmart(input, value, fieldInfo);
       }
-      input.classList.add('vh-filled');
+
+      if (filled) {
+        standardSuccess++;
+        input.classList.add('vh-filled');
+        console.log(`  ✅ [${idx}] ${input.type === 'number' ? '数字' : '文本'}字段: ${fieldInfo.label_cn} = ${value}`);
+      } else {
+        console.warn(`  ⚠️ [${idx}] ${fieldInfo.label_cn}: 写入后未确认生效`);
+      }
     } catch (e) {
       console.warn(`  ❌ [${idx}] ${fieldInfo.label_cn}:`, e.message);
     }
@@ -1138,19 +1136,46 @@ async function fillAllFields() {
   await sleep(250);
   await fillPendingAntSelects('第 4.5 阶段：最终补填动态出现的 Ant Select');
 
+  // 第 5 阶段：最后回填普通输入框，兜住页面回刷导致的空白
+  await sleep(200);
+  await fillPendingStandardInputs('第 5 阶段：最终回填普通输入框');
+
   console.log('✨ 自动填表完成\n');
 }
 
-function isDateField(input) {
+const DATE_FIELD_KEYS = new Set([
+  'date_of_birth',
+  'passport_date_of_issue',
+  'passport_expiry',
+  'visa_valid_from',
+  'visa_valid_to',
+  'intended_date_of_entry',
+  'arrival_date',
+  'departure_date',
+  'generic_date'
+]);
+
+function isDateField(input, fieldInfo = null) {
   const placeholder = (input.placeholder || '').toLowerCase();
   const name = (input.name || '').toLowerCase();
   const id = (input.id || '').toLowerCase();
   const parent = (input.parentElement?.textContent || '').toLowerCase();
   
-  const dateKeywords = ['date', 'birth', 'issue', 'expir', 'entry', 'exit', 'valid', 'dd/mm', 'mm/dd'];
   const allText = `${placeholder} ${name} ${id} ${parent}`;
-  
-  return dateKeywords.some(keyword => allText.includes(keyword));
+
+  if (input.type === 'date') return true;
+  if (fieldInfo?.key && DATE_FIELD_KEYS.has(fieldInfo.key)) return true;
+  if (fieldInfo?.key && !DATE_FIELD_KEYS.has(fieldInfo.key)) return false;
+
+  const hasExplicitDateShape =
+    allText.includes('dd/mm') ||
+    allText.includes('mm/dd') ||
+    allText.includes('yyyy-mm-dd') ||
+    allText.includes('date');
+
+  if (!hasExplicitDateShape) return false;
+
+  return ['birth', 'expir', 'entry', 'exit', 'valid', 'issue'].some(keyword => allText.includes(keyword));
 }
 
 function fillSelectField(select, value, fieldInfo) {
@@ -1506,6 +1531,56 @@ async function fillPendingAntSelects(stageLabel = '补填 Ant Select') {
   };
 }
 
+async function fillPendingStandardInputs(stageLabel = '补填普通输入框') {
+  console.log(`📊 ${stageLabel}`);
+  const standardInputs = Array.from(document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="file"]), select, textarea'));
+  let standardSuccess = 0;
+  let standardAttempted = 0;
+
+  console.log(`  发现 ${standardInputs.length} 个普通字段`);
+
+  for (const [idx, input] of standardInputs.entries()) {
+    if (isAntManagedFieldElement(input)) continue;
+
+    const fieldInfo = identifyField(input);
+    if (!fieldInfo?.key) continue;
+
+    const value = getValueFromUserData(fieldInfo.key);
+    if (!value && value !== 0) continue;
+    if (isStandardInputValueApplied(input, value, fieldInfo)) continue;
+
+    standardAttempted++;
+
+    try {
+      let filled = false;
+
+      if (input.tagName === 'SELECT') {
+        fillSelectField(input, value, fieldInfo);
+        filled = !!(await waitFor(() => isStandardInputValueApplied(input, value, fieldInfo), 600, 50));
+      } else {
+        filled = await fillStandardInputSmart(input, value, fieldInfo);
+      }
+
+      if (filled) {
+        standardSuccess++;
+        input.classList.add('vh-filled');
+        console.log(`  ✅ [${idx}] 最终回填: ${fieldInfo.label_cn} = ${value}`);
+      } else {
+        console.warn(`  ⚠️ [${idx}] 最终回填失败: ${fieldInfo.label_cn}`);
+      }
+    } catch (error) {
+      console.warn(`  ❌ [${idx}] 最终回填异常 ${fieldInfo.label_cn}:`, error.message);
+    }
+  }
+
+  console.log(`✅ ${stageLabel}: ${standardSuccess}/${standardAttempted} 尝试\n`);
+  return {
+    total: standardInputs.length,
+    attempted: standardAttempted,
+    success: standardSuccess
+  };
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -1770,6 +1845,179 @@ function setNativeInputValue(input, value) {
   } else {
     input.value = value;
   }
+}
+
+function normalizeStandardComparableValue(value) {
+  return (value ?? '').toString().replace(/\s+/g, ' ').trim();
+}
+
+function normalizeStandardExpectedValue(value, input, fieldInfo = null) {
+  const rawValue = normalizeStandardComparableValue(value);
+  if (!rawValue) return '';
+
+  if (input?.type === 'date') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) return rawValue;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawValue)) {
+      const [dd, mm, yyyy] = rawValue.split('/');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  if (DATE_FIELD_KEYS.has(fieldInfo?.key)) {
+    return normalizeDateFormat(rawValue);
+  }
+
+  return rawValue;
+}
+
+function getStandardInputCurrentValue(input, fieldInfo = null) {
+  if (!input) return '';
+
+  const currentValue = normalizeStandardComparableValue(input.value);
+  if (!currentValue) return '';
+
+  if (input.type === 'date') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(currentValue)) return currentValue;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(currentValue)) {
+      const [dd, mm, yyyy] = currentValue.split('/');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  if (DATE_FIELD_KEYS.has(fieldInfo?.key) && /\d/.test(currentValue)) {
+    return normalizeDateFormat(currentValue);
+  }
+
+  return currentValue;
+}
+
+function isStandardInputValueApplied(input, value, fieldInfo = null) {
+  const currentValue = getStandardInputCurrentValue(input, fieldInfo);
+  const expectedValue = normalizeStandardExpectedValue(value, input, fieldInfo);
+  return !!expectedValue && currentValue === expectedValue;
+}
+
+function getKeyboardCodeForChar(char) {
+  if (char === ' ') return 'Space';
+  if (char === '/') return 'Slash';
+  if (char === '-') return 'Minus';
+  if (/^\d$/.test(char)) return `Digit${char}`;
+  if (/^[a-z]$/i.test(char)) return `Key${char.toUpperCase()}`;
+  return '';
+}
+
+function dispatchStandardInputEvent(input, value = '', inputType = 'insertText') {
+  try {
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: value,
+      inputType
+    }));
+  } catch (error) {
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+function dispatchStandardBeforeInputEvent(input, value = '', inputType = 'insertText') {
+  try {
+    input.dispatchEvent(new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      data: value,
+      inputType
+    }));
+  } catch (error) {
+    // Ignore unsupported beforeinput environments.
+  }
+}
+
+async function typeTextIntoStandardInput(input, text) {
+  input.focus?.();
+  input.select?.();
+  setNativeInputValue(input, '');
+  dispatchStandardInputEvent(input, '', 'deleteContentBackward');
+  await sleep(20);
+
+  for (const char of text) {
+    const currentValue = input.value || '';
+    const code = getKeyboardCodeForChar(char);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      bubbles: true,
+      key: char,
+      code
+    }));
+
+    dispatchStandardBeforeInputEvent(input, char, 'insertText');
+    setNativeInputValue(input, `${currentValue}${char}`);
+    dispatchStandardInputEvent(input, char, 'insertText');
+
+    input.dispatchEvent(new KeyboardEvent('keyup', {
+      bubbles: true,
+      key: char,
+      code
+    }));
+
+    await sleep(12);
+  }
+}
+
+async function commitStandardInputValue(input) {
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent('keydown', {
+    bubbles: true,
+    key: 'Tab',
+    code: 'Tab',
+    keyCode: 9,
+    which: 9
+  }));
+  input.dispatchEvent(new KeyboardEvent('keyup', {
+    bubbles: true,
+    key: 'Tab',
+    code: 'Tab',
+    keyCode: 9,
+    which: 9
+  }));
+  input.blur?.();
+  input.dispatchEvent(new Event('blur', { bubbles: true }));
+  await sleep(60);
+}
+
+async function fillStandardInputSmart(input, value, fieldInfo) {
+  const expectedValue = normalizeStandardExpectedValue(value, input, fieldInfo);
+  if (!expectedValue) return false;
+
+  if (isStandardInputValueApplied(input, expectedValue, fieldInfo)) {
+    return true;
+  }
+
+  if (input.readOnly) input.removeAttribute('readonly');
+  if (input.disabled) input.removeAttribute('disabled');
+
+  input.focus?.();
+  input.select?.();
+  await sleep(20);
+
+  if (input.type === 'date') {
+    setNativeInputValue(input, expectedValue);
+    dispatchStandardInputEvent(input, expectedValue, 'insertReplacementText');
+    await commitStandardInputValue(input);
+    return !!(await waitFor(() => isStandardInputValueApplied(input, expectedValue, fieldInfo), 800, 50));
+  }
+
+  setNativeInputValue(input, expectedValue);
+  dispatchStandardInputEvent(input, expectedValue, 'insertReplacementText');
+  await commitStandardInputValue(input);
+
+  let confirmed = await waitFor(() => isStandardInputValueApplied(input, expectedValue, fieldInfo), 900, 50);
+  if (confirmed) return true;
+
+  console.warn(`    ⚠️ 普通输入框未确认，尝试逐字符输入回退: ${fieldInfo?.label_cn || fieldInfo?.key}`);
+  await typeTextIntoStandardInput(input, expectedValue);
+  await commitStandardInputValue(input);
+
+  confirmed = await waitFor(() => isStandardInputValueApplied(input, expectedValue, fieldInfo), 1200, 50);
+  return !!confirmed;
 }
 
 function guessMimeTypeFromFileName(fileName = '') {
@@ -2205,6 +2453,112 @@ function getAntSelectAliases(rawValue, fieldInfo) {
   return Array.from(aliases).filter(Boolean);
 }
 
+function extractPreferredOptionSearchLabel(optionLabel, optionValue = '') {
+  const label = optionLabel?.toString().trim() || '';
+  const fallback = optionValue?.toString().trim() || '';
+
+  if (!label) return fallback;
+
+  const bracketMatch = label.match(/\(([^)]+)\)/);
+  if (bracketMatch?.[1]) {
+    return bracketMatch[1].trim();
+  }
+
+  if (/^[A-Za-z0-9 .,'/-]+$/.test(label)) {
+    return label;
+  }
+
+  const asciiPart = label.replace(/[^A-Za-z0-9 .,'/-]/g, ' ').replace(/\s+/g, ' ').trim();
+  return asciiPart || fallback || label;
+}
+
+function getPreferredAntSelectSearchTerm(rawValue, fieldInfo) {
+  const canonical = rawValue?.toString().trim() || '';
+  const normalized = normalizeSelectText(canonical);
+  const key = fieldInfo?.key;
+
+  if (!canonical) return '';
+
+  if (key === 'province_city' && normalized === 'hanoi') {
+    return 'ha noi';
+  }
+
+  if (key === 'nationality' && normalized === 'china') {
+    return 'Chin';
+  }
+
+  if ((key === 'intended_border_gate_of_entry' || key === 'intended_border_gate_of_exit') && normalized.includes('noi bai')) {
+    return 'Noi Bai';
+  }
+
+  if (fieldInfo?.options && typeof fieldInfo.options === 'object') {
+    for (const [optionValue, optionLabel] of Object.entries(fieldInfo.options)) {
+      if (normalizeSelectText(optionValue) === normalized) {
+        const preferredFromOptions = extractPreferredOptionSearchLabel(optionLabel, optionValue);
+        if (preferredFromOptions) return preferredFromOptions;
+      }
+    }
+  }
+
+  if (key === 'purpose') {
+    if (matchesAnySelectPattern(normalized, ['tourism', 'tourist', 'travel', 'holiday', 'vacation', '旅游'])) return 'Tourist';
+    if (matchesAnySelectPattern(normalized, ['visit', 'relative', 'family', 'thăm thân', '探亲'])) return 'Visiting relatives';
+    if (matchesAnySelectPattern(normalized, ['work', 'working', 'job', 'labor', 'lao dong', '工作'])) return 'Working';
+    if (matchesAnySelectPattern(normalized, ['business', '商务', 'trade', 'company'])) return 'Business';
+    if (matchesAnySelectPattern(normalized, ['other', 'others', 'medical', 'study', 'official', 'transit'])) return 'Other';
+  }
+
+  if (key === 'occupation') {
+    if (matchesAnySelectPattern(normalized, ['business owner', 'businessowner', 'entrepreneur', 'merchant', 'businessman', 'company owner', '企业主'])) return 'Businessman';
+    if (matchesAnySelectPattern(normalized, ['student', 'pupil', 'undergraduate', 'graduate', 'researcher', '学生'])) return 'Student';
+    if (matchesAnySelectPattern(normalized, ['official', 'government', 'civil servant', 'public servant', '公务'])) return 'Official';
+    if (matchesAnySelectPattern(normalized, ['retired', 'pensioner', '退休'])) return 'Retired';
+    if (matchesAnySelectPattern(normalized, ['unemployed', 'jobless', '失业'])) return 'Unemployed';
+    if (matchesAnySelectPattern(normalized, [
+      'engineer', 'developer', 'teacher', 'doctor', 'nurse', 'lawyer', 'accountant',
+      'manager', 'staff', 'employee', 'worker', 'consultant', 'designer', 'sales',
+      'software', 'professor', 'lecturer', 'architect', '工程师', '教师', '医生'
+    ])) return 'Employee';
+    if (matchesAnySelectPattern(normalized, ['other', 'others'])) return 'Others';
+  }
+
+  if (key === 'expense_coverage') {
+    if (matchesAnySelectPattern(normalized, [
+      'myself', 'self', 'personal', 'family', 'parent', 'spouse', 'relative',
+      'friend', '本人', '自己', '家人'
+    ])) return 'Personal';
+    if (matchesAnySelectPattern(normalized, [
+      'company', 'employer', 'organization', 'business', 'corporate', 'agency',
+      'sponsor', '单位', '公司', '雇主'
+    ])) return 'Company';
+  }
+
+  if (key === 'payment_method') {
+    if (matchesAnySelectPattern(normalized, ['cash', '现款', '现金'])) return 'Cash';
+    if (matchesAnySelectPattern(normalized, [
+      'credit card', 'creditcard', 'debit card', 'card', 'visa', 'mastercard', 'master card',
+      'amex', 'jcb', 'unionpay', '信用卡', '银行卡'
+    ])) return 'Credit card';
+    if (matchesAnySelectPattern(normalized, [
+      'traveller cheques', 'traveller cheque', 'traveller_cheques',
+      'traveler cheques', 'traveler cheque', 'travel cheque', 'travel cheques', '旅行支票'
+    ])) return 'Traveller cheques';
+  }
+
+  if (key === 'passport_type') {
+    if (matchesAnySelectPattern(normalized, ['ordinary', '普通'])) return 'Ordinary Passport';
+    if (matchesAnySelectPattern(normalized, ['official', '公务'])) return 'Official Passport';
+    if (matchesAnySelectPattern(normalized, ['diplomatic', '外交'])) return 'Diplomatic Passport';
+  }
+
+  if (key === 'bought_insurance') {
+    if (matchesAnySelectPattern(normalized, ['yes', '是'])) return 'Yes';
+    if (matchesAnySelectPattern(normalized, ['no', '否'])) return 'No';
+  }
+
+  return canonical;
+}
+
 function extractSelectSearchTerms(value) {
   const raw = value?.toString().trim();
   if (!raw) return [];
@@ -2593,10 +2947,10 @@ async function fillAntSelectSmart(selectContainer, value, fieldInfo) {
     }
     
     const aliases = getAntSelectAliases(rawValue, fieldInfo);
+    const preferredSearchTerm = getPreferredAntSelectSearchTerm(rawValue, fieldInfo);
     const beforeText = getAntSelectDisplayText(selectContainer);
     const initialOptionWaitMs = fieldInfo?.key === 'passport_type' ? 2200 : 900;
     const searchOptionWaitMs = fieldInfo?.key === 'passport_type' ? 3200 : 1600;
-    const searchPauseMs = fieldInfo?.key === 'passport_type' ? 650 : 450;
     if (aliases.some(alias => isAntSelectValueApplied(selectContainer, alias))) {
       console.log(`    ℹ️ 当前值已匹配，无需重复选择`);
       return true;
@@ -2620,22 +2974,31 @@ async function fillAntSelectSmart(selectContainer, value, fieldInfo) {
       console.warn(`    ⚠️ 菜单未打开`);
       return false;
     }
+
+    if (fieldInfo?.key === 'destiny_residential_address') {
+      const freeTextSubmitted = await tryAntSelectFreeTextFallback(
+        selectContainer,
+        input,
+        rawValue,
+        beforeText,
+        { attemptOpen: false }
+      );
+      if (freeTextSubmitted) {
+        console.log(`    ✓ 地址字段已通过自由输入快速回退确认`);
+        return true;
+      }
+    }
     
     let optionsState = await waitForAntSelectOptions(selectContainer, input, initialOptionWaitMs);
     let dropdowns = optionsState?.dropdowns || getVisibleAntSelectDropdowns(selectContainer, input);
     let bestMatch = findBestAntSelectMatch(dropdowns, aliases);
     
-    if (!bestMatch && input) {
-      const searchTerms = getAntSelectSearchTerms(rawValue, fieldInfo, aliases);
-      for (const term of searchTerms) {
-        console.log(`    🔍 首轮未命中，尝试搜索 "${term}"`);
-        await searchAntSelectOptions(input, term);
-        optionsState = await waitForAntSelectOptions(selectContainer, input, searchOptionWaitMs);
-        dropdowns = optionsState?.dropdowns || getVisibleAntSelectDropdowns(selectContainer, input);
-        bestMatch = findBestAntSelectMatch(dropdowns, aliases);
-        if (bestMatch) break;
-        await sleep(searchPauseMs);
-      }
+    if (!bestMatch && input && preferredSearchTerm) {
+      console.log(`    🔍 使用预设选项搜索 "${preferredSearchTerm}"`);
+      await searchAntSelectOptions(input, preferredSearchTerm);
+      optionsState = await waitForAntSelectOptions(selectContainer, input, searchOptionWaitMs);
+      dropdowns = optionsState?.dropdowns || getVisibleAntSelectDropdowns(selectContainer, input);
+      bestMatch = findBestAntSelectMatch(dropdowns, aliases);
     }
 
     if (!bestMatch && fieldInfo?.key === 'passport_type') {
@@ -2677,11 +3040,7 @@ async function fillAntSelectSmart(selectContainer, value, fieldInfo) {
     
     if (!confirmed) {
       console.warn(`    ⚠️ 点击后未确认，尝试键盘提交回退`);
-      const retryTerms = new Set([
-        bestMatch.text,
-        rawValue,
-        ...aliases.flatMap(alias => getSelectSearchFallbacks(alias))
-      ]);
+      const retryTerms = new Set([preferredSearchTerm || bestMatch.text || rawValue]);
       
       for (const retryTerm of retryTerms) {
         const reopened = await openAntSelectDropdown(selectContainer, input);
