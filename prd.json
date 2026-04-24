@@ -148,6 +148,76 @@
       "priority": 10,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "VN-001",
+      "title": "Pin the Vietnam E-Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Vietnam E-Visa (electronic visa issued via evisa.gov.vn, up to 90 days, single or multiple entry), so Ralph builds against a concrete, reviewable target instead of a vague 'Vietnam visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains VN-001 through VN-005 for this run",
+        "The implementation names evisa.gov.vn as the canonical Vietnam E-Visa source",
+        "The scope contract explicitly prioritizes official-source parity over manual approximation",
+        "Out-of-scope Vietnam visa categories (DL tourist, DN1/DN2 business, DT investor, DH student, LD work, NG diplomatic, deprecated visa-on-arrival) are documented rather than silently assumed"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Primary source is the in-repo vietnam-visa-helper-v1 extension (v1.2.1), driven manually against the live form."
+    },
+    {
+      "id": "VN-002",
+      "title": "Model the Vietnam E-Visa field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the Vietnam E-Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-vn-e-visa-form-fields.ts exists with visa_type = VN_E_VISA",
+        "The schema captures all sections (personal, passport, contact, occupation, trip, accommodation, border gates, purpose-specific, expenses/emergency, declaration)",
+        "Conditional fields (multiple nationalities, other passports, under-18 applicant, purpose sub-journeys, relatives in Vietnam, previous Vietnam visits, company expense coverage) are represented explicitly via conditional_logic.showIf",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Follow UK Standard Visitor + Schengen seed patterns. No hardcoded React steps — pure dynamic."
+    },
+    {
+      "id": "VN-003",
+      "title": "Wire the Vietnam E-Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the Vietnam E-Visa form to render through the existing dynamic form infrastructure, so Vietnam applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the VN_E_VISA package in visa_packages (country = vietnam)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 pattern exactly — DB rows only, no renderer changes."
+    },
+    {
+      "id": "VN-004",
+      "title": "Publish the Vietnam E-Visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Vietnam E-Visa fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/vietnam-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA, enum subsetting, document uploads, Vietnamese-language surface), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, in, cross-step) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect."
+    },
+    {
+      "id": "VN-005",
+      "title": "Document the Vietnam E-Visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the Vietnam E-Visa schema was derived, how to rerun or update it, and what the next Vietnam-variant expansion should be (DL tourist via embassy, DN1/DN2 business with sponsor).",
+      "acceptanceCriteria": [
+        "docs/vietnam-visa-scope.md documents the evisa.gov.vn source, canonical journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal QA, border-gate enum expansion, embassy Tourist Visa as separate package) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
     }
   ]
 }
