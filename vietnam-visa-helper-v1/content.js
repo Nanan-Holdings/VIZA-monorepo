@@ -16,6 +16,7 @@ let hintRecoveryObserver = null;
 let hintRecoveryIntervalId = null;
 let relabelRetryScheduled = false;
 let lastUnidentifiedFieldsSignature = '';
+let lastFieldDetectionSummary = '';
 let uploadDocumentsCache = null;
 let uploadGuidanceShown = false;
 const UPLOAD_STORAGE_KEY = 'vhUploadDocuments';
@@ -322,10 +323,12 @@ function findAndHighlightApplyButton() {
 function detectAndLabelFields() {
   // Include hidden inputs that might be form fields
   const inputs = document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select:not([style*="display:none"]), textarea');
-  console.log(`🔍 发现 ${inputs.length} 个表单元素`);
   
   if (inputs.length === 0) {
-    console.warn('⚠️ 页面上没有发现表单元素');
+    if (lastFieldDetectionSummary !== '0') {
+      console.warn('⚠️ 页面上没有发现表单元素');
+      lastFieldDetectionSummary = '0';
+    }
     return;
   }
   
@@ -390,7 +393,12 @@ function detectAndLabelFields() {
     }
   });
   
-  console.log(`✅ 已识别并标记 ${fieldCount} 个新字段 (已有 ${labeledCount} 个)`);
+  const fieldDetectionSummary = `${inputs.length}|${fieldCount}|${labeledCount}`;
+  if (fieldCount > 0 || fieldDetectionSummary !== lastFieldDetectionSummary) {
+    console.log(`🔍 发现 ${inputs.length} 个表单元素`);
+    console.log(`✅ 已识别并标记 ${fieldCount} 个新字段 (已有 ${labeledCount} 个)`);
+    lastFieldDetectionSummary = fieldDetectionSummary;
+  }
   
   // Log unidentified fields for debugging
   const unidentifiedSignature = unidentifiedFields
@@ -423,23 +431,85 @@ function detectAndLabelFields() {
   }
 }
 
-function identifyField(input) {
-  const label = input.placeholder?.toLowerCase() || '';
-  const name = (input.name || '').toLowerCase();
-  const id = (input.id || '').toLowerCase();
-  const normalizedId = id.replace(/[^a-z0-9]/g, '');
-  const parentText = (input.parentElement?.textContent || '').toLowerCase();
-  const prevLabel = (input.previousElementSibling?.textContent || '').toLowerCase();
-  
-  // Get all parent labels for better context
-  let allParentText = '';
+function normalizeFieldContextText(text) {
+  return (text || '')
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getAssociatedFieldLabelText(input) {
+  const texts = [];
+
+  if (input.id) {
+    try {
+      const linkedLabel = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+      if (linkedLabel?.textContent) {
+        texts.push(linkedLabel.textContent);
+      }
+    } catch (error) {
+      const linkedLabel = document.querySelector(`label[for="${input.id.replace(/"/g, '\\"')}"]`);
+      if (linkedLabel?.textContent) {
+        texts.push(linkedLabel.textContent);
+      }
+    }
+  }
+
+  const wrappedLabel = input.closest('label');
+  if (wrappedLabel?.textContent) {
+    texts.push(wrappedLabel.textContent);
+  }
+
+  const formItemLabel = input.closest('.ant-form-item')?.querySelector('.ant-form-item-label label');
+  if (formItemLabel?.textContent) {
+    texts.push(formItemLabel.textContent);
+  }
+
+  const localContainer = input.closest('.field, .form-group, .form-item, .form-field, [data-field], td, th, tr, li');
+  const localLabel = localContainer?.querySelector('label, .field-label, .form-label, .label');
+  if (localLabel?.textContent) {
+    texts.push(localLabel.textContent);
+  }
+
+  return normalizeFieldContextText(Array.from(new Set(texts.filter(Boolean))).join(' '));
+}
+
+function getLocalFieldContextText(input) {
+  const texts = [];
   let current = input.parentElement;
-  for (let i = 0; i < 5 && current; i++) {
-    allParentText += (current.textContent || '').toLowerCase() + ' ';
+
+  for (let depth = 0; depth < 5 && current; depth++) {
+    if (current === document.body || current === document.documentElement) break;
+
+    const text = normalizeFieldContextText(current.textContent);
+    const controlCount = current.querySelectorAll?.('input, select, textarea').length || 0;
+    const isNamedContainer = current.matches?.(
+      '.ant-form-item, .field, .form-group, .form-item, .form-field, [data-field], td, th, tr, li, section, article'
+    );
+
+    if (text && text.length <= 180 && (isNamedContainer || controlCount <= 2)) {
+      texts.push(text);
+    }
+
+    if (isNamedContainer) break;
     current = current.parentElement;
   }
-  
-  const allText = `${label} ${name} ${id} ${parentText} ${prevLabel} ${allParentText}`;
+
+  return normalizeFieldContextText(Array.from(new Set(texts.filter(Boolean))).join(' '));
+}
+
+function identifyField(input) {
+  const label = normalizeFieldContextText(input.placeholder);
+  const name = normalizeFieldContextText(input.name);
+  const id = normalizeFieldContextText(input.id);
+  const normalizedId = id.replace(/[^a-z0-9]/g, '');
+  const ariaLabel = normalizeFieldContextText(input.getAttribute?.('aria-label'));
+  const prevLabel = normalizeFieldContextText(input.previousElementSibling?.textContent);
+  const linkedLabel = getAssociatedFieldLabelText(input);
+  const localContext = getLocalFieldContextText(input);
+  const directText = `${label} ${name} ${id} ${ariaLabel} ${prevLabel} ${linkedLabel}`.trim();
+  const allText = `${directText} ${localContext}`.trim();
   
   // ===== VIETNAMESE ID FIELD RECOGNITION =====
   // Handle Vietnamese form field IDs (from Ant Form naming pattern)
@@ -523,7 +593,7 @@ function identifyField(input) {
   
   // ===== DATE FIELD RECOGNITION BY CONTEXT =====
   if (label === 'dd/mm/yyyy' || label.includes('dd/mm')) {
-    const context = allParentText.substring(0, 200);
+    const context = allText.substring(0, 200);
     if (context.includes('birth') || id.includes('birth') || id.includes('dob')) return { key: 'date_of_birth', ...fieldMappings.date_of_birth };
     if (context.includes('issue') || id.includes('issue')) return { key: 'passport_date_of_issue', ...fieldMappings.passport_date_of_issue };
     if (context.includes('expir') || id.includes('expir')) return { key: 'passport_expiry', ...fieldMappings.passport_expiry };
@@ -533,43 +603,43 @@ function identifyField(input) {
   }
   
   // ===== ENGLISH FIELD RECOGNITION =====
-  if (allText.includes('surname') || allText.includes('last name') || allText.includes('family name')) {
+  if (directText.includes('surname') || directText.includes('last name') || directText.includes('family name') || allText.includes('surname')) {
     return { key: 'surname', ...fieldMappings.surname };
   }
   // Given name / First name
-  if (allText.includes('given') || allText.includes('first name') || (allText.includes('middle') && allText.includes('name'))) {
+  if (directText.includes('given') || directText.includes('first name') || (directText.includes('middle') && directText.includes('name')) || allText.includes('given')) {
     return { key: 'given_name', ...fieldMappings.given_name };
   }
   // Full name
-  if (allText.includes('full name')) {
+  if (directText.includes('full name') || linkedLabel.includes('full name')) {
     return { key: 'full_name', ...fieldMappings.full_name };
   }
   // Date of birth
-  if (allText.includes('date of birth') || allText.includes('birth date') || allText.includes('dob')) {
+  if (directText.includes('date of birth') || directText.includes('birth date') || directText.includes('dob') || linkedLabel.includes('date of birth')) {
     return { key: 'date_of_birth', ...fieldMappings.date_of_birth };
   }
   // Sex / Gender
-  if (allText.includes('sex') || allText.includes('gender')) {
+  if (directText.includes('sex') || directText.includes('gender') || linkedLabel.includes('gender')) {
     return { key: 'gender', ...fieldMappings.gender };
   }
   // Nationality
-  if (allText.includes('nationality')) {
+  if (directText.includes('nationality') || linkedLabel.includes('nationality')) {
     return { key: 'nationality', ...fieldMappings.nationality };
   }
   // Passport number
-  if (allText.includes('passport') && allText.includes('number')) {
+  if ((directText.includes('passport') && directText.includes('number')) || linkedLabel.includes('passport number')) {
     return { key: 'passport_number', ...fieldMappings.passport_number };
   }
   // Passport expiry
-  if ((allText.includes('passport') && allText.includes('expir')) || allText.includes('passport validity')) {
+  if ((directText.includes('passport') && directText.includes('expir')) || directText.includes('passport validity') || linkedLabel.includes('passport expiry')) {
     return { key: 'passport_expiry', ...fieldMappings.passport_expiry };
   }
   // Email
-  if (allText.includes('email')) {
+  if (directText.includes('email') || linkedLabel.includes('email')) {
     return { key: 'email', ...fieldMappings.email };
   }
   // Phone
-  if (allText.includes('phone') || allText.includes('mobile')) {
+  if (directText.includes('phone') || directText.includes('mobile') || linkedLabel.includes('phone')) {
     return { key: 'phone', ...fieldMappings.phone };
   }
   // Purpose
@@ -3746,10 +3816,13 @@ function injectFloatingPanel() {
   
   const panel = document.createElement('div');
   panel.id = 'visa-helper-panel';
+  panel.setAttribute('role', 'complementary');
+  panel.setAttribute('aria-label', 'Vietnam Visa Helper');
+  panel.tabIndex = 0;
   panel.innerHTML = `
     <div class="vh-panel-header">
-      <span>🇻🇳 v1.2.1</span>
-      <button id="vh-minimize">−</button>
+      <span id="vh-panel-title">🇻🇳 v1.2.1</span>
+      <button id="vh-minimize" type="button" aria-label="最小化助手面板" title="最小化助手面板">−</button>
     </div>
     <div class="vh-panel-body">
       <button id="vh-toggle-autofill" class="vh-btn">
@@ -3767,9 +3840,49 @@ function injectFloatingPanel() {
   document.getElementById('vh-open-upload-panel')?.addEventListener('click', openUploadPanel);
   document.getElementById('vh-show-data')?.addEventListener('click', showUserData);
   document.getElementById('vh-help')?.addEventListener('click', showHelp);
-  document.getElementById('vh-minimize')?.addEventListener('click', () => {
-    panel.classList.toggle('minimized');
+  const minimizeButton = document.getElementById('vh-minimize');
+
+  const syncPanelMinimizedState = () => {
+    const minimized = panel.classList.contains('minimized');
+    const title = document.getElementById('vh-panel-title');
+    if (title) {
+      title.textContent = minimized ? 'VN\nV1' : '🇻🇳 v1.2.1';
+      title.title = minimized ? '点击展开越南签证助手' : 'Vietnam Visa Helper v1.2.1';
+    }
+    if (minimizeButton) {
+      minimizeButton.textContent = minimized ? '+' : '−';
+      minimizeButton.setAttribute('aria-label', minimized ? '展开助手面板' : '最小化助手面板');
+      minimizeButton.title = minimized ? '展开助手面板' : '最小化助手面板';
+    }
+    panel.setAttribute('aria-expanded', minimized ? 'false' : 'true');
+  };
+
+  const setPanelMinimized = (nextState) => {
+    panel.classList.toggle('minimized', nextState);
+    syncPanelMinimizedState();
+  };
+
+  minimizeButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setPanelMinimized(!panel.classList.contains('minimized'));
   });
+
+  panel.addEventListener('click', (event) => {
+    if (!panel.classList.contains('minimized')) return;
+    const clickedInsideBody = !!event.target.closest('.vh-panel-body');
+    if (clickedInsideBody) return;
+    setPanelMinimized(false);
+  });
+
+  panel.addEventListener('keydown', (event) => {
+    if (!panel.classList.contains('minimized')) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      setPanelMinimized(false);
+    }
+  });
+
+  syncPanelMinimizedState();
 }
 
 function showUserData() {
