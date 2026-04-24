@@ -78,6 +78,76 @@
       "priority": 5,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "SCH-001",
+      "title": "Pin the EU Schengen Type C short-stay scope and canonical source form",
+      "description": "As a maintainer, I need the repo scoped to the harmonized EU Schengen Type C (short-stay, up to 90 days in any 180-day period) application form (Annex I of EU Regulation 810/2009), so Ralph builds against a concrete, reviewable multilateral target instead of one member-state's portal.",
+      "acceptanceCriteria": [
+        "prd.json contains SCH-001 through SCH-005 for this run",
+        "The implementation names the Schengen Annex I harmonized form as the canonical source",
+        "Country-specific embassy variations (fees, biometrics centres, appointment systems) are explicitly out of the schema and documented separately",
+        "Out-of-scope Schengen variants (Type D long-stay, FTD/FRTD transit) are documented rather than silently assumed"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Schengen is a multilateral visa — scope to the harmonized Annex I form, not any individual member state's portal."
+    },
+    {
+      "id": "SCH-002",
+      "title": "Model the Schengen Annex I field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the Schengen Type C journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex I fields 1–37, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-eu-schengen-c-short-stay-form-fields.ts exists with visa_type = EU_SCHENGEN_C_SHORT_STAY",
+        "The schema captures all Annex I sections (personal, travel document, EU family, contact, occupation, trip, accommodation, travel history, financial support, declaration)",
+        "Conditional/dependent questions (minors, EU-family member, sub-purpose fields, sponsor means) are represented explicitly via conditional_logic.showIf",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Prefer reuse of UK Standard Visitor patterns — umbrella purpose with sub-journey fields, repeatable groups for prior visas."
+    },
+    {
+      "id": "SCH-003",
+      "title": "Wire the Schengen package into VIZA's dynamic form path",
+      "description": "As a user, I need the Schengen Type C form to render through the existing dynamic form infrastructure, so Schengen applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the EU_SCHENGEN_C_SHORT_STAY package in visa_packages (country = european_union)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Follow UK-003 pattern exactly — DB rows only, no renderer changes."
+    },
+    {
+      "id": "SCH-004",
+      "title": "Publish the Schengen gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Annex I fields, branches, and country-specific variations that are not fully captured surfaced explicitly, so we don't silently ship an incomplete Schengen form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/schengen-visa-gap-report.md exists with coverage summary, known limitations (country variations, biometrics, fees), and reviewer checklist",
+        "Annex I fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic risks (nationality-gated fingerprint waivers, multi-value gates) are called out",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect."
+    },
+    {
+      "id": "SCH-005",
+      "title": "Document the Schengen visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the Schengen schema was derived, how to rerun or update it, and what the next Schengen-variant expansion should be (Type D long-stay, FTD).",
+      "acceptanceCriteria": [
+        "docs/schengen-visa-scope.md documents the Annex I source, canonical journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal QA, Type D expansion, country-specific UX shims) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
     }
   ]
 }
