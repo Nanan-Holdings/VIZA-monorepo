@@ -52,7 +52,7 @@ export type CeacPageId =
  * ones (e.g. "Personal Information 2" before "Personal Information").
  */
 const PAGE_HEADING_PATTERNS: ReadonlyArray<[CeacPageId, RegExp]> = [
-  ["start", /start an application|welcome/i],
+  ["start", /start an application|welcome|apply for a nonimmigrant visa/i],
   ["security_notice", /privacy (act|notice)|security notice/i],
   ["retrieve_application", /retrieve (an )?application/i],
   ["personal_information_2", /personal information\s*2/i],
