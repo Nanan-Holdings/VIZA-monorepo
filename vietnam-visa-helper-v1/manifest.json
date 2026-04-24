@@ -21,6 +21,15 @@
   "background": {
     "service_worker": "background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "embedded-passport-photo.png",
+        "embedded-passport-copy.png"
+      ],
+      "matches": ["*://*.evisa.gov.vn/*"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Vietnam Visa Helper v1.2"
