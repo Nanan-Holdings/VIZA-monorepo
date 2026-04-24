@@ -450,3 +450,26 @@ acknowledgment).
   5. Third-country-on-the-same-pipeline validates the architecture: zero frontend changes, one seed script, one migration, two docs, five PRD entries. The marginal cost of country N+1 is now dominated by field inventory + QA, not code.
 ---
 
+
+## 2026-04-24 - VN-v2.0 (live-portal alignment pass)
+- Drove stealth-patched Playwright through evisa.gov.vn's landing NOTE gate, captured every .ant-form-item and every .ant-select option list against the live form
+- Built form-recon-v3.ts with aria-controls-based dropdown selection (fixes v1 bug where every select returned sex options), aria-posinset virtual-list dedup (fixes v1 duplicate over-counting), evaluate-based anchor navigation (bypasses Vue router dropped nav)
+- Rewrote seed from 81 → 60 fields across 9 steps (was 10); every field now carries live_dom_id in validation_rules for zero-mapping submission automation
+- 9 of 9 scrapable select option lists captured verbatim from live form: sex (2), passport_type (4), occupation (7), purpose_of_entry (5 in live order), province (34 post-2025), border_gate (79), insurance (2), expense_coverage (2 — NOT 3, no sponsor)
+- Dropped 21 over-specified fields: full_name, country_of_birth, has_other_passports block, is_applicant_under_18 + accompanying_adult block, intended_date_of_exit, home_address split, payment_method, sponsor block, purpose-sub-journey block (inviting_company, work_permit, visiting_relatives purpose), 2 extra declaration consents
+- Corrected 3 type flips (residential_address_in_vietnam, intended_ward_commune, bought_travel_insurance) and 1 prompt (visited_vietnam_before → visited_vietnam_in_last_year)
+- Fixed children table schema: 3-column repeatable (child_full_name, child_sex, child_date_of_birth); portrait-photo column is a document upload per playbook §5.6
+- Vietnam-specific legal context captured: Resolution 60/NQ-TW (June 2025) consolidated 63 → 34 provinces; reflected in live form and seed
+- Re-seeded clean: "Done: 60 rows seeded (60 defined)"; typecheck passes on agent-backend and submission-service
+- Updated docs/vietnam-visa-qa-report-2026-04-24.md to report 100% parity (was 75%); updated docs/vietnam-visa-gap-report.md with closed-in-v2 section and corrected coverage table; updated docs/vietnam-visa-scope.md to reflect v2 state (9 steps/60 fields, live-portal recon done)
+- Kept the form-recon-v3.ts tool as the canonical diff driver — re-run it to regenerate canonical.json and diff against the current seed for future drift detection
+- Files changed: viza-be/agent-backend/scripts/seed-vn-e-visa-form-fields.ts (rewrite), viza-be/submission-service/src/vietnam/form-recon.ts + form-recon-v3.ts (new), .gitignore (recon output ignore), docs/vietnam-visa-qa-report-2026-04-24.md (new → 100% verdict), docs/vietnam-visa-gap-report.md (v2 rewrite), docs/vietnam-visa-scope.md (v2 update), progress.txt
+
+### Learnings
+1. Ant Design Vue's virtualized `.rc-virtual-list-holder` requires `aria-posinset` for dedup — counting visible DOM nodes across scroll passes double-counts because Ant recycles option divs as you scroll. aria-posinset is the stable key.
+2. Ant's dropdown panels are reused across selects — clicking a new select before the previous panel is fully hidden gives stale options. Close-and-wait (Escape + waitForFunction(all .ant-select-dropdown-hidden)) between probes fixes it. The `aria-controls` attribute on the opener is the canonical link to the right panel.
+3. The in-repo extension (v1.2.1) was a lossy approximation of the live form — it got ~39 of 60 fields right but invented 21 that didn't exist on live (sponsor branch, purpose sub-journeys, accompanying-adult block) and missed the children-table structure entirely. Live-portal recon is the only path to parity — extensions are a starting point, not a finish line.
+4. The `live_dom_id` annotation pattern eliminates an entire mapping layer for downstream submission automation. If future countries have stable DOM ids (most Vue/React admin-form tools use deterministic keys like `basic_fieldName`), this should be the default — capture them in recon, store in validation_rules, reuse at submit time.
+5. The v1 → v2 delta (81 → 60 fields, 10 → 9 steps) demonstrates that reconstructions systematically over-specify — it's safer to reconstruct generously and trim against live than to reconstruct minimally and miss fields. The downside is that trimming requires live access; the upside is nothing real gets dropped silently.
+6. Vietnam's June 2025 province consolidation (63 → 34, Resolution 60/NQ-TW) is a recent policy change that the live form reflects but older docs don't — underscores the "re-validate quarterly" cadence. The DOM-id-keyed canonical.json from recon-v3 makes this a mechanical diff in future passes.
+---
