@@ -1,201 +1,187 @@
 # UK Standard Visitor Visa — Gap Report
 
-**Generated:** 2026-04-23
-**Schema version:** v1 (seed-uk-standard-visitor-form-fields.ts)
+**Generated:** 2026-04-24
+**Schema version:** v3 (seed-uk-standard-visitor-form-fields.ts)
 **Visa type:** `UK_STANDARD_VISITOR`
+
+Goal: when a user is assigned the UK Standard Visitor package, their
+`/application` page renders a 1:1 schema match of what they would see
+on the live Access UK Standard Visitor form.
 
 ---
 
 ## 1. Coverage Summary
 
-| Section | Step | Fields | Status |
-|---------|------|--------|--------|
-| About You — Personal Details | 1 | 12 | Covered |
-| About You — Passport Details | 2 | 10 | Covered |
-| Your Contact Details | 3 | 16 | Covered |
-| Your Family | 4 | 17 | Covered |
-| Your Accommodation in the UK | 5 | 10 | Covered |
-| Your Travel History | 6 | 13 | Covered |
-| Your Trip to the UK | 7 | 9 | Covered |
-| Your Employment | 8 | 13 | Covered |
-| Your Finances | 9 | 13 | Covered |
-| Medical Treatment Details | 10 | 6 | Covered (conditional) |
-| Additional Information | 11 | 11 | Covered |
-| **Total** | **11** | **130** | — |
-
-**Total field definitions:** 130 (including conditional fields)
-**Required fields (always shown):** ~65
-**Conditional fields:** ~65 (shown based on prior answers)
+| Section | Step | Fields | Notes |
+|---------|------|--------|-------|
+| About You — Personal Details | 1 | 19 | Previous-names repeatable; under-18 applicant fields |
+| About You — Passport & Identity Documents | 2 | 15 | Other passports repeatable; National ID + BRP |
+| Your Contact Details | 3 | 16 | |
+| Your Family | 4 | 17 | |
+| Your Accommodation in the UK | 5 | 10 | |
+| Your Travel History | 6 | 28 | Structured repeatable: Schengen, US/Canada/ANZ, other; previous UK visits repeatable with visa reference |
+| Your Trip to the UK | 7 | 8 | Purpose expanded to full Standard Visitor umbrella (11 purposes) |
+| Purpose-Specific Details | 8 | 54 | Business, Short-Study, Medical, Transit, Marriage/CP, PPE, Academic 12-month, Organ Donor, Clinical Training |
+| Your Employment | 9 | 13 | |
+| Your Finances | 10 | 13 | |
+| Dependants Travelling With You | 11 | 7 | Repeatable dependant group (schema only — see §3.1) |
+| Additional Information, Immigration History & Declaration | 12 | 22 | Medical-condition-affecting-travel, TB test, immigration-law breach, civil penalty, public-funds use |
+| **Total** | **12** | **222** | — |
 
 ---
 
-## 2. Covered Features
+## 2. Purpose Options (Step 7)
 
-### Conditional Branching (Implemented)
-- Partner details gated on `marital_status` (married/civil_partnership/unmarried_partner)
-- Other names gated on `other_names_used === yes`
-- Other nationalities gated on `has_other_nationalities === yes`
-- Other passports gated on `has_other_passports === yes`
-- Correspondence address gated on `correspondence_address_different === yes`
-- Employment details branched by `employment_status` (employed/self-employed/student/other)
-- Sponsor details gated on `who_is_paying === sponsor`
-- Medical treatment section gated on `purpose_of_visit === medical`
-- Criminal/security explanation fields gated on yes answers
-- UK host details gated on `uk_accommodation_type === family_friends`
-- UK family visit details gated on `visiting_family_in_uk === yes`
+`purpose_of_visit` covers the full Standard Visitor umbrella — 11 purposes:
+- `tourism` — Tourism / holiday
+- `visiting_family_friends` — Visiting family or friends
+- `business` — Business (meetings, conferences)
+- `short_study` — Short-term study (up to 6 months)
+- `medical` — Private medical treatment
+- `transit` — Transit to another country
+- `marriage_civil_partnership` — Marriage or civil partnership
+- `ppe` — Permitted Paid Engagement (up to 1 month)
+- `academic_12m` — Academic or researcher (up to 12 months)
+- `organ_donor` — Organ donation
+- `clinical_training` — Clinical attachment, dental observer, PLAB or OSCE
 
-### Field Types (Implemented)
-- text, select, date, country, radio, textarea
-- Validation rules: maxLength, pattern, format
-- Block groups (e.g., home_address, parents, employer_details, sponsor_details)
-- Inline groups (e.g., passport_dates, trip_dates)
-- Repeatable groups (e.g., other_nationalities)
+Each purpose unlocks a bespoke sub-journey in Step 8.
 
 ---
 
-## 3. Known Gaps — Unsupported Fields or Branches
+## 3. Remaining Limitations
 
-### 3.1 Business Visit Sub-Journey
-**Status:** NOT COVERED
-**Impact:** Medium
+### 3.1 Dependants — schema present, workflow missing
+`applying_with_dependants` + the `dependants` repeatable group capture
+each dependant's details, but there is **no automation to spawn a
+separate application per dependant**. In Access UK each dependant
+requires their own application (they share travel/accommodation data
+but each gets their own fee, biometrics, and decision letter).
 
-When `purpose_of_visit === business`, the Access UK form may present additional fields:
-- Name of UK business contact
-- UK company name and address
-- Nature of business activities
-- Duration and frequency of business visits
-- Whether the applicant will be paid by a UK company
+**Impact:** Users with dependants submit a single application with the
+dependant list attached. Staff/admin must manually create separate
+applications for each dependant downstream.
 
-**Recommendation:** Add a conditional step 10b for business-visit-specific fields in a future iteration.
+**Why deferred:** building the multi-applicant spawning flow requires
+changes to the application model (a `parent_application_id` column or
+similar), the creation server action, the admin-review UI, and the
+user's application list page. Treated as a v3 workflow task rather
+than a schema fix.
 
-### 3.2 Short-Term Study Sub-Journey
-**Status:** NOT COVERED
-**Impact:** Low
+### 3.2 TB test — user-declared, not nationality-enforced
+`tb_test_required_acknowledged` asks the applicant whether a TB test
+is needed (with an "unsure" option). We do NOT auto-gate this based
+on `country_of_nationality`.
 
-When `purpose_of_visit === short_study`, additional fields may appear:
-- Name of institution
-- Course details and duration
-- Who is paying for the course
-- Accreditation status of the institution
+**Why:** the current `evaluateShowIf` implementation only supports
+`===` / `!==` atomic comparisons — it cannot express "nationality is
+in [afghanistan, bangladesh, pakistan, ...]" (the full list is ~100
+countries). Implementing nationality-list gating would require
+extending `lib/form-utils.ts` with a new operator (e.g. `in`).
 
-**Recommendation:** Add conditional fields under step 7 or a new sub-step.
+**Workaround:** staff review the nationality on submission and confirm
+TB test requirement during document review.
 
-### 3.3 Dependant Applications
-**Status:** NOT COVERED
-**Impact:** Medium
+### 3.3 Document uploads — handled by `application_documents`
+Supporting documents (bank statements, employment letter, accommodation
+booking, sponsor docs, TB certificate, birth/adoption certificates,
+parental consent for minors, consultant letters for medical/organ-donor
+journeys) are not schema fields. They live in the `application_documents`
+table and are handled by a separate upload UI. **Not a schema gap.**
 
-When applying with dependants (spouse/children), the Access UK form adds:
-- Dependant personal details (one set per dependant)
-- Dependant passport information
-- Dependant relationship to main applicant
-- Whether dependants have their own financial means
-
-**Recommendation:** Requires repeatable section support. Defer to v2.
-
-### 3.4 Country-Specific Variations
-**Status:** PARTIALLY COVERED
-**Impact:** Low-Medium
-
-Some applicant nationalities trigger additional requirements:
-- **TB Test Certificate:** Required for applicants from listed countries (approx. 100 countries)
-- **Police Certificate:** May be required depending on nationality
-- **Biometric Residence Permit (BRP):** Collection location varies by country
-
-The v1 schema does not include nationality-gated conditional fields for these.
-
-**Recommendation:** Add a `tb_test_required` flag to the schema metadata. Document the TB-test country list separately.
-
-### 3.5 Immigration Health Surcharge (IHS)
-**Status:** NOT COVERED (out of scope)
-**Impact:** Low for schema, High for workflow
-
-IHS payment is handled on a separate GOV.UK page after form submission, not within the Access UK form itself. The v1 schema correctly excludes it.
-
-**Note:** Users need to pay IHS before booking biometrics. This should be documented in the user journey but is not a form field gap.
-
-### 3.6 Biometrics Booking
-**Status:** NOT COVERED (out of scope)
-**Impact:** N/A for schema
-
-Biometrics appointments are booked through TLS Contact or VFS Global (country-dependent). This is a post-submission step, not part of the Access UK form.
-
-### 3.7 Previous UK Visa Details
-**Status:** PARTIALLY COVERED
-**Impact:** Low
-
-The v1 schema captures:
-- Whether the applicant has visited the UK before (yes/no)
-- Most recent visit date, duration, and reason
-
-The official form may also ask for:
-- Previous UK visa reference numbers
-- Previous UK visa types held
-- Multiple previous visits (not just the most recent)
-
-**Recommendation:** Add repeatable `previous_uk_visit` group with visa_reference_number field.
-
-### 3.8 Document Upload Fields
-**Status:** NOT COVERED
-**Impact:** Medium
-
-The Access UK form allows uploading supporting documents:
-- Bank statements
-- Employment letter
-- Accommodation booking confirmation
-- Travel itinerary
-- Sponsor's documents (if sponsored)
-
-The v1 schema captures data fields only, not file upload fields. VIZA's existing `application_documents` table can handle uploads separately.
-
-**Recommendation:** Document uploads are a workflow concern, not a schema gap. The existing `application_documents` table and upload UI should be extended to support UK-specific document categories.
+### 3.4 Biometrics booking & Immigration Health Surcharge
+Post-submission steps handled on separate GOV.UK pages (TLS Contact /
+VFS Global for biometrics, IHS portal for the surcharge). **Not in
+scope for the form schema.**
 
 ---
 
-## 4. Conditional Logic Limitations
+## 4. Closed in v3
 
-### 4.1 Multi-Value showIf (Implemented but Unverified)
-The v1 schema uses `||` operators in conditional logic:
-```
-"showIf": "marital_status === married || marital_status === civil_partnership || marital_status === unmarried_partner"
-```
+The following gaps from v2 have been resolved:
 
-The existing `evaluateShowIf()` function in `dynamic-step-form.tsx` may not support `||` operators. This needs verification.
-
-**Action required:** Test multi-value showIf rendering. If unsupported, either:
-1. Extend `evaluateShowIf()` to handle `||` operators, or
-2. Split into simpler per-value conditions
-
-### 4.2 Cross-Step Conditionals
-Medical treatment fields (step 10) are gated on `purpose_of_visit` from step 7. The dynamic form renderer may not evaluate conditions across steps.
-
-**Action required:** Verify cross-step conditional evaluation works. If not, the medical step may need to be unconditionally shown with an internal gate.
+- **Under-18 applicant fields** — `is_applicant_under_18`, parental
+  consent letter reference, accompanying adult name/relationship/passport
+  number (step 1, gated on `is_applicant_under_18 === yes`)
+- **Specialised sub-categories** — PPE, Academic/researcher 12-month,
+  Organ donor, Clinical training now exist as purpose options with
+  their own sub-journey field sets in step 8
+- **TB test declaration** — added to step 12 (user-declared, not
+  nationality-gated — see §3.2)
 
 ---
 
-## 5. Field Accuracy Notes
+## 5. Conditional Logic Status
 
-All field definitions are based on the known structure of the Access UK Standard Visitor Visa application. The official form may:
+### 5.1 `||` and `&&` operators — WORKING
+`lib/form-utils.ts` `evaluateShowIf` splits on `||` then `&&` and
+evaluates each atom with `===` / `!==`. Multi-value gating works.
 
-1. **Add fields** in response to policy changes (e.g., post-Brexit requirements)
-2. **Remove fields** that are no longer relevant
-3. **Reword labels** without changing the underlying data collected
-4. **Reorder sections** in the application flow
+### 5.2 Cross-step conditionals — FIXED in v2
+`DynamicStepForm` now seeds its local `values` state with the full
+`prefill` (all accumulated prior answers), so step 8 sub-journeys
+gated on `purpose_of_visit` from step 7 render correctly.
 
-The v1 schema should be re-validated against the live Access UK form periodically. A recommended cadence is quarterly or whenever UK immigration policy changes are announced.
+### 5.3 Not supported — list membership operator
+No `in` operator (e.g. `country_of_nationality in [af, bd, pk, ...]`).
+Required to auto-gate TB test by nationality. Scope for a future
+`evaluateShowIf` extension.
 
 ---
 
-## 6. Reviewer Checklist
+## 6. Implementation Notes
 
-Before marking the UK Standard Visitor form as production-ready:
+### 6.1 Seed script is idempotent
+`scripts/seed-uk-standard-visitor-form-fields.ts` deletes all rows
+with `visa_type = 'UK_STANDARD_VISITOR'` then re-inserts. Safe to
+re-run any time the field definitions change.
 
-- [ ] Run the seed script and verify all 130 fields appear in `visa_form_fields`
+### 6.2 Repeatable groups used
+- `previous_names` (step 1) — gated on `other_names_used === yes`
+- `other_nationalities` (step 1) — gated on `has_other_nationalities === yes`
+- `other_passports` (step 2) — gated on `has_other_passports === yes`
+- `previous_uk_visits` (step 6) — gated on `travelled_to_uk_before === yes`
+- `schengen_visits` (step 6) — gated on `has_schengen_visits === yes`
+- `us_canada_anz_visits` (step 6) — gated on `has_us_canada_anz_visits === yes`
+- `other_country_visits` (step 6) — gated on `has_other_country_visits === yes`
+- `dependants` (step 11) — gated on `applying_with_dependants === yes`
+
+### 6.3 Block groups used (visually grouped fields)
+`home_address`, `parents`, `uk_address`, `employer_details`,
+`sponsor_details`, `business_details`, `study_details`,
+`medical_details`, `transit_details`, `marriage_details`,
+`ppe_details`, `academic_details`, `organ_donor_details`,
+`clinical_details`, `accompanying_adult`, `tb_test_details`.
+
+### 6.4 Inline groups used (side-by-side pair rendering)
+`passport_dates`, `trip_dates`, `ppe_dates`, `clinical_dates`.
+
+---
+
+## 7. Reviewer Checklist
+
+- [x] Seed applied (222 rows in `visa_form_fields` with visa_type = `UK_STANDARD_VISITOR`)
 - [ ] Assign a test user the `UK_STANDARD_VISITOR` package
-- [ ] Navigate through all 11 steps in the dynamic form
-- [ ] Verify conditional fields show/hide correctly
-- [ ] Test multi-value `||` conditional logic (partner fields)
-- [ ] Test cross-step conditionals (medical fields gated on purpose_of_visit)
-- [ ] Verify repeatable groups work (other_nationalities)
-- [ ] Confirm block groups render correctly (home_address, parents, employer_details)
-- [ ] Confirm inline groups render correctly (passport_dates, trip_dates)
-- [ ] Submit a test application and verify answers persist to `visa_application_answers`
+- [ ] Walk each of the 11 purposes in Step 7 and confirm correct Step 8 sub-journey shows
+- [ ] Test all 8 repeatable groups (add/remove instance, values persist)
+- [ ] Test multi-value `||` in partner gating (step 4)
+- [ ] Test cross-step gating (step 7 purpose → step 8 sub-journey fields)
+- [ ] Test under-18 conditional fields (step 1)
+- [ ] Test TB test conditional fields (step 12)
+- [ ] Submit a test application and verify all 222 fields persist to `visa_application_answers`
+- [ ] Confirm review step (`DynamicReviewStep`) renders all fields correctly
+
+---
+
+## 8. Source Material
+
+- UK Home Office *Visit caseworker guidance* (25 February 2026 edition)
+- GOV.UK *Visitor visa: guide to supporting documents*
+- GOV.UK *Apply for a Standard Visitor visa* public page
+- Immigration Rules Appendix V: Visitor
+
+The live Access UK application form is behind an identity gate and
+cannot be scraped directly. Field list is a high-fidelity reconstruction
+from the public guidance documents above. Expect periodic drift as the
+UK Home Office updates the form; re-validate quarterly or when policy
+changes are announced.

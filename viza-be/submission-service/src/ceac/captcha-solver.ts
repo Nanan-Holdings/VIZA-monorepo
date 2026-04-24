@@ -167,12 +167,17 @@ export async function solveImageCaptcha(
   const apiKey = getApiKey();
   const start = Date.now();
 
-  // 1. Create task
+  // 1. Create task.
+  //    `case: true` tells 2captcha workers to preserve letter case. The
+  //    CEAC BotDetect CAPTCHA is rendered in uppercase letters + digits;
+  //    without this flag, workers return lowercase answers that CEAC
+  //    rejects as invalid.
   const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
     clientKey: apiKey,
     task: {
       type: "ImageToTextTask",
       body: imageBuffer.toString("base64"),
+      case: true,
     },
   });
 

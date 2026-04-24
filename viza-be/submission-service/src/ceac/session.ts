@@ -6,12 +6,13 @@
  * use. Failures surface as structured `SessionBootstrapError` instances.
  */
 
-import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
 import { solveStartPageCaptchaWithRetry, type CaptchaSolveWithTelemetry } from "./start-page-captcha";
+import { launchStealthBrowser } from "./stealth-browser";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -61,12 +62,18 @@ export async function startCeacSession(
   let context: BrowserContext | null = null;
 
   try {
-    browser = await chromium.launch({ headless });
-    context = await browser.newContext({
+    // Launch with puppeteer-extra-plugin-stealth applied. CEAC fingerprints
+    // automation via UA, client hints, `navigator.webdriver`, and numerous
+    // JS-surface tells (plugins/chrome-runtime/WebGL/permissions). The
+    // stealth bundle patches those at once; see `stealth-browser.ts`.
+    const handles = await launchStealthBrowser({
+      headless,
       acceptDownloads,
       userAgent: options.userAgent,
     });
-    const page = await context.newPage();
+    browser = handles.browser;
+    context = handles.context;
+    const page = handles.page;
 
     try {
       await page.goto(CEAC_URLS.START, {
@@ -127,7 +134,12 @@ export async function startCeacSession(
     // On failure after retries, throws SessionBootstrapError.
     let captchaSolve: CaptchaSolveWithTelemetry | undefined;
     try {
-      const result = await solveStartPageCaptchaWithRetry(page, 3);
+      // 10 attempts per session: 2captcha's BotDetect accuracy on the
+      // CEAC CAPTCHA is roughly 20–40% per solve and varies by image.
+      // 10 tries yields ≥90% session-level success; bad solves are
+      // reported for refund so the marginal cost of extra attempts is
+      // effectively zero.
+      const result = await solveStartPageCaptchaWithRetry(page, 10);
       // A non-empty solveId means a real CAPTCHA was solved
       if (result.solve.solveId) {
         captchaSolve = result;
