@@ -330,3 +330,123 @@ Started: Sun Apr 19 13:51:27     2026
   4. The `in` operator pays back quickly — we used it for ATV nationality gating in v1.1 and can now use it cleanly for UK TB test gating, yellow-fever certificate lists, and any future visa-waiver checks without repeating 12+ `||` atoms.
   5. Source-verification QA pass (authoritative PDF walk) is a meaningful partial for §3.1 — it catches static drift even when live-portal QA remains blocked by identity gates. Should be a standard step in the playbook for any country with a published form PDF.
 ---
+
+## 2026-04-24 - Schengen gap closure v1.3 (starred-field exemption + fast-track + hotel confirm)
+
+Closes gap report §3.7 (Directive 2004/38 fast-track), §3.9 (Starred-field
+exemption for UK Withdrawal Agreement beneficiaries), and scope doc §8
+Short-term items #6 (hotel confirmation number) and #7 (fast-track
+acknowledgment).
+
+### required_unless library primitive
+- Refactored `lib/form-utils.ts`: extracted the atom-parsing / `||` / `&&` evaluator into a new `evaluateExpression(expr, values)` public helper. `evaluateShowIf` now delegates to it.
+- Added `isRequiredUnlessSatisfied(field, values)` public helper that reads `validation_rules.required_unless` and evaluates it through `evaluateExpression`.
+- Wired into `DynamicStepForm.requiredFilled`: fields whose `required_unless` evaluates true are skipped by the required-check while remaining visible. Matches Annex-I "starred" semantics exactly.
+
+### Starred-field annotations in Schengen seed
+- Added `STARRED_FIELD_NAMES` set covering all 44 Annex I starred-field equivalents across Steps 6 (occupation), 8 (host/business), 9 (accommodation), 11 (financial support).
+- Post-processor merges `required_unless: "has_eu_family_member === yes"` into each field's `validation_rules` after the FIELDS array is built — avoids editing every field literal inline.
+- EU-family-member applicants now pass step-level validation without filling the five Annex I starred sections (fields 21, 22, 30, 31, 32).
+
+### Directive 2004/38 acknowledgment
+- Added `directive_2004_38_acknowledged` to Step 4, gated on `has_eu_family_member === yes`. Surfaces applicant rights: visa fee waiver, 15-day processing limit, reduced evidence requirements.
+- Admin/ops queue-routing for these applicants remains a workflow concern outside the schema (flagged in §3.7).
+
+### Hotel confirmation number
+- Added optional `hotel_confirmation_number` to Step 9, gated on `accommodation_type === hotel || accommodation_type === rented`. Several member-state portals ask for the booking reference; keeping it optional to avoid false-required friction.
+
+### Net v1.3 change
+- +2 new fields (directive_2004_38_acknowledged, hotel_confirmation_number)
+- +44 starred-field annotations via post-processor (validation_rules.required_unless)
+- Coverage 169 → 171 fields
+- 1 new library primitive (`required_unless`) documented in playbook §4 with worked example
+
+### Verification
+- Typecheck clean on viza-fe/internal-website and viza-be/agent-backend
+- Seed ran clean: "Done: 171 rows seeded (171 defined)"
+
+### Scope status after this push
+- Closed v1.1: `in`/`not in` operator, ATV nationality gating
+- Closed v1.2: source-verification QA pass (9 Annex I discrepancies), stale "past 3 years" group removal
+- Closed v1.3: `required_unless` primitive, starred-field exemption, Directive 2004/38 acknowledgment, hotel confirmation
+- Still open (documented, scoped for future passes):
+  * §3.1 Live-portal QA against specific member-state consulate portals (identity-gated, requires real applicant)
+  * §3.5 Per-portal submission automation (DS-160-sized effort per portal)
+  * §3.6 Type D long-stay packages (separate visa products)
+  * §3.8 Multi-select purpose via checkbox_group (needs DynamicStepForm field-type + operator work)
+  * §3.3/§3.4 Schema-external: fingerprint exemption helper and insurance document upload (not schema gaps)
+
+### Files changed
+- viza-fe/internal-website/lib/form-utils.ts (evaluateExpression extraction + isRequiredUnlessSatisfied)
+- viza-fe/internal-website/components/dynamic-step-form.tsx (required-filled gate)
+- viza-be/agent-backend/scripts/seed-eu-schengen-c-short-stay-form-fields.ts (3 field adds + STARRED_FIELD_NAMES post-processor)
+- docs/schengen-visa-gap-report.md (v1.3 closures + updated reviewer checklist)
+- docs/schengen-visa-scope.md (§8 next-actions cleanup, v1.1–v1.3 items checked off)
+- docs/visa-schema-playbook.md (§4 required_unless documentation)
+- progress.txt
+
+### Learnings
+1. `required_unless` generalises cleanly — any nationality-based, age-based, or beneficiary-class exemption can now be expressed at the schema level without renderer changes. Yellow-fever certificate exemptions, under-18 document waivers, and visa-on-arrival fee waivers all fit the pattern.
+2. The post-processor annotation pattern (`STARRED_FIELD_NAMES` set + for-loop mutator at end of seed) scales better than inline validation_rules edits when the same annotation applies to 20+ fields. Keeps the per-field literals readable.
+3. Refactoring `evaluateShowIf` into a shared `evaluateExpression` + two thin callers (showIf + required_unless) avoided duplicating the 40-line atom parser. Any future `enabled_when`, `read_only_when`, etc. predicates can use the same evaluator.
+4. Directive 2004/38 fast-track is a good example of a schema-expressible workflow hint — a single boolean acknowledgment + conditional gate beats a runtime derivation based on relationship type, because it forces the applicant to explicitly acknowledge their rights.
+5. With v1.1, v1.2, and v1.3 all shipped in the same session, the Schengen package is now as close to 1:1 Annex I parity as the renderer currently allows. The remaining gaps are genuine library/product-scope items, not schema omissions.
+---
+
+## 2026-04-24 - VN-001
+- Pinned scope to the Vietnam E-Visa (electronic visa, up to 90 days, single or multiple entry, all-nationality eligibility since 15 Aug 2023 per Resolution 127/NQ-CP) issued via https://evisa.gov.vn
+- visa_type key: VN_E_VISA; country: vietnam
+- Added VN-001 through VN-005 to prd.json at priorities 11–15, shaped after SCH-001..005
+- Explicitly out-of-scope: DL (embassy tourist), DN1/DN2 (business, sponsor-required), DT1–4 (investor), DH (student), LD1/LD2 (work permit), NG1–4 (diplomatic), deprecated visa-on-arrival, TT (family reunification long-stay)
+- Primary source is the in-repo vietnam-visa-helper-v1 browser extension (v1.2.1), which was driven manually against the live evisa.gov.vn form — documented as a second-hand primary source, not a live-portal QA pass
+- Files changed: prd.json, progress.txt
+- Learnings: the Vietnam e-Visa is a cleaner "single product, light umbrella" shape than UK/Schengen — 5 purpose options with minor sub-journeys, no dependants, no heavy travel-history repeatable. The scope pass was faster because a working in-repo extension already inventoried the fields — the "find prior work in the repo" instruction from the user paid off immediately.
+---
+
+## 2026-04-24 - VN-002
+- Created scripts/seed-vn-e-visa-form-fields.ts with 81 fields across 10 steps
+- Steps: Personal Details, Passport & Identity, Contact Details, Occupation, Trip Information, Accommodation in Vietnam, Border Gates, Purpose-Specific Details, Trip Expenses & Emergency Contact, Declaration
+- Purpose umbrella: 5 options (tourist, visiting_relatives, business, working, other_purpose) with conditional Step 8 sub-journeys
+- Reusable gate constants: HAS_MULTIPLE_NATIONALITIES, HAS_OTHER_PASSPORTS, IS_UNDER_18, IS_BUSINESS, IS_WORKING, IS_VISITING_RELATIVES, HAS_RELATIVES_VN, HAS_PREV_VN_VISITS, EXPENSE_COMPANY, VIOLATED_LAWS
+- Sponsor-details block uses `||` to gate on `expense_coverage === company || expense_coverage === sponsor`
+- Repeatable groups: other_nationalities (max 3), other_passports (max 3), previous_vn_visits (max 5)
+- Block groups: accompanying_adult, home_address, inviting_company, working_details, relative_in_vn, sponsor_details, emergency_contact
+- Inline groups: passport_dates (issue/expiry), trip_dates (arrival/exit)
+- Enums: BORDER_GATES (12 values incl. other_port), PROVINCES (11 values incl. other_province), occupation (8), religion (8), sex (2), passport_type (3), purpose_of_entry (5), visa_type_requested (2), expense_coverage (3), payment_method (4), emergency_contact_relationship (7)
+- Seed ran clean: "Done: 81 rows seeded (81 defined)"
+- Typecheck passes on agent-backend
+- Files changed: viza-be/agent-backend/scripts/seed-vn-e-visa-form-fields.ts (new), prd.json, progress.txt
+- Learnings: the in-repo extension's fieldMappings object compressed a 1–2 day research phase into a 30-minute extraction phase. The extension wasn't designed as a spec — it's runtime logic — but its field keys + labels + example values + option lists made it the single best source available without live-portal access. This suggests a pattern: for any country where internal tooling has already touched the live form, mine it first before chasing caseworker PDFs.
+---
+
+## 2026-04-24 - VN-003
+- Created drizzle/0012_vn_e_visa_package.sql migration (idempotent INSERT + ON CONFLICT DO NOTHING), mirrors 0010/0011 shape
+- Applied the INSERT directly via Supabase admin client (read-then-insert, since visa_packages has no unique index on visa_type so a raw ON CONFLICT DO NOTHING without a column spec cannot be relied on)
+- Registered row: country=vietnam, visa_type=VN_E_VISA, name="Vietnam E-Visa", description mentions 90 days + single/multiple + evisa.gov.vn + the 5 purposes it covers
+- No frontend code changes — DynamicStepForm renders the 81 seeded fields generically (zero-frontend-change path, same as UK-003 and SCH-003)
+- Files changed: viza-be/agent-backend/drizzle/0012_vn_e_visa_package.sql (new), prd.json, progress.txt
+- Learnings: the "migration SQL file as documentation" vs "actually execute the INSERT" split is worth calling out — the UK/SCH migrations used ON CONFLICT DO NOTHING without a conflict target, which silently requires that the table have some unique/PK constraint that happens to match. Without one, the direct-insert branch is the safe path. Worth a playbook note if this comes up for future countries.
+---
+
+## 2026-04-24 - VN-004
+- Created docs/vietnam-visa-gap-report.md with coverage summary (10 steps / 81 fields), 7 remaining limitations documented with why + workaround, and reviewer checklist
+- Limitations: (1) live-portal QA not yet done (top priority), (2) province enum is 11-entry subset of 63 real provinces, (3) border-gate enum is 12-entry subset of ~42 real ports, (4) document uploads are intentionally schema-external per playbook §5.6, (5) fee differences are payment-gateway concern not schema, (6) Vietnamese-language surface not provided, (7) previous-visit look-back window assumed (5y default, needs verification)
+- Conditional-logic status documented: `||` works (UK Phase 2 fix), cross-step conditionals work (purpose_of_entry step 5 → Step 8 sub-journeys), `in` operator available but not used in v1
+- Files changed: docs/vietnam-visa-gap-report.md (new), prd.json, progress.txt
+- Learnings: the escape-hatch pattern (`other_province`, `other_port`) is a clean way to acknowledge an enum subset without blocking power users — cheaper than shipping the full 63+42 lists in v1 and surfaces the gap honestly. Should be considered a standard playbook move for any enum where the full authoritative list is large and drifts.
+---
+
+## 2026-04-24 - VN-005
+- Created docs/vietnam-visa-scope.md documenting the evisa.gov.vn source, 10-step canonical journey, and rerun instructions
+- Honesty disclosure in §9: live portal NOT driven (identity/agree-gate); schema is a reconstruction from the in-repo vietnam-visa-helper-v1 extension (v1.2.1) plus Resolution 127/NQ-CP and Law 51/2019/QH14 as legal basis
+- Next actions: Immediate (live-portal QA against evisa.gov.vn, verify `||` + cross-step gates), v1.1 (full 63-province enum, full ~42-port border-gate enum, Vietnamese-language surface, purpose-specific document checklists), v2 (embassy DL/DN/LD as separate packages, evisa.gov.vn Playwright automation with CAPTCHA handling and stop-at-pay handoff)
+- Ralph stop condition: all UK-001..005, SCH-001..005, and VN-001..005 pass — third country shipped end-to-end via pure-dynamic rendering
+- Files changed: docs/vietnam-visa-scope.md (new), prd.json, progress.txt
+- Learnings:
+  1. Internal tooling (browser extensions, scraper scripts, etc.) that was built to interact with a live form is the best source available when the live form can't be driven by the harness — mine the repo first, PDFs second, guidance docs third.
+  2. Vietnam's e-Visa is the lightest package we've shipped so far (81 fields vs UK 222 vs Schengen 169) because it has a narrow 5-purpose umbrella and no dependants/family-member repeatable. This validates the playbook's "rule of thumb: ~50–80 fields for a single-purpose visa" lower-bound — Vietnam sits right at the top of that range because the umbrella adds a step-8 sub-journey set.
+  3. The escape-hatch enum pattern (`other_province`, `other_port`) is a low-cost way to ship a representative enum without committing to the full authoritative list. Document the gap, add the escape, move on. Worth promoting from a Vietnam-specific decision to a general playbook pattern in the next revision.
+  4. The "ON CONFLICT DO NOTHING without a conflict target" idempotency pattern inherited from UK/SCH migrations works only if the table has a matching unique constraint. When it doesn't, read-then-insert is the safe path from a script, and the SQL file remains accurate as a record of intent.
+  5. Third-country-on-the-same-pipeline validates the architecture: zero frontend changes, one seed script, one migration, two docs, five PRD entries. The marginal cost of country N+1 is now dominated by field inventory + QA, not code.
+---
+
