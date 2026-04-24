@@ -12,6 +12,7 @@
 import type { Page } from "@playwright/test";
 import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "./captcha-solver";
 import { SessionBootstrapError } from "./errors";
+import { CEAC_URLS } from "./selectors";
 
 // ---------------------------------------------------------------------------
 // Selectors — CEAC start-page CAPTCHA elements
@@ -30,6 +31,26 @@ const DEFAULT_LOCATION_CODE = process.env.CEAC_LOCATION_CODE?.trim() || "NSS";
 /** The text input where the user types the CAPTCHA answer. */
 const CAPTCHA_INPUT_SELECTOR =
   'input[id*="IdentifyCaptcha1_txtCodeTextBox"], input[id*="CaptchaCodeTextBox"], input[id*="captcha" i][type="text"]';
+
+/**
+ * After the location postback, CEAC shows an "Additional Location
+ * Information" modal. It MUST be dismissed by clicking its Close link —
+ * which fires a server-side `__doPostBack` acknowledging the notification.
+ * CSS-hiding alone isn't enough: CEAC tracks dismissal server-side, and
+ * a subsequent START click on an undismissed session redirects to
+ * `SessionTimedOut.aspx` even when the CAPTCHA answer is correct.
+ *
+ * The Close link triggers the postback; `CLOSE_SELECTOR` targets it.
+ * Because the Close itself is an async postback (via the ScriptManager),
+ * we also inject a CSS fallback so that if the postback races with our
+ * CAPTCHA extraction, pointer-event interception cannot block fills or
+ * clicks on the Start link.
+ */
+const POST_LOCATION_MODAL_CLOSE_SELECTOR =
+  'a[id*="ucPostMessage"][id*="lnkClose"], a[id*="ucPost"][id*="lnkClose"]';
+const POST_LOCATION_MODAL_HIDE_CSS =
+  '.modalBackground, .modal-content, [id*="modalConfirm_backgroundElement"] { display: none !important; }';
+
 
 // ---------------------------------------------------------------------------
 // Result types
@@ -62,23 +83,196 @@ export type StartPageCaptchaOutcome =
 export async function solveStartPageCaptcha(
   page: Page,
 ): Promise<StartPageCaptchaOutcome> {
-  // 1. Find the CAPTCHA image
+  // 1. Select the CEAC post/location FIRST.
+  //
+  //    The CEAC location dropdown has AutoPostBack=true. Selecting a value
+  //    triggers a server postback that rebuilds the page — including
+  //    regenerating the CAPTCHA image and its associated server-side
+  //    expected value. If we screenshot/solve the CAPTCHA before this
+  //    postback, we end up typing the pre-postback answer into the
+  //    post-postback form, which CEAC rejects and then redirects to
+  //    SessionTimedOut.aspx.
+  //
+  //    Skip the selectOption when the dropdown already matches our target
+  //    to avoid an unnecessary postback (CEAC preselects a location based
+  //    on the request IP).
+  //
+  //    Wait for the element to be attached rather than failing immediately
+  //    on count==0 — after a wrong-CAPTCHA re-render, the DOM is mid-swap
+  //    and a zero count reflects timing rather than actual absence.
+  const locationSelect = page.locator(LOCATION_SELECT_SELECTOR).first();
+  try {
+    await locationSelect.waitFor({ state: "attached", timeout: 10_000 });
+  } catch {
+    return {
+      status: "failed",
+      reason: "CEAC start page loaded but no location selector was found",
+    };
+  }
+
+  const locationCode = DEFAULT_LOCATION_CODE;
+  let currentValue = "";
+  try {
+    currentValue = await locationSelect.inputValue();
+  } catch {
+    // If we can't read the current value, fall through and try to select.
+  }
+
+  if (currentValue !== locationCode) {
+    try {
+      await locationSelect.selectOption(locationCode);
+      // Wait for the ASP.NET postback to finish before reading the DOM again.
+      try {
+        await page.waitForLoadState("networkidle", { timeout: 15_000 });
+      } catch {
+        // Some CEAC deployments keep long-polling connections open; fall
+        // back to a short settle so the re-rendered DOM is stable.
+        await page.waitForTimeout(1_500);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        status: "failed",
+        reason: `Could not select CEAC location ${locationCode}: ${msg}`,
+      };
+    }
+  }
+
+  // 1b. Dismiss the "Additional Location Information" modal via its
+  //     server-side Close link. CEAC tracks dismissal in session state;
+  //     without it, a subsequent START click (even with a correct
+  //     CAPTCHA) redirects to SessionTimedOut.aspx.
+  const closeBtn = page.locator(POST_LOCATION_MODAL_CLOSE_SELECTOR).first();
+  if ((await closeBtn.count()) > 0) {
+    try {
+      await closeBtn.click({ force: true, timeout: 5_000 });
+      try {
+        await page.waitForLoadState("networkidle", { timeout: 10_000 });
+      } catch {
+        await page.waitForTimeout(1_000);
+      }
+    } catch {
+      // If the click could not be delivered, continue — the CSS fallback
+      // below keeps the page usable, but CEAC may still redirect to
+      // SessionTimedOut. The outer retry loop will catch it.
+    }
+  }
+
+  // Injected style fallback: if the modal re-renders or animates out
+  // slowly, this keeps it from intercepting pointer events on the
+  // CAPTCHA input and Start link.
+  try {
+    await page.addStyleTag({ content: POST_LOCATION_MODAL_HIDE_CSS });
+  } catch {
+    // Best effort — pointer events may be blocked but the force:true on
+    // click below still fires.
+  }
+
+  // 2. Locate the CAPTCHA image element and extract the pixels the
+  //     browser already rendered.
+  //
+  //     Do NOT re-fetch the CAPTCHA URL: BotDetect generates a fresh image
+  //     on every HTTP request, but the expected answer is bound to the
+  //     FIRST fetch the browser made when the page loaded. A second fetch
+  //     would hand us the pixels of a different CAPTCHA than the one the
+  //     server will validate against — so 2captcha's answer would always
+  //     be rejected even when it read the image correctly.
+  //
+  //     Similarly, element.screenshot() races with the "Additional Location
+  //     Information" modal overlay after the location postback and can
+  //     capture blank/black pixels at the CAPTCHA's coordinates.
+  //
+  //     Instead: draw the already-loaded <img> onto an offscreen canvas
+  //     and export as PNG. That returns the exact bytes the browser
+  //     rendered, unaffected by page layout, overlays, or race conditions.
   const captchaImg = page.locator(CAPTCHA_IMAGE_SELECTOR).first();
-  const imgCount = await captchaImg.count();
-  if (imgCount === 0) {
+  try {
+    await captchaImg.waitFor({ state: "visible", timeout: 15_000 });
+  } catch {
     return { status: "no_captcha" };
   }
 
-  // 2. Screenshot just the image element
-  let imageBuffer: Buffer;
+  // Wait for the image bytes to finish decoding AND for naturalWidth to
+  // be non-zero. After a wrong-CAPTCHA re-render, the <img> element may
+  // be attached and even "visible" before the server has delivered the
+  // new PNG bytes; canvas-drawing it at that moment produces an empty
+  // PNG which the solver can't read.
   try {
-    imageBuffer = await captchaImg.screenshot({ type: "png" });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { status: "failed", reason: `Could not capture CAPTCHA image: ${msg}` };
+    await captchaImg.evaluate(
+      (el) =>
+        new Promise<void>((resolve) => {
+          const img = el as unknown as {
+            complete: boolean;
+            naturalWidth: number;
+            addEventListener: (event: string, cb: () => void, opts?: unknown) => void;
+          };
+          const ready = () => img.complete && img.naturalWidth > 0;
+          if (ready()) {
+            resolve();
+            return;
+          }
+          const done = () => {
+            if (ready()) resolve();
+          };
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+          // Poll every 200ms in case load already fired before we attached
+          // (image was cached); cap at 10s.
+          const poll = setInterval(() => {
+            if (ready()) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 200);
+          setTimeout(() => {
+            clearInterval(poll);
+            resolve();
+          }, 10_000);
+        }),
+    );
+  } catch {
+    // Best effort — fall through to rasterize; if bytes are empty the
+    // next step will return a structured "failed" result.
   }
 
-  // 3. Solve via 2captcha
+  // 3. Rasterize the rendered image to PNG via canvas. Retry a few times
+  //    in case naturalWidth is still 0 on the first attempt — the image
+  //    load event races with the MSAJAX async postback completion.
+  let imageBuffer: Buffer | null = null;
+  for (let attempt = 0; attempt < 4 && !imageBuffer; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(500);
+    try {
+      const dataUrl: string = await captchaImg.evaluate((el) => {
+        const img = el as unknown as { naturalWidth: number; naturalHeight: number };
+        if (img.naturalWidth === 0 || img.naturalHeight === 0) return "";
+        const doc = (globalThis as unknown as { document: unknown }).document as {
+          createElement: (tag: string) => {
+            width: number;
+            height: number;
+            getContext: (t: string) => { drawImage: (i: unknown, x: number, y: number) => void } | null;
+            toDataURL: (type: string) => string;
+          };
+        };
+        const canvas = doc.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return "";
+        ctx.drawImage(el, 0, 0);
+        return canvas.toDataURL("image/png");
+      });
+      if (dataUrl.startsWith("data:image/png;base64,")) {
+        imageBuffer = Buffer.from(dataUrl.slice("data:image/png;base64,".length), "base64");
+      }
+    } catch {
+      // retry
+    }
+  }
+  if (!imageBuffer) {
+    return { status: "failed", reason: "Could not rasterize CAPTCHA image via canvas after retries" };
+  }
+
+  // 4. Solve via 2captcha
   let solve: CaptchaSolveResult;
   try {
     solve = await solveImageCaptcha(imageBuffer);
@@ -87,28 +281,13 @@ export async function solveStartPageCaptcha(
     return { status: "failed", reason: `2captcha solve failed: ${msg}` };
   }
 
-  // 4. Select the CEAC post/location first — Start stays disabled until valid
-  const locationSelect = page.locator(LOCATION_SELECT_SELECTOR).first();
-  if ((await locationSelect.count()) === 0) {
-    return {
-      status: "failed",
-      reason: "CEAC start page loaded but no location selector was found",
-    };
-  }
-
-  const locationCode = DEFAULT_LOCATION_CODE;
-  try {
-    await locationSelect.selectOption(locationCode);
-    await page.waitForTimeout(2_000);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      status: "failed",
-      reason: `Could not select CEAC location ${locationCode}: ${msg}`,
-    };
-  }
-
-  // 5. Type the answer into the CAPTCHA input
+  // 5. Type the answer into the CAPTCHA input.
+  //
+  //    Submit as returned by 2captcha — do NOT force uppercase. The
+  //    rendered CEAC CAPTCHA can be upper, lower, or mixed, and CEAC
+  //    validates against whatever case the worker typed. Uppercasing a
+  //    lowercase-correct answer breaks attempts where the worker read
+  //    the chars correctly but the rendered case was ambiguous.
   const captchaInput = page.locator(CAPTCHA_INPUT_SELECTOR).first();
   const inputCount = await captchaInput.count();
   if (inputCount === 0) {
@@ -117,15 +296,19 @@ export async function solveStartPageCaptcha(
       reason: "CAPTCHA image found but no text input found on page",
     };
   }
-  await captchaInput.fill(solve.text);
+  await captchaInput.fill(solve.text.trim());
 
-  // 6. Submit — current CEAC uses START AN APPLICATION (lnkNew)
+  // 6. Submit — current CEAC uses START AN APPLICATION (lnkNew).
+  //    `force: true` bypasses Playwright's actionability check (the
+  //    modal backdrop can still linger briefly post-dismissal and
+  //    intercept pointer events). The link has an MSAJAX-wired
+  //    __doPostBack handler, which fires regardless.
   const submitSelector =
     'a[id*="lnkNew"], a[id*="lnkContinue"], input[id*="btnContinue"], input[type="submit"][value*="Continue"], input[type="submit"][value*="Start"]';
   const submitBtn = page.locator(submitSelector).first();
   if ((await submitBtn.count()) > 0) {
     try {
-      await submitBtn.click();
+      await submitBtn.click({ force: true });
     } catch {
       await submitBtn.evaluate((el) => {
         const node = el as { click?: () => void };
@@ -144,33 +327,52 @@ export async function solveStartPageCaptcha(
     // Timeout is acceptable — page may have already settled
   }
 
-  // 7. Check if we're still on the same page with a validation error
-  //    CEAC shows inline validation messages when the CAPTCHA code is wrong
-  const validationSelector =
-    '[id*="ValidationSummary"], .error, [id*="RequiredFieldValidator"]:visible, [id*="Captcha"][style*="color"]';
-  const validationEl = page.locator(validationSelector).first();
-  const hasValidation = (await validationEl.count()) > 0;
+  // 7. Classify the post-submit state.
+  //
+  //    CEAC's behavior after lnkNew is one of three:
+  //      - Redirect to ConfirmApplicationID.aspx (or similar downstream
+  //        page) → CAPTCHA was correct, session OK → "solved".
+  //      - Redirect to SessionTimedOut.aspx → session was invalidated
+  //        despite a correct CAPTCHA (e.g. modal not dismissed server
+  //        side, stealth fingerprint rejected). Treat as failed — the
+  //        CAPTCHA retry loop cannot recover from this; a fresh session
+  //        is required.
+  //      - Stay on Default.aspx with a new CAPTCHA → wrong CAPTCHA,
+  //        retryable via outer loop.
+  const postUrl = page.url();
+  if (/\/Common\/SessionTimedOut\.aspx/i.test(postUrl)) {
+    return {
+      status: "failed",
+      reason: `CEAC redirected to SessionTimedOut.aspx after START click — session invalidated (url=${postUrl})`,
+    };
+  }
 
-  // Also check if the CAPTCHA image is still visible (means we didn't advance)
   const stillHasCaptcha = (await page.locator(CAPTCHA_IMAGE_SELECTOR).count()) > 0;
-
-  if (stillHasCaptcha && hasValidation) {
-    // Wrong answer — report to 2captcha for refund
+  if (stillHasCaptcha) {
+    // Same start page, new CAPTCHA → the answer was rejected.
     try {
       await reportBadCaptcha(solve.solveId);
     } catch {
-      // Best effort — don't fail the run over a refund request
+      // Best effort — don't fail the run over a refund request.
     }
+    const validationEl = page
+      .locator('[id*="ValidationSummary"], .error, [id*="RequiredFieldValidator"]:visible')
+      .first();
     let hint = "";
     try {
-      hint = await validationEl.innerText({ timeout: 2_000 });
+      hint = (await validationEl.innerText({ timeout: 1_000 })).trim();
     } catch {
-      hint = "CAPTCHA validation failed (no text extracted)";
+      hint = "";
     }
-    return { status: "wrong_answer", solve, validationHint: hint };
+    return {
+      status: "wrong_answer",
+      solve,
+      validationHint: hint || "CEAC re-rendered the start page (no explicit error)",
+    };
   }
 
-  // Success — we advanced past the CAPTCHA
+  // No CAPTCHA on the landing page and no SessionTimedOut redirect → we
+  // successfully advanced past the start-page CAPTCHA surface.
   return { status: "solved", solve };
 }
 
@@ -231,10 +433,14 @@ export async function solveStartPageCaptchaWithRetry(
             },
           );
         }
+        // Full reload before next attempt: CEAC's UpdatePanel re-render
+        // after a wrong-CAPTCHA submit sometimes leaves the DOM in a
+        // partial state (missing location dropdown etc). A fresh goto
+        // gives us a clean start-page structure.
         try {
-          await page.waitForTimeout(1_000);
+          await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
         } catch {
-          // ignore
+          await page.waitForTimeout(1_000);
         }
         continue;
 
@@ -245,13 +451,26 @@ export async function solveStartPageCaptchaWithRetry(
           attempt,
           outcome: "failed",
         });
-        throw new SessionBootstrapError(
-          `CAPTCHA solve failed: ${outcome.reason}`,
-          {
-            url: page.url(),
-            details: { attempts: attempts.map(summarizeOutcome), telemetry },
-          },
-        );
+        // Treat "failed" as retryable unless this is the last attempt.
+        // Common causes (transient 2captcha 5xx, flaky canvas rasterize,
+        // DOM race after re-render) recover on the next attempt. Only
+        // throw if every attempt has been exhausted.
+        if (attempt === maxAttempts) {
+          throw new SessionBootstrapError(
+            `CAPTCHA solve failed after ${maxAttempts} attempts (last: ${outcome.reason})`,
+            {
+              url: page.url(),
+              details: { attempts: attempts.map(summarizeOutcome), telemetry },
+            },
+          );
+        }
+        // Reload before retry — same reasoning as the wrong_answer branch.
+        try {
+          await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
+        } catch {
+          await page.waitForTimeout(1_000);
+        }
+        continue;
     }
   }
 

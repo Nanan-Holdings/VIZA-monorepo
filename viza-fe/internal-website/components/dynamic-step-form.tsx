@@ -7,7 +7,7 @@ import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { translateLabel, translatePlaceholder, translateOptionText } from "@/lib/ds160-translations";
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -157,17 +157,19 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   });
 
   const [values, setValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
+    // Seed with the full prefill so cross-step conditionals (e.g. a later step
+    // gated on purpose_of_visit from an earlier step) can be evaluated.
+    const init: Record<string, string> = { ...prefill };
     for (const field of step.fields) {
       const group = getRepeatGroup(field);
       if (group) {
         const count = groupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           const key = instanceKey(field.fieldName, i);
-          init[key] = prefill[key] ?? "";
+          if (!(key in init)) init[key] = "";
         }
       } else {
-        init[field.fieldName] = prefill[field.fieldName] ?? "";
+        if (!(field.fieldName in init)) init[field.fieldName] = "";
         // Auto-select B for "Purpose of Trip to the U.S."
         if (!init[field.fieldName] && isPurposeOfTripField(field)) {
           const bValue = findBOptionValue(field.options);
@@ -369,6 +371,10 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = step.fields
     .filter((f) => f.required)
+    // Annex-I-style starred fields: required_unless exempts the field when its
+    // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
+    // skip fields 21/22/30/31/32 of the Schengen form).
+    .filter((f) => !isRequiredUnlessSatisfied(f, values))
     .filter((f) => {
       if (isGatedByUnansweredToggle(f)) return false;
       if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;

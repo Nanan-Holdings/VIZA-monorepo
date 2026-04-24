@@ -20,11 +20,12 @@
  */
 
 import "dotenv/config";
-import { chromium, type Browser } from "@playwright/test";
+import type { Browser } from "@playwright/test";
 import { CEAC_URLS } from "./selectors";
 import { detectPage } from "./pages";
 import { detectGate, type GateDetectionResult } from "./gates";
 import { solveStartPageCaptcha, type StartPageCaptchaOutcome } from "./start-page-captcha";
+import { launchStealthBrowser } from "./stealth-browser";
 
 export type SmokeOutcome = "start_page" | "anti_bot_gate" | "blocked";
 
@@ -64,9 +65,9 @@ export async function probeCeacStartPage(options: {
   let browser: Browser | null = null;
 
   try {
-    browser = await chromium.launch({ headless });
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    const handles = await launchStealthBrowser({ headless });
+    browser = handles.browser;
+    const page = handles.page;
 
     try {
       await page.goto(CEAC_URLS.START, {
@@ -184,9 +185,11 @@ export async function probeCaptchaSolve(options: {
   let browser: Browser | null = null;
 
   try {
-    browser = await chromium.launch({ headless });
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    // Match the stealth config used in production session bootstrap so the
+    // smoke test exercises the same fingerprint CEAC will see at runtime.
+    const handles = await launchStealthBrowser({ headless });
+    browser = handles.browser;
+    const page = handles.page;
 
     await page.goto(CEAC_URLS.START, {
       waitUntil: "domcontentloaded",

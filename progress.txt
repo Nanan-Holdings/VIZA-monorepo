@@ -218,3 +218,115 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: docs/uk-visa-scope.md, prd.json, progress.txt
 - Learnings: The seed-script-per-visa-type pattern scales well — new categories are isolated and idempotent. The main risk is conditional logic compatibility in the renderer.
 ---
+
+## 2026-04-24 - UK full-parity pass (discharges UK-005 §8 roadmap)
+- Verified UK-005 Immediate #1: `||` operator in evaluateShowIf WORKS (form-utils.ts:44 splits on `||` then `&&`)
+- Resolved UK-005 Immediate #2: cross-step conditional was BROKEN — DynamicStepForm seeded `values` state only from `step.fields`, so later-step fields gated on earlier-step answers (e.g. purpose_of_visit) never rendered. Fix: seed `values` from full `prefill` ({ ...prefill }) so accumulated prior answers are evaluable.
+- Expanded seed from 130 → 222 fields across 11 → 12 steps. Full Standard Visitor umbrella now covered: 11 purpose options unlocking bespoke sub-journeys in Step 8 (business, short-study, medical, transit, marriage/CP, PPE, academic 12m, organ donor, clinical training incl. PLAB/OSCE).
+- Added under-18 applicant fields (step 1, gated on is_applicant_under_18): parental consent letter flag, accompanying adult name/relationship/passport.
+- Added Step 11 Dependants (7 fields, repeatable group "dependants"). Schema captures; separate-application spawning workflow deferred to v3.
+- Added Step 2 identity extensions: national ID card (3 fields), Biometric Residence Permit (2 fields). Converted other_passport_* to repeatable group.
+- Restructured Step 6 travel history: replaced single textarea with repeatable structured groups (previous_uk_visits with visa reference number, schengen_visits, us_canada_anz_visits, other_country_visits).
+- Step 12 additions: tuberculosis test declaration (user-declared; see remaining gap on nationality-auto-gating), immigration-law breach, civil penalty, public funds misuse, general medical-condition-affecting-travel.
+- Seed ran clean twice: 189 rows → 222 rows (after closing sub-category + under-18 + TB gaps).
+- Typecheck clean on viza-fe/internal-website and viza-be/agent-backend.
+- Created docs/visa-schema-playbook.md — country-agnostic playbook for replicating this process on other countries. References uk-visa-scope.md and uk-visa-gap-report.md as reference implementation.
+- Refreshed docs/uk-visa-gap-report.md to v3: coverage 222 fields, remaining limitations documented with the *why*, closed-gaps section.
+- Files changed: viza-fe/internal-website/components/dynamic-step-form.tsx, viza-be/agent-backend/scripts/seed-uk-standard-visitor-form-fields.ts, docs/uk-visa-gap-report.md, docs/visa-schema-playbook.md (new), progress.txt
+- Learnings:
+  1. Cross-step conditional bug was a silent correctness issue — fields would be defined but never render, easy to miss without the full purpose-walk.
+  2. `evaluateShowIf` cannot express list membership (country in [af, bd, pk, ...]); nationality-gated UK requirements like TB test must be user-declared until an `in` operator is added.
+  3. display_order within a step is NOT auto-managed — when inserting new fields mid-step, downstream display_orders must be bumped manually or render order becomes undefined.
+  4. Full parity with an umbrella visa (one product covering 11 purposes) lands at ~200+ fields with most complexity in a single purpose-specific step. Single-purpose forms will be much lighter.
+  5. Document uploads, biometrics booking, and IHS payment are correctly NOT in the schema — they live in application_documents or external portals. Do not drift them in.
+---
+
+## 2026-04-24 - SCH-001
+- Pinned scope to the harmonized EU Schengen Type C short-stay visa (up to 90 days in any 180-day period), using Annex I of Regulation (EC) No 810/2009 as the canonical source
+- visa_type key: EU_SCHENGEN_C_SHORT_STAY; country: european_union (multilateral, not a member state)
+- Added SCH-001 through SCH-005 to prd.json
+- Explicitly out-of-scope: Type D long-stay (governed by national law per member state), FTD/FRTD (Regulation 693/2003), bilateral humanitarian visas
+- Country-specific embassy UX (France-Visas, VFS, BLS, TLS Contact) is documented as "out of schema" — all portals render the same Annex I field set with local branding
+- Files changed: prd.json, progress.txt
+- Learnings: multilateral visas need a clean "name by visa type, not country" rule from the outset — playbook §3 Step 1 was followed exactly (package is EU_SCHENGEN_C_SHORT_STAY, not FR_/DE_/IT_SCHENGEN_C).
+---
+
+## 2026-04-24 - SCH-002
+- Created scripts/seed-eu-schengen-c-short-stay-form-fields.ts with 158 fields across 12 steps
+- Steps: Personal, Parental Authority (minors), Travel Document, EU/EEA/CH Family, Contact & Residence, Occupation, Trip Details, Purpose-Specific, Accommodation, Travel History, Financial Support, Declaration
+- Purpose umbrella: 10 options (tourism, business, visiting_family_friends, cultural, sports, official_visit, medical, study, airport_transit, other) unlocking bespoke sub-journeys in Step 8
+- Reusable purpose gates declared once and referenced: IS_TOURISM, IS_BUSINESS, IS_VISIT, IS_CULTURAL, IS_SPORTS, IS_OFFICIAL, IS_MEDICAL, IS_STUDY, IS_TRANSIT, IS_OTHER, plus derived IS_EVENT = cultural || sports || official
+- Cost-of-trip gates: COST_SELF = self || both, COST_SPONSOR = sponsor || both (Annex I field 36)
+- Repeatable groups: other_nationalities (max 5), previous_schengen_visas (max 10)
+- Block groups: parental_authority, eu_family, home_address, employer, school, host_details, business_details, study_details, medical_details, event_details, accommodation_address, entry_permit, sponsor_details
+- Inline groups: travel_document_dates (issue/expiry), trip_dates (arrival/departure), event_dates (start/end), entry_permit_dates (valid_from/valid_until)
+- Seed ran clean: "Done: 158 rows seeded (158 defined)"
+- Typecheck passes on agent-backend
+- Files changed: viza-be/agent-backend/scripts/seed-eu-schengen-c-short-stay-form-fields.ts (new), prd.json, progress.txt
+- Learnings: the Annex I umbrella lands at ~158 fields — lighter than UK Standard Visitor (222) because Schengen has fewer bespoke sub-journey categories (10 purposes vs 11) and no dependants step (dependants apply separately under Type C).
+---
+
+## 2026-04-24 - SCH-003
+- Created drizzle/0011_eu_schengen_c_short_stay_package.sql migration with idempotent INSERT + ON CONFLICT DO NOTHING
+- Adds visa_packages row: country=european_union, visa_type=EU_SCHENGEN_C_SHORT_STAY, name="Schengen Short-Stay Visa (Type C)"
+- No frontend code changes — DynamicStepForm renders the 158 seeded fields generically (same zero-frontend-change path UK-003 used)
+- Files changed: viza-be/agent-backend/drizzle/0011_eu_schengen_c_short_stay_package.sql (new), prd.json, progress.txt
+- Learnings: the "country" column in visa_packages can hold multilateral labels (european_union) — no schema change required. Anything downstream that key-matches on country names should handle this as a sibling of individual-country entries.
+---
+
+## 2026-04-24 - SCH-004
+- Created docs/schengen-visa-gap-report.md with coverage summary (12 steps / 158 fields), 7 remaining limitations documented with why + workaround, and reviewer checklist
+- Limitations: (1) live-portal QA not yet done, (2) ATV nationality-gating not enforced, (3) fingerprint 59-month exemption not auto-calculated, (4) travel medical insurance handled as document upload not schema field, (5) submission automation deferred (portal divergence), (6) Type D / FTD out of v1 scope, (7) Directive 2004/38 fast-track captured but not routed differently
+- Conditional-logic status documented: `||` confirmed working per UK v2 fix, cross-step conditionals require DynamicStepForm values-from-full-prefill seeding, no `in` operator (affects ATV nationality lists)
+- Files changed: docs/schengen-visa-gap-report.md (new), prd.json, progress.txt
+- Learnings: documenting the insurance carve-out is important — it reads as a gap but is intentionally schema-external. The scope doc must remind the UI layer to surface insurance reminders at declaration time so users don't think the document upload is optional.
+---
+
+## 2026-04-24 - SCH-005
+- Created docs/schengen-visa-scope.md documenting Annex I source, 12-step canonical journey, rerun instructions, and expansion path
+- Honesty disclosure in §9: live portal NOT driven (identity-gated); schema is a reconstruction from Annex I + Visa Handbook + portal pre-login pages
+- Next actions: Immediate (live-portal QA against France-Visas, verify `||` + cross-step still work, insurance reminder in review UI), v1.1 (ATV nationality gate, previous-visa repeatable verification, hotel confirmation number), v2 (Type D packages per member state, per-portal submission automation, fingerprint exemption helper)
+- Ralph stop condition: all UK-001..005 and SCH-001..005 pass — first multilateral visa package shipped end-to-end
+- Files changed: docs/schengen-visa-scope.md (new), prd.json, progress.txt
+- Learnings:
+  1. Multilateral visas cleanly validate the playbook's "one package = one visa product" rule — EU_SCHENGEN_C_SHORT_STAY is one product even though it's honored by 29 states.
+  2. The purpose-umbrella pattern scales: UK (11 purposes, 222 fields) and Schengen (10 purposes, 158 fields) sit at comparable field-density per purpose, suggesting ~15–20 fields per sub-journey is a reasonable budget.
+  3. Research-fallback mode (PDF + legal basis, no live-portal drive) is sufficient for a first-pass reconstruction — the real risk is the drift that surfaces on live-portal QA. Budget time for that pass.
+  4. Directive 2004/38 (EU family-member fast-track) is captured at the schema level but the procedural difference is a workflow concern — scope docs must flag this so admin/ops doesn't silently treat EU-family applicants as generic Type C queue items.
+  5. "Country" in visa_packages is doing more than country-naming — using european_union is a multilateral label. If more multilateral visas follow (ECOWAS, Caribbean Common Security, GCC), the column's role should be renamed or complemented with a "jurisdiction_type" column.
+---
+
+## 2026-04-24 - Schengen gap closure (v1.1 + v1.2)
+
+### v1.1 — list-membership operator (closes §3.2 and §5.3)
+- Added `in` / `not in` operator to `evaluateShowIf` in viza-fe/internal-website/lib/form-utils.ts. Atom pattern: `fieldname in [v1, v2, v3]` or `fieldname not in [v1, v2, v3]`; values comma-separated, matched case-insensitively; composes with existing `||` / `&&` split. "not in" checked before "in" so the longer keyword wins.
+- Wired two ATV-specific fields to Step 8 of the Schengen seed, gated on `current_nationality in [af, bd, cd, er, et, gh, ir, iq, ng, pk, so, lk] && purpose_of_journey === airport_transit` (Annex IV common ATV list).
+- Schengen fields grew 158 → 160.
+- Playbook §4 "Not supported" list trimmed; `in` / `not in` are now documented primitives with a worked example.
+
+### v1.2 — source-verification QA pass against Annex I 2020 (closes §3.1 source-side)
+- Walked the 160-field schema row-by-row against the official EU Commission Annex I PDF (home-affairs.ec.europa.eu/.../Visa+Application+Form.pdf, loaded as binary and rendered via Read's PDF support since WebFetch only extracts HTML text).
+- 9 concrete discrepancies found and fixed:
+  1. Field 8 Sex: added "Other" option (Annex I has Male/Female/Other; schema had only M/F).
+  2. Civil status label: "Widowed" → "Widow(er)" per Annex I verbatim.
+  3. Fields 17 & 18 EU family member: label updated to include "or a UK national who is a beneficiary of the EU-UK Withdrawal Agreement" (post-Brexit amendment absent from v1).
+  4. Field 31 inviting company: added business_contact_address + business_contact_phone (Annex I asks for contact person's address and telephone; schema previously had name and email only).
+  5. Field 33 person filling in the form: entire block was missing. Added 6 fields to Step 12 (`has_different_filler` toggle + filler_surname, filler_given_names, filler_address, filler_email, filler_phone gated on the toggle).
+  6. Field 37 declaration: only 2 of 6 required consents were captured. Added `declaration_fee_not_refunded_awareness`, `declaration_insurance_multi_entry_awareness` (conditional on `number_of_entries_requested === multiple`), `declaration_vis_consent`, `declaration_data_rights_awareness`, `declaration_undertaking_to_leave`.
+  7. Step 10 stale "past 3 years Schengen visas" repeatable group (4 fields) — removed. The 2019/1155 amendment merged that data into field 28 (fingerprints) and the legacy field 29 no longer exists on the live form.
+  8. Docs updated from "Annex I 1–37" (pre-2020) to "1–33" (2020 consolidation).
+  9. All Annex I declaration label text now matches verbatim (VIS consent wording, undertaking-to-leave wording, fee-not-refunded-awareness wording).
+- Net v1.2 change: +13 adds, −4 removes. Schengen total 160 → 169 fields.
+- Two limitations remain explicitly documented (scoped for v1.3+):
+  a) Field 23 purpose is a checkbox set on Annex I (multi-select); schema keeps single-select because supporting checkbox_group would require both a DynamicStepForm field-type addition and rewriting every `IS_BUSINESS`-style `===` gate to use `in` — mechanically feasible, invasive.
+  b) Fields 21, 22, 30, 31, 32 are starred on Annex I — exempt for UK Withdrawal Agreement beneficiaries. Schema always requires them; needs a `required_unless` clause on `conditional_logic` (small library change, scoped v1.3).
+- Typecheck clean on both viza-fe/internal-website and viza-be/agent-backend.
+- Seed output: "Done: 169 rows seeded (169 defined)". Clean.
+- Files changed: viza-fe/internal-website/lib/form-utils.ts, viza-be/agent-backend/scripts/seed-eu-schengen-c-short-stay-form-fields.ts, docs/schengen-visa-gap-report.md, docs/schengen-visa-scope.md, docs/visa-schema-playbook.md, progress.txt.
+- Learnings:
+  1. The binary-PDF read path (WebFetch saves to tool-results/, then Read with `pages` parameter) is the canonical way to ingest government forms from inside this harness — WebFetch's HTML-only text extraction returns nothing useful on binary PDFs. Worth noting in the playbook as the preferred research-fallback flow.
+  2. EU-level forms drift faster than expected — the 2019/1155 amendment (Feb 2020 in force) removed a whole repeatable field and added UK Withdrawal Agreement language. Any schema >3 years old should be re-verified against the current authoritative source, not against older reference implementations.
+  3. Declaration text on Annex I is VERBATIM legally binding — 6 specific consents, not 2. Earlier version silently compressed them; the v1.2 fix preserves each consent as its own radio so downstream submission portals can surface each acknowledgment individually.
+  4. The `in` operator pays back quickly — we used it for ATV nationality gating in v1.1 and can now use it cleanly for UK TB test gating, yellow-fever certificate lists, and any future visa-waiver checks without repeating 12+ `||` atoms.
+  5. Source-verification QA pass (authoritative PDF walk) is a meaningful partial for §3.1 — it catches static drift even when live-portal QA remains blocked by identity gates. Should be a standard step in the playbook for any country with a published form PDF.
+---
