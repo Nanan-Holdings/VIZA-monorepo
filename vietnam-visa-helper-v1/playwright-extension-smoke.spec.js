@@ -1221,6 +1221,184 @@ test('content script autofill fills logged Ant Select problem cases', async ({ p
   }
 });
 
+test('floating panel can be restored after minimizing', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.addInitScript(() => {
+    const mockResponse = {
+      userData: {
+        personalInfo: {
+          surname: 'Zhang'
+        }
+      },
+      fieldMappings: {
+        surname: { label_cn: '姓氏' }
+      }
+    };
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback(mockResponse);
+          } else if (callback) {
+            callback({});
+          }
+        },
+        openOptionsPage() {}
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-panel', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockPageHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-panel', { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.resolve(__dirname, 'styles.css') });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+    await page.waitForSelector('#visa-helper-panel', { timeout: 15000 });
+
+    await expect(page.locator('#visa-helper-panel')).toHaveAttribute('aria-expanded', 'true');
+    await page.locator('#vh-minimize').click();
+    await expect(page.locator('#visa-helper-panel')).toHaveClass(/minimized/, { timeout: 10000 });
+    await expect(page.locator('#visa-helper-panel')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#vh-panel-title')).toHaveText(/VN\s*V1/i, { timeout: 10000 });
+
+    await page.locator('#visa-helper-panel').click();
+    await expect(page.locator('#visa-helper-panel')).not.toHaveClass(/minimized/, { timeout: 10000 });
+    await expect(page.locator('#visa-helper-panel')).toHaveAttribute('aria-expanded', 'true');
+  } catch (error) {
+    const snippet = consoleLogs.slice(-120).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
+test('content script fillAllFields populates standard inputs on the full mock form', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.addInitScript(() => {
+    const mockResponse = {
+      userData: {
+        personalInfo: {
+          surname: 'Zhang',
+          given_name: 'San',
+          gender: 'male',
+          nationality: 'China',
+          passport_number: 'E12345678',
+          passport_type: 'ordinary'
+        },
+        contactInfo: {
+          email: 'zhangsan@example.com'
+        },
+        occupationInfo: {
+          occupation: 'Engineer'
+        },
+        travelInfo: {
+          purpose: 'Tourism',
+          destination_address: '123 Tran Hung Dao Street, Hanoi, Vietnam',
+          province_city: 'Hanoi',
+          ward_commune: 'Ba Dinh District, Hanoi'
+        },
+        visaInfo: {
+          intended_border_gate_of_entry: 'Noi Bai',
+          intended_border_gate_of_exit: 'Noi Bai'
+        },
+        tripExpenses: {
+          bought_insurance: 'No',
+          expense_coverage: 'Myself',
+          payment_method: 'credit_card'
+        },
+        documents: {}
+      },
+      fieldMappings: {
+        surname: { label_cn: '姓氏' },
+        given_name: { label_cn: '名字' },
+        email: { label_cn: '电子邮件地址' },
+        passport_number: { label_cn: '护照号码' },
+        gender: { label_cn: '性别', options: { male: '男 (Male)' } },
+        nationality: { label_cn: '国籍', options: { China: '中国 (China)' } },
+        passport_type: { label_cn: '护照类型', options: { ordinary: '普通护照 (Ordinary Passport)' } },
+        occupation: { label_cn: '职业', options: { Employee: '雇员 (Employee)' } },
+        purpose: { label_cn: '访问目的', options: { Tourist: '旅游 (Tourist)' } },
+        province_city: { label_cn: '省/市', options: { Hanoi: '河内 (Hanoi)' } },
+        ward_commune: { label_cn: '坊/社' },
+        intended_border_gate_of_entry: { label_cn: '预计入境口岸' },
+        intended_border_gate_of_exit: { label_cn: '预计出境口岸' },
+        bought_insurance: { label_cn: '是否购买保险', options: { No: '否 (No)' } },
+        expense_coverage: { label_cn: '谁将承担旅程的费用', options: { Personal: '个人承担 (Personal)' } },
+        payment_method: { label_cn: '支付方式', options: { credit_card: '信用卡 (Credit card)' } }
+      }
+    };
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback(mockResponse);
+          } else if (message && message.action === 'getUploadDocuments') {
+            callback({ documents: {} });
+          } else if (callback) {
+            callback({});
+          }
+        },
+        getURL(relativePath) {
+          return `chrome-extension://mock-extension-id/${relativePath}`;
+        },
+        openOptionsPage() {}
+      },
+      storage: {
+        local: {
+          get(_keys, callback) {
+            callback({});
+          }
+        }
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-full-autofill', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockPageHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-full-autofill', { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.resolve(__dirname, 'styles.css') });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+    await page.waitForFunction(() => typeof window.fillAllFields === 'function', null, { timeout: 15000 });
+
+    await page.evaluate(async () => {
+      await window.fillAllFields();
+    });
+
+    await expect(page.locator('#surname')).toHaveValue('Zhang', { timeout: 10000 });
+    await expect(page.locator('#given_name')).toHaveValue('San', { timeout: 10000 });
+    await expect(page.locator('#email')).toHaveValue('zhangsan@example.com', { timeout: 10000 });
+    await expect(page.locator('#passport_number')).toHaveValue('E12345678', { timeout: 10000 });
+    await expect(page.locator('#mock-gender .ant-select-selection-item')).toHaveText(/Male/i, { timeout: 10000 });
+    await expect(page.locator('#mock-nationality .ant-select-selection-item')).toHaveText(/Chinese/i, { timeout: 10000 });
+    await expect(page.locator('#mock-passport-type .ant-select-selection-item')).toHaveText(/Ordinary Passport/i, { timeout: 10000 });
+    await expect(page.locator('#mock-purpose .ant-select-selection-item')).toHaveText(/Tourist/i, { timeout: 10000 });
+    await expect(page.locator('#mock-payment-method .ant-select-selection-item')).toHaveText(/Credit card/i, { timeout: 10000 });
+  } catch (error) {
+    const snippet = consoleLogs.slice(-160).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
 test('content script smart standard input filler survives controlled rerenders', async ({ page }) => {
   const consoleLogs = [];
   page.on('console', msg => consoleLogs.push(msg.text()));
