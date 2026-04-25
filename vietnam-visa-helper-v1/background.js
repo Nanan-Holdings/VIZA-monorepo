@@ -724,7 +724,30 @@ function buildUploadDocumentsResponse(documents) {
 
 function getStoredUploadDocuments(callback) {
   chrome.storage.local.get([UPLOAD_STORAGE_KEY], (result) => {
+    if (chrome.runtime.lastError) {
+      console.warn('读取上传文件缓存失败:', chrome.runtime.lastError.message);
+      callback({});
+      return;
+    }
+
     callback(sanitizeUploadDocuments(result?.[UPLOAD_STORAGE_KEY]));
+  });
+}
+
+function persistUploadDocuments(nextDocuments, sendResponse) {
+  chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: nextDocuments }, () => {
+    if (chrome.runtime.lastError) {
+      sendResponse({
+        success: false,
+        error: chrome.runtime.lastError.message || 'storage_set_failed'
+      });
+      return;
+    }
+
+    sendResponse({
+      success: true,
+      documents: nextDocuments
+    });
   });
 }
 
@@ -760,12 +783,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         [key]: payload
       };
 
-      chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: nextDocuments }, () => {
-        sendResponse({
-          success: true,
-          documents: nextDocuments
-        });
-      });
+      persistUploadDocuments(nextDocuments, sendResponse);
     });
     return true;
   }
@@ -786,12 +804,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             [key]: processedPayload
           };
 
-          chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: nextDocuments }, () => {
-            sendResponse({
-              success: true,
-              documents: nextDocuments
-            });
-          });
+          persistUploadDocuments(nextDocuments, sendResponse);
         });
       } catch (error) {
         sendResponse({
@@ -815,12 +828,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const nextDocuments = { ...documents };
       delete nextDocuments[key];
 
-      chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: nextDocuments }, () => {
-        sendResponse({
-          success: true,
-          documents: nextDocuments
-        });
-      });
+      persistUploadDocuments(nextDocuments, sendResponse);
     });
     return true;
   }

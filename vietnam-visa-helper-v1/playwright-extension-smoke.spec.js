@@ -958,6 +958,92 @@ function buildMockDynamicPaymentHtml() {
 </html>`;
 }
 
+function buildMockPostFillNextGuidanceHtml() {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Post Fill Next Guidance</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; line-height: 1.4; }
+    .field { margin-bottom: 16px; max-width: 520px; }
+    .field label { display: block; margin-bottom: 6px; font-weight: 600; }
+    input[type="text"], input[type="email"] { width: 100%; padding: 8px; box-sizing: border-box; }
+    #mock-next-button { margin-top: 16px; padding: 10px 16px; border: none; border-radius: 6px; background: #1f6feb; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Mock eVisa Form - Next Step Guidance</h1>
+
+  <div class="field">
+    <label for="surname">Surname</label>
+    <input id="surname" type="text" placeholder="Surname" />
+  </div>
+  <div class="field">
+    <label for="given_name">Given name</label>
+    <input id="given_name" type="text" placeholder="Given name" />
+  </div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="Email address" />
+  </div>
+  <div class="field">
+    <label for="passport_number">Passport number</label>
+    <input id="passport_number" type="text" placeholder="Passport number" />
+  </div>
+
+  <button id="mock-next-button" type="button">Next</button>
+</body>
+</html>`;
+}
+
+function buildMockCaptchaStepHtml() {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Captcha Step</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; line-height: 1.5; }
+    .card { max-width: 560px; border: 1px solid #d1d5db; border-radius: 8px; padding: 18px; }
+    .captcha-row { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+    .captcha-image {
+      width: 140px;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 8px, #e5e7eb 8px, #e5e7eb 16px);
+      border: 1px dashed #9ca3af;
+      border-radius: 6px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+    #captchaInput { padding: 8px; width: 220px; }
+    #captcha-next-btn { margin-top: 10px; padding: 10px 16px; border: none; border-radius: 6px; background: #1f6feb; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Verification Code</h1>
+    <p>Please enter the captcha verification code before clicking Next.</p>
+    <div class="captcha-row">
+      <img
+        id="captchaImage"
+        class="captcha-image"
+        src="https://www.evisa.gov.vn/mock-assets/captcha.png"
+        alt="Captcha image"
+      />
+      <input id="captchaInput" type="text" name="captcha_code" placeholder="Enter captcha code" />
+    </div>
+    <button id="captcha-next-btn" type="button">Next</button>
+  </div>
+</body>
+</html>`;
+}
+
 test('content script autofill fills logged Ant Select problem cases', async ({ page }) => {
   const consoleLogs = [];
   page.on('console', msg => consoleLogs.push(msg.text()));
@@ -1395,6 +1481,122 @@ test('content script fillAllFields populates standard inputs on the full mock fo
     await expect(page.locator('#mock-payment-method .ant-select-selection-item')).toHaveText(/Credit card/i, { timeout: 10000 });
   } catch (error) {
     const snippet = consoleLogs.slice(-160).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
+test('content script prompts manual Next guidance after autofill completes', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.addInitScript(() => {
+    const mockResponse = {
+      userData: {
+        personalInfo: {
+          surname: 'Zhang',
+          given_name: 'San',
+          passport_number: 'E12345678'
+        },
+        contactInfo: {
+          email: 'zhangsan@example.com'
+        }
+      },
+      fieldMappings: {
+        surname: { label_cn: '姓氏' },
+        given_name: { label_cn: '名字' },
+        email: { label_cn: '电子邮件地址' },
+        passport_number: { label_cn: '护照号码' }
+      }
+    };
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback(mockResponse);
+          } else if (message && message.action === 'getUploadDocuments') {
+            callback({ documents: {} });
+          } else if (callback) {
+            callback({});
+          }
+        },
+        openOptionsPage() {}
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-post-fill-guidance', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockPostFillNextGuidanceHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-post-fill-guidance', { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.resolve(__dirname, 'styles.css') });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+    await page.waitForFunction(() => typeof window.fillAllFields === 'function', null, { timeout: 15000 });
+
+    await page.evaluate(async () => {
+      await window.fillAllFields();
+    });
+
+    await expect(page.locator('#surname')).toHaveValue('Zhang', { timeout: 10000 });
+    await expect(page.locator('#given_name')).toHaveValue('San', { timeout: 10000 });
+    await expect(page.locator('#email')).toHaveValue('zhangsan@example.com', { timeout: 10000 });
+    await expect(page.locator('#passport_number')).toHaveValue('E12345678', { timeout: 10000 });
+    await expect(page.locator('#vh-stats small')).toContainText('填充完成，请手动点击 Next', { timeout: 10000 });
+    await expect(page.locator('#mock-next-button')).toHaveClass(/vh-apply-highlight/, { timeout: 10000 });
+    await expect(page.locator('.vh-top-banner')).toContainText('手动点击 Next', { timeout: 3000 });
+  } catch (error) {
+    const snippet = consoleLogs.slice(-160).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
+test('content script guides users on captcha verification step', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.addInitScript(() => {
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback({ userData: {}, fieldMappings: {} });
+          } else if (callback) {
+            callback({});
+          }
+        },
+        openOptionsPage() {}
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-captcha-step', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockCaptchaStepHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-captcha-step', { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.resolve(__dirname, 'styles.css') });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+
+    await expect(page.locator('#vh-stats small')).toContainText('验证码步骤', { timeout: 10000 });
+    await expect(page.locator('.vh-top-banner')).toContainText('验证码步骤', { timeout: 3000 });
+
+    const outline = await page.locator('#captchaInput').evaluate(el => el.style.outline || '');
+    expect(outline).toContain('2px');
+  } catch (error) {
+    const snippet = consoleLogs.slice(-120).join('\n');
     throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
   }
 });

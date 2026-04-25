@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vietnam Visa Helper Settings</title>
+  <style>
+    :root {
+      --bg: #f5f8ff;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --primary: #1e3c72;
+      --accent: #2a5298;
+      --border: #d5dff2;
+      --ok: #166534;
+      --warn: #9a3412;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(150deg, var(--bg) 0%, #eaf0ff 100%);
+      color: var(--text);
+      padding: 28px 16px;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 16px 34px rgba(17, 24, 39, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 20px 22px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      opacity: 0.92;
+    }
+
+    .content {
+      padding: 18px 22px 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: var(--primary);
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .pill.ok {
+      color: var(--ok);
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+    }
+
+    .pill.warn {
+      color: var(--warn);
+      background: #ffedd5;
+      border: 1px solid #fed7aa;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #6b7280;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>Vietnam Visa Helper Settings</h1>
+      <p id="versionLine">Version: loading...</p>
+    </header>
+
+    <section class="content">
+      <article class="card">
+        <h2>Current Profile Source</h2>
+        <p>
+          The extension is currently running in testing mode with hardcoded profile data in background.js.
+          This page does not override those values.
+        </p>
+        <span class="pill warn">Testing mode</span>
+      </article>
+
+      <article class="card">
+        <h2>What this page already improves</h2>
+        <p>
+          The popup "Settings" button now opens a valid destination instead of silently failing.
+        </p>
+        <span class="pill ok">Settings entry is wired</span>
+      </article>
+
+      <article class="card">
+        <h2>Next planned step</h2>
+        <p>
+          Add optional local profile editing and import/export while preserving the current testing workflow.
+        </p>
+      </article>
+
+      <p class="meta" id="generatedAt">Loaded</p>
+    </section>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>
