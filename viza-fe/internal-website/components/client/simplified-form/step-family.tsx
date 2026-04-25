@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Heart, Plus, Trash2, User } from "lucide-react";
+import { Check, Flag, Globe2, Heart, Plus, Trash2, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
+import { TabChoice } from "@/components/client/simplified-form/tab-choice";
 import {
   Select,
   SelectContent,
@@ -15,13 +16,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { FormerSpouse, SimplifiedFamily } from "./types";
+import type { FormerSpouse, SimplifiedFamily, UsRelative } from "./types";
 
 const SPOUSE_STATUSES = [
   "Married",
   "Common Law Marriage",
   "Civil Union / Domestic Partnership",
   "Legally Separated",
+] as const;
+
+const LANGUAGE_OPTIONS = [
+  { value: "English", labelKey: "languageEnglish" },
+  { value: "Spanish", labelKey: "languageSpanish" },
+  { value: "French", labelKey: "languageFrench" },
+  { value: "Arabic", labelKey: "languageArabic" },
+  { value: "Chinese (Mandarin)", labelKey: "languageChineseMandarin" },
+  { value: "Chinese (Cantonese)", labelKey: "languageChineseCantonese" },
+  { value: "Hindi", labelKey: "languageHindi" },
+  { value: "Portuguese", labelKey: "languagePortuguese" },
+  { value: "Russian", labelKey: "languageRussian" },
+  { value: "Japanese", labelKey: "languageJapanese" },
+  { value: "Korean", labelKey: "languageKorean" },
+  { value: "German", labelKey: "languageGerman" },
+  { value: "Italian", labelKey: "languageItalian" },
+  { value: "Turkish", labelKey: "languageTurkish" },
+  { value: "Vietnamese", labelKey: "languageVietnamese" },
+  { value: "Thai", labelKey: "languageThai" },
+  { value: "Malay", labelKey: "languageMalay" },
+  { value: "Tamil", labelKey: "languageTamil" },
+] as const;
+
+const RECOMMENDED_LANGUAGES = [
+  "English",
+  "Chinese (Mandarin)",
+  "Chinese (Cantonese)",
+  "Malay",
+  "Tamil",
 ] as const;
 
 type MaritalStatus = string;
@@ -46,6 +76,15 @@ function emptyFormerSpouse(): FormerSpouse {
     divorceDate: "",
     howEnded: "",
     divorceCountry: "",
+  };
+}
+
+function emptyUsRelative(): UsRelative {
+  return {
+    firstName: "",
+    lastName: "",
+    relationship: "",
+    status: "",
   };
 }
 
@@ -232,6 +271,87 @@ export function StepFamily({
             </SelectContent>
           </Select>
         </BrandField>
+
+        {value.spouseAddressType === "other" ? (
+          <div className="grid gap-x-5 gap-y-4 border-l-2 border-brand-100 pl-3 sm:grid-cols-2">
+            <BrandField label={t("street1")} required>
+              <BrandInput
+                value={value.spouseAddressStreet1}
+                onChange={(e) => set("spouseAddressStreet1", e.target.value)}
+                placeholder={t("street1Placeholder")}
+              />
+            </BrandField>
+            <BrandField label={t("street2")}>
+              <BrandInput
+                value={value.spouseAddressStreet2}
+                onChange={(e) => set("spouseAddressStreet2", e.target.value)}
+                placeholder={t("street2Placeholder")}
+              />
+            </BrandField>
+            <BrandField label={t("city")} required>
+              <BrandInput
+                value={value.spouseAddressCity}
+                onChange={(e) => set("spouseAddressCity", e.target.value)}
+                placeholder={t("cityPlaceholder")}
+              />
+            </BrandField>
+            <div className="flex flex-col gap-2">
+              <BrandField label={t("stateProvince")}>
+                <BrandInput
+                  value={value.spouseAddressState}
+                  onChange={(e) => set("spouseAddressState", e.target.value)}
+                  placeholder={t("stateProvincePlaceholder")}
+                  disabled={value.spouseAddressNoState}
+                />
+              </BrandField>
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                <Checkbox
+                  checked={value.spouseAddressNoState}
+                  onCheckedChange={(checked) => {
+                    const next = checked === true;
+                    onChange({
+                      ...value,
+                      spouseAddressNoState: next,
+                      spouseAddressState: next ? "" : value.spouseAddressState,
+                    });
+                  }}
+                />
+                {t("noStateProvince")}
+              </label>
+            </div>
+            <div className="flex flex-col gap-2">
+              <BrandField label={t("postalCode")}>
+                <BrandInput
+                  value={value.spouseAddressPostalCode}
+                  onChange={(e) => set("spouseAddressPostalCode", e.target.value)}
+                  placeholder={t("postalCodePlaceholder")}
+                  disabled={value.spouseAddressNoPostalCode}
+                />
+              </BrandField>
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                <Checkbox
+                  checked={value.spouseAddressNoPostalCode}
+                  onCheckedChange={(checked) => {
+                    const next = checked === true;
+                    onChange({
+                      ...value,
+                      spouseAddressNoPostalCode: next,
+                      spouseAddressPostalCode: next ? "" : value.spouseAddressPostalCode,
+                    });
+                  }}
+                />
+                {t("noPostalCode")}
+              </label>
+            </div>
+            <BrandField label={t("country")} required>
+              <CountryDropdown
+                defaultValue={value.spouseAddressCountry}
+                placeholder={t("countryPlaceholder")}
+                onChange={(c) => set("spouseAddressCountry", c.alpha3)}
+              />
+            </BrandField>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -380,6 +500,302 @@ export function StepFamily({
     );
   }
 
+  function usRelativesCard() {
+    const showRelativeDetails = value.relativesInUs === "yes" || value.hasOtherRelatives === "yes";
+    const showOtherRelativesQuestion = value.relativesInUs !== "yes";
+    const relatives = value.usRelatives.length ? value.usRelatives : [emptyUsRelative()];
+    const canAdd = relatives.length < 5;
+
+    const setRelative = <K extends keyof UsRelative>(index: number, key: K, next: UsRelative[K]) => {
+      const current = value.usRelatives.length ? value.usRelatives : [emptyUsRelative()];
+      set("usRelatives", current.map((relative, i) => (i === index ? { ...relative, [key]: next } : relative)));
+    };
+
+    const setRelativesInUs = (next: "yes" | "no") => {
+      onChange({
+        ...value,
+        relativesInUs: next,
+        hasOtherRelatives: next === "yes" ? "no" : value.hasOtherRelatives,
+        usRelatives: next === "yes" && !value.usRelatives.length ? [emptyUsRelative()] : value.usRelatives,
+      });
+    };
+
+    const setHasOtherRelatives = (next: "yes" | "no") => {
+      onChange({
+        ...value,
+        hasOtherRelatives: next,
+        usRelatives: next === "yes" && !value.usRelatives.length ? [emptyUsRelative()] : value.usRelatives,
+      });
+    };
+
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t("relativesInUs")}</p>
+            <p className="text-xs text-muted-foreground">{t("relativesInUsHint")}</p>
+          </div>
+        </div>
+
+        <TabChoice
+          name="relatives-in-us"
+          value={value.relativesInUs}
+          columns={2}
+          onChange={(next) => setRelativesInUs(next as "yes" | "no")}
+          ariaLabel={t("relativesInUs")}
+          options={[
+            { value: "yes", label: tCommon("yes") },
+            { value: "no", label: tCommon("no") },
+          ]}
+        />
+
+        {showOtherRelativesQuestion ? (
+          <div className="border-t border-border/60 pt-4">
+            <BrandField label={t("hasOtherRelatives")} hint={t("hasOtherRelativesHint")}>
+              <TabChoice
+                name="has-other-us-relatives"
+                value={value.hasOtherRelatives}
+                columns={2}
+                onChange={(next) => setHasOtherRelatives(next as "yes" | "no")}
+                ariaLabel={t("hasOtherRelatives")}
+                options={[
+                  { value: "yes", label: tCommon("yes") },
+                  { value: "no", label: tCommon("no") },
+                ]}
+              />
+            </BrandField>
+          </div>
+        ) : null}
+
+        {showRelativeDetails ? (
+          <div className="flex flex-col gap-4 border-t border-border/60 pt-4">
+            {relatives.map((relative, index) => (
+              <div key={index} className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">{t("relativeN", { n: index + 1 })}</p>
+                  {relatives.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => set("usRelatives", relatives.filter((_, i) => i !== index))}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={t("removeRelative")}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+                  <BrandField label={t("relativeFirstName")} required>
+                    <BrandInput
+                      value={relative.firstName}
+                      onChange={(e) => setRelative(index, "firstName", e.target.value)}
+                      placeholder={t("relativeFirstNamePlaceholder")}
+                    />
+                  </BrandField>
+                  <BrandField label={t("relativeLastName")} required>
+                    <BrandInput
+                      value={relative.lastName}
+                      onChange={(e) => setRelative(index, "lastName", e.target.value)}
+                      placeholder={t("relativeLastNamePlaceholder")}
+                    />
+                  </BrandField>
+                </div>
+
+                <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+                  <BrandField label={t("relativeRelationship")} required>
+                    <Select value={relative.relationship} onValueChange={(next) => setRelative(index, "relationship", next as UsRelative["relationship"])}>
+                      <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px]">
+                        <SelectValue placeholder={t("relativeRelationship")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="spouse">{t("relationSpouse")}</SelectItem>
+                        <SelectItem value="fiance">{t("relationFiance")}</SelectItem>
+                        <SelectItem value="child">{t("relationChild")}</SelectItem>
+                        <SelectItem value="sibling">{t("relationSibling")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </BrandField>
+                  <BrandField label={t("relativeStatus")} required>
+                    <Select value={relative.status} onValueChange={(next) => setRelative(index, "status", next as UsRelative["status"])}>
+                      <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px]">
+                        <SelectValue placeholder={t("relativeStatus")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="citizen">{t("statusCitizen")}</SelectItem>
+                        <SelectItem value="lpr">{t("statusLpr")}</SelectItem>
+                        <SelectItem value="nonimmigrant">{t("statusNonimmigrant")}</SelectItem>
+                        <SelectItem value="other_unknown">{t("statusOther")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </BrandField>
+                </div>
+              </div>
+            ))}
+
+            {canAdd ? (
+              <button
+                type="button"
+                onClick={() => set("usRelatives", [...relatives, emptyUsRelative()])}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground transition-colors hover:border-brand-300 hover:text-brand-500"
+              >
+                <Plus className="h-4 w-4" />
+                {t("addAnotherRelative")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function clanTribeCard() {
+    const setHasClanTribe = (next: "yes" | "no") => {
+      onChange({
+        ...value,
+        hasClanTribe: next,
+        clanTribeName: next === "yes" ? value.clanTribeName : "",
+      });
+    };
+
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Flag className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t("clanTribe")}</p>
+            <p className="text-xs text-muted-foreground">{t("clanTribeHint")}</p>
+          </div>
+        </div>
+
+        <TabChoice
+          name="has-clan-tribe"
+          value={value.hasClanTribe}
+          columns={2}
+          onChange={(next) => setHasClanTribe(next as "yes" | "no")}
+          ariaLabel={t("clanTribe")}
+          options={[
+            { value: "yes", label: tCommon("yes") },
+            { value: "no", label: tCommon("no") },
+          ]}
+        />
+
+        {value.hasClanTribe === "yes" ? (
+          <BrandField label={t("clanTribeName")} required>
+            <BrandInput
+              value={value.clanTribeName}
+              onChange={(e) => set("clanTribeName", e.target.value)}
+              placeholder={t("clanTribeNamePlaceholder")}
+            />
+          </BrandField>
+        ) : null}
+      </div>
+    );
+  }
+
+  function languagesCard() {
+    const languages = value.languages.length ? value.languages : [""];
+    const canAdd = languages.length < 10;
+    const languageLabel = (language: string) =>
+      t(LANGUAGE_OPTIONS.find((option) => option.value === language)?.labelKey ?? "languageN", { n: "" }).trim();
+
+    const setLanguage = (index: number, next: string) => {
+      set("languages", languages.map((language, i) => (i === index ? next : language)));
+    };
+
+    const addRecommendedLanguage = (language: string) => {
+      if (languages.includes(language)) return;
+      if (languages.length === 1 && languages[0] === "") {
+        set("languages", [language]);
+        return;
+      }
+      if (canAdd) set("languages", [...languages, language]);
+    };
+
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Globe2 className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {t("languages")} <span className="text-destructive">*</span>
+            </p>
+            <p className="text-xs text-muted-foreground">{t("languagesHint")}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted-foreground">{t("recommendedLanguages")}</p>
+          <div className="flex flex-wrap gap-2">
+            {RECOMMENDED_LANGUAGES.map((language) => {
+              const selected = languages.includes(language);
+              return (
+                <button
+                  key={language}
+                  type="button"
+                  onClick={() => addRecommendedLanguage(language)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    selected
+                      ? "border-brand-200 bg-brand-50 text-brand-500"
+                      : "border-border bg-muted/50 text-muted-foreground hover:border-brand-200 hover:text-brand-500"
+                  }`}
+                >
+                  {selected ? <Check className="h-3.5 w-3.5" /> : null}
+                  {languageLabel(language)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {languages.map((language, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <Select value={language} onValueChange={(next) => setLanguage(index, next)}>
+                <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px]">
+                  <SelectValue placeholder={t("languageN", { n: index + 1 })} />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {t(option.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <button
+                type="button"
+                onClick={() => set("languages", languages.length === 1 ? [""] : languages.filter((_, i) => i !== index))}
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                aria-label={t("removeLanguage", { lang: language ? languageLabel(language) : t("languageN", { n: index + 1 }) })}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={() => set("languages", [...languages, ""])}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground transition-colors hover:border-brand-300 hover:text-brand-500"
+            >
+              <Plus className="h-4 w-4" />
+              {t("addLanguage")}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -416,6 +832,9 @@ export function StepFamily({
       {isSpouseStatus && spouseCard()}
       {isWidowed && deceasedSpouseCard()}
       {isDivorced && formerSpousesCard()}
+      {usRelativesCard()}
+      {clanTribeCard()}
+      {languagesCard()}
 
       <Button
         type="button"
