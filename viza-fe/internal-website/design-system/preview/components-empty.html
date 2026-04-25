@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#fff;border:1px dashed #e8e8e8;border-radius:12px;padding:40px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-height:240px;justify-content:center}
+  .card.err{border-style:solid;border-color:#fecaca;background:#FEF6F6}
+  .card.loading{border-style:solid;border-color:#efefef;background:#fff}
+  .card.ok{border-style:solid;border-color:#bbf7d0;background:#F4FDF7}
+  .ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+  .ico svg{width:26px;height:26px;display:block}
+  .empty-ico{background:#EEF3FA;color:#03346E}
+  .err-ico{background:#fee2e2;color:hsl(0 72% 51%)}
+  .ok-ico{background:#dcfce7;color:#16a34a}
+  h5{font:500 17px var(--font-heading);letter-spacing:-.4px;margin:0;color:#3d3d3d}
+  p{font:400 13px/1.5 var(--font-sans);color:rgba(0,0,0,.55);margin:0;max-width:260px}
+  .btn{height:38px;padding:0 16px;border:0;border-radius:999px;font:500 13px var(--font-sans);margin-top:4px;cursor:pointer}
+  .btn-p{background:#03346E;color:#fff}
+  .btn-err{background:hsl(0 72% 51%);color:#fff}
+  .btn-g{background:transparent;color:#03346E;border:1px solid #03346E}
+  .spin{width:32px;height:32px;border:3px solid #EEF3FA;border-top-color:#03346E;border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .label{font:500 10px "Geist";letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.45);position:absolute;padding:8px 0 4px}
+  .wrap{position:relative}
+</style></head>
+<body><div class="stage">
+  <div class="wrap"><div class="label">EMPTY</div>
+    <div class="card" style="margin-top:24px">
+      <div class="ico empty-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <h5>No applications yet</h5><p>Start a new visa application and we'll guide you through each step.</p>
+      <button class="btn btn-p">Start my application</button>
+    </div></div>
+  <div class="wrap"><div class="label">LOADING</div>
+    <div class="card loading" style="margin-top:24px">
+      <div class="spin"></div>
+      <h5>Checking your documents</h5><p>Our AI is reviewing your passport and photo. This usually takes 10–20 seconds.</p>
+    </div></div>
+  <div class="wrap"><div class="label">ERROR</div>
+    <div class="card err" style="margin-top:24px">
+      <div class="ico err-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      </div>
+      <h5>We couldn't load this</h5><p>Something went wrong on our side. Please try again, or contact your consultant.</p>
+      <button class="btn btn-err">Try again</button>
+    </div></div>
+  <div class="wrap"><div class="label">SUCCESS (empty after action)</div>
+    <div class="card ok" style="margin-top:24px">
+      <div class="ico ok-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <h5>You're all caught up</h5><p>No pending documents. Your consultant will reach out if anything else is needed.</p>
+    </div></div>
+</div></body></html>

@@ -61,7 +61,18 @@ import {
 import { buildSuccessResult, buildFailureResult, type CeacRunResult } from "./result";
 import { serializeError } from "./errors";
 import type { CeacSession } from "./session";
+import { rebuildSessionForResume } from "./session";
 import { tryCaptureScreenshot } from "./diagnostics";
+import {
+  fillRetrieveApplicationForm,
+  type RecoveryCredentials,
+} from "./resume-application";
+import { waitForAspNetPostback } from "./aspnet";
+import {
+  handleUploadPhotoPage,
+  PhotoRejectedError,
+  type PhotoFile,
+} from "./upload-photo";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -116,6 +127,27 @@ export interface OrchestrateOptions {
   runId?: string;
   /** Directory for .dat and screenshot artifacts. */
   outputDir?: string;
+  /**
+   * Credentials needed to auto-resume after a mid-fill session timeout.
+   * Required if the run may take longer than CEAC's ~10-minute idle
+   * window — without them, a session expiry is unrecoverable. When
+   * omitted, session expiry surfaces as a failure.
+   */
+  recoveryCredentials?: RecoveryCredentials;
+  /**
+   * Maximum number of auto-resume attempts per orchestration run.
+   * Default: 2. Each resume consumes a fresh 2captcha solve; cap so a
+   * pathological loop doesn't burn balance.
+   */
+  maxResumeAttempts?: number;
+  /**
+   * Applicant photo to upload on the upload_photo page. When provided, the
+   * orchestrator uploads the photo and continues through Review to stop at
+   * Sign and Submit. When omitted (or when CEAC rejects the photo), the
+   * orchestrator stops at upload_photo with `handoff_ready` so the applicant
+   * uploads the photo themselves.
+   */
+  photo?: PhotoFile;
 }
 
 export interface SectionCoverage {
@@ -152,7 +184,7 @@ export async function orchestrateFill(
 ): Promise<OrchestrateResult> {
   const { answers, profile, tracker, runId } = options;
   const outputDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "ceac-orch-"));
-  const page = session.page;
+  const maxResumeAttempts = options.maxResumeAttempts ?? 2;
 
   const checkpointOpts: CheckpointEmitOptions = {
     sink: tracker,
@@ -161,6 +193,7 @@ export async function orchestrateFill(
 
   let datArtifact: DatArtifact | null = null;
   let transitions = 0;
+  let resumeAttempts = 0;
   const sectionsFilled: string[] = [];
   const sectionsSkipped: string[] = [];
 
@@ -168,11 +201,181 @@ export async function orchestrateFill(
     // Fill-and-advance loop: detect current page, fill if we have mappings,
     // advance to the next page. Stop when we reach a terminal page.
     while (transitions < MAX_PAGE_TRANSITIONS) {
+      // Always use session.page — rebuildSessionForResume may have
+      // swapped the Page ref between iterations after a recovery.
+      const page = session.page;
+
+      // Detect CEAC's mid-fill session timeout BEFORE running fill logic.
+      // The timeout manifests as a URL redirect to SessionTimedOut.aspx
+      // or a page-identity of "session_expired" (heading-based match).
+      if (
+        /SessionTimedOut/i.test(page.url()) &&
+        options.recoveryCredentials &&
+        resumeAttempts < maxResumeAttempts
+      ) {
+        console.log(`[orchestrator] Session expired mid-fill — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
+        resumeAttempts++;
+        await rebuildSessionForResume(session);
+        await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
+        // Fall through: next iteration will re-probe the page identity
+        // and pick up fill at the section CEAC restored to.
+        continue;
+      }
+
       const probe = await detectPage(page);
       const currentPageId = probe.id;
 
-      // Check for sign-and-submit page — terminal stop
+      if (currentPageId === "session_expired" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
+        console.log(`[orchestrator] session_expired page detected — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
+        resumeAttempts++;
+        await rebuildSessionForResume(session);
+        await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
+        continue;
+      }
+
+      // Photo Upload page. With a photo provided, upload it and continue
+      // through Review to Sign and Submit. Without a photo (or if CEAC
+      // rejects it), stop at upload_photo with handoff_ready so the
+      // applicant uploads the photo themselves.
+      if (currentPageId === "upload_photo") {
+        if (options.photo) {
+          try {
+            console.log(`[orchestrator] Uploading applicant photo`);
+            const uploadResult = await handleUploadPhotoPage(page, {
+              photo: options.photo,
+              diagnosticPath: path.join(outputDir, "upload-photo-dom.json"),
+            });
+            console.log(
+              `[orchestrator] Photo accepted — landed at ${uploadResult.postContinueUrl}`,
+            );
+            await recordSectionCheckpoint(page, {
+              ...checkpointOpts,
+              details: { section: "upload_photo", filled: true, photoUploaded: true },
+            });
+            sectionsFilled.push("upload_photo");
+            transitions++;
+            continue; // Next iteration handles Review and Sign and Submit
+          } catch (err) {
+            const reason =
+              err instanceof PhotoRejectedError
+                ? err.reason ?? err.message
+                : err instanceof Error
+                  ? err.message
+                  : String(err);
+            console.warn(
+              `[orchestrator] Photo upload did not complete (${reason}) — falling back to handoff_ready`,
+            );
+            // Fall through to the handoff_ready stop below
+          }
+        }
+
+        if (!datArtifact) {
+          try { datArtifact = await captureDatArtifact(page, { outputDir }); } catch { /* best effort */ }
+        }
+        const tracked = tracker.snapshot();
+        const reachedAt = new Date().toISOString();
+        const stopCheckpoint = {
+          action: "handoff_ready" as const,
+          at: reachedAt,
+          pageId: "upload_photo" as const,
+          heading: probe.heading,
+          url: page.url(),
+          applicationId: tracked.applicationId ?? null,
+          runId,
+          details: { section: "upload_photo", terminal: true },
+        };
+        await tracker.record(stopCheckpoint);
+        const result = buildSuccessResult({
+          status: "handoff_ready",
+          applicationId: tracked.applicationId ?? null,
+          pageId: "upload_photo",
+          heading: probe.heading,
+          url: page.url(),
+          signPageMarkers: {
+            headingMatches: false,
+            signatureFieldPresent: false,
+            finalSubmitPresent: false,
+            captchaPresent: false,
+          },
+          reachedAt,
+          runId,
+          checkpoint: stopCheckpoint,
+          lastCheckpoint: tracked.lastCheckpoint ?? stopCheckpoint,
+          datArtifact,
+          signPageScreenshot: null,
+        });
+        return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
+      }
+
+      // Save Confirmation interstitial. Appears after clicking Save on
+      // confirm_photo — CEAC asks whether to continue or exit. Click
+      // "Continue Application" to resume the form.
+      if (currentPageId === "save_confirmation") {
+        console.log(`[orchestrator] Save Confirmation — clicking Continue Application`);
+        const continueBtn = page.locator(
+          '#ctl00_btnContinueApp, input[type="submit"][value="Continue Application"]',
+        ).first();
+        await continueBtn.waitFor({ state: "visible", timeout: 10_000 });
+        await continueBtn.click({ force: true, timeout: 10_000 });
+        try {
+          await page.waitForLoadState("networkidle", { timeout: 15_000 });
+        } catch {
+          await page.waitForTimeout(2_000);
+        }
+        transitions++;
+        continue;
+      }
+
+      // Confirm Photo page. CEAC does not render a Next button on this
+      // page — the user is meant to navigate to Review via the sidebar
+      // (which becomes enabled once the photo is saved). When we return
+      // from identix the URL carries `?save` and the REVIEW sidebar is
+      // disabled; the canonical URL (without `?save`) enables REVIEW.
+      // Navigate to the canonical URL first to flip REVIEW on, then go
+      // directly to the Review section.
+      if (currentPageId === "confirm_photo") {
+        const url = page.url();
+        if (/[?&]save\b/i.test(url)) {
+          console.log(`[orchestrator] Confirm Photo (?save mode) — navigating to canonical URL`);
+          await page.goto(
+            "https://ceac.state.gov/GenNIV/General/photo/photo_confirmphoto.aspx?node=ConfirmPhoto",
+            { waitUntil: "domcontentloaded" },
+          );
+          continue;
+        }
+
+        console.log(`[orchestrator] Confirm Photo — navigating to Review via sidebar URL`);
+        await recordSectionCheckpoint(page, {
+          ...checkpointOpts,
+          details: { section: "confirm_photo", filled: false },
+        });
+        sectionsSkipped.push("confirm_photo");
+        const reviewLink = page.locator('a#REVIEW[href]').first();
+        const reviewHref = await reviewLink.getAttribute("href").catch(() => null);
+        const reviewUrl = reviewHref
+          ? new URL(reviewHref, page.url()).toString()
+          : "https://ceac.state.gov/GenNIV/General/review/review_reviewpersonal.aspx?node=ReviewPersonal";
+        await page.goto(reviewUrl, { waitUntil: "domcontentloaded" });
+        try {
+          await page.waitForLoadState("networkidle", { timeout: 15_000 });
+        } catch {
+          await page.waitForTimeout(2_000);
+        }
+        transitions++;
+        continue;
+      }
+
+      // Check for sign-and-submit page — terminal stop. Try the strict
+      // marker-based detection first (passport-signature input + final
+      // submit button); if those markers match we use the dedicated
+      // stopAtSignAndSubmit path. If only the heading + URL match (which
+      // is the case for the live SignCertify page that precedes the
+      // signature step), we still terminate as handoff_ready — going
+      // beyond is a contract violation.
       if (currentPageId === "sign_and_submit") {
+        if (!datArtifact) {
+          try { datArtifact = await captureDatArtifact(page, { outputDir }); } catch { /* best effort */ }
+        }
         const signIdentity = await detectSignAndSubmit(page);
         if (signIdentity) {
           const outcome = await stopAtSignAndSubmit(page, {
@@ -180,19 +383,47 @@ export async function orchestrateFill(
             runId,
             screenshotDir: outputDir,
           });
-
-          // Capture .dat before building the success result if we haven't yet
-          if (!datArtifact) {
-            try {
-              datArtifact = await captureDatArtifact(page, { outputDir });
-            } catch {
-              // .dat capture is best-effort at the sign page
-            }
-          }
-
           const result = buildSuccessResult(outcome);
           return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
         }
+
+        // Heading + URL match but strict markers (signature input,
+        // final submit) absent — typical for the SignCertify
+        // attestation page that precedes the actual signature.
+        // Capture handoff state and stop here.
+        const tracked = tracker.snapshot();
+        const reachedAt = new Date().toISOString();
+        const stopCheckpoint = {
+          action: "handoff_ready" as const,
+          at: reachedAt,
+          pageId: "sign_and_submit" as const,
+          heading: probe.heading,
+          url: page.url(),
+          applicationId: tracked.applicationId ?? null,
+          runId,
+          details: { section: "sign_and_submit", terminal: true },
+        };
+        await tracker.record(stopCheckpoint);
+        const result = buildSuccessResult({
+          status: "handoff_ready",
+          applicationId: tracked.applicationId ?? null,
+          pageId: "sign_and_submit",
+          heading: probe.heading,
+          url: page.url(),
+          signPageMarkers: {
+            headingMatches: true,
+            signatureFieldPresent: false,
+            finalSubmitPresent: false,
+            captchaPresent: false,
+          },
+          reachedAt,
+          runId,
+          checkpoint: stopCheckpoint,
+          lastCheckpoint: tracked.lastCheckpoint ?? stopCheckpoint,
+          datArtifact,
+          signPageScreenshot: null,
+        });
+        return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
       }
 
       // Check for other terminal states
@@ -226,13 +457,17 @@ export async function orchestrateFill(
         details: { section: currentPageId, filled: !!mappings },
       });
 
-      // Capture .dat at strategic points (after passport and work/education)
+      // Capture .dat at strategic points (after passport and work/education).
+      // The Save-to-File click may trigger an MSAJAX postback and then a
+      // file download; wait for that to settle before attempting Next.
       if (currentPageId === "passport" || currentPageId === "work_education_present") {
         try {
           datArtifact = await captureDatArtifact(page, { outputDir });
           console.log(`[orchestrator] .dat captured at ${currentPageId}`);
+          await waitForAspNetPostback(page, 8_000);
         } catch {
           console.warn(`[orchestrator] .dat capture failed at ${currentPageId} — continuing`);
+          await waitForAspNetPostback(page, 5_000);
         }
       }
 
@@ -241,16 +476,35 @@ export async function orchestrateFill(
       // conditional pages. Instead we accept any known DS-160 page.
       const nextPageCandidates = getExpectedNextPages(currentPageId);
 
+      // Wait for the primary Next button to be attached before advancing.
+      // Some CEAC pages re-render their button row asynchronously after
+      // a fill-triggered postback settles; resolveNavButton can otherwise
+      // see count=0 during that transient window.
+      try {
+        await page.locator('input[type="submit"].next, input[type="submit"][value^="Next:"]').first().waitFor({ state: "visible", timeout: 10_000 });
+      } catch {
+        // Best effort — if the button never appears, advance() will
+        // surface a clear NavigationError.
+      }
+
       try {
         await advance(page, {
           from: currentPageId !== "unknown" ? currentPageId : "start",
           to: nextPageCandidates,
         });
       } catch (navErr) {
-        // Navigation failed — check if we accidentally landed on sign page
+        // Navigation failed — check what we actually landed on.
         const recheck = await detectPage(page);
         if (recheck.id === "sign_and_submit") {
           continue; // Loop back to handle sign page at top
+        }
+        // If navigation left us on SessionTimedOut or session_expired,
+        // the next loop iteration's guards will catch and resume.
+        if (
+          /SessionTimedOut/i.test(page.url()) ||
+          recheck.id === "session_expired"
+        ) {
+          continue;
         }
         throw navErr;
       }
@@ -263,11 +517,12 @@ export async function orchestrateFill(
       `Fill orchestration exceeded ${MAX_PAGE_TRANSITIONS} page transitions without reaching Sign and Submit`,
     );
   } catch (err) {
-    // Preserve recovery metadata on any failure
+    // Preserve recovery metadata on any failure. Use session.page since
+    // we moved the per-iteration page binding into the loop body.
     const recovery = await preserveRecoveryOnFailure({
       tracker,
       error: err,
-      page,
+      page: session.page,
       screenshotDir: outputDir,
     });
 
@@ -290,6 +545,7 @@ async function fillPageFields(
   answers: Record<string, string>,
   profile: Record<string, unknown>,
 ): Promise<void> {
+  const debug = process.env.CEAC_FILL_DEBUG === "1";
   for (const [fieldName, mapping] of Object.entries(mappings)) {
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
@@ -299,17 +555,54 @@ async function fillPageFields(
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
     let filled = false;
+    let lastErr: unknown = null;
+    // True when at least one selector branch matched DOM nodes but every
+    // match was either hidden or non-editable — i.e., the field exists
+    // on the page but doesn't apply to this applicant (e.g., the social
+    // media identifier when "NONE" is the chosen platform). We suppress
+    // the missing-field warning in that case.
+    let skippedAsInapplicable = false;
 
     for (const selector of selectors) {
       try {
-        const el = page.locator(selector).first();
-        const count = await el.count();
+        const all = page.locator(selector);
+        const count = await all.count();
         if (count === 0) continue;
+        // Pick the first VISIBLE match. CEAC repeaters (e.g. dtlSocial)
+        // sometimes leave a hidden template row in the DOM that matches
+        // our selector but isn't fillable — skipping silently here
+        // keeps the warning-noise floor low without changing behavior
+        // for the common case where the matched element is the only
+        // one and is visible.
+        let el: ReturnType<typeof page.locator> | null = null;
+        for (let i = 0; i < count; i += 1) {
+          const candidate = all.nth(i);
+          const visible = await candidate.isVisible().catch(() => false);
+          if (!visible) continue;
+          // For non-radio fills, also require the element to be editable:
+          // CEAC disables fields like social_media_identifier when its
+          // sibling dropdown is set to "NONE", and we don't want to burn
+          // the 5s actionability timeout on those.
+          if (mapping.type !== "radio") {
+            const editable = await candidate.isEditable().catch(() => false);
+            if (!editable) continue;
+          }
+          el = candidate;
+          break;
+        }
+        if (!el) {
+          skippedAsInapplicable = true;
+          continue;
+        }
+        if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) → matched selector "${selector}", trying value="${value}"`);
 
         if (mapping.type === "radio") {
-          // Radio: selector targets the RadioButtonList base ID; find the
-          // specific input whose value matches the answer (e.g. "Y" or "N").
-          const radio = page.locator(`${selector}[value="${value}"]`).first();
+          // Radio: selector targets the RadioButtonList base. Append
+          // [value="<val>"] so we target only the option with the
+          // matching value. (The outer loop already split the selector
+          // by comma so `selector` here is a single branch.)
+          const specific = `${selector}[value="${value}"]`;
+          const radio = page.locator(specific).first();
           const radioCount = await radio.count();
           if (radioCount > 0) {
             await radio.click({ timeout: 5_000 });
@@ -318,19 +611,37 @@ async function fillPageFields(
           }
         } else if (mapping.type === "select") {
           await el.selectOption(value, { timeout: 5_000 });
+        } else if (mapping.type === "checkbox") {
+          // Checkbox: interpret the value as a truthy/falsy flag. "Y",
+          // "true", "1", "yes" → check; everything else → uncheck.
+          const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
+          if (shouldCheck) {
+            await el.check({ timeout: 5_000, force: true });
+          } else {
+            await el.uncheck({ timeout: 5_000, force: true });
+          }
         } else {
           await el.fill(value, { timeout: 5_000 });
         }
 
+        // Many CEAC controls (radios, AutoPostBack selects, NA
+        // checkboxes) fire an MSAJAX UpdatePanel postback that reveals
+        // or enables dependent fields. Wait for it to settle before we
+        // try the next mapping — otherwise subsequent fills target a
+        // transient DOM and silently miss.
+        await waitForAspNetPostback(page, 8_000);
+
         filled = true;
         break;
-      } catch {
-        // Try next selector
+      } catch (err) {
+        lastErr = err;
+        if (debug) console.log(`[fill]   selector "${selector}" threw: ${err instanceof Error ? err.message.slice(0, 120) : String(err)}`);
       }
     }
 
-    if (!filled) {
-      console.warn(`[orchestrator] Could not fill "${mapping.label}" on current page`);
+    if (!filled && !skippedAsInapplicable) {
+      const hint = lastErr instanceof Error ? ` — last err: ${lastErr.message.slice(0, 100)}` : "";
+      console.warn(`[orchestrator] Could not fill "${mapping.label}" on current page${hint}`);
     }
   }
 }
@@ -362,6 +673,8 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
     "security_background_3",
     "security_background_4",
     "security_background_5",
+    "upload_photo",
+    "confirm_photo",
     "review",
     "sign_and_submit",
   ];
@@ -371,6 +684,13 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
   if (currentIdx === -1 || currentIdx >= pageOrder.length - 1) {
     // Unknown page or at the end — accept any page after personal_information_1
     return pageOrder.slice(1);
+  }
+
+  // Review is a chain of sub-pages (Personal → Travel → … → Spouse) all
+  // detected as `review` by URL. Accept staying on review until we reach
+  // sign_and_submit.
+  if (current === "review") {
+    return ["review", "sign_and_submit"];
   }
 
   // Accept the next 3 pages (to handle skipped conditional pages)

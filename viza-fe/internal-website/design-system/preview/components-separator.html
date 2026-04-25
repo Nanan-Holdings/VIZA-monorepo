@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  .card{background:#fff;border:1px solid #efefef;border-radius:12px;padding:16px 20px}
+  .hr{height:1px;background:#efefef;margin:14px 0}
+  .hr-thick{height:1px;background:#e8e8e8;margin:14px 0}
+  .vr{display:inline-flex;align-items:center;gap:14px;color:rgba(0,0,0,.55);font-size:13px}
+  .vr i{width:1px;height:14px;background:#e8e8e8;display:inline-block}
+  .section-sep{display:flex;align-items:center;gap:10px;margin:14px 0;color:rgba(0,0,0,.45);font:500 11px var(--font-sans);letter-spacing:.08em;text-transform:uppercase}
+  .section-sep::before,.section-sep::after{content:"";flex:1;height:1px;background:#efefef}
+  .rowx{display:flex;justify-content:space-between;font-size:13px;color:#3d3d3d;padding:6px 0}
+  .rowx .k{color:rgba(0,0,0,.55)}
+</style></head>
+<body><div class="stage">
+  <div><div class="label">Horizontal · hairline between rows</div>
+    <div class="card">
+      <div class="rowx"><span class="k">Application fee</span><span>S$180</span></div>
+      <div class="hr"></div>
+      <div class="rowx"><span class="k">Expedited review</span><span>S$60</span></div>
+      <div class="hr"></div>
+      <div class="rowx"><span class="k">Total</span><b>S$240</b></div>
+    </div></div>
+  <div><div class="label">Inline · dot-dividers for metadata</div>
+    <div class="card">
+      <div class="vr">Jiahui Chen<i></i>VZ-2026-0142<i></i>Submitted Apr 23<i></i>Indonesia · B211A</div>
+    </div></div>
+  <div><div class="label">Section separator · labelled</div>
+    <div class="card">
+      <p style="margin:0;font-size:13px;color:rgba(0,0,0,.6)">Personal info fields above…</p>
+      <div class="section-sep">Contact</div>
+      <p style="margin:0;font-size:13px;color:rgba(0,0,0,.6)">Contact fields below…</p>
+    </div></div>
+</div></body></html>

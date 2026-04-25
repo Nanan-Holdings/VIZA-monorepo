@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{border-radius:12px;padding:16px;background:#fff;border:1px solid #efefef;position:relative}
+  .no{border-color:#fecaca;background:#fef7f7}
+  .yes{border-color:#bbf7d0;background:#f0fdf4}
+  .tag{position:absolute;top:10px;right:12px;font:600 10px "Geist";letter-spacing:.1em;text-transform:uppercase}
+  .no .tag{color:hsl(0 72% 35%)}
+  .yes .tag{color:#166534}
+  .title{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin:4px 0 8px}
+  .demo{font-family:var(--font-sans);margin-top:10px}
+  /* Demos */
+  .btn-bad{background:linear-gradient(180deg,#5cd0fa,#03346E);color:#fff;padding:0 18px;height:42px;border:0;border-radius:8px;font:700 14px var(--font-sans);box-shadow:0 8px 24px rgba(3,52,110,.5);display:inline-flex;align-items:center;gap:6px}
+  .btn-good{background:#03346E;color:#fff;padding:0 22px;height:44px;border:0;border-radius:999px;font:500 14px var(--font-sans);display:inline-flex;align-items:center}
+  .alert-bad{background:#fee2e2;border-left:4px solid hsl(0 72% 51%);padding:12px 14px;border-radius:6px;color:#991b1b;font:600 13px var(--font-sans);display:flex;gap:8px;align-items:center}
+  .alert-bad::before{content:"⚠️"}
+  .alert-good{font:italic 400 12px var(--font-sans);color:rgba(0,0,0,.5);padding:4px 0}
+  .head-bad{font:700 24px Impact,sans-serif;color:#03346E;letter-spacing:2px;text-transform:uppercase}
+  .head-good{font:500 22px var(--font-heading);letter-spacing:-.5px;color:#3d3d3d}
+</style></head>
+<body><div class="stage">
+  <div class="pair">
+    <div class="panel no"><span class="tag">Don't</span><div class="title">CTA with gradient + emoji + bold</div>
+      <button class="btn-bad">🚀 Start Now!!</button><p class="demo" style="font-size:12px;color:rgba(0,0,0,.5)">Gradient fills, emoji-as-icon, Title Case, and exclamation marks all violate brand guidelines at once.</p></div>
+    <div class="panel yes"><span class="tag">Do</span><div class="title">Flat primary, sentence case, calm</div>
+      <button class="btn-good">Start my application</button><p class="demo" style="font-size:12px;color:rgba(0,0,0,.5)">Solid brand-500, 48px pill, imperative, quiet.</p></div>
+  </div>
+  <div class="pair">
+    <div class="panel no"><span class="tag">Don't</span><div class="title">Government-fee disclaimer as warning</div>
+      <div class="alert-bad" style="padding-left:32px">ATTENTION: Government visa fees are NOT included in our pricing!</div></div>
+    <div class="panel yes"><span class="tag">Do</span><div class="title">Italic footnote, not a callout</div>
+      <p class="alert-good">政府官方签证费另计，具体金额因国家而异 · Government visa fees are billed separately.</p></div>
+  </div>
+  <div class="pair">
+    <div class="panel no"><span class="tag">Don't</span><div class="title">Marketing-y heading</div>
+      <div class="head-bad">SIGNUP TODAY</div><p class="demo" style="font-size:12px;color:rgba(0,0,0,.5)">All caps, generic sans, letter-spacing, verb-first-as-shout.</p></div>
+    <div class="panel yes"><span class="tag">Do</span><div class="title">Calm, declarative headline</div>
+      <div class="head-good">Start your application</div><p class="demo" style="font-size:12px;color:rgba(0,0,0,.5)">Switzer, sentence case, tight negative tracking.</p></div>
+  </div>
+</div></body></html>

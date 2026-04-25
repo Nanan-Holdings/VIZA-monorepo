@@ -1,0 +1,19 @@
+/* Shared styles for preview cards (700×~N) */
+@import url("../colors_and_type.css?v=2");
+
+html, body {
+  margin: 0;
+  background: #ffffff;
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+}
+.stage {
+  width: 700px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.row { display: flex; align-items: center; gap: 16px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--fg-2); letter-spacing: 0; }
+.label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); font-weight: 500; }
+.divider { height: 1px; background: var(--border-hairline); }

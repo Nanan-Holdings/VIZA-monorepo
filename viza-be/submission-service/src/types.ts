@@ -10,12 +10,46 @@ export interface SubmissionQueueItem {
     | "ds160_prefill_processing"
     | "ds160_prefilled"
     | "ds160_prefill_failed"
-    | "ds160_blocked";
+    | "ds160_blocked"
+    | "fv_prefill_pending"
+    | "fv_prefill_processing"
+    | "fv_prefilled"
+    | "fv_prefill_failed"
+    | "fv_blocked"
+    | "uk_prefill_pending"
+    | "uk_prefill_processing"
+    | "uk_prefilled"
+    | "uk_prefill_failed"
+    | "uk_blocked";
   attempts: number;
   last_error: string | null;
   /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
    *  or blocked outcome metadata for operator diagnostics. */
   ceac_result_payload: Record<string, unknown> | null;
+  /** Structured France-Visas run result payload (JSON). */
+  fv_result_payload: Record<string, unknown> | null;
+  /** France-Visas-assigned 13-digit application reference. */
+  fv_application_reference: string | null;
+  /** Structured UK Standard Visitor run result payload (JSON). */
+  uk_result_payload: Record<string, unknown> | null;
+  /** UKVI-assigned application reference once registered. */
+  uk_application_reference: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * France-Visas account credentials row from the `fv_accounts` table.
+ * `password_encrypted` is stored encrypted at rest; callers must decrypt
+ * before passing to `signInWithPassword()`.
+ */
+export interface FvAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
   created_at: string;
   updated_at: string;
 }

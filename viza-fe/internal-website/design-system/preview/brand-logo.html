@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .tile{border:1px solid #efefef;border-radius:12px;padding:28px;display:flex;align-items:center;justify-content:center;min-height:120px}
+  .tile.dark{background:#03346E;border-color:#03346E}
+  .tile img{height:36px}
+  .cap{font:500 11px "Geist", system-ui, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);margin-top:8px}
+</style></head>
+<body><div class="stage">
+  <div class="grid">
+    <div>
+      <div class="tile"><img src="../assets/viza-logo-black.svg" alt="VIZA black"/></div>
+      <div class="cap">Black · on light</div>
+    </div>
+    <div>
+      <div class="tile dark"><img src="../assets/viza-logo-white.svg" alt="VIZA white"/></div>
+      <div class="cap">White · on navy</div>
+    </div>
+    <div>
+      <div class="tile"><img src="../assets/viza-logo-blue.svg" alt="VIZA blue"/></div>
+      <div class="cap">Navy — brand tint</div>
+    </div>
+    <div>
+      <div class="tile" style="background:#FAFAFA"><img src="../assets/viza-mark.svg" alt="VIZA mark" style="height:44px"/></div>
+      <div class="cap">Mark only</div>
+    </div>
+  </div>
+</div></body></html>
