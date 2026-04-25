@@ -13,7 +13,7 @@ interface TabChoiceProps<T extends string> {
   value: T | "";
   options: ReadonlyArray<TabChoiceOption<T>>;
   onChange: (value: T) => void;
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 5;
   className?: string;
   ariaLabel?: string;
 }
@@ -32,6 +32,8 @@ export function TabChoice<T extends string>({
       ? "grid-cols-2"
       : columns === 3
         ? "grid-cols-2 sm:grid-cols-3"
+        : columns === 5
+          ? "grid-cols-2 sm:grid-cols-5"
         : "grid-cols-2 sm:grid-cols-4";
 
   return (

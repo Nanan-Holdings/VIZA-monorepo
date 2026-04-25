@@ -2,74 +2,386 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, X } from "lucide-react";
+import { Heart, Plus, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BrandInput, BrandField } from "@/components/client/brand-field";
-import { cn } from "@/lib/utils";
-import { TabChoice } from "./tab-choice";
-import type { SimplifiedFamily } from "./types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { DatePicker } from "@/components/ui/date-picker";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { FormerSpouse, SimplifiedFamily } from "./types";
+
+const SPOUSE_STATUSES = [
+  "Married",
+  "Common Law Marriage",
+  "Civil Union / Domestic Partnership",
+  "Legally Separated",
+] as const;
+
+type MaritalStatus = string;
 
 interface StepFamilyProps {
   value: SimplifiedFamily;
   onChange: (value: SimplifiedFamily) => void;
   onContinue: () => void;
+  maritalStatus: MaritalStatus;
+  onChangeMaritalStatus: () => void;
 }
 
-const RECOMMENDED_LANGUAGES = [
-  "English",
-  "Chinese (Mandarin)",
-  "Chinese (Cantonese)",
-  "Spanish",
-  "French",
-  "Arabic",
-  "Hindi",
-  "Portuguese",
-];
+function emptyFormerSpouse(): FormerSpouse {
+  return {
+    firstName: "",
+    lastName: "",
+    dob: "",
+    nationality: "",
+    cityOfBirth: "",
+    countryOfBirth: "",
+    marriageDate: "",
+    divorceDate: "",
+    howEnded: "",
+    divorceCountry: "",
+  };
+}
 
-export function StepFamily({ value, onChange, onContinue }: StepFamilyProps) {
+function isParentValid(
+  known: boolean,
+  firstNameUnknown: boolean,
+  firstName: string,
+  lastNameUnknown: boolean,
+  lastName: string,
+) {
+  if (!known) return true;
+  return (firstNameUnknown || firstName.trim().length > 0) &&
+    (lastNameUnknown || lastName.trim().length > 0);
+}
+
+export function StepFamily({
+  value,
+  onChange,
+  onContinue,
+  maritalStatus,
+  onChangeMaritalStatus,
+}: StepFamilyProps) {
   const t = useTranslations("simplifiedForm.family");
   const tCommon = useTranslations("simplifiedForm.common");
-  const [customLanguage, setCustomLanguage] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   const set = <K extends keyof SimplifiedFamily>(key: K, next: SimplifiedFamily[K]) =>
     onChange({ ...value, [key]: next });
 
-  const toggleLanguage = (lang: string) => {
-    if (value.languages.includes(lang)) {
-      set("languages", value.languages.filter((l) => l !== lang));
-    } else {
-      set("languages", [...value.languages, lang]);
-    }
-  };
+  const isSpouseStatus = SPOUSE_STATUSES.includes(maritalStatus as typeof SPOUSE_STATUSES[number]);
+  const isWidowed = maritalStatus === "Widowed";
+  const isDivorced = maritalStatus === "Divorced";
 
-  const addCustomLanguage = () => {
-    const next = customLanguage.trim();
-    if (!next || value.languages.includes(next)) return;
-    set("languages", [...value.languages, next]);
-    setCustomLanguage("");
-  };
-
-  const removeLanguage = (lang: string) => {
-    set("languages", value.languages.filter((l) => l !== lang));
-  };
-
-  const canContinue = Boolean(
-    value.languages.length > 0 &&
-      (!value.fatherKnown || (value.fatherFirstName.trim() && value.fatherLastName.trim())) &&
-      (!value.motherKnown || (value.motherFirstName.trim() && value.motherLastName.trim())) &&
-      (value.relativesInUs !== "yes" ||
-        (value.relativeFirstName.trim() && value.relativeLastName.trim() && value.relativeRelationship)) &&
-      (value.hasClanTribe !== "yes" || value.clanTribeName.trim()),
+  const fatherValid = isParentValid(
+    value.fatherKnown, value.fatherFirstNameUnknown, value.fatherFirstName,
+    value.fatherLastNameUnknown, value.fatherLastName,
+  );
+  const motherValid = isParentValid(
+    value.motherKnown, value.motherFirstNameUnknown, value.motherFirstName,
+    value.motherLastNameUnknown, value.motherLastName,
   );
 
+  function handleContinue() {
+    if (!fatherValid || !motherValid) {
+      setShowErrors(true);
+      return;
+    }
+    onContinue();
+  }
+
+  // ── Shared parent card ────────────────────────────────────────────────────
+  function parentCard({
+    known, firstNameUnknown, firstName, lastNameUnknown, lastName,
+    titleKey, unknownKey, markedUnknownKey,
+    onKnownChange, onFirstNameUnknownChange, onFirstNameChange,
+    onLastNameUnknownChange, onLastNameChange,
+  }: {
+    known: boolean; firstNameUnknown: boolean; firstName: string;
+    lastNameUnknown: boolean; lastName: string;
+    titleKey: string; unknownKey: string; markedUnknownKey: string;
+    onKnownChange: (v: boolean) => void;
+    onFirstNameUnknownChange: (v: boolean) => void;
+    onFirstNameChange: (v: string) => void;
+    onLastNameUnknownChange: (v: boolean) => void;
+    onLastNameChange: (v: string) => void;
+  }) {
+    const givenError = showErrors && known && !firstNameUnknown && !firstName.trim() ? t("required") : undefined;
+    const surnameError = showErrors && known && !lastNameUnknown && !lastName.trim() ? t("required") : undefined;
+
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <User className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t(titleKey)}</p>
+            <p className="text-xs text-muted-foreground">{t("parentSubtitle")}</p>
+          </div>
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <Checkbox checked={!known} onCheckedChange={(c) => onKnownChange(!c)} />
+          <span className="text-sm text-foreground">{t(unknownKey)}</span>
+        </label>
+
+        {!known ? (
+          <p className="text-sm italic text-muted-foreground">{t(markedUnknownKey)}</p>
+        ) : (
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <BrandField label={t("givenName")} required={!firstNameUnknown} error={givenError}>
+                {firstNameUnknown ? (
+                  <p className="text-sm italic text-muted-foreground">{t("notApplicable")}</p>
+                ) : (
+                  <BrandInput value={firstName} onChange={(e) => onFirstNameChange(e.target.value)} placeholder={t("givenNamePlaceholder")} />
+                )}
+              </BrandField>
+              <label className="flex cursor-pointer items-center gap-2">
+                <Checkbox checked={firstNameUnknown} onCheckedChange={(c) => { onFirstNameUnknownChange(!!c); if (c) onFirstNameChange(""); }} />
+                <span className="text-sm text-muted-foreground">{t("noGivenName")}</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <BrandField label={t("surname")} required={!lastNameUnknown} error={surnameError}>
+                {lastNameUnknown ? (
+                  <p className="text-sm italic text-muted-foreground">{t("notApplicable")}</p>
+                ) : (
+                  <BrandInput value={lastName} onChange={(e) => onLastNameChange(e.target.value)} placeholder={t("surnamePlaceholder")} />
+                )}
+              </BrandField>
+              <label className="flex cursor-pointer items-center gap-2">
+                <Checkbox checked={lastNameUnknown} onCheckedChange={(c) => { onLastNameUnknownChange(!!c); if (c) onLastNameChange(""); }} />
+                <span className="text-sm text-muted-foreground">{t("noGivenName")}</span>
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Spouse card header (shared for married / widowed) ──────────────────────
+  function spouseCardHeader(titleKey: string, subtitleKey: string) {
+    return (
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Heart className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t(titleKey)}</p>
+            <p className="text-xs text-muted-foreground">{t(subtitleKey)}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onChangeMaritalStatus} className="shrink-0 text-xs text-brand-500 hover:underline whitespace-nowrap">
+          {t("wrongStatus")}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Spouse card (married / common law / civil union / legally separated) ──
+  function spouseCard() {
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        {spouseCardHeader("spouseTitle", "spouseSubtitle")}
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("givenName")} required>
+            <BrandInput value={value.spouseFirstName} onChange={(e) => set("spouseFirstName", e.target.value)} placeholder={t("givenNamePlaceholder")} />
+          </BrandField>
+          <BrandField label={t("surname")} required>
+            <BrandInput value={value.spouseLastName} onChange={(e) => set("spouseLastName", e.target.value)} placeholder={t("surnamePlaceholder")} />
+          </BrandField>
+        </div>
+
+        <BrandField label={t("dateOfBirth")} required>
+          <DatePicker value={value.spouseDob} onChange={(v) => set("spouseDob", v)} placeholder={t("dateOfBirthPlaceholder")} />
+        </BrandField>
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("nationality")} required>
+            <CountryDropdown defaultValue={value.spouseNationality} placeholder={t("countryPlaceholder")} onChange={(c) => set("spouseNationality", c.alpha3)} />
+          </BrandField>
+          <BrandField label={t("cityOfBirth")} required>
+            <BrandInput value={value.spouseCityOfBirth} onChange={(e) => set("spouseCityOfBirth", e.target.value)} placeholder={t("cityOfBirthPlaceholder")} />
+          </BrandField>
+        </div>
+
+        <BrandField label={t("countryOfBirth")} required>
+          <CountryDropdown defaultValue={value.spouseCountryOfBirth} placeholder={t("countryPlaceholder")} onChange={(c) => set("spouseCountryOfBirth", c.alpha3)} />
+        </BrandField>
+
+        <BrandField label={t("spouseAddressType")}>
+          <Select value={value.spouseAddressType} onValueChange={(v) => set("spouseAddressType", v as SimplifiedFamily["spouseAddressType"])}>
+            <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px]">
+              <SelectValue placeholder={t("spouseAddressTypePlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="home">{t("addressHome")}</SelectItem>
+              <SelectItem value="work">{t("addressWork")}</SelectItem>
+              <SelectItem value="other">{t("addressOther")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </BrandField>
+      </div>
+    );
+  }
+
+  // ── Deceased spouse card (widowed) ─────────────────────────────────────────
+  function deceasedSpouseCard() {
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        {spouseCardHeader("deceasedSpouseTitle", "spouseSubtitle")}
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("givenName")} required>
+            <BrandInput value={value.deceasedSpouseFirstName} onChange={(e) => set("deceasedSpouseFirstName", e.target.value)} placeholder={t("givenNamePlaceholder")} />
+          </BrandField>
+          <BrandField label={t("surname")} required>
+            <BrandInput value={value.deceasedSpouseLastName} onChange={(e) => set("deceasedSpouseLastName", e.target.value)} placeholder={t("surnamePlaceholder")} />
+          </BrandField>
+        </div>
+
+        <BrandField label={t("dateOfBirth")} required>
+          <DatePicker value={value.deceasedSpouseDob} onChange={(v) => set("deceasedSpouseDob", v)} placeholder={t("dateOfBirthPlaceholder")} />
+        </BrandField>
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("nationality")} required>
+            <CountryDropdown defaultValue={value.deceasedSpouseNationality} placeholder={t("countryPlaceholder")} onChange={(c) => set("deceasedSpouseNationality", c.alpha3)} />
+          </BrandField>
+          <BrandField label={t("cityOfBirth")} required>
+            <BrandInput value={value.deceasedSpouseCityOfBirth} onChange={(e) => set("deceasedSpouseCityOfBirth", e.target.value)} placeholder={t("cityOfBirthPlaceholder")} />
+          </BrandField>
+        </div>
+
+        <BrandField label={t("countryOfBirth")} required>
+          <CountryDropdown defaultValue={value.deceasedSpouseCountryOfBirth} placeholder={t("countryPlaceholder")} onChange={(c) => set("deceasedSpouseCountryOfBirth", c.alpha3)} />
+        </BrandField>
+      </div>
+    );
+  }
+
+  // ── Former spouse entry ────────────────────────────────────────────────────
+  function formerSpouseEntry(fs: FormerSpouse, idx: number) {
+    const setFs = <K extends keyof FormerSpouse>(key: K, v: FormerSpouse[K]) => {
+      const next = value.formerSpouses.map((s, i) => (i === idx ? { ...s, [key]: v } : s));
+      set("formerSpouses", next);
+    };
+
+    return (
+      <div key={idx} className="flex flex-col gap-4 rounded-xl border border-border/50 bg-muted/30 p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground">{t("formerSpouseN", { n: idx + 1 })}</p>
+          <button type="button" onClick={() => set("formerSpouses", value.formerSpouses.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("givenName")} required>
+            <BrandInput value={fs.firstName} onChange={(e) => setFs("firstName", e.target.value)} placeholder={t("givenNamePlaceholder")} />
+          </BrandField>
+          <BrandField label={t("surname")} required>
+            <BrandInput value={fs.lastName} onChange={(e) => setFs("lastName", e.target.value)} placeholder={t("surnamePlaceholder")} />
+          </BrandField>
+        </div>
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("dateOfBirth")} required>
+            <DatePicker value={fs.dob} onChange={(v) => setFs("dob", v)} placeholder={t("dateOfBirthPlaceholder")} />
+          </BrandField>
+          <BrandField label={t("nationality")} required>
+            <CountryDropdown defaultValue={fs.nationality} placeholder={t("countryPlaceholder")} onChange={(c) => setFs("nationality", c.alpha3)} />
+          </BrandField>
+        </div>
+
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <BrandField label={t("cityOfBirth")} required>
+            <BrandInput value={fs.cityOfBirth} onChange={(e) => setFs("cityOfBirth", e.target.value)} placeholder={t("cityOfBirthPlaceholder")} />
+          </BrandField>
+          <BrandField label={t("countryOfBirth")} required>
+            <CountryDropdown defaultValue={fs.countryOfBirth} placeholder={t("countryPlaceholder")} onChange={(c) => setFs("countryOfBirth", c.alpha3)} />
+          </BrandField>
+        </div>
+
+        <BrandField label={t("marriageDate")} required>
+          <DatePicker value={fs.marriageDate} onChange={(v) => setFs("marriageDate", v)} placeholder={t("datePlaceholder")} />
+        </BrandField>
+
+        <BrandField label={t("divorceDate")} required>
+          <DatePicker value={fs.divorceDate} onChange={(v) => setFs("divorceDate", v)} placeholder={t("datePlaceholder")} />
+        </BrandField>
+
+        <BrandField label={t("howEnded")} required hint={t("howEndedHint")}>
+          <textarea
+            value={fs.howEnded}
+            onChange={(e) => setFs("howEnded", e.target.value)}
+            maxLength={200}
+            rows={3}
+            placeholder={t("howEndedPlaceholder")}
+            className="w-full resize-none rounded-lg border border-[#e8e8e8] px-3 py-2.5 text-[15px] focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+          />
+        </BrandField>
+
+        <BrandField label={t("divorceCountry")} required>
+          <CountryDropdown defaultValue={fs.divorceCountry} placeholder={t("countryPlaceholder")} onChange={(c) => setFs("divorceCountry", c.alpha3)} />
+        </BrandField>
+      </div>
+    );
+  }
+
+  // ── Former spouses card (divorced) ─────────────────────────────────────────
+  function formerSpousesCard() {
+    const canAdd = value.formerSpouses.length < 5;
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <Heart className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t("formerSpouseTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("formerSpouseSubtitle")}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onChangeMaritalStatus} className="shrink-0 text-xs text-brand-500 hover:underline whitespace-nowrap">
+            {t("wrongStatus")}
+          </button>
+        </div>
+
+        {value.formerSpouses.length === 0 ? null : (
+          <div className="flex flex-col gap-4">
+            {value.formerSpouses.map((fs, idx) => formerSpouseEntry(fs, idx))}
+          </div>
+        )}
+
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => set("formerSpouses", [...value.formerSpouses, emptyFormerSpouse()])}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground transition-colors hover:border-brand-300 hover:text-brand-500"
+          >
+            <Plus className="h-4 w-4" />
+            {value.formerSpouses.length === 0 ? t("addFormerSpouse") : t("addAnotherFormerSpouse")}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canContinue) onContinue();
-      }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {t("title")}
@@ -77,244 +389,41 @@ export function StepFamily({ value, onChange, onContinue }: StepFamilyProps) {
         <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
       </header>
 
-      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
-        <p className="text-sm font-semibold text-foreground">{t("fatherTitle")}</p>
-        <TabChoice
-          name="father-known"
-          value={value.fatherKnown ? "yes" : "no"}
-          columns={2}
-          onChange={(next) => set("fatherKnown", next === "yes")}
-          ariaLabel={t("fatherKnown")}
-          options={[
-            { value: "yes", label: t("iKnow") },
-            { value: "no", label: t("iDontKnow") },
-          ]}
-        />
-        {value.fatherKnown ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <BrandInput
-              value={value.fatherFirstName}
-              onChange={(e) => set("fatherFirstName", e.target.value)}
-              placeholder={t("firstNamePlaceholder")}
-              aria-label={t("fatherFirstName")}
-            />
-            <BrandInput
-              value={value.fatherLastName}
-              onChange={(e) => set("fatherLastName", e.target.value)}
-              placeholder={t("lastNamePlaceholder")}
-              aria-label={t("fatherLastName")}
-            />
-          </div>
-        ) : null}
-      </div>
+      {parentCard({
+        known: value.fatherKnown, firstNameUnknown: value.fatherFirstNameUnknown,
+        firstName: value.fatherFirstName, lastNameUnknown: value.fatherLastNameUnknown,
+        lastName: value.fatherLastName,
+        titleKey: "fatherTitle", unknownKey: "fatherUnknown", markedUnknownKey: "fatherMarkedUnknown",
+        onKnownChange: (v) => set("fatherKnown", v),
+        onFirstNameUnknownChange: (v) => set("fatherFirstNameUnknown", v),
+        onFirstNameChange: (v) => set("fatherFirstName", v),
+        onLastNameUnknownChange: (v) => set("fatherLastNameUnknown", v),
+        onLastNameChange: (v) => set("fatherLastName", v),
+      })}
 
-      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
-        <p className="text-sm font-semibold text-foreground">{t("motherTitle")}</p>
-        <TabChoice
-          name="mother-known"
-          value={value.motherKnown ? "yes" : "no"}
-          columns={2}
-          onChange={(next) => set("motherKnown", next === "yes")}
-          ariaLabel={t("motherKnown")}
-          options={[
-            { value: "yes", label: t("iKnow") },
-            { value: "no", label: t("iDontKnow") },
-          ]}
-        />
-        {value.motherKnown ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <BrandInput
-              value={value.motherFirstName}
-              onChange={(e) => set("motherFirstName", e.target.value)}
-              placeholder={t("firstNamePlaceholder")}
-              aria-label={t("motherFirstName")}
-            />
-            <BrandInput
-              value={value.motherLastName}
-              onChange={(e) => set("motherLastName", e.target.value)}
-              placeholder={t("lastNamePlaceholder")}
-              aria-label={t("motherLastName")}
-            />
-          </div>
-        ) : null}
-      </div>
+      {parentCard({
+        known: value.motherKnown, firstNameUnknown: value.motherFirstNameUnknown,
+        firstName: value.motherFirstName, lastNameUnknown: value.motherLastNameUnknown,
+        lastName: value.motherLastName,
+        titleKey: "motherTitle", unknownKey: "motherUnknown", markedUnknownKey: "motherMarkedUnknown",
+        onKnownChange: (v) => set("motherKnown", v),
+        onFirstNameUnknownChange: (v) => set("motherFirstNameUnknown", v),
+        onFirstNameChange: (v) => set("motherFirstName", v),
+        onLastNameUnknownChange: (v) => set("motherLastNameUnknown", v),
+        onLastNameChange: (v) => set("motherLastName", v),
+      })}
 
-      <BrandField label={t("relativesInUs")} hint={t("relativesInUsHint")}>
-        <TabChoice
-          name="relatives-in-us"
-          value={value.relativesInUs}
-          columns={2}
-          onChange={(next) => set("relativesInUs", next)}
-          ariaLabel={t("relativesInUs")}
-          options={[
-            { value: "no", label: tCommon("no") },
-            { value: "yes", label: tCommon("yes") },
-          ]}
-        />
-        {value.relativesInUs === "yes" ? (
-          <div className="mt-2 flex flex-col gap-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <BrandInput
-                value={value.relativeFirstName}
-                onChange={(e) => set("relativeFirstName", e.target.value)}
-                placeholder={t("relativeFirstNamePlaceholder")}
-                aria-label={t("relativeFirstName")}
-              />
-              <BrandInput
-                value={value.relativeLastName}
-                onChange={(e) => set("relativeLastName", e.target.value)}
-                placeholder={t("relativeLastNamePlaceholder")}
-                aria-label={t("relativeLastName")}
-              />
-            </div>
-            <BrandField label={t("relativeRelationship")}>
-              <TabChoice
-                name="relative-relationship"
-                value={value.relativeRelationship}
-                columns={4}
-                onChange={(next) => set("relativeRelationship", next)}
-                ariaLabel={t("relativeRelationship")}
-                options={[
-                  { value: "spouse", label: t("relationSpouse") },
-                  { value: "fiance", label: t("relationFiance") },
-                  { value: "child", label: t("relationChild") },
-                  { value: "sibling", label: t("relationSibling") },
-                ]}
-              />
-            </BrandField>
-            <BrandField label={t("relativeStatus")}>
-              <TabChoice
-                name="relative-status"
-                value={value.relativeStatus}
-                columns={4}
-                onChange={(next) => set("relativeStatus", next)}
-                ariaLabel={t("relativeStatus")}
-                options={[
-                  { value: "citizen", label: t("statusCitizen") },
-                  { value: "lpr", label: t("statusLpr") },
-                  { value: "nonimmigrant", label: t("statusNonimmigrant") },
-                  { value: "other_unknown", label: t("statusOther") },
-                ]}
-              />
-            </BrandField>
-          </div>
-        ) : null}
-      </BrandField>
-
-      <BrandField label={t("hasOtherRelatives")} hint={t("hasOtherRelativesHint")}>
-        <TabChoice
-          name="has-other-relatives"
-          value={value.hasOtherRelatives}
-          columns={2}
-          onChange={(next) => set("hasOtherRelatives", next)}
-          ariaLabel={t("hasOtherRelatives")}
-          options={[
-            { value: "no", label: tCommon("no") },
-            { value: "yes", label: tCommon("yes") },
-          ]}
-        />
-      </BrandField>
-
-      <BrandField label={t("clanTribe")} hint={t("clanTribeHint")}>
-        <TabChoice
-          name="has-clan-tribe"
-          value={value.hasClanTribe}
-          columns={2}
-          onChange={(next) => set("hasClanTribe", next)}
-          ariaLabel={t("clanTribe")}
-          options={[
-            { value: "no", label: tCommon("no") },
-            { value: "yes", label: tCommon("yes") },
-          ]}
-        />
-        {value.hasClanTribe === "yes" ? (
-          <BrandInput
-            value={value.clanTribeName}
-            onChange={(e) => set("clanTribeName", e.target.value)}
-            placeholder={t("clanTribeNamePlaceholder")}
-            aria-label={t("clanTribe")}
-            className="mt-2"
-          />
-        ) : null}
-      </BrandField>
-
-      <BrandField label={t("languages")} hint={t("languagesHint")} required>
-        <div className="flex flex-wrap gap-2">
-          {RECOMMENDED_LANGUAGES.map((lang) => {
-            const selected = value.languages.includes(lang);
-            return (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => toggleLanguage(lang)}
-                aria-pressed={selected}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  selected
-                    ? "border-brand-500 bg-brand-500 text-primary-foreground"
-                    : "border-input bg-white text-foreground hover:border-brand-200 hover:bg-brand-50",
-                )}
-              >
-                {lang}
-              </button>
-            );
-          })}
-        </div>
-        {value.languages.filter((l) => !RECOMMENDED_LANGUAGES.includes(l)).length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {value.languages
-              .filter((l) => !RECOMMENDED_LANGUAGES.includes(l))
-              .map((lang) => (
-                <span
-                  key={lang}
-                  className="inline-flex items-center gap-1 rounded-full border border-brand-500 bg-brand-500 px-3 py-1.5 text-sm font-medium text-primary-foreground"
-                >
-                  {lang}
-                  <button
-                    type="button"
-                    onClick={() => removeLanguage(lang)}
-                    aria-label={t("removeLanguage", { lang })}
-                    className="rounded-full p-0.5 hover:bg-white/20"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-          </div>
-        ) : null}
-        <div className="mt-2 flex gap-2">
-          <BrandInput
-            value={customLanguage}
-            onChange={(e) => setCustomLanguage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addCustomLanguage();
-              }
-            }}
-            placeholder={t("addLanguagePlaceholder")}
-            aria-label={t("addLanguage")}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addCustomLanguage}
-            disabled={!customLanguage.trim()}
-            className="h-12 shrink-0 gap-1.5 rounded-lg border-[#e8e8e8] px-4"
-          >
-            <Plus className="h-4 w-4" />
-            {t("addLanguage")}
-          </Button>
-        </div>
-      </BrandField>
+      {isSpouseStatus && spouseCard()}
+      {isWidowed && deceasedSpouseCard()}
+      {isDivorced && formerSpousesCard()}
 
       <Button
-        type="submit"
-        disabled={!canContinue}
+        type="button"
+        onClick={handleContinue}
         className="mt-2 h-12 rounded-lg bg-brand-500 text-[15px] font-medium text-white hover:bg-brand-500/90"
       >
         {tCommon("continue")}
       </Button>
-    </form>
+    </div>
   );
 }

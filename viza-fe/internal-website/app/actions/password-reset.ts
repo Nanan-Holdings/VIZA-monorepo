@@ -65,6 +65,19 @@ export async function updatePassword(newPassword: string) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
 
   if (error) {
+    const normalizedMessage = error.message.toLowerCase();
+
+    if (
+      normalizedMessage.includes("compromised") ||
+      normalizedMessage.includes("list of passwords commonly used") ||
+      normalizedMessage.includes("found in data breaches")
+    ) {
+      return {
+        error:
+          "Password may be compromised. Password is in a list of passwords commonly used on other websites.",
+      };
+    }
+
     return { error: error.message };
   }
   return { success: true };

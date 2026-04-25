@@ -1,6 +1,77 @@
 export type TravelPlanState = "yes" | "idea" | "unsure";
+export type LengthUnit = "Days" | "Weeks" | "Months" | "Years" | "LessThan24Hours";
 
-export type SocialPlatform = "instagram" | "facebook" | "twitter" | "linkedin" | "youtube" | "tiktok" | "weibo";
+export type SocialPlatform =
+  | "instagram"
+  | "facebook"
+  | "twitter"
+  | "linkedin"
+  | "youtube"
+  | "tiktok"
+  | "wechat"
+  | "weibo"
+  | "askfm"
+  | "flickr"
+  | "myspace"
+  | "reddit"
+  | "tumblr"
+  | "vine"
+  | "vkontakte"
+  | "youku";
+
+export interface CustomSocialEntry {
+  platform: string;
+  handle: string;
+}
+export interface AdditionalPhone {
+  dialCode: string;
+  number: string;
+}
+
+export interface AdditionalCitizenship {
+  country: string;
+  hasPassport: boolean;
+  passportNumber: string;
+}
+
+export interface TravelCompanion {
+  firstName: string;
+  lastName: string;
+  relationship: "child" | "parent" | "spouse" | "relative" | "friend" | "business_partner" | "other" | "";
+}
+
+export interface PreviousUsVisit {
+  arrivalDate: string;
+  lengthValue: string;
+  lengthUnit: LengthUnit;
+}
+
+export interface UsDriversLicenseEntry {
+  unknownNumber: boolean;
+  number: string;
+  state: string;
+}
+
+export type TripPayerType =
+  | "Self"
+  | "Other Person"
+  | "Current Employer"
+  | "US Employer"
+  | "Other Company"
+  | "";
+
+export interface FormerSpouse {
+  firstName: string;
+  lastName: string;
+  dob: string;
+  nationality: string;
+  cityOfBirth: string;
+  countryOfBirth: string;
+  marriageDate: string;
+  divorceDate: string;
+  howEnded: string;
+  divorceCountry: string;
+}
 
 export interface SimplifiedIdentity {
   firstName: string;
@@ -8,9 +79,12 @@ export interface SimplifiedIdentity {
   dob: string;
   gender: "Male" | "Female" | "";
   countryOfBirth: string;
+  stateOfBirth: string;
+  hasNoStateOfBirth: boolean;
   cityOfBirth: string;
   nationality: string;
-  maritalStatus: "Single" | "Married" | "Divorced" | "Widowed" | "";
+  maritalStatus: "Single" | "Married" | "Common Law Marriage" | "Civil Union / Domestic Partnership" | "Legally Separated" | "Divorced" | "Widowed" | "Other" | "";
+  maritalStatusOtherExplain: string;
   hasOtherName: boolean;
   otherFirstName: string;
   otherLastName: string;
@@ -19,15 +93,6 @@ export interface SimplifiedIdentity {
   hasTelecode: boolean;
   telecodeFirstName: string;
   telecodeLastName: string;
-  hasPermanentResidenceOther: boolean;
-  permanentResidenceCountry: string;
-  // Spouse — only shown when maritalStatus === "Married"
-  spouseFirstName: string;
-  spouseLastName: string;
-  spouseDob: string;
-  spouseNationality: string;
-  spouseCityOfBirth: string;
-  spouseCountryOfBirth: string;
 }
 
 export interface SimplifiedContact {
@@ -35,8 +100,11 @@ export interface SimplifiedContact {
   phone: string;
   secondaryPhone: string;
   secondaryEmail: string;
+  additionalPhones: AdditionalPhone[];
+  additionalEmails: string[];
   homeCountry: string;
   street1: string;
+  street2: string;
   city: string;
   state: string;
   postalCode: string;
@@ -44,62 +112,154 @@ export interface SimplifiedContact {
   // If mailingSame === false, fill these with the mailing address.
   mailingCountry: string;
   mailingStreet1: string;
+  mailingStreet2: string;
   mailingCity: string;
   mailingState: string;
   mailingPostalCode: string;
   socialPlatforms: SocialPlatform[];
   socialHandles: Partial<Record<SocialPlatform, string>>;
+  otherSocialEntries: CustomSocialEntry[];
 }
 
 export interface SimplifiedPassport {
   number: string;
+  hasBookNumber: boolean;
   bookNumber: string;
   issuingCountry: string;
+  issuedInAnotherCountry: boolean;
+  issuedInAnotherCountryValue: string;
+  issuanceCity: string;
+  issuanceProvince: string;
   issueDate: string;
   expiryDate: string;
-  type: "Regular" | "Official" | "Diplomatic" | "Other";
+  type: "Regular" | "Official" | "Diplomatic" | "Permit" | "Other";
   hasAdditionalNationality: boolean;
   additionalNationality: string;
+  additionalCitizenships: AdditionalCitizenship[];
+  hasOtherCountryPermanentResidence: boolean;
+  permanentResidenceCountries: string[];
+  hasUsSocialSecurityOrTaxId: boolean;
+  hasSsn: boolean;
+  ssn: string;
+  hasItin: boolean;
+  itin: string;
   hasNationalId: boolean;
   nationalId: string;
   hasLostPassport: boolean;
+  lostPassportKnowsNumber: boolean;
+  lostPassportNumber: string;
+  lostPassportCountry: string;
   lostPassportExplanation: string;
 }
 
 export interface SimplifiedTravel {
   plansState: TravelPlanState;
   arrivalDate: string;
+  departureDate: string;
+  arrivalCity: string;
+  arrivalFlight: string;
+  departureCity: string;
+  departureFlight: string;
+  placesToVisit: string[];
   lengthValue: string;
-  lengthUnit: "Days" | "Weeks" | "Months";
-  accommodationType: "Hotel" | "Private Home" | "Other" | "";
+  lengthUnit: LengthUnit;
+  accommodationType: "Hotel" | "Private Home" | "Short-term Rental" | "Other" | "";
+  hotelName: string;
   usStreet: string;
+  usStreet2: string;
   usCity: string;
   usState: string;
   usZip: string;
-  tripPayer: "Self" | "Family" | "Employer" | "Other" | "";
+  usAccommodationType: "hotel" | "airbnb" | "friends_family" | "business" | "school" | "other" | "";
+  usHostFirstName: string;
+  usHostLastName: string;
+  usFriendsFirstName: string;
+  usFriendsLastName: string;
+  usFriendsRelationship: "relative" | "friend" | "";
+  usOrgName: string;
+  usSchoolName: string;
+  usOtherFirstName: string;
+  usOtherLastName: string;
+  usContactPhoneDialCode: string;
+  usContactPhone: string;
+  usContactEmail: string;
+  usContactEmailUnknown: boolean;
+  tripPayer: TripPayerType;
+  payerFirstName: string;
+  payerLastName: string;
+  payerPhoneDialCode: string;
+  payerPhone: string;
+  payerEmail: string;
+  payerEmailUnknown: boolean;
+  payerRelationship:
+    | "child"
+    | "parent"
+    | "spouse"
+    | "relative"
+    | "friend"
+    | "business_partner"
+    | "other"
+    | "";
+  payerAddressSameAsYou: "yes" | "no" | "";
+  payerStreet1: string;
+  payerStreet2: string;
+  payerCity: string;
+  payerState: string;
+  payerNoState: boolean;
+  payerPostalCode: string;
+  payerNoPostalCode: boolean;
+  payerCountry: string;
+  payerOrgName: string;
+  payerOrgPhoneDialCode: string;
+  payerOrgPhone: string;
+  payerOrgRelationship: string;
   embassyLocation: string;
   // Companions
   hasCompanions: "yes" | "no" | "";
+  companionGroupTravel: "yes" | "no" | "";
+  companionGroupName: string;
+  companions: TravelCompanion[];
   companionFirstName: string;
   companionLastName: string;
   companionRelationship: string;
+  hasVisitedOtherCountriesLast5Years: "yes" | "no" | "";
+  visitedCountries: string[];
   // Prior US presence
   hasBeenInUs: "yes" | "no" | "";
+  previousVisits: PreviousUsVisit[];
   previousVisitDate: string;
   previousVisitLengthValue: string;
-  previousVisitLengthUnit: "Days" | "Weeks" | "Months";
+  previousVisitLengthUnit: LengthUnit;
   // US driver's license (only relevant if hasBeenInUs)
   hasUsDriversLicense: "yes" | "no" | "";
+  usDriversLicenses: UsDriversLicenseEntry[];
   driversLicenseNumber: string;
   driversLicenseState: string;
   // Previous US visa history
   previousVisa: "yes" | "no" | "";
+  previousVisaIssueCountry: string;
+  previousVisaIssueDate: string;
+  previousVisaValidUntil: string;
+  previousVisaUnknownNumber: boolean;
   previousVisaNumber: string;
-  previousVisaExpiry: string;
+  previousVisaExpiry: string; // legacy alias; kept for compatibility
+  sameVisaType: "yes" | "no" | "";
+  sameCountryApply: "yes" | "no" | "";
+  tenPrinted: "yes" | "no" | "";
+  visaLostStolen: "yes" | "no" | "";
+  visaLostStolenYear: string;
+  visaLostStolenExplanation: string;
+  visaCancelledRevoked: "yes" | "no" | "";
+  visaCancelledRevokedExplanation: string;
+  received221g: "yes" | "no" | "";
   previousRefusal: "yes" | "no" | "";
   refusalExplanation: string;
+  previousRefusalDate: string;
+  previousRefusalExplanation: string;
   estaDenied: "yes" | "no" | "";
+  estaDeniedExplanation: string;
   petitionFiled: "yes" | "no" | "";
+  petitionFiledExplanation: string;
 }
 
 export type OccupationKey =
@@ -182,14 +342,37 @@ export interface SimplifiedUsContact {
 }
 
 export interface SimplifiedFamily {
+  // Parents
   fatherKnown: boolean;
   fatherFirstName: string;
+  fatherFirstNameUnknown: boolean;
   fatherLastName: string;
+  fatherLastNameUnknown: boolean;
   fatherDob: string;
   motherKnown: boolean;
   motherFirstName: string;
+  motherFirstNameUnknown: boolean;
   motherLastName: string;
+  motherLastNameUnknown: boolean;
   motherDob: string;
+  // Spouse (shown for Married / Common Law / Civil Union / Legally Separated)
+  spouseFirstName: string;
+  spouseLastName: string;
+  spouseDob: string;
+  spouseNationality: string;
+  spouseCityOfBirth: string;
+  spouseCountryOfBirth: string;
+  spouseAddressType: "home" | "work" | "other" | "";
+  // Deceased spouse (shown for Widowed)
+  deceasedSpouseFirstName: string;
+  deceasedSpouseLastName: string;
+  deceasedSpouseDob: string;
+  deceasedSpouseNationality: string;
+  deceasedSpouseCityOfBirth: string;
+  deceasedSpouseCountryOfBirth: string;
+  // Former spouses (shown for Divorced) — max 5
+  formerSpouses: FormerSpouse[];
+  // Legacy DS-160 fields (kept for buildAnswerPayload compatibility)
   relativesInUs: "yes" | "no" | "";
   relativeFirstName: string;
   relativeLastName: string;
@@ -228,9 +411,12 @@ export const emptySimplifiedForm = (): SimplifiedFormData => ({
     dob: "",
     gender: "",
     countryOfBirth: "",
+    stateOfBirth: "",
+    hasNoStateOfBirth: false,
     cityOfBirth: "",
     nationality: "",
     maritalStatus: "",
+    maritalStatusOtherExplain: "",
     hasOtherName: false,
     otherFirstName: "",
     otherLastName: "",
@@ -239,78 +425,157 @@ export const emptySimplifiedForm = (): SimplifiedFormData => ({
     hasTelecode: false,
     telecodeFirstName: "",
     telecodeLastName: "",
-    hasPermanentResidenceOther: false,
-    permanentResidenceCountry: "",
-    spouseFirstName: "",
-    spouseLastName: "",
-    spouseDob: "",
-    spouseNationality: "",
-    spouseCityOfBirth: "",
-    spouseCountryOfBirth: "",
   },
   contact: {
     email: "",
     phone: "",
     secondaryPhone: "",
     secondaryEmail: "",
+    additionalPhones: [],
+    additionalEmails: [],
     homeCountry: "",
     street1: "",
+    street2: "",
     city: "",
     state: "",
     postalCode: "",
     mailingSame: true,
     mailingCountry: "",
     mailingStreet1: "",
+    mailingStreet2: "",
     mailingCity: "",
     mailingState: "",
     mailingPostalCode: "",
     socialPlatforms: [],
     socialHandles: {},
+    otherSocialEntries: [],
   },
   passport: {
     number: "",
+    hasBookNumber: false,
     bookNumber: "",
     issuingCountry: "",
+    issuedInAnotherCountry: false,
+    issuedInAnotherCountryValue: "",
+    issuanceCity: "",
+    issuanceProvince: "",
     issueDate: "",
     expiryDate: "",
     type: "Regular",
     hasAdditionalNationality: false,
     additionalNationality: "",
+    additionalCitizenships: [{ country: "", hasPassport: false, passportNumber: "" }],
+    hasOtherCountryPermanentResidence: false,
+    permanentResidenceCountries: [""],
+    hasUsSocialSecurityOrTaxId: false,
+    hasSsn: false,
+    ssn: "",
+    hasItin: false,
+    itin: "",
     hasNationalId: false,
     nationalId: "",
     hasLostPassport: false,
+    lostPassportKnowsNumber: false,
+    lostPassportNumber: "",
+    lostPassportCountry: "",
     lostPassportExplanation: "",
   },
   travel: {
     plansState: "unsure",
     arrivalDate: "",
+    departureDate: "",
+    arrivalCity: "",
+    arrivalFlight: "",
+    departureCity: "",
+    departureFlight: "",
+    placesToVisit: [""],
     lengthValue: "",
     lengthUnit: "Days",
     accommodationType: "",
+    hotelName: "",
     usStreet: "",
+    usStreet2: "",
     usCity: "",
     usState: "",
     usZip: "",
+    usAccommodationType: "",
+    usHostFirstName: "",
+    usHostLastName: "",
+    usFriendsFirstName: "",
+    usFriendsLastName: "",
+    usFriendsRelationship: "",
+    usOrgName: "",
+    usSchoolName: "",
+    usOtherFirstName: "",
+    usOtherLastName: "",
+    usContactPhoneDialCode: "+1",
+    usContactPhone: "",
+    usContactEmail: "",
+    usContactEmailUnknown: false,
     tripPayer: "Self",
+    payerFirstName: "",
+    payerLastName: "",
+    payerPhoneDialCode: "+86",
+    payerPhone: "",
+    payerEmail: "",
+    payerEmailUnknown: false,
+    payerRelationship: "",
+    payerAddressSameAsYou: "yes",
+    payerStreet1: "",
+    payerStreet2: "",
+    payerCity: "",
+    payerState: "",
+    payerNoState: false,
+    payerPostalCode: "",
+    payerNoPostalCode: false,
+    payerCountry: "",
+    payerOrgName: "",
+    payerOrgPhoneDialCode: "+86",
+    payerOrgPhone: "",
+    payerOrgRelationship: "",
     embassyLocation: "",
     hasCompanions: "no",
+    companionGroupTravel: "no",
+    companionGroupName: "",
+    companions: [{ firstName: "", lastName: "", relationship: "" }],
     companionFirstName: "",
     companionLastName: "",
     companionRelationship: "",
+    hasVisitedOtherCountriesLast5Years: "no",
+    visitedCountries: [""],
     hasBeenInUs: "no",
+    previousVisits: [{ arrivalDate: "", lengthValue: "", lengthUnit: "Days" }],
     previousVisitDate: "",
     previousVisitLengthValue: "",
     previousVisitLengthUnit: "Days",
     hasUsDriversLicense: "no",
+    usDriversLicenses: [{ unknownNumber: false, number: "", state: "" }],
     driversLicenseNumber: "",
     driversLicenseState: "",
     previousVisa: "no",
+    previousVisaIssueCountry: "",
+    previousVisaIssueDate: "",
+    previousVisaValidUntil: "",
+    previousVisaUnknownNumber: false,
     previousVisaNumber: "",
     previousVisaExpiry: "",
+    sameVisaType: "yes",
+    sameCountryApply: "yes",
+    tenPrinted: "no",
+    visaLostStolen: "no",
+    visaLostStolenYear: "",
+    visaLostStolenExplanation: "",
+    visaCancelledRevoked: "no",
+    visaCancelledRevokedExplanation: "",
+    received221g: "no",
     previousRefusal: "no",
     refusalExplanation: "",
+    previousRefusalDate: "",
+    previousRefusalExplanation: "",
     estaDenied: "no",
+    estaDeniedExplanation: "",
     petitionFiled: "no",
+    petitionFiledExplanation: "",
   },
   work: {
     primaryOccupation: "",
@@ -356,14 +621,32 @@ export const emptySimplifiedForm = (): SimplifiedFormData => ({
     zip: "",
   },
   family: {
-    fatherKnown: false,
+    fatherKnown: true,
     fatherFirstName: "",
+    fatherFirstNameUnknown: false,
     fatherLastName: "",
+    fatherLastNameUnknown: false,
     fatherDob: "",
-    motherKnown: false,
+    motherKnown: true,
     motherFirstName: "",
+    motherFirstNameUnknown: false,
     motherLastName: "",
+    motherLastNameUnknown: false,
     motherDob: "",
+    spouseFirstName: "",
+    spouseLastName: "",
+    spouseDob: "",
+    spouseNationality: "",
+    spouseCityOfBirth: "",
+    spouseCountryOfBirth: "",
+    spouseAddressType: "",
+    deceasedSpouseFirstName: "",
+    deceasedSpouseLastName: "",
+    deceasedSpouseDob: "",
+    deceasedSpouseNationality: "",
+    deceasedSpouseCityOfBirth: "",
+    deceasedSpouseCountryOfBirth: "",
+    formerSpouses: [],
     relativesInUs: "no",
     relativeFirstName: "",
     relativeLastName: "",
@@ -448,36 +731,57 @@ const SCHEMA_SOCIAL_PLATFORM: Partial<Record<SocialPlatform, string>> = {
   // through `has_other_social_media` + `other_social_media_*` below.
 };
 
+const OTHER_SOCIAL_LABEL: Partial<Record<SocialPlatform, string>> = {
+  tiktok: "TikTok",
+  wechat: "WeChat",
+  askfm: "ASK.FM",
+  flickr: "Flickr",
+  myspace: "Myspace",
+  reddit: "Reddit",
+  tumblr: "Tumblr",
+  vine: "Vine",
+  vkontakte: "VKontakte",
+  youku: "Youku",
+};
+
 const GENDER_MAP: Record<"Male" | "Female", string> = {
   Male: "male",
   Female: "female",
 };
 
-const MARITAL_MAP: Record<"Single" | "Married" | "Divorced" | "Widowed", string> = {
+const MARITAL_MAP: Record<"Single" | "Married" | "Common Law Marriage" | "Civil Union / Domestic Partnership" | "Legally Separated" | "Divorced" | "Widowed" | "Other", string> = {
   Single: "single",
   Married: "married",
+  "Common Law Marriage": "common law marriage",
+  "Civil Union / Domestic Partnership": "civil union / domestic partnership",
+  "Legally Separated": "legally separated",
   Divorced: "divorced",
   Widowed: "widowed",
-};
-
-const PASSPORT_TYPE_MAP: Record<"Regular" | "Official" | "Diplomatic" | "Other", string> = {
-  Regular: "regular",
-  Official: "official",
-  Diplomatic: "diplomatic",
   Other: "other",
 };
 
-const LENGTH_UNIT_MAP: Record<"Days" | "Weeks" | "Months", string> = {
+const PASSPORT_TYPE_MAP: Record<"Regular" | "Official" | "Diplomatic" | "Permit" | "Other", string> = {
+  Regular: "regular",
+  Official: "official",
+  Diplomatic: "diplomatic",
+  Permit: "other",
+  Other: "other",
+};
+
+const LENGTH_UNIT_MAP: Record<LengthUnit, string> = {
   Days: "DAY(S)",
   Weeks: "WEEK(S)",
   Months: "MONTH(S)",
+  Years: "YEAR(S)",
+  LessThan24Hours: "LESS THAN 24 HOURS",
 };
 
-const TRIP_PAYER_MAP: Record<"Self" | "Family" | "Employer" | "Other", string> = {
+const TRIP_PAYER_MAP: Record<Exclude<TripPayerType, "">, string> = {
   Self: "self",
-  Family: "other_person",
-  Employer: "employer_in_us",
-  Other: "other_company",
+  "Other Person": "other_person",
+  "Current Employer": "employer_in_home_country",
+  "US Employer": "employer_in_us",
+  "Other Company": "other_company",
 };
 
 /** Best-effort normalization of free-text relationship → DS-160 enum. */
@@ -518,6 +822,9 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   p.date_of_birth = identity.dob;
   if (identity.gender) p.sex = GENDER_MAP[identity.gender];
   p.country_of_birth = identity.countryOfBirth;
+  if (identity.stateOfBirth) {
+    p.state_of_birth = identity.stateOfBirth;
+  }
   p.city_of_birth = identity.cityOfBirth;
   p.state_of_birth = "does_not_apply";
   if (identity.maritalStatus) p.marital_status = MARITAL_MAP[identity.maritalStatus];
@@ -543,24 +850,29 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // Personal Information 2
   // ------------------------------------------------------------
   p.nationality_country = identity.nationality;
-  p.other_nationality = passport.hasAdditionalNationality ? "yes" : "no";
-  if (passport.hasAdditionalNationality && passport.additionalNationality) {
-    p.other_nationality_country = passport.additionalNationality;
-    p.other_nationality_has_passport = "no";
-  }
-  p.permanent_resident_other_country = identity.hasPermanentResidenceOther ? "yes" : "no";
-  if (identity.hasPermanentResidenceOther && identity.permanentResidenceCountry) {
-    p.other_permanent_resident_country = identity.permanentResidenceCountry;
+  const firstAdditionalCitizenship = passport.additionalCitizenships.find((item) => item.country);
+  p.other_nationality =
+    passport.hasAdditionalNationality && (firstAdditionalCitizenship || passport.additionalNationality)
+      ? "yes"
+      : "no";
+  if (passport.hasAdditionalNationality && (firstAdditionalCitizenship || passport.additionalNationality)) {
+    p.other_nationality_country = firstAdditionalCitizenship?.country || passport.additionalNationality;
+    p.other_nationality_has_passport = firstAdditionalCitizenship?.hasPassport ? "yes" : "no";
+    p.other_nationality_passport_number =
+      firstAdditionalCitizenship?.hasPassport && firstAdditionalCitizenship.passportNumber.trim()
+        ? firstAdditionalCitizenship.passportNumber.trim()
+        : "does_not_apply";
   }
   p.national_id_number =
     passport.hasNationalId && passport.nationalId.trim() ? passport.nationalId.trim() : "does_not_apply";
-  p.us_social_security_number = "does_not_apply";
-  p.us_taxpayer_id = "does_not_apply";
+  p.us_social_security_number = passport.hasSsn && passport.ssn.trim() ? passport.ssn.trim() : "does_not_apply";
+  p.us_taxpayer_id = passport.hasItin && passport.itin.trim() ? passport.itin.trim() : "does_not_apply";
 
   // ------------------------------------------------------------
   // Address and Phone
   // ------------------------------------------------------------
   p.home_address_line1 = contact.street1;
+  if (contact.street2.trim()) p.home_address_line2 = contact.street2.trim();
   p.home_address_city = contact.city;
   p.home_address_state_province = contact.state.trim() || "does_not_apply";
   p.home_address_postal_code = contact.postalCode.trim() || "does_not_apply";
@@ -569,6 +881,7 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   p.mailing_same_as_home = contact.mailingSame ? "yes" : "no";
   if (!contact.mailingSame) {
     p.mailing_address_line1 = contact.mailingStreet1;
+    if (contact.mailingStreet2.trim()) p.mailing_address_line2 = contact.mailingStreet2.trim();
     p.mailing_address_city = contact.mailingCity;
     p.mailing_address_state = contact.mailingState.trim() || "does_not_apply";
     p.mailing_address_postal = contact.mailingPostalCode.trim() || "does_not_apply";
@@ -576,23 +889,40 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   }
 
   p.primary_phone = contact.phone;
-  p.secondary_phone = contact.secondaryPhone.trim() || "does_not_apply";
+  const normalizedAdditionalPhones = (contact.additionalPhones ?? [])
+    .map((item) => `${item.dialCode} ${item.number}`.trim())
+    .filter(Boolean);
+  const legacySecondaryPhone = contact.secondaryPhone.trim();
+  const allOtherPhones = normalizedAdditionalPhones.length
+    ? normalizedAdditionalPhones
+    : legacySecondaryPhone
+      ? [legacySecondaryPhone]
+      : [];
+  p.secondary_phone = allOtherPhones[0] || "does_not_apply";
   p.work_phone = "does_not_apply";
-  p.has_other_phones = contact.secondaryPhone.trim() ? "yes" : "no";
-  if (contact.secondaryPhone.trim()) {
-    p.additional_phone = contact.secondaryPhone.trim();
+  p.has_other_phones = allOtherPhones.length ? "yes" : "no";
+  if (allOtherPhones.length > 1) {
+    p.additional_phone = allOtherPhones[1];
+  } else if (allOtherPhones.length === 1) {
+    p.additional_phone = allOtherPhones[0];
   }
 
   p.email_address = contact.email;
-  if (contact.secondaryEmail.trim()) {
+  const normalizedAdditionalEmails = (contact.additionalEmails ?? []).map((item) => item.trim()).filter(Boolean);
+  const legacySecondaryEmail = contact.secondaryEmail.trim();
+  const allOtherEmails = normalizedAdditionalEmails.length
+    ? normalizedAdditionalEmails
+    : legacySecondaryEmail
+      ? [legacySecondaryEmail]
+      : [];
+  if (allOtherEmails.length) {
     p.has_other_emails = "yes";
-    p.additional_email = contact.secondaryEmail.trim();
+    p.additional_email = allOtherEmails.length > 1 ? allOtherEmails[1] : allOtherEmails[0];
   } else {
     p.has_other_emails = "no";
   }
 
-  // Social media — schema platforms mapped as repeatable instances,
-  // TikTok (unsupported) routed through `other_social_media`.
+  // Social media — schema platforms mapped as repeatable instances.
   const schemaPlatforms = contact.socialPlatforms.filter((pl) => pl in SCHEMA_SOCIAL_PLATFORM);
   schemaPlatforms.forEach((platform, i) => {
     const suffix = i === 0 ? "" : `__${i + 1}`;
@@ -601,11 +931,28 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     if (handle) p[`social_media_handle${suffix}`] = handle;
   });
 
-  const tiktokHandle = contact.socialPlatforms.includes("tiktok") ? contact.socialHandles.tiktok : undefined;
-  if (tiktokHandle) {
+  const predefinedOtherSocial = contact.socialPlatforms
+    .map((platform) => {
+      if (platform in SCHEMA_SOCIAL_PLATFORM) return null;
+      const label = OTHER_SOCIAL_LABEL[platform];
+      const handle = contact.socialHandles[platform]?.trim();
+      if (!label || !handle) return null;
+      return { platform: label, handle };
+    })
+    .filter((item): item is { platform: string; handle: string } => !!item);
+
+  const customOtherSocial = (contact.otherSocialEntries ?? [])
+    .map((item) => ({
+      platform: item.platform.trim(),
+      handle: item.handle.trim(),
+    }))
+    .filter((item) => item.platform && item.handle);
+
+  const firstOtherSocial = [...predefinedOtherSocial, ...customOtherSocial][0];
+  if (firstOtherSocial) {
     p.has_other_social_media = "yes";
-    p.other_social_media_name = "TikTok";
-    p.other_social_media_identifier = tiktokHandle;
+    p.other_social_media_name = firstOtherSocial.platform;
+    p.other_social_media_identifier = firstOtherSocial.handle;
   } else {
     p.has_other_social_media = "no";
   }
@@ -615,10 +962,17 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // ------------------------------------------------------------
   p.passport_document_type = PASSPORT_TYPE_MAP[passport.type];
   p.passport_number = passport.number;
-  p.passport_book_number = passport.bookNumber.trim() || "does_not_apply";
+  p.passport_book_number =
+    passport.hasBookNumber && passport.bookNumber.trim()
+      ? passport.bookNumber.trim()
+      : "does_not_apply";
   p.passport_issuing_country = passport.issuingCountry;
-  p.passport_issuance_country = passport.issuingCountry;
-  p.passport_issuance_state = "does_not_apply";
+  p.passport_issuance_country =
+    passport.issuedInAnotherCountry && passport.issuedInAnotherCountryValue
+      ? passport.issuedInAnotherCountryValue
+      : passport.issuingCountry;
+  p.passport_issuance_city = passport.issuanceCity.trim() || "does_not_apply";
+  p.passport_issuance_state = passport.issuanceProvince.trim() || "does_not_apply";
   p.passport_issuance_date = passport.issueDate;
   p.passport_expiration_date = passport.expiryDate;
 
@@ -656,10 +1010,19 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // ------------------------------------------------------------
   p.has_companions = travel.hasCompanions || "no";
   if (travel.hasCompanions === "yes") {
-    p.companion_group_travel = "no";
-    p.companion_given_names = travel.companionFirstName;
-    p.companion_surname = travel.companionLastName;
-    p.companion_relationship = (travel.companionRelationship || "OTHER").toUpperCase();
+    p.companion_group_travel = travel.companionGroupTravel || "no";
+    if (travel.companionGroupTravel === "yes") {
+      if (travel.companionGroupName.trim()) {
+        p.companion_group_name = travel.companionGroupName.trim();
+      }
+    } else {
+      const primaryCompanion = travel.companions?.[0];
+      p.companion_given_names = primaryCompanion?.firstName || travel.companionFirstName;
+      p.companion_surname = primaryCompanion?.lastName || travel.companionLastName;
+      p.companion_relationship = (
+        primaryCompanion?.relationship || travel.companionRelationship || "OTHER"
+      ).toUpperCase();
+    }
   }
 
   // ------------------------------------------------------------
@@ -667,29 +1030,44 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // ------------------------------------------------------------
   p.has_been_in_us = travel.hasBeenInUs || "no";
   if (travel.hasBeenInUs === "yes") {
-    if (travel.previousVisitDate) p.previous_visit_date_arrived = travel.previousVisitDate;
-    if (travel.previousVisitLengthValue.trim()) {
-      p.previous_visit_length_of_stay = travel.previousVisitLengthValue.trim();
-      p.previous_visit_length_of_stay_unit = LENGTH_UNIT_MAP[travel.previousVisitLengthUnit];
+    const primaryVisit = travel.previousVisits?.[0];
+    if (primaryVisit?.arrivalDate || travel.previousVisitDate) {
+      p.previous_visit_date_arrived = primaryVisit?.arrivalDate || travel.previousVisitDate;
+    }
+    const visitLength = primaryVisit?.lengthValue?.trim() || travel.previousVisitLengthValue.trim();
+    if (visitLength) {
+      p.previous_visit_length_of_stay = visitLength;
+      p.previous_visit_length_of_stay_unit = LENGTH_UNIT_MAP[
+        primaryVisit?.lengthUnit || travel.previousVisitLengthUnit
+      ];
     }
   }
 
   p.has_us_drivers_license = travel.hasUsDriversLicense || "no";
   if (travel.hasUsDriversLicense === "yes") {
-    if (travel.driversLicenseNumber.trim()) p.us_drivers_license_number = travel.driversLicenseNumber.trim();
-    if (travel.driversLicenseState.trim()) p.us_drivers_license_state = travel.driversLicenseState.trim();
+    const primaryLicense = travel.usDriversLicenses?.[0];
+    const licenseNumber = primaryLicense?.unknownNumber
+      ? "does_not_apply"
+      : (primaryLicense?.number?.trim() || travel.driversLicenseNumber.trim());
+    const licenseState = primaryLicense?.state?.trim() || travel.driversLicenseState.trim();
+    if (licenseNumber) p.us_drivers_license_number = licenseNumber;
+    if (licenseState) p.us_drivers_license_state = licenseState;
   }
 
   p.has_us_visa = travel.previousVisa || "no";
   if (travel.previousVisa === "yes") {
-    if (travel.previousVisaNumber.trim()) {
+    if (travel.previousVisaUnknownNumber) {
+      p.visa_number = "does_not_apply";
+      p.visa_number_unknown = "true";
+    } else if (travel.previousVisaNumber.trim()) {
       p.visa_number = travel.previousVisaNumber.trim();
     } else {
       p.visa_number = "does_not_apply";
       p.visa_number_unknown = "true";
     }
-    if (travel.previousVisaExpiry) {
-      const [yyyy, mm, dd] = travel.previousVisaExpiry.split("-");
+    const issueDate = travel.previousVisaIssueDate || travel.previousVisaExpiry;
+    if (issueDate) {
+      const [yyyy, mm, dd] = issueDate.split("-");
       if (yyyy && mm && dd) {
         p.last_visa_issue_year = yyyy;
         p.last_visa_issue_month = mm;
@@ -698,8 +1076,14 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     }
   }
   p.has_been_refused = travel.previousRefusal || "no";
-  if (travel.previousRefusal === "yes" && travel.refusalExplanation.trim()) {
-    p.refusal_explain = travel.refusalExplanation.trim();
+  if (travel.previousRefusal === "yes") {
+    const refusalExplanation = travel.previousRefusalExplanation.trim() || travel.refusalExplanation.trim();
+    if (refusalExplanation) {
+      p.refusal_explain = refusalExplanation;
+    }
+    if (travel.previousRefusalDate) {
+      p.refusal_date = travel.previousRefusalDate;
+    }
   }
   p.immigrant_petition_filed = travel.petitionFiled || "no";
 
@@ -746,9 +1130,12 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     if (work.educationCountry) p.education_country = work.educationCountry;
   }
 
-  p.has_traveled_last_five_years = work.hasTraveledLast5Years || "no";
-  if (work.hasTraveledLast5Years === "yes" && work.traveledCountry) {
-    p.traveled_country = work.traveledCountry;
+  const hasRecentIntlTravel =
+    travel.hasVisitedOtherCountriesLast5Years || work.hasTraveledLast5Years || "no";
+  p.has_traveled_last_five_years = hasRecentIntlTravel;
+  const firstVisitedCountry = (travel.visitedCountries ?? []).find((country) => country.trim());
+  if (hasRecentIntlTravel === "yes" && (firstVisitedCountry || work.traveledCountry)) {
+    p.traveled_country = firstVisitedCountry || work.traveledCountry;
   }
 
   // ------------------------------------------------------------
@@ -770,26 +1157,53 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   if (usContact.email) p.us_contact_email = usContact.email;
 
   // ------------------------------------------------------------
-  // Spouse (when married)
+  // Spouse / Deceased Spouse / Former Spouses
   // ------------------------------------------------------------
-  if (identity.maritalStatus === "Married") {
-    if (identity.spouseFirstName) p.spouse_given_names = identity.spouseFirstName;
-    if (identity.spouseLastName) p.spouse_surname = identity.spouseLastName;
-    if (identity.spouseDob) p.spouse_date_of_birth = identity.spouseDob;
-    if (identity.spouseNationality) p.spouse_nationality = identity.spouseNationality;
-    if (identity.spouseCityOfBirth) p.spouse_city_of_birth = identity.spouseCityOfBirth;
-    if (identity.spouseCountryOfBirth) p.spouse_country_of_birth = identity.spouseCountryOfBirth;
-    p.spouse_address_type = "same_as_home";
+  const SPOUSE_STATUSES = ["Married", "Common Law Marriage", "Civil Union / Domestic Partnership", "Legally Separated"] as const;
+  if (SPOUSE_STATUSES.includes(identity.maritalStatus as typeof SPOUSE_STATUSES[number])) {
+    if (family.spouseFirstName) p.spouse_given_names = family.spouseFirstName;
+    if (family.spouseLastName) p.spouse_surname = family.spouseLastName;
+    if (family.spouseDob) p.spouse_date_of_birth = family.spouseDob;
+    if (family.spouseNationality) p.spouse_nationality = family.spouseNationality;
+    if (family.spouseCityOfBirth) p.spouse_city_of_birth = family.spouseCityOfBirth;
+    if (family.spouseCountryOfBirth) p.spouse_country_of_birth = family.spouseCountryOfBirth;
+    const addressTypeMap: Record<string, string> = { home: "same_as_home", work: "same_as_work", other: "other" };
+    p.spouse_address_type = addressTypeMap[family.spouseAddressType] ?? "same_as_home";
+  }
+  if (identity.maritalStatus === "Widowed") {
+    if (family.deceasedSpouseFirstName) p.spouse_given_names = family.deceasedSpouseFirstName;
+    if (family.deceasedSpouseLastName) p.spouse_surname = family.deceasedSpouseLastName;
+    if (family.deceasedSpouseDob) p.spouse_date_of_birth = family.deceasedSpouseDob;
+    if (family.deceasedSpouseNationality) p.spouse_nationality = family.deceasedSpouseNationality;
+    if (family.deceasedSpouseCityOfBirth) p.spouse_city_of_birth = family.deceasedSpouseCityOfBirth;
+    if (family.deceasedSpouseCountryOfBirth) p.spouse_country_of_birth = family.deceasedSpouseCountryOfBirth;
+  }
+  if (identity.maritalStatus === "Divorced" && family.formerSpouses.length > 0) {
+    const fs = family.formerSpouses[0];
+    if (fs.firstName) p.spouse_given_names = fs.firstName;
+    if (fs.lastName) p.spouse_surname = fs.lastName;
+    if (fs.dob) p.spouse_date_of_birth = fs.dob;
+    if (fs.nationality) p.spouse_nationality = fs.nationality;
+    if (fs.cityOfBirth) p.spouse_city_of_birth = fs.cityOfBirth;
+    if (fs.countryOfBirth) p.spouse_country_of_birth = fs.countryOfBirth;
   }
 
   // ------------------------------------------------------------
   // Family — Relatives
   // ------------------------------------------------------------
-  p.father_given_names = family.fatherKnown && family.fatherFirstName.trim() ? family.fatherFirstName.trim() : "UNKNOWN";
-  p.father_surname = family.fatherKnown && family.fatherLastName.trim() ? family.fatherLastName.trim() : "UNKNOWN";
+  p.father_given_names = family.fatherKnown
+    ? (family.fatherFirstNameUnknown ? "DOES NOT APPLY" : (family.fatherFirstName.trim() || "UNKNOWN"))
+    : "UNKNOWN";
+  p.father_surname = family.fatherKnown
+    ? (family.fatherLastNameUnknown ? "DOES NOT APPLY" : (family.fatherLastName.trim() || "UNKNOWN"))
+    : "UNKNOWN";
   if (family.fatherKnown && family.fatherDob) p.father_date_of_birth = family.fatherDob;
-  p.mother_given_names = family.motherKnown && family.motherFirstName.trim() ? family.motherFirstName.trim() : "UNKNOWN";
-  p.mother_surname = family.motherKnown && family.motherLastName.trim() ? family.motherLastName.trim() : "UNKNOWN";
+  p.mother_given_names = family.motherKnown
+    ? (family.motherFirstNameUnknown ? "DOES NOT APPLY" : (family.motherFirstName.trim() || "UNKNOWN"))
+    : "UNKNOWN";
+  p.mother_surname = family.motherKnown
+    ? (family.motherLastNameUnknown ? "DOES NOT APPLY" : (family.motherLastName.trim() || "UNKNOWN"))
+    : "UNKNOWN";
   if (family.motherKnown && family.motherDob) p.mother_date_of_birth = family.motherDob;
 
   p.has_immediate_us_relatives = family.relativesInUs || "no";

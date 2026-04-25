@@ -13,26 +13,45 @@ import { StepIdentity } from "@/components/client/simplified-form/step-identity"
 import { StepContact } from "@/components/client/simplified-form/step-contact";
 import { StepPassport } from "@/components/client/simplified-form/step-passport";
 import { StepTravel } from "@/components/client/simplified-form/step-travel";
+import { StepUsStay } from "@/components/client/simplified-form/step-us-stay";
 import { StepFamily } from "@/components/client/simplified-form/step-family";
 import { StepBackground } from "@/components/client/simplified-form/step-background";
+import { useSimplifiedFormContext } from "@/lib/context/simplified-form-context";
 import {
   buildAnswerPayload,
   emptySimplifiedForm,
   type SimplifiedFormData,
 } from "@/components/client/simplified-form/types";
 
-const TOTAL_STEPS = 6;
-
 export default function SimplifiedFormPage() {
   const router = useRouter();
   const t = useTranslations("simplifiedForm");
   const shouldReduceMotion = useReducedMotion();
+  const { setFormData } = useSimplifiedFormContext();
 
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setForm] = useState<SimplifiedFormData>(emptySimplifiedForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const shouldIncludeUsStayStep = useMemo(() => {
+    if (form.travel.plansState === "unsure") return false;
+    if (form.travel.plansState === "idea" && form.travel.lengthUnit === "LessThan24Hours") return false;
+    return true;
+  }, [form.travel.plansState, form.travel.lengthUnit]);
+
+  const stepOrder = useMemo(() => {
+    const base = ["0", "1", "2", "3"] as const;
+    const tail = ["4", "5"] as const;
+    if (shouldIncludeUsStayStep) {
+      return [...base, "usStay", ...tail] as const;
+    }
+    return [...base, ...tail] as const;
+  }, [shouldIncludeUsStayStep]);
+
+  const totalSteps = stepOrder.length;
+  const currentStepKey = stepOrder[stepIndex] ?? stepOrder[0];
 
   useEffect(() => {
     let cancelled = false;
@@ -56,11 +75,17 @@ export default function SimplifiedFormPage() {
     () =>
       t("progress", {
         current: stepIndex + 1,
-        total: TOTAL_STEPS,
-        name: t(`steps.${stepIndex}` as never),
+        total: totalSteps,
+        name: t(`steps.${currentStepKey}` as never),
       }),
-    [stepIndex, t],
+    [currentStepKey, stepIndex, t, totalSteps],
   );
+
+  useEffect(() => {
+    if (stepIndex > totalSteps - 1) {
+      setStepIndex(totalSteps - 1);
+    }
+  }, [stepIndex, totalSteps]);
 
   const goBack = useCallback(() => {
     if (stepIndex > 0) {
@@ -71,8 +96,8 @@ export default function SimplifiedFormPage() {
   }, [stepIndex, router]);
 
   const goNext = useCallback(() => {
-    setStepIndex((i) => Math.min(TOTAL_STEPS - 1, i + 1));
-  }, []);
+    setStepIndex((i) => Math.min(totalSteps - 1, i + 1));
+  }, [totalSteps]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -89,12 +114,14 @@ export default function SimplifiedFormPage() {
       const payload = buildAnswerPayload(form);
       const { error: saveErr } = await saveDynamicAnswers(applicationId, payload);
       if (saveErr) throw new Error(saveErr);
-      router.push("/client/application?step=review");
+      // Store form data in context and redirect to review page
+      setFormData(form);
+      router.push("/client/simplified-form/review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
       setSubmitting(false);
     }
-  }, [form, router]);
+  }, [form, router, setFormData]);
 
   if (loading) {
     return (
@@ -118,7 +145,7 @@ export default function SimplifiedFormPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-12">
       <ProgressRail
         step={stepIndex + 1}
-        total={TOTAL_STEPS}
+        total={totalSteps}
         label={stepLabel}
         onBack={goBack}
         backLabel={t("common.back")}
@@ -127,42 +154,51 @@ export default function SimplifiedFormPage() {
       <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-8">
         <AnimatePresence mode="wait">
           <motion.div key={stepIndex} {...motionProps}>
-            {stepIndex === 0 ? (
+            {currentStepKey === "0" ? (
               <StepIdentity
                 value={form.identity}
                 onChange={(next) => setForm((f) => ({ ...f, identity: next }))}
                 onContinue={goNext}
               />
             ) : null}
-            {stepIndex === 1 ? (
+            {currentStepKey === "1" ? (
               <StepContact
                 value={form.contact}
                 onChange={(next) => setForm((f) => ({ ...f, contact: next }))}
                 onContinue={goNext}
               />
             ) : null}
-            {stepIndex === 2 ? (
+            {currentStepKey === "2" ? (
               <StepPassport
                 value={form.passport}
                 onChange={(next) => setForm((f) => ({ ...f, passport: next }))}
                 onContinue={goNext}
               />
             ) : null}
-            {stepIndex === 3 ? (
+            {currentStepKey === "3" ? (
               <StepTravel
                 value={form.travel}
                 onChange={(next) => setForm((f) => ({ ...f, travel: next }))}
                 onContinue={goNext}
               />
             ) : null}
-            {stepIndex === 4 ? (
+            {currentStepKey === "usStay" ? (
+              <StepUsStay
+                value={form.travel}
+                onChange={(next) => setForm((f) => ({ ...f, travel: next }))}
+                onContinue={goNext}
+              />
+            ) : null}
+            {currentStepKey === "4" ? (
               <StepFamily
                 value={form.family}
                 onChange={(next) => setForm((f) => ({ ...f, family: next }))}
                 onContinue={goNext}
+                maritalStatus={form.identity.maritalStatus}
+                onChangeMaritalStatus={() => setStepIndex(0)}
               />
             ) : null}
-            {stepIndex === 5 ? (
+            {currentStepKey === "5" ? (
               <StepBackground
                 value={form.background}
                 onChange={(next) => setForm((f) => ({ ...f, background: next }))}
