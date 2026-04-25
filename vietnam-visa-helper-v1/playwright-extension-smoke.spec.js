@@ -976,6 +976,8 @@ function buildMockPostFillNextGuidanceHtml() {
 <body>
   <h1>Mock eVisa Form - Next Step Guidance</h1>
 
+  <div class="vh-disclaimer-guide" id="legacy-disclaimer-guide">legacy disclaimer prompt</div>
+
   <div class="field">
     <label for="surname">Surname</label>
     <input id="surname" type="text" placeholder="Surname" />
@@ -1039,6 +1041,45 @@ function buildMockCaptchaStepHtml() {
       <input id="captchaInput" type="text" name="captcha_code" placeholder="Enter captcha code" />
     </div>
     <button id="captcha-next-btn" type="button">Next</button>
+  </div>
+</body>
+</html>`;
+}
+
+function buildMockPaymentReviewHtml() {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Payment Review Step</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; line-height: 1.5; }
+    .card { max-width: 640px; border: 1px solid #d1d5db; border-radius: 10px; padding: 18px; }
+    .row { display: flex; justify-content: space-between; margin: 8px 0; }
+    .row span:first-child { color: #4b5563; }
+    .total { margin-top: 14px; font-weight: 700; color: #111827; }
+    #mock-pay-now {
+      margin-top: 16px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #0f766e;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Application Summary</h1>
+    <p>Please review your application details and proceed to payment.</p>
+    <div class="row"><span>Applicant</span><span>Zhang San</span></div>
+    <div class="row"><span>Passport</span><span>E12345678</span></div>
+    <div class="row"><span>Visa fee</span><span>USD 25</span></div>
+    <div class="total">Total: USD 25</div>
+    <button id="mock-pay-now" type="button">Pay now</button>
   </div>
 </body>
 </html>`;
@@ -1551,6 +1592,9 @@ test('content script prompts manual Next guidance after autofill completes', asy
     await expect(page.locator('#vh-stats small')).toContainText('填充完成，请手动点击 Next', { timeout: 10000 });
     await expect(page.locator('#mock-next-button')).toHaveClass(/vh-apply-highlight/, { timeout: 10000 });
     await expect(page.locator('.vh-top-banner')).toContainText('手动点击 Next', { timeout: 3000 });
+    await expect(page.locator('#legacy-disclaimer-guide')).toHaveCount(0, { timeout: 10000 });
+    await page.waitForTimeout(6200);
+    await expect(page.locator('.vh-top-banner')).toContainText('手动点击 Next', { timeout: 3000 });
   } catch (error) {
     const snippet = consoleLogs.slice(-160).join('\n');
     throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
@@ -1592,9 +1636,55 @@ test('content script guides users on captcha verification step', async ({ page }
 
     await expect(page.locator('#vh-stats small')).toContainText('验证码步骤', { timeout: 10000 });
     await expect(page.locator('.vh-top-banner')).toContainText('验证码步骤', { timeout: 3000 });
+    await page.waitForTimeout(6200);
+    await expect(page.locator('.vh-top-banner')).toContainText('验证码步骤', { timeout: 3000 });
 
     const outline = await page.locator('#captchaInput').evaluate(el => el.style.outline || '');
     expect(outline).toContain('2px');
+  } catch (error) {
+    const snippet = consoleLogs.slice(-120).join('\n');
+    throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
+  }
+});
+
+test('content script provides persistent guidance on payment step', async ({ page }) => {
+  const consoleLogs = [];
+  page.on('console', msg => consoleLogs.push(msg.text()));
+  page.on('pageerror', error => consoleLogs.push(`PAGEERROR: ${error.message}`));
+
+  await page.addInitScript(() => {
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message && message.action === 'getUserData') {
+            callback({ userData: {}, fieldMappings: {} });
+          } else if (callback) {
+            callback({});
+          }
+        },
+        openOptionsPage() {}
+      }
+    };
+  });
+
+  await page.route('https://www.evisa.gov.vn/mock-payment-review', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: buildMockPaymentReviewHtml()
+    });
+  });
+
+  try {
+    await page.goto('https://www.evisa.gov.vn/mock-payment-review', { waitUntil: 'domcontentloaded' });
+    await page.addStyleTag({ path: path.resolve(__dirname, 'styles.css') });
+    await page.addScriptTag({ path: path.resolve(__dirname, 'content.js') });
+
+    await expect(page.locator('#vh-stats small')).toContainText('准备支付', { timeout: 10000 });
+    await expect(page.locator('.vh-top-banner')).toContainText('准备支付', { timeout: 3000 });
+    await expect(page.locator('#mock-pay-now')).toHaveClass(/vh-apply-highlight/, { timeout: 10000 });
+    await page.waitForTimeout(6200);
+    await expect(page.locator('.vh-top-banner')).toContainText('准备支付', { timeout: 3000 });
   } catch (error) {
     const snippet = consoleLogs.slice(-120).join('\n');
     throw new Error(`${error.message}\n\nRecent console logs:\n${snippet}`);
