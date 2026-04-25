@@ -31,12 +31,15 @@ export interface CeacSessionOptions {
 }
 
 export interface CeacSession {
-  readonly browser: Browser;
-  readonly context: BrowserContext;
-  readonly page: Page;
+  // Mutable: after a mid-orchestration SessionTimedOut we close and
+  // rebuild the browser context, then swap these refs in place so that
+  // the orchestrator's captured `session.page` keeps working.
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
   readonly runId?: string;
   /** CAPTCHA solve result and telemetry from session bootstrap, if a CAPTCHA was present. */
-  readonly captchaSolve?: CaptchaSolveWithTelemetry;
+  captchaSolve?: CaptchaSolveWithTelemetry;
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
 }
@@ -174,6 +177,33 @@ export async function startCeacSession(
     }
     throw err;
   }
+}
+
+/**
+ * Rebuild a session's browser context in-place for mid-orchestration
+ * recovery after CEAC invalidates the server-side session.
+ *
+ * Closes the current browser + context, launches a fresh stealth
+ * browser, runs the normal start-page CAPTCHA bootstrap, then mutates
+ * the passed session's refs so downstream code that already holds
+ * `session.page` keeps working with the new browser state.
+ *
+ * Does NOT run the ConfirmApplicationID flow or the retrieve form —
+ * that is the caller's responsibility (via `resume-application.ts`)
+ * because the retrieve credentials live in the orchestrator, not here.
+ */
+export async function rebuildSessionForResume(
+  session: CeacSession,
+  options: CeacSessionOptions = {},
+): Promise<void> {
+  try { await session.close(); } catch { /* best-effort */ }
+  const fresh = await startCeacSession({ ...options, runId: session.runId });
+  // Swap in the new refs. Close function closes the NEW browser.
+  session.browser = fresh.browser;
+  session.context = fresh.context;
+  session.page = fresh.page;
+  session.captchaSolve = fresh.captchaSolve;
+  (session as { close: () => Promise<void> }).close = fresh.close;
 }
 
 function makeCloser(

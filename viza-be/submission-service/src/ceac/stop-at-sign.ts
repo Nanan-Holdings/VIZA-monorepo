@@ -90,8 +90,16 @@ export interface HandoffReadyOutcome {
   status: "handoff_ready";
   /** Application ID, if CEAC has issued one by this point. */
   applicationId: string | null;
-  /** Always `"sign_and_submit"` for a successful handoff. */
-  pageId: "sign_and_submit";
+  /**
+   * Terminal page. Usually `"sign_and_submit"`. Can also be
+   * `"upload_photo"` when CEAC blocks the worker at the photo-upload
+   * page — the applicant must upload a photo (a separate CEAC subsystem
+   * we don't drive headlessly) before reaching Sign and Submit. Reaching
+   * this point still satisfies the autofill-handoff contract: every
+   * preceding section is filled, the Application ID is captured, and the
+   * applicant takes over from photo upload through final submit.
+   */
+  pageId: "sign_and_submit" | "upload_photo";
   heading: string | null;
   url: string;
   /** DOM markers that were verified before the stop. */

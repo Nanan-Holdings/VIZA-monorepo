@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
+import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
 import { useTranslations } from "next-intl";
-import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { svgPaths } from "@/components/client/constants";
 
@@ -87,35 +87,17 @@ export function NavBar({
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };  // white logo, mobile
   // 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
-  const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
-
   const leftTabs = ["Home", "Application"];
   const rightTabs = ["Chat", "Documents"];
 
-  const renderTab = (tab: string) => {
-    const isActive = activeTab === tab;
-    return (
-      <motion.button
-        key={tab}
-        onClick={() => {
-          setActiveTab(tab);
-          const path = tabPaths[tab];
-          if (path) router.push(path);
-        }}
-        className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <motion.span
-          className="relative transition-colors duration-600"
-          style={{ color: isActive ? activeTabColor : inactiveColor }}
-        >
-          {tabLabels[tab] ?? tab}
-        </motion.span>
-      </motion.button>
-    );
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const path = tabPaths[tab];
+    if (path) router.push(path);
   };
+
+  const toItems = (ids: string[]) =>
+    ids.map((id) => ({ id, label: tabLabels[id] ?? id }));
 
   // Desktop header
   const DesktopHeader = () => (
@@ -181,7 +163,12 @@ export function NavBar({
             animate={{ opacity: 1 }}
             transition={{ duration: 1.3 }}
           >
-            {leftTabs.map(renderTab)}
+            <AnimatedTabPill
+              tabs={toItems(leftTabs)}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isDark={isDark}
+            />
 
             {/* Logo */}
             <Link
@@ -199,7 +186,12 @@ export function NavBar({
               />
             </Link>
 
-            {rightTabs.map(renderTab)}
+            <AnimatedTabPill
+              tabs={toItems(rightTabs)}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isDark={isDark}
+            />
           </motion.div>
 
           {/* Far right: Globe */}
@@ -286,31 +278,14 @@ export function NavBar({
 
         {/* Row 2: Scrollable tab pills */}
         <div className="overflow-x-auto pb-3">
-          <div className="flex gap-[8px] pl-4">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    const path = tabPaths[tab];
-                    if (path) router.push(path);
-                  }}
-                  className={clsx(
-                    "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
-                    isActive
-                      ? "bg-transparent border-transparent text-[#03346E]"
-                      : isDark
-                        ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                        : "bg-white border-[#ececec] text-black"
-                  )}
-                >
-                  {tabLabels[tab] ?? tab}
-                </button>
-              );
-            })}
-          </div>
+          <AnimatedTabPill
+            variant="pill"
+            tabs={toItems(tabs)}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            isDark={isDark}
+            className="pl-4"
+          />
         </div>
       </div>
     </motion.header>

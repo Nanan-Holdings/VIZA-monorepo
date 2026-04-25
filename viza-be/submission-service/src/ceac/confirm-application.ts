@@ -90,19 +90,53 @@ export async function handleConfirmApplicationPage(
   //    renders the ID like "Application ID AA00ABCDEF" in the label; we
   //    extract via the canonical `AA\w{8,10}` regex so cosmetic text
   //    changes around the ID don't break capture.
+  //
+  //    After a SecureQuestion page load the label can be attached but
+  //    empty for a few hundred ms while CEAC finishes its server-side
+  //    render. Poll for up to 15s for a non-empty ID.
   const barcode = page.locator(APPLICATION_ID_LABEL_SELECTOR).first();
-  const barcodeText = await barcode.textContent({ timeout: 10_000 }).catch(() => null);
-  const match = barcodeText?.match(CEAC_APPLICATION_ID_PATTERN);
-  if (!match) {
+  await barcode.waitFor({ state: "attached", timeout: 15_000 });
+  let barcodeText = "";
+  let applicationId: string | null = null;
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    barcodeText = ((await barcode.textContent({ timeout: 2_000 }).catch(() => "")) ?? "").trim();
+    const m = barcodeText.match(CEAC_APPLICATION_ID_PATTERN);
+    if (m) {
+      applicationId = m[0];
+      break;
+    }
+    await page.waitForTimeout(500);
+  }
+  if (!applicationId) {
     throw new Error(
-      `Could not capture Application ID from SecureQuestion page (label text="${barcodeText?.trim() ?? ""}")`,
+      `Could not capture Application ID from SecureQuestion page (label text="${barcodeText}")`,
     );
   }
-  const applicationId = match[0];
 
   // 3. Select security question (default value "3": maternal grandmother maiden).
+  //    The dropdown is `disabled` server-side until the Privacy Act
+  //    checkbox postback completes — wait until it's enabled. Re-click
+  //    the checkbox if it stays disabled past the first wait window
+  //    (the initial check() can race the page's MSAJAX wiring).
   const questionValue = options.securityQuestionValue ?? "3";
   const ddl = page.locator(SECURITY_QUESTION_SELECTOR).first();
+  const enabledDeadline = Date.now() + 30_000;
+  let ddlEnabled = false;
+  while (Date.now() < enabledDeadline) {
+    const disabled = await ddl.evaluate("el => el.disabled").catch(() => true);
+    if (!disabled) { ddlEnabled = true; break; }
+    // Try toggling the privacy checkbox again to nudge the postback.
+    try {
+      await privacyChk.evaluate("el => { if (!el.checked) el.click(); }");
+    } catch { /* noop */ }
+    await page.waitForTimeout(500);
+  }
+  if (!ddlEnabled) {
+    throw new Error(
+      "Security-question dropdown remained disabled after 30s — Privacy Act checkbox did not register server-side",
+    );
+  }
   await ddl.waitFor({ state: "attached", timeout: 10_000 });
   await ddl.selectOption(questionValue);
   const questionText = (await ddl.evaluate(

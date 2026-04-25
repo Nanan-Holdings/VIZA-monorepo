@@ -1,0 +1,79 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:12px}
+
+  /* Variant A — card-wrapped single-open */
+  .acc{background:#fff;border:1px solid #efefef;border-radius:12px;overflow:hidden}
+  .item{border-bottom:1px solid #efefef}
+  .item:last-child{border-bottom:0}
+  .trig{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;font:500 15px var(--font-sans);color:#3d3d3d;cursor:default}
+  .chev{color:#989898;transition:transform .2s;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center}
+  .chev svg{width:16px;height:16px;display:block}
+  .item.open .chev{transform:rotate(180deg);color:#03346E}
+  .item.open .trig{color:#03346E}
+  .panel{padding:0 20px 18px;font:400 14px/1.6 var(--font-sans);color:rgba(0,0,0,.6);display:none}
+  .item.open .panel{display:block}
+
+  /* Variant B — FAQ (from invite-friends) */
+  .faq{width:100%}
+  .faq-item{padding:22px 0;border-bottom:1px solid #dcdcdc;cursor:default}
+  .faq-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .faq-q{font:500 18px/1.3 var(--font-heading);letter-spacing:-.5px;color:#000;margin:0;flex:1}
+  .faq-btn{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.04);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s}
+  .faq-btn svg{width:18px;height:18px;display:block;color:#000;transition:transform .3s}
+  .faq-item.open .faq-btn{background:#03346E}
+  .faq-item.open .faq-btn svg{color:#fff}
+  .faq-a{margin-top:18px;font:400 15px/1.6 var(--font-sans);color:rgba(0,0,0,.55);display:none}
+  .faq-item.open .faq-a{display:block}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Variant A · Card-wrapped · inline docs / settings</div>
+    <div class="acc">
+      <div class="item open">
+        <div class="trig">What documents do I need for B211A?
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+        </div>
+        <div class="panel">Passport valid for 6+ months, a return flight itinerary, proof of accommodation, and a recent passport-style photo. Your consultant may request additional documents based on your circumstances.</div>
+      </div>
+      <div class="item">
+        <div class="trig">How long does processing take?
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+        </div>
+      </div>
+      <div class="item">
+        <div class="trig">Can I extend my visa once I'm there?
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">Variant B · FAQ · full-bleed with pill toggle (invite-friends, help pages)</div>
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-head">
+          <p class="faq-q">When do I get my referral reward?</p>
+          <span class="faq-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><line x1="12" y1="5" x2="12" y2="19"></line></svg></span>
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-head">
+          <p class="faq-q">How can I use my credit?</p>
+          <span class="faq-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><line x1="12" y1="5" x2="12" y2="19"></line></svg></span>
+        </div>
+      </div>
+      <div class="faq-item open">
+        <div class="faq-head">
+          <p class="faq-q">Who is eligible to be invited?</p>
+          <span class="faq-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></span>
+        </div>
+        <p class="faq-a">Anyone who hasn't applied through VIZA before. They'll need to complete a visa application for you both to receive your referral credit — the reward is issued once their application is submitted.</p>
+      </div>
+    </div>
+  </div>
+</div></body></html>

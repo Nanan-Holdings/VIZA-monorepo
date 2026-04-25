@@ -122,7 +122,7 @@ function flattenTravel(data: Partial<TravelInfoData>): Record<string, string> {
  * Flatten all hardcoded step data into a single DS-160 answer record.
  * This is the deterministic transform: no hidden assumptions, no AI inference.
  */
-export function flattenHardcodedSteps(
+function flattenHardcodedSteps(
   personal: Partial<PersonalInfoData>,
   passport: Partial<PassportData>,
   travel: Partial<TravelInfoData>,

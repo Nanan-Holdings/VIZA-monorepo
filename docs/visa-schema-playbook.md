@@ -395,6 +395,36 @@ and `&&` exactly like equality atoms — the Schengen schema's
 `IS_ATV_NATIONAL = current_nationality in [af, bd, cd, er, et, gh, ir, iq, ng, pk, so, lk] && purpose_of_journey === airport_transit`
 is a worked example.
 
+### Required-unless (exempt a required field from blocking submission)
+
+Some forms mark fields as "starred" — required for the general
+population but optional for a specific beneficiary class. Annex I of
+the Schengen Visa Code is the canonical example (fields 21, 22, 30,
+31, 32 are optional for EU-UK Withdrawal Agreement beneficiaries).
+
+Express this at the schema level via `validation_rules.required_unless`:
+
+```ts
+{
+  field_name: "current_occupation",
+  required: true,                                     // still required in general
+  validation_rules: {
+    maxLength: 80,
+    required_unless: "has_eu_family_member === yes",  // exempt for beneficiaries
+  },
+}
+```
+
+`DynamicStepForm` evaluates the expression against current values and
+skips the required check when it matches. The field still renders —
+only its blocking behaviour is waived. Supports all operators listed
+above (`||`, `&&`, `in`, `not in`, etc.).
+
+For large sets of starred fields, annotate them via a post-processor
+at the bottom of the seed (see `STARRED_FIELD_NAMES` in
+`seed-eu-schengen-c-short-stay-form-fields.ts`) to avoid editing every
+field literal.
+
 **Not supported:**
 - Date arithmetic (e.g. "is under 18 derived from DOB") — ask a
   separate radio and let the UI auto-fill from DOB downstream

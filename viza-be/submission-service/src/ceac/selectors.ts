@@ -22,8 +22,15 @@ export const CEAC_URLS = {
  * comma-separated selector list; the fill helper tries each until one hits.
  */
 export const CEAC_NAV_SELECTORS = {
-  next: 'input[type="submit"][value="Next"], input[id*="btnNext"], button:has-text("Next")',
-  back: 'input[type="submit"][value="Back"], input[id*="btnBack"], button:has-text("Back")',
+  // CEAC primary Next button has class="next" and value starting with
+  // "Next:" (e.g. "Next: Personal 2"). We match on BOTH class and the
+  // "Next:" prefix to exclude hidden modal buttons like
+  // `btnNextPageComplete` (value="No – Continue Form") that otherwise
+  // match on `id*="btnNext"` and get picked first.
+  next:
+    'input[type="submit"].next, input[type="submit"][value^="Next:"], input[type="submit"][value="Next"], input[id*="btnNext"]:not([id*="Complete"])',
+  back:
+    'input[type="submit"].back, input[type="submit"][value^="Back:"], input[type="submit"][value="Back"], input[id*="btnBack"]',
   save: 'input[type="submit"][value*="Save"], input[id*="btnSave"]',
   saveToFile:
     'input[type="submit"][value*="Save Application to File"], input[id*="btnSaveToFile"]',

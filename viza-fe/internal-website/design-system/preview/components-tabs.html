@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:8px}
+  /* Segmented (shadcn default) */
+  .seg{display:inline-flex;height:36px;padding:4px;background:#f3f4f6;border-radius:8px;gap:2px}
+  .seg b{display:inline-flex;align-items:center;padding:0 14px;border-radius:6px;font:500 13px var(--font-sans);color:rgba(0,0,0,.55);cursor:pointer}
+  .seg b.on{background:#fff;color:#3d3d3d;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  /* Underline (secondary pattern) */
+  .underline{display:flex;gap:28px;border-bottom:1px solid #efefef}
+  .underline a{font:500 14px var(--font-sans);color:rgba(0,0,0,.5);padding:10px 0;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .underline a.on{color:#03346E;border-bottom-color:#03346E}
+  .count{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;padding:0 6px;height:16px;border-radius:999px;background:#EEF3FA;color:#03346E;font-size:11px;font-weight:500}
+  .underline a.on .count{background:#03346E;color:#fff}
+  /* Nav pill */
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:6px;background:#fff;border:1px solid #efefef;border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .pill span{padding:6px 16px;border-radius:999px;font:500 14px var(--font-sans);color:rgba(0,0,0,.55)}
+  .pill span.on{background:#03346E;color:#fff}
+  .pane{margin-top:12px;padding:16px;background:#fff;border:1px solid #efefef;border-radius:8px;font-size:13px;color:rgba(0,0,0,.55)}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Segmented (shadcn default)</div>
+    <div class="seg"><b class="on">Active</b><b>Submitted</b><b>Archived</b></div>
+    <div class="pane">Content for the active tab lives here.</div>
+  </div>
+  <div>
+    <div class="label">Underline · section-level with counts</div>
+    <div class="underline"><a class="on">All<span class="count">12</span></a><a>Pending<span class="count">3</span></a><a>Approved<span class="count">8</span></a><a>Rejected<span class="count">1</span></a></div>
+  </div>
+  <div>
+    <div class="label">Nav pill (used in the animated navbar)</div>
+    <div class="pill"><span>Home</span><span class="on">Application</span><span>Chat</span><span>Documents</span></div>
+  </div>
+</div></body></html>

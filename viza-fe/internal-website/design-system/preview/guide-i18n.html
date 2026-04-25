@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  .rule{background:#fff;border:1px solid #efefef;border-radius:12px;padding:14px 18px}
+  .rule h6{font:600 14px var(--font-sans);margin:0 0 6px;color:#3d3d3d}
+  .rule p{font:400 13px/1.6 var(--font-sans);color:rgba(0,0,0,.6);margin:0}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .lang-card{background:#fff;border:1px solid #efefef;border-radius:12px;padding:16px 18px}
+  .lang-card .hdr{font:500 10px "Geist";letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  .lang-card h3{font-family:var(--font-heading);font-weight:500;letter-spacing:-.5px;color:#3d3d3d;margin:0 0 4px;font-size:22px;line-height:1.2}
+  .lang-card h3.cn{font-family:"PingFang SC","Noto Sans SC",system-ui;letter-spacing:0}
+  .lang-card p{font:400 13px/1.6 var(--font-sans);color:rgba(0,0,0,.55);margin:0}
+  .lang-card p.cn{font-family:"PingFang SC","Noto Sans SC",system-ui;line-height:1.7}
+  .btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 18px;margin-top:10px;background:#03346E;color:#fff;border-radius:999px;font:500 14px var(--font-sans)}
+  .btn.cn{font-family:"PingFang SC","Noto Sans SC",system-ui}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Side-by-side · same screen, two locales</div>
+    <div class="cmp">
+      <div class="lang-card"><div class="hdr">zh-CN · phase 1</div>
+        <h3 class="cn">签证申请，全程交给 VIZA</h3>
+        <p class="cn">无论旅游、商务、工作还是留学，VIZA 专业签证顾问 + AI 智能系统，帮您轻松搞定。</p>
+        <span class="btn cn">立即开始申请</span></div>
+      <div class="lang-card"><div class="hdr">en-US · phase 2</div>
+        <h3>Your visa application, handled by VIZA</h3>
+        <p>Tourist, business, work, or study — our specialist consultants plus AI-driven review handle the whole process for you.</p>
+        <span class="btn">Start my application</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Rules</div>
+    <div class="rule"><h6>Line-height for CJK</h6><p>Mandarin sets denser than Latin. Bump body <code>line-height</code> from 1.5 → 1.7, headings from 1.3 → 1.4 when the content language is Chinese. Letter-spacing should be <code>0</code> — the global <code>-0.011em</code> cascade was tuned for Latin.</p></div>
+    <div class="rule"><h6>Button width tolerance</h6><p>Chinese buttons can be 40–60% narrower than English. Never fix button widths — always <code>width: fit-content</code> with consistent horizontal padding.</p></div>
+    <div class="rule"><h6>Input font-size ≥ 16px</h6><p>Prevents iOS Safari auto-zoom. Applies to <em>every</em> input, not just the first one on the page.</p></div>
+    <div class="rule"><h6>Punctuation</h6><p>zh-CN uses full-width punctuation (，。？！「」) inside prose. In UI labels, prefer en-dashes and middle dots (·) over slashes for readability in both scripts.</p></div>
+    <div class="rule"><h6>Fonts</h6><p>Latin headings → Switzer. Chinese headings → PingFang SC (macOS/iOS) / Noto Sans SC (Android/web). Body is Geist for Latin, PingFang SC for Chinese. Never mix families mid-word — let the fallback stack handle it.</p></div>
+    <div class="rule"><h6>RTL</h6><p>Not supported. Arabic/Hebrew locales are out of scope for the current product. Don't build RTL-ready — build LTR correctly.</p></div>
+  </div>
+</div></body></html>

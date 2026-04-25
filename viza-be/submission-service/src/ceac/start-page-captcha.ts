@@ -13,6 +13,7 @@ import type { Page } from "@playwright/test";
 import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "./captcha-solver";
 import { SessionBootstrapError } from "./errors";
 import { CEAC_URLS } from "./selectors";
+import { waitForAspNetPostback } from "./aspnet";
 
 // ---------------------------------------------------------------------------
 // Selectors — CEAC start-page CAPTCHA elements
@@ -121,14 +122,6 @@ export async function solveStartPageCaptcha(
   if (currentValue !== locationCode) {
     try {
       await locationSelect.selectOption(locationCode);
-      // Wait for the ASP.NET postback to finish before reading the DOM again.
-      try {
-        await page.waitForLoadState("networkidle", { timeout: 15_000 });
-      } catch {
-        // Some CEAC deployments keep long-polling connections open; fall
-        // back to a short settle so the re-rendered DOM is stable.
-        await page.waitForTimeout(1_500);
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return {
@@ -136,37 +129,61 @@ export async function solveStartPageCaptcha(
         reason: `Could not select CEAC location ${locationCode}: ${msg}`,
       };
     }
+    // Wait for the ASP.NET UpdatePanel postback triggered by the
+    // location-dropdown AutoPostBack to FULLY finish. `networkidle`
+    // alone isn't reliable here — CEAC keeps background XHRs running
+    // after the postback settles. The authoritative signal is
+    // `Sys.WebForms.PageRequestManager.getInstance().get_isInAsyncPostBack()`
+    // flipping back to false. Falling back to a 2s settle if the
+    // PageRequestManager check throws.
+    await waitForAspNetPostback(page, 15_000);
   }
 
   // 1b. Dismiss the "Additional Location Information" modal via its
   //     server-side Close link. CEAC tracks dismissal in session state;
   //     without it, a subsequent START click (even with a correct
   //     CAPTCHA) redirects to SessionTimedOut.aspx.
+  //
+  //     Do NOT force:true-click immediately. That races the modal's
+  //     animated entrance and sometimes fires before the link is wired
+  //     up, so CEAC never gets its server-side ack. Wait for the close
+  //     link to become VISIBLE (or confirm no modal rendered), then
+  //     click with a real actionability check, then wait for both the
+  //     modal to disappear AND the resulting async postback to finish.
   const closeBtn = page.locator(POST_LOCATION_MODAL_CLOSE_SELECTOR).first();
-  if ((await closeBtn.count()) > 0) {
+  let closeAppeared = false;
+  try {
+    await closeBtn.waitFor({ state: "visible", timeout: 8_000 });
+    closeAppeared = true;
+  } catch {
+    // Modal may not have rendered — not every CEAC deployment shows it
+    // for every location. Fall through and assume no ack is needed.
+  }
+  if (closeAppeared) {
     try {
-      await closeBtn.click({ force: true, timeout: 5_000 });
-      try {
-        await page.waitForLoadState("networkidle", { timeout: 10_000 });
-      } catch {
-        await page.waitForTimeout(1_000);
-      }
+      await closeBtn.click({ timeout: 5_000 });
     } catch {
-      // If the click could not be delivered, continue — the CSS fallback
-      // below keeps the page usable, but CEAC may still redirect to
-      // SessionTimedOut. The outer retry loop will catch it.
+      // Try a JS click as a last resort. __doPostBack fires either way
+      // as long as the href hook is intact.
+      try {
+        await closeBtn.evaluate("el => el.click()");
+      } catch { /* noop */ }
     }
+    // Wait for the modal to actually be gone AND the postback to finish.
+    try {
+      await closeBtn.waitFor({ state: "hidden", timeout: 8_000 });
+    } catch {
+      // Best effort — the CSS fallback below keeps pointer events unblocked
+      // even if the close link is still present.
+    }
+    await waitForAspNetPostback(page, 10_000);
   }
 
-  // Injected style fallback: if the modal re-renders or animates out
-  // slowly, this keeps it from intercepting pointer events on the
-  // CAPTCHA input and Start link.
+  // Injected style fallback: keep any residual modal backdrop from
+  // intercepting pointer events on the CAPTCHA input and Start link.
   try {
     await page.addStyleTag({ content: POST_LOCATION_MODAL_HIDE_CSS });
-  } catch {
-    // Best effort — pointer events may be blocked but the force:true on
-    // click below still fires.
-  }
+  } catch { /* best effort */ }
 
   // 2. Locate the CAPTCHA image element and extract the pixels the
   //     browser already rendered.
@@ -320,12 +337,13 @@ export async function solveStartPageCaptcha(
     await captchaInput.press("Enter");
   }
 
-  // 7. Wait briefly for navigation or validation
+  // 7. Wait for the POST-START async postback to settle AND for the URL
+  //    to transition off Default.aspx (or for a new CAPTCHA to render if
+  //    CEAC rejected the answer). Two signals, bounded at 15s total.
+  await waitForAspNetPostback(page, 15_000);
   try {
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
-  } catch {
-    // Timeout is acceptable — page may have already settled
-  }
+    await page.waitForLoadState("networkidle", { timeout: 5_000 });
+  } catch { /* noop */ }
 
   // 7. Classify the post-submit state.
   //
@@ -410,8 +428,34 @@ export async function solveStartPageCaptchaWithRetry(
         });
         return { solve: outcome.solve, telemetry };
 
-      case "no_captcha":
+      case "no_captcha": {
+        // A true "no captcha" state means the session is already past the
+        // start page (e.g. a retry after an earlier solve advanced us).
+        // But on a fresh bootstrap the captcha image failing to become
+        // visible while we're still on Default.aspx is a broken page
+        // load — treat it as a failed attempt, not a success. Otherwise
+        // callers accept a session that never left the start surface.
+        const currentUrl = page.url();
+        if (/GenNIV\/Default\.aspx/i.test(currentUrl)) {
+          telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
+          if (attempt === maxAttempts) {
+            throw new SessionBootstrapError(
+              `CAPTCHA solve failed after ${maxAttempts} attempts (last: captcha image not visible on start page)`,
+              {
+                url: currentUrl,
+                details: { attempts: attempts.map(summarizeOutcome), telemetry },
+              },
+            );
+          }
+          try {
+            await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          } catch {
+            await page.waitForTimeout(1_000);
+          }
+          continue;
+        }
         return { solve: { text: "", solveId: "", durationMs: 0 }, telemetry };
+      }
 
       case "wrong_answer":
         telemetry.push({
@@ -451,10 +495,27 @@ export async function solveStartPageCaptchaWithRetry(
           attempt,
           outcome: "failed",
         });
-        // Treat "failed" as retryable unless this is the last attempt.
+        // SessionTimedOut means CEAC invalidated the server-side session
+        // — retrying within the same browser context will keep failing
+        // because the context's ASP.NET cookie is flagged. Fail fast so
+        // the caller can close the browser and start a fresh context on
+        // a retry (or alert the operator).
+        if (/SessionTimedOut/i.test(outcome.reason)) {
+          throw new SessionBootstrapError(
+            `CEAC invalidated session (SessionTimedOut). Fresh browser context required. Attempt ${attempt}/${maxAttempts}.`,
+            {
+              url: page.url(),
+              details: {
+                attempts: attempts.map(summarizeOutcome),
+                telemetry,
+                nonRetryableInContext: true,
+              },
+            },
+          );
+        }
+        // Treat other "failed" as retryable unless this is the last attempt.
         // Common causes (transient 2captcha 5xx, flaky canvas rasterize,
-        // DOM race after re-render) recover on the next attempt. Only
-        // throw if every attempt has been exhausted.
+        // DOM race after re-render) recover on the next attempt.
         if (attempt === maxAttempts) {
           throw new SessionBootstrapError(
             `CAPTCHA solve failed after ${maxAttempts} attempts (last: ${outcome.reason})`,

@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .tile { border: 1px solid var(--border-hairline); border-radius: 10px; overflow: hidden; background: #fff; }
+  .tile .chip { height: 56px; display: flex; align-items: center; justify-content: center; color: #fff; font-family: var(--font-heading); font-weight: 600; font-size: 13px; }
+  .tile .meta { padding: 8px 10px; }
+  .tile .name { font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--fg-1); }
+  .tile .val { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--fg-2); margin-top: 2px; }
+</style></head>
+<body><div class="stage">
+  <div class="grid">
+    <div class="tile"><div class="chip" style="background:#03346E">Aa</div><div class="meta"><div class="name">Primary</div><div class="val">#03346E</div></div></div>
+    <div class="tile"><div class="chip" style="background:rgba(3,52,110,0.4); color:#03346E">ring</div><div class="meta"><div class="name">Focus ring</div><div class="val">brand-500/40</div></div></div>
+    <div class="tile"><div class="chip" style="background:#16a34a">✓</div><div class="meta"><div class="name">Success</div><div class="val">#16A34A</div></div></div>
+    <div class="tile"><div class="chip" style="background:#fef3c7; color:#d97706">!</div><div class="meta"><div class="name">Warning</div><div class="val">amber-100 / 600</div></div></div>
+    <div class="tile"><div class="chip" style="background:hsl(0 84% 60%)">×</div><div class="meta"><div class="name">Destructive</div><div class="val">hsl(0 84% 60%)</div></div></div>
+  </div>
+</div></body></html>

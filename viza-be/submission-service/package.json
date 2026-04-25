@@ -8,7 +8,8 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "install-browsers": "playwright install chromium"
+    "install-browsers": "playwright install chromium",
+    "recon:uk": "ts-node src/uk/form-recon.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
