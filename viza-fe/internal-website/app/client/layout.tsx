@@ -22,6 +22,7 @@ import { AnimatedMenu } from "@/components/client/animated-menu";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
+import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
 
 const tabs = ["Home", "Application", "Chat", "Documents"];
 
@@ -45,13 +46,15 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
-      </div>
-    }>
-      <ClientLayoutContent>{children}</ClientLayoutContent>
-    </Suspense>
+    <SimplifiedFormProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
+        </div>
+      }>
+        <ClientLayoutContent>{children}</ClientLayoutContent>
+      </Suspense>
+    </SimplifiedFormProvider>
   );
 }
 

@@ -21,17 +21,10 @@ export function StepBackground({ value, onChange, onSubmit, submitting }: StepBa
   const set = <K extends keyof SimplifiedBackground>(key: K, next: SimplifiedBackground[K]) =>
     onChange({ ...value, [key]: next });
 
-  const canSubmit =
-    value.birthCity.trim() && value.favoriteFood.trim() && value.childhoodHero.trim();
+  const canSubmit = true;
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canSubmit) onSubmit();
-      }}
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {t("title")}
@@ -132,12 +125,13 @@ export function StepBackground({ value, onChange, onSubmit, submitting }: StepBa
       </div>
 
       <Button
-        type="submit"
+        type="button"
+        onClick={onSubmit}
         disabled={!canSubmit || submitting}
         className="mt-2 h-12 rounded-lg bg-brand-500 text-[15px] font-medium text-white hover:bg-brand-500/90"
       >
         {submitting ? tCommon("submitting") : t("submit")}
       </Button>
-    </form>
+    </div>
   );
 }
