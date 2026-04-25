@@ -30,6 +30,8 @@ let lastFieldDetectionSummary = '';
 let uploadDocumentsCache = null;
 let uploadGuidanceShown = false;
 let captchaGuidanceShown = false;
+let paymentGuidanceShown = false;
+let topGuidanceTimeoutId = null;
 const UPLOAD_STORAGE_KEY = 'vhUploadDocuments';
 const UPLOAD_FIELD_KEYS = new Set(['passport_photo', 'passport_copy']);
 
@@ -181,17 +183,29 @@ function detectPageType() {
   // Multiple detection methods for different page elements
   const hasForm = !!document.querySelector('form input, form select, form textarea, input[type="text"], select, input[type="email"]');
   const hasCheckbox = !!document.querySelector('input[type="checkbox"], [role="checkbox"], .ant-checkbox-input');
-  const hasDisclaimer = pageText.includes('disclaimer') || pageText.includes('条款') || pageText.includes('agree') || pageText.includes('同意') || pageText.includes('i agree') || pageText.includes('我同意');
+  const hasDisclaimer =
+    pageText.includes('disclaimer') ||
+    pageText.includes('terms and conditions') ||
+    pageText.includes('条款') ||
+    pageText.includes('免责声明') ||
+    pageText.includes('i have read') ||
+    pageText.includes('read carefully before');
   
   // Additional detection methods
   const hasApplyButton = !!findApplyButton();
   const hasNextButton = !!findNextButton();
+  const hasPayButton = !!findPayButton();
   const inputCount = document.querySelectorAll('input, select, textarea').length;
   const buttonCount = document.querySelectorAll('button, a[role="button"], [role="button"]').length;
   
   // Detect if we're on form/disclaimer by checking visible content and layout
   const hasStepIndicator = pageText.includes('step') || pageText.includes('步骤') || bodyHtml.includes('step-content') || bodyHtml.includes('steps');
-  const disclaimerTextInDom = pageText.includes('disclaimer') || pageText.includes('条款') || pageText.includes('term') || pageText.includes('agree to');
+  const disclaimerTextInDom =
+    pageText.includes('disclaimer') ||
+    pageText.includes('terms and conditions') ||
+    pageText.includes('条款') ||
+    pageText.includes('免责声明') ||
+    pageText.includes('read carefully before');
   
   // Log debug info
   console.log('🔍 页面检测信息:');
@@ -202,6 +216,7 @@ function detectPageType() {
   console.log('  hasCheckbox:', hasCheckbox);
   console.log('  hasApplyButton:', hasApplyButton);
   console.log('  hasNextButton:', hasNextButton);
+  console.log('  hasPayButton:', hasPayButton);
   console.log('  hasStepIndicator:', hasStepIndicator);
   console.log('  captchaScore:', captchaDetection.score, `(input=${captchaDetection.hasCaptchaInput}, visual=${captchaDetection.hasCaptchaVisual}, keyword=${captchaDetection.hasKeyword})`);
 
@@ -209,6 +224,13 @@ function detectPageType() {
   if (captchaDetection.isCaptchaStep) {
     currentPageType = 'CAPTCHA';
     console.log('✅ 页面类型: 🔐 CAPTCHA (验证码步骤)');
+    return;
+  }
+
+  // PRIORITY 0.5: PAYMENT page - explicit payment action should be guided persistently
+  if (hasPayButton && inputCount <= 3 && !hasCheckbox) {
+    currentPageType = 'PAY';
+    console.log('✅ 页面类型: 💳 PAY (支付步骤)');
     return;
   }
   
@@ -258,6 +280,14 @@ function detectPageType() {
 // Handle current page - FIXED: prevent Apply highlight on every page
 function handleCurrentPage() {
   console.log('📋 处理页面:', currentPageType);
+
+  if (currentPageType !== 'DISCLAIMER') {
+    clearDisclaimerGuidanceArtifacts();
+  }
+
+  if (currentPageType !== 'CAPTCHA') {
+    clearCaptchaGuidanceArtifacts();
+  }
   
   // ALWAYS check for form fields on any page and add labels
   const allInputs = document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea');
@@ -282,35 +312,45 @@ function handleCurrentPage() {
   switch(currentPageType) {
     case 'FORM':
       captchaGuidanceShown = false;
+      paymentGuidanceShown = false;
       console.log('🚀 处理表单页面...');
       setTimeout(() => {
         detectAndLabelFields();
         enableAutoFillButton();
         
         // Show UI guidance for form
-        showTopGuidance('📝 表单已加载 - 字段下方显示中文翻译、说明和示例');
+        showTopGuidance('📝 表单已加载 - 字段下方显示中文翻译、说明和示例', { persistent: true });
       }, 600);
       break;
 
     case 'CAPTCHA':
+      paymentGuidanceShown = false;
       console.log('🔐 处理验证码页面...');
       setTimeout(() => handleCaptchaPage(), 450);
+      break;
+
+    case 'PAY':
+      captchaGuidanceShown = false;
+      console.log('💳 处理支付页面...');
+      setTimeout(() => handlePaymentPage(), 350);
       break;
     
     case 'DISCLAIMER':
       captchaGuidanceShown = false;
+      paymentGuidanceShown = false;
       console.log('📋 处理Disclaimer页面...');
       setTimeout(() => handleDisclaimerPage(), 500);
       break;
       
     default: // HOME page or other
       captchaGuidanceShown = false;
+      paymentGuidanceShown = false;
       // Only highlight Apply button once per page load
       if (!applyHighlightApplied && findApplyButton()) {
         console.log('🏠 首页 - 高亮Apply按钮');
         applyHighlightApplied = true;
         findAndHighlightApplyButton();
-        showTopGuidance('👆 请点击红色"Apply now"按钮开始申请');
+        showTopGuidance('👆 请点击红色"Apply now"按钮开始申请', { persistent: true });
       }
       break;
   }
@@ -1888,6 +1928,33 @@ function setPanelStatusText(text) {
   }
 }
 
+function clearDisclaimerGuidanceArtifacts() {
+  document.querySelector('.vh-disclaimer-guide')?.remove();
+  document.getElementById('vh-disclaimer-success-msg')?.remove();
+
+  const styledNodes = document.querySelectorAll('[data-vh-disclaimer-styled="true"]');
+  styledNodes.forEach(node => {
+    node.classList.remove('vh-checkbox-highlight');
+    node.style.boxShadow = '';
+    node.style.borderRadius = '';
+    node.style.padding = '';
+    node.style.transition = '';
+    node.style.position = '';
+    delete node.dataset.vhDisclaimerStyled;
+  });
+}
+
+function clearCaptchaGuidanceArtifacts() {
+  const highlightedInput = document.querySelector('[data-vh-captcha-highlight="true"]');
+  if (!highlightedInput) {
+    return;
+  }
+
+  highlightedInput.style.outline = '';
+  highlightedInput.style.outlineOffset = '';
+  delete highlightedInput.dataset.vhCaptchaHighlight;
+}
+
 function showPostFillNextGuidance() {
   const nextBtn = findNextButton();
   setPanelStatusText('填充完成，请手动点击 Next');
@@ -1900,6 +1967,10 @@ function showPostFillNextGuidance() {
       nextBtn.addEventListener('click', () => {
         captchaGuidanceShown = false;
         setPanelStatusText('已点击 Next，等待验证码步骤...');
+        showTopGuidance('⏳ 正在进入下一步（验证码）...', {
+          persistent: true,
+          force: true
+        });
         showNotification('下一步通常是验证码页面，请按提示手动输入验证码', 'info');
 
         // Support SPA-style transitions where content script is not reinjected.
@@ -1915,8 +1986,10 @@ function showPostFillNextGuidance() {
     }
   }
 
-  document.querySelector('.vh-top-banner')?.remove();
-  showTopGuidance('✅ 填写完成：请手动点击 Next 进入下一步（验证码）');
+  showTopGuidance('✅ 填写完成：请手动点击 Next 进入下一步（验证码）', {
+    persistent: true,
+    force: true
+  });
   showNotification('请先核对关键信息，再手动点击 Next', 'success');
 }
 
@@ -1931,8 +2004,10 @@ function handleCaptchaPage() {
   const nextBtn = findNextButton();
 
   setPanelStatusText('验证码步骤：请手动输入验证码并点击 Next/Submit');
-  document.querySelector('.vh-top-banner')?.remove();
-  showTopGuidance('🔐 已进入验证码步骤：先输入验证码，再手动点击 Next/Submit');
+  showTopGuidance('🔐 已进入验证码步骤：先输入验证码，再手动点击 Next/Submit', {
+    persistent: true,
+    force: true
+  });
 
   if (captchaVisual) {
     showNotification('验证码看不清可点击图片刷新，输入后手动提交', 'info');
@@ -1943,6 +2018,7 @@ function handleCaptchaPage() {
   if (captchaInput && captchaInput.offsetParent !== null) {
     captchaInput.style.outline = '2px solid #ff9800';
     captchaInput.style.outlineOffset = '2px';
+    captchaInput.dataset.vhCaptchaHighlight = 'true';
     captchaInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     captchaInput.focus?.();
   }
@@ -1951,6 +2027,45 @@ function handleCaptchaPage() {
     nextBtn.dataset.vhCaptchaGuidanceBound = 'true';
     nextBtn.addEventListener('click', () => {
       setPanelStatusText('验证码已提交，等待下一步...');
+      showTopGuidance('⏳ 验证码已提交，正在进入下一步...', {
+        persistent: true,
+        force: true
+      });
+    });
+  }
+}
+
+function handlePaymentPage() {
+  const payBtn = findPayButton();
+
+  if (!paymentGuidanceShown) {
+    paymentGuidanceShown = true;
+    setPanelStatusText('准备支付：请核对信息后手动点击 Pay');
+    showTopGuidance('💳 准备支付：请核对信息后，手动点击 Pay 完成付款', {
+      persistent: true,
+      force: true
+    });
+    showNotification('支付前请再次核对姓名、护照号、日期与费用', 'info');
+  }
+
+  if (!payBtn) {
+    return;
+  }
+
+  payBtn.classList.add('vh-apply-highlight');
+  if (payBtn.offsetParent !== null) {
+    payBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  if (!payBtn.dataset.vhPayGuidanceBound) {
+    payBtn.dataset.vhPayGuidanceBound = 'true';
+    payBtn.addEventListener('click', () => {
+      setPanelStatusText('支付已发起，请按页面提示完成付款验证');
+      showTopGuidance('✅ 已发起支付，请按页面提示完成后续验证', {
+        persistent: true,
+        force: true
+      });
+      showNotification('已点击 Pay，请在官方页面完成后续支付验证', 'success');
     });
   }
 }
@@ -1959,7 +2074,7 @@ function showUploadSetupGuidance() {
   setPanelStatusText('缺少照片和护照页');
   if (uploadGuidanceShown) return;
   uploadGuidanceShown = true;
-  showTopGuidance('📎 请点面板里的“上传照片”，或直接在页面手动选图一次，插件会自动记住');
+  showTopGuidance('📎 请点面板里的“上传照片”，或直接在页面手动选图一次，插件会自动记住', { persistent: true });
   showNotification('未找到本地照片，请先上传“申请人正面照片”和“护照资料页”', 'info');
 }
 
@@ -3604,7 +3719,7 @@ function getValueFromUserData(key) {
 
 function handleDisclaimerPage() {
   console.log('📋 处理Disclaimer页面 - 需要勾选两个复选框');
-  showTopGuidance('📋 请勾选页面下方的两个复选框');
+  showTopGuidance('📋 请勾选页面下方的两个复选框', { persistent: true });
   
   // Show guide with down arrow animation - USE FIXED POSITIONING TO ENSURE VISIBILITY
   const guide = document.createElement('div');
@@ -3694,6 +3809,7 @@ function handleDisclaimerPage() {
       if (wrapper && wrapper.offsetParent !== null) {
         console.log(`✅ 高亮复选框 ${index + 1}`);
         
+        wrapper.dataset.vhDisclaimerStyled = 'true';
         wrapper.style.position = 'relative';
         wrapper.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.8), inset 0 0 10px rgba(76, 175, 80, 0.3)';
         wrapper.style.borderRadius = '4px';
@@ -3749,7 +3865,9 @@ function handleDisclaimerPage() {
         if (!completionShown) {
           completionShown = true;
           const panelBody = document.querySelector('.vh-panel-body');
+          document.getElementById('vh-disclaimer-success-msg')?.remove();
           const successMsg = document.createElement('div');
+          successMsg.id = 'vh-disclaimer-success-msg';
           successMsg.style.cssText = `
             background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
             border: 2px solid #4caf50;
@@ -3772,6 +3890,7 @@ function handleDisclaimerPage() {
         nextBtn.style.opacity = '0.5';
         nextBtn.style.cursor = 'not-allowed';
         nextBtn.classList.remove('vh-apply-highlight');
+        document.getElementById('vh-disclaimer-success-msg')?.remove();
         completionShown = false;
       }
     };
@@ -4004,6 +4123,35 @@ function findNextButton() {
   return nextBtn;
 }
 
+function findPayButton() {
+  const buttons = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]'));
+
+  const payBtn = buttons.find(btn => {
+    const text = (btn.textContent || '').toLowerCase();
+    const value = (btn.value || '').toLowerCase();
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const combined = `${text} ${value} ${ariaLabel}`;
+
+    return (
+      combined.includes('pay now') ||
+      combined.includes('make payment') ||
+      combined.includes('payment') ||
+      combined.includes('pay') ||
+      combined.includes('thanh toán') ||
+      combined.includes('thanh toan') ||
+      combined.includes('付款') ||
+      combined.includes('支付') ||
+      combined.includes('缴费')
+    );
+  });
+
+  if (payBtn) {
+    console.log('✅ 找到Pay按钮:', payBtn.textContent?.trim() || payBtn.value);
+  }
+
+  return payBtn || null;
+}
+
 // ===== UI HELPERS =====
 
 function injectFloatingPanel() {
@@ -4097,17 +4245,45 @@ function showUserData() {
 }
 
 function showHelp() {
-  showNotification('📖 首页:点Apply | 表单:一键填表后手动点Next | 验证码页:手动输入验证码后提交', 'info');
+  showNotification('📖 首页:点Apply | 表单:填完后手动点Next | 验证码页:手动输入验证码 | 支付页:核对后手动点Pay', 'info');
 }
 
-function showTopGuidance(msg) {
-  if (document.querySelector('.vh-top-banner')) return;
-  const banner = document.createElement('div');
-  banner.className = 'vh-top-banner';
+function showTopGuidance(msg, options = {}) {
+  const persistent = options.persistent !== false;
+  const force = !!options.force;
+  let banner = document.querySelector('.vh-top-banner');
+
+  if (banner && banner.dataset.persistent === 'true' && !persistent && !force) {
+    return;
+  }
+
+  if (banner && banner.dataset.persistent === 'true' && persistent && !force) {
+    return;
+  }
+
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.className = 'vh-top-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#28a745;color:white;padding:12px;text-align:center;z-index:10000;animation:slideDown .3s';
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
+
   banner.textContent = msg;
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#28a745;color:white;padding:12px;text-align:center;z-index:10000;animation:slideDown .3s';
-  document.body.insertBefore(banner, document.body.firstChild);
-  setTimeout(() => banner.remove(), 5000);
+  banner.dataset.persistent = persistent ? 'true' : 'false';
+
+  if (topGuidanceTimeoutId) {
+    clearTimeout(topGuidanceTimeoutId);
+    topGuidanceTimeoutId = null;
+  }
+
+  if (!persistent) {
+    topGuidanceTimeoutId = setTimeout(() => {
+      if (banner?.parentElement) {
+        banner.remove();
+      }
+      topGuidanceTimeoutId = null;
+    }, 5000);
+  }
 }
 
 function showNotification(msg, type = 'info') {
