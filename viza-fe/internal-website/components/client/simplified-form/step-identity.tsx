@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ScanLine, Keyboard, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -271,7 +271,7 @@ export function StepIdentity({ value, onChange, onContinue }: StepIdentityProps)
         </label>
         <select
           value={value.maritalStatus}
-          onChange={(e) => set("maritalStatus", e.target.value as any)}
+          onChange={(e) => set("maritalStatus", e.target.value as SimplifiedIdentity["maritalStatus"])}
           className="w-full border rounded-lg px-3 py-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
           required
         >
