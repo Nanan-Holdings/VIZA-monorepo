@@ -16,6 +16,7 @@ import { StepTravel } from "@/components/client/simplified-form/step-travel";
 import { StepUsStay } from "@/components/client/simplified-form/step-us-stay";
 import { StepFamily } from "@/components/client/simplified-form/step-family";
 import { StepBackground } from "@/components/client/simplified-form/step-background";
+import { StepWorkEducation } from "@/components/client/simplified-form/step-work-education";
 import { useSimplifiedFormContext } from "@/lib/context/simplified-form-context";
 import {
   buildAnswerPayload,
@@ -43,7 +44,7 @@ export default function SimplifiedFormPage() {
 
   const stepOrder = useMemo(() => {
     const base = ["0", "1", "2", "3"] as const;
-    const tail = ["4", "5"] as const;
+    const tail = ["4", "6", "5"] as const;
     if (shouldIncludeUsStayStep) {
       return [...base, "usStay", ...tail] as const;
     }
@@ -204,6 +205,13 @@ export default function SimplifiedFormPage() {
                 onChange={(next) => setForm((f) => ({ ...f, background: next }))}
                 onSubmit={handleSubmit}
                 submitting={submitting}
+              />
+            ) : null}
+            {currentStepKey === "6" ? (
+              <StepWorkEducation
+                value={form.work}
+                onChange={(next) => setForm((f) => ({ ...f, work: next }))}
+                onContinue={goNext}
               />
             ) : null}
           </motion.div>
