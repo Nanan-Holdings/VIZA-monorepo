@@ -18,16 +18,16 @@ member-state portal must implement.
 | Personal Details | 1 | 16 | Annex I 1–9; surname_at_birth and nationality_at_birth conditionally shown; other_nationalities repeatable |
 | Parental Authority | 2 | 8 | Annex I 10 — entirely gated on `is_applicant_minor === yes`; `parental_authority` block_group |
 | Travel Document & Identity | 3 | 8 | Annex I 11–16; national_id gated; travel_document_type=other unlocks free-text; inline_group for issue/expiry |
-| EU/EEA/CH Family Member | 4 | 8 | Annex I 17–18 — label updated to include UK Withdrawal Agreement beneficiaries per 2020 consolidation; full block gated on `has_eu_family_member === yes` |
+| EU/EEA/CH Family Member | 4 | 9 | Annex I 17–18 — label updated to include UK Withdrawal Agreement beneficiaries per 2020 consolidation; full block gated on `has_eu_family_member === yes`; v1.3 adds `directive_2004_38_acknowledged` (fee waiver + 15-day processing + reduced evidence rights) |
 | Contact Details & Residence | 5 | 11 | Annex I 19–20; home_address block_group; residence-permit fields gated |
 | Occupation | 6 | 10 | Annex I 21–22; employer vs school block branches on `is_student` |
 | Trip Details | 7 | 8 | Annex I 23, 25–27; purpose_of_journey umbrella (10 options, single-select — see §3.8); trip_dates inline_group |
 | Purpose-Specific Details | 8 | 49 | Annex I 24, 30–31 by purpose — host (10), business (11, now with contact address + phone), study (7), medical (7), cultural/sports/official shared (7), transit (3), other (1), tourism (1), Annex IV ATV acknowledgment (2, gated on `current_nationality in [...] && purpose === airport_transit`) |
-| Accommodation in Schengen | 9 | 8 | Annex I 30 hotel/temporary; accommodation_address block_group |
+| Accommodation in Schengen | 9 | 9 | Annex I 30 hotel/temporary; accommodation_address block_group; v1.3 adds optional `hotel_confirmation_number` |
 | Travel History | 10 | 9 | Annex I 28–29 (2020 consolidation). Pre-2020 "past 3 years Schengen visas" field was merged into 28; schema removed in v1.2. |
 | Financial Support | 11 | 18 | Annex I 32; self-means gated on `COST_SELF`; sponsor-means gated on `COST_SPONSOR`; sponsor_details block_group |
 | Declaration | 12 | 16 | Annex I 33 (filler block — 6 fields) + Annex I 37 (place/date + six consents: fee-not-refunded, insurance-for-multi-entry gated on `number_of_entries_requested === multiple`, VIS, data rights, truthfulness, undertaking-to-leave) |
-| **Total** | **12** | **169** | — |
+| **Total** | **12** | **171** | — |
 
 ---
 
@@ -144,6 +144,21 @@ Visa Code. Each requires its own seed script and `visa_type` key.
 **Workaround:** scope doc §8 Medium-term #7 lists the highest-demand
 Type D variants to build next.
 
+### 3.7 Family-of-EU-citizen Directive 2004/38 fast-track — partially closed (v1.3)
+
+**Status:** schema now captures a `directive_2004_38_acknowledged` field
+in Step 4 gated on `has_eu_family_member === yes`. The acknowledgment
+surfaces the fee waiver / 15-day processing / reduced-evidence rights.
+Admin/ops routing (separate queue for fast-track applicants) is still a
+workflow concern, not a schema gap.
+
+**Impact:** Low — applicants see and acknowledge their rights; staff
+can key on the boolean for workflow branching without relying on
+downstream derivation.
+
+**Why still listed:** queueing/routing is not implemented in admin UI
+yet. Covered by the existing staff-portal work, not this visa package.
+
 ### 3.8 Field 23 purpose is a checkbox set on Annex I, single-select in schema
 
 **Status:** design choice — schema stores a single `purpose_of_journey`
@@ -161,24 +176,21 @@ gate to use `in` instead of `===`. Mechanically possible with the v1.1
 the `purpose_additional_info` textarea to list any secondary purposes.
 Document-review step should reconcile before submission.
 
-### 3.9 Starred fields (21, 22, 30, 31, 32) — UK Withdrawal Agreement beneficiary exemption
+### 3.9 Starred fields (21, 22, 30, 31, 32) — CLOSED (v1.3)
 
-**Status:** schema always marks these `required: true` regardless of
-`has_eu_family_member` answer.
-**Impact:** Low — extra fields collected, not missing fields. No
-regulatory risk, just mild UX friction for EU-family-member
-applicants who are exempt from these five fields under Annex I.
+**Status:** closed.
+Added `required_unless` support to `lib/form-utils.ts` (new
+`evaluateExpression` helper shared with `evaluateShowIf`, plus new
+`isRequiredUnlessSatisfied` public function). Extended `DynamicStepForm`'s
+`requiredFilled` gate to skip fields whose `validation_rules.required_unless`
+evaluates truthy against current values. Annotated 44 starred fields in
+the seed via a `STARRED_FIELD_NAMES` post-processor that merges
+`required_unless: "has_eu_family_member === yes"` into each field's
+validation_rules — fields 21, 22, 30 (host + accommodation), 31, 32 are
+covered. EU-family-member applicants now pass the step-level validation
+without filling the five Annex I starred sections.
 
-**Why deferred:** would require expressing "required unless
-`has_eu_family_member === yes`" at the schema level, which needs a
-new `required_unless` clause in `conditional_logic`. Small library
-change, scoped for v1.3.
-
-**Workaround:** the applicant fills these fields in anyway — no harm,
-just a small UX tax. Caseworker can leave them blank on the submitted
-form if the applicant is a Withdrawal Agreement beneficiary.
-
-### 3.7 Family-of-EU-citizen Directive 2004/38 fast-track not surfaced
+### 3.7-legacy Family-of-EU-citizen Directive 2004/38 fast-track not surfaced
 
 **Status:** schema captures the family relationship in Step 4 but does
 not differentiate the procedural fast-track.
@@ -219,6 +231,28 @@ official EU Commission Annex I PDF):
 - **Field numbering in docs.** Updated from "Annex I 1–37" (2009 original) to "Annex I 1–33" (2020 consolidation).
 
 Net v1.2 change: +13 adds, −4 removes. Coverage 160 → 169 fields.
+
+Closed in v1.3 (2026-04-24, Annex-I-style starred-field exemption + fast-track + hotel confirmation):
+
+- **§3.9 Starred-field exemption (Annex I 21/22/30/31/32).** Added
+  `required_unless` support: new `evaluateExpression` shared helper in
+  `form-utils.ts`, new `isRequiredUnlessSatisfied` public function, and
+  `DynamicStepForm` now skips required-validation for fields whose
+  `validation_rules.required_unless` matches current values. Annotated
+  44 starred fields via a `STARRED_FIELD_NAMES` post-processor in the
+  seed. EU-family-member applicants pass step validation without
+  filling the five Annex I starred sections.
+- **§3.7 Directive 2004/38 fast-track acknowledgment.** Added
+  `directive_2004_38_acknowledged` to Step 4 (gated on
+  `has_eu_family_member === yes`) that surfaces fee waiver,
+  15-day processing limit, and reduced-evidence rights.
+- **Scope doc v1.1 #6 Hotel confirmation number.** Added optional
+  `hotel_confirmation_number` field to Step 9 (gated on accommodation
+  type = hotel or rented).
+
+Net v1.3 change: +2 adds (directive_2004_38_acknowledged,
+hotel_confirmation_number). Coverage 169 → 171 fields. New library
+primitive `required_unless` documented in playbook §4.
 
 ---
 
@@ -291,7 +325,7 @@ certificate countries (many), visa-on-arrival waiver lists.
 
 Before marking as production-ready:
 
-- [ ] Seed applied (169 rows in `visa_form_fields` with visa_type = `EU_SCHENGEN_C_SHORT_STAY`)
+- [ ] Seed applied (171 rows in `visa_form_fields` with visa_type = `EU_SCHENGEN_C_SHORT_STAY`)
 - [ ] Package registered in `visa_packages` via migration `0011_eu_schengen_c_short_stay_package.sql`
 - [ ] Assign a test user the `EU_SCHENGEN_C_SHORT_STAY` package
 - [ ] Walk every step, answer every conditional, trigger every sub-journey (10 purpose options in Step 7)
@@ -300,7 +334,9 @@ Before marking as production-ready:
 - [ ] Test cross-step gating (Step 8 sub-journeys gated on Step 7 `purpose_of_journey`)
 - [ ] Test minor journey (`is_applicant_minor === yes` should reveal Step 2 parental authority block)
 - [ ] Test EU-family-member journey (`has_eu_family_member === yes` should reveal Step 4 block)
-- [ ] Submit a test application — verify all 169 answers persist to `visa_application_answers`
+- [ ] Submit a test application — verify all 171 answers persist to `visa_application_answers`
+- [ ] Test starred-field exemption: set `has_eu_family_member === yes` in Step 4 — Step 6 Occupation, Step 8 host/business, Step 9 Accommodation, Step 11 Financial Support should no longer block "Next" even when left blank.
+- [ ] Test Directive 2004/38 acknowledgment: set `has_eu_family_member === yes` in Step 4 — `directive_2004_38_acknowledged` must appear and be required.
 - [ ] Test ATV gate: set `current_nationality` to `AF`/`BD`/etc and `purpose_of_journey` to `airport_transit` — Step 8 should reveal `atv_airside_only` + `atv_annex_iv_acknowledged`. Change nationality off the Annex IV list — fields should hide.
 - [ ] Test filler gate (Field 33): set `has_different_filler === yes` in Step 12 — six filler fields must reveal.
 - [ ] Test multi-entry declaration gate: set `number_of_entries_requested === multiple` in Step 7 — `declaration_insurance_multi_entry_awareness` must reveal in Step 12.

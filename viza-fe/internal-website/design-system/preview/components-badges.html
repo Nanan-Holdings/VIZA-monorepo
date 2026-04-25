@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .row:last-child{margin:0}
+  .lbl{font:500 11px "Geist", system-ui, -apple-system, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);width:90px;flex-shrink:0}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font:500 12px "Geist", system-ui, -apple-system, sans-serif}
+  .brand{background:#EEF3FA;color:#03346E}
+  .brand-solid{background:#03346E;color:#fff}
+  .glass-pill{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}
+  .success{background:#dcfce7;color:#166534}
+  .warn{background:#fef3c7;color:#92400e}
+  .err{background:#fee2e2;color:#991b1b}
+  .locked{background:#dcdcdc;color:#989898}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .swatch-dark{background:#03346E;padding:12px 14px;border-radius:12px;display:flex;gap:10px;align-items:center}
+</style></head>
+<body><div class="stage">
+  <div class="row"><span class="lbl">Status</span>
+    <span class="pill success"><span class="dot"></span> Approved</span>
+    <span class="pill warn"><span class="dot"></span> Needs review</span>
+    <span class="pill err"><span class="dot"></span> Rejected</span>
+    <span class="pill brand"><span class="dot"></span> Submitted</span>
+  </div>
+  <div class="row"><span class="lbl">Stage</span>
+    <span class="pill brand-solid">Start application</span>
+    <span class="pill locked">Locked</span>
+    <span class="pill brand">Documents</span>
+  </div>
+  <div class="row"><span class="lbl">On navy</span>
+    <div class="swatch-dark">
+      <span class="pill glass-pill">Not started</span>
+      <span class="pill glass-pill">Indonesia · B211A</span>
+    </div>
+  </div>
+</div></body></html>

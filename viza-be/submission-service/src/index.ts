@@ -34,10 +34,24 @@ import {
   type CeacRunResult,
 } from "./ceac";
 import {
+  fillFranceVisasApplication,
+  normalizeFvAnswers,
+  buildAnswerMap,
+  NormalizationError,
+  type NormalizeInput,
+} from "./france-visas";
+import {
+  startUkSession,
+  orchestrateUkFill,
+  isUkGateError,
+  serializeUkError,
+} from "./uk";
+import {
   SubmissionQueueItem,
   ApplicantProfile,
   Application,
   ApplicationDocument,
+  FvAccount,
   VisaApplicationAnswer,
 } from "./types";
 
@@ -50,7 +64,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
   const { data, error } = await supabase
     .from("submission_queue")
     .select("*")
-    .in("status", ["pending", "ds160_prefill_pending"])
+    .in("status", ["pending", "ds160_prefill_pending", "fv_prefill_pending", "uk_prefill_pending"])
     .lt("attempts", MAX_ATTEMPTS);
 
   if (error) throw new Error(`Failed to fetch submission_queue: ${error.message}`);
@@ -59,6 +73,14 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
 
 function isDs160Job(item: SubmissionQueueItem): boolean {
   return item.status === "ds160_prefill_pending";
+}
+
+function isFvJob(item: SubmissionQueueItem): boolean {
+  return item.status === "fv_prefill_pending";
+}
+
+function isUkJob(item: SubmissionQueueItem): boolean {
+  return item.status === "uk_prefill_pending";
 }
 
 async function markProcessing(queueId: string): Promise<void> {
@@ -632,6 +654,244 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
   }
 }
 
+// ─── France-Visas autofill ──────────────────────────────────────────────────
+
+async function loadFvAccount(applicantId: string): Promise<FvAccount | null> {
+  const { data, error } = await supabase
+    .from("fv_accounts")
+    .select("*")
+    .eq("applicant_id", applicantId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load fv_accounts: ${error.message}`);
+  return (data ?? null) as FvAccount | null;
+}
+
+async function loadRawAnswers(applicationId: string): Promise<VisaApplicationAnswer[]> {
+  const { data, error } = await supabase
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId);
+  if (error) throw new Error(`Failed to load answers: ${error.message}`);
+  return (data ?? []) as VisaApplicationAnswer[];
+}
+
+/**
+ * Decrypt a stored FV password. Production deployments MUST replace this
+ * with a real decrypt against the project's KMS/secrets backend.
+ * The `fv_accounts.password_encrypted` column is declared TEXT so encrypted
+ * blobs can live there once crypto is wired; for now we treat the column
+ * as plain text for dev parity with the smoke runner's env-var flow.
+ */
+function decryptFvPassword(encrypted: string): string {
+  // TODO(crypto): hook into shared KMS helper before production.
+  return encrypted;
+}
+
+async function processFvItem(item: SubmissionQueueItem): Promise<void> {
+  const runId = `fv-${item.application_id}-${Date.now()}`;
+  console.log(`[fv] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "fv_prefill_processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+
+    const account = await loadFvAccount(application.applicant_id);
+    if (!account) {
+      throw new Error(`No fv_accounts row for applicant ${application.applicant_id} — register first`);
+    }
+
+    const rawAnswers = await loadRawAnswers(item.application_id);
+    const answerMap = buildAnswerMap(rawAnswers);
+
+    // FV-specific overrides that the seed schema doesn't carry — the frontend
+    // writes them into visa_application_answers with `fv_` prefixed keys.
+    const normalizeInput: NormalizeInput = {
+      answers: answerMap,
+      profile,
+      application,
+      fvOverrides: {
+        depositCountry: requireAnswer(answerMap, "fv_deposit_country"),
+        depositTown: requireAnswer(answerMap, "fv_deposit_town"),
+        authority: answerMap.fv_authority ?? undefined,
+        destination: answerMap.fv_destination ?? undefined,
+        purpose: requireAnswer(answerMap, "fv_purpose"),
+        occupationCode: answerMap.fv_occupation_code ?? undefined,
+        businessSegment: answerMap.fv_business_segment ?? undefined,
+      },
+    };
+
+    const answers = normalizeFvAnswers(normalizeInput);
+    const result = await fillFranceVisasApplication(
+      {
+        credentials: {
+          email: account.email,
+          password: decryptFvPassword(account.password_encrypted),
+        },
+        answers,
+      },
+      { headless: true, runId },
+    );
+
+    if (result.status === "prefilled") {
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "fv_prefilled",
+          fv_result_payload: result as unknown as Record<string, unknown>,
+          fv_application_reference: result.applicationReference,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      console.log(`[fv] Run ${runId} prefilled — ref=${result.applicationReference ?? "(none)"}`);
+    } else {
+      const errorMsg = typeof result.error?.message === "string"
+        ? result.error.message
+        : `failed at ${result.failedStep}`;
+      const newAttempts = item.attempts + 1;
+      const newStatus = newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
+
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: newStatus,
+          attempts: newAttempts,
+          last_error: errorMsg,
+          fv_result_payload: result as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
+      }
+      console.error(`[fv] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
+    }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const isNormalizationFailure = err instanceof NormalizationError;
+    const newAttempts = item.attempts + 1;
+    // Normalization failures are data errors — don't burn retries on them.
+    const newStatus = isNormalizationFailure
+      ? "fv_prefill_failed"
+      : (newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending");
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (newStatus === "fv_prefill_failed") {
+      await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
+    }
+    console.error(`[fv] Unhandled error in ${runId}:`, errorMsg);
+  }
+}
+
+// ─── UK Standard Visitor Job Processor ───────────────────────────────
+//
+// Today: drives the pre-auth flow (language → country → VAC → start) and
+// stops at the registration page. Post-auth selectors are not yet
+// mapped — see src/uk/form-recon.ts to harvest them. The terminal state
+// `uk_prefilled` here means "session reached registration", not "form
+// fully filled". Callers should treat it as scaffold-only until the
+// post-auth phase ships.
+async function processUkItem(item: SubmissionQueueItem): Promise<void> {
+  const runId = `uk-${item.application_id}-${Date.now()}`;
+  console.log(`[uk] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "uk_prefill_processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "uk-run-"));
+  let session: Awaited<ReturnType<typeof startUkSession>> | null = null;
+  try {
+    const answers = await loadDs160Answers(item.application_id);
+    session = await startUkSession({ headless: true, runId });
+    const result = await orchestrateUkFill(session, {
+      answers,
+      runId,
+      outputDir: tempDir,
+    });
+
+    // Pre-auth scaffold-only success: reached registration page. We mark
+    // as `uk_prefilled` so ops can see the run completed its current
+    // scope, but the payload's `handoffReady=false` and `reason` make
+    // clear there's more to do.
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "uk_prefilled",
+        uk_result_payload: result as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    console.log(`[uk] Run ${runId} stopped at ${result.stoppedAt.id} — ${result.reason}`);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorPayload = serializeUkError(err);
+    const newAttempts = item.attempts + 1;
+
+    // Gate errors (maintenance / 5xx / rate-limit) are external UKVI
+    // blockers — retrying within the worker won't help. Mark as
+    // blocked immediately and alert, mirroring the CEAC pattern.
+    if (isUkGateError(err)) {
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "uk_blocked",
+          last_error: `[UK gate] ${errorMsg}`,
+          uk_result_payload: errorPayload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      await sendFailureAlert(item.application_id, `[UK gate] ${errorMsg}`);
+      console.error(`[uk] Run ${runId} GATED:`, errorMsg);
+      return;
+    }
+
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        uk_result_payload: errorPayload,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (newStatus === "uk_prefill_failed") {
+      await sendFailureAlert(item.application_id, `[UK] ${errorMsg}`);
+    }
+    console.error(`[uk] Run ${runId} failed:`, errorMsg);
+  } finally {
+    if (session) await session.close();
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+  }
+}
+
+function requireAnswer(map: Record<string, string | null>, field: string): string {
+  const v = map[field];
+  if (!v || v.trim().length === 0) {
+    throw new Error(`Missing required FV-override field "${field}" in visa_application_answers`);
+  }
+  return v.trim();
+}
+
 // ─── Main processing loop ────────────────────────────────────────────────────
 
 async function processItem(item: SubmissionQueueItem): Promise<void> {
@@ -693,6 +953,10 @@ async function poll(): Promise<void> {
   for (const item of items) {
     if (isDs160Job(item)) {
       await processDs160Item(item);
+    } else if (isFvJob(item)) {
+      await processFvItem(item);
+    } else if (isUkJob(item)) {
+      await processUkItem(item);
     } else {
       await processItem(item);
     }

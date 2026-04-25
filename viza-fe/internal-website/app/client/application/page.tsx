@@ -89,6 +89,14 @@ const STEP_SECTION_ORDER: StepSectionKey[] = [
 
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "status"] as const;
 
+/** Map a visa package's visa_type to the submission_queue status that
+ *  routes the worker to the right autofill pipeline. Defaults to
+ *  "pending" (Indonesian e-visa path). */
+function queueStatusForPackage(visaType: string | null | undefined): string {
+  if (visaType === "UK_STANDARD_VISITOR") return "uk_prefill_pending";
+  return "pending";
+}
+
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
   return steps
     .map((step, sourceIndex) => ({ step, sourceIndex }))
@@ -1243,7 +1251,7 @@ export default function ApplicationPage() {
 
       await supabase.from("submission_queue").insert({
         application_id: appState.applicationId,
-        status: "pending",
+        status: queueStatusForPackage(visaPackage?.visa_type),
         attempts: 0,
         created_at: new Date().toISOString(),
       });
@@ -1300,7 +1308,7 @@ export default function ApplicationPage() {
 
       await supabase.from("submission_queue").insert({
         application_id: appState.applicationId,
-        status: "pending",
+        status: queueStatusForPackage(visaPackage?.visa_type),
         attempts: 0,
         created_at: new Date().toISOString(),
       });

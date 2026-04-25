@@ -123,12 +123,12 @@ Before building a new primitive, check these directories. **Reuse or extend, don
 ### 2.1 shadcn primitives — `components/ui/`
 
 ```
-accordion, alert, alert-dialog, avatar, badge, button, calendar,
-calendar-date-picker, card, checkbox, collapsiblce, command,
-country-dropdown, date-picker, dialog, dropdown-menu, empty, form,
-input, input-group, input-otp, label, popover, region-select,
-scroll-area, select, separator, sheet, skeleton, table, tabs,
-textarea, toast, tooltip
+accordion, alert, alert-dialog, animated-dropdown, animated-tab-pill,
+avatar, badge, button, calendar, calendar-date-picker, card, checkbox,
+collapsible, command, country-dropdown, date-picker, dialog,
+dropdown-menu, empty, form, input, input-group, input-otp, label,
+popover, region-select, scroll-area, select, separator, sheet,
+skeleton, table, tabs, textarea, toast, tooltip
 ```
 
 Style: **shadcn "new-york"** on **zinc** base with CSS variables (`components.json`). To add a missing primitive:
@@ -155,6 +155,21 @@ When building a new `/client` feature, prefer putting composite components in `c
 
 - `cn()` from `@/lib/utils` — always use it for conditional classes (`cn("base", cond && "variant", className)`).
 - `clsx` is also imported in some places; prefer `cn` for consistency.
+
+### 2.4 Canonical components — never replace
+
+These components ship a richer behavior than any "design system" specimen. Reuse them; do not regenerate or substitute.
+
+| Component | File | Why it stays |
+|---|---|---|
+| `CountryDropdown` | `components/ui/country-dropdown.tsx` | Locale-aware names via `Intl.DisplayNames`, real flag rendering via `react-circle-flags`, cmdk-powered fuzzy search, brand-tinted focus ring. |
+| `DatePicker` | `components/ui/date-picker.tsx` | zhCN/enUS locale, `YYYY-MM-DD` string contract, dropdown caption layout, 1920–2036 range. |
+| `FileUploadCard` | `components/application-steps/file-upload-card.tsx` | Wired to Supabase Storage with auth-scoped paths and idle/uploading/done/error states. The drop-zone visuals in the design system are pure mockups — they have no upload pipeline. |
+| `LanguageSelector` | `components/client/language-selector.tsx` | Theme-aware globe stroke via `--nav-stroke-color`. Built on top of `AnimatedDropdown`. |
+| `AnimatedDropdown` | `components/ui/animated-dropdown.tsx` | The popover-with-search-and-staggered-list pattern. Use this for any future searchable dropdown. |
+| `AnimatedTabPill` | `components/ui/animated-tab-pill.tsx` | The navbar's text-tab + mobile pill-row pattern. Use the `text` variant for inline tab strips and `pill` for scrollable pill rows. |
+
+If you find yourself reaching for a different shape (e.g. a custom country picker, a roll-your-own date input), stop — extend the canonical version instead.
 
 ---
 

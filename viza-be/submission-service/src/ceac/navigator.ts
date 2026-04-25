@@ -278,11 +278,18 @@ async function resolveNavButton(page: Page, action: CeacNavAction): Promise<Loca
   const selector = navSelectorFor(action);
   const candidates = page.locator(selector);
   const count = await candidates.count();
+  if (process.env.CEAC_FILL_DEBUG === "1") {
+    console.log(`[nav] action=${action} url=${page.url()} selector=${selector} count=${count}`);
+  }
   for (let i = 0; i < count; i += 1) {
     const candidate = candidates.nth(i);
-    if (await candidate.isVisible()) {
-      return candidate;
+    const visible = await candidate.isVisible();
+    if (process.env.CEAC_FILL_DEBUG === "1") {
+      const id = (await candidate.getAttribute("id")) ?? "";
+      const val = (await candidate.getAttribute("value")) ?? "";
+      console.log(`[nav]   [${i}] id="${id}" value="${val}" visible=${visible}`);
     }
+    if (visible) return candidate;
   }
   return null;
 }
