@@ -1,7 +1,15 @@
 // Content Script v1.2.1 - Final fixes for all reported issues
 
+const EXTENSION_VERSION = (() => {
+  try {
+    return chrome.runtime?.getManifest?.()?.version || 'unknown';
+  } catch (error) {
+    return 'unknown';
+  }
+})();
+
 // ===== EARLIEST POSSIBLE LOG =====
-console.log('%c🇻🇳 越南签证助手 v1.2.1 已激活！', 'color: green; font-size: 14px; font-weight: bold;');
+console.log('%c🇻🇳 越南签证助手 v' + EXTENSION_VERSION + ' 已激活！', 'color: green; font-size: 14px; font-weight: bold;');
 console.log('📍 当前URL:', window.location.href);
 
 let userData = null;
@@ -14,11 +22,14 @@ let applyHighlightApplied = false; // Prevent duplicate highlights
 let hintRecoveryInitialized = false;
 let hintRecoveryObserver = null;
 let hintRecoveryIntervalId = null;
+let hintRecoveryDebounceTimer = null;
+let hintRecoveryCleanupBound = false;
 let relabelRetryScheduled = false;
 let lastUnidentifiedFieldsSignature = '';
 let lastFieldDetectionSummary = '';
 let uploadDocumentsCache = null;
 let uploadGuidanceShown = false;
+let captchaGuidanceShown = false;
 const UPLOAD_STORAGE_KEY = 'vhUploadDocuments';
 const UPLOAD_FIELD_KEYS = new Set(['passport_photo', 'passport_copy']);
 
@@ -90,11 +101,82 @@ const UPLOAD_FIELD_KEYS = new Set(['passport_photo', 'passport_copy']);
   }
 })();
 
+const CAPTCHA_KEYWORDS = [
+  'captcha',
+  'verification code',
+  'verify code',
+  'security code',
+  'mã xác nhận',
+  'ma xac nhan',
+  '验证码',
+  '识别码',
+  '校验码',
+  '请输入验证码'
+];
+
+function findCaptchaInputField() {
+  const candidates = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'));
+  return candidates.find(input => {
+    const inputText = normalizeFieldContextText([
+      input.placeholder,
+      input.name,
+      input.id,
+      input.getAttribute?.('aria-label'),
+      input.className
+    ].filter(Boolean).join(' '));
+
+    return CAPTCHA_KEYWORDS.some(keyword => inputText.includes(keyword));
+  }) || null;
+}
+
+function findCaptchaVisualElement() {
+  const selectors = [
+    'img[src*="captcha" i]',
+    'img[alt*="captcha" i]',
+    'img[class*="captcha" i]',
+    'img[id*="captcha" i]',
+    'canvas[id*="captcha" i]',
+    'canvas[class*="captcha" i]',
+    '[class*="captcha" i] img',
+    '[class*="captcha" i] canvas'
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const element = document.querySelector(selector);
+      if (element) return element;
+    } catch (error) {
+      // Ignore invalid selector errors and continue fallback detection.
+    }
+  }
+
+  return null;
+}
+
+function detectCaptchaStep() {
+  const pageText = normalizeFieldContextText(document.body?.innerText || '');
+  const hasKeyword = CAPTCHA_KEYWORDS.some(keyword => pageText.includes(keyword));
+  const captchaInput = findCaptchaInputField();
+  const captchaVisual = findCaptchaVisualElement();
+  const score = (hasKeyword ? 1 : 0) + (captchaInput ? 2 : 0) + (captchaVisual ? 1 : 0);
+
+  return {
+    isCaptchaStep: score >= 2,
+    score,
+    hasKeyword,
+    hasCaptchaInput: !!captchaInput,
+    hasCaptchaVisual: !!captchaVisual,
+    captchaInput,
+    captchaVisual
+  };
+}
+
 // Detect page type - ENHANCED WITH DETAILED LOGGING
 function detectPageType() {
   const url = window.location.href.toLowerCase();
   const pageText = document.body.innerText.toLowerCase();
   const bodyHtml = document.body.innerHTML.toLowerCase();
+  const captchaDetection = detectCaptchaStep();
   
   // Multiple detection methods for different page elements
   const hasForm = !!document.querySelector('form input, form select, form textarea, input[type="text"], select, input[type="email"]');
@@ -121,6 +203,14 @@ function detectPageType() {
   console.log('  hasApplyButton:', hasApplyButton);
   console.log('  hasNextButton:', hasNextButton);
   console.log('  hasStepIndicator:', hasStepIndicator);
+  console.log('  captchaScore:', captchaDetection.score, `(input=${captchaDetection.hasCaptchaInput}, visual=${captchaDetection.hasCaptchaVisual}, keyword=${captchaDetection.hasKeyword})`);
+
+  // PRIORITY 0: CAPTCHA page - detect verification step before generic form detection
+  if (captchaDetection.isCaptchaStep) {
+    currentPageType = 'CAPTCHA';
+    console.log('✅ 页面类型: 🔐 CAPTCHA (验证码步骤)');
+    return;
+  }
   
   // PRIORITY 1: FORM page - check input count first (most reliable)
   if (inputCount > 3) {
@@ -191,6 +281,7 @@ function handleCurrentPage() {
   
   switch(currentPageType) {
     case 'FORM':
+      captchaGuidanceShown = false;
       console.log('🚀 处理表单页面...');
       setTimeout(() => {
         detectAndLabelFields();
@@ -200,13 +291,20 @@ function handleCurrentPage() {
         showTopGuidance('📝 表单已加载 - 字段下方显示中文翻译、说明和示例');
       }, 600);
       break;
+
+    case 'CAPTCHA':
+      console.log('🔐 处理验证码页面...');
+      setTimeout(() => handleCaptchaPage(), 450);
+      break;
     
     case 'DISCLAIMER':
+      captchaGuidanceShown = false;
       console.log('📋 处理Disclaimer页面...');
       setTimeout(() => handleDisclaimerPage(), 500);
       break;
       
     default: // HOME page or other
+      captchaGuidanceShown = false;
       // Only highlight Apply button once per page load
       if (!applyHighlightApplied && findApplyButton()) {
         console.log('🏠 首页 - 高亮Apply按钮');
@@ -904,15 +1002,44 @@ function addChineseLabel(input, fieldInfo) {
   }
 }
 
+function cleanupHintRecovery() {
+  if (hintRecoveryDebounceTimer) {
+    clearTimeout(hintRecoveryDebounceTimer);
+    hintRecoveryDebounceTimer = null;
+  }
+
+  if (hintRecoveryIntervalId) {
+    clearInterval(hintRecoveryIntervalId);
+    hintRecoveryIntervalId = null;
+  }
+
+  if (hintRecoveryObserver) {
+    hintRecoveryObserver.disconnect();
+    hintRecoveryObserver = null;
+  }
+
+  hintRecoveryInitialized = false;
+}
+
+function ensureHintRecoveryCleanupRegistered() {
+  if (hintRecoveryCleanupBound) {
+    return;
+  }
+
+  hintRecoveryCleanupBound = true;
+  window.addEventListener('pagehide', cleanupHintRecovery, { once: true });
+  window.addEventListener('beforeunload', cleanupHintRecovery, { once: true });
+}
+
 function setupHintRecovery() {
   if (hintRecoveryInitialized) {
     return;
   }
   hintRecoveryInitialized = true;
+  ensureHintRecoveryCleanupRegistered();
   console.log('🔄 标签恢复机制已启用 - 标签如果被移除会自动恢复');
 
   // Use MutationObserver to detect when hints/labels are removed and restore them
-  let recoveryTimer;
   const observerConfig = {
     childList: true,
     subtree: true,
@@ -945,8 +1072,8 @@ function setupHintRecovery() {
   
   hintRecoveryObserver = new MutationObserver(() => {
     // Debounce the recovery check to avoid too many updates
-    clearTimeout(recoveryTimer);
-    recoveryTimer = setTimeout(checkAndRestore, 500);
+    clearTimeout(hintRecoveryDebounceTimer);
+    hintRecoveryDebounceTimer = setTimeout(checkAndRestore, 500);
   });
   
   hintRecoveryObserver.observe(document.body, observerConfig);
@@ -1211,6 +1338,7 @@ async function fillAllFields() {
   await fillPendingStandardInputs('第 5 阶段：最终回填普通输入框');
 
   console.log('✨ 自动填表完成\n');
+  showPostFillNextGuidance();
 }
 
 const DATE_FIELD_KEYS = new Set([
@@ -1757,6 +1885,73 @@ function setPanelStatusText(text) {
   const statusNode = document.querySelector('#vh-stats small');
   if (statusNode) {
     statusNode.textContent = text;
+  }
+}
+
+function showPostFillNextGuidance() {
+  const nextBtn = findNextButton();
+  setPanelStatusText('填充完成，请手动点击 Next');
+
+  if (nextBtn) {
+    nextBtn.classList.add('vh-apply-highlight');
+
+    if (!nextBtn.dataset.vhPostFillGuidanceBound) {
+      nextBtn.dataset.vhPostFillGuidanceBound = 'true';
+      nextBtn.addEventListener('click', () => {
+        captchaGuidanceShown = false;
+        setPanelStatusText('已点击 Next，等待验证码步骤...');
+        showNotification('下一步通常是验证码页面，请按提示手动输入验证码', 'info');
+
+        // Support SPA-style transitions where content script is not reinjected.
+        setTimeout(() => {
+          detectPageType();
+          handleCurrentPage();
+        }, 1400);
+      });
+    }
+
+    if (nextBtn.offsetParent !== null) {
+      nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  document.querySelector('.vh-top-banner')?.remove();
+  showTopGuidance('✅ 填写完成：请手动点击 Next 进入下一步（验证码）');
+  showNotification('请先核对关键信息，再手动点击 Next', 'success');
+}
+
+function handleCaptchaPage() {
+  if (captchaGuidanceShown) {
+    return;
+  }
+
+  captchaGuidanceShown = true;
+  const captchaInput = findCaptchaInputField();
+  const captchaVisual = findCaptchaVisualElement();
+  const nextBtn = findNextButton();
+
+  setPanelStatusText('验证码步骤：请手动输入验证码并点击 Next/Submit');
+  document.querySelector('.vh-top-banner')?.remove();
+  showTopGuidance('🔐 已进入验证码步骤：先输入验证码，再手动点击 Next/Submit');
+
+  if (captchaVisual) {
+    showNotification('验证码看不清可点击图片刷新，输入后手动提交', 'info');
+  } else {
+    showNotification('请手动输入验证码，确认无误后点击 Next/Submit', 'info');
+  }
+
+  if (captchaInput && captchaInput.offsetParent !== null) {
+    captchaInput.style.outline = '2px solid #ff9800';
+    captchaInput.style.outlineOffset = '2px';
+    captchaInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    captchaInput.focus?.();
+  }
+
+  if (nextBtn && !nextBtn.dataset.vhCaptchaGuidanceBound) {
+    nextBtn.dataset.vhCaptchaGuidanceBound = 'true';
+    nextBtn.addEventListener('click', () => {
+      setPanelStatusText('验证码已提交，等待下一步...');
+    });
   }
 }
 
@@ -3821,7 +4016,7 @@ function injectFloatingPanel() {
   panel.tabIndex = 0;
   panel.innerHTML = `
     <div class="vh-panel-header">
-      <span id="vh-panel-title">🇻🇳 v1.2.1</span>
+      <span id="vh-panel-title">🇻🇳 v${EXTENSION_VERSION}</span>
       <button id="vh-minimize" type="button" aria-label="最小化助手面板" title="最小化助手面板">−</button>
     </div>
     <div class="vh-panel-body">
@@ -3846,8 +4041,8 @@ function injectFloatingPanel() {
     const minimized = panel.classList.contains('minimized');
     const title = document.getElementById('vh-panel-title');
     if (title) {
-      title.textContent = minimized ? 'VN\nV1' : '🇻🇳 v1.2.1';
-      title.title = minimized ? '点击展开越南签证助手' : 'Vietnam Visa Helper v1.2.1';
+      title.textContent = minimized ? 'VN\nV1' : `🇻🇳 v${EXTENSION_VERSION}`;
+      title.title = minimized ? '点击展开越南签证助手' : `Vietnam Visa Helper v${EXTENSION_VERSION}`;
     }
     if (minimizeButton) {
       minimizeButton.textContent = minimized ? '+' : '−';
@@ -3902,7 +4097,7 @@ function showUserData() {
 }
 
 function showHelp() {
-  showNotification('📖 首页:点Apply | 表单:点"一键填表" | Disclaimer:下滑+勾选', 'info');
+  showNotification('📖 首页:点Apply | 表单:一键填表后手动点Next | 验证码页:手动输入验证码后提交', 'info');
 }
 
 function showTopGuidance(msg) {
@@ -3923,4 +4118,4 @@ function showNotification(msg, type = 'info') {
   setTimeout(() => notif.remove(), 3000);
 }
 
-console.log('✅ v1.2.1 加载完成');
+console.log(`✅ v${EXTENSION_VERSION} 加载完成`);
