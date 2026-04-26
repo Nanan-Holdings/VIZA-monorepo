@@ -64,6 +64,65 @@ const IS_CLINICAL = "purpose_of_visit === clinical_training";
 
 const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 0: UKVI Account (collected so submission-service can resume)
+  //
+  // Today the applicant registers themselves on apply-uk-visa.service.gov.uk
+  // (the runner stops at the registration page) and pastes the
+  // forceResume URL + their chosen email/password back here. Future
+  // iterations will mint these on the applicant's behalf — the field
+  // contract stays the same so the seed/runner doesn't churn.
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    field_name: "uk_account_email",
+    label: "UKVI account email",
+    field_type: "text",
+    required: true,
+    step_number: 0,
+    step_name: "UKVI Account",
+    display_order: 1,
+    placeholder: "Same email you used to register on apply-uk-visa.service.gov.uk",
+    validation_rules: {
+      maxLength: 100,
+      pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+    },
+  },
+  {
+    field_name: "uk_account_password",
+    label: "UKVI account password",
+    field_type: "password",
+    required: true,
+    step_number: 0,
+    step_name: "UKVI Account",
+    display_order: 2,
+    placeholder: "The password you set during gov.uk registration",
+    validation_rules: {
+      maxLength: 200,
+      sensitive: true,
+      // The agent-backend POST /api/applications/:id/uk-account endpoint
+      // encrypts via AES-256-GCM (SUBMISSION_RESULT_SECRET_KEY) before
+      // persisting to uk_accounts. Submission-service decrypts at runtime.
+    },
+  },
+  {
+    field_name: "uk_resume_url",
+    label: "UKVI Resume URL",
+    field_type: "text",
+    required: true,
+    step_number: 0,
+    step_name: "UKVI Account",
+    display_order: 3,
+    placeholder: "https://visas-immigration.service.gov.uk/forceResume/<uuid>",
+    validation_rules: {
+      maxLength: 200,
+      pattern: "^https://visas-immigration\\.service\\.gov\\.uk/forceResume/[a-f0-9-]{36}$",
+      // TODO(uk-runner): future iterations will mint this on the applicant's
+      // behalf via the pre-auth scaffold (src/uk/orchestrator.ts) writing
+      // the forceResume URL into uk_accounts directly. Drop the user-input
+      // requirement when that lands.
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // STEP 1: About You — Personal Details
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "given_names", label: "Given names (as shown in your passport)", field_type: "text", required: true, step_number: 1, step_name: "About You — Personal Details", display_order: 1, placeholder: "e.g., John Michael", validation_rules: { maxLength: 50 } },

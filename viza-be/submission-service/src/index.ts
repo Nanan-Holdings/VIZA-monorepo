@@ -974,7 +974,38 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
     .eq("id", item.id);
 
   const { profile, application } = await loadApplicantData(item.application_id);
-  const account = await loadUkAccount(application.applicant_id);
+  let account = await loadUkAccount(application.applicant_id);
+
+  // Lazy-upsert from /application answers: the seed exposes step-0 fields
+  // uk_account_email / uk_account_password / uk_resume_url. The applicant
+  // fills them on the form; the worker materializes them into uk_accounts
+  // on first run so subsequent polls take the resume path automatically.
+  if (!account) {
+    const ukAnswers = await loadDs160Answers(item.application_id);
+    const email = ukAnswers["uk_account_email"];
+    const password = ukAnswers["uk_account_password"];
+    const resumeUrl = ukAnswers["uk_resume_url"];
+    if (email && password && resumeUrl) {
+      const passwordEncrypted = encryptSecret(password);
+      const { error: upsertErr } = await supabase
+        .from("uk_accounts")
+        .upsert(
+          {
+            applicant_id: application.applicant_id,
+            email,
+            password_encrypted: passwordEncrypted,
+            resume_url: resumeUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "applicant_id,email" },
+        );
+      if (upsertErr) {
+        console.warn(`[uk] uk_accounts upsert failed: ${upsertErr.message}`);
+      } else {
+        account = await loadUkAccount(application.applicant_id);
+      }
+    }
+  }
 
   // ── RESUME path ────────────────────────────────────────────────────
   if (account) {
