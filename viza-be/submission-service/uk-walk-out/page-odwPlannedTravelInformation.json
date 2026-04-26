@@ -1,0 +1,69 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.odwPlannedTravelInformation",
+  "title": "Application - Your planned travel information",
+  "heading": "Your planned travel information",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfArrival_day",
+      "name": "dateOfArrival.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfArrival_month",
+      "name": "dateOfArrival.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfArrival_year",
+      "name": "dateOfArrival.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfLeave_day",
+      "name": "dateOfLeave.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfLeave_month",
+      "name": "dateOfLeave.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfLeave_year",
+      "name": "dateOfLeave.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}
