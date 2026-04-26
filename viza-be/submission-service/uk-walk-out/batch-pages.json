@@ -1,0 +1,2575 @@
+{
+  "standardContactingYouByTelephone": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardContactingYouByTelephone",
+    "heading": "Contacting you by telephone",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "contactByTelephone_callAndText",
+        "name": "contactByTelephone",
+        "required": false,
+        "label": "I can be contacted by telephone call and text message (SMS)",
+        "options": [
+          "I can be contacted by telephone call and text message (SMS)",
+          "I can only be contacted by telephone call",
+          "I can only be contacted by text message (SMS)",
+          "I cannot be contacted by telephone call or text message (SMS)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "callOnlyDontContactReason",
+        "name": "callOnlyDontContactReason",
+        "required": false,
+        "label": "Explain why you cannot be contacted by text message (SMS)"
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "textOnlyDontContactReason",
+        "name": "textOnlyDontContactReason",
+        "required": false,
+        "label": "Explain why you cannot be contacted by telephone call"
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "noContactDontContactReason",
+        "name": "noContactDontContactReason",
+        "required": false,
+        "label": "Explain why you cannot be contacted by telephone call or text message (SMS)"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardGenderRelationshipOOC": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardGenderRelationshipOOC",
+    "heading": "Your sex and relationship status",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "gender_1",
+        "name": "gender",
+        "required": false,
+        "label": "Male",
+        "options": [
+          "Male",
+          "Female",
+          "Unspecified"
+        ]
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "relationshipStatus",
+        "name": "relationshipStatus",
+        "required": false,
+        "label": "What is your relationship status?",
+        "options": [
+          "Single",
+          "Married or a civil partner",
+          "Unmarried partner",
+          "Divorced or civil partnership dissolved",
+          "Separated",
+          "Widowed or a surviving civil partner"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardAboutYourHomeOoC": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardAboutYourHomeOoC",
+    "heading": "About this property",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "yearsLived",
+        "name": "yearsLived",
+        "required": false,
+        "label": "Years"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "monthsLived",
+        "name": "monthsLived",
+        "required": false,
+        "label": "Months"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "ownershipCategory_own",
+        "name": "ownershipCategory",
+        "required": false,
+        "label": "I own it",
+        "options": [
+          "I own it",
+          "I rent it",
+          "Other"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "otherCategoryDetails",
+        "name": "otherCategoryDetails",
+        "required": false,
+        "label": "Give more details about your living situation, such as who you live with and who owns the property"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardIdentityCard": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardIdentityCard",
+    "heading": "Your identity card (USA)",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "hasValidIdCard_true",
+        "name": "hasValidIdCard",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "nationalIdCardNo",
+        "name": "nationalIdCardNo",
+        "required": false,
+        "label": "National identity card number"
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "issuingAuthority",
+        "name": "issuingAuthority",
+        "required": false,
+        "label": "Issuing authority"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "issueDate_day",
+        "name": "issueDate.day",
+        "required": false,
+        "label": "Day"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "issueDate_month",
+        "name": "issueDate.month",
+        "required": false,
+        "label": "Month"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "issueDate_year",
+        "name": "issueDate.year",
+        "required": false,
+        "label": "Year"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expiryDate_day",
+        "name": "expiryDate.day",
+        "required": false,
+        "label": "Day"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expiryDate_month",
+        "name": "expiryDate.month",
+        "required": false,
+        "label": "Month"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expiryDate_year",
+        "name": "expiryDate.year",
+        "required": false,
+        "label": "Year"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardOtherNationality": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardOtherNationality",
+    "heading": "Your other nationalities",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "hasOtherNationality_true",
+        "name": "hasOtherNationality",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "immigrationStatus": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.immigrationStatus",
+    "heading": "Your immigration status",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "immigrationStatusTypeRef_temporaryVisa",
+        "name": "immigrationStatusTypeRef",
+        "required": false,
+        "label": "I have a temporary visa",
+        "options": [
+          "I have a temporary visa",
+          "I am a permanent resident",
+          "I do not have a visa and I am not a permanent resident"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expirationDate_day",
+        "name": "expirationDate.day",
+        "required": false,
+        "label": "Day"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expirationDate_month",
+        "name": "expirationDate.month",
+        "required": false,
+        "label": "Month"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "expirationDate_year",
+        "name": "expirationDate.year",
+        "required": false,
+        "label": "Year"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "permanentResidentDate_year",
+        "name": "permanentResidentDate.year",
+        "required": false,
+        "label": "Year"
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "additionalInformation",
+        "name": "additionalInformation",
+        "required": false,
+        "label": "Give as much information about your status in China as possible, including if:you are waiting for a decision on a visayou are not required to have a visa to be in Chinayou are not in China legally"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "employmentStatus": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.employmentStatus",
+    "heading": "Your employment status",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "status_employed",
+        "name": "status[0]",
+        "required": false,
+        "label": "Employed",
+        "options": [
+          "Employed"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "status_self-employed",
+        "name": "status[1]",
+        "required": false,
+        "label": "Self-employed",
+        "options": [
+          "Self-employed"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "status_student",
+        "name": "status[2]",
+        "required": false,
+        "label": "A student",
+        "options": [
+          "A student"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "status_retired",
+        "name": "status[3]",
+        "required": false,
+        "label": "Retired",
+        "options": [
+          "Retired"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "status_unemployed",
+        "name": "status[4]",
+        "required": false,
+        "label": "Unemployed",
+        "options": [
+          "Unemployed"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "fundingEmploymentJobDetails": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.fundingEmploymentJobDetails",
+    "heading": "Your job",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "jobTitle",
+        "name": "jobTitle",
+        "required": false,
+        "label": "Your job title"
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "earnings_currencyRef",
+        "name": "earnings.currencyRef",
+        "required": false,
+        "label": "Currency",
+        "options": [
+          "GBP",
+          "CNY"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "earnings_amount",
+        "name": "earnings.amount",
+        "required": false,
+        "label": "Amount"
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "jobDescription",
+        "name": "jobDescription",
+        "required": false,
+        "label": "Describe your job"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "fundingOtherIncome": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.fundingOtherIncome",
+    "heading": "Your income and savings",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "typeOfIncomeRefs_regularIncome",
+        "name": "typeOfIncomeRefs[0]",
+        "required": false,
+        "label": "Other regular additional income",
+        "options": [
+          "Other regular additional income"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "typeOfIncomeRefs_moneyInBank",
+        "name": "typeOfIncomeRefs[1]",
+        "required": false,
+        "label": "Savings",
+        "options": [
+          "Savings"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "hasNoOtherIncome",
+        "name": "hasNoOtherIncome",
+        "required": false,
+        "label": "I do not have any other income or savings",
+        "options": [
+          "I do not have any other income or savings"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "sourceRefs_allowance",
+        "name": "sourceRefs[0]",
+        "required": false,
+        "label": "Allowance or regular money from your family",
+        "options": [
+          "Allowance or regular money from your family"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "sourceRefs_pension",
+        "name": "sourceRefs[1]",
+        "required": false,
+        "label": "Pension",
+        "options": [
+          "Pension"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "sourceRefs_investments",
+        "name": "sourceRefs[2]",
+        "required": false,
+        "label": "Investments",
+        "options": [
+          "Investments"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "sourceRefs_other",
+        "name": "sourceRefs[3]",
+        "required": false,
+        "label": "Another income",
+        "options": [
+          "Another income"
+        ]
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "income_currencyRef",
+        "name": "income.currencyRef",
+        "required": false,
+        "label": "Currency",
+        "options": [
+          "GBP",
+          "CNY"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "income_amount",
+        "name": "income.amount",
+        "required": false,
+        "label": "Amount"
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "moneyInBankAmount_currencyRef",
+        "name": "moneyInBankAmount.currencyRef",
+        "required": false,
+        "label": "Currency",
+        "options": [
+          "GBP"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "moneyInBankAmount_amount",
+        "name": "moneyInBankAmount.amount",
+        "required": false,
+        "label": "Amount"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "plannedSpendOnVisitToUK": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.plannedSpendOnVisitToUK",
+    "heading": "About the cost of your visit",
+    "fields": [
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "value_currencyRef",
+        "name": "value.currencyRef",
+        "required": false,
+        "label": "Currency",
+        "options": [
+          "GBP",
+          "CNY"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "value_amount",
+        "name": "value.amount",
+        "required": false,
+        "label": "Amount"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "monthlyOutgoings": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.monthlyOutgoings",
+    "heading": "About your financial situation",
+    "fields": [
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "value_currencyRef",
+        "name": "value.currencyRef",
+        "required": false,
+        "label": "Currency",
+        "options": [
+          "GBP",
+          "CNY"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "value_amount",
+        "name": "value.amount",
+        "required": false,
+        "label": "Amount"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "payingForYourVisit": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.payingForYourVisit",
+    "heading": "Paying for your visit",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "spokenLanguagePreference": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.spokenLanguagePreference",
+    "heading": "Spoken language preference",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "preferredLanguage_english",
+        "name": "preferredLanguage",
+        "required": false,
+        "label": "English",
+        "options": [
+          "English",
+          "Other"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "details",
+        "name": "details",
+        "required": false,
+        "label": "Which language would you prefer to use?"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "purposeOfTourismVisitForVV": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.purposeOfTourismVisitForVV",
+    "heading": "Main reason for your holiday visit",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "purposeRef_tourist",
+        "name": "purposeRef",
+        "required": false,
+        "label": "Tourist",
+        "options": [
+          "Tourist",
+          "Visiting family",
+          "Visiting friends"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "aboutYourVisit": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.aboutYourVisit",
+    "heading": "Your activities",
+    "fields": [
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "details",
+        "name": "details",
+        "required": false,
+        "label": "Give details of the main purpose of your visit and anything else you plan to do on your trip. See tourist and short stays for more information."
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "hasDependants": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.hasDependants",
+    "heading": "People financially dependent on you",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "parentOneDetails": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.parentOneDetails",
+    "heading": "Give details about your first parent",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "parentIsUnknown",
+        "name": "parentIsUnknown",
+        "required": false,
+        "label": "I do not have my parents' details",
+        "options": [
+          "I do not have my parents' details"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "parent_relationshipRef_mother",
+        "name": "parent.relationshipRef",
+        "required": false,
+        "label": "Mother",
+        "options": [
+          "Mother",
+          "Father"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "parent_givenName",
+        "name": "parent.givenName",
+        "required": false,
+        "label": "Given names"
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "parent_familyName",
+        "name": "parent.familyName",
+        "required": false,
+        "label": "Family name"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "parent_dateOfBirth_day",
+        "name": "parent.dateOfBirth.day",
+        "required": false,
+        "label": "Day"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "parent_dateOfBirth_month",
+        "name": "parent.dateOfBirth.month",
+        "required": false,
+        "label": "Month"
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "parent_dateOfBirth_year",
+        "name": "parent.dateOfBirth.year",
+        "required": false,
+        "label": "Year"
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "parent_nationalityRef",
+        "name": "parent.nationalityRef",
+        "required": false,
+        "label": "Country of nationality",
+        "options": [
+          "Afghanistan",
+          "Albania",
+          "Algeria",
+          "Andorra",
+          "Angola",
+          "Anguilla",
+          "Antigua and Barbuda",
+          "Argentina",
+          "Armenia",
+          "Australia",
+          "Austria",
+          "Azerbaijan",
+          "Bahamas",
+          "Bahrain",
+          "Bangladesh",
+          "Barbados",
+          "Belarus",
+          "Belgium",
+          "Belize",
+          "Benin",
+          "Bermuda",
+          "Bhutan",
+          "Bolivia",
+          "Bosnia and Herzegovina",
+          "Botswana",
+          "Brazil",
+          "British Citizen",
+          "British National (Overseas)",
+          "British Overseas Citizen",
+          "British Overseas Territories Citizenship (BOTC)",
+          "British Protected Person",
+          "British Subject",
+          "Brunei Darussalam",
+          "Bulgaria",
+          "Burkina Faso",
+          "Burundi",
+          "Cambodia",
+          "Cameroon",
+          "Canada",
+          "Cape Verde",
+          "Cayman Islands",
+          "Central African Republic",
+          "Chad",
+          "Chile",
+          "China",
+          "Colombia",
+          "Comoros",
+          "Congo",
+          "Congo, Democratic Republic of the",
+          "Costa Rica",
+          "Cote D'Ivoire (Ivory Coast)",
+          "Croatia",
+          "Cuba",
+          "Cyprus",
+          "Czech Republic",
+          "Denmark",
+          "Djibouti",
+          "Dominica",
+          "Dominican Republic",
+          "Ecuador",
+          "Egypt",
+          "El Salvador",
+          "Equatorial Guinea",
+          "Eritrea",
+          "Estonia",
+          "Ethiopia",
+          "Fiji",
+          "Finland",
+          "France",
+          "French Southern Territories",
+          "Gabon",
+          "Gambia",
+          "Georgia",
+          "Germany",
+          "Ghana",
+          "Gibraltar",
+          "Greece",
+          "Greenland",
+          "Grenada",
+          "Guatemala",
+          "Guinea",
+          "Guinea-Bissau",
+          "Guyana",
+          "Haiti",
+          "Holy See (Vatican City State)",
+          "Honduras",
+          "Hong Kong Special Administrative Region of China",
+          "Hungary",
+          "Iceland",
+          "India",
+          "Indonesia",
+          "Iran, Islamic Republic of",
+          "Iraq",
+          "Ireland",
+          "Israel",
+          "Italy",
+          "Jamaica",
+          "Japan",
+          "Jordan",
+          "Kazakhstan",
+          "Kenya",
+          "Kiribati",
+          "Korea, North (Democratic People's Republic of Korea)",
+          "Korea, South (Republic of Korea)",
+          "Kosovo",
+          "Kuwait",
+          "Kyrgyzstan",
+          "Lao People's Democratic Republic",
+          "Latvia",
+          "Lebanon",
+          "Lesotho",
+          "Liberia",
+          "Libya",
+          "Liechtenstein",
+          "Lithuania",
+          "Luxembourg",
+          "Macau",
+          "North Macedonia",
+          "Madagascar",
+          "Malawi",
+          "Malaysia",
+          "Maldives",
+          "Mali",
+          "Malta",
+          "Marshall Islands",
+          "Mauritania",
+          "Mauritius",
+          "Mexico",
+          "Micronesia (Federated States of)",
+          "Moldova, Republic of",
+          "Monaco",
+          "Mongolia",
+          "Montenegro",
+          "Montserrat",
+          "Morocco",
+          "Mozambique",
+          "Myanmar",
+          "Namibia",
+          "Nauru",
+          "Nepal",
+          "Netherlands",
+          "New Zealand",
+          "Nicaragua",
+          "Niger",
+          "Nigeria",
+          "Niue",
+          "Norway",
+          "Officially Stateless",
+          "Oman",
+          "Pakistan",
+          "Palau",
+          "Palestine",
+          "Panama",
+          "Papua New Guinea",
+          "Paraguay",
+          "Peru",
+          "Philippines",
+          "Pitcairn",
+          "Poland",
+          "Portugal",
+          "Qatar",
+          "Refugee - Article 1 of the 1951 Convention",
+          "Refugee - Other",
+          "Romania",
+          "Russian Federation",
+          "Rwanda",
+          "Saint Kitts and Nevis",
+          "Saint Lucia",
+          "Saint Vincent and the Grenadines",
+          "Samoa",
+          "San Marino",
+          "Sao Tome and Principe",
+          "Saudi Arabia",
+          "Senegal",
+          "Serbia",
+          "Seychelles",
+          "Sierra Leone",
+          "Singapore",
+          "Slovakia",
+          "Slovenia",
+          "Solomon Islands",
+          "Somalia",
+          "South Africa",
+          "South Sudan",
+          "Spain",
+          "Sri Lanka",
+          "Sudan",
+          "Suriname",
+          "Swaziland",
+          "Sweden",
+          "Switzerland",
+          "Syria Arab Republic",
+          "Taiwan",
+          "Tajikistan",
+          "Tanzania, United Republic of",
+          "Thailand",
+          "Timor-Leste",
+          "Togo",
+          "Tonga",
+          "Trinidad and Tobago",
+          "Tunisia",
+          "Turkey",
+          "Turkmenistan",
+          "Turks and Caicos Islands",
+          "Tuvalu",
+          "Uganda",
+          "Ukraine",
+          "United Arab Emirates",
+          "United Nations",
+          "United Nations Agency",
+          "United States of America",
+          "Uruguay",
+          "Uzbekistan",
+          "Vanuatu",
+          "Venezuela",
+          "Vietnam",
+          "Western Sahara",
+          "Yemen",
+          "Zambia",
+          "Zimbabwe",
+          "British Virgin Islands",
+          "Falkland Islands",
+          "Saint Helena, Ascension Island and Tristan da Cunha"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "parent_hadAlwaysSameNationality_true",
+        "name": "parent.hadAlwaysSameNationality",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "parent_nationalityAtApplicantsBirthRef",
+        "name": "parent.nationalityAtApplicantsBirthRef",
+        "required": false,
+        "label": "Their country of nationality when you were born",
+        "options": [
+          "Afghanistan",
+          "Albania",
+          "Algeria",
+          "Andorra",
+          "Angola",
+          "Anguilla",
+          "Antigua and Barbuda",
+          "Argentina",
+          "Armenia",
+          "Australia",
+          "Austria",
+          "Azerbaijan",
+          "Bahamas",
+          "Bahrain",
+          "Bangladesh",
+          "Barbados",
+          "Belarus",
+          "Belgium",
+          "Belize",
+          "Benin",
+          "Bermuda",
+          "Bhutan",
+          "Bolivia",
+          "Bosnia and Herzegovina",
+          "Botswana",
+          "Brazil",
+          "British Citizen",
+          "British National (Overseas)",
+          "British Overseas Citizen",
+          "British Overseas Territories Citizenship (BOTC)",
+          "British Protected Person",
+          "British Subject",
+          "Brunei Darussalam",
+          "Bulgaria",
+          "Burkina Faso",
+          "Burundi",
+          "Cambodia",
+          "Cameroon",
+          "Canada",
+          "Cape Verde",
+          "Cayman Islands",
+          "Central African Republic",
+          "Chad",
+          "Chile",
+          "China",
+          "Colombia",
+          "Comoros",
+          "Congo",
+          "Congo, Democratic Republic of the",
+          "Costa Rica",
+          "Cote D'Ivoire (Ivory Coast)",
+          "Croatia",
+          "Cuba",
+          "Cyprus",
+          "Czech Republic",
+          "Denmark",
+          "Djibouti",
+          "Dominica",
+          "Dominican Republic",
+          "Ecuador",
+          "Egypt",
+          "El Salvador",
+          "Equatorial Guinea",
+          "Eritrea",
+          "Estonia",
+          "Ethiopia",
+          "Fiji",
+          "Finland",
+          "France",
+          "French Southern Territories",
+          "Gabon",
+          "Gambia",
+          "Georgia",
+          "Germany",
+          "Ghana",
+          "Gibraltar",
+          "Greece",
+          "Greenland",
+          "Grenada",
+          "Guatemala",
+          "Guinea",
+          "Guinea-Bissau",
+          "Guyana",
+          "Haiti",
+          "Holy See (Vatican City State)",
+          "Honduras",
+          "Hong Kong Special Administrative Region of China",
+          "Hungary",
+          "Iceland",
+          "India",
+          "Indonesia",
+          "Iran, Islamic Republic of",
+          "Iraq",
+          "Ireland",
+          "Israel",
+          "Italy",
+          "Jamaica",
+          "Japan",
+          "Jordan",
+          "Kazakhstan",
+          "Kenya",
+          "Kiribati",
+          "Korea, North (Democratic People's Republic of Korea)",
+          "Korea, South (Republic of Korea)",
+          "Kosovo",
+          "Kuwait",
+          "Kyrgyzstan",
+          "Lao People's Democratic Republic",
+          "Latvia",
+          "Lebanon",
+          "Lesotho",
+          "Liberia",
+          "Libya",
+          "Liechtenstein",
+          "Lithuania",
+          "Luxembourg",
+          "Macau",
+          "North Macedonia",
+          "Madagascar",
+          "Malawi",
+          "Malaysia",
+          "Maldives",
+          "Mali",
+          "Malta",
+          "Marshall Islands",
+          "Mauritania",
+          "Mauritius",
+          "Mexico",
+          "Micronesia (Federated States of)",
+          "Moldova, Republic of",
+          "Monaco",
+          "Mongolia",
+          "Montenegro",
+          "Montserrat",
+          "Morocco",
+          "Mozambique",
+          "Myanmar",
+          "Namibia",
+          "Nauru",
+          "Nepal",
+          "Netherlands",
+          "New Zealand",
+          "Nicaragua",
+          "Niger",
+          "Nigeria",
+          "Niue",
+          "Norway",
+          "Officially Stateless",
+          "Oman",
+          "Pakistan",
+          "Palau",
+          "Palestine",
+          "Panama",
+          "Papua New Guinea",
+          "Paraguay",
+          "Peru",
+          "Philippines",
+          "Pitcairn",
+          "Poland",
+          "Portugal",
+          "Qatar",
+          "Refugee - Article 1 of the 1951 Convention",
+          "Refugee - Other",
+          "Romania",
+          "Russian Federation",
+          "Rwanda",
+          "Saint Kitts and Nevis",
+          "Saint Lucia",
+          "Saint Vincent and the Grenadines",
+          "Samoa",
+          "San Marino",
+          "Sao Tome and Principe",
+          "Saudi Arabia",
+          "Senegal",
+          "Serbia",
+          "Seychelles",
+          "Sierra Leone",
+          "Singapore",
+          "Slovakia",
+          "Slovenia",
+          "Solomon Islands",
+          "Somalia",
+          "South Africa",
+          "South Sudan",
+          "Spain",
+          "Sri Lanka",
+          "Sudan",
+          "Suriname",
+          "Swaziland",
+          "Sweden",
+          "Switzerland",
+          "Syria Arab Republic",
+          "Taiwan",
+          "Tajikistan",
+          "Tanzania, United Republic of",
+          "Thailand",
+          "Timor-Leste",
+          "Togo",
+          "Tonga",
+          "Trinidad and Tobago",
+          "Tunisia",
+          "Turkey",
+          "Turkmenistan",
+          "Turks and Caicos Islands",
+          "Tuvalu",
+          "Uganda",
+          "Ukraine",
+          "United Arab Emirates",
+          "United Nations",
+          "United Nations Agency",
+          "United States of America",
+          "Uruguay",
+          "Uzbekistan",
+          "Vanuatu",
+          "Venezuela",
+          "Vietnam",
+          "Western Sahara",
+          "Yemen",
+          "Zambia",
+          "Zimbabwe",
+          "British Virgin Islands",
+          "Falkland Islands",
+          "Saint Helena, Ascension Island and Tristan da Cunha"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "familyInUk": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.familyInUk",
+    "heading": "Family who live in the UK",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "travellingWithOtherPeople": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.travellingWithOtherPeople",
+    "heading": "Travelling as part of an organised group",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "isTravellingWithOtherPeople_true",
+        "name": "isTravellingWithOtherPeople",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "companyOrOtherGroup",
+        "name": "companyOrOtherGroup",
+        "required": false,
+        "label": "Company or group name"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "travellingWithOtherPeopleDetails": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.travellingWithOtherPeopleDetails",
+    "heading": "Travelling with another person",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "isTravellingWithSomeOneNotPartnerOrSpouse_true",
+        "name": "isTravellingWithSomeOneNotPartnerOrSpouse",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "givenName",
+        "name": "givenName",
+        "required": false,
+        "label": "Given names"
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "id": "familyName",
+        "name": "familyName",
+        "required": false,
+        "label": "Family name"
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "nationalityRef",
+        "name": "nationalityRef",
+        "required": false,
+        "label": "Country of nationality",
+        "options": [
+          "Afghanistan",
+          "Albania",
+          "Algeria",
+          "Andorra",
+          "Angola",
+          "Anguilla",
+          "Antigua and Barbuda",
+          "Argentina",
+          "Armenia",
+          "Australia",
+          "Austria",
+          "Azerbaijan",
+          "Bahamas",
+          "Bahrain",
+          "Bangladesh",
+          "Barbados",
+          "Belarus",
+          "Belgium",
+          "Belize",
+          "Benin",
+          "Bermuda",
+          "Bhutan",
+          "Bolivia",
+          "Bosnia and Herzegovina",
+          "Botswana",
+          "Brazil",
+          "British Citizen",
+          "British National (Overseas)",
+          "British Overseas Citizen",
+          "British Overseas Territories Citizenship (BOTC)",
+          "British Protected Person",
+          "British Subject",
+          "Brunei Darussalam",
+          "Bulgaria",
+          "Burkina Faso",
+          "Burundi",
+          "Cambodia",
+          "Cameroon",
+          "Canada",
+          "Cape Verde",
+          "Cayman Islands",
+          "Central African Republic",
+          "Chad",
+          "Chile",
+          "China",
+          "Colombia",
+          "Comoros",
+          "Congo",
+          "Congo, Democratic Republic of the",
+          "Costa Rica",
+          "Cote D'Ivoire (Ivory Coast)",
+          "Croatia",
+          "Cuba",
+          "Cyprus",
+          "Czech Republic",
+          "Denmark",
+          "Djibouti",
+          "Dominica",
+          "Dominican Republic",
+          "Ecuador",
+          "Egypt",
+          "El Salvador",
+          "Equatorial Guinea",
+          "Eritrea",
+          "Estonia",
+          "Ethiopia",
+          "Fiji",
+          "Finland",
+          "France",
+          "French Southern Territories",
+          "Gabon",
+          "Gambia",
+          "Georgia",
+          "Germany",
+          "Ghana",
+          "Gibraltar",
+          "Greece",
+          "Greenland",
+          "Grenada",
+          "Guatemala",
+          "Guinea",
+          "Guinea-Bissau",
+          "Guyana",
+          "Haiti",
+          "Holy See (Vatican City State)",
+          "Honduras",
+          "Hong Kong Special Administrative Region of China",
+          "Hungary",
+          "Iceland",
+          "India",
+          "Indonesia",
+          "Iran, Islamic Republic of",
+          "Iraq",
+          "Ireland",
+          "Israel",
+          "Italy",
+          "Jamaica",
+          "Japan",
+          "Jordan",
+          "Kazakhstan",
+          "Kenya",
+          "Kiribati",
+          "Korea, North (Democratic People's Republic of Korea)",
+          "Korea, South (Republic of Korea)",
+          "Kosovo",
+          "Kuwait",
+          "Kyrgyzstan",
+          "Lao People's Democratic Republic",
+          "Latvia",
+          "Lebanon",
+          "Lesotho",
+          "Liberia",
+          "Libya",
+          "Liechtenstein",
+          "Lithuania",
+          "Luxembourg",
+          "Macau",
+          "North Macedonia",
+          "Madagascar",
+          "Malawi",
+          "Malaysia",
+          "Maldives",
+          "Mali",
+          "Malta",
+          "Marshall Islands",
+          "Mauritania",
+          "Mauritius",
+          "Mexico",
+          "Micronesia (Federated States of)",
+          "Moldova, Republic of",
+          "Monaco",
+          "Mongolia",
+          "Montenegro",
+          "Montserrat",
+          "Morocco",
+          "Mozambique",
+          "Myanmar",
+          "Namibia",
+          "Nauru",
+          "Nepal",
+          "Netherlands",
+          "New Zealand",
+          "Nicaragua",
+          "Niger",
+          "Nigeria",
+          "Niue",
+          "Norway",
+          "Officially Stateless",
+          "Oman",
+          "Pakistan",
+          "Palau",
+          "Palestine",
+          "Panama",
+          "Papua New Guinea",
+          "Paraguay",
+          "Peru",
+          "Philippines",
+          "Pitcairn",
+          "Poland",
+          "Portugal",
+          "Qatar",
+          "Refugee - Article 1 of the 1951 Convention",
+          "Refugee - Other",
+          "Romania",
+          "Russian Federation",
+          "Rwanda",
+          "Saint Kitts and Nevis",
+          "Saint Lucia",
+          "Saint Vincent and the Grenadines",
+          "Samoa",
+          "San Marino",
+          "Sao Tome and Principe",
+          "Saudi Arabia",
+          "Senegal",
+          "Serbia",
+          "Seychelles",
+          "Sierra Leone",
+          "Singapore",
+          "Slovakia",
+          "Slovenia",
+          "Solomon Islands",
+          "Somalia",
+          "South Africa",
+          "South Sudan",
+          "Spain",
+          "Sri Lanka",
+          "Sudan",
+          "Suriname",
+          "Swaziland",
+          "Sweden",
+          "Switzerland",
+          "Syria Arab Republic",
+          "Taiwan",
+          "Tajikistan",
+          "Tanzania, United Republic of",
+          "Thailand",
+          "Timor-Leste",
+          "Togo",
+          "Tonga",
+          "Trinidad and Tobago",
+          "Tunisia",
+          "Turkey",
+          "Turkmenistan",
+          "Turks and Caicos Islands",
+          "Tuvalu",
+          "Uganda",
+          "Ukraine",
+          "United Arab Emirates",
+          "United Nations",
+          "United Nations Agency",
+          "United States of America",
+          "Uruguay",
+          "Uzbekistan",
+          "Vanuatu",
+          "Venezuela",
+          "Vietnam",
+          "Western Sahara",
+          "Yemen",
+          "Zambia",
+          "Zimbabwe",
+          "British Virgin Islands",
+          "Falkland Islands",
+          "Saint Helena, Ascension Island and Tristan da Cunha"
+        ]
+      },
+      {
+        "tag": "select",
+        "type": "select-one",
+        "id": "travellingWithOtherPeopleRelationshipStatusRef",
+        "name": "travellingWithOtherPeopleRelationshipStatusRef",
+        "required": false,
+        "label": "Relationship to you",
+        "options": [
+          "Parent",
+          "Fiance or Fiancee",
+          "Son or Daughter",
+          "Friend",
+          "Work colleague",
+          "Employer",
+          "Other"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "otherRelationshipDescription",
+        "name": "otherRelationshipDescription",
+        "required": false,
+        "label": "Enter their relationship to you"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "accommodationArrangements": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.accommodationArrangements",
+    "heading": "Accommodation in the UK",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardTimesTravelledToUK": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardTimesTravelledToUK",
+    "heading": "UK travel history",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "haveBeenToTheUK_true",
+        "name": "haveBeenToTheUK",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "number",
+        "id": "numberOfTimes",
+        "name": "numberOfTimes",
+        "required": false,
+        "label": "How many times have you been to the UK in the past 10 years?"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "timesTravelledToOtherCountries": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.timesTravelledToOtherCountries",
+    "heading": "Travel to Australia, Canada, New Zealand, USA, Switzerland or the European Economic Area",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "bandRef_0",
+        "name": "bandRef",
+        "required": false,
+        "label": "Zero",
+        "options": [
+          "Zero",
+          "Once",
+          "2 to 5 times",
+          "6 or more times"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardWorldTravelHistory": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardWorldTravelHistory",
+    "heading": "World travel history",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardImmigrationProblems": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardImmigrationProblems",
+    "heading": "Immigration history",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardImmigrationBreach": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardImmigrationBreach",
+    "heading": "Breach of UK immigration law",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "value_true",
+        "name": "value",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardCriminalConvictions.0.standardCriminalConvictionType": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardCriminalConvictions.0.standardCriminalConvictionType",
+    "heading": "Convictions and other penalties",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "convictionTypeRef_generalConviction",
+        "name": "convictionTypeRef",
+        "required": false,
+        "label": "A criminal conviction",
+        "options": [
+          "A criminal conviction",
+          "A penalty for a driving offence, for example disqualification for speeding or no motor insurance",
+          "An arrest or charge for which you are currently on, or awaiting trial",
+          "A caution, warning, reprimand or other out-of-court penalty",
+          "A civil court judgment against you, for example for non payment of debt, bankruptcy proceedings or anti-social behaviour",
+          "A civil penalty issued under UK immigration law",
+          "No, I have never had any of these"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardWarCrimes": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardWarCrimes",
+    "heading": "War crimes",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "warCrimesInvolvement_true",
+        "name": "warCrimesInvolvement",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "warCrimesDetails",
+        "name": "warCrimesDetails",
+        "required": false,
+        "label": "More information about your involvement"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "readAllInfo_iConfirm",
+        "name": "readAllInfo[0]",
+        "required": false,
+        "label": "I have read all of the information about war crimes, including the guidance",
+        "options": [
+          "I have read all of the information about war crimes, including the guidance"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardTerroristActivities": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardTerroristActivities",
+    "heading": "Terrorist activities, organisations and views",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "terroristActivitiesInvolvement_true",
+        "name": "terroristActivitiesInvolvement",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "terroristActivitiesDetails",
+        "name": "terroristActivitiesDetails",
+        "required": false,
+        "label": "Give more information about your terrorist activities"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "terroristOrganisationsInvolvement_true",
+        "name": "terroristOrganisationsInvolvement",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "terroristOrganisationsDetails",
+        "name": "terroristOrganisationsDetails",
+        "required": false,
+        "label": "Give more information about the terrorist organisation(s)"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "terroristViewsExpressed_true",
+        "name": "terroristViewsExpressed",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "terroristViewsDetails",
+        "name": "terroristViewsDetails",
+        "required": false,
+        "label": "Give more information about your terrorist views"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "readAllInfo_iConfirm",
+        "name": "readAllInfo[0]",
+        "required": false,
+        "label": "I have read all of the information about terrorist activities, organisations and views, including the guidance",
+        "options": [
+          "I have read all of the information about terrorist activities, organisations and views, including the guidance"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardExtremistActivities": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardExtremistActivities",
+    "heading": "Extremist organisations and views",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "extremistOrganisationsInvolvement_true",
+        "name": "extremistOrganisationsInvolvement",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "extremistOrganisationsDetails",
+        "name": "extremistOrganisationsDetails",
+        "required": false,
+        "label": "Give more information about the extremist organisation(s)"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "extremistViewsExpressed_true",
+        "name": "extremistViewsExpressed",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "extremistViewsDetails",
+        "name": "extremistViewsDetails",
+        "required": false,
+        "label": "Give more information about your extremist views"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "readAllInfo_iConfirm",
+        "name": "readAllInfo[0]",
+        "required": false,
+        "label": "I have read all of the information about extremist organisations and views, including the guidance",
+        "options": [
+          "I have read all of the information about extremist organisations and views, including the guidance"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardPersonOfGoodCharacter": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardPersonOfGoodCharacter",
+    "heading": "Person of good character",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "personOfGoodCharacter_true",
+        "name": "personOfGoodCharacter",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "pgcDetails",
+        "name": "pgcDetails",
+        "required": false,
+        "label": "Give further details"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "otherActivities_true",
+        "name": "otherActivities",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "otherActivitiesDetails",
+        "name": "otherActivitiesDetails",
+        "required": false,
+        "label": "Give further details"
+      },
+      {
+        "tag": "input",
+        "type": "radio",
+        "id": "anyOtherInfo_true",
+        "name": "anyOtherInfo",
+        "required": false,
+        "label": "Yes",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "anyOtherInfoDetails",
+        "name": "anyOtherInfoDetails",
+        "required": false,
+        "label": "Give further details"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "standardEmploymentHistory": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardEmploymentHistory",
+    "heading": "Your employment history",
+    "fields": [
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "armedForcesCareer_armedForcesCareer",
+        "name": "armedForcesCareer[0]",
+        "required": false,
+        "label": "Armed Forces (career)",
+        "options": [
+          "Armed Forces (career)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "armedForcesCareerDetails",
+        "name": "armedForcesCareerDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "armedForcesCompulsory_armedForcesCompulsory",
+        "name": "armedForcesCompulsory[0]",
+        "required": false,
+        "label": "Armed Forces (compulsory national or military service)",
+        "options": [
+          "Armed Forces (compulsory national or military service)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "armedForcesCompulsoryDetails",
+        "name": "armedForcesCompulsoryDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "government_government",
+        "name": "government[0]",
+        "required": false,
+        "label": "Government (including Public or Civil Administration and non-military compulsory national service)",
+        "options": [
+          "Government (including Public or Civil Administration and non-military compulsory national service)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "governmentDetails",
+        "name": "governmentDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "intelligence_intelligence",
+        "name": "intelligence[0]",
+        "required": false,
+        "label": "Intelligence services",
+        "options": [
+          "Intelligence services"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "intelligenceDetails",
+        "name": "intelligenceDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "security_security",
+        "name": "security[0]",
+        "required": false,
+        "label": "Security organisations (including police and private security services)",
+        "options": [
+          "Security organisations (including police and private security services)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "securityDetails",
+        "name": "securityDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "media_media",
+        "name": "media[0]",
+        "required": false,
+        "label": "Media organisations",
+        "options": [
+          "Media organisations"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "mediaDetails",
+        "name": "mediaDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "judiciary_judiciary",
+        "name": "judiciary[0]",
+        "required": false,
+        "label": "Judiciary (including work as a judge or magistrate)",
+        "options": [
+          "Judiciary (including work as a judge or magistrate)"
+        ]
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "judiciaryDetails",
+        "name": "judiciaryDetails",
+        "required": false,
+        "label": "Provide further information"
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "id": "none_none",
+        "name": "none[0]",
+        "required": false,
+        "label": "I have not worked in any of the jobs listed above",
+        "options": [
+          "I have not worked in any of the jobs listed above"
+        ]
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  },
+  "otherInformation": {
+    "url": "https://visas-immigration.service.gov.uk/edit/application.0.otherInformation",
+    "heading": "Additional information about your application",
+    "fields": [
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "id": "otherInformation",
+        "name": "otherInformation",
+        "required": false,
+        "label": "If you needed to add more information about your application but were not able to, you can write it here.If there is no further information you want to add, click the 'Save and continue' button.Add further details:"
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "id": "submit",
+        "name": "submit",
+        "required": false
+      }
+    ],
+    "submits": [
+      {
+        "name": "submit",
+        "value": "Save and continue",
+        "text": ""
+      }
+    ],
+    "status": 200
+  }
+}

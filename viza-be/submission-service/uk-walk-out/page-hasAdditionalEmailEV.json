@@ -1,0 +1,33 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.hasAdditionalEmailEV",
+  "title": "Application - Additional email",
+  "heading": "Additional email",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "radio",
+      "id": "value_true",
+      "name": "value",
+      "required": false,
+      "label": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}
