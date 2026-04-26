@@ -46,6 +46,22 @@ export interface SubmissionQueueItem {
 }
 
 /**
+ * UK Standard Visitor account credentials row from the `uk_accounts` table.
+ * Mirrors FvAccount; password_encrypted decrypted at runtime via secret-cipher.
+ */
+export interface UkAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  resume_url: string;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * France-Visas account credentials row from the `fv_accounts` table.
  * `password_encrypted` is stored encrypted at rest; callers must decrypt
  * before passing to `signInWithPassword()`.

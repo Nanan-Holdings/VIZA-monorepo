@@ -79,3 +79,10 @@ export {
   type UkScreenshotArtifact,
   type CaptureScreenshotOptions,
 } from "./diagnostics";
+
+export {
+  resumeUkApplication,
+  type UkResumeInput,
+  type UkResumeOptions,
+  type UkResumeResult,
+} from "./resume";
