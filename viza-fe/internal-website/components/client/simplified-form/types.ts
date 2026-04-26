@@ -839,44 +839,39 @@ export const emptySimplifiedForm = (): SimplifiedFormData => ({
  * schema in `viza-be/agent-backend/scripts/seed-ds160-form-fields.ts`.
  */
 export const DEFAULT_NO_FIELDS: readonly string[] = [
-  // Health & Criminal
+  // Security and Background: Part 1 — Health
   "has_communicable_disease",
   "has_physical_mental_disorder",
-  "has_drug_abuse",
-  "has_been_arrested",
-  "has_violated_substance_law",
-  "has_prostitution_involvement",
+  "is_drug_abuser",
+  // Security and Background: Part 2 — Criminal
+  "has_arrest_conviction",
+  "has_violated_controlled_substance",
+  "has_prostitution",
   "has_money_laundering",
   "has_human_trafficking",
-  "has_supported_trafficking",
-  "is_trafficking_relative",
-  "has_been_detained",
-  // Terrorism & Security
-  "intends_espionage",
-  "intends_terrorism",
-  "will_support_terrorists",
-  "is_terrorist_organization_member",
-  "is_terrorist_relative",
-  // Human Rights
-  "has_committed_genocide",
-  "has_committed_torture",
-  "has_committed_extrajudicial_killings",
-  "has_used_child_soldiers",
-  "violated_religious_freedom",
-  "involved_population_control",
-  "involved_organ_trafficking",
-  // Immigration / Removal
-  "obtained_visa_by_fraud",
-  "has_been_removed",
-  "subject_to_removal_order",
-  "failed_removal_hearing",
-  "has_overstayed",
-  // Citizenship / Custody
-  "withheld_child_custody",
-  "voted_illegally",
-  "renounced_citizenship",
-  "practicing_polygamy",
-  // Employment / training toggles the long form uses as gates
+  "has_aided_human_trafficking",
+  "has_trafficking_beneficiary",
+  // Security and Background: Part 3 — Terrorism & Human Rights
+  "intend_espionage",
+  "intend_terrorist_activity",
+  "has_provided_terrorist_support",
+  "is_terrorist_member",
+  "is_terrorist_family",
+  "has_genocide",
+  "has_torture",
+  "has_extrajudicial_killings",
+  "has_child_soldier",
+  "has_religious_freedom_violation",
+  "has_population_control",
+  "has_coercive_transplant",
+  // Security and Background: Part 4 — Immigration / Removal
+  "has_immigration_fraud",
+  "has_removal_order",
+  // Security and Background: Part 5 — Citizenship / Custody
+  "has_withheld_child_custody",
+  "has_voted_illegally",
+  "has_renounced_citizenship",
+  // Work / Education / Training gates the long form uses to branch
   "has_specialized_skills",
   "has_served_military",
   "has_served_paramilitary",
@@ -996,6 +991,9 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   p.city_of_birth = identity.cityOfBirth;
   p.state_of_birth = "does_not_apply";
   if (identity.maritalStatus) p.marital_status = MARITAL_MAP[identity.maritalStatus];
+  if (identity.maritalStatus === "Other" && identity.maritalStatusOtherExplain.trim()) {
+    p.marital_status_other_explain = identity.maritalStatusOtherExplain.trim();
+  }
 
   p.other_names_used = identity.hasOtherName ? "yes" : "no";
   if (identity.hasOtherName) {
@@ -1035,6 +1033,15 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     passport.hasNationalId && passport.nationalId.trim() ? passport.nationalId.trim() : "does_not_apply";
   p.us_social_security_number = passport.hasSsn && passport.ssn.trim() ? passport.ssn.trim() : "does_not_apply";
   p.us_taxpayer_id = passport.hasItin && passport.itin.trim() ? passport.itin.trim() : "does_not_apply";
+
+  // Permanent residence in third countries
+  const firstResidenceCountry = (passport.permanentResidenceCountries ?? []).find((c) => c.trim());
+  p.permanent_resident_other_country = passport.hasOtherCountryPermanentResidence && firstResidenceCountry
+    ? "yes"
+    : "no";
+  if (passport.hasOtherCountryPermanentResidence && firstResidenceCountry) {
+    p.other_permanent_resident_country = firstResidenceCountry;
+  }
 
   // ------------------------------------------------------------
   // Address and Phone
@@ -1129,6 +1136,10 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // Passport Information
   // ------------------------------------------------------------
   p.passport_document_type = PASSPORT_TYPE_MAP[passport.type];
+  if (passport.type === "Permit" || passport.type === "Other") {
+    // Long form requires an explanation for non-standard passport types.
+    p.passport_document_type_explain = passport.type === "Permit" ? "Travel permit" : "Other travel document";
+  }
   p.passport_number = passport.number;
   p.passport_book_number =
     passport.hasBookNumber && passport.bookNumber.trim()
@@ -1145,8 +1156,18 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   p.passport_expiration_date = passport.expiryDate;
 
   p.lost_passport = passport.hasLostPassport ? "yes" : "no";
-  if (passport.hasLostPassport && passport.lostPassportExplanation.trim()) {
-    p.lost_passport_explain = passport.lostPassportExplanation.trim();
+  if (passport.hasLostPassport) {
+    if (passport.lostPassportKnowsNumber && passport.lostPassportNumber.trim()) {
+      p.lost_passport_number = passport.lostPassportNumber.trim();
+    } else {
+      p.lost_passport_number = "does_not_apply";
+    }
+    if (passport.lostPassportCountry.trim()) {
+      p.lost_passport_country = passport.lostPassportCountry.trim();
+    }
+    if (passport.lostPassportExplanation.trim()) {
+      p.lost_passport_explain = passport.lostPassportExplanation.trim();
+    }
   }
 
   // ------------------------------------------------------------
@@ -1160,13 +1181,26 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
 
   if (hasSpecific) {
     p.arrival_date = travel.arrivalDate;
+    if (travel.arrivalCity.trim()) p.arrival_city = travel.arrivalCity.trim();
+    if (travel.arrivalFlight.trim()) p.arrival_flight = travel.arrivalFlight.trim();
+    if (travel.departureDate.trim()) p.departure_date = travel.departureDate.trim();
+    if (travel.departureCity.trim()) p.departure_city = travel.departureCity.trim();
+    if (travel.departureFlight.trim()) p.departure_flight = travel.departureFlight.trim();
   } else {
     p.intended_arrival_date = travel.arrivalDate;
-    p.intended_length_of_stay_value = travel.lengthValue;
+    if (travel.lengthValue.trim()) p.intended_length_of_stay_value = travel.lengthValue.trim();
     p.intended_length_of_stay_unit = LENGTH_UNIT_MAP[travel.lengthUnit];
   }
 
+  // Accommodation / planned location — long form expects this even outside
+  // the hasSpecificPlans branch.
+  const plannedLocation =
+    travel.hotelName.trim() ||
+    [travel.usStreet, travel.usCity, travel.usState].map((s) => s.trim()).filter(Boolean).join(", ");
+  if (plannedLocation) p.planned_location = plannedLocation;
+
   p.us_address_street1 = travel.usStreet;
+  if (travel.usStreet2.trim()) p.us_address_street2 = travel.usStreet2.trim();
   p.us_address_city = travel.usCity;
   p.us_address_state = travel.usState;
   p.us_address_zip = travel.usZip;
@@ -1242,6 +1276,23 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
         p.last_visa_issue_day = dd;
       }
     }
+    // Same visa type? same country of issue & residence? ten-printed?
+    p.applying_same_visa_type = travel.sameVisaType || "no";
+    p.applying_same_country_of_issue_and_residence = travel.sameCountryApply || "no";
+    p.has_been_ten_printed = travel.tenPrinted || "no";
+    // Visa lost / stolen
+    p.visa_lost_or_stolen = travel.visaLostStolen || "no";
+    if (travel.visaLostStolen === "yes") {
+      if (travel.visaLostStolenYear.trim()) p.year_visa_lost_or_stolen = travel.visaLostStolenYear.trim();
+      if (travel.visaLostStolenExplanation.trim()) {
+        p.visa_lost_or_stolen_explain = travel.visaLostStolenExplanation.trim();
+      }
+    }
+    // Visa cancelled / revoked
+    p.visa_cancelled_or_revoked = travel.visaCancelledRevoked || "no";
+    if (travel.visaCancelledRevoked === "yes" && travel.visaCancelledRevokedExplanation.trim()) {
+      p.visa_cancelled_or_revoked_explain = travel.visaCancelledRevokedExplanation.trim();
+    }
   }
   p.has_been_refused = travel.previousRefusal || "no";
   if (travel.previousRefusal === "yes") {
@@ -1249,11 +1300,13 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     if (refusalExplanation) {
       p.refusal_explain = refusalExplanation;
     }
-    if (travel.previousRefusalDate) {
-      p.refusal_date = travel.previousRefusalDate;
-    }
+    // refusal_date is not in the canonical DS-160 schema — long form will
+    // re-collect specifics if the user said "yes".
   }
   p.immigrant_petition_filed = travel.petitionFiled || "no";
+  if (travel.petitionFiled === "yes" && travel.petitionFiledExplanation.trim()) {
+    p.immigrant_petition_explain = travel.petitionFiledExplanation.trim();
+  }
 
   // ------------------------------------------------------------
   // Work / Education
@@ -1262,6 +1315,9 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     p.primary_occupation = work.primaryOccupation;
     if (work.primaryOccupation === "OTHER" && work.occupationOtherExplain.trim()) {
       p.occupation_other_explain = work.occupationOtherExplain.trim();
+    }
+    if (work.primaryOccupation === "NOT EMPLOYED" && work.occupationOtherExplain.trim()) {
+      p.not_employed_explain = work.occupationOtherExplain.trim();
     }
   }
   if (isEmployedOccupation(work.primaryOccupation) || work.primaryOccupation === "STUDENT" || work.primaryOccupation === "OTHER") {
@@ -1274,13 +1330,11 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
       p.monthly_salary = `${work.monthlySalaryCurrency} ${work.monthlySalary}`.trim();
     }
     if (work.jobDuties) p.job_duties = work.jobDuties;
-    // The schema uses employer_phone under current employer block — some seeds call it differently.
-    // Safe to also include as generic keys; the review renderer only shows what exists in the schema.
     if (work.employerPhone) p.employer_phone = `${work.employerPhoneDialCode} ${work.employerPhone}`.trim();
     if (work.employerStreet) p.employer_address_line1 = work.employerStreet;
     if (work.employerCity) p.employer_city = work.employerCity;
-    if (work.employerState) p.employer_state = work.employerState;
-    if (work.employerPostal) p.employer_postal = work.employerPostal;
+    if (work.employerState) p.employer_state_province = work.employerState;
+    if (work.employerPostal) p.employer_postal_code = work.employerPostal;
     if (work.employerCountry) p.employer_country = work.employerCountry;
     if (work.primaryOccupation === "STUDENT") {
       if (work.employerName) p.education_institution_name = work.employerName;
@@ -1390,7 +1444,12 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   // U.S. Contact Information
   // ------------------------------------------------------------
   if (usContact.isOrganization) {
-    if (usContact.organizationName) p.us_contact_organization = usContact.organizationName;
+    if (usContact.organizationName) {
+      p.us_contact_organization = usContact.organizationName;
+      // The seed also exposes a generic `organization_name` slot that some
+      // consumers pull from — keep them in sync.
+      p.organization_name = usContact.organizationName;
+    }
   } else {
     if (usContact.contactFirstName) p.us_contact_given_names = usContact.contactFirstName;
     if (usContact.contactLastName) p.us_contact_surname = usContact.contactLastName;
@@ -1405,18 +1464,23 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   if (usContact.email) p.us_contact_email = usContact.email;
 
   // ------------------------------------------------------------
-  // Spouse / Deceased Spouse / Former Spouses
+  // Spouse / Partner / Deceased Spouse / Former Spouses — routed to the
+  // correct canonical key set based on marital status.
   // ------------------------------------------------------------
-  const SPOUSE_STATUSES = ["Married", "Common Law Marriage", "Civil Union / Domestic Partnership", "Legally Separated"] as const;
-  if (SPOUSE_STATUSES.includes(identity.maritalStatus as typeof SPOUSE_STATUSES[number])) {
+  const ADDRESS_TYPE_MAP: Record<string, string> = {
+    home: "same_as_home",
+    work: "same_as_work",
+    other: "other",
+  };
+
+  if (identity.maritalStatus === "Married" || identity.maritalStatus === "Legally Separated") {
     if (family.spouseFirstName) p.spouse_given_names = family.spouseFirstName;
     if (family.spouseLastName) p.spouse_surname = family.spouseLastName;
     if (family.spouseDob) p.spouse_date_of_birth = family.spouseDob;
     if (family.spouseNationality) p.spouse_nationality = family.spouseNationality;
     if (family.spouseCityOfBirth) p.spouse_city_of_birth = family.spouseCityOfBirth;
     if (family.spouseCountryOfBirth) p.spouse_country_of_birth = family.spouseCountryOfBirth;
-    const addressTypeMap: Record<string, string> = { home: "same_as_home", work: "same_as_work", other: "other" };
-    p.spouse_address_type = addressTypeMap[family.spouseAddressType] ?? "same_as_home";
+    p.spouse_address_type = ADDRESS_TYPE_MAP[family.spouseAddressType] ?? "same_as_home";
     if (family.spouseAddressType === "other") {
       if (family.spouseAddressStreet1) p.spouse_address_street1 = family.spouseAddressStreet1;
       if (family.spouseAddressStreet2) p.spouse_address_street2 = family.spouseAddressStreet2;
@@ -1429,23 +1493,41 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
         : family.spouseAddressPostalCode.trim();
       if (family.spouseAddressCountry) p.spouse_address_country = family.spouseAddressCountry;
     }
-  }
-  if (identity.maritalStatus === "Widowed") {
-    if (family.deceasedSpouseFirstName) p.spouse_given_names = family.deceasedSpouseFirstName;
-    if (family.deceasedSpouseLastName) p.spouse_surname = family.deceasedSpouseLastName;
-    if (family.deceasedSpouseDob) p.spouse_date_of_birth = family.deceasedSpouseDob;
-    if (family.deceasedSpouseNationality) p.spouse_nationality = family.deceasedSpouseNationality;
-    if (family.deceasedSpouseCityOfBirth) p.spouse_city_of_birth = family.deceasedSpouseCityOfBirth;
-    if (family.deceasedSpouseCountryOfBirth) p.spouse_country_of_birth = family.deceasedSpouseCountryOfBirth;
-  }
-  if (identity.maritalStatus === "Divorced" && family.formerSpouses.length > 0) {
+  } else if (
+    identity.maritalStatus === "Common Law Marriage" ||
+    identity.maritalStatus === "Civil Union / Domestic Partnership"
+  ) {
+    // Civil-union / common-law / domestic-partnership data lives under the
+    // `partner_*` schema keys (not `spouse_*`) on the long DS-160.
+    if (family.spouseFirstName) p.partner_given_names = family.spouseFirstName;
+    if (family.spouseLastName) p.partner_surname = family.spouseLastName;
+    if (family.spouseDob) p.partner_date_of_birth = family.spouseDob;
+    if (family.spouseNationality) p.partner_nationality = family.spouseNationality;
+    if (family.spouseCityOfBirth) p.partner_city_of_birth = family.spouseCityOfBirth;
+    if (family.spouseCountryOfBirth) p.partner_country_of_birth = family.spouseCountryOfBirth;
+    p.partner_address_type = ADDRESS_TYPE_MAP[family.spouseAddressType] ?? "same_as_home";
+  } else if (identity.maritalStatus === "Widowed") {
+    if (family.deceasedSpouseFirstName) p.deceased_spouse_given_names = family.deceasedSpouseFirstName;
+    if (family.deceasedSpouseLastName) p.deceased_spouse_surname = family.deceasedSpouseLastName;
+    if (family.deceasedSpouseDob) p.deceased_spouse_date_of_birth = family.deceasedSpouseDob;
+    if (family.deceasedSpouseNationality) p.deceased_spouse_nationality = family.deceasedSpouseNationality;
+    if (family.deceasedSpouseCityOfBirth) p.deceased_spouse_city_of_birth = family.deceasedSpouseCityOfBirth;
+    if (family.deceasedSpouseCountryOfBirth) {
+      p.deceased_spouse_country_of_birth = family.deceasedSpouseCountryOfBirth;
+    }
+  } else if (identity.maritalStatus === "Divorced" && family.formerSpouses.length > 0) {
+    p.number_of_former_spouses = String(family.formerSpouses.length);
     const fs = family.formerSpouses[0];
-    if (fs.firstName) p.spouse_given_names = fs.firstName;
-    if (fs.lastName) p.spouse_surname = fs.lastName;
-    if (fs.dob) p.spouse_date_of_birth = fs.dob;
-    if (fs.nationality) p.spouse_nationality = fs.nationality;
-    if (fs.cityOfBirth) p.spouse_city_of_birth = fs.cityOfBirth;
-    if (fs.countryOfBirth) p.spouse_country_of_birth = fs.countryOfBirth;
+    if (fs.firstName) p.former_spouse_given_names = fs.firstName;
+    if (fs.lastName) p.former_spouse_surname = fs.lastName;
+    if (fs.dob) p.former_spouse_date_of_birth = fs.dob;
+    if (fs.nationality) p.former_spouse_nationality = fs.nationality;
+    if (fs.cityOfBirth) p.former_spouse_city_of_birth = fs.cityOfBirth;
+    if (fs.countryOfBirth) p.former_spouse_country_of_birth = fs.countryOfBirth;
+    if (fs.marriageDate) p.former_spouse_date_of_marriage = fs.marriageDate;
+    if (fs.divorceDate) p.former_spouse_date_marriage_ended = fs.divorceDate;
+    if (fs.howEnded) p.former_spouse_how_marriage_ended = fs.howEnded;
+    if (fs.divorceCountry) p.former_spouse_country_marriage_terminated = fs.divorceCountry;
   }
 
   // ------------------------------------------------------------
@@ -1500,6 +1582,10 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
       p[`language_name${suffix}`] = language;
     });
 
+  // Languages — long form expects at least one. Pick the first non-empty.
+  const firstLanguage = (family.languages ?? []).map((l) => l.trim()).find(Boolean);
+  if (firstLanguage) p.language_name = firstLanguage;
+
   // ------------------------------------------------------------
   // Security & Background — default-no
   // ------------------------------------------------------------
@@ -1521,7 +1607,9 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
   }
 
   // Mark background choice explicitly so the long form can detect the path.
-  p.simplified_background_none_apply = background.noneApply ? "yes" : "no";
+  // Underscore prefix flags this as a wizard meta key (filtered out by
+  // loadDynamicAnswers) — it isn't a canonical DS-160 field_name.
+  p.__simplified_background_none_apply = background.noneApply ? "yes" : "no";
 
   // Embassy-account security answers are intentionally NOT persisted here —
   // they have no DS-160 field_name and belong to a separate flow.

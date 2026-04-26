@@ -135,6 +135,107 @@ export async function ensureDraftApplication(
 }
 
 /**
+ * Stash the simplified-form's raw wizard state (the full SimplifiedFormData
+ * blob plus the active step index) so the user can leave mid-flow and resume.
+ * Stored as a JSON string in `value_text` under the reserved field_name
+ * `__simplified_form_state` — the double-underscore prefix keeps it from
+ * colliding with canonical DS-160 field names.
+ */
+const SIMPLIFIED_FORM_STATE_KEY = "__simplified_form_state";
+
+export async function saveSimplifiedFormState(
+  applicationId: string,
+  state: { form: unknown; stepIndex: number },
+): Promise<{ error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const { data: app } = await adminClient
+      .from("applications")
+      .select("id, applicant_id")
+      .eq("id", applicationId)
+      .single();
+    if (!app) return { error: "Application not found" };
+
+    const { data: profile } = await adminClient
+      .from("applicant_profiles")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
+    if (!profile || profile.id !== app.applicant_id) {
+      return { error: "Unauthorized" };
+    }
+
+    const value = JSON.stringify({
+      form: state.form,
+      stepIndex: state.stepIndex,
+      savedAt: new Date().toISOString(),
+    });
+
+    const { error: upsertError } = await adminClient
+      .from("visa_application_answers")
+      .upsert(
+        [
+          {
+            application_id: applicationId,
+            field_name: SIMPLIFIED_FORM_STATE_KEY,
+            value_text: value,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "application_id,field_name" },
+      );
+    if (upsertError) return { error: upsertError.message };
+
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to save state" };
+  }
+}
+
+export async function loadSimplifiedFormState(
+  applicationId: string,
+): Promise<{ state?: { form: unknown; stepIndex: number; savedAt?: string }; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const { data: row, error } = await adminClient
+      .from("visa_application_answers")
+      .select("value_text")
+      .eq("application_id", applicationId)
+      .eq("field_name", SIMPLIFIED_FORM_STATE_KEY)
+      .maybeSingle();
+
+    if (error) return { error: error.message };
+    if (!row?.value_text) return {};
+
+    try {
+      const parsed = JSON.parse(row.value_text);
+      if (parsed && typeof parsed === "object" && "form" in parsed) {
+        return {
+          state: {
+            form: parsed.form,
+            stepIndex: typeof parsed.stepIndex === "number" ? parsed.stepIndex : 0,
+            savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : undefined,
+          },
+        };
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to load state" };
+  }
+}
+
+/**
  * Load all saved answers for an application.
  */
 export async function loadDynamicAnswers(
@@ -156,7 +257,10 @@ export async function loadDynamicAnswers(
 
     const answers: Record<string, string> = {};
     for (const row of rows ?? []) {
-      if (row.value_text) answers[row.field_name] = row.value_text;
+      if (!row.value_text) continue;
+      // Skip reserved meta keys (e.g. simplified-form wizard state blob).
+      if (row.field_name.startsWith("__")) continue;
+      answers[row.field_name] = row.value_text;
     }
 
     return { answers };
