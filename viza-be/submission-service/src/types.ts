@@ -20,7 +20,12 @@ export interface SubmissionQueueItem {
     | "uk_prefill_processing"
     | "uk_prefilled"
     | "uk_prefill_failed"
-    | "uk_blocked";
+    | "uk_blocked"
+    | "vn_prefill_pending"
+    | "vn_prefill_processing"
+    | "vn_prefilled"
+    | "vn_prefill_failed"
+    | "vn_blocked";
   attempts: number;
   last_error: string | null;
   /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
@@ -28,8 +33,10 @@ export interface SubmissionQueueItem {
   ceac_result_payload: Record<string, unknown> | null;
   /** Structured France-Visas run result payload (JSON). */
   fv_result_payload: Record<string, unknown> | null;
-  /** France-Visas-assigned 13-digit application reference. */
+  /** France-Visas-assigned application reference (FRA-format after finalize). */
   fv_application_reference: string | null;
+  /** Supabase Storage path to the downloaded CERFA PDF. */
+  fv_pdf_storage_path: string | null;
   /** Structured UK Standard Visitor run result payload (JSON). */
   uk_result_payload: Record<string, unknown> | null;
   /** UKVI-assigned application reference once registered. */

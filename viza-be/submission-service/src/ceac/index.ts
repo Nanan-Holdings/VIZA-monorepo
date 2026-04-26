@@ -154,3 +154,9 @@ export {
   type HandoffReadyOutcome,
   type StopAtSignOptions,
 } from "./stop-at-sign";
+
+export {
+  handleConfirmApplicationPage,
+  type ConfirmApplicationOptions,
+  type ConfirmApplicationResult,
+} from "./confirm-application";

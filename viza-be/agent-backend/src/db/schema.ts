@@ -87,6 +87,9 @@ export const applications = pgTable("applications", {
 	ds160ApplicationId: text("ds160_application_id"),
 	ds160RetrievalUrl: text("ds160_retrieval_url"),
 	ds160DatStoragePath: text("ds160_dat_storage_path"),
+	submissionResult: jsonb("submission_result"),
+	submissionResultStatus: text("submission_result_status"),
+	submissionResultUpdatedAt: timestamp("submission_result_updated_at", { withTimezone: true }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -123,6 +126,12 @@ export const submissionQueue = pgTable("submission_queue", {
 	status: text("status").default("pending").notNull(),
 	attempts: integer("attempts").default(0).notNull(),
 	lastError: text("last_error"),
+	ceacResultPayload: jsonb("ceac_result_payload"),
+	fvResultPayload: jsonb("fv_result_payload"),
+	fvApplicationReference: text("fv_application_reference"),
+	fvPdfStoragePath: text("fv_pdf_storage_path"),
+	ukResultPayload: jsonb("uk_result_payload"),
+	ukApplicationReference: text("uk_application_reference"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
