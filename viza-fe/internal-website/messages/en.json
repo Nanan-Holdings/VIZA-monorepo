@@ -108,6 +108,224 @@
           "badge": "Awaiting"
         }
       }
+    },
+    "overview": {
+      "phaseOfTotal": "Phase {current} of {total}",
+      "notStartedYet": "Not started yet",
+      "etaLabel": "Expected decision",
+      "estimatedTotal": "Estimated total"
+    },
+    "nextAction": {
+      "title": "Next action",
+      "allDone": "All done",
+      "allDoneSub": "Awaiting decision from the consulate.",
+      "getStarted": "Get started",
+      "getStartedSub": "Pick up where you left off when you're ready.",
+      "cta": {
+        "start": "Start",
+        "continue": "Continue",
+        "payNow": "Pay now",
+        "uploadDocs": "Upload documents",
+        "bookAppointment": "Book appointment",
+        "bookInterview": "Book interview",
+        "viewDetails": "View details"
+      }
+    },
+    "duration": {
+      "day1": "Day 1",
+      "daysOneToThree": "1–3 days",
+      "daysThreeToFive": "3–5 days",
+      "sameDay": "Same day",
+      "withinOneWeek": "Within 1 week",
+      "aboutOneWeek": "~1 week",
+      "oneToTwoWeeks": "1–2 weeks",
+      "aboutThreeWeeks": "~3 weeks",
+      "threeToSixWeeks": "3–6 weeks",
+      "aboutFifteenWorkingDays": "~15 working days",
+      "aboutThreeWorkingDays": "~3 working days",
+      "aboutFiveWorkingDays": "~5 working days",
+      "dayOf": "Day of",
+      "varies": "Varies"
+    },
+    "realWorld": {
+      "in_person": "In person",
+      "mail": "Mail",
+      "online": "Online"
+    },
+    "phase": {
+      "doneOn": "Done · {date}",
+      "startedOn": "Started · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "Here's how the rest of your application unfolds. Estimated time:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "Create UKVI account",
+          "subtitle": "Sign up for a UK Visas & Immigration account to start your application."
+        },
+        "form": {
+          "title": "Online application",
+          "subtitle": "Fill out the 44-page Standard Visitor application."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the UK visa application fee online."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Upload bank statements, travel plans, and proof of accommodation."
+        },
+        "ukvcas": {
+          "title": "UKVCAS biometrics",
+          "subtitle": "Book and attend a biometrics appointment at a UKVCAS centre."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "UKVI reviews your application and returns a decision."
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "Schengen application",
+          "subtitle": "Complete the harmonized Schengen short-stay application."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Travel insurance, accommodation, financials, and itinerary."
+        },
+        "vfs_appointment": {
+          "title": "VFS appointment",
+          "subtitle": "Book an appointment at the relevant VFS Global centre."
+        },
+        "biometrics": {
+          "title": "Biometrics",
+          "subtitle": "Provide fingerprints and a photo at your appointment."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "The consulate decides on your short-stay visa."
+        },
+        "passport_pickup": {
+          "title": "Passport pickup",
+          "subtitle": "Collect your passport from the VFS centre once ready."
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "Pick visitor stream",
+          "subtitle": "Choose between Tourist, Business, Sponsored Family, ADS, or Frequent Traveller."
+        },
+        "form": {
+          "title": "Online application",
+          "subtitle": "Complete the Subclass 600 ImmiAccount application."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the visa application charge in ImmiAccount."
+        },
+        "submit_online": {
+          "title": "Submit online",
+          "subtitle": "Submit your application through ImmiAccount."
+        },
+        "biometrics_optional": {
+          "title": "Biometrics (if required)",
+          "subtitle": "Some nationalities must provide biometrics at a VAC."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "Home Affairs assesses and issues a decision."
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "E-Visa form",
+          "subtitle": "Fill out the Vietnam e-Visa application online."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the e-Visa fee online."
+        },
+        "wait_email": {
+          "title": "Wait for email",
+          "subtitle": "Vietnam Immigration emails the e-Visa PDF when approved."
+        },
+        "print_and_travel": {
+          "title": "Print and travel",
+          "subtitle": "Print the e-Visa PDF and present it on arrival."
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "Application",
+          "subtitle": "Complete your visa application."
+        },
+        "documents": {
+          "title": "Documents",
+          "subtitle": "Upload required supporting documents."
+        },
+        "submit": {
+          "title": "Submit",
+          "subtitle": "Submit your application for review."
+        },
+        "review": {
+          "title": "Review",
+          "subtitle": "Your application is being reviewed."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "Awaiting a decision."
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "DS-160 form",
+          "subtitle": "Complete the online DS-160 nonimmigrant visa application."
+        },
+        "pay": {
+          "title": "Pay MRV fee",
+          "subtitle": "Pay the visa application fee at a designated bank or online."
+        },
+        "schedule_interview": {
+          "title": "Schedule interview",
+          "subtitle": "Book your visa interview at the U.S. embassy or consulate."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Gather passport, photo, financials, and travel evidence."
+        },
+        "interview": {
+          "title": "Consular interview",
+          "subtitle": "Attend your interview at the U.S. consulate or embassy."
+        },
+        "passport_pickup": {
+          "title": "Passport return",
+          "subtitle": "Your passport is mailed or returned for pickup with the visa."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "The consular officer issues a decision after the interview."
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "Application form",
+          "subtitle": "Complete the Indonesia tourist visa B211A form."
+        },
+        "submit": {
+          "title": "Submit application",
+          "subtitle": "Submit through the Indonesia immigration portal."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the B211A application fee."
+        },
+        "email_visa": {
+          "title": "E-Visa email",
+          "subtitle": "Receive your B211A approval by email."
+        }
+      }
     }
   },
   "services": {
@@ -199,12 +417,30 @@
     "edit": "Edit",
     "stepOf": "Step {current} of {total}: {name}",
     "steps": {
-      "personalInfo": { "name": "Personal Info", "description": "Full name, date of birth, nationality" },
-      "passport": { "name": "Passport", "description": "Passport number, dates, issuing country" },
-      "travelDetails": { "name": "Travel Details", "description": "Arrival, departure, accommodation" },
-      "documents": { "name": "Documents", "description": "Upload all 6 required documents" },
-      "review": { "name": "Review", "description": "Confirm your details are correct" },
-      "status": { "name": "Status", "description": "Application submitted" }
+      "personalInfo": {
+        "name": "Personal Info",
+        "description": "Full name, date of birth, nationality"
+      },
+      "passport": {
+        "name": "Passport",
+        "description": "Passport number, dates, issuing country"
+      },
+      "travelDetails": {
+        "name": "Travel Details",
+        "description": "Arrival, departure, accommodation"
+      },
+      "documents": {
+        "name": "Documents",
+        "description": "Upload all 6 required documents"
+      },
+      "review": {
+        "name": "Review",
+        "description": "Confirm your details are correct"
+      },
+      "status": {
+        "name": "Status",
+        "description": "Application submitted"
+      }
     },
     "errors": {
       "notAuthenticated": "Not authenticated",
@@ -475,6 +711,155 @@
     }
   },
   "simplifiedForm": {
+    "shared": {
+      "loading": "Getting your intake form ready…",
+      "progress": "Step {current} of {total} · {name}",
+      "back": "Back",
+      "continue": "Continue",
+      "submitting": "Saving your answers…",
+      "edit": "Edit",
+      "yes": "Yes",
+      "no": "No",
+      "openLongFormLead": "Need to fill the detailed form?",
+      "openLongFormLink": "Open the full version",
+      "review": {
+        "label": "Review",
+        "title": "Review your answers",
+        "subtitle": "Check each section and submit when everything looks right.",
+        "submit": "Looks good — submit",
+        "empty": "Nothing entered yet.",
+        "notProvided": "—"
+      }
+    },
+    "us": {
+      "steps": {
+        "identity": "Identity",
+        "contact": "Contact",
+        "passport": "Passport",
+        "travel": "Travel",
+        "usStay": "U.S. stay",
+        "work": "Work & education",
+        "usContact": "U.S. Contact",
+        "family": "Family",
+        "background": "Background"
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your DS-160 answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "identity": "Identity",
+        "contact": "Contact",
+        "passport": "Passport",
+        "travel": "Travel",
+        "work": "Work & education",
+        "usContact": "U.S. contact",
+        "family": "Family",
+        "background": "Background"
+      }
+    },
+    "uk": {
+      "steps": {
+        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "Match your passport exactly." },
+        "passport": { "label": "Passport", "title": "Your passport", "subtitle": "Numbers and dates from the data page." },
+        "contact": { "label": "Contact", "title": "How can we reach you?", "subtitle": "Phone, email, and home address." },
+        "ukvi": { "label": "UKVI account", "title": "UK Visas & Immigration account", "subtitle": "We'll link to your existing account if you have one." },
+        "trip": { "label": "Trip", "title": "Your trip to the UK", "subtitle": "Dates, purpose, and where you'll stay." },
+        "employment": { "label": "Employment", "title": "Your employment", "subtitle": "What you do day-to-day." },
+        "finances": { "label": "Finances", "title": "Trip finances", "subtitle": "Who pays for the trip and how much it'll cost." }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your UK Standard Visitor answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "personal": "Personal", "passport": "Passport", "contact": "Contact", "ukvi": "UKVI account",
+        "trip": "Trip", "employment": "Employment", "finances": "Finances"
+      },
+      "options": {
+        "sex": { "male": "Male", "female": "Female" },
+        "purpose": { "tourism": "Tourism", "business": "Business", "visitingFamily": "Visiting family", "study": "Study", "medical": "Medical", "other": "Other" },
+        "employment": { "employed": "Employed", "selfEmployed": "Self-employed", "student": "Student", "retired": "Retired", "unemployed": "Unemployed" },
+        "funding": { "self": "Myself", "family": "Family", "employer": "Employer", "sponsor": "Sponsor" }
+      }
+    },
+    "schengen": {
+      "steps": {
+        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "From your passport." },
+        "document": { "label": "Document", "title": "Travel document", "subtitle": "Passport or other accepted travel document." },
+        "contact": { "label": "Contact", "title": "Contact & residence", "subtitle": "How the consulate can reach you." },
+        "trip": { "label": "Trip", "title": "Trip details", "subtitle": "Where, when, and why." },
+        "accommodation": { "label": "Stay", "title": "Where you'll stay", "subtitle": "Address of your accommodation in Schengen." },
+        "occupation": { "label": "Occupation", "title": "Your occupation", "subtitle": "Employer or school details." },
+        "financial": { "label": "Funds", "title": "Trip funding", "subtitle": "How the trip is paid for." }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Schengen Type C answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "personal": "Personal", "document": "Travel document", "contact": "Contact",
+        "trip": "Trip", "accommodation": "Accommodation", "occupation": "Occupation", "financial": "Funds"
+      },
+      "options": {
+        "sex": { "male": "Male", "female": "Female" },
+        "civil": { "single": "Single", "married": "Married", "separated": "Separated", "divorced": "Divorced", "widowed": "Widowed" },
+        "passport": { "ordinary": "Ordinary", "diplomatic": "Diplomatic", "service": "Service", "official": "Official", "special": "Special", "other": "Other" },
+        "purpose": { "tourism": "Tourism", "business": "Business", "family": "Visiting family", "medical": "Medical", "study": "Study", "transit": "Transit", "other": "Other" },
+        "entries": { "single": "Single entry", "two": "Two entries", "multiple": "Multiple entries" },
+        "accommodation": { "hotel": "Hotel", "private": "Private home", "rental": "Short-term rental", "other": "Other" },
+        "funding": { "self": "Myself", "sponsor": "Sponsor", "employer": "Employer" }
+      }
+    },
+    "vn": {
+      "steps": {
+        "personal": { "label": "Personal", "title": "Personal information", "subtitle": "From your passport." },
+        "passport": { "label": "Passport", "title": "Passport information", "subtitle": "Numbers and dates from the data page." },
+        "contact": { "label": "Contact", "title": "Contact information", "subtitle": "Address, email, and phone." },
+        "trip": { "label": "Trip", "title": "Trip information", "subtitle": "Entry/exit dates and location." },
+        "requested": { "label": "Visa", "title": "Visa requested", "subtitle": "Type and validity dates." },
+        "occupation": { "label": "Occupation", "title": "Your occupation", "subtitle": "Employer or school details." }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Vietnam E-Visa answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "personal": "Personal", "passport": "Passport", "contact": "Contact",
+        "trip": "Trip", "requested": "Visa requested", "occupation": "Occupation"
+      },
+      "options": {
+        "sex": { "male": "Male", "female": "Female" },
+        "religion": { "none": "None", "buddhism": "Buddhism", "christianity": "Christianity", "islam": "Islam", "hinduism": "Hinduism", "other": "Other" },
+        "passport": { "ordinary": "Ordinary", "diplomatic": "Diplomatic", "official": "Official" },
+        "purpose": { "tourism": "Tourism", "business": "Business", "relatives": "Visiting relatives", "investment": "Investment", "study": "Study", "work": "Work", "other": "Other" },
+        "gates": { "noiBai": "Noi Bai (Hanoi)", "tanSonNhat": "Tan Son Nhat (HCMC)", "daNang": "Da Nang", "camRanh": "Cam Ranh", "other": "Other" },
+        "visa": { "single": "Single entry", "multiple": "Multiple entry" }
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": { "label": "Stream", "title": "Visa stream", "subtitle": "Pick the stream that matches your trip." },
+        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "From your passport." },
+        "passport": { "label": "Passport", "title": "Passport", "subtitle": "Numbers and dates from the data page." },
+        "contact": { "label": "Contact", "title": "Contact details", "subtitle": "Address, email, and phone." },
+        "visit": { "label": "Visit", "title": "Visit details", "subtitle": "When you'll arrive and depart." },
+        "funding": { "label": "Funding", "title": "Trip funding", "subtitle": "How the trip is paid for." },
+        "health": { "label": "Health", "title": "Health insurance", "subtitle": "Coverage during your stay." },
+        "character": { "label": "Character", "title": "Character declarations", "subtitle": "Required disclosures." }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Australia Visitor answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "stream": "Stream", "personal": "Personal", "passport": "Passport", "contact": "Contact",
+        "visit": "Visit", "funding": "Funding", "health": "Health", "character": "Character"
+      },
+      "options": {
+        "stream": { "tourist": "Tourist", "business": "Business visitor", "sponsored": "Sponsored family", "ads": "Approved Destination Status", "frequent": "Frequent traveller" },
+        "sex": { "male": "Male", "female": "Female" },
+        "rel": { "never": "Never married", "married": "Married", "deFacto": "De facto", "engaged": "Engaged", "separated": "Separated", "divorced": "Divorced", "widowed": "Widowed" },
+        "port": { "sydney": "Sydney", "melbourne": "Melbourne", "brisbane": "Brisbane", "perth": "Perth", "adelaide": "Adelaide", "other": "Other" },
+        "funding": { "self": "Myself", "family": "Family", "employer": "Employer", "sponsor": "Sponsor", "other": "Other" },
+        "currency": { "aud": "AUD", "usd": "USD", "eur": "EUR", "gbp": "GBP", "cny": "CNY" }
+      }
+    },
     "loading": "Getting your intake form ready…",
     "progress": "Step {current} of {total} · {name}",
     "steps": {
@@ -1026,7 +1411,7 @@
       "title": "Family & background",
       "subtitle": "A few questions about your family — standard for all visa applications.",
       "fatherTitle": "Father's information",
-      "motherTitle": "Mother's information",
+      "motherTitle": "Mother",
       "parentSubtitle": "As shown on ID or as best you know",
       "fatherUnknown": "I don't know my father's information",
       "fatherMarkedUnknown": "Father's information is marked as unknown",
@@ -1083,7 +1468,6 @@
       "fatherKnown": "Father known?",
       "fatherFirstName": "Father first name",
       "fatherLastName": "Father last name",
-      "motherTitle": "Mother",
       "motherKnown": "Mother known?",
       "motherFirstName": "Mother first name",
       "motherLastName": "Mother last name",
@@ -1361,12 +1745,30 @@
       "rejected": "Rejected"
     },
     "requiredDocs": {
-      "passport_copy": { "label": "Passport Copy", "description": "Bio-data page of your passport" },
-      "photo": { "label": "Photo", "description": "Recent passport-size photo, white background" },
-      "flight_booking": { "label": "Flight Booking", "description": "Return flight booking confirmation" },
-      "hotel_booking": { "label": "Hotel Booking", "description": "Accommodation confirmation" },
-      "travel_itinerary": { "label": "Travel Itinerary", "description": "Detailed travel plan" },
-      "bank_statement": { "label": "Bank Statement", "description": "Last 3 months, showing sufficient funds" }
+      "passport_copy": {
+        "label": "Passport Copy",
+        "description": "Bio-data page of your passport"
+      },
+      "photo": {
+        "label": "Photo",
+        "description": "Recent passport-size photo, white background"
+      },
+      "flight_booking": {
+        "label": "Flight Booking",
+        "description": "Return flight booking confirmation"
+      },
+      "hotel_booking": {
+        "label": "Hotel Booking",
+        "description": "Accommodation confirmation"
+      },
+      "travel_itinerary": {
+        "label": "Travel Itinerary",
+        "description": "Detailed travel plan"
+      },
+      "bank_statement": {
+        "label": "Bank Statement",
+        "description": "Last 3 months, showing sufficient funds"
+      }
     },
     "errors": {
       "notAuthenticated": "Not authenticated. Please log in.",
@@ -1412,22 +1814,46 @@
     "sending": "Sending...",
     "howItWorks": "How it works",
     "steps": {
-      "share": { "title": "Share your unique link", "description": "Invite your friends to join VIZA using your unique referral link" },
-      "give": { "title": "Give ₱9,999 to your friends", "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services" },
-      "earn": { "title": "Earn ₱9,999 in credit", "description": "You'll also receive ₱9,999 for every friend who signs up with your link." },
-      "redeem": { "title": "Redeem your credits", "description": "Use your credits in the VIZA Services page." }
+      "share": {
+        "title": "Share your unique link",
+        "description": "Invite your friends to join VIZA using your unique referral link"
+      },
+      "give": {
+        "title": "Give ₱9,999 to your friends",
+        "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services"
+      },
+      "earn": {
+        "title": "Earn ₱9,999 in credit",
+        "description": "You'll also receive ₱9,999 for every friend who signs up with your link."
+      },
+      "redeem": {
+        "title": "Redeem your credits",
+        "description": "Use your credits in the VIZA Services page."
+      }
     },
     "faqTitle": "Frequently Asked Questions",
     "faqs": {
-      "whenReward": { "question": "When do I get my reward?", "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase." },
-      "howUseCredit": { "question": "How do I use the credit?", "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page." },
-      "whoEligible": { "question": "Who's eligible?", "answer": "New members only. One discount per new member." }
+      "whenReward": {
+        "question": "When do I get my reward?",
+        "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase."
+      },
+      "howUseCredit": {
+        "question": "How do I use the credit?",
+        "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page."
+      },
+      "whoEligible": {
+        "question": "Who's eligible?",
+        "answer": "New members only. One discount per new member."
+      }
     }
   },
   "settings": {
     "title": "Settings",
     "loading": "Loading your settings...",
-    "tabs": { "billing": "Billing", "account": "Account" },
+    "tabs": {
+      "billing": "Billing",
+      "account": "Account"
+    },
     "account": {
       "title": "Account",
       "email": "Email",
@@ -1454,9 +1880,18 @@
     "heroSubtitle": "Find answers, guides, and support for your account.",
     "quickLinks": {
       "title": "Quick links",
-      "accountProfile": { "title": "Account & Profile", "description": "Update your profile details, password, and preferences." },
-      "referrals": { "title": "Referrals", "description": "Invite friends and track your rewards." },
-      "payments": { "title": "Payments & Credits", "description": "View transactions, credits, and receipts." }
+      "accountProfile": {
+        "title": "Account & Profile",
+        "description": "Update your profile details, password, and preferences."
+      },
+      "referrals": {
+        "title": "Referrals",
+        "description": "Invite friends and track your rewards."
+      },
+      "payments": {
+        "title": "Payments & Credits",
+        "description": "View transactions, credits, and receipts."
+      }
     },
     "guides": {
       "title": "Guides",
@@ -1481,16 +1916,46 @@
     },
     "faqTitle": "Frequently Asked Questions",
     "faqs": {
-      "resetPassword": { "question": "How do I reset my password?", "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately." },
-      "seeCredits": { "question": "Where can I see my credits?", "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase." },
-      "referrals": { "question": "How do referrals work?", "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services." },
-      "bookBloodTest": { "question": "How do I book a blood test?", "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab." },
-      "labResults": { "question": "When will I receive my results?", "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab." },
-      "updateInfo": { "question": "How do I update my personal information?", "answer": "Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes." },
-      "updatePayment": { "question": "How do I add or update a payment method?", "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details." },
-      "cancelReschedule": { "question": "Can I cancel or reschedule a booked service?", "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel." },
-      "dataPrivate": { "question": "Is my health data private?", "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties." },
-      "contactSupport": { "question": "How do I contact support?", "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com." }
+      "resetPassword": {
+        "question": "How do I reset my password?",
+        "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
+      },
+      "seeCredits": {
+        "question": "Where can I see my credits?",
+        "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
+      },
+      "referrals": {
+        "question": "How do referrals work?",
+        "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
+      },
+      "bookBloodTest": {
+        "question": "How do I book a blood test?",
+        "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
+      },
+      "labResults": {
+        "question": "When will I receive my results?",
+        "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+      },
+      "updateInfo": {
+        "question": "How do I update my personal information?",
+        "answer": "Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes."
+      },
+      "updatePayment": {
+        "question": "How do I add or update a payment method?",
+        "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
+      },
+      "cancelReschedule": {
+        "question": "Can I cancel or reschedule a booked service?",
+        "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
+      },
+      "dataPrivate": {
+        "question": "Is my health data private?",
+        "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+      },
+      "contactSupport": {
+        "question": "How do I contact support?",
+        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+      }
     }
   },
   "auth": {
