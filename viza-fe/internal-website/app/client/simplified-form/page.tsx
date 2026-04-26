@@ -6,7 +6,12 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ensureDraftApplication, saveDynamicAnswers } from "@/app/actions/visa-application-answers";
+import {
+  ensureDraftApplication,
+  loadSimplifiedFormState,
+  saveDynamicAnswers,
+  saveSimplifiedFormState,
+} from "@/app/actions/visa-application-answers";
 import { getUserVisaPackage } from "@/app/actions/user-package";
 import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
 import { StepIdentity } from "@/components/client/simplified-form/step-identity";
@@ -14,6 +19,7 @@ import { StepContact } from "@/components/client/simplified-form/step-contact";
 import { StepPassport } from "@/components/client/simplified-form/step-passport";
 import { StepTravel } from "@/components/client/simplified-form/step-travel";
 import { StepUsStay } from "@/components/client/simplified-form/step-us-stay";
+import { StepUsContact } from "@/components/client/simplified-form/step-us-contact";
 import { StepFamily } from "@/components/client/simplified-form/step-family";
 import { StepBackground } from "@/components/client/simplified-form/step-background";
 import { StepWorkEducation } from "@/components/client/simplified-form/step-work-education";
@@ -35,6 +41,7 @@ export default function SimplifiedFormPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
 
   const shouldIncludeUsStayStep = useMemo(() => {
     if (form.travel.plansState === "unsure") return false;
@@ -44,11 +51,12 @@ export default function SimplifiedFormPage() {
 
   const stepOrder = useMemo(() => {
     const base = ["0", "1", "2", "3"] as const;
-    const tail = ["4", "6", "5"] as const;
+    const middle = ["6", "usContact"] as const;
+    const tail = ["4", "5"] as const;
     if (shouldIncludeUsStayStep) {
-      return [...base, "usStay", ...tail] as const;
+      return [...base, "usStay", ...middle, ...tail] as const;
     }
-    return [...base, ...tail] as const;
+    return [...base, ...middle, ...tail] as const;
   }, [shouldIncludeUsStayStep]);
 
   const totalSteps = stepOrder.length;
@@ -62,8 +70,53 @@ export default function SimplifiedFormPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (cancelled) return;
-      if (user?.email) {
-        setForm((prev) => ({ ...prev, contact: { ...prev.contact, email: prev.contact.email || user.email! } }));
+      const userEmail = user?.email ?? "";
+      // Pre-create the draft application so steps that need an applicationId
+      // (e.g. passport scan upload path) can run before the user submits.
+      try {
+        const pkg = await getUserVisaPackage();
+        if (cancelled) return;
+        const { applicationId: draftId } = await ensureDraftApplication(
+          pkg?.country ?? "US",
+          pkg?.visa_type ?? "B1/B2",
+        );
+        if (cancelled || !draftId) {
+          if (userEmail) {
+            setForm((prev) => ({ ...prev, contact: { ...prev.contact, email: prev.contact.email || userEmail } }));
+          }
+          setLoading(false);
+          return;
+        }
+        setApplicationId(draftId);
+
+        // Restore any prior wizard state for this draft so the user resumes
+        // exactly where they left off.
+        const { state } = await loadSimplifiedFormState(draftId);
+        if (cancelled) return;
+        if (state?.form && typeof state.form === "object") {
+          const restored = state.form as SimplifiedFormData;
+          setForm({
+            ...emptySimplifiedForm(),
+            ...restored,
+            contact: {
+              ...emptySimplifiedForm().contact,
+              ...(restored.contact ?? {}),
+              email: restored.contact?.email || userEmail,
+            },
+          });
+          if (typeof state.stepIndex === "number" && state.stepIndex >= 0) {
+            setStepIndex(state.stepIndex);
+          }
+        } else if (userEmail) {
+          setForm((prev) => ({
+            ...prev,
+            contact: { ...prev.contact, email: prev.contact.email || userEmail },
+          }));
+        }
+      } catch {
+        if (userEmail) {
+          setForm((prev) => ({ ...prev, contact: { ...prev.contact, email: prev.contact.email || userEmail } }));
+        }
       }
       setLoading(false);
     })();
@@ -71,6 +124,18 @@ export default function SimplifiedFormPage() {
       cancelled = true;
     };
   }, []);
+
+  // Debounced auto-save of the wizard state. Skips while loading/submitting
+  // and before the draft application is ready.
+  useEffect(() => {
+    if (loading || submitting || !applicationId) return;
+    const handle = window.setTimeout(() => {
+      saveSimplifiedFormState(applicationId, { form, stepIndex }).catch(() => {
+        // Auto-save is best-effort — surface nothing to the user.
+      });
+    }, 600);
+    return () => window.clearTimeout(handle);
+  }, [applicationId, form, stepIndex, loading, submitting]);
 
   const stepLabel = useMemo(
     () =>
@@ -104,16 +169,21 @@ export default function SimplifiedFormPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const pkg = await getUserVisaPackage();
-      const { applicationId, error: ensureErr } = await ensureDraftApplication(
-        pkg?.country ?? "US",
-        pkg?.visa_type ?? "B1/B2",
-      );
-      if (ensureErr || !applicationId) {
-        throw new Error(ensureErr ?? "Could not create application");
+      let appId = applicationId;
+      if (!appId) {
+        const pkg = await getUserVisaPackage();
+        const { applicationId: ensuredId, error: ensureErr } = await ensureDraftApplication(
+          pkg?.country ?? "US",
+          pkg?.visa_type ?? "B1/B2",
+        );
+        if (ensureErr || !ensuredId) {
+          throw new Error(ensureErr ?? "Could not create application");
+        }
+        appId = ensuredId;
+        setApplicationId(appId);
       }
       const payload = buildAnswerPayload(form);
-      const { error: saveErr } = await saveDynamicAnswers(applicationId, payload);
+      const { error: saveErr } = await saveDynamicAnswers(appId, payload);
       if (saveErr) throw new Error(saveErr);
       // Store form data in context and redirect to review page
       setFormData(form);
@@ -122,7 +192,7 @@ export default function SimplifiedFormPage() {
       setError(err instanceof Error ? err.message : "Submission failed");
       setSubmitting(false);
     }
-  }, [form, router, setFormData]);
+  }, [applicationId, form, router, setFormData]);
 
   if (loading) {
     return (
@@ -160,6 +230,10 @@ export default function SimplifiedFormPage() {
                 value={form.identity}
                 onChange={(next) => setForm((f) => ({ ...f, identity: next }))}
                 onContinue={goNext}
+                applicationId={applicationId}
+                onPassportExtracted={(passportPatch) =>
+                  setForm((f) => ({ ...f, passport: { ...f.passport, ...passportPatch } }))
+                }
               />
             ) : null}
             {currentStepKey === "1" ? (
@@ -187,6 +261,13 @@ export default function SimplifiedFormPage() {
               <StepUsStay
                 value={form.travel}
                 onChange={(next) => setForm((f) => ({ ...f, travel: next }))}
+                onContinue={goNext}
+              />
+            ) : null}
+            {currentStepKey === "usContact" ? (
+              <StepUsContact
+                value={form.usContact}
+                onChange={(next) => setForm((f) => ({ ...f, usContact: next }))}
                 onContinue={goNext}
               />
             ) : null}

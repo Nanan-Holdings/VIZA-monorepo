@@ -9,21 +9,30 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TabChoice } from "./tab-choice";
-import type { SimplifiedIdentity } from "./types";
+import { StepIdentityScan } from "./step-identity-scan";
+import type { SimplifiedIdentity, SimplifiedPassport } from "./types";
 
 interface StepIdentityProps {
   value: SimplifiedIdentity;
   onChange: (value: SimplifiedIdentity) => void;
   onContinue: () => void;
+  applicationId?: string | null;
+  onPassportExtracted?: (passport: Partial<SimplifiedPassport>) => void;
 }
 
-export function StepIdentity({ value, onChange, onContinue }: StepIdentityProps) {
+export function StepIdentity({
+  value,
+  onChange,
+  onContinue,
+  applicationId = null,
+  onPassportExtracted,
+}: StepIdentityProps) {
   const t = useTranslations("simplifiedForm.identity");
   const tCommon = useTranslations("simplifiedForm.common");
   const [openHelp, setOpenHelp] = useState<"hasOtherName" | "hasNativeAlphabet" | "hasTelecode" | null>(
     null,
   );
-  const [mode, setMode] = useState<"choose" | "manual">(
+  const [mode, setMode] = useState<"choose" | "scan" | "manual">(
     value.firstName || value.lastName ? "manual" : "choose",
   );
 
@@ -79,6 +88,23 @@ export function StepIdentity({ value, onChange, onContinue }: StepIdentityProps)
 
   const canContinue = true;
 
+  if (mode === "scan") {
+    return (
+      <StepIdentityScan
+        applicationId={applicationId}
+        onExtracted={(identityPatch, passportPatch) => {
+          onChange({ ...value, ...identityPatch });
+          if (onPassportExtracted && Object.keys(passportPatch).length > 0) {
+            onPassportExtracted(passportPatch);
+          }
+          setMode("manual");
+        }}
+        onCancel={() => setMode("choose")}
+        onFallbackManual={() => setMode("manual")}
+      />
+    );
+  }
+
   if (mode === "choose") {
     return (
       <div className="flex flex-col gap-6">
@@ -91,15 +117,15 @@ export function StepIdentity({ value, onChange, onContinue }: StepIdentityProps)
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            disabled
-            className="group flex cursor-not-allowed flex-col items-start gap-3 rounded-xl border border-input bg-white p-5 text-left opacity-70"
+            onClick={() => setMode("scan")}
+            className="group flex flex-col items-start gap-3 rounded-xl border border-input bg-white p-5 text-left transition-colors hover:border-brand-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-500 group-hover:bg-white">
               <ScanLine className="h-5 w-5" />
             </span>
             <div className="flex flex-col gap-1">
               <span className="text-[15px] font-semibold text-foreground">{t("scanOption")}</span>
-              <span className="text-xs text-muted-foreground">{t("scanComingSoon")}</span>
+              <span className="text-xs text-muted-foreground">{t("scanOptionHint")}</span>
             </div>
           </button>
           <button
