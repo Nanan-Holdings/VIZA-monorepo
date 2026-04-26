@@ -1,0 +1,33 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardApplicantsEmail",
+  "title": "Application - Contacting you by email",
+  "heading": "Contacting you by email",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "radio",
+      "id": "emailOwner_you",
+      "name": "emailOwner",
+      "required": false,
+      "label": "You",
+      "options": [
+        "You",
+        "Someone else"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}

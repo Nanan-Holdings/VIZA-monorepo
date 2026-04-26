@@ -1,0 +1,84 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.standardTelephoneDetailsList.0",
+  "title": "Application - Your telephone number",
+  "heading": "Your telephone number",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "tel",
+      "id": "telephoneNumber",
+      "name": "telephoneNumber",
+      "required": false,
+      "label": "Provide your telephone number"
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "id": "telephoneNumberPurpose_useInUK",
+      "name": "telephoneNumberPurpose[0]",
+      "required": false,
+      "label": "For use whilst in the UK",
+      "options": [
+        "For use whilst in the UK"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "id": "telephoneNumberPurpose_outsideUK",
+      "name": "telephoneNumberPurpose[1]",
+      "required": false,
+      "label": "For use whilst out of the UK",
+      "options": [
+        "For use whilst out of the UK"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "id": "telephoneNumberType_home",
+      "name": "telephoneNumberType[0]",
+      "required": false,
+      "label": "Home telephone number",
+      "options": [
+        "Home telephone number"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "id": "telephoneNumberType_business",
+      "name": "telephoneNumberType[1]",
+      "required": false,
+      "label": "Business telephone number",
+      "options": [
+        "Business telephone number"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "id": "telephoneNumberType_mobile",
+      "name": "telephoneNumberType[2]",
+      "required": false,
+      "label": "Mobile telephone number",
+      "options": [
+        "Mobile telephone number"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}
