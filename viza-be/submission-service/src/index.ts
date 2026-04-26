@@ -36,7 +36,7 @@ import {
   type ConfirmApplicationResult,
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
-import { encryptSecret } from "./secret-cipher";
+import { decryptSecret, encryptSecret } from "./secret-cipher";
 import type {
   FrSubmissionResult,
   UkSubmissionResult,
@@ -55,6 +55,7 @@ import {
   orchestrateUkFill,
   isUkGateError,
   serializeUkError,
+  resumeUkApplication,
 } from "./uk";
 import { fillVietnamApplication } from "./vietnam";
 import { uploadArtifact } from "./artifact-storage";
@@ -64,6 +65,7 @@ import {
   Application,
   ApplicationDocument,
   FvAccount,
+  UkAccount,
   VisaApplicationAnswer,
 } from "./types";
 
@@ -932,12 +934,36 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
 
 // ─── UK Standard Visitor Job Processor ───────────────────────────────
 //
-// Today: drives the pre-auth flow (language → country → VAC → start) and
-// stops at the registration page. Post-auth selectors are not yet
-// mapped — see src/uk/form-recon.ts to harvest them. The terminal state
-// `uk_prefilled` here means "session reached registration", not "form
-// fully filled". Callers should treat it as scaffold-only until the
-// post-auth phase ships.
+// Two paths:
+//   1. RESUME (preferred): if a uk_accounts row exists for the applicant,
+//      walk the in-flight application via forceResume URL → 44 application
+//      pages → Documents → Declaration → halt at Pay. Writes a full
+//      UkSubmissionResult on success.
+//   2. PRE-AUTH SCAFFOLD: if no uk_accounts row, drive the pre-auth flow
+//      (language → country → VAC → start) and stop at the registration
+//      page. Caller / human registers, persists creds back to uk_accounts,
+//      and the next poll picks up the resume path.
+async function loadUkAccount(applicantId: string): Promise<UkAccount | null> {
+  const { data, error } = await supabase
+    .from("uk_accounts")
+    .select("*")
+    .eq("applicant_id", applicantId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load uk_accounts: ${error.message}`);
+  return (data ?? null) as UkAccount | null;
+}
+
+function decryptUkPassword(encrypted: string): string {
+  // Try the project cipher first; if the column is still plaintext (dev
+  // parity), pass it through unchanged. Production rows are encrypted.
+  try {
+    return decryptSecret(encrypted);
+  } catch {
+    return encrypted;
+  }
+}
+
 async function processUkItem(item: SubmissionQueueItem): Promise<void> {
   const runId = `uk-${item.application_id}-${Date.now()}`;
   console.log(`[uk] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
@@ -947,6 +973,96 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
     .update({ status: "uk_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
 
+  const { profile, application } = await loadApplicantData(item.application_id);
+  const account = await loadUkAccount(application.applicant_id);
+
+  // ── RESUME path ────────────────────────────────────────────────────
+  if (account) {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "uk-resume-"));
+    try {
+      const answers = await loadDs160Answers(item.application_id);
+      const result = await resumeUkApplication(
+        {
+          resumeUrl: account.resume_url,
+          password: decryptUkPassword(account.password_encrypted),
+          email: account.email,
+          answers,
+        },
+        { headless: true, runId, outputDir: tempDir },
+      );
+
+      if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
+        const ukPayload: UkSubmissionResult = {
+          country: "UK",
+          status: "stopped_at_pay",
+          portalUrl: result.portalUrl,
+          portalUsername: result.portalUsername,
+          generatedPasswordCipher: encryptSecret(decryptUkPassword(account.password_encrypted)),
+          ...(result.status === "stopped_at_pay" && result.applicationReference
+            ? { applicationReference: result.applicationReference }
+            : {}),
+        };
+        await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
+        await supabase
+          .from("submission_queue")
+          .update({
+            status: "uk_prefilled",
+            uk_result_payload: result as unknown as Record<string, unknown>,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+        console.log(
+          `[uk] Resume run ${runId} ${result.status} — pages filled=${result.pagesFilled.length}`,
+        );
+        return;
+      }
+
+      // result.status === "failed"
+      const errorMsg = typeof result.error?.message === "string" ? result.error.message : `failed at ${result.failedAt}`;
+      const newAttempts = item.attempts + 1;
+      const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: newStatus,
+          attempts: newAttempts,
+          last_error: errorMsg,
+          uk_result_payload: result as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (newStatus === "uk_prefill_failed") {
+        await markSubmissionFailed(item.application_id, errorMsg);
+        await sendFailureAlert(item.application_id, `[UK resume] ${errorMsg}`);
+      }
+      console.error(`[uk] Resume run ${runId} failed: ${errorMsg}`);
+      return;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const newAttempts = item.attempts + 1;
+      const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: newStatus,
+          attempts: newAttempts,
+          last_error: errorMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (newStatus === "uk_prefill_failed") {
+        await markSubmissionFailed(item.application_id, errorMsg);
+        await sendFailureAlert(item.application_id, `[UK resume] ${errorMsg}`);
+      }
+      console.error(`[uk] Resume run ${runId} unhandled error:`, errorMsg);
+      return;
+    } finally {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  }
+
+  // ── PRE-AUTH SCAFFOLD path (fallback when no uk_accounts row) ──────
+  void profile; // silence unused-var
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "uk-run-"));
   let session: Awaited<ReturnType<typeof startUkSession>> | null = null;
   try {
