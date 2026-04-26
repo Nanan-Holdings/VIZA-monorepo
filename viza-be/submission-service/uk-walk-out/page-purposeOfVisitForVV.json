@@ -1,0 +1,39 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.purposeOfVisitForVV",
+  "title": "Application - Main reason for your visit",
+  "heading": "Main reason for your visit",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "radio",
+      "id": "purposeRef_tourism",
+      "name": "purposeRef",
+      "required": false,
+      "label": "Tourism (including visiting family and friends)",
+      "options": [
+        "Tourism (including visiting family and friends)",
+        "Business (including sports and entertainment)",
+        "Transit through the UK",
+        "Academic visit (including teaching, exchange and visiting as a dependant of an academic visitor)",
+        "Marriage or civil partnership",
+        "Private medical treatment or organ donation",
+        "Short-term study (up to 6 months), including recreational course",
+        "Other - I am visiting for another reason"
+      ]
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}

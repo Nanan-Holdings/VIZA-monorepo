@@ -1,0 +1,117 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.otherAccommodationDetailsList.0",
+  "title": "Application - Accommodation in the UK",
+  "heading": "Accommodation in the UK",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "name",
+      "name": "name",
+      "required": false,
+      "label": "Where are you planning to stay in the UK?"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "accommodationDetails_address_line1",
+      "name": "accommodationDetails.address.line1",
+      "required": false,
+      "label": "Address (line 1 of 3)"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "accommodationDetails_address_line2",
+      "name": "accommodationDetails.address.line2",
+      "required": false,
+      "label": "Address (line 2 of 3 - optional)"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "accommodationDetails_address_line3",
+      "name": "accommodationDetails.address.line3",
+      "required": false,
+      "label": "Address (line 3 of 3 - optional)"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "accommodationDetails_address_townCity",
+      "name": "accommodationDetails.address.townCity",
+      "required": false,
+      "label": "Town/City"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "accommodationDetails_address_postCode",
+      "name": "accommodationDetails.address.postCode",
+      "required": false,
+      "label": "Postcode"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_from_day",
+      "name": "accommodationDetails.dateRange.from.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_from_month",
+      "name": "accommodationDetails.dateRange.from.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_from_year",
+      "name": "accommodationDetails.dateRange.from.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_to_day",
+      "name": "accommodationDetails.dateRange.to.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_to_month",
+      "name": "accommodationDetails.dateRange.to.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "accommodationDetails_dateRange_to_year",
+      "name": "accommodationDetails.dateRange.to.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}
