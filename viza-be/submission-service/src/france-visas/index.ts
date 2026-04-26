@@ -113,7 +113,10 @@ export {
 
 export {
   startNewApplication,
+  finalizeAndDownloadPdf,
   type CreateApplicationOptions,
+  type FinalizeOptions,
+  type FinalizeResult,
 } from "./accueil";
 
 export {
