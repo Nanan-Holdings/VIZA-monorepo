@@ -817,7 +817,169 @@ Two scripts keep DS-160 drift from silently shipping:
 **Adopt for any country with automated submission.** For countries
 with manual submission, the reviewer checklist (§7) is enough.
 
-### 9.9 Patterns that exist because CEAC is weird (not because they're good)
+### 9.9 CEAC live-portal gotchas (2026-04-25 deep dive)
+
+A full end-to-end run against live CEAC surfaced behaviour that is
+not visible from reading the form in isolation. If you are extending
+the submission pipeline (or building a similar one for another
+country), the following are the things that cost a lot of time to
+discover. Documenting here so the next person doesn't repeat them.
+
+**Photo upload is on a different domain (identix.state.gov)**
+Clicking CEAC's `btnUploadPhoto` is a form submit that navigates
+*cross-domain* to `https://identix.state.gov/qotw/Upload.aspx?<token>`
+— a separate ASP.NET system that hosts the actual `<input type="file">`.
+After upload + face detection, identix's `Result.aspx` page renders
+either an accept (`btnContinue`) or reject (`btnUploadAnother`)
+button, and clicking the accept redirects back to CEAC's confirm
+photo page with a `?save` query param.
+
+There is **no `<input type="file">` anywhere on the CEAC photo
+upload page itself** — searching the DOM for one returns zero
+results. Relying on Playwright's `filechooser` event or
+`setInputFiles` against the CEAC origin will time out. The handler
+must drive the cross-domain dance.
+
+**ASP.NET `<input type="image">` buttons need `name.x` / `name.y`
+form fields**
+Identix's submit buttons are image inputs (`<input type="image"
+class="next">`). When the browser submits the form via a real click,
+it includes hidden `<name>.x` and `<name>.y` form fields with the
+click coordinates — that is how ASP.NET knows which image button
+was pressed. Three traps:
+
+1. `el.click()` via `page.evaluate` does NOT add x/y for image
+   inputs in headless Chromium. The form posts but ASP.NET ignores
+   the click (server thinks no button was pressed).
+2. Playwright's native `click({ force: true })` sends real coords,
+   but `force: true` does **not** bypass viewport bounds — clicks on
+   buttons below the viewport fail with `Element is outside of the
+   viewport` even after `scrollIntoView`.
+3. Setting a tall viewport via `page.setViewportSize({ width: 1280,
+   height: 1600 })` sometimes still leaves the buttons off-screen
+   if the page layout was computed against the original viewport.
+
+The reliable workaround for image-input submission is to bypass
+the click entirely and submit the form directly:
+
+```ts
+await page.evaluate(`
+  const btn = document.querySelector('#ctl00_cphButtons_btnContinue');
+  const form = btn.closest('form');
+  ['x', 'y'].forEach(c => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = btn.name + '.' + c;
+    inp.value = '5';
+    form.appendChild(inp);
+  });
+  form.submit();
+`);
+```
+
+This is what `viza-be/submission-service/src/ceac/upload-photo.ts`
+does for the identix `btnContinue` button.
+
+**Confirm Photo page has no Next button — advance via sidebar**
+After photo upload identix returns to
+`photo_confirmphoto.aspx?node=ConfirmPhoto&save`. That page renders
+only Back, Save, and "Choose a Different Photo" — there is no Next
+button at all. Clicking Save goes to a "Save Confirmation"
+interstitial whose "Continue Application" button just returns to
+where you were (loops forever).
+
+The actual advance mechanism is the **sidebar**: the REVIEW link
+(`<a id="REVIEW" href="/GenNIV/General/review/review_reviewpersonal.aspx?node=ReviewPersonal">`)
+is `disabled="true"` while `?save` is in the URL. Navigating to the
+canonical Confirm Photo URL (without `?save`) re-renders the page,
+which enables REVIEW. Then `page.goto(reviewUrl)` advances.
+
+**Review is a chain of sub-pages, not a single page**
+Once you reach `/review/review_reviewpersonal.aspx`, CEAC takes you
+through ~7 read-only review sub-pages
+(`review_reviewpersonal`, `review_reviewtravel`, `review_reviewUSContact`,
+`review_reviewFamily`, `review_reviewWorkEducation`,
+`review_reviewsecurity`, `review_reviewlocation`) each with its own
+Next button, all under `/review/review_*` URLs. The orchestrator
+must accept staying on `review` across sub-pages until
+`sign_and_submit` appears.
+
+**Heading-based page detection is unreliable for Review pages**
+Each review sub-page reuses the original section's heading:
+`review_reviewpersonal` has heading "Personal, Address, Phone, and
+Passport Information" — which matches the `passport` heading
+pattern. URL-based detection must take precedence for any page
+under `/review/review_*`. `pages.ts` codifies this with a URL-first
+override before the heading-pattern loop.
+
+**Sign Certify precedes the actual Sign and Submit**
+The first page after Review is
+`signtheapplication.aspx?node=SignCertify` — an attestation step
+that does NOT have the passport-signature input or the final-submit
+button. Strict marker checks
+(`signatureFieldPresent && finalSubmitPresent`) will fail here. But
+this **is** the right terminal stop for `handoff_ready`: going
+beyond requires user attestation. The orchestrator's sign-and-submit
+branch treats heading + URL match as sufficient, even when strict
+markers are absent.
+
+**`isEditable()` matters in addition to `isVisible()`**
+Some CEAC fields (e.g. `social_media_identifier`) are present and
+visible in the DOM but disabled when their sibling dropdown is set
+to "NONE". Without `isEditable()`, the orchestrator burns the full
+5s actionability timeout per field on every page.
+
+**MSAJAX UpdatePanel postbacks**
+Most CEAC controls (radios, AutoPostBack selects, NA checkboxes)
+fire a partial postback that reveals or enables dependent fields.
+Polling `Sys.WebForms.PageRequestManager.isInAsyncPostBack` returns
+false BEFORE the postback dispatches and produces false positives.
+The reliable wait is to subscribe to `add_endRequest` (one-shot)
+and resolve when it fires:
+
+```ts
+await page.evaluate(`
+  new Promise((resolve) => {
+    const prm = Sys.WebForms.PageRequestManager.getInstance();
+    const handler = () => { prm.remove_endRequest(handler); resolve(); };
+    prm.add_endRequest(handler);
+  })
+`);
+```
+
+`viza-be/submission-service/src/ceac/aspnet.ts` has the production
+version with timeout + bail-out.
+
+**2captcha "Normal Captcha" — submit raw text, do not uppercase**
+CEAC's BotDetect CAPTCHA is case-sensitive. 2captcha returns the
+answer in the original case. `.toUpperCase()` on the response
+silently breaks ~70% of solves with no error code (CEAC just
+re-renders an error and you retry on a fresh image, burning
+solver budget).
+
+**Anti-bot SessionTimedOut on the START button**
+Even with stealth + a correct CAPTCHA, CEAC sometimes redirects
+the START click to `SessionTimedOut.aspx` as an anti-bot signal.
+There is no recovery for the same browser context — bootstrap a
+fresh one and retry. Quadratic backoff between attempts (5s, 20s,
+45s, 80s, 125s) handles transient IP rate-limits without flooding.
+
+**Idle session expiry is a separate failure mode (~10 min)**
+Distinct from the start-page anti-bot timeout. After ~10 minutes
+of idle CEAC drops the session and any Next click redirects to
+`SessionTimedOut.aspx`. Recovery is via the Retrieve Application
+form (Application ID + first 5 letters of surname + year of birth +
+security answer) — all four must be persisted at start time. See
+`resume-application.ts` and `rebuildSessionForResume` in `session.ts`.
+
+**Synthetic faces from `thispersondoesnotexist.com` pass photo QA**
+Useful for end-to-end tests without checking in a real face. CEAC's
+photo quality check requires 600x600 JPEG, < 240 KB, head centered,
+neutral background — a downloaded synthetic face resized via
+`sips -z 600 600 ... -s formatOptions 80` lands at ~78 KB and
+passes face detection.
+
+### 9.10 Patterns that exist because CEAC is weird (not because they're good)
 
 DS-160 is the canonical reference, but some of its patterns are
 battle-scars from CEAC's own quirks. Adopt them only if your country
@@ -918,3 +1080,371 @@ conditionals. Scope accordingly.
 
 **When in doubt, look at how DS-160 does it (§9) — it's the tested
 one.**
+
+---
+
+## 11. Third example — France-Visas (Schengen Type C, JSF/PrimeFaces, live-QA'd 2026-04-25)
+
+The France-Visas implementation
+(`viza-be/submission-service/src/france-visas/`) is the second pipeline
+that has been QA'd end-to-end against a live government portal. The
+two portals are completely different stacks (CEAC = ASP.NET WebForms;
+France-Visas = Jakarta Faces + PrimeFaces) so almost everything in §9
+needed a parallel implementation. The findings below are what was
+non-obvious from outside.
+
+### 11.1 Where the pipeline starts and stops (deliberate scope)
+
+Identical contract to DS-160: **prefill assistant, not autonomous
+submission.** The runner stops after the in-progress CERFA PDF has
+been downloaded. It does NOT click the post-form transmission chain
+(`accueil → phase2 → phase3`) because **phase 3 requires the applicant
+to certify they have already booked a biometrics appointment at their
+visa center** — a fact-attestation to the French government, not a
+click that automation can honestly fire. Once an applicant has booked
+biometrics with VFS Global / TLScontact / BLS, they finish the
+transmission flow themselves. This stop boundary mirrors DS-160's
+"stop at sign-and-submit".
+
+### 11.2 The Schengen visa is multilateral but each country runs its
+own portal
+
+Schengen Type C visas are issued under the harmonized EU Visa Code
+(Regulation 810/2009, Annex I). The seed
+(`viza-be/agent-backend/scripts/seed-eu-schengen-c-short-stay-form-fields.ts`)
+is the harmonized field set — accepted by all 29 Schengen states. But
+each member state runs its own application portal: France-Visas,
+Germany's VIDEX, Spain's Sede Electrónica, Netherlands' VisaRIO, and
+several others. **The same answers can be sent to any of them with a
+country-specific normalizer + autofiller.** France-Visas is the first
+worked example; the same harmonized seed + a `germany-visa/`,
+`spain-visa/` set of selectors would cover the others.
+
+This is different from the US/UK, which each have one government
+portal per visa type.
+
+### 11.3 The 6-step France-Visas form vs the 12-section harmonized seed
+
+France-Visas consolidates the 12 logical Annex I sections into 6 form
+steps:
+
+| FR step | URL | What it covers |
+|---|---|---|
+| 1 | `step1.xhtml` "Your plans" | Eligibility triage — nationality, travel doc, purpose, destination, deposit country/town |
+| 2 | `step2.xhtml` "Your information" | Personal + residence + occupation + (conditional) employer |
+| 3 | `step3.xhtml` "Your last visa" | Prior Schengen visa gate + (conditional) dates + fingerprints |
+| 4 | `step4.xhtml` "Your stay" | Trip dates, duration, entries |
+| 5 | `step5.xhtml` "Your contacts" | Host person/org + funding sources + representative |
+| 6 | `step6.xhtml` "Your supporting documents" | Informational checklist (no inputs) |
+
+So `FvPageId` only enumerates step1-step6 + accueil + review/confirmation
+(not step1-step12). The normalizer
+(`viza-be/submission-service/src/france-visas/normalize.ts`) maps the
+seed's flat field map to FR's 6-step structure.
+
+**Naming collision to be aware of:** `visas-selected-applicant-country_input`
+appears on BOTH step 2 (country of residence, 201 options) AND step 4
+(number of entries, 2 options `1`/`M`). Same `name` attribute, different
+semantics depending on step. Selectors must always be qualified by step.
+
+### 11.4 JSF / PrimeFaces specifics — how to drive cascading selects
+
+France-Visas is built on Jakarta Faces with PrimeFaces widgets. Setting
+`<select>.value` and dispatching a synthetic `change` event does **not**
+trigger the JSF AJAX postback that rebuilds dependent dropdowns. The
+working pattern (codified in
+`viza-be/submission-service/src/france-visas/primefaces-ajax.ts`):
+
+```ts
+window.PrimeFaces.widgets[widgetVar].selectValue(value);
+window.PrimeFaces.widgets[widgetVar].triggerChange();
+```
+
+Then `await page.waitForResponse(<step-url POST>)` to ensure the
+postback completes before the next select is fired.
+
+**Cascading postbacks clear unrelated fields.** Step 1's selects fire
+in this order: nationality → deposit-country → stayDuration → destination
+→ deposit-town → authority → travel-document → purposeCategory → purpose.
+Any postback in this chain can blank a previously-set select. The
+defensive fix in `fill-steps.ts` is `reapplyClearedSelects()`, which
+iterates up to 3 passes re-firing any select that's no longer at its
+target. **Text fields are filled LAST** for the same reason (postbacks
+also clear text inputs, observed in step 2 — server even auto-uppercases
+text values, so `"Zhang"` becomes `"ZHANG"` on the wire).
+
+**Conditional widgets aren't registered until the gate fires AND the
+postback completes AND PrimeFaces re-runs widget bootstrap** (which is
+async). Calling `selectPrimeFacesOption` immediately after the gate
+choice fails with "widget not found". The fix is `waitForPrimeFacesWidget`
+in `primefaces-ajax.ts` — polls `PrimeFaces.widgets[<var>]` for up to
+5s before firing.
+
+### 11.5 CAPTCHA — `Captchetat` is much simpler than CEAC's BotDetect
+
+France-Visas uses the French government's standard CAPTCHA service
+(Captchetat). Critically, the image is served as an inline
+`data:image/png;base64,…` URL — **no HTTP fetch needed**. Read `src`,
+base64-decode, send to 2captcha. No canvas dance, no cache-poisoning
+risk, no naturalWidth race. See
+`viza-be/submission-service/src/france-visas/registration-captcha.ts`.
+
+There's a hidden `captchetat-uuid` companion field on the form that
+ties the image to the server-side validator. It must NOT be cleared
+between read and submit — the implementation reads `src` once and
+leaves the DOM untouched.
+
+### 11.6 Headless detection is real — needed a per-call hardening
+profile
+
+The first end-to-end smoke run worked headful but failed headless
+with a `/login-error` redirect from Keycloak. The standard
+`puppeteer-extra-plugin-stealth` patches were insufficient.
+`stealth-browser.ts` was extended with a per-call
+`hardening: "default" | "france-visas"` opt-in. CEAC continues to
+use `"default"`; France-Visas uses `"france-visas"` which adds:
+
+- Chromium launch flags: `--disable-blink-features=AutomationControlled`,
+  `--window-size=1440,900`, `--no-default-browser-check`,
+  `--disable-features=IsolateOrigins,site-per-process`, etc.
+- Browser context: `viewport: 1440×900`, `locale: en-US`,
+  `timezoneId: Europe/Paris`
+- `addInitScript` overriding `navigator.webdriver`, `navigator.languages`,
+  `hardwareConcurrency`, `deviceMemory`, `platform`, `permissions.query`,
+  and a realistic `navigator.plugins` list
+
+After hardening, headless smoke runs pass. **For any other Schengen
+country portal that uses Keycloak (most do), reach for this profile
+first.**
+
+### 11.7 Step-1 button shape: Verify → Next → Yes/No modal
+
+A non-obvious 3-stage transition. Step 1's submit button starts as
+"Verify" (eligibility check). After server-side validation passes,
+the button **swaps** to "Next". Clicking Next then opens a Yes/No
+confirmation modal ("Save your application and proceed?"). Clicking
+Yes advances to step 2.
+
+Naïve "click the next button once" doesn't work. The fix in `run.ts`
+is a polling-loop `advanceStep()` that on each tick clicks any visible
+Yes button OR any visible Next/Verify/Continue button, and waits until
+the destination page identity is detected. Same loop covers all 3
+shapes (single Next, Verify→Next, Continue) without per-step branching.
+
+### 11.8 Conditional reveal patterns (occupation → employer, etc.)
+
+France-Visas uses conditional reveals heavily. Three notable ones:
+
+- **Step 2 occupation → employer subsection:** picking most occupation
+  values (e.g. Employee=`69002`) reveals 7 employer fields (name,
+  address, phone, email, business segment, country). These don't
+  exist in the DOM until the occupation cascade fires.
+- **Step 5 cbxHasHostPerson → 8 host fields.** Same pattern.
+- **Step 5 cbxHasAutoFunding → `autoFundings` multi-checkbox group**
+  (Cash, Credit card, Traveller's cheques, Accommodation prepaid,
+  Transport prepaid, Other).
+
+The seed expresses the gate-and-reveal relationships via
+`conditional_logic.showIf`. The fill helpers (`fill-steps.ts`) check
+the gating answer and only fire the conditional fields when needed.
+**Filling a conditional field whose gate is closed is a no-op** because
+the widget isn't registered — but it fails noisily, so always check
+the gate first.
+
+### 11.9 Two PDF surfaces — pick the in-progress one for prefill-only
+
+After step 6 the accueil dashboard shows two PDF buttons per
+application:
+
+- **"Read pdf application in progress"** — available immediately on
+  every draft. Returns the CERFA Schengen visa form (~200 KB PDF v1.6)
+  prefilled with the applicant's data.
+- **"Read pdf completed application"** — only available after the
+  applicant has completed the post-form transmission chain
+  (accueil → phase2 → phase3). Same form, with a "submitted to
+  consulate" stamp.
+
+For the prefill autofiller, **use the in-progress PDF** (no transmission
+needed). The applicant takes that PDF to their VAC appointment and
+France-Visas updates the "completed" PDF later. See
+`accueil.ts` `finalizeAndDownloadPdf()` for the click + download
+capture.
+
+### 11.10 Reference format — `FRA1PE20267040641`
+
+The reference France-Visas assigns after step 6 saves: 3-letter
+country code (`FRA`) + 3-character city/consulate code (`1PE` =
+Beijing) + sequential id. **This is what applicants quote to the
+consulate and the VAC**, not the 13-digit internal ID
+(`2026705144836`) that's also visible.
+
+Both are captured in the run result so the queue worker can persist
+either.
+
+### 11.11 Country-code mapping (ISO-2 ↔ ISO-3)
+
+The harmonized seed uses ISO-3166-1 alpha-2 codes (`CN`, `FR`, `US`).
+France-Visas uses alpha-3 (`CHN`, `FRA`, `USA`). The normalizer
+(`normalize.ts`) embeds a 200-entry alpha-2 → alpha-3 table and
+accepts alpha-3 input as a pass-through. **Reject unknown codes
+loudly** rather than guessing — a wrong country code on the wire is
+a hard rejection at the consulate.
+
+### 11.12 Schema gaps the FR walk surfaced (now fixed in seed)
+
+Three Annex I fields the original seed didn't have, that FR's step 3
+"Your last visa" Yes-path requires. Added in 0011 follow-up:
+
+- `prior_schengen_visa_5y` (radio gate)
+- `prior_schengen_visa_valid_from` / `_to` (dates, conditional)
+
+Pre-existing fields (`prev_schengen_fingerprints_given`,
+`prev_fingerprints_date`, `prev_fingerprints_visa_sticker`) cover the
+fingerprints sub-branch.
+
+**Lesson:** when integrating a country portal with a harmonized seed,
+expect the country to ask 1-3 fields the harmonized form skips. Add
+them to the seed only if they're legitimately Annex I (or the
+harmonized equivalent for your visa class) — otherwise they belong in
+a `<country>_*` overrides namespace, not the canonical schema.
+
+### 11.13 Country-specific fields not in harmonized seed — `fv_*` prefix
+convention
+
+A few France-Visas-specific questions don't map to harmonized Annex I:
+
+- "Do you have a French family member?" (step 2 — distinct from "EU
+  family member")
+- "Will you travel to multiple Schengen destinations?" (step 4)
+- The deposit-country / deposit-town / specific purpose codes (step 1)
+
+The frontend collects these under `fv_*` prefixed seed keys
+(`fv_has_french_family`, `fv_has_multiple_destinations`,
+`fv_deposit_country`, `fv_deposit_town`, `fv_purpose`,
+`fv_occupation_code`, `fv_business_segment`). The normalizer reads
+them; they default to safe values if absent. **Do this for every
+country portal that adds non-harmonized questions** — keep the seed
+canonical, namespace country-specific overrides per portal.
+
+### 11.14 Critical files (mirrors §9.7)
+
+| File | Role |
+|---|---|
+| `france-visas/sign-in.ts` | Keycloak login + `restoreFvSession` from stored storageState |
+| `france-visas/registration.ts` | Keycloak account registration (CAPTCHA + mailbox provider) — needs Resend/Mailgun/IMAP wired before production |
+| `france-visas/primefaces-ajax.ts` | `selectPrimeFacesOption`, `setJsfTextInput`, `setJsfCheckbox{,Group}`, `selectPrimeFacesRadio`, `waitForPrimeFacesWidget`, `waitForJsfIdle` |
+| `france-visas/fill-steps.ts` | `fillStep1`–`fillStep5` with cascade re-fill; step 6 is informational so no fillStep6 |
+| `france-visas/run.ts` | `fillFranceVisasApplication` — top-level entry, polling-loop advance, optional finalize+PDF |
+| `france-visas/accueil.ts` | `startNewApplication` + `finalizeAndDownloadPdf` (PDF download stop point) |
+| `france-visas/selectors.ts` | `FV_STEP1_FIELDS` … `FV_STEP5_FIELDS`, taxonomy enums, gate markers |
+| `france-visas/normalize.ts` | Seed answer map → FV wire format. ISO-2/3 country, sex/civil-status/occupation/purpose enums. |
+| `france-visas/errors.ts` | `FvError` taxonomy parallel to CEAC's |
+| `france-visas/inbox-poller.ts` | `MailboxProvider` interface for verification-email link extraction |
+
+### 11.15 Iteration history (2026-04-24/25 walks)
+
+The full walk took ~10 iterations against the live site to converge.
+Headline failures and their fixes, in case any of them recur for
+another country:
+
+1. **PrimeFaces selectValue alone doesn't trigger AJAX** → use
+   `selectValue + triggerChange`.
+2. **Cascading postbacks clear upstream selects** → defensive
+   re-apply pass after the cascade settles.
+3. **Conditional widgets race PrimeFaces bootstrap** → poll
+   `PrimeFaces.widgets[<var>]` until registered.
+4. **Step 1 needs 3-stage transition (Verify → Next → Yes-modal)** →
+   polling-loop advance.
+5. **Headless triggered Keycloak `/login-error` redirect** →
+   per-call stealth hardening profile.
+6. **Schengen seed lacked prior-visa gate + dates** → added 3 fields
+   to seed (legitimate Annex I).
+7. **Continue button on accueil was disabled by default** → consent
+   checkbox (`j_idt182_input`) must be ticked via PrimeFaces widget
+   API first.
+8. **Phase 3 transmission requires an attestation we can't honestly
+   automate** → stop at the in-progress PDF download instead.
+
+If your next country portal exhibits any of (1)–(5), the fixes
+generalize. (6) is country-specific. (7)–(8) are France-specific
+flow gates — for other Schengen portals, identify the analogous
+stop boundary before automating.
+
+
+---
+
+## 12. Lessons from real-portal integrations
+
+These came out of the Schengen seed + France-Visas walk + UK Standard
+Visitor scaffold + Vietnam recon work in 2026-Q1/Q2. Drop-in rules to
+follow before you build a new country runner.
+
+### 12.1 Portal step count rarely matches your harmonized schema
+
+France-Visas runs 6 steps; Annex I (the harmonized Schengen field set)
+is 12. Don't force step parity — map fields bidirectionally and keep
+both representations. The portal's section labels are presentation
+metadata, not the schema's structural axis.
+
+_Source: `docs/france-visas-walk-report.md` Section 9._
+
+### 12.2 Field-name collisions across steps cause silent
+fill-the-wrong-field bugs
+
+The same name (e.g. `visas-selected-applicant-country_input`) appears on
+multiple steps with different meaning. Always key field identity by
+`(step_number, field_name)` — never on `field_name` alone. The seed
+schema already uses this composite key; runners must too.
+
+_Source: `docs/france-visas-walk-report.md` Section 9._
+
+### 12.3 Use a starred-field post-processor for beneficiary-class
+optionality
+
+Hand-seeding `required_unless` on 40+ fields scales poorly. One
+`STARRED_FIELD_NAMES` Set in the seed script centralizes the rule and
+makes the optionality logic auditable in one place. New countries with
+similar "fields-marked-optional-for-class-X" patterns should reuse the
+pattern.
+
+_Source: `viza-be/agent-backend/scripts/seed-eu-schengen-c-short-stay-form-fields.ts`._
+
+### 12.4 One `purpose_of_journey` master gate beats N visa products
+
+Tourism / business / study / family / medical etc. share most fields —
+multiplex via conditional sub-branches under one product. `IS_TOURISM`,
+`IS_BUSINESS` etc. as derived booleans on top of a single
+`purpose_of_journey` field. Avoid forking the seed into N separate
+products.
+
+_Source: `docs/schengen-visa-scope.md` (10 purpose options) + the seed's
+`IS_TOURISM` / `IS_BUSINESS` disjunctions._
+
+### 12.5 JSF/PrimeFaces portals need portal-specific orchestration
+
+Cascading selects don't auto-fire change events; text fields uppercase
+on blur; widget registration must precede AJAX postback. Generic
+Playwright form-fill fails. Wire portal-specific helpers (e.g.
+`selectPrimeFacesOption`, `setJsfTextInput`, `selectPrimeFacesRadio`,
+`waitForJsfIdle`) before any per-step fill code.
+
+_Source: `docs/france-visas-walk-report.md` Section 8._
+
+### 12.6 Repeatable + block groups need explicit grouping metadata
+
+`validation_rules` must include `repeat_group` and `block_group` so
+orchestrators render multi-entry sections (companions, prior visas,
+work history) correctly. Without these, the runner can't tell a single
+field from a group instance.
+
+_Source: `validation_rules` patterns in
+`seed-eu-schengen-c-short-stay-form-fields.ts`._
+
+### 12.7 Walk before you map (added 2026-04)
+
+Every new country runner must produce a walk-report
+(`docs/<country>-walk-report.md`) generated from a Playwright recon
+script, before the seed is finalized. Skipping this step costs 5–10×
+more iteration than running the recon once. Pattern in
+`viza-be/submission-service/scripts/walk-uk-portal.ts` and
+`viza-be/submission-service/src/vietnam/form-recon-v3.ts`.

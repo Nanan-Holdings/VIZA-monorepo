@@ -71,7 +71,10 @@ async function main(): Promise<void> {
   );
 
   if (result.status === "prefilled") {
-    console.log(`[fv-smoke] ✓ Prefilled successfully. Steps: ${result.stepsCompleted.join(", ")}. Landed on: ${result.landedOn}.`);
+    console.log(`[fv-smoke] ✓ Prefilled successfully. Steps: ${result.stepsCompleted.join(", ")}.`);
+    if (result.draftReference) console.log(`[fv-smoke]   Draft reference (internal): ${result.draftReference}`);
+    if (result.applicationReference) console.log(`[fv-smoke]   Application reference: ${result.applicationReference}`);
+    if (result.pdfPath) console.log(`[fv-smoke]   PDF saved to: ${result.pdfPath}`);
     process.exit(0);
   } else {
     console.error(`[fv-smoke] ✗ Failed at ${result.failedStep}`);

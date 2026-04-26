@@ -31,8 +31,18 @@ import {
   isGateError,
   orchestrateFill,
   isSuccessResult,
+  handleConfirmApplicationPage,
   type CeacRunResult,
+  type ConfirmApplicationResult,
 } from "./ceac";
+import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
+import { encryptSecret } from "./secret-cipher";
+import type {
+  FrSubmissionResult,
+  UkSubmissionResult,
+  UsSubmissionResult,
+  VnSubmissionResult,
+} from "./submission-result";
 import {
   fillFranceVisasApplication,
   normalizeFvAnswers,
@@ -46,6 +56,8 @@ import {
   isUkGateError,
   serializeUkError,
 } from "./uk";
+import { fillVietnamApplication } from "./vietnam";
+import { uploadArtifact } from "./artifact-storage";
 import {
   SubmissionQueueItem,
   ApplicantProfile,
@@ -64,7 +76,13 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
   const { data, error } = await supabase
     .from("submission_queue")
     .select("*")
-    .in("status", ["pending", "ds160_prefill_pending", "fv_prefill_pending", "uk_prefill_pending"])
+    .in("status", [
+      "pending",
+      "ds160_prefill_pending",
+      "fv_prefill_pending",
+      "uk_prefill_pending",
+      "vn_prefill_pending",
+    ])
     .lt("attempts", MAX_ATTEMPTS);
 
   if (error) throw new Error(`Failed to fetch submission_queue: ${error.message}`);
@@ -81,6 +99,10 @@ function isFvJob(item: SubmissionQueueItem): boolean {
 
 function isUkJob(item: SubmissionQueueItem): boolean {
   return item.status === "uk_prefill_pending";
+}
+
+function isVnJob(item: SubmissionQueueItem): boolean {
+  return item.status === "vn_prefill_pending";
 }
 
 async function markProcessing(queueId: string): Promise<void> {
@@ -437,20 +459,18 @@ async function prefillDs160(
 
 async function uploadDs160Dat(
   datFilePath: string,
-  applicationId: string
+  applicationId: string,
+  authUserId: string,
 ): Promise<string> {
-  const fileBuffer = fs.readFileSync(datFilePath);
-  const storagePath = `ds160-dat/${applicationId}/${path.basename(datFilePath)}`;
-
-  const { error } = await supabase.storage
-    .from("application-documents")
-    .upload(storagePath, fileBuffer, {
-      contentType: "application/octet-stream",
-      upsert: true,
-    });
-
-  if (error) throw new Error(`Failed to upload .dat file: ${error.message}`);
-
+  const storagePath = await uploadArtifact({
+    authUserId,
+    applicationId,
+    country: "US",
+    kind: "dat",
+    ext: "dat",
+    contentType: "application/octet-stream",
+    filePath: datFilePath,
+  });
   console.log(`[ds160] .dat uploaded to storage: ${storagePath}`);
   return storagePath;
 }
@@ -501,6 +521,41 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     const { profile } = await loadApplicantData(item.application_id);
     const answers = await loadDs160Answers(item.application_id);
 
+    // Confirm-application page (Privacy Act ack + Application ID + security
+    // question). Captures `applicationId` + `securityQuestionText` +
+    // `securityAnswer` — the trio the applicant needs to retrieve their
+    // DS-160 from ceac.state.gov later. The security answer is sourced from
+    // the applicant's own data so it's deterministic on retry; falls back to
+    // a runner constant only when no source is present.
+    const securityAnswerSource =
+      answers["ds160_security_answer"] ??
+      answers["mother_surname"] ??
+      "VIZAREDOC";
+    const confirm: ConfirmApplicationResult = await handleConfirmApplicationPage(
+      session.page,
+      {
+        securityAnswer: securityAnswerSource,
+        // Question 3 = "What is your maternal grandmother's maiden name?" —
+        // the most deterministically answerable from applicant-provided data.
+        securityQuestionValue: "3",
+      },
+    );
+    console.log(
+      `[ceac] confirm-application captured appId=${confirm.applicationId} q="${confirm.securityQuestionText}"`,
+    );
+
+    // Recovery credentials so a mid-fill SessionTimedOut triggers auto-resume
+    // (CEAC's session is ~10min idle window). Required by orchestrateFill's
+    // contract for any run that may exceed the window.
+    const surnameFirstFive = (answers["surname"] ?? profile.full_name?.split(" ").slice(-1)[0] ?? "")
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 5)
+      .toUpperCase();
+    const yearOfBirth =
+      answers["date_of_birth_year"] ??
+      (profile.date_of_birth ? profile.date_of_birth.split("-")[0] : "") ??
+      "";
+
     // Drive page-by-page fill through CEAC navigation/checkpoint helpers.
     // orchestrateFill handles: field filling, page advancement, section
     // checkpoints, .dat capture, and stop-at-sign-and-submit.
@@ -510,12 +565,21 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
       tracker,
       runId,
       outputDir: tempDir,
+      recoveryCredentials: {
+        applicationId: confirm.applicationId,
+        surnameFirstFive,
+        yearOfBirth,
+        securityAnswer: confirm.securityAnswer,
+      },
     });
 
-    // Upload .dat artifact to Supabase Storage if captured
+    // Upload .dat artifact to Supabase Storage if captured. The path is
+    // user-prefixed for RLS — fall back to applicantId if the profile has
+    // no auth_user_id (legacy rows from before Supabase Auth was wired).
     let storagePath = "";
     if (datArtifact) {
-      storagePath = await uploadDs160Dat(datArtifact.path, item.application_id);
+      const ownerId = profile.auth_user_id ?? profile.id;
+      storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
     }
 
     // Persist Application ID and .dat metadata
@@ -541,6 +605,29 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         })
         .eq("id", item.id);
 
+      // Write the user-facing UsSubmissionResult to applications so the
+      // frontend's realtime subscription can swap StatusStep to UsResultCard.
+      // embassyOrConsulate is sourced from form answers; falls back to a
+      // pending-confirmation message when the applicant didn't pick a post
+      // server-side (CEAC will require it at retrieval time anyway).
+      const usPayload: UsSubmissionResult = {
+        country: "US",
+        status: "stopped_at_sign",
+        applicationId: result.applicationId ?? confirm.applicationId,
+        surnameFirst5: surnameFirstFive,
+        yearOfBirth: Number(yearOfBirth) || 0,
+        securityQuestion: confirm.securityQuestionText,
+        securityAnswer: confirm.securityAnswer,
+        embassyOrConsulate:
+          answers["consular_post"] ??
+          answers["embassy_or_consulate"] ??
+          answers["location_where_applying_for_visa"] ??
+          "Pending — confirm at appointment",
+        retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId ?? confirm.applicationId}`,
+        ...(storagePath ? { datStoragePath: storagePath } : {}),
+      };
+      await writeSubmissionResult(item.application_id, usPayload, "submitted");
+
       console.log(`[ceac] Run ${runId} handoff_ready for ${item.application_id}`);
     } else {
       // Orchestrator caught an error internally but preserved recovery state.
@@ -563,6 +650,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         .eq("id", item.id);
 
       if (newAttempts >= MAX_ATTEMPTS) {
+        await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
       }
     }
@@ -615,6 +703,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         })
         .eq("id", item.id);
 
+      await markSubmissionFailed(item.application_id, `[CEAC gate] ${errorMsg}`);
       await sendFailureAlert(
         item.application_id,
         `[CEAC gate detected] ${errorMsg}`,
@@ -645,6 +734,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
 
       if (newAttempts >= MAX_ATTEMPTS) {
         console.error(`[ceac] Max attempts reached for ${item.application_id} — sending alert`);
+        await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
       }
     }
@@ -738,16 +828,57 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
     );
 
     if (result.status === "prefilled") {
+      // Upload the downloaded CERFA PDF (if present) to the
+      // submission-artifacts bucket. The autofiller saves to a temp path
+      // locally; we move it to durable storage so the applicant can fetch
+      // it via signed URL minted by the agent-backend artifact-url route.
+      let pdfStoragePath: string | null = null;
+      if (result.pdfPath && fs.existsSync(result.pdfPath)) {
+        try {
+          const ownerId = profile.auth_user_id ?? profile.id;
+          pdfStoragePath = await uploadArtifact({
+            authUserId: ownerId,
+            applicationId: item.application_id,
+            country: "FR",
+            kind: "cerfa",
+            ext: "pdf",
+            contentType: "application/pdf",
+            filePath: result.pdfPath,
+          });
+          // Best-effort cleanup of the local temp file.
+          try { fs.unlinkSync(result.pdfPath); } catch { /* ignore */ }
+        } catch (uploadEx) {
+          const msg = uploadEx instanceof Error ? uploadEx.message : String(uploadEx);
+          console.warn(`[fv] PDF upload failed for ${item.application_id}: ${msg}`);
+          pdfStoragePath = null;
+        }
+      }
+
       await supabase
         .from("submission_queue")
         .update({
           status: "fv_prefilled",
           fv_result_payload: result as unknown as Record<string, unknown>,
           fv_application_reference: result.applicationReference,
+          fv_pdf_storage_path: pdfStoragePath,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
-      console.log(`[fv] Run ${runId} prefilled — ref=${result.applicationReference ?? "(none)"}`);
+
+      // User-facing FrSubmissionResult. France-Visas requires payment to
+      // lock an actual appointment slot, so we surface `stopped_at_pay`
+      // with the application reference + downloadable summary PDF — the
+      // applicant still needs to book/pay externally on connect.france-visas.gouv.fr.
+      // The `appointment` field stays absent until the appointment-booking
+      // runner extension lands.
+      const frPayload: FrSubmissionResult = {
+        country: "FR",
+        status: "stopped_at_pay",
+        applicationReference: result.applicationReference ?? result.draftReference ?? "",
+        ...(pdfStoragePath ? { printablePdfStoragePath: pdfStoragePath } : {}),
+      };
+      await writeSubmissionResult(item.application_id, frPayload, "stopped_at_pay");
+      console.log(`[fv] Run ${runId} prefilled — ref=${result.applicationReference ?? "(none)"}, pdf=${pdfStoragePath ?? "(none)"}`);
     } else {
       const errorMsg = typeof result.error?.message === "string"
         ? result.error.message
@@ -767,6 +898,7 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
         .eq("id", item.id);
 
       if (newAttempts >= MAX_ATTEMPTS) {
+        await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
       }
       console.error(`[fv] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
@@ -791,6 +923,7 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
       .eq("id", item.id);
 
     if (newStatus === "fv_prefill_failed") {
+      await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
     }
     console.error(`[fv] Unhandled error in ${runId}:`, errorMsg);
@@ -838,6 +971,32 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
       })
       .eq("id", item.id);
 
+    if (result.handoffReady) {
+      // Post-auth runner extension landed: capture portal credentials and
+      // surface to user. Encrypts the password before persisting; FE asks
+      // the agent-backend credentials endpoint for the plaintext on demand.
+      const portalUrl = process.env.UK_PORTAL_RESUME_URL ?? "";
+      const portalUsername = process.env.UK_PORTAL_USERNAME ?? "";
+      const portalPassword = process.env.UK_PORTAL_PASSWORD ?? "";
+      if (portalUrl && portalUsername && portalPassword) {
+        const ukPayload: UkSubmissionResult = {
+          country: "UK",
+          status: "stopped_at_pay",
+          portalUrl,
+          portalUsername,
+          generatedPasswordCipher: encryptSecret(portalPassword),
+        };
+        await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
+      } else {
+        console.warn(
+          `[uk] handoffReady=true but UK_PORTAL_* env not set — skipping submission_result write`,
+        );
+      }
+    } else {
+      console.log(
+        `[uk] Run ${runId} stopped at ${result.stoppedAt.id} (pre-auth scaffold) — submission_result not written until walk extension lands`,
+      );
+    }
     console.log(`[uk] Run ${runId} stopped at ${result.stoppedAt.id} — ${result.reason}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -857,6 +1016,7 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
+      await markSubmissionFailed(item.application_id, `[UK gate] ${errorMsg}`);
       await sendFailureAlert(item.application_id, `[UK gate] ${errorMsg}`);
       console.error(`[uk] Run ${runId} GATED:`, errorMsg);
       return;
@@ -875,12 +1035,109 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
       .eq("id", item.id);
 
     if (newStatus === "uk_prefill_failed") {
+      await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[UK] ${errorMsg}`);
     }
     console.error(`[uk] Run ${runId} failed:`, errorMsg);
   } finally {
     if (session) await session.close();
     try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+  }
+}
+
+// ─── Vietnam e-Visa Job Processor ────────────────────────────────────
+//
+// Today: navigates to evisa.gov.vn landing page and stops with
+// `scaffolded_pending_walk`. The per-step fill implementation depends on
+// the recon walk (vietnam/form-recon-v3.ts output). When that lands and
+// fillVietnamApplication starts returning `submitted_pending_pay`, the
+// success branch below writes a VnSubmissionResult.
+async function processVnItem(item: SubmissionQueueItem): Promise<void> {
+  const runId = `vn-${item.application_id}-${Date.now()}`;
+  console.log(`[vn] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "vn_prefill_processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  try {
+    const answers = await loadDs160Answers(item.application_id);
+    const result = await fillVietnamApplication({ answers }, { headless: true, runId });
+
+    if (result.status === "submitted_pending_pay") {
+      const vnPayload: VnSubmissionResult = {
+        country: "VN",
+        status: "submitted_pending_email",
+        registrationCode: result.registrationCode,
+        submittedAtIso: result.submittedAtIso,
+        noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
+      };
+      await writeSubmissionResult(item.application_id, vnPayload, "stopped_at_pay");
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "vn_prefilled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      console.log(`[vn] Run ${runId} prefilled — registrationCode=${result.registrationCode}`);
+      return;
+    }
+
+    if (result.status === "scaffolded_pending_walk") {
+      // Scaffold reached but per-step fill not yet implemented. Mark
+      // queue row done so the scheduler doesn't loop, but don't write
+      // submission_result — the FE keeps showing WaitingCard until the
+      // real runner extension lands.
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "vn_blocked",
+          last_error: "Vietnam runner scaffold-only. Per-step fill pending recon walk integration.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      console.log(`[vn] Run ${runId} stopped at scaffold: ${result.reason}`);
+      return;
+    }
+
+    // status === "failed"
+    const errorMsg = typeof result.error?.message === "string" ? result.error.message : `failed at ${result.failedStep}`;
+    const newAttempts = item.attempts + 1;
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "vn_prefill_failed" : "vn_prefill_pending";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    if (newStatus === "vn_prefill_failed") {
+      await markSubmissionFailed(item.application_id, errorMsg);
+      await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
+    }
+    console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const newAttempts = item.attempts + 1;
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "vn_prefill_failed" : "vn_prefill_pending";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    if (newStatus === "vn_prefill_failed") {
+      await markSubmissionFailed(item.application_id, errorMsg);
+      await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
+    }
+    console.error(`[vn] Unhandled error in ${runId}:`, errorMsg);
   }
 }
 
@@ -957,6 +1214,8 @@ async function poll(): Promise<void> {
       await processFvItem(item);
     } else if (isUkJob(item)) {
       await processUkItem(item);
+    } else if (isVnJob(item)) {
+      await processVnItem(item);
     } else {
       await processItem(item);
     }

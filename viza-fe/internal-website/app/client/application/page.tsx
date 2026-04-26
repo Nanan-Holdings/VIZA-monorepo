@@ -16,7 +16,6 @@ import {
   TravelInfoStep,
   DocumentUploadStep,
   ReviewStep,
-  StatusStep,
   PhotoUploadStep,
   DynamicReviewStep,
   type PersonalInfoData,
@@ -31,6 +30,11 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
+import type {
+  SubmissionResult,
+  SubmissionResultStatus,
+} from "@/lib/submission-result";
+import { SubmissionStatusStep } from "./_components/result-cards/SubmissionStatusStep";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -91,10 +95,20 @@ const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "re
 
 /** Map a visa package's visa_type to the submission_queue status that
  *  routes the worker to the right autofill pipeline. Defaults to
- *  "pending" (Indonesian e-visa path). */
+ *  "pending" (legacy Indonesian e-visa path). */
 function queueStatusForPackage(visaType: string | null | undefined): string {
-  if (visaType === "UK_STANDARD_VISITOR") return "uk_prefill_pending";
-  return "pending";
+  switch (visaType) {
+    case "DS160":
+      return "ds160_prefill_pending";
+    case "EU_SCHENGEN_C_SHORT_STAY":
+      return "fv_prefill_pending";
+    case "UK_STANDARD_VISITOR":
+      return "uk_prefill_pending";
+    case "VN_E_VISA":
+      return "vn_prefill_pending";
+    default:
+      return "pending";
+  }
 }
 
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
@@ -760,6 +774,8 @@ interface ApplicationState {
   photo: string | null;
   confirmationNumber?: string;
   submittedAt?: string;
+  submissionResult: SubmissionResult | null;
+  submissionResultStatus: SubmissionResultStatus | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -808,10 +824,11 @@ export default function ApplicationPage() {
     travel: {},
     documents: {},
     photo: null,
+    submissionResult: null,
+    submissionResultStatus: null,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [translationStatus, setTranslationStatus] = useState<"ok" | "failed" | "pending" | null>(null);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
 
@@ -959,6 +976,9 @@ export default function ApplicationPage() {
         },
         confirmationNumber: application?.confirmation_number ?? undefined,
         submittedAt: application?.submitted_at ?? undefined,
+        submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
+        submissionResultStatus:
+          (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
       }));
 
       const hasPersonal = !!(a.surname || profile.full_name) && !!(a.nationality_country || profile.nationality);
@@ -1261,24 +1281,25 @@ export default function ApplicationPage() {
         submitted_at: new Date().toISOString(),
       }).eq("id", appState.applicationId);
 
-      // Trigger translation (non-blocking)
-      let txStatus: "ok" | "failed" = "ok";
+      // Trigger translation (non-blocking — failures don't block submission;
+      // the translate route also flips submission_result_status to 'waiting'
+      // on success, which the realtime sub picks up).
       try {
         const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-        const txRes = await fetch(
+        await fetch(
           `${backendUrl}/api/applications/${appState.applicationId}/translate`,
           { method: "POST", headers: { "Content-Type": "application/json" } },
         );
-        if (!txRes.ok) txStatus = "failed";
       } catch {
-        txStatus = "failed";
+        // Translation is non-blocking; swallow the error so the user still
+        // proceeds to the StatusStep (where SubmissionStatusStep will show
+        // the WaitingCard until the runner writes a terminal payload).
       }
-      setTranslationStatus(txStatus);
 
       setAppState((prev) => ({
         ...prev,
         submittedAt: new Date().toISOString(),
-        confirmationNumber: `VIZA-${Date.now().toString(36).toUpperCase()}`,
+        submissionResultStatus: prev.submissionResultStatus ?? "waiting",
       }));
       const reviewStepPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
@@ -1318,24 +1339,23 @@ export default function ApplicationPage() {
         submitted_at: new Date().toISOString(),
       }).eq("id", appState.applicationId);
 
-      // Trigger translation (non-blocking — don't prevent submission on failure)
-      let txStatus: "ok" | "failed" = "ok";
+      // Trigger translation (non-blocking — failures don't block submission;
+      // the translate route also flips submission_result_status to 'waiting'
+      // on success, which the realtime sub picks up).
       try {
         const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-        const txRes = await fetch(
+        await fetch(
           `${backendUrl}/api/applications/${appState.applicationId}/translate`,
-          { method: "POST", headers: { "Content-Type": "application/json" } }
+          { method: "POST", headers: { "Content-Type": "application/json" } },
         );
-        if (!txRes.ok) txStatus = "failed";
       } catch {
-        txStatus = "failed";
+        // non-blocking
       }
-      setTranslationStatus(txStatus);
 
       setAppState((prev) => ({
         ...prev,
         submittedAt: new Date().toISOString(),
-        confirmationNumber: `VIZA-${Date.now().toString(36).toUpperCase()}`,
+        submissionResultStatus: prev.submissionResultStatus ?? "waiting",
       }));
       setCompletedUpTo((c) => Math.max(c, 5));
       setCurrentStep(5);
@@ -1458,18 +1478,11 @@ export default function ApplicationPage() {
                         )}
 
                         {/* Status/confirmation step */}
-                        {step.id === statusStepIndex && appState.confirmationNumber && appState.submittedAt && (
-                          <StatusStep
-                            applicationId={appState.applicationId ?? undefined}
-                            confirmationNumber={appState.confirmationNumber}
-                            submittedAt={appState.submittedAt}
-                            estimatedProcessingDays={5}
-                            translationStatus={translationStatus ?? undefined}
-                            originalData={{
-                              personal: appState.personal,
-                              passport: appState.passport,
-                              travel: appState.travel,
-                            }}
+                        {step.id === statusStepIndex && appState.submittedAt && (
+                          <SubmissionStatusStep
+                            applicationId={appState.applicationId}
+                            status={appState.submissionResultStatus}
+                            result={appState.submissionResult}
                           />
                         )}
                       </>
@@ -1513,18 +1526,11 @@ export default function ApplicationPage() {
                             onComplete={handleReviewComplete}
                           />
                         )}
-                        {step.id === 5 && appState.confirmationNumber && appState.submittedAt && (
-                          <StatusStep
-                            applicationId={appState.applicationId ?? undefined}
-                            confirmationNumber={appState.confirmationNumber}
-                            submittedAt={appState.submittedAt}
-                            estimatedProcessingDays={5}
-                            translationStatus={translationStatus ?? undefined}
-                            originalData={{
-                              personal: appState.personal,
-                              passport: appState.passport,
-                              travel: appState.travel,
-                            }}
+                        {step.id === 5 && appState.submittedAt && (
+                          <SubmissionStatusStep
+                            applicationId={appState.applicationId}
+                            status={appState.submissionResultStatus}
+                            result={appState.submissionResult}
                           />
                         )}
                       </>

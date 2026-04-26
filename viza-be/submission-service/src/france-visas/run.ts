@@ -22,7 +22,7 @@
 
 import type { Page } from "@playwright/test";
 import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from "./sign-in";
-import { startNewApplication } from "./accueil";
+import { startNewApplication, finalizeAndDownloadPdf } from "./accueil";
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
 import { waitForPage, detectPage, type FvPageId } from "./pages";
 import { readValidationMessages } from "./navigator";
@@ -42,6 +42,14 @@ export interface FillFranceVisasOptions {
   runId?: string;
   /** Per-step advance timeout. Default 60s (JSF postbacks can be slow). */
   stepTimeoutMs?: number;
+  /**
+   * After step 6 lands on accueil, click the group's Finalize button and
+   * download the completed CERFA PDF. Default true. Set false for a
+   * "save draft only" mode that lets the applicant review before finalizing.
+   */
+  finalize?: boolean;
+  /** Where to save the downloaded PDF. Default: a fresh temp dir. */
+  pdfOutputDir?: string;
 }
 
 export type FillFranceVisasResult =
@@ -51,12 +59,24 @@ export type FillFranceVisasResult =
       landedOn: FvPageId | "unknown";
       stepsCompleted: FvPageId[];
       /**
-       * France-Visas-assigned application reference (like "2026705103880")
-       * surfaced on the accueil dashboard after the draft is saved. Null
-       * when we landed on accueil but couldn't parse a fresh reference
-       * (e.g. multiple apps in the account — we return the most-recent).
+       * The 13-digit France-Visas internal draft reference (like
+       * "2026705103880") visible on accueil immediately after the draft
+       * is saved. Useful for finding the row in the dashboard.
+       */
+      draftReference: string | null;
+      /**
+       * The FRA-format application reference (like "FRA1PE20267040548")
+       * assigned after Finalize. Country code + city code + sequential
+       * number — this is the reference applicants quote to the consulate
+       * and the VAC. Null when finalize was skipped or did not run.
        */
       applicationReference: string | null;
+      /**
+       * Local path to the downloaded CERFA PDF (the official Schengen
+       * visa application form, prefilled with the applicant's data).
+       * Null when finalize was skipped or did not run.
+       */
+      pdfPath: string | null;
     }
   | {
       status: "failed";
@@ -132,14 +152,30 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step6");
 
     const landed = await detectPage(session.page);
-    const applicationReference = await captureLatestApplicationReference(session.page);
+    const draftReference = await captureLatestApplicationReference(session.page);
+
+    // ── Finalize + download PDF (optional but on by default) ────────────
+    let applicationReference: string | null = null;
+    let pdfPath: string | null = null;
+    if (options.finalize !== false) {
+      currentStep = "accueil";
+      const finalized = await finalizeAndDownloadPdf(session.page, {
+        outputDir: options.pdfOutputDir,
+        timeoutMs: stepTimeoutMs,
+        draftReference: draftReference ?? undefined,
+      });
+      applicationReference = finalized.applicationReference;
+      pdfPath = finalized.pdfPath;
+    }
 
     return {
       status: "prefilled",
       runId,
       landedOn: landed.id,
       stepsCompleted,
+      draftReference,
       applicationReference,
+      pdfPath,
     };
   } catch (err) {
     const url = session?.page.url() ?? "";
