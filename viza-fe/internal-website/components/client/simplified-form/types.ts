@@ -1207,6 +1207,54 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
 
   if (travel.tripPayer) p.trip_payer_type = TRIP_PAYER_MAP[travel.tripPayer];
 
+  // Payer details — only relevant when the payer is not the applicant.
+  // Maps to the canonical payer_* schema (organization branch uses
+  // payer_org_*).
+  if (travel.tripPayer && travel.tripPayer !== "Self") {
+    if (travel.tripPayer === "Other Person") {
+      if (travel.payerFirstName.trim()) p.payer_given_names = travel.payerFirstName.trim();
+      if (travel.payerLastName.trim()) p.payer_surname = travel.payerLastName.trim();
+      if (travel.payerPhone.trim()) {
+        p.payer_phone = `${travel.payerPhoneDialCode} ${travel.payerPhone}`.trim();
+      }
+      if (travel.payerEmailUnknown) {
+        p.payer_email = "does_not_apply";
+      } else if (travel.payerEmail.trim()) {
+        p.payer_email = travel.payerEmail.trim();
+      }
+      if (travel.payerRelationship) {
+        p.payer_relationship = travel.payerRelationship.toUpperCase();
+      }
+      if (travel.payerAddressSameAsYou) {
+        p.payer_address_same_as_home = travel.payerAddressSameAsYou;
+      }
+      if (travel.payerAddressSameAsYou === "no") {
+        if (travel.payerStreet1.trim()) p.payer_address_street1 = travel.payerStreet1.trim();
+        if (travel.payerStreet2.trim()) p.payer_address_street2 = travel.payerStreet2.trim();
+        if (travel.payerCity.trim()) p.payer_address_city = travel.payerCity.trim();
+        p.payer_address_state = travel.payerNoState
+          ? "does_not_apply"
+          : travel.payerState.trim();
+        p.payer_address_postal = travel.payerNoPostalCode
+          ? "does_not_apply"
+          : travel.payerPostalCode.trim();
+        if (travel.payerCountry.trim()) p.payer_address_country = travel.payerCountry.trim();
+      }
+    } else if (
+      travel.tripPayer === "Current Employer" ||
+      travel.tripPayer === "US Employer" ||
+      travel.tripPayer === "Other Company"
+    ) {
+      if (travel.payerOrgName.trim()) p.payer_org_name = travel.payerOrgName.trim();
+      if (travel.payerOrgPhone.trim()) {
+        p.payer_org_phone = `${travel.payerOrgPhoneDialCode} ${travel.payerOrgPhone}`.trim();
+      }
+      if (travel.payerOrgRelationship.trim()) {
+        p.payer_org_relationship = travel.payerOrgRelationship.trim();
+      }
+    }
+  }
+
   // ------------------------------------------------------------
   // Travel Companions
   // ------------------------------------------------------------
@@ -1506,6 +1554,18 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
     if (family.spouseCityOfBirth) p.partner_city_of_birth = family.spouseCityOfBirth;
     if (family.spouseCountryOfBirth) p.partner_country_of_birth = family.spouseCountryOfBirth;
     p.partner_address_type = ADDRESS_TYPE_MAP[family.spouseAddressType] ?? "same_as_home";
+    if (family.spouseAddressType === "other") {
+      if (family.spouseAddressStreet1) p.partner_address_street1 = family.spouseAddressStreet1;
+      if (family.spouseAddressStreet2) p.partner_address_street2 = family.spouseAddressStreet2;
+      if (family.spouseAddressCity) p.partner_address_city = family.spouseAddressCity;
+      p.partner_address_state = family.spouseAddressNoState
+        ? "does_not_apply"
+        : family.spouseAddressState.trim();
+      p.partner_address_zip = family.spouseAddressNoPostalCode
+        ? "does_not_apply"
+        : family.spouseAddressPostalCode.trim();
+      if (family.spouseAddressCountry) p.partner_address_country = family.spouseAddressCountry;
+    }
   } else if (identity.maritalStatus === "Widowed") {
     if (family.deceasedSpouseFirstName) p.deceased_spouse_given_names = family.deceasedSpouseFirstName;
     if (family.deceasedSpouseLastName) p.deceased_spouse_surname = family.deceasedSpouseLastName;
@@ -1582,21 +1642,53 @@ export function buildAnswerPayload(form: SimplifiedFormData): Record<string, str
       p[`language_name${suffix}`] = language;
     });
 
-  // Languages — long form expects at least one. Pick the first non-empty.
-  const firstLanguage = (family.languages ?? []).map((l) => l.trim()).find(Boolean);
-  if (firstLanguage) p.language_name = firstLanguage;
-
   // ------------------------------------------------------------
-  // Security & Background — default-no
+  // Security & Background — map friend's legacy answer keys to canonical
+  // DS-160 field_names from seed-ds160-form-fields.ts. Friend's UI stores
+  // answers under legacy keys (e.g. has_drug_abuse) for back-compat; the
+  // long form expects the canonical names (e.g. is_drug_abuser).
   // ------------------------------------------------------------
+  const BACKGROUND_KEY_CANONICAL: Partial<Record<BackgroundQuestionKey, string>> = {
+    has_communicable_disease: "has_communicable_disease",
+    has_physical_mental_disorder: "has_physical_mental_disorder",
+    has_drug_abuse: "is_drug_abuser",
+    has_been_arrested: "has_arrest_conviction",
+    has_violated_substance_law: "has_violated_controlled_substance",
+    has_prostitution_involvement: "has_prostitution",
+    has_money_laundering: "has_money_laundering",
+    has_human_trafficking: "has_human_trafficking",
+    has_supported_trafficking: "has_aided_human_trafficking",
+    is_trafficking_relative: "has_trafficking_beneficiary",
+    intends_espionage: "intend_espionage",
+    intends_terrorism: "intend_terrorist_activity",
+    will_support_terrorists: "has_provided_terrorist_support",
+    is_terrorist_organization_member: "is_terrorist_member",
+    is_terrorist_relative: "is_terrorist_family",
+    has_committed_genocide: "has_genocide",
+    has_committed_torture: "has_torture",
+    has_committed_extrajudicial_killings: "has_extrajudicial_killings",
+    has_used_child_soldiers: "has_child_soldier",
+    violated_religious_freedom: "has_religious_freedom_violation",
+    involved_population_control: "has_population_control",
+    involved_organ_trafficking: "has_coercive_transplant",
+    obtained_visa_by_fraud: "has_immigration_fraud",
+    has_been_removed: "has_removal_order",
+    withheld_child_custody: "has_withheld_child_custody",
+    voted_illegally: "has_voted_illegally",
+    renounced_citizenship: "has_renounced_citizenship",
+    // Friend's legacy keys with no canonical counterpart — skipped:
+    //   has_been_detained, subject_to_removal_order, failed_removal_hearing,
+    //   has_overstayed, practicing_polygamy
+  };
   if (!background.noneApply) {
-    for (const [key, answer] of Object.entries(background.answers)) {
-      if (answer === "yes" || answer === "no") {
-        p[key] = answer;
-        if (answer === "yes") {
-          const detail = background.details[key as BackgroundQuestionKey]?.trim();
-          if (detail) p[`${key}_explain`] = detail;
-        }
+    for (const [legacyKey, answer] of Object.entries(background.answers)) {
+      if (answer !== "yes" && answer !== "no") continue;
+      const canonicalKey = BACKGROUND_KEY_CANONICAL[legacyKey as BackgroundQuestionKey];
+      if (!canonicalKey) continue;
+      p[canonicalKey] = answer;
+      if (answer === "yes") {
+        const detail = background.details[legacyKey as BackgroundQuestionKey]?.trim();
+        if (detail) p[`${canonicalKey}_explain`] = detail;
       }
     }
   }
