@@ -11,11 +11,13 @@ import { readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-// Get project root and load .env
+// Get project root and load env. Local-first (.env.local) so the file the
+// rest of the agent-backend tooling already uses also drives migrations.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, "../..");
 
+dotenv.config({ path: join(projectRoot, ".env.local") });
 dotenv.config({ path: join(projectRoot, ".env") });
 
 // Use DATABASE_URL from environment (supports both direct and pooled connections)
@@ -68,8 +70,10 @@ async function runMigrations() {
 			);
 		`);
 
-		// Get all migration files from database/migrations
-		const migrationsDir = join(projectRoot, "../database/migrations");
+		// Migration files live in agent-backend/drizzle/ — the same folder
+		// drizzle-kit writes to. The legacy `../../database/migrations` path
+		// from earlier scaffolding does not exist in this monorepo.
+		const migrationsDir = join(projectRoot, "drizzle");
 		console.log(`📁 Reading migrations from: ${migrationsDir}\n`);
 
 		const files = readdirSync(migrationsDir)
