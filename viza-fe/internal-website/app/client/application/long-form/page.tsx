@@ -106,6 +106,8 @@ function queueStatusForPackage(visaType: string | null | undefined): string {
       return "uk_prefill_pending";
     case "VN_E_VISA":
       return "vn_prefill_pending";
+    case "AU_VISITOR_600":
+      return "au_prefill_pending";
     default:
       return "pending";
   }

@@ -132,6 +132,19 @@ export const ukAccounts = pgTable("uk_accounts", {
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+export const auAccounts = pgTable("au_accounts", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	username: text("username").notNull(),
+	passwordEncrypted: text("password_encrypted").notNull(),
+	totpSecretEncrypted: text("totp_secret_encrypted"),
+	resumeTrn: text("resume_trn"),
+	storageStateJson: jsonb("storage_state_json"),
+	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const submissionQueue = pgTable("submission_queue", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),
@@ -144,6 +157,9 @@ export const submissionQueue = pgTable("submission_queue", {
 	fvPdfStoragePath: text("fv_pdf_storage_path"),
 	ukResultPayload: jsonb("uk_result_payload"),
 	ukApplicationReference: text("uk_application_reference"),
+	auResultPayload: jsonb("au_result_payload"),
+	auTrn: text("au_trn"),
+	auReviewScreenshotStoragePath: text("au_review_screenshot_storage_path"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

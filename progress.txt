@@ -473,3 +473,151 @@ acknowledgment).
 5. The v1 → v2 delta (81 → 60 fields, 10 → 9 steps) demonstrates that reconstructions systematically over-specify — it's safer to reconstruct generously and trim against live than to reconstruct minimally and miss fields. The downside is that trimming requires live access; the upside is nothing real gets dropped silently.
 6. Vietnam's June 2025 province consolidation (63 → 34, Resolution 60/NQ-TW) is a recent policy change that the live form reflects but older docs don't — underscores the "re-validate quarterly" cadence. The DOM-id-keyed canonical.json from recon-v3 makes this a mechanical diff in future passes.
 ---
+
+## 2026-04-26 - AU-001
+- Pinned scope to the Australian Visitor Visa (Subclass 600) umbrella issued via ImmiAccount, covering all 5 streams: Tourist, Business Visitor, Sponsored Family, Approved Destination Status (ADS), Frequent Traveller
+- visa_type key: AU_VISITOR_600; country: australia
+- Added AU-001 through AU-005 to prd.json at priorities 16–20, shaped after VN-001..005
+- Explicitly out-of-scope: Subclass 651 eVisitor, Subclass 601 ETA, Subclass 462 Work and Holiday, Subclass 417 Working Holiday, Subclass 771 Transit, Subclass 870 Sponsored Parent, Subclass 408 Temporary Activity
+- Source material: Department of Home Affairs Visitor visa (subclass 600) product pages, Forms 1419/1418/1149/956/956A, Migration Regulations 1994 Schedule 2 cl.600, public PAM3 sections; ImmiAccount form itself (online.immi.gov.au/elp/app?formId=VSS-AP-600) redirects to lusc/login and is identity-gated (verified by Playwright walk 2026-04-26)
+- Files changed: prd.json, progress.txt
+- Learnings: Australia is the third country shipped without live-form portal access (UK + Vietnam v1 same constraint). The published Subclass 600 stream product pages are SPA — Playwright `wait_for(2s)` is enough for them to settle and surface the policy headings + required-documents lists that map onto schema sections; this is a useful reconstruction signal even when the form itself can't be driven.
+---
+
+## 2026-04-26 - AU-002
+- Created scripts/seed-au-visitor-600-form-fields.ts with 202 fields across 14 steps
+- Steps: Visa Stream Selection, Personal Details, Passport & Travel Document, National Identity Document, Contact Details, Authorised Recipient & Migration Agent, Family Composition, Travel & Visa History, Visit Details, Stream-Specific Details, Funding & Financial Capacity, Health & Health Insurance, Character Declarations, Declaration
+- Stream umbrella: 5 options (tourist, business_visitor, sponsored_family, ads, frequent_traveller) with conditional Step 10 sub-journeys
+- Reusable gate constants: IS_TOURIST, IS_BUSINESS, IS_SPONSORED, IS_ADS, IS_FREQUENT
+- Repeatable groups: other_names (max 5), other_nationalities (max 5), other_travel_docs (max 3), children (max 10), relatives_in_au (max 10), previous_au_visits (max 10), visa_refusals (max 10), accompanying_applicants (max 10), military_service (max 5)
+- Block groups: residential_address, postal_address, agent_details, authorised_recipient, partner_details, father_details, mother_details, tourist_visit_family, business_org, business_employer, sponsor_details, ads_tour, funder_details, current_employer, insurance_details, minor_accompanying_adult, minor_australian_carer
+- Inline groups: passport_dates (issue+expiry), intended_dates (arrival+departure), funds (amount+currency)
+- Cross-step `||` extensively used in: partner block (relationship_status === married || de_facto || engaged || separated), funder details (funding_source === family || employer || other), employer block (current_employment_status === employed || self_employed)
+- Cross-step gating: is_pregnant (Step 12) gates on sex === female (Step 2)
+- Cross-step `&&`: minor_australian_carer block gates on is_applicant_under_18 === yes && minor_australian_carer_arranged === yes
+- Seed ran clean: "Done: 202 rows seeded (202 defined)"; typecheck passes on agent-backend
+- Files changed: viza-be/agent-backend/scripts/seed-au-visitor-600-form-fields.ts (new), prd.json, progress.txt
+- Learnings:
+  1. 202 fields across 14 steps — slightly heavier than UK Standard Visitor (222 / 12 steps) and Schengen Type C (169 / N steps) because AU has both a stream master (5 streams) AND a separate financial-capacity step (Schengen folds finance into purpose; UK keeps a finances step but no stream split).
+  2. ADS stream collects sponsor-like fields (tour operator name, licence, code, dates, leader) without using the `sponsor_*` namespace — kept distinct because ADS is operator-driven not family-driven, and the live-portal walk confirmed the operator metadata lives in the ADS sub-journey not the sponsor block.
+  3. Frequent Traveller stream's eligibility was originally written as a single PRC boolean; the Playwright walk against the live Frequent Traveller page (2026-04-26) revealed that the stream is open to 11 ASEAN-plus-PRC nationalities. Replaced the boolean with an 11-option select. This is a concrete example of why the playbook §3 Step 2 "always read the live product pages, not just the PDFs" rule matters — the underlying Forms 1419/1418/1149 don't list this expanded country set.
+---
+
+## 2026-04-26 - AU-003
+- Created drizzle/0017_au_visitor_600_package.sql migration (idempotent INSERT + ON CONFLICT DO NOTHING), mirrors 0010/0011/0012 shape
+- Registered row: country=australia, visa_type=AU_VISITOR_600, name="Australia Visitor Visa (Subclass 600)", description mentions all 5 streams and stays up to 12 months
+- No frontend code changes — DynamicStepForm renders the 202 seeded fields generically (zero-frontend-change path, same as UK-003 / SCH-003 / VN-003)
+- Files changed: viza-be/agent-backend/drizzle/0017_au_visitor_600_package.sql (new), prd.json, progress.txt
+- Learnings: fourth country shipped via the pure-dynamic path; the marginal cost of country N+1 keeps shrinking as the field-shape vocabulary stabilises. AU added one new repeat-group context (military_service in character declarations) that hadn't appeared in UK/Schengen/Vietnam — captured as just another `repeat_group` rather than a special case.
+---
+
+## 2026-04-26 - AU-004
+- Created docs/au-visa-gap-report.md with coverage summary (14 steps / 202 fields), 10 remaining limitations documented with why + workaround, and reviewer checklist
+- Limitations: (1) live-portal QA against ImmiAccount form itself not yet done — the form is identity-gated and was confirmed via Playwright to redirect to lusc/login, (2) no multi-select for states-to-visit (renderer limit), (3) port-of-arrival enum is a 10-port subset + `other` escape hatch (Vietnam border-gate pattern reused), (4) stream eligibility not cross-checked against country_of_nationality (no field-equality predicate in evaluateShowIf), (5) Sponsored Family sponsor-application reference linkage deferred to v1.1, (6) document uploads schema-external per playbook §5.6, (7) health insurance not gated on age (no date arithmetic), (8) 75+ applicant extra-evidence is a document-layer concern, (9) adult-dependent extra documents are per-dependent and document-layer, (10) biometrics/fees/VAC scheduling out of scope per playbook §5.7
+- Conditional-logic status: `||` works (UK Phase 2 fix), `&&` works (cross-field same-step in the minor_australian_carer block), cross-step works (sex === female on Step 2 → is_pregnant on Step 12), `in`/date-arithmetic still unsupported
+- Playwright walk on 2026-04-26 produced two real schema corrections (Frequent Traveller country list, under-18 block) — both folded into the seed before this gap report was written
+- Files changed: docs/au-visa-gap-report.md (new), prd.json, progress.txt
+- Learnings: walking the public stream pages with Playwright was net positive even though the form itself can't be driven — the page content surfaced policy gates (genuine-visitor test, 75+ extra evidence, dependent-18+ extra evidence) that a PDF-only reconstruction would miss. Should be the standard fallback recipe when a portal is identity-gated: walk every public product page first, then write the seed.
+---
+
+## 2026-04-26 - AU-005
+- Created docs/au-visa-scope.md documenting the ImmiAccount + Subclass 600 source, 14-step canonical journey, and rerun instructions
+- Honesty disclosure in §9: live form NOT driven (ImmiAccount login wall), but live PUBLIC stream pages WERE driven by Playwright on 2026-04-26 — schema is a reconstruction from PDFs + policy + the public-page walk findings
+- Next actions: Immediate (live ImmiAccount form QA against a real applicant identity, confirm enum exhaustiveness for passport_type / relationship_status / funding_source / business_purpose), v1.1 (multi_select renderer extension for states-to-visit, sponsor-application reference field linkage, full Australian port enum), v2 (eVisitor 651 as separate package, ETA 601 as separate package, Working Holiday 462/417 packages with country-quota awareness)
+- Ralph stop condition: all UK-001..005, SCH-001..005, VN-001..005 and AU-001..005 pass — fourth country shipped end-to-end via pure-dynamic rendering
+- Files changed: docs/au-visa-scope.md (new), prd.json, progress.txt
+- Learnings:
+  1. Public-product-page Playwright walks are the right fallback when the live form itself is identity-gated — the policy headings on every Subclass 600 stream page map cleanly onto schema sections, and on this build they corrected two reconstruction errors (Frequent Traveller country list expanded from 1 to 11, missing under-18 block) that would otherwise have shipped silently.
+  2. Subclass 600 is the second umbrella visa with `||` partner-block gating (UK Standard Visitor was the first). The 4-value `||` chain `married || de_facto || engaged || separated` is now an established idiom — worth promoting to a reusable `IS_PARTNERED` constant in the next country.
+  3. The `frequent_eligible_passport_country` select duplicates information that `country_of_nationality` already captures. Cross-field equality (this field === that field) is the next evaluateShowIf operator that would prevent this kind of redundancy — the same gap that limited UK's TB-test list and AU's stream-eligibility check.
+  4. Australia is the fourth country shipped via the pure-dynamic path (UK + Schengen + Vietnam + Australia). Country N+1 marginal cost is now dominated by live-portal access — when the portal is gated, the public product pages are the next-best signal, and PDFs alone are not enough (the Frequent Traveller country list is the proof).
+---
+
+## 2026-04-27 - AU-002.live (live-portal QA pass against ImmiAccount)
+- Drove the live ImmiAccount VSS-AP-600 form end-to-end with a real applicant identity (test account edwardmiao3367735757@gmail.com), through the 20-page application + critical-data confirmation + Review page. TRN assigned: EGPCDOGHNP.
+- Schema corrections folded into seed-au-visitor-600-form-fields.ts (216 fields, was 202):
+  1. Stream count corrected from 5 to 4 — ADS is NOT offered on the universal VSS-AP-600 form, it lives behind a separate ImmiAccount entry (gated by the ADS group-tour operator workflow). ADS sub-journey fields kept in schema behind a never-true gate so historical answers don't break.
+  2. Added 11 new "Application Context" fields surfaced by live page 2: applying_all_outside_australia, current_location_legal_status (different enum from residency_status), purpose_of_stay_initial (Business / Tourism / Family visit / Study / Religious event / Other), significant_dates_in_australia textarea, event_invited_by_organisation, event_paid_by_australian_organisation, specialised_non_ongoing_work, entertainer_or_supporting_entertainer, production_director_or_participant, applying_as_part_of_group_of_applications, representative_of_foreign_government_or_un.
+  3. Added 3 new Identity-page fields: pacific_australia_card_holder (Pacific-Australia Card holder gate), national_id_reason_for_not_providing (textarea, conditional on has_national_id === no), chinese_commercial_code_number (PRC-only).
+  4. Live form's place-of-issue is country-conditional: SELECT (Chinese province codes for PRC, etc.) vs free text for non-province countries. Schema now annotates both selectors in selectors.ts.
+  5. Added live_dom_id annotations to all 11 page-2 fields + the 3 identity page additions, so submission service can map seed → live form by DOM id.
+- Published recon files under docs/au-recon/page-{01..19}.json + walk-summary.md (canonical mapping of section → file).
+- Live-form findings recorded as gaps to close in v1.1 (deferred, but documented in walk-summary.md):
+  - Sex enum: live values are Female / Male / Other (1/2/3); seed uses male / female / indeterminate. Labels diverge — schema keeps existing values for historical-data portability, normalize.ts maps both.
+  - Length-of-stay: live form is a 3-value enum (Up to 3 / 6 / 12 months), seed has free-text months. Mapped by normalize.ts.
+  - 18 character questions on live page 17 vs 6 in seed (war crimes, criminal-conduct association, sexual offence child, sex offender register, acquitted insanity, not fit to plead, national security, military training, people smuggling, etc.). 12 missing.
+  - 7 health questions on live page 16 vs 4 in seed (lived outside passport country 5y/3mo, hospital/health-facility entry, healthcare worker, aged-care, childcare centre, classroom 3+ months, TB/abnormal chest x-ray combined gate). 3 missing.
+  - 16 attestation Yes/No radios on live page 20 vs 5 checkboxes in seed. Schema modelling needs refresh from checkbox to radio.
+  - 4 funding-source options (Self funded / employer / organisation / person) — seed has 7 including ads/scholarship/sponsor that the live form doesn't surface.
+  - 3 phone fields (home / business / mobile) vs 2 in seed.
+  - Department office typeahead (Country, City picker) — not in seed.
+- Submission-time eligibility check: Subclass 600 server-side rejects 651/ETA-eligible passport countries at the Critical Data Confirmation step (page 4). Verified by submitting a Singapore-passport applicant — got "Based on the passport details, ... is not eligible to apply using this online service." Schema's gap report needs to enumerate the exclusion list (eVisitor 651: 39 European/EEA passports + Vatican; ETA 601: BN, CA, JP, KR, MY, SG, US, TW, HK).
+- Re-seeded clean: "Done: 216 rows seeded (216 defined)"; typecheck passes on agent-backend.
+- Files changed: viza-be/agent-backend/scripts/seed-au-visitor-600-form-fields.ts (216 fields), docs/au-recon/* (new), progress.txt
+- Learnings:
+  1. The walk surfaced TWO categorically wrong assumptions from the public-page reconstruction: (a) ADS as a stream of the universal 600 form (it's not), (b) Frequent Traveller restricted to 11 specific nationalities (correct, but the live universal form only shows 4 streams alphabetically with no nationality gate visible at the stream radio — the eligibility filter happens server-side at critical-data confirmation). The reconstruction was wrong about WHERE the eligibility check fires, even though the country list itself was correct.
+  2. ImmiAccount's TOTP MFA on every login means the submission service needs an `mfaCodeProvider` callback (operator prompt or stored-secret store) — same pattern as France-Visas's mailbox poller.
+  3. Date format on the live form is `DD MMM YYYY` (e.g. `15 Jun 1990`), not `DD/MM/YYYY` — the form rejects DD/MM/YYYY at validate even though it accepts the input. normalize.ts now uses `formatAuDate()`.
+  4. Phone fields reject spaces silently — must strip via `digitsOnly()`. France-Visas auto-uppercases text, this form auto-strips spaces; both are normalize-layer concerns, not seed concerns.
+  5. Cross-section "Confirm" modal fires after Next on certain page transitions (e.g. after the contact page's "Warning!"). Orchestrator must call `dismissConfirmModalIfShown` after every Next.
+---
+
+## 2026-04-27 - AU-006.submission (submission-service skeleton built)
+- Created viza-be/submission-service/src/au-visitor/ with 9 files (1.3K LOC), parallel to france-visas/ and ceac/:
+  - errors.ts — AuError taxonomy (UNEXPECTED_PAGE, SESSION_EXPIRED, NAVIGATION_FAILED, VALIDATION_FAILED, SESSION_BOOTSTRAP_FAILED, MFA_REQUIRED, NATIONALITY_INELIGIBLE, GATE_DETECTED) with serializeError parity
+  - pages.ts — AuPageId enum (21 values incl. payment + review_page), detectPage() (URL-first override for review_page/payment, then page-counter, then heading-pattern fallback), isFillablePage()
+  - selectors.ts — 17 selector groups keyed by live DOM names captured during the 2026-04-27 walk: NAV_BUTTONS, CONFIRM_MODAL, TERMS_FIELDS, CONTEXT_FIELDS (14), APPLICANT_FIELDS (20), CRITICAL_CONFIRM_FIELDS, TRAVELLING_FIELDS, CONTACT_FIELDS (14, both PRC-province-select and non-PRC-text variants), AUTHORISED_RECIPIENT_FIELDS, NON_ACCOMPANYING_FIELDS, ENTRY_FIELDS, EMPLOYMENT_FIELDS, FINANCIAL_FIELDS, HEALTH_FIELDS (7), CHARACTER_FIELDS (18), VISA_HISTORY_FIELDS (3), DECLARATION_FIELDS (16), VALIDATION_MARKERS
+  - aspnet.ts — page-driver primitives: clickByName, clickYesNo, fillByName, selectByName, selectByLabel, pickFromCombobox, clickNext, clickPrevious, dismissConfirmModalIfShown, fillUncheckedRadiosDefault, readPageMeta, readHeadings, readValidationErrors, readTrn
+  - session.ts — loginToImmiAccount (TOTP-MFA via mfaCodeProvider callback), startNewVisitor600Application (clicks New application → Visitor → Visitor Visa (600) on the dashboard), resumeApplicationByTrn (draft-resume by Transaction Reference Number)
+  - normalize.ts — formatAuDate (ISO/DMY → DD MMM YYYY), digitsOnly (phone), mapSex/mapStream/mapEmploymentStatus/mapLengthOfStay enums, NOT_SUBCLASS_600_ELIGIBLE pre-flight check (39 eVisitor + 9 ETA passports), isLikelyIneligibleForSubclass600()
+  - orchestrator.ts — runVisitor600Application loop: detect → fill → fill defaults → Next → confirm-modal → validate-errors. Stops on Review page or Payment page. Per-page fillers wired for: terms_and_conditions, application_context, primary_applicant, critical_data_confirmation, travelling_companions, contact_details, authorised_recipient, non_accompanying_family, entry_to_australia, current_overseas_employment, financial_support, visa_history, declarations. Health + character pages use the No-by-default fallback.
+  - run.ts — fillVisitor600Application top-level entry mirroring fillFranceVisasApplication; pre-flight ineligibility check before bootstrap, returns FillVisitor600Result {outcome, result, error}.
+  - index.ts — public exports.
+- Submission service typecheck passes clean.
+- Stop-at-review boundary established (mirrors DS-160's stop-at-sign-and-submit and France-Visas's stop-at-finalize-PDF). Payment + Submit click is intentionally not automated — it charges AUD 200 and requires applicant attestation.
+- Files changed: viza-be/submission-service/src/au-visitor/{errors,pages,selectors,aspnet,session,normalize,orchestrator,run,index}.ts (9 new files)
+- Learnings:
+  1. The au-visitor service is shaped 1:1 with france-visas (errors / pages / selectors / aspnet / session / fill / orchestrator / run / index split). The DS-160 split has more files (start-page-captcha, stop-at-sign, gates, smoke, captcha-solver) because CEAC needs them. AU's ImmiAccount has no image CAPTCHA on the form pages (only on registration, which we skip — operator pre-creates the ImmiAccount), so the CAPTCHA layer collapses out.
+  2. The "country-conditional select vs text" pattern (passport place of issue / residential address state) is now codified in normalize+orchestrator: try the SELECT first, fall back to the TEXT variant. Same pattern will apply to any future country whose form has province dropdowns for some countries and free text for others.
+  3. Seed → wire-format mapping needs three layers: (a) seed schema enum (authoritative for VIZA), (b) normalize layer (seed → wire-format string transforms), (c) selectors mapping (control name → wire DOM). Skipping the normalize layer would push country-specific quirks into the seed (which we can't, because the schema is shared across countries).
+  4. The 651/ETA-eligible-passport pre-flight check in normalize.isLikelyIneligibleForSubclass600 is the right place for this kind of "would this even submit?" gate — caller can fail fast before opening a browser context, saving session quota and avoiding burning a TRN.
+---
+
+## 2026-04-27 - AU-WORKER-WIRE
+- Wired AU Subclass 600 into the polling submission worker (mirrors UK/FR/VN dispatch).
+- DB migrations applied to live Supabase via psql (idempotent, --single-transaction):
+  - 0019_au_submission_queue_columns.sql — adds au_result_payload jsonb, au_trn text, au_review_screenshot_storage_path text on submission_queue; refreshes submission_result_status comment to include `stopped_at_review`.
+  - 0020_au_accounts.sql — au_accounts table (applicant_id FK, username, password_encrypted, totp_secret_encrypted, resume_trn, storage_state_json) + RLS policies (select/insert/update tied to applicant_profiles.auth_user_id = auth.uid()), unique (applicant_id, username), idx_au_accounts_applicant_id.
+- Submission-service worker (viza-be/submission-service/src/index.ts):
+  - isAuJob predicate + au_prefill_pending added to fetchPendingItems polling list.
+  - processAuItem: loads applicant + answers → loadAuAccount with lazy-upsert from step-0 answer fields (au_immi_username/password/totp_secret/resume_trn) → launchStealthBrowser (CEAC stealth) → fillVisitor600Application with TOTP-via-mfaCodeProvider → on review_reached captures full-page screenshot of Review page, uploads to submission-artifacts bucket as AU/review-screenshot, writes AuSubmissionResult { status: stopped_at_review, trn, portalUrl, portalUsername, reviewScreenshotStoragePath } via writeSubmissionResult, marks queue au_prefilled. NationalityIneligibleError + MfaRequiredError short-circuit to au_blocked.
+- Inline RFC 6238 TOTP generator (viza-be/submission-service/src/au-visitor/totp.ts) — no new dep, satisfies ImmiAccount MFA from base32 secret.
+- Type contract mirror across 3 packages (submission-service, agent-backend/src/types, internal-website/lib): AuSubmissionResult discriminated by country: "AU"; SubmissionResultStatus extended with `stopped_at_review`.
+- Drizzle schema: auAccounts table + 3 new submissionQueue columns added to viza-be/agent-backend/src/db/schema.ts.
+- Frontend (viza-fe/internal-website):
+  - long-form/page.tsx queueStatusForPackage: "AU_VISITOR_600" -> "au_prefill_pending".
+  - New _components/result-cards/AuResultCard.tsx — TRN, ImmiAccount username, signed-URL Review-page snapshot via /api/applications/:id/artifact-url, "Open ImmiAccount to submit" CTA, prominent legal-handoff banner explaining the stop-at-review policy.
+  - SubmissionStatusStep.tsx dispatches country: "AU" to AuResultCard.
+- Seed update (scripts/seed-au-visitor-600-form-fields.ts): added 4 step-0 ImmiAccount fields (au_immi_username, au_immi_password, au_immi_totp_secret, au_resume_trn). 220 rows re-seeded into visa_form_fields against live Supabase.
+- Type-check green: submission-service, agent-backend, internal-website.
+- Files changed:
+  - viza-be/agent-backend/drizzle/0019_au_submission_queue_columns.sql (new)
+  - viza-be/agent-backend/drizzle/0020_au_accounts.sql (new)
+  - viza-be/agent-backend/src/db/schema.ts
+  - viza-be/agent-backend/src/types/submission-result.ts
+  - viza-be/agent-backend/scripts/seed-au-visitor-600-form-fields.ts
+  - viza-be/submission-service/src/index.ts
+  - viza-be/submission-service/src/types.ts
+  - viza-be/submission-service/src/submission-result.ts
+  - viza-be/submission-service/src/artifact-storage.ts
+  - viza-be/submission-service/src/au-visitor/totp.ts (new)
+  - viza-fe/internal-website/lib/submission-result.ts
+  - viza-fe/internal-website/app/client/application/long-form/page.tsx
+  - viza-fe/internal-website/app/client/application/_components/result-cards/SubmissionStatusStep.tsx
+  - viza-fe/internal-website/app/client/application/_components/result-cards/AuResultCard.tsx (new)
+- Legal note: stop_at_review boundary is intentional — Subclass 600 lodgement legally requires the applicant's own act of submission. The runner halts at Review, persists a snapshot + TRN, and surfaces a CTA pointing the user back into ImmiAccount to click Submit themselves. Mirrors the FR stop_at_pay and US stop_at_sign policies.
+- Learnings:
+  1. agent-backend npm run db:migrate is broken in two ways: (a) loads .env not .env.local, (b) reads from ../../database/migrations/ which doesn't exist in this repo. Migrations live in viza-be/agent-backend/drizzle/ and have to be applied manually (Supabase SQL Editor or psql with DATABASE_URL from .env.local). Used `set -a; . ./.env.local; set +a; psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f drizzle/<file>.sql` for both migrations.
+  2. The submission-service worker IS the queue worker — it's a standalone process polling submission_queue every 30s, not a job-runner library. Adding a new country = (a) extend types.ts status union, (b) add isXJob + processXItem functions, (c) extend the .in() filter in fetchPendingItems, (d) add an `else if (isXJob)` branch to poll(). No queue infra to add.
+  3. ImmiAccount MFA is mandatory and persists across logins — the runner must compute TOTP itself or it stalls indefinitely on the prompt. Inline RFC 6238 (sha1, 30s, 6 digits) is ~30 LOC of Node crypto and avoids dragging in otplib. Future-proof for ImmiAccount switching to sha256/sha512 or 8-digit codes via the same module.
+---

@@ -11,7 +11,7 @@ import { supabase } from "./supabase";
  */
 export const SUBMISSION_ARTIFACTS_BUCKET = "submission-artifacts";
 
-export type CountryCode = "US" | "FR" | "UK" | "VN";
+export type CountryCode = "US" | "FR" | "UK" | "VN" | "AU";
 
 export interface UploadArtifactInput {
   authUserId: string;

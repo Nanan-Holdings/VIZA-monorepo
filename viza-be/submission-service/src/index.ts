@@ -58,6 +58,14 @@ import {
   resumeUkApplication,
 } from "./uk";
 import { fillVietnamApplication } from "./vietnam";
+import {
+  fillVisitor600Application,
+  NationalityIneligibleError,
+  MfaRequiredError,
+  type AnswerMap as AuAnswerMap,
+} from "./au-visitor";
+import { generateTotp } from "./au-visitor/totp";
+import { launchStealthBrowser } from "./ceac/stealth-browser";
 import { uploadArtifact } from "./artifact-storage";
 import {
   SubmissionQueueItem,
@@ -66,8 +74,10 @@ import {
   ApplicationDocument,
   FvAccount,
   UkAccount,
+  AuAccount,
   VisaApplicationAnswer,
 } from "./types";
+import type { AuSubmissionResult } from "./submission-result";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
@@ -84,6 +94,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "fv_prefill_pending",
       "uk_prefill_pending",
       "vn_prefill_pending",
+      "au_prefill_pending",
     ])
     .lt("attempts", MAX_ATTEMPTS);
 
@@ -105,6 +116,10 @@ function isUkJob(item: SubmissionQueueItem): boolean {
 
 function isVnJob(item: SubmissionQueueItem): boolean {
   return item.status === "vn_prefill_pending";
+}
+
+function isAuJob(item: SubmissionQueueItem): boolean {
+  return item.status === "au_prefill_pending";
 }
 
 async function markProcessing(queueId: string): Promise<void> {
@@ -1288,6 +1303,256 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   }
 }
 
+async function loadAuAccount(applicantId: string): Promise<AuAccount | null> {
+  const { data, error } = await supabase
+    .from("au_accounts")
+    .select("*")
+    .eq("applicant_id", applicantId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load au_accounts: ${error.message}`);
+  return (data ?? null) as AuAccount | null;
+}
+
+function decryptAuSecret(encrypted: string): string {
+  // Try the project cipher first; if the column is still plaintext (dev
+  // parity), pass it through unchanged. Production rows are encrypted.
+  try {
+    return decryptSecret(encrypted);
+  } catch {
+    return encrypted;
+  }
+}
+
+// ─── AU Subclass 600 Job Processor ───────────────────────────────────
+//
+// Walks the 20-page VSS-AP-600 form via the au-visitor runner, then
+// halts on the Review page. Persists an AuSubmissionResult with status
+// `stopped_at_review` so the user is the one who actually clicks Submit
+// inside ImmiAccount — Subclass 600 lodgement legally requires the
+// applicant's own action; VIZA cannot finalise on their behalf.
+async function processAuItem(item: SubmissionQueueItem): Promise<void> {
+  const runId = `au-${item.application_id}-${Date.now()}`;
+  console.log(`[au] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "au_prefill_processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "au-run-"));
+  let handles: Awaited<ReturnType<typeof launchStealthBrowser>> | null = null;
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id);
+
+    // Prefer au_accounts row; lazy-upsert from step-0 answer fields if
+    // the applicant filled them but the row hasn't been materialized yet
+    // (mirrors the UK uk_accounts lazy-upsert pattern).
+    let account = await loadAuAccount(application.applicant_id);
+    if (!account) {
+      const username = answers["au_immi_username"];
+      const password = answers["au_immi_password"];
+      const totpSecret = answers["au_immi_totp_secret"];
+      const resumeTrnFromAnswers = answers["au_resume_trn"];
+      if (username && password) {
+        const passwordEncrypted = encryptSecret(password);
+        const totpEncrypted = totpSecret ? encryptSecret(totpSecret) : null;
+        const { error: upsertErr } = await supabase
+          .from("au_accounts")
+          .upsert(
+            {
+              applicant_id: application.applicant_id,
+              username,
+              password_encrypted: passwordEncrypted,
+              totp_secret_encrypted: totpEncrypted,
+              resume_trn: resumeTrnFromAnswers || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "applicant_id,username" },
+          );
+        if (upsertErr) {
+          console.warn(`[au] au_accounts upsert failed: ${upsertErr.message}`);
+        } else {
+          account = await loadAuAccount(application.applicant_id);
+        }
+      }
+    }
+
+    if (!account) {
+      throw new Error(
+        "No au_accounts row and no au_immi_username/au_immi_password in answers — applicant must register an ImmiAccount and persist credentials before submission.",
+      );
+    }
+
+    const username = account.username;
+    const password = decryptAuSecret(account.password_encrypted);
+    const totpSecret = account.totp_secret_encrypted
+      ? decryptAuSecret(account.totp_secret_encrypted)
+      : undefined;
+    const resumeTrn = account.resume_trn ?? answers["au_resume_trn"] ?? null;
+
+    handles = await launchStealthBrowser({ headless: true, acceptDownloads: true });
+
+    const result = await fillVisitor600Application({
+      context: handles.context,
+      credentials: {
+        username,
+        password,
+        mfaCodeProvider: totpSecret
+          ? async () => generateTotp(totpSecret)
+          : undefined,
+      },
+      answers: answers as AuAnswerMap,
+      resumeTrn,
+      options: {},
+    });
+
+    if (result.outcome === "review_reached" && result.result) {
+      const trn = result.result.trn ?? resumeTrn ?? "";
+      const portalUrl = "https://online.immi.gov.au/ola/app";
+
+      // Capture the Review page so the user can verify what was filled
+      // before they hit Submit themselves.
+      let screenshotStoragePath: string | undefined;
+      try {
+        const pages = handles.context.pages();
+        const activePage = pages[pages.length - 1];
+        if (activePage) {
+          const localPath = path.join(tempDir, "au-review.png");
+          await activePage.screenshot({ path: localPath, fullPage: true });
+          const ownerId = profile.auth_user_id ?? profile.id;
+          screenshotStoragePath = await uploadArtifact({
+            authUserId: ownerId,
+            applicationId: item.application_id,
+            country: "AU",
+            kind: "review-screenshot",
+            ext: "png",
+            contentType: "image/png",
+            filePath: localPath,
+          });
+        }
+      } catch (screenshotErr) {
+        const msg = screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr);
+        console.warn(`[au] Review screenshot capture failed for ${item.application_id}: ${msg}`);
+      }
+
+      const auPayload: AuSubmissionResult = {
+        country: "AU",
+        status: "stopped_at_review",
+        trn,
+        portalUrl,
+        portalUsername: username,
+        ...(screenshotStoragePath ? { reviewScreenshotStoragePath: screenshotStoragePath } : {}),
+      };
+
+      await writeSubmissionResult(item.application_id, auPayload, "stopped_at_review");
+
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "au_prefilled",
+          au_result_payload: result.result as unknown as Record<string, unknown>,
+          au_trn: trn || null,
+          au_review_screenshot_storage_path: screenshotStoragePath ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      console.log(`[au] Run ${runId} stopped_at_review — trn=${trn || "(none)"}, screenshot=${screenshotStoragePath ?? "(none)"}`);
+      return;
+    }
+
+    if (result.outcome === "stopped_early" && result.result) {
+      // Walked but never reached Review (e.g. orchestrator hit maxPages on
+      // an unmapped section). Treat as a recoverable failure so ops can
+      // re-queue after fixing selectors.
+      const reason = `stopped early at ${result.result.reachedPage}`;
+      const newAttempts = item.attempts + 1;
+      const newStatus = newAttempts >= MAX_ATTEMPTS ? "au_prefill_failed" : "au_prefill_pending";
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: newStatus,
+          attempts: newAttempts,
+          last_error: reason,
+          au_result_payload: result.result as unknown as Record<string, unknown>,
+          au_trn: result.result.trn ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (newStatus === "au_prefill_failed") {
+        await markSubmissionFailed(item.application_id, reason);
+        await sendFailureAlert(item.application_id, `[AU] ${reason}`);
+      }
+      console.error(`[au] Run ${runId} ${reason}`);
+      return;
+    }
+
+    // outcome === "failed"
+    const errBag = result.error ?? {};
+    const errorMsg = typeof errBag.message === "string" ? errBag.message : "AU runner failed";
+
+    // Nationality-ineligible is a data error, not a transient failure —
+    // burning retries on it is wasteful and will never succeed.
+    const isIneligible = errBag.name === "NationalityIneligibleError";
+    const newAttempts = item.attempts + 1;
+    const newStatus = isIneligible
+      ? "au_prefill_failed"
+      : (newAttempts >= MAX_ATTEMPTS ? "au_prefill_failed" : "au_prefill_pending");
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        au_result_payload: errBag as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (newStatus === "au_prefill_failed") {
+      await markSubmissionFailed(item.application_id, errorMsg);
+      await sendFailureAlert(item.application_id, `[AU] ${errorMsg}`);
+    }
+    console.error(`[au] Run ${runId} failed: ${errorMsg}`);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const newAttempts = item.attempts + 1;
+
+    // MFA + ineligibility are data-side blockers that re-running cannot
+    // resolve until the applicant updates their answers/credentials.
+    const isBlocker = err instanceof MfaRequiredError || err instanceof NationalityIneligibleError;
+    const newStatus = isBlocker
+      ? "au_blocked"
+      : (newAttempts >= MAX_ATTEMPTS ? "au_prefill_failed" : "au_prefill_pending");
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (newStatus === "au_prefill_failed" || newStatus === "au_blocked") {
+      await markSubmissionFailed(item.application_id, errorMsg);
+      await sendFailureAlert(item.application_id, `[AU${isBlocker ? " blocked" : ""}] ${errorMsg}`);
+    }
+    console.error(`[au] Unhandled error in ${runId}:`, errorMsg);
+  } finally {
+    if (handles) {
+      try { await handles.context.close(); } catch { /* ignore */ }
+      try { await handles.browser.close(); } catch { /* ignore */ }
+    }
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
 function requireAnswer(map: Record<string, string | null>, field: string): string {
   const v = map[field];
   if (!v || v.trim().length === 0) {
@@ -1363,6 +1628,8 @@ async function poll(): Promise<void> {
       await processUkItem(item);
     } else if (isVnJob(item)) {
       await processVnItem(item);
+    } else if (isAuJob(item)) {
+      await processAuItem(item);
     } else {
       await processItem(item);
     }

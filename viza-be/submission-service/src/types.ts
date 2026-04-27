@@ -25,7 +25,12 @@ export interface SubmissionQueueItem {
     | "vn_prefill_processing"
     | "vn_prefilled"
     | "vn_prefill_failed"
-    | "vn_blocked";
+    | "vn_blocked"
+    | "au_prefill_pending"
+    | "au_prefill_processing"
+    | "au_prefilled"
+    | "au_prefill_failed"
+    | "au_blocked";
   attempts: number;
   last_error: string | null;
   /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
@@ -41,6 +46,30 @@ export interface SubmissionQueueItem {
   uk_result_payload: Record<string, unknown> | null;
   /** UKVI-assigned application reference once registered. */
   uk_application_reference: string | null;
+  /** Structured AU Subclass 600 RunResult payload (JSON). */
+  au_result_payload: Record<string, unknown> | null;
+  /** ImmiAccount-assigned Transaction Reference Number for the draft. */
+  au_trn: string | null;
+  /** submission-artifacts bucket path for the captured Review-page screenshot. */
+  au_review_screenshot_storage_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * ImmiAccount credentials row from the `au_accounts` table for the AU
+ * Subclass 600 runner. password_encrypted + totp_secret_encrypted decrypted
+ * at runtime via secret-cipher.
+ */
+export interface AuAccount {
+  id: string;
+  applicant_id: string;
+  username: string;
+  password_encrypted: string;
+  totp_secret_encrypted: string | null;
+  resume_trn: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
   created_at: string;
   updated_at: string;
 }
