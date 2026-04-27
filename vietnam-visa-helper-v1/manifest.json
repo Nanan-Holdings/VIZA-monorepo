@@ -8,7 +8,8 @@
     "storage"
   ],
   "host_permissions": [
-    "*://*.evisa.gov.vn/*"
+    "*://*.evisa.gov.vn/*",
+    "https://oyjhxzsoejraedqghndi.supabase.co/*"
   ],
   "content_scripts": [
     {
@@ -37,6 +38,9 @@
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://oyjhxzsoejraedqghndi.supabase.co"
   },
   "icons": {
     "16": "icon16.png",

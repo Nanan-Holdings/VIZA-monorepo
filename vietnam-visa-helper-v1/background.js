@@ -573,9 +573,38 @@ const fieldMappings = {
   }
 };
 
+const SUPABASE_URL = 'https://oyjhxzsoejraedqghndi.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_F5iLwR2PAMWH79sSHUXslA_67aA6GTj';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95anhkenNvZWpyYWVkcWdobmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxOTUsImV4cCI6MjA4OTYyMzE5NX0.Hw6DgY6fDVe5ky8wVj7F8Ib_kJaNgGrCiVc_hC5o_fk';
+const SUPABASE_PROFILE_TABLE = 'visa_vietnam';
+const SUPABASE_STORAGE_BUCKET = 'visa-vietnam-uploads';
+const SUPABASE_SESSION_KEY = 'vhSupabaseSession';
+const SUPABASE_PROFILE_CACHE_KEY = 'vhSupabaseProfileCache';
+const SUPABASE_PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
+
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const UPLOAD_STORAGE_KEY = 'vhUploadDocuments';
 const ALLOWED_UPLOAD_KEYS = new Set(['passport_photo', 'passport_copy']);
+
+function getSupabaseApiKey() {
+  if (SUPABASE_PUBLISHABLE_KEY && SUPABASE_PUBLISHABLE_KEY.trim()) {
+    return SUPABASE_PUBLISHABLE_KEY.trim();
+  }
+  if (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.trim()) {
+    return SUPABASE_ANON_KEY.trim();
+  }
+  return '';
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function shouldUseRemoteValue(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string' && value.trim() === '') return false;
+  return true;
+}
 
 function getBundledUploadDocuments() {
   return {
@@ -594,6 +623,37 @@ function getBundledUploadDocuments() {
 
 function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function mergeProfileWithDefaults(defaults, remote) {
+  if (!isPlainObject(defaults)) {
+    return shouldUseRemoteValue(remote) ? remote : defaults;
+  }
+
+  const merged = Array.isArray(defaults) ? defaults.slice() : {};
+
+  for (const [key, defaultValue] of Object.entries(defaults)) {
+    if (key === 'documents') {
+      merged[key] = defaultValue;
+      continue;
+    }
+
+    const remoteValue = isPlainObject(remote) ? remote[key] : undefined;
+
+    if (isPlainObject(defaultValue)) {
+      merged[key] = mergeProfileWithDefaults(defaultValue, isPlainObject(remoteValue) ? remoteValue : {});
+      continue;
+    }
+
+    if (Array.isArray(defaultValue)) {
+      merged[key] = Array.isArray(remoteValue) && remoteValue.length ? remoteValue : defaultValue;
+      continue;
+    }
+
+    merged[key] = shouldUseRemoteValue(remoteValue) ? remoteValue : defaultValue;
+  }
+
+  return merged;
 }
 
 function replaceFileExtension(fileName, extension) {
@@ -705,8 +765,8 @@ function sanitizeUploadDocuments(documents) {
   return sanitized;
 }
 
-function buildUserDataWithStoredUploads(documents) {
-  const merged = cloneDeep(userData);
+function buildUserDataWithStoredUploads(documents, baseUserData = userData) {
+  const merged = cloneDeep(baseUserData || userData);
   const sanitizedDocuments = sanitizeUploadDocuments(documents);
   merged.documents = {
     ...getBundledUploadDocuments(),
@@ -734,6 +794,24 @@ function getStoredUploadDocuments(callback) {
   });
 }
 
+function getStoredUploadDocumentsAsync() {
+  return new Promise((resolve) => {
+    getStoredUploadDocuments(resolve);
+  });
+}
+
+function setStoredUploadDocumentsAsync(documents) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: documents }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message || 'storage_set_failed'));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
 function persistUploadDocuments(nextDocuments, sendResponse) {
   chrome.storage.local.set({ [UPLOAD_STORAGE_KEY]: nextDocuments }, () => {
     if (chrome.runtime.lastError) {
@@ -751,22 +829,668 @@ function persistUploadDocuments(nextDocuments, sendResponse) {
   });
 }
 
+function buildSupabaseHeaders(accessToken) {
+  const apiKey = getSupabaseApiKey();
+  const headers = {
+    apikey: apiKey,
+    'Content-Type': 'application/json',
+    Accept: 'application/json'
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  return headers;
+}
+
+function buildSupabaseStorageHeaders(accessToken, contentType = '') {
+  const apiKey = getSupabaseApiKey();
+  const headers = {
+    apikey: apiKey
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+
+  return headers;
+}
+
+function getFileExtensionFromMimeType(mimeType) {
+  const normalized = (mimeType || '').toLowerCase();
+  if (normalized.includes('png')) return '.png';
+  if (normalized.includes('jpeg') || normalized.includes('jpg')) return '.jpg';
+  if (normalized.includes('webp')) return '.webp';
+  if (normalized.includes('gif')) return '.gif';
+  if (normalized.includes('bmp')) return '.bmp';
+  return '';
+}
+
+function normalizeStorageFileKey(value) {
+  return (value || 'upload').toString().replace(/[^a-z0-9._-]+/gi, '_');
+}
+
+function buildStorageObjectPath(userId, fieldKey, fileName, mimeType) {
+  const safeKey = normalizeStorageFileKey(fieldKey || 'upload');
+  const rawExtension = fileName && fileName.includes('.')
+    ? fileName.slice(fileName.lastIndexOf('.'))
+    : '';
+  const extension = rawExtension || getFileExtensionFromMimeType(mimeType) || '.bin';
+  const safeExtension = extension.replace(/[^.a-z0-9]/gi, '');
+  return `${userId}/${safeKey}${safeExtension}`;
+}
+
+function normalizeSupabaseSession(data) {
+  if (!data?.access_token) return null;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const expiresAt = data.expires_at || (data.expires_in ? nowSeconds + data.expires_in : null);
+
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    token_type: data.token_type,
+    expires_at: expiresAt,
+    user: data.user || null
+  };
+}
+
+function buildSessionSummary(session) {
+  if (!session?.user) return null;
+  return {
+    email: session.user.email || null,
+    expires_at: session.expires_at || null
+  };
+}
+
+function getStoredSupabaseSession() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([SUPABASE_SESSION_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        console.warn('读取 Supabase session 失败:', chrome.runtime.lastError.message);
+        resolve(null);
+        return;
+      }
+      resolve(result?.[SUPABASE_SESSION_KEY] || null);
+    });
+  });
+}
+
+function setStoredSupabaseSession(session) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [SUPABASE_SESSION_KEY]: session }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('保存 Supabase session 失败:', chrome.runtime.lastError.message);
+      }
+      resolve();
+    });
+  });
+}
+
+function clearStoredSupabaseSession() {
+  return new Promise((resolve) => {
+    chrome.storage.local.remove([SUPABASE_SESSION_KEY], () => {
+      if (chrome.runtime.lastError) {
+        console.warn('清除 Supabase session 失败:', chrome.runtime.lastError.message);
+      }
+      resolve();
+    });
+  });
+}
+
+function getCachedSupabaseProfile() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([SUPABASE_PROFILE_CACHE_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(null);
+        return;
+      }
+
+      const cache = result?.[SUPABASE_PROFILE_CACHE_KEY];
+      if (!cache || !Object.prototype.hasOwnProperty.call(cache, 'profile') || !cache.cachedAt) {
+        resolve(null);
+        return;
+      }
+
+      if (Date.now() - cache.cachedAt > SUPABASE_PROFILE_CACHE_TTL_MS) {
+        resolve(null);
+        return;
+      }
+
+      resolve(cache.profile);
+    });
+  });
+}
+
+function setCachedSupabaseProfile(profile) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({
+      [SUPABASE_PROFILE_CACHE_KEY]: {
+        profile,
+        cachedAt: Date.now()
+      }
+    }, () => {
+      resolve();
+    });
+  });
+}
+
+function clearCachedSupabaseProfile() {
+  return new Promise((resolve) => {
+    chrome.storage.local.remove([SUPABASE_PROFILE_CACHE_KEY], () => {
+      resolve();
+    });
+  });
+}
+
+async function supabaseTokenRequest(grantType, payload) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grantType}`, {
+    method: 'POST',
+    headers: buildSupabaseHeaders(),
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error_description || data?.error || data?.msg || 'supabase_auth_failed');
+  }
+
+  return data;
+}
+
+async function refreshSupabaseSession(session) {
+  if (!session?.refresh_token) return session;
+
+  const data = await supabaseTokenRequest('refresh_token', {
+    refresh_token: session.refresh_token
+  });
+  const normalized = normalizeSupabaseSession(data);
+  if (normalized) {
+    await setStoredSupabaseSession(normalized);
+  }
+  return normalized || session;
+}
+
+async function ensureValidSupabaseSession() {
+  const session = await getStoredSupabaseSession();
+  if (!session) return null;
+
+  if (session.expires_at && session.refresh_token) {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (session.expires_at - 60 <= nowSeconds) {
+      try {
+        return await refreshSupabaseSession(session);
+      } catch (error) {
+        console.warn('Supabase session refresh failed:', error.message);
+      }
+    }
+  }
+
+  return session;
+}
+
+async function loginSupabaseWithPassword(email, password) {
+  const data = await supabaseTokenRequest('password', { email, password });
+  const session = normalizeSupabaseSession(data);
+  if (!session) {
+    throw new Error('supabase_invalid_session');
+  }
+  await setStoredSupabaseSession(session);
+  await clearCachedSupabaseProfile();
+  return session;
+}
+
+async function signOutSupabase(session) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey || !session?.access_token) return;
+
+  await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: buildSupabaseHeaders(session.access_token)
+  }).catch(() => null);
+}
+
+async function updateSupabasePassword(newPassword) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token) {
+    throw new Error('supabase_not_authenticated');
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: buildSupabaseHeaders(session.access_token),
+    body: JSON.stringify({ password: newPassword })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error_description || data?.error || data?.msg || 'supabase_password_update_failed');
+  }
+
+  return data;
+}
+
+async function fetchSupabaseProfile({ force = false } = {}) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) return null;
+
+  if (!force) {
+    const cached = await getCachedSupabaseProfile();
+    if (cached !== null) return cached;
+  }
+
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token || !session?.user?.id) return null;
+
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${SUPABASE_PROFILE_TABLE}`);
+  url.searchParams.set('select', 'profile_data');
+  url.searchParams.set('user_id', `eq.${session.user.id}`);
+  url.searchParams.set('limit', '1');
+
+  const response = await fetch(url.toString(), {
+    headers: buildSupabaseHeaders(session.access_token)
+  });
+
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || 'supabase_profile_fetch_failed');
+  }
+
+  const profile = Array.isArray(data) && data.length ? data[0].profile_data || null : null;
+  await setCachedSupabaseProfile(profile);
+  return profile;
+}
+
+function normalizeRemoteDocumentPayload(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const storage = payload.storage || payload.storage_ref || null;
+  const bucket = payload.bucket || storage?.bucket || null;
+  const path = payload.path || payload.storage_path || storage?.path || storage?.key || null;
+  const normalized = { ...payload };
+
+  if (bucket && path) {
+    normalized.storage = { bucket, path };
+  }
+
+  return normalized;
+}
+
+function extractRemoteDocumentsFromProfile(profile) {
+  if (!isPlainObject(profile?.documents)) return {};
+
+  const result = {};
+  for (const key of ALLOWED_UPLOAD_KEYS) {
+    const payload = normalizeRemoteDocumentPayload(profile.documents?.[key]);
+    if (payload) {
+      result[key] = payload;
+    }
+  }
+
+  return result;
+}
+
+async function uploadSupabaseStorageObject(session, fieldKey, payload) {
+  if (!payload?.data_url) {
+    throw new Error('missing_upload_data');
+  }
+
+  if (!session?.access_token || !session?.user?.id) {
+    throw new Error('supabase_no_session');
+  }
+
+  const blob = await dataUrlToBlob(payload.data_url);
+  const mimeType = payload.mime_type || blob.type || 'application/octet-stream';
+  const objectPath = buildStorageObjectPath(session.user.id, fieldKey, payload.file_name, mimeType);
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_STORAGE_BUCKET}/${objectPath}`, {
+    method: 'POST',
+    headers: {
+      ...buildSupabaseStorageHeaders(session.access_token, mimeType),
+      'x-upsert': 'true'
+    },
+    body: blob
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => 'supabase_storage_upload_failed');
+    throw new Error(message || 'supabase_storage_upload_failed');
+  }
+
+  return {
+    file_name: payload.file_name,
+    mime_type: mimeType,
+    size: payload.size || blob.size || 0,
+    last_modified: payload.last_modified || Date.now(),
+    uploaded_at: new Date().toISOString(),
+    storage: {
+      bucket: SUPABASE_STORAGE_BUCKET,
+      path: objectPath
+    }
+  };
+}
+
+async function downloadSupabaseStorageObject(session, payload) {
+  if (!session?.access_token) return null;
+
+  const bucket = payload?.storage?.bucket || payload?.bucket || SUPABASE_STORAGE_BUCKET;
+  const path = payload?.storage?.path || payload?.path || payload?.storage_path || null;
+  if (!bucket || !path) return null;
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+    headers: buildSupabaseStorageHeaders(session.access_token)
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => 'supabase_storage_download_failed');
+    throw new Error(message || 'supabase_storage_download_failed');
+  }
+
+  const blob = await response.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  return {
+    file_name: payload?.file_name || path.split('/').pop() || 'upload',
+    mime_type: payload?.mime_type || blob.type,
+    size: payload?.size || blob.size || 0,
+    last_modified: payload?.last_modified || Date.now(),
+    data_url: dataUrl,
+    storage: {
+      bucket,
+      path
+    }
+  };
+}
+
+async function deleteSupabaseStorageObject(session, payload) {
+  if (!session?.access_token) return;
+
+  const bucket = payload?.storage?.bucket || payload?.bucket || SUPABASE_STORAGE_BUCKET;
+  const path = payload?.storage?.path || payload?.path || payload?.storage_path || null;
+  if (!bucket || !path) return;
+
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+    method: 'DELETE',
+    headers: buildSupabaseStorageHeaders(session.access_token)
+  }).catch(() => null);
+}
+
+async function upsertSupabaseProfile(session, profileData) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey || !session?.user?.id) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_PROFILE_TABLE}`, {
+    method: 'POST',
+    headers: {
+      ...buildSupabaseHeaders(session.access_token),
+      Prefer: 'resolution=merge-duplicates,return=representation'
+    },
+    body: JSON.stringify([
+      {
+        user_id: session.user.id,
+        profile_data: profileData
+      }
+    ])
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || 'supabase_profile_upsert_failed');
+  }
+
+  return data;
+}
+
+async function updateSupabaseProfileDocuments(session, documentUpdates) {
+  if (!session?.access_token || !session?.user?.id) return;
+
+  let currentProfile = null;
+  try {
+    currentProfile = await fetchSupabaseProfile({ force: true });
+  } catch (error) {
+    console.warn('Supabase profile refresh failed:', error.message);
+  }
+
+  const baseProfile = isPlainObject(currentProfile) ? currentProfile : {};
+  const currentDocuments = isPlainObject(baseProfile.documents) ? baseProfile.documents : {};
+  const nextDocuments = {
+    ...currentDocuments,
+    ...documentUpdates
+  };
+
+  const nextProfile = {
+    ...baseProfile,
+    documents: nextDocuments
+  };
+
+  await upsertSupabaseProfile(session, nextProfile);
+  await setCachedSupabaseProfile(nextProfile);
+}
+
+async function syncUploadDocumentToSupabase(fieldKey, payload) {
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token || !session?.user?.id) return null;
+
+  const uploaded = await uploadSupabaseStorageObject(session, fieldKey, payload);
+  await updateSupabaseProfileDocuments(session, {
+    [fieldKey]: uploaded
+  });
+  return uploaded;
+}
+
+async function ensureRemoteUploadDocuments(documents) {
+  const sanitized = sanitizeUploadDocuments(documents || {});
+  const missingKeys = Array.from(ALLOWED_UPLOAD_KEYS).filter(key => !sanitized[key]);
+  if (missingKeys.length === 0) return sanitized;
+
+  let remoteProfile = null;
+  try {
+    remoteProfile = await fetchSupabaseProfile();
+  } catch (error) {
+    console.warn('Supabase profile fetch for uploads failed:', error.message);
+    return sanitized;
+  }
+
+  const remoteDocuments = extractRemoteDocumentsFromProfile(remoteProfile);
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token) return sanitized;
+
+  const downloaded = {};
+  for (const key of missingKeys) {
+    const payload = normalizeRemoteDocumentPayload(remoteDocuments[key]);
+    if (!payload) continue;
+
+    if (payload.data_url || payload.base64 || payload.url) {
+      downloaded[key] = payload;
+      continue;
+    }
+
+    if (payload.storage?.path) {
+      try {
+        const downloadedPayload = await downloadSupabaseStorageObject(session, payload);
+        if (downloadedPayload) {
+          downloaded[key] = downloadedPayload;
+        }
+      } catch (error) {
+        console.warn(`Supabase download failed for ${key}:`, error.message);
+      }
+    }
+  }
+
+  if (Object.keys(downloaded).length === 0) {
+    return sanitized;
+  }
+
+  const nextDocuments = {
+    ...sanitized,
+    ...downloaded
+  };
+
+  try {
+    await setStoredUploadDocumentsAsync(nextDocuments);
+  } catch (error) {
+    console.warn('Failed to cache remote uploads locally:', error.message);
+  }
+
+  return nextDocuments;
+}
+
+async function removeSupabaseProfileDocument(fieldKey) {
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token || !session?.user?.id) return;
+
+  let currentProfile = null;
+  try {
+    currentProfile = await fetchSupabaseProfile({ force: true });
+  } catch (error) {
+    console.warn('Supabase profile refresh failed:', error.message);
+  }
+
+  const baseProfile = isPlainObject(currentProfile) ? currentProfile : {};
+  const currentDocuments = isPlainObject(baseProfile.documents) ? { ...baseProfile.documents } : {};
+  const targetPayload = normalizeRemoteDocumentPayload(currentDocuments[fieldKey]);
+
+  if (targetPayload?.storage?.path) {
+    await deleteSupabaseStorageObject(session, targetPayload);
+  }
+
+  delete currentDocuments[fieldKey];
+
+  const nextProfile = {
+    ...baseProfile,
+    documents: currentDocuments
+  };
+
+  await upsertSupabaseProfile(session, nextProfile);
+  await setCachedSupabaseProfile(nextProfile);
+}
+
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getUserData') {
-    getStoredUploadDocuments((documents) => {
+    (async () => {
+      let documents = await getStoredUploadDocumentsAsync();
+      documents = await ensureRemoteUploadDocuments(documents);
+      let baseProfile = userData;
+
+      try {
+        const remoteProfile = await fetchSupabaseProfile();
+        if (isPlainObject(remoteProfile)) {
+          baseProfile = mergeProfileWithDefaults(userData, remoteProfile);
+        }
+      } catch (error) {
+        console.warn('Supabase profile fetch failed:', error.message);
+      }
+
       sendResponse({
-        userData: buildUserDataWithStoredUploads(documents),
+        userData: buildUserDataWithStoredUploads(documents, baseProfile),
         fieldMappings: fieldMappings
       });
-    });
+    })();
+    return true;
+  }
+
+  if (request.action === 'authGetSession') {
+    (async () => {
+      const session = await getStoredSupabaseSession();
+      sendResponse({
+        success: true,
+        session: buildSessionSummary(session)
+      });
+    })();
+    return true;
+  }
+
+  if (request.action === 'authLogin') {
+    const email = request.email;
+    const password = request.password;
+    if (!email || !password) {
+      sendResponse({ success: false, error: 'missing_credentials' });
+      return false;
+    }
+
+    (async () => {
+      try {
+        const session = await loginSupabaseWithPassword(email, password);
+        sendResponse({ success: true, session: buildSessionSummary(session) });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'authLogout') {
+    (async () => {
+      try {
+        const session = await getStoredSupabaseSession();
+        if (session) {
+          await signOutSupabase(session);
+        }
+        await clearStoredSupabaseSession();
+        await clearCachedSupabaseProfile();
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'authUpdatePassword') {
+    const password = request.password || '';
+    if (!password.trim()) {
+      sendResponse({ success: false, error: 'missing_password' });
+      return false;
+    }
+
+    (async () => {
+      try {
+        await updateSupabasePassword(password);
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'fetchProfile') {
+    (async () => {
+      try {
+        const profile = await fetchSupabaseProfile({ force: !!request.force });
+        sendResponse({ success: true, profile });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
     return true;
   }
 
   if (request.action === 'getUploadDocuments') {
-    getStoredUploadDocuments((documents) => {
+    (async () => {
+      let documents = await getStoredUploadDocumentsAsync();
+      documents = await ensureRemoteUploadDocuments(documents);
       sendResponse({ documents: buildUploadDocumentsResponse(documents) });
-    });
+    })();
     return true;
   }
 
@@ -777,14 +1501,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return false;
     }
 
-    getStoredUploadDocuments((documents) => {
-      const nextDocuments = {
-        ...documents,
-        [key]: payload
-      };
+    (async () => {
+      try {
+        let nextPayload = payload;
+        if (payload.data_url) {
+          try {
+            const cloudMeta = await syncUploadDocumentToSupabase(key, payload);
+            if (cloudMeta?.storage?.path) {
+              nextPayload = {
+                ...payload,
+                storage: cloudMeta.storage
+              };
+            }
+          } catch (error) {
+            console.warn(`Supabase upload failed for ${key}:`, error.message);
+          }
+        }
 
-      persistUploadDocuments(nextDocuments, sendResponse);
-    });
+        const documents = await getStoredUploadDocumentsAsync();
+        const nextDocuments = {
+          ...documents,
+          [key]: nextPayload
+        };
+
+        await setStoredUploadDocumentsAsync(nextDocuments);
+        sendResponse({ success: true, documents: nextDocuments });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message || 'storage_set_failed' });
+      }
+    })();
     return true;
   }
 
@@ -798,14 +1543,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         const processedPayload = await buildUploadPayloadFromSource(payload);
-        getStoredUploadDocuments((documents) => {
-          const nextDocuments = {
-            ...documents,
-            [key]: processedPayload
-          };
+        let nextPayload = processedPayload;
 
-          persistUploadDocuments(nextDocuments, sendResponse);
-        });
+        try {
+          const cloudMeta = await syncUploadDocumentToSupabase(key, processedPayload);
+          if (cloudMeta?.storage?.path) {
+            nextPayload = {
+              ...processedPayload,
+              storage: cloudMeta.storage
+            };
+          }
+        } catch (error) {
+          console.warn(`Supabase upload failed for ${key}:`, error.message);
+        }
+
+        const documents = await getStoredUploadDocumentsAsync();
+        const nextDocuments = {
+          ...documents,
+          [key]: nextPayload
+        };
+
+        await setStoredUploadDocumentsAsync(nextDocuments);
+        sendResponse({ success: true, documents: nextDocuments });
       } catch (error) {
         sendResponse({
           success: false,
@@ -824,12 +1583,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return false;
     }
 
-    getStoredUploadDocuments((documents) => {
-      const nextDocuments = { ...documents };
-      delete nextDocuments[key];
+    (async () => {
+      try {
+        const documents = await getStoredUploadDocumentsAsync();
+        const nextDocuments = { ...documents };
+        delete nextDocuments[key];
+        await setStoredUploadDocumentsAsync(nextDocuments);
 
-      persistUploadDocuments(nextDocuments, sendResponse);
-    });
+        try {
+          await removeSupabaseProfileDocument(key);
+        } catch (error) {
+          console.warn(`Supabase delete failed for ${key}:`, error.message);
+        }
+
+        sendResponse({ success: true, documents: nextDocuments });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message || 'storage_set_failed' });
+      }
+    })();
     return true;
   }
 

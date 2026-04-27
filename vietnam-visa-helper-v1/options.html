@@ -106,6 +106,70 @@
       border: 1px solid #fed7aa;
     }
 
+    .pill.info {
+      color: #1d4ed8;
+      background: #dbeafe;
+      border: 1px solid #bfdbfe;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .form-grid label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .form-grid input {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      color: var(--text);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn.secondary {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #1e3a8a;
+    }
+
     .meta {
       font-size: 12px;
       color: #6b7280;
@@ -122,6 +186,34 @@
     </header>
 
     <section class="content">
+      <article class="card">
+        <h2>Cloud Login (Supabase)</h2>
+        <p>
+          Sign in to load your profile data from Supabase. Missing fields fall back to the local defaults.
+        </p>
+        <div class="form-grid">
+          <label>
+            Email
+            <input id="supabaseEmail" type="email" autocomplete="username" placeholder="you@example.com">
+          </label>
+          <label>
+            Password
+            <input id="supabasePassword" type="password" autocomplete="current-password" placeholder="Password">
+          </label>
+          <label>
+            New password
+            <input id="supabaseNewPassword" type="password" autocomplete="new-password" placeholder="New password">
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="supabaseLogin" type="button">Sign in</button>
+          <button class="btn" id="supabaseLogout" type="button">Sign out</button>
+          <button class="btn secondary" id="supabaseSync" type="button">Fetch profile</button>
+          <button class="btn secondary" id="supabaseUpdatePassword" type="button">Update password</button>
+        </div>
+        <span class="pill info" id="supabaseStatus">Not signed in</span>
+      </article>
+
       <article class="card">
         <h2>Current Profile Source</h2>
         <p>
