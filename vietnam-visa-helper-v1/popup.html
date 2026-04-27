@@ -248,6 +248,71 @@
       margin-top: 10px;
     }
 
+    .auth-box {
+      background: #fff8f1;
+      border: 1px solid rgba(234, 88, 12, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .auth-box h3 {
+      color: #9a3412;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .auth-box p {
+      font-size: 12px;
+      color: #7c2d12;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .auth-grid {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .auth-grid label {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9a3412;
+    }
+
+    .auth-grid input {
+      border: 1px solid rgba(234, 88, 12, 0.3);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    .auth-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .auth-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #7c2d12;
+    }
+
+    .auth-status[data-state="ok"] {
+      color: #15803d;
+      font-weight: 600;
+    }
+
+    .auth-status[data-state="warn"] {
+      color: #b42318;
+      font-weight: 600;
+    }
+
     .btn-small {
       padding: 7px 10px;
       font-size: 12px;
@@ -270,6 +335,32 @@
       <p>• 自动填表 + 中文翻译</p>
       <p>• 智能引导流程</p>
       <p>• 详细字段说明</p>
+    </div>
+
+    <div class="auth-box">
+      <h3>🔐 云端登录（Supabase）</h3>
+      <p>登录后可加载云端资料与照片，并自动填充。</p>
+      <div class="auth-grid">
+        <label>
+          Email
+          <input id="supabaseEmail" type="email" autocomplete="username" placeholder="you@example.com">
+        </label>
+        <label>
+          Password
+          <input id="supabasePassword" type="password" autocomplete="current-password" placeholder="Password">
+        </label>
+        <label>
+          New password
+          <input id="supabaseNewPassword" type="password" autocomplete="new-password" placeholder="New password">
+        </label>
+      </div>
+      <div class="auth-actions">
+        <button class="btn btn-primary btn-small" id="supabaseLogin" type="button">Sign in</button>
+        <button class="btn btn-secondary btn-small" id="supabaseLogout" type="button">Sign out</button>
+        <button class="btn btn-secondary btn-small" id="supabaseSync" type="button">Fetch profile</button>
+        <button class="btn btn-secondary btn-small" id="supabaseUpdatePassword" type="button">Update password</button>
+      </div>
+      <div class="auth-status" id="supabaseStatus" data-state="info">Not signed in</div>
     </div>
 
     <div class="upload-box">
