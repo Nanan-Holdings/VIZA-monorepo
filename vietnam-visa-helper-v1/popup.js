@@ -236,6 +236,140 @@ function setUploadStatus(fieldKey, text, state = 'empty') {
   statusNode.dataset.state = state;
 }
 
+function setAuthStatus(text, state = 'info') {
+  const statusNode = document.getElementById('supabaseStatus');
+  if (!statusNode) return;
+  statusNode.textContent = text;
+  statusNode.dataset.state = state;
+}
+
+function formatExpiry(expiresAt) {
+  if (!expiresAt) return 'unknown';
+  const date = new Date(expiresAt * 1000);
+  return date.toLocaleString();
+}
+
+async function refreshAuthStatus() {
+  try {
+    const response = await sendMessage({ action: 'authGetSession' });
+    if (response?.session?.email) {
+      const expiry = formatExpiry(response.session.expires_at);
+      setAuthStatus(`Signed in as ${response.session.email} (expires ${expiry})`, 'ok');
+      return;
+    }
+    setAuthStatus('Not signed in', 'info');
+  } catch (error) {
+    setAuthStatus('Unable to read login status', 'warn');
+  }
+}
+
+async function handleAuthLogin() {
+  const emailInput = document.getElementById('supabaseEmail');
+  const passwordInput = document.getElementById('supabasePassword');
+  const email = emailInput?.value?.trim();
+  const password = passwordInput?.value || '';
+
+  if (!email || !password) {
+    setAuthStatus('Email and password are required', 'warn');
+    return;
+  }
+
+  setAuthStatus('Signing in...', 'info');
+  try {
+    const response = await sendMessage({
+      action: 'authLogin',
+      email,
+      password
+    });
+
+    if (response?.success) {
+      await refreshAuthStatus();
+      return;
+    }
+
+    setAuthStatus(`Login failed: ${response?.error || 'unknown'}`, 'warn');
+  } catch (error) {
+    setAuthStatus(`Login failed: ${error.message}`, 'warn');
+  }
+}
+
+async function handleAuthLogout() {
+  setAuthStatus('Signing out...', 'info');
+  try {
+    const response = await sendMessage({ action: 'authLogout' });
+    if (response?.success) {
+      await refreshAuthStatus();
+      return;
+    }
+    setAuthStatus(`Sign out failed: ${response?.error || 'unknown'}`, 'warn');
+  } catch (error) {
+    setAuthStatus(`Sign out failed: ${error.message}`, 'warn');
+  }
+}
+
+async function handleFetchProfile() {
+  setAuthStatus('Fetching profile...', 'info');
+  try {
+    const response = await sendMessage({ action: 'fetchProfile', force: true });
+    if (response?.success && response?.profile) {
+      setAuthStatus('Profile loaded from Supabase', 'ok');
+      return;
+    }
+
+    if (response?.success && !response?.profile) {
+      setAuthStatus('No profile found. Using defaults.', 'warn');
+      return;
+    }
+
+    setAuthStatus(`Fetch failed: ${response?.error || 'unknown'}`, 'warn');
+  } catch (error) {
+    setAuthStatus(`Fetch failed: ${error.message}`, 'warn');
+  }
+}
+
+async function handleAuthUpdatePassword() {
+  const passwordInput = document.getElementById('supabaseNewPassword');
+  const newPassword = passwordInput?.value || '';
+
+  if (!newPassword.trim()) {
+    setAuthStatus('New password is required', 'warn');
+    return;
+  }
+
+  setAuthStatus('Updating password...', 'info');
+
+  try {
+    const response = await sendMessage({
+      action: 'authUpdatePassword',
+      password: newPassword
+    });
+
+    if (response?.success) {
+      if (passwordInput) passwordInput.value = '';
+      setAuthStatus('Password updated successfully', 'ok');
+      return;
+    }
+
+    setAuthStatus(`Update failed: ${response?.error || 'unknown'}`, 'warn');
+  } catch (error) {
+    setAuthStatus(`Update failed: ${error.message}`, 'warn');
+  }
+}
+
+function bindAuthControls() {
+  const loginBtn = document.getElementById('supabaseLogin');
+  const logoutBtn = document.getElementById('supabaseLogout');
+  const syncBtn = document.getElementById('supabaseSync');
+  const updateBtn = document.getElementById('supabaseUpdatePassword');
+
+  if (loginBtn) loginBtn.addEventListener('click', handleAuthLogin);
+  if (logoutBtn) logoutBtn.addEventListener('click', handleAuthLogout);
+  if (syncBtn) syncBtn.addEventListener('click', handleFetchProfile);
+  if (updateBtn) updateBtn.addEventListener('click', handleAuthUpdatePassword);
+
+  refreshAuthStatus();
+}
+
 function renderUploadStatuses(documents = {}) {
   Object.entries(UPLOAD_FIELDS).forEach(([fieldKey, config]) => {
     const documentInfo = documents?.[fieldKey];
@@ -385,6 +519,7 @@ async function initPopup() {
   if (isStandaloneUploadPage) {
     document.body.classList.add('standalone');
   }
+  bindAuthControls();
   bindQuickActions();
   bindUploadControls();
   await refreshUploadStatuses();
