@@ -944,6 +944,77 @@
       "priority": 65,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "MO-001",
+      "title": "Pin the Macau Visit Visa extraction scope and canonical source journey",
+      "description": "Macau Visit Visa scoped to DSI paper application + VOA pre-clearance for VOA-eligible nationalities.",
+      "acceptanceCriteria": [
+        "prd.json contains MO-001 through MO-005",
+        "Three submission variants (VOA single, VOA multiple, paper Visit Visa) on visa_type_requested",
+        "Out-of-scope (Resident ID, Blue Card, CIPIM, Student Visa, Mainland permits) documented",
+        "docs/macau-visa-scope.md exists"
+      ],
+      "priority": 66,
+      "passes": true,
+      "notes": "DSI paper-only for visa-required nationals; VOA at-border for ~80 nationalities. No online portal. Submission automation = PDF render."
+    },
+    {
+      "id": "MO-002",
+      "title": "Model the Macau Visit Visa field inventory",
+      "description": "MO Visit Visa journey as machine-readable schema matching DSI paper form.",
+      "acceptanceCriteria": [
+        "scripts/seed-mo-visit-visa-form-fields.ts exists with visa_type = MO_VISIT_VISA",
+        "8 sections (personal, passport, contact, occupation, trip, host, travel history, character + declaration)",
+        "Optional Chinese name field, BIR/BIRH host ID field",
+        "Macau-specific port-of-entry list (MFM + Mainland borders + ferry terminals + HZMB)",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 67,
+      "passes": true,
+      "notes": "Same Asia-tourist 8-step template + MO-specific tweaks."
+    },
+    {
+      "id": "MO-003",
+      "title": "Wire the Macau Visit Visa package into VIZA's dynamic form path",
+      "description": "MO Visit Visa form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers MO_VISIT_VISA in visa_packages (country = macau)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 68,
+      "passes": true,
+      "notes": "Migration file: 0030_mo_visit_visa_package.sql."
+    },
+    {
+      "id": "MO-004",
+      "title": "Publish the Macau Visit Visa gap report",
+      "description": "MO Visit Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/macau-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Paper-form PDF render flagged as primary near-term path",
+        "VOA cover-sheet PDF flagged as secondary path",
+        "Typecheck passes"
+      ],
+      "priority": 69,
+      "passes": true,
+      "notes": "Paper-only flow; submission automation is PDF render."
+    },
+    {
+      "id": "MO-005",
+      "title": "Document the Macau Visit Visa workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for MO_VISIT_VISA.",
+      "acceptanceCriteria": [
+        "docs/macau-visa-scope.md documents the DSI paper form + VOA flow",
+        "progress.txt updated with MO-001..MO-005",
+        "Next actions (PDF render, VOA cover sheet, MO_BLUE_CARD) stated",
+        "Typecheck passes"
+      ],
+      "priority": 70,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }

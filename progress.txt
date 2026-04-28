@@ -1076,3 +1076,16 @@ acknowledgment).
   2. The visa_type_requested radio scales beyond single-vs-multi-entry to multi-channel submission variants. HK uses it for "Form ID 936 single" / "Form ID 936 multiple" / "PAR (Indian)" — three rows that share the same field set but differ in submission channel + nationality eligibility.
   3. HK + Macao + Mainland China have shared border infrastructure (HZMB, West Kowloon high-speed rail, Lok Ma Chau Spur Line). Future MO_VISIT_VISA can reuse much of this port enumeration.
 ---
+
+## 2026-04-28 - MO-001..MO-005
+- Shipped Macau Visit Visa schema (MO_VISIT_VISA): ~75 fields across 8 steps mirroring the DSI (Direcção dos Serviços de Identificação) paper visa application + visa-on-arrival (VOA) pre-clearance flow. Three submission variants (VOA single MOP 100, VOA multiple MOP 200, paper Visit Visa for visa-required) on visa_type_requested.
+- MO-specific schema features:
+  - Optional Chinese name field
+  - BIR / BIRH host ID field (loose-validated)
+  - Port-of-entry list: MFM + 5 Mainland borders (Barrier Gate, Lotus Bridge, Qingmao, HZMB Macao Port, Hengqin Port) + 2 ferry terminals (Outer Harbour, Taipa).
+- Files: seed-mo-visit-visa-form-fields.ts, drizzle/0030_mo_visit_visa_package.sql, docs/macau-visa-scope.md, docs/macau-visa-gap-report.md, prd.json MO-001..MO-005 (priority 66..70).
+- Type-check green.
+- Learnings:
+  1. HK + MO + Mainland China share physical border infrastructure (HZMB) — the schema's port-of-entry enum overlaps deliberately. Future cross-package consolidation could share a `cn_sar_borders` enum module if the FE renderer ever needs to show identical labels across packages.
+  2. Paper-form-only countries with at-the-border VOA (Macau, Cambodia, Laos, possibly Sri Lanka, Egypt 46-nationality VOA, etc.) all benefit from the variant-via-visa_type_requested pattern: same schema, different submission channel + cost. Avoid separate packages.
+---
