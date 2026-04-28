@@ -125,6 +125,7 @@
         "start": "Start",
         "continue": "Continue",
         "payNow": "Pay now",
+        "signDeclaration": "Sign your declaration",
         "uploadDocs": "Upload documents",
         "bookAppointment": "Book appointment",
         "bookInterview": "Book interview",
@@ -220,6 +221,10 @@
         "form": {
           "title": "Online application",
           "subtitle": "Complete the Subclass 600 ImmiAccount application."
+        },
+        "signing": {
+          "title": "Sign your declaration",
+          "subtitle": "Review your character and health declarations and sign them before submission."
         },
         "pay": {
           "title": "Pay visa fee",
