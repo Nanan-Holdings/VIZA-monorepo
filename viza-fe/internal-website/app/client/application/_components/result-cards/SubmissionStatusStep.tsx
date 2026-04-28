@@ -12,6 +12,7 @@ import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
+import { JpResultCard } from "./JpResultCard";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -54,8 +55,8 @@ export function SubmissionStatusStep({
     return <WaitingCard status={status} />;
   }
 
-  // status is "submitted" | "stopped_at_pay" | "stopped_at_review" → render
-  // the per-country card.
+  // status is "submitted" | "stopped_at_pay" | "stopped_at_review" |
+  // "form_ready_for_agency" → render the per-country card.
   switch (result.country) {
     case "US":
       return <UsResultCard result={result} />;
@@ -72,6 +73,10 @@ export function SubmissionStatusStep({
     case "AU":
       return applicationId ? (
         <AuResultCard applicationId={applicationId} result={result} />
+      ) : null;
+    case "JP":
+      return applicationId ? (
+        <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
     default:
       return <WaitingCard status={status} />;
