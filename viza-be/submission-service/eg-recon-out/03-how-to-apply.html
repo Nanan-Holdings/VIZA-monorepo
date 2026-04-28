@@ -1,0 +1,410 @@
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head id="head"><link type="text/css" rel="stylesheet" href="/eVisa/javax.faces.resource/theme.css.evisa?ln=primefaces-aristo"><link type="text/css" rel="stylesheet" href="/eVisa/javax.faces.resource/components.css.evisa?ln=primefaces&amp;v=6.0"><script type="text/javascript" src="/eVisa/javax.faces.resource/jquery/jquery.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/core.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/components.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/validation/validation.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/validation/beanvalidation.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript">if(window.PrimeFaces){PrimeFaces.settings.locale='en';PrimeFaces.settings.validateEmptyFields=true;PrimeFaces.settings.considerEmptyStringNull=false;}</script>
+        <title>Egypt e-Visa Portal</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+        <link rel="stylesheet" href="plugins/revolution/css/settings.css">
+        <link rel="stylesheet" href="plugins/revolution/css/layers.css">
+        <link rel="stylesheet" href="plugins/revolution/css/navigation.css">
+        <link href="plugins/jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet">
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="css/responsive.css">
+        <link rel="shortcut icon" href="images/favicon.ico">
+        <link rel="stylesheet" href="plugins/font-awesome/css/font-awesome.min.css">
+
+        <style type="text/css">
+            .form-control option {
+                margin: 40px;
+                background-color:#666;
+                color: #fff;
+                text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+            }
+            .tp-fullwidth-forcer{
+                height:350px !important;
+            }
+        </style></head><body id="body" elementname="body">
+    <style>
+        @media only screen and (max-width : 766px) {
+            .topbar-responsive {
+                min-width: 100% !important; 
+            }
+            .hidden-responsive {
+                display: none !important;
+            }
+        }
+
+    </style><div id="j_idt4" class="ui-outputpanel ui-widget">
+        <div id="top-bar" class="visible-sm visible-xs visible-md visible-lg home topbar-responsive">
+            <div style="max-width: 100%" class="zt-container">
+                <div class="social-top pull-left"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt6" class="hidden-responsive">
+                        <img src="images/logo.png" alt=""></a>
+                </div>
+                <div style="position: absolute !important; text-align: left;  color: #000;    font-weight: bold;margin-left: 90px" class=" hidden-responsive login pull-left">
+                    <h2 class="hidden-responsive" style="    font-size: 11px;                         line-height: 1px;">
+                        Arab Republic Of Egypt</h2>
+                    <br>
+                    <h2 class="hidden-responsive" style="line-height: 1px;margin-top: -38px;font-size: 21px;">
+                        Electronic Visa Portal</h2>
+                </div>
+                <div class="top-bar-wrap">
+
+                    <div style="padding:12px" class="login pull-right">
+                        <ul>
+                            <li><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt10">Sign In
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/SignUp?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt14" style="border-right: none;padding-left: 9px;">Sign Up
+                                    </a>
+                            </li>
+<form id="lang_frm" name="lang_frm" method="post" action="/eVisa/HowDoIApply?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" enctype="application/x-www-form-urlencoded" style="display: inline-block">
+<input type="hidden" name="lang_frm" value="lang_frm" style="">
+<select name="lang_frm:j_idt18" class="selectone" size="1" style="background-image: none !important;background: black; color: #fff;border: none;padding: 7px;" onchange="submit();">	<option value="en" selected="selected">English</option>
+	<option value="ar">العربية</option>
+	<option value="fr">Français</option>
+	<option value="ru">Pусский</option>
+	<option value="zh">中文</option>
+	<option value="de">Deutsch</option>
+	<option value="it">Italiano</option>
+	<option value="es">Español</option>
+</select><input type="hidden" name="javax.faces.ViewState" id="j_id1:javax.faces.ViewState:0" value="8241799543265278716:-5630142309496060078" autocomplete="off" style="">
+</form>                            
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+        </div></div>
+
+    <style>
+        @media only screen and (max-width : 425px) {
+            .lang-menu {
+                display: inline-block;  
+                padding: 8px !important;
+                float: right;
+            }
+            .lang-menu select {
+                height: 35px !important;
+            }
+        }
+
+        @media only screen and (min-width : 767px) {
+            .lang-menu {
+                display: none !important;  
+            }
+        }
+    </style>
+    <!--outofthedatepluginscript-->
+<script>function $buo_f(){var e=document.createElement("script");e.src="//browser-update.org/update.min.js",document.body.appendChild(e)}var $buoop={notify:{i:10,f:54,o:46,s:9,c:59},unsecure:!0,unsupported:!1,api:5};try{document.addEventListener("DOMContentLoaded",$buo_f,!1)}catch(e){window.attachEvent("onload",$buo_f)}</script>
+    <header id="header" class="stricky home-three">
+        <nav class="navbar navbar-inverse">
+            <div class="container-fluid">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+
+                    </button>
+                    <div style="float: left;border: none;width: 113px;padding-top: 0px; width: 84px" class="navbar-toggle collapsed" aria-expanded="false"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt54">
+                            <img src="images/logo.png" alt=""></a>
+
+                    </div>
+
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse no-r-p-l no-r-p-r" id="bs-example-navbar-collapse-1">
+
+                    <ul class="nav navbar-nav">
+
+
+                        <ul class="nav navbar-nav">
+                            <li style="margin-right: -14px;margin-top: 9px;"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt58" onclick="return false;" style="pointer-events: none; cursor: default">
+                                    <img style="width: 21px" src="images/liicon.png" alt=""></a></li>
+                            <li><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt62">Home
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/About-Egypt?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt66">About Egypt
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/HowDoIApply?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt70">How to Apply
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/Disclaimer?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt74">Disclaimer
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt78">Apply Now
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/FAQ?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt82">FAQ
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/ContactUs?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt86">Contact Us
+                                    </a>
+                            </li>
+
+
+
+                        </ul>
+
+                    </ul>
+
+
+                </div><!-- /.navbar-collapse -->
+            </div><!-- /.container-fluid -->
+        </nav>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </header>
+
+
+        <section class="inner-banner">
+            <div class="zt-container">
+                <div class="box clearfix">
+                    <h2 style="color: #000">.</h2>
+
+                </div>
+            </div>
+        </section>
+
+
+        <div class="sec-title">
+            <div style="padding-left:0px" class="col-md-4 col-sm-4 col-xs-12">
+                <h2 class="why">How To apply</h2>
+            </div>
+        </div>
+        <section style="padding:10px 0px;border-left: 2px solid #f0ad4e; margin-left: 70px" class="blog sec-padding">
+
+            <div class="zt-container">
+
+                <div class="row">
+
+                    <div class="col-md-12 ">
+
+                        <div class="blog-wrap">
+
+                            <div class="blog-list-item">
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#3b9ec1;margin-top:15px;font-size:71px">1</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Create an account on the Egypt e-Visa Portal via the registration page.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#28d599;margin-top:15px;font-size:71px">2</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Confirm your account registration.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#f6e9c4;margin-top:15px;font-size:71px">3</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Logon Egypt e-Visa Portal.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                </div>
+                <br>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="blog-wrap">
+                            <div class="blog-list-item">
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#28d599;margin-top:15px;font-size:71px">4</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Select Apply Now.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#cb4039;margin-top:15px;font-size:71px">5</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Select the type of Visa and read the instructions carefully.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#e1b300;margin-top:15px;font-size:71px">6</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Fill in the application form.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                </div>
+                <br>
+                <div class="row">
+                    <div class="col-md-12 ">
+                        <div class="blog-wrap">
+                            <div class="blog-list-item">
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#cb4039;margin-top:15px;font-size:71px">7</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Pay using a Visa card, MasterCard or other debit cards.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#e1b300;margin-top:15px;font-size:71px">8</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Await approval via email, then download and print the e-Visa from your account.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-12">
+                                    <div class="blog-thumbnail">
+                                        <h1 style="color:#f6e9c4;margin-top:15px;font-size:71px">9</h1>
+                                    </div>
+                                </div>
+                                <div style="padding: 0px" class="col-md-3 col-sm-3 col-xs-12 nopadding">
+                                    <div class="blog-content">
+                                        <p>Present your printed e-Visa to the immigration officer at the port of entry.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                </div>
+                <br>
+                <div class="row">
+
+                    <div class="col-md-5 col-md-offset-4"><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt91" style="width: 100%" class="btn btn-warning btn-lg">Get your e-Visa now &nbsp;
+                            <i class="fa fa-chevron-right" aria-hidden="true"></i></a> 
+
+                    </div>
+                </div>
+            </div>
+        </section>
+        <footer style="background-image: url('images/bg_footer.jpg') 50% 50%;  background-size: 100% 100%; min-height: 350px;                  " id="footer" class="sec-padding">
+            <div class="zt-container">
+                <div class="row">
+
+
+
+
+                </div>
+            </div>
+        </footer>
+
+    <div class="footer-bottom text-white home-three">
+        <div class="zt-container">
+            <div class="row">
+
+                <div class="col-md-1 col-sm-12 col-xs-12">
+                    <img src="images/flag.png" width="54" height="50">
+
+                </div>
+
+                <div class="col-md-8 col-sm-12 col-xs-12">
+
+                    <p>©
+                        <script language="JavaScript" type="text/javascript">
+                            /* <![CDATA[ */
+                            now = new Date;
+                            theYear = now.getYear();
+
+                            if (theYear < 1900) {
+                                theYear = theYear + 1900;
+                            }
+                            document.write(theYear);
+                            /* ]]> */
+                        </script>2026- Ministry of Interior - Arab Republic of Egypt - All Rights Reserved</p>
+
+                </div>
+                <div class="col-md-2 col-sm-12 col-xs-12">
+                    <div class="right-text pull-right">
+                        <ul style="margin-top: 10px" class="menu-footer ">
+                            <li><a href="/eVisa/TermsOfUse?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt96">Terms of Use
+                                    </a> 
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+
+
+        <script src="plugins/jquery/jquery-1.12.4.min.js"></script>
+        <script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+        <script src="plugins/jquery-ui-1.12.1/jquery-ui.js"></script> 
+        <script src="plugins/revolution/js/jquery.themepunch.tools.min.js"></script>
+        <script src="plugins/revolution/js/jquery.themepunch.revolution.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.layeranimation.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.migration.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.navigation.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.slideanims.min.js"></script>
+        <script src="js/main.js"></script>
+<script src="//browser-update.org/update.min.js"></script></body></html>
