@@ -26,7 +26,8 @@ export type SubmissionResult =
   | FrSubmissionResult
   | UkSubmissionResult
   | VnSubmissionResult
-  | AuSubmissionResult;
+  | AuSubmissionResult
+  | JpSubmissionResult;
 
 export interface UsSubmissionResult {
   country: "US";
@@ -83,10 +84,30 @@ export interface AuSubmissionResult {
   reviewScreenshotStoragePath?: string;
 }
 
+export interface JpSubmissionResult {
+  country: "JP";
+  /**
+   * JP_TOURIST has no online submission portal — the schema is paper-form
+   * only, delivered to a designated travel agency (JVAC China). When the
+   * applicant finishes the wizard, VIZA renders the MOFA "Application for
+   * Visa" Form A as a PDF and surfaces a download CTA. The terminal state
+   * is "form_ready_for_agency": the applicant downloads, prints, hands to
+   * the agency.
+   */
+  status: "form_ready_for_agency";
+  applicationId: string;
+  /**
+   * URL the FE hits to stream the filled MOFA Form A PDF. Caller-facing —
+   * resolved relative to the website origin.
+   */
+  formAPdfUrl: string;
+}
+
 export type SubmissionResultStatus =
   | "waiting"
   | "processing"
   | "submitted"
   | "stopped_at_pay"
   | "stopped_at_review"
+  | "form_ready_for_agency"
   | "failed";
