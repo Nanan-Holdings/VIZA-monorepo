@@ -31,6 +31,21 @@ export const auVisitor600Journey: VisaJourney = {
       },
     },
     {
+      id: "signing",
+      icon: "✍️",
+      etaDays: 1,
+      durationLabelKey: "home.duration.sameDay",
+      ctaHrefWhenActive: "/client/signing",
+      ctaLabelKey: "home.nextAction.cta.signDeclaration",
+      triggers: {
+        // Signature submission flips the application out of in_progress; today
+        // we approximate "signed" with submittedAtSet, since the AU runner
+        // can only push past Review once the signature artifact is attached.
+        completedWhen: { kind: "submittedAtSet" },
+        activeWhen: { kind: "applicationStatusIn", values: ["in_progress"] },
+      },
+    },
+    {
       id: "pay",
       icon: "💳",
       etaDays: 1,

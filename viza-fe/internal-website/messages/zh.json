@@ -125,6 +125,7 @@
         "start": "开始",
         "continue": "继续",
         "payNow": "立即支付",
+        "signDeclaration": "签署声明",
         "uploadDocs": "上传材料",
         "bookAppointment": "预约",
         "bookInterview": "预约面签",
@@ -220,6 +221,10 @@
         "form": {
           "title": "在线申请",
           "subtitle": "在 ImmiAccount 完成 600 类签证申请。"
+        },
+        "signing": {
+          "title": "签署声明",
+          "subtitle": "提交前请确认品行与健康声明并签署。"
         },
         "pay": {
           "title": "支付签证费",
