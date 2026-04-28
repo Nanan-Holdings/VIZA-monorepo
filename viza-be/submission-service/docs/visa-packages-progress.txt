@@ -10,6 +10,73 @@ Format per entry:
 - Learnings / follow-ups
 ---
 
+## 2026-04-28 — VP-AU-07 — signing route + submitSignature server action
+- Files changed:
+  - viza-fe/internal-website/app/actions/submit-signature.ts (new — submitSignature, getSigningContext, hasExistingSignature)
+  - viza-fe/internal-website/app/client/signing/[applicationId]/page.tsx (new — client page wiring SignaturePad + DeclarationPreview)
+  - viza-fe/internal-website/messages/en.json + zh.json (client.signing.* added)
+- Verification: cd viza-fe/internal-website && npm run type-check ✓; both JSON files parse cleanly.
+- Commit hash: a552a0e
+- Deviation from acceptance: acceptance asked for `applications.signature_storage_path` column. Adding one is a migration / always-plan-mode topic. Used a deterministic storage path instead — `submission-artifacts/au-signatures/<applicationId>.png` — derivable from application_id without DB changes. Backend (VP-AU-08) reads from the same path. If a column is later required for indexing or audit, that's a follow-up migration story.
+- Guards in place: unauthenticated → "Not authenticated"; foreign owner → "Unauthorized"; non-AU → "Signing only required for Australian Subclass 600 visa applications"; already-signed → banner with back-to-home action.
+- Sets submission_queue.status to "au_prefill_pending" via upsert(onConflict: application_id) so the AU runner picks the job up regardless of whether a queue row already exists.
+---
+
+## 2026-04-28 — VP-AU-06 — signing step on AU journey timeline + next-action card
+- Files changed:
+  - viza-fe/internal-website/lib/client/visa-journeys/au-visitor-600.ts (new `signing` phase between form and pay)
+  - viza-fe/internal-website/messages/en.json (home.journey.AU_VISITOR_600.signing + home.nextAction.cta.signDeclaration)
+  - viza-fe/internal-website/messages/zh.json (mirror)
+- Verification: cd viza-fe/internal-website && npm run type-check ✓; both JSON files parse cleanly.
+- Commit hash: 0a72793
+- Caveat: phase predicates approximate signing completion with submittedAtSet because there's no `awaiting_signature` application status today. Adding one requires a Drizzle migration (always-plan-mode topic) — deferred. The next-action card still surfaces 'Sign your declaration' the moment the application is in_progress, which is the minimum the acceptance asks for.
+---
+
+## 2026-04-28 — VP-AU-05 — client signature-pad + declaration preview
+- Files changed:
+  - viza-fe/internal-website/components/client/signing/SignaturePad.tsx (new)
+  - viza-fe/internal-website/components/client/signing/DeclarationPreview.tsx (new)
+  - viza-fe/internal-website/components/client/signing/index.ts (new — barrel)
+- Verification: cd viza-fe/internal-website && npm run type-check ✓
+- Commit hash: ac2461a
+- Followed frontend.md: brand-* tokens via Tailwind classes; the only raw hex is the literal #03346E inside Canvas2D's strokeStyle (documented exception — Canvas2D can't read CSS variables).
+- Used BrandActionButton for the Clear control; lucide-react icons (Eraser/CheckCircle2/XCircle/ShieldCheck/Stethoscope); shadcn primitives only; cn() from @/lib/utils.
+- Signature pad: 300×100 CSS, 600×200 backing canvas (2× DPR) → toBlob('image/png') emits transparent PNG. Pointer events with capture, touch-action:none.
+---
+
+## 2026-04-28 — VP-EG-01 — egypt e-visa wizard schema
+- Files changed:
+  - viza-fe/internal-website/components/client/wizards/eg/config.ts (new — 8 steps, ~50 fields mirroring seed-eg-e-visa-form-fields.ts)
+  - viza-fe/internal-website/components/client/wizards/shell/registry.ts (registered EG_E_VISA)
+- Verification: cd viza-fe/internal-website && npm run type-check ✓ (after dropping `required` from country/phone/email kinds — only `text` GenericField supports it)
+- Commit hash: 387767d
+- Country phase bumped: egypt 1 → 2 (wizard scaffolded, backend still pending)
+- Learnings:
+  - Acceptance scope[] called for separate types.ts/payload.ts files but neighbouring vn/au wizards keep everything inline in config.ts. Followed the acceptance "mirror neighbours" guidance — single config.ts.
+  - GenericField kinds (country/phone/email) don't support a `required` flag — only `text` does. Mark fields required via the wizard's overall validation instead, or upgrade GenericField shapes in a follow-up.
+  - i18n strings (simplifiedForm.eg.*) not yet added — labels will fall back to the keys until VP-EG-* localization story is done.
+---
+
+## 2026-04-28 — VP-INFRA-01 — two-captcha solver extracted into shared module
+- Files changed:
+  - viza-be/submission-service/src/captcha/two-captcha.ts (new — moved from ceac/captcha-solver.ts, expanded with RecaptchaV2/V3, Turnstile, HCaptcha task types)
+  - viza-be/submission-service/src/captcha/index.ts (new — barrel)
+  - viza-be/submission-service/src/ceac/captcha-solver.ts (deleted)
+  - viza-be/submission-service/src/ceac/index.ts (re-export now points at ../captcha)
+  - viza-be/submission-service/src/ceac/_diag.ts (import path updated)
+  - viza-be/submission-service/src/ceac/start-page-captcha.ts (import path updated)
+  - viza-be/submission-service/src/france-visas/registration-captcha.ts (import path updated)
+- Verification: npm run type-check ✓
+- Commit hash: 5c58c77
+- Blocked downstream as part of this iteration:
+  - VP-UK-01 — live gov.uk recon, needs human in the loop
+  - VP-EG-02 — live visa2egypt.gov.eg recon, needs human in the loop
+  - VP-ID-01 — live evisa.imigrasi.go.id recon, needs human in the loop
+- Learnings:
+  - Story acceptance specified `solveCaptcha(siteKey, pageUrl, type)` — kept solveImageCaptcha(buffer) as-is and added a separate solveCaptcha({type, siteKey, pageUrl, ...}) discriminated-union dispatcher. Token tasks return the response token via solution.gRecaptchaResponse / solution.token; image tasks via solution.text. runTask() handles all three uniformly.
+  - Removed the legacy file rather than re-export shimming, per .claude/CLAUDE.md "no backwards-compat hacks" rule.
+---
+
 ## 2026-04-28 — VP-INFRA-02 — per-applicant portal credential schema + Edward seed
 - Files changed:
   - viza-be/agent-backend/drizzle/0024_eg_accounts.sql (new)
