@@ -18,7 +18,7 @@ import {
   reportBadCaptcha,
   type CaptchaSolveResult,
   type CaptchaSolveTelemetry,
-} from "../ceac/captcha-solver";
+} from "../captcha";
 import { RegistrationFailedError } from "./errors";
 import { FV_REGISTRATION_SELECTORS, FV_URLS } from "./selectors";
 
