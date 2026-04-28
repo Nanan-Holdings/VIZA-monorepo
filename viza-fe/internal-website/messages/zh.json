@@ -333,6 +333,32 @@
       }
     }
   },
+  "client": {
+    "signing": {
+      "loading": "正在加载您的声明…",
+      "errorTitle": "无法加载签名页面",
+      "notAuApplication": "仅澳大利亚 600 类访客签证需要签署声明。",
+      "alreadySignedTitle": "声明已完成签署",
+      "alreadySignedBody": "您的签名已保存,后续提交由系统处理。",
+      "submittedTitle": "签名已提交",
+      "submittedBody": "我们已将您的申请加入最终提交队列。",
+      "backToHome": "返回主页",
+      "pageTitle": "签署您的声明",
+      "pageSubtitle": "请核对以下回答,并在下方完成签名。系统会将您的签名渲染到正式的 600 类声明文件,再提交至 ImmiAccount。",
+      "healthHeading": "健康声明",
+      "characterHeading": "品行声明",
+      "finalHeading": "最终确认",
+      "yes": "是",
+      "no": "否",
+      "unanswered": "未回答",
+      "signHeading": "在此签名",
+      "signSubtitle": "使用手指、触控笔或鼠标签名。需要重写请点「清除」。",
+      "padAriaLabel": "签名板",
+      "clear": "清除",
+      "submit": "提交签名",
+      "submitting": "正在提交…"
+    }
+  },
   "services": {
     "title": "服务",
     "scheduled": "已预约",
