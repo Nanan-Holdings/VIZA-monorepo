@@ -869,6 +869,81 @@
       "priority": 60,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "HK-001",
+      "title": "Pin the Hong Kong Visit Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Hong Kong Visit Visa via Form ID 936 (paper) + PAR (online for Indians), so Ralph builds against a concrete reviewable target.",
+      "acceptanceCriteria": [
+        "prd.json contains HK-001 through HK-005",
+        "The implementation names HK ImmD Form ID 936 and PAR (immd.gov.hk/par) as the canonical sources",
+        "Three submission variants (Form ID 936 single, Form ID 936 multiple, PAR Indian) captured via visa_type_requested",
+        "Out-of-scope categories (RoA, RTL, HKID, GEP, QMAS, TTPS, Working Holiday, Dependant, Student, Mainland-specific permits) are documented",
+        "docs/hong-kong-visa-scope.md exists"
+      ],
+      "priority": 61,
+      "passes": true,
+      "notes": "Form ID 936 is paper-submitted by post; PAR is online but Indian-only. Submission automation is paper for the general case. Best forward path is PDF rendering + posted submission, mirroring JP_TOURIST."
+    },
+    {
+      "id": "HK-002",
+      "title": "Model the Hong Kong Visit Visa field inventory and branching rules",
+      "description": "As an operator, I need the HK Visit Visa journey represented as a machine-readable schema matching Form ID 936 + PAR.",
+      "acceptanceCriteria": [
+        "scripts/seed-hk-visit-visa-form-fields.ts exists with visa_type = HK_VISIT_VISA",
+        "8 sections (personal, passport, contact, occupation, trip, host, travel history, character + declaration)",
+        "Optional Chinese name field captured (Form ID 936 includes it for CJK-region applicants)",
+        "Host HKID field captured (loose validation pending tighten)",
+        "HK-specific port-of-entry list covering HKIA + Mainland borders + Macao borders + cruise terminals",
+        "Three submission variants on visa_type_requested",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 62,
+      "passes": true,
+      "notes": "Same 8-step Asia-tourist template + HK-specific tweaks (Chinese name, HKID host field, expanded port list)."
+    },
+    {
+      "id": "HK-003",
+      "title": "Wire the Hong Kong Visit Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the HK Visit Visa form to render through the existing dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers HK_VISIT_VISA in visa_packages (country = hong_kong)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 63,
+      "passes": true,
+      "notes": "Migration file: 0029_hk_visit_visa_package.sql."
+    },
+    {
+      "id": "HK-004",
+      "title": "Publish the Hong Kong Visit Visa gap report",
+      "description": "As a maintainer, I need HK Visit Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/hong-kong-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Form ID 936 PDF render flagged as top open item (highest near-term value)",
+        "PAR live QA flagged for Indian-national variant",
+        "PAR length-of-stay cap (14 days) gating gap flagged",
+        "Typecheck passes"
+      ],
+      "priority": 64,
+      "passes": true,
+      "notes": "Form ID 936 PDF render is the practical equivalent of submission automation for a paper-only flow."
+    },
+    {
+      "id": "HK-005",
+      "title": "Document the Hong Kong Visit Visa workflow and next expansion path",
+      "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining the HK_VISIT_VISA derivation and next expansion.",
+      "acceptanceCriteria": [
+        "docs/hong-kong-visa-scope.md documents Form ID 936 + PAR sources",
+        "progress.txt updated with HK-001..HK-005 entries + learnings",
+        "Recommended next actions (Form ID 936 PDF render mirroring JP_TOURIST, PAR Playwright runner, HK_EMPLOYMENT_VISA / TTPS / QMAS / DEPENDANT) stated",
+        "Typecheck passes"
+      ],
+      "priority": 65,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
