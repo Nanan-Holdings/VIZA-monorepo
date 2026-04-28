@@ -11,6 +11,7 @@ import { schengenConfig } from "../schengen/config";
 import { vnConfig } from "../vn/config";
 import { auConfig } from "../au/config";
 import { egConfig } from "../eg/config";
+import { idConfig } from "../id/config";
 
 const REGISTRY: Record<string, WizardConfig<unknown>> = {
   [usConfig.visaType]: usConfig as WizardConfig<unknown>,
@@ -19,6 +20,7 @@ const REGISTRY: Record<string, WizardConfig<unknown>> = {
   [vnConfig.visaType]: vnConfig as WizardConfig<unknown>,
   [auConfig.visaType]: auConfig as WizardConfig<unknown>,
   [egConfig.visaType]: egConfig as WizardConfig<unknown>,
+  [idConfig.visaType]: idConfig as WizardConfig<unknown>,
 };
 
 export function pickWizardConfig(visaType: string | null | undefined): WizardConfig<unknown> | null {
