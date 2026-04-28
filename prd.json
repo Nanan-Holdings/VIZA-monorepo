@@ -1015,6 +1015,78 @@
       "priority": 70,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "NZ-001",
+      "title": "Pin the New Zealand Visitor Visa extraction scope and canonical source journey",
+      "description": "NZ Visitor Visa scoped to INZ Immigration Online + NZeTA, covering visitor categories.",
+      "acceptanceCriteria": [
+        "prd.json contains NZ-001 through NZ-005",
+        "Three submission variants (NZeTA, Visitor Single, Visitor Multiple) on visa_type_requested",
+        "Out-of-scope (Work / Resident / Student / Transit / Group / Limited / Refugee / Active Investor) documented",
+        "docs/new-zealand-visa-scope.md exists"
+      ],
+      "priority": 71,
+      "passes": true,
+      "notes": "INZ Immigration Online uses RealMe SSO. Live-portal QA deferred."
+    },
+    {
+      "id": "NZ-002",
+      "title": "Model the New Zealand Visitor Visa field inventory",
+      "description": "NZ Visitor Visa journey as machine-readable schema matching Form 1017 + Immigration Online + NZeTA.",
+      "acceptanceCriteria": [
+        "scripts/seed-nz-visitor-visa-form-fields.ts exists with visa_type = NZ_VISITOR_VISA",
+        "8 sections incl. NZ-specific TB health declaration",
+        "De-facto partner status modeled distinctly from married; spouse block gated via `||` in showIf",
+        "Available funds NZD numeric field captured",
+        "NZ port-of-entry list (Auckland / Wellington / Christchurch / Queenstown + cruise ports)",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 72,
+      "passes": true,
+      "notes": "First VIZA schema using `||` in a sub-journey gate beyond multi-purpose Schengen."
+    },
+    {
+      "id": "NZ-003",
+      "title": "Wire the NZ Visitor Visa package into VIZA's dynamic form path",
+      "description": "NZ Visitor Visa form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers NZ_VISITOR_VISA in visa_packages (country = new_zealand)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 73,
+      "passes": true,
+      "notes": "Migration file: 0031_nz_visitor_visa_package.sql."
+    },
+    {
+      "id": "NZ-004",
+      "title": "Publish the NZ Visitor Visa gap report",
+      "description": "NZ Visitor Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/new-zealand-visa-gap-report.md exists with coverage summary, parity status, conditional-logic status (`||` use), doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "RealMe authentication flagged as auto-blocker",
+        "NZeTA flagged as easier auto-runner candidate",
+        "Typecheck passes"
+      ],
+      "priority": 74,
+      "passes": true,
+      "notes": "RealMe is NZ government SSO, similar to Singpass."
+    },
+    {
+      "id": "NZ-005",
+      "title": "Document the NZ Visitor Visa workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for NZ_VISITOR_VISA.",
+      "acceptanceCriteria": [
+        "docs/new-zealand-visa-scope.md documents the INZ source",
+        "progress.txt updated with NZ-001..NZ-005",
+        "Next actions (live-QA, NZeTA Playwright runner, NZ_AEWV / NZ_WORKING_HOLIDAY / NZ_STUDENT / NZ_PARTNERSHIP) stated",
+        "Typecheck passes"
+      ],
+      "priority": 75,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }

@@ -1089,3 +1089,20 @@ acknowledgment).
   1. HK + MO + Mainland China share physical border infrastructure (HZMB) — the schema's port-of-entry enum overlaps deliberately. Future cross-package consolidation could share a `cn_sar_borders` enum module if the FE renderer ever needs to show identical labels across packages.
   2. Paper-form-only countries with at-the-border VOA (Macau, Cambodia, Laos, possibly Sri Lanka, Egypt 46-nationality VOA, etc.) all benefit from the variant-via-visa_type_requested pattern: same schema, different submission channel + cost. Avoid separate packages.
 ---
+
+## 2026-04-28 - NZ-001..NZ-005
+- Shipped New Zealand Visitor Visa schema (NZ_VISITOR_VISA): 73 fields across 8 steps. Three submission variants (NZeTA, Visitor Single, Visitor Multi) on visa_type_requested.
+- NZ-specific schema features:
+  - De-facto partner status as distinct marital_status option; spouse block gated via `marital_status === married || marital_status === de_facto` (first VIZA schema using `||` in a sub-journey gate beyond multi-purpose Schengen).
+  - TB history declaration as separate radio in Health & Character (NZ requires chest X-ray for stays >6 months from listed countries).
+  - Available funds NZD numeric field with regex validation (^[0-9]+$).
+  - Gender field includes "Another gender" option per NZ INZ inclusive form.
+  - Port-of-entry list covers Auckland / Wellington / Christchurch / Queenstown (key tourist gateway) + Tauranga / Lyttelton cruise ports.
+- Files: seed-nz-visitor-visa-form-fields.ts, drizzle/0031_nz_visitor_visa_package.sql, docs/new-zealand-visa-scope.md, docs/new-zealand-visa-gap-report.md, prd.json NZ-001..NZ-005 (priority 71..75).
+- Live-portal QA deferred (RealMe-authenticated). Reconstructed from Form 1017 + INZ landing pages + NZeTA mobile-app guidance + cross-checked with AU_VISITOR_600.
+- Type-check green.
+- Learnings:
+  1. `||` in sub-journey gates is now load-bearing for jurisdictions with multiple legally-recognised partner statuses (NZ de-facto, Schengen partner, AU registered relationship). The dynamic-form `evaluateShowIf` parser handles this via `||` between two `===` atoms — mirrors the Schengen `purpose_of_journey === airport_transit && current_nationality in [...]` worked example from the playbook §4.
+  2. Health declarations (TB, vaccination history, mental health) are jurisdiction-specific. NZ asks TB; AU asks similar; UK asks generic; Schengen doesn't ask in-form. Future template upgrade: a "health declaration" step that includes country-specific Q's via conditional gates.
+  3. NZeTA is a strong candidate for first NZ submission automation runner — simpler auth (no RealMe), simpler form, similar to ETIAS / ESTA pattern. Sets precedent for future ETA-style packages.
+---
