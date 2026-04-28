@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, AlertCircle, CheckCircle2, Lock, ArrowRight, CircleAlert } from "lucide-react";
-import Link from "next/link";
+import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
@@ -13,30 +12,14 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatusCard";
-import { DocumentProgressCard } from "@/components/client/home/DocumentProgressCard";
-import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
-import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
-
-// ---------------------------------------------------------------------------
-// Country helpers
-// ---------------------------------------------------------------------------
-
-const COUNTRY_FLAGS: Record<string, string> = {
-  indonesia: "🇮🇩",
-  united_states: "🇺🇸",
-  japan: "🇯🇵",
-  australia: "🇦🇺",
-  singapore: "🇸🇬",
-  china: "🇨🇳",
-  united_kingdom: "🇬🇧",
-  canada: "🇨🇦",
-};
-
-function getCountryFlag(country: string): string {
-  return COUNTRY_FLAGS[country.toLowerCase()] ?? "🌐";
-}
+import { VisaOverviewCard } from "@/components/client/home/VisaOverviewCard";
+import { NextActionCard } from "@/components/client/home/NextActionCard";
+import { VisaJourneyTimeline } from "@/components/client/home/VisaJourneyTimeline";
+import {
+  getApplicationJourney,
+  type ApplicationJourneyPayload,
+} from "@/app/actions/application-journey";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -71,7 +54,7 @@ function ErrorState({ message }: { message: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Types
+// Page
 // ---------------------------------------------------------------------------
 
 interface ApplicationRow {
@@ -91,164 +74,15 @@ interface DocumentRow {
   updated_at: string;
 }
 
-// ---------------------------------------------------------------------------
-// Visa Timeline Card (shown when no application exists)
-// ---------------------------------------------------------------------------
-
-type StageStatus = "active" | "locked";
-
-const STAGE_IDS = ["application", "documents", "submit", "review", "decision"] as const;
-
-const STAGE_META: Record<string, { icon: string; status: StageStatus; href?: string }> = {
-  application: { icon: "📋", status: "active", href: "/client/application" },
-  documents: { icon: "📁", status: "locked" },
-  submit: { icon: "✈️", status: "locked" },
-  review: { icon: "🔍", status: "locked" },
-  decision: { icon: "✅", status: "locked" },
-};
-
-function VisaStageCard({ id, title, subtitle, badge, icon, status, href }: {
-  id: string; title: string; subtitle: string; badge: string; icon: string; status: StageStatus; href?: string;
-}) {
-  const isLocked = status === "locked";
-
-  const inner = (
-    <div
-      className={[
-        "w-full rounded-[16px] border border-[#efefef]",
-        isLocked ? "bg-[rgba(239,239,239,0.5)]" : "bg-white hover:bg-[#fbfbfb] transition-colors cursor-pointer",
-      ].join(" ")}
-    >
-      <div className="flex flex-col xl:flex-row xl:items-center w-full p-[16px] xl:p-[20px] gap-[12px] xl:gap-[24px] xl:justify-between">
-        <div className="flex items-center gap-[16px] xl:gap-[20px] min-w-0">
-          <div
-            className={[
-              "relative rounded-[8px] shrink-0 size-[72px] xl:size-[80px] flex items-center justify-center text-[32px]",
-              isLocked ? "bg-[#f0f0f0] opacity-60" : "bg-[#eef3fa]",
-            ].join(" ")}
-          >
-            <span role="img">{icon}</span>
-          </div>
-          <div className={["flex flex-col gap-[8px] min-w-0", isLocked ? "opacity-50" : ""].join(" ")}>
-            <p className="font-heading font-medium leading-[1.3] text-[#3d3d3d] text-[18px] xl:text-[20px] tracking-[-0.6px] truncate">
-              {title}
-            </p>
-            <p className="font-normal leading-[1.3] text-[14px] xl:text-[16px] text-[rgba(0,0,0,0.45)] tracking-[-0.48px] truncate">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-        <div
-          className={[
-            "shrink-0 rounded-[999px] px-[20px] xl:px-[24px] py-[8px] xl:py-[12px] font-medium text-[14px] xl:text-[16px] leading-[1.5] tracking-[-0.24px] w-full xl:w-auto text-center",
-            isLocked ? "bg-[#dcdcdc] text-[#989898]" : "bg-[#03346E] text-white",
-          ].join(" ")}
-        >
-          {badge}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (href && !isLocked) {
-    return <a href={href}>{inner}</a>;
-  }
-  return inner;
-}
-
-function VisaTimelineCard({ packageName }: { packageName?: string }) {
-  const t = useTranslations("home.visaTimeline");
-
-  return (
-    <motion.div
-      className="w-full max-w-[1090px] mt-20 xl:mt-24 flex flex-col gap-[16px]"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <p className="font-heading font-medium leading-[1.3] text-[30px] text-[#3d3d3d] tracking-[-0.9px]">
-        {packageName || t("heading")}
-      </p>
-      <p className="font-normal leading-[1.3] text-[20px] text-[rgba(0,0,0,0.45)] tracking-[-0.6px]">
-        {t("subheading")}
-      </p>
-
-      {STAGE_IDS.map((id) => {
-        const meta = STAGE_META[id];
-        return (
-          <VisaStageCard
-            key={id}
-            id={id}
-            title={t(`stages.${id}.title`)}
-            subtitle={t(`stages.${id}.subtitle`)}
-            badge={t(`stages.${id}.badge`)}
-            icon={meta.icon}
-            status={meta.status}
-            href={meta.href}
-          />
-        );
-      })}
-    </motion.div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 export default function HomePage() {
   const t = useTranslations("home");
   const PAGE_SCALE = 1;
   const [applicantName, setApplicantName] = useState<string | null>(null);
-  const [application, setApplication] = useState<ApplicationRow | null>(null);
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
+  const [journey, setJourney] = useState<ApplicationJourneyPayload | null>(null);
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-
-  function buildActivityEvents(
-    application: ApplicationRow | null,
-    documents: DocumentRow[]
-  ): ActivityEvent[] {
-    const events: ActivityEvent[] = [];
-
-    if (application) {
-      if (application.submitted_at) {
-        events.push({
-          id: `app-submitted-${application.id}`,
-          eventType: "status_change",
-          label: t("activity.applicationSubmitted"),
-          sublabel: visaPackage?.name ?? t("activity.visaType"),
-          timestamp: application.submitted_at,
-          icon: "check",
-        });
-      }
-      events.push({
-        id: `app-created-${application.id}`,
-        eventType: "application_created",
-        label: t("activity.applicationCreated"),
-        sublabel: visaPackage?.name ?? t("activity.visaType"),
-        timestamp: application.created_at,
-        icon: "clock",
-      });
-    }
-
-    for (const doc of documents) {
-      const docLabel = t(`docLabels.${doc.document_type}`);
-      events.push({
-        id: `doc-${doc.id}`,
-        eventType: "document_upload",
-        label: t("activity.documentUploaded", { docType: docLabel }),
-        sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
-        timestamp: doc.updated_at,
-        icon: doc.status === "rejected" ? "alert" : "upload",
-      });
-    }
-
-    events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    return events.slice(0, 5);
-  }
 
   // Handle magic link auth callback
   useEffect(() => {
@@ -280,12 +114,10 @@ export default function HomePage() {
     } else {
       setAuthChecked(true);
     }
-  }, []);
+  }, [t]);
 
-  // Fetch VIZA dashboard data once auth is confirmed
   useEffect(() => {
     if (!authChecked) return;
-
     let isMounted = true;
 
     async function fetchData() {
@@ -294,7 +126,6 @@ export default function HomePage() {
 
       try {
         const supabase = createClient();
-
         const { data: { user } } = await supabase.auth.getUser();
         if (!isMounted) return;
 
@@ -303,48 +134,50 @@ export default function HomePage() {
           return;
         }
 
-        // Fetch assigned visa package
-        getUserVisaPackage().then((pkg) => {
-          if (isMounted && pkg) setVisaPackage(pkg);
-        });
+        const journeyPromise = getApplicationJourney();
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
           .select("id, full_name")
           .eq("auth_user_id", user.id)
           .maybeSingle();
-
         if (!isMounted) return;
 
         const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
-
-        if (profile) {
-          setApplicantName((profile as { full_name: string | null }).full_name || authName);
-
-          const { data: app } = await supabase
-            .from("applications")
-            .select("id, status, country, visa_type, submitted_at, created_at")
-            .eq("applicant_id", (profile as { id: string }).id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (!isMounted) return;
-
-          if (app) {
-            setApplication(app as ApplicationRow);
-
-            const { data: docs } = await supabase
-              .from("application_documents")
-              .select("id, document_type, status, created_at, updated_at")
-              .eq("application_id", (app as { id: string }).id);
-
-            if (!isMounted) return;
-            setDocuments((docs ?? []) as DocumentRow[]);
-          }
+        const profileTyped = profile as { id: string; full_name: string | null } | null;
+        if (profileTyped) {
+          setApplicantName(profileTyped.full_name || authName);
         } else if (authName) {
           setApplicantName(authName);
         }
+
+        let app: ApplicationRow | null = null;
+        let documents: DocumentRow[] = [];
+        if (profileTyped) {
+          const { data: appRow } = await supabase
+            .from("applications")
+            .select("id, status, country, visa_type, submitted_at, created_at")
+            .eq("applicant_id", profileTyped.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (!isMounted) return;
+          app = (appRow as ApplicationRow) ?? null;
+
+          if (app) {
+            const { data: docs } = await supabase
+              .from("application_documents")
+              .select("id, document_type, status, created_at, updated_at")
+              .eq("application_id", app.id);
+            if (!isMounted) return;
+            documents = (docs as DocumentRow[] | null) ?? [];
+          }
+        }
+
+        const journeyResult = await journeyPromise;
+        if (!isMounted) return;
+        setJourney(journeyResult);
+        setActivityEvents(buildActivityEvents(app, documents, journeyResult.visaPackage?.name ?? null));
       } catch {
         if (isMounted) setError(t("dashboardError"));
       } finally {
@@ -352,9 +185,56 @@ export default function HomePage() {
       }
     }
 
+    function buildActivityEvents(
+      application: ApplicationRow | null,
+      documents: DocumentRow[],
+      packageName: string | null
+    ): ActivityEvent[] {
+      const events: ActivityEvent[] = [];
+      const visaLabel = packageName ?? t("activity.visaType");
+
+      if (application) {
+        if (application.submitted_at) {
+          events.push({
+            id: `app-submitted-${application.id}`,
+            eventType: "status_change",
+            label: t("activity.applicationSubmitted"),
+            sublabel: visaLabel,
+            timestamp: application.submitted_at,
+            icon: "check",
+          });
+        }
+        events.push({
+          id: `app-created-${application.id}`,
+          eventType: "application_created",
+          label: t("activity.applicationCreated"),
+          sublabel: visaLabel,
+          timestamp: application.created_at,
+          icon: "clock",
+        });
+      }
+
+      for (const doc of documents) {
+        const docLabel = t(`docLabels.${doc.document_type}`);
+        events.push({
+          id: `doc-${doc.id}`,
+          eventType: "document_upload",
+          label: t("activity.documentUploaded", { docType: docLabel }),
+          sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
+          timestamp: doc.updated_at,
+          icon: doc.status === "rejected" ? "alert" : "upload",
+        });
+      }
+
+      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return events.slice(0, 5);
+    }
+
     fetchData();
-    return () => { isMounted = false; };
-  }, [authChecked]);
+    return () => {
+      isMounted = false;
+    };
+  }, [authChecked, t]);
 
   // Nav color changes based on scroll (hero is navy, content below is white)
   useEffect(() => {
@@ -371,9 +251,6 @@ export default function HomePage() {
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
-
-  const uploadedDocuments = documents.filter((d) => d.status !== "missing");
-  const activityEvents = buildActivityEvents(application, documents);
 
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -420,93 +297,36 @@ export default function HomePage() {
           <p>{t("vizaApplication")}</p>
         </motion.div>
 
-        {/* Glass Panel */}
-        <motion.div
-          className="w-full max-w-[1090px] mt-4 xl:mt-[41px]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-        >
-          <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            {application ? (
-              <>
-                <ApplicationStatusCard
-                  status={application.status}
-                  visaType={application.visa_type}
-                  country={application.country}
-                  submittedAt={application.submitted_at}
-                />
-                <DocumentProgressCard
-                  uploadedCount={uploadedDocuments.length}
-                  totalRequired={6}
-                />
-                <QuickActionsCard />
-              </>
-            ) : (
-              <>
-                {/* Application card */}
-                <motion.div
-                  className="basis-0 grow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0, duration: 0.5 }}
-                >
-                  <div className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex flex-col justify-between items-start p-[24px] relative rounded-[12px] w-full h-[240px]">
-                    <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
-                    <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
-                    <div className="w-full">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-4xl leading-none" role="img" aria-label="flag">{visaPackage ? getCountryFlag(visaPackage.country) : "🌐"}</span>
-                        <div>
-                          <p className="text-white font-heading font-medium text-[18px] leading-tight">
-                            {visaPackage?.name ?? t("emptyApplication.noActiveApplication")}
-                          </p>
-                          {visaPackage?.description && (
-                            <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{visaPackage.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">
-                        {t("notStarted")}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
+        {/* Glass Panel - 2 cards */}
+        {journey ? (
+          <motion.div
+            className="w-full max-w-[1090px] mt-4 xl:mt-[41px]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          >
+            <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
+              <VisaOverviewCard
+                visaPackage={journey.visaPackage}
+                overview={journey.overview}
+                hasApplication={journey.hasApplication}
+              />
+              <NextActionCard
+                nextAction={journey.nextAction}
+                hasApplication={journey.hasApplication}
+              />
+            </div>
+          </motion.div>
+        ) : null}
 
-                {/* Documents card */}
-                <motion.div
-                  className="basis-0 grow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.5 }}
-                >
-                  <div className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex flex-col justify-between items-start p-[24px] relative rounded-[12px] w-full h-[240px]">
-                    <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
-                    <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("documentsTitle")}</p>
-                    <div className="w-full space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="font-heading font-normal text-[48px] leading-none text-white">0</span>
-                        <span className="text-[rgba(255,255,255,0.55)] text-[14px]">{t("ofRequired", { total: 6 })}</span>
-                      </div>
-                      <div className="w-full bg-[rgba(255,255,255,0.2)] rounded-full h-2">
-                        <div className="bg-white rounded-full h-2 transition-all duration-700" style={{ width: "0%" }} />
-                      </div>
-                      <p className="text-[rgba(255,255,255,0.55)] text-[13px]">{t("percentComplete", { pct: 0 })}</p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Quick Actions card */}
-                <QuickActionsCard />
-              </>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Timeline / stage cards (only when no application) */}
-        {!application && (
-          <VisaTimelineCard packageName={visaPackage?.name} />
-        )}
+        {/* Per-visa journey timeline */}
+        {journey ? (
+          <VisaJourneyTimeline
+            visaPackage={journey.visaPackage}
+            overview={journey.overview}
+            phases={journey.phases}
+          />
+        ) : null}
 
         {/* Recent Activity Heading */}
         <motion.p
