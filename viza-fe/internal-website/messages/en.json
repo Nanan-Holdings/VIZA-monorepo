@@ -333,6 +333,32 @@
       }
     }
   },
+  "client": {
+    "signing": {
+      "loading": "Loading your declaration…",
+      "errorTitle": "We couldn't load this signing page",
+      "notAuApplication": "Signing is only required for Australian Subclass 600 visa applications.",
+      "alreadySignedTitle": "Declaration already signed",
+      "alreadySignedBody": "Your signature is on file. The submission service is taking it from here.",
+      "submittedTitle": "Signature submitted",
+      "submittedBody": "We've queued your application for the final submit step.",
+      "backToHome": "Back to dashboard",
+      "pageTitle": "Sign your declaration",
+      "pageSubtitle": "Review the answers below and sign at the bottom. Your signature is rendered onto the official Subclass 600 declaration before submission.",
+      "healthHeading": "Health declarations",
+      "characterHeading": "Character declarations",
+      "finalHeading": "Final acknowledgements",
+      "yes": "Yes",
+      "no": "No",
+      "unanswered": "Not answered",
+      "signHeading": "Sign here",
+      "signSubtitle": "Use your finger, stylus, or mouse. Tap Clear to retry.",
+      "padAriaLabel": "Signature pad",
+      "clear": "Clear",
+      "submit": "Submit signature",
+      "submitting": "Submitting…"
+    }
+  },
   "services": {
     "title": "Services",
     "scheduled": "Scheduled",
