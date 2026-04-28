@@ -1,8 +1,16 @@
 /**
- * Typed 2captcha ImageToText client for solving the CEAC start-page CAPTCHA.
+ * Shared 2captcha client. Used by all per-country runners (CEAC, France-Visas,
+ * UK, Egypt, Italy, Indonesia) so we only maintain one network/solver layer.
  *
- * Narrow scope: one function to solve, one to report bad solves.
- * Callers decide retry policy.
+ * Two surfaces:
+ *   - solveImageCaptcha(imageBuffer): ImageToTextTask — preserves the legacy
+ *     CEAC contract (uppercase BotDetect CAPTCHA, returns decoded text).
+ *   - solveCaptcha({type, siteKey, pageUrl, ...}): token-based dispatcher for
+ *     RecaptchaV2 / Turnstile / HCaptcha — returns the gRecaptchaResponse /
+ *     cf-turnstile-response token to inject into the page.
+ *
+ * Callers decide retry policy. Errors are typed so callers can branch on
+ * config / API / balance / network / timeout cleanly.
  */
 
 // ---------------------------------------------------------------------------
@@ -42,8 +50,7 @@ export class TwoCaptchaZeroBalanceError extends Error {
 export class TwoCaptchaNetworkError extends Error {
   readonly code = "TWOCAPTCHA_NETWORK_ERROR" as const;
   constructor(cause: unknown) {
-    const msg =
-      cause instanceof Error ? cause.message : String(cause);
+    const msg = cause instanceof Error ? cause.message : String(cause);
     super(`2captcha network error: ${msg}`);
     this.name = "TwoCaptchaNetworkError";
   }
@@ -61,7 +68,7 @@ export class TwoCaptchaSolveTimeoutError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Telemetry type — persisted in ceac_result_payload
+// Telemetry — persisted in result payloads
 // ---------------------------------------------------------------------------
 
 export interface CaptchaSolveTelemetry {
@@ -76,11 +83,11 @@ export interface CaptchaSolveTelemetry {
 }
 
 // ---------------------------------------------------------------------------
-// Result type
+// Result type — uniform across image and token tasks
 // ---------------------------------------------------------------------------
 
 export interface CaptchaSolveResult {
-  /** The decoded CAPTCHA text. */
+  /** For ImageToText this is the decoded characters; for token tasks the gRecaptchaResponse / Turnstile token. */
   text: string;
   /** 2captcha task ID — needed for reportBadCaptcha(). */
   solveId: string;
@@ -118,7 +125,7 @@ interface GetTaskResultResponse {
   errorCode?: string;
   errorDescription?: string;
   status?: "processing" | "ready";
-  solution?: { text?: string };
+  solution?: { text?: string; gRecaptchaResponse?: string; token?: string };
 }
 
 function classifyApiError(errorCode: string): never {
@@ -149,8 +156,60 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function runTask(
+  taskBody: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<CaptchaSolveResult> {
+  const apiKey = getApiKey();
+  const start = Date.now();
+
+  const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
+    clientKey: apiKey,
+    task: taskBody,
+  });
+
+  if (createRes.errorId !== 0 && createRes.errorCode) {
+    classifyApiError(createRes.errorCode);
+  }
+  if (!createRes.taskId) {
+    throw new TwoCaptchaApiError("NO_TASK_ID");
+  }
+
+  const taskId = createRes.taskId;
+  const deadline = start + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
+    const resultRes = await postJson<GetTaskResultResponse>(`${API_BASE}/getTaskResult`, {
+      clientKey: apiKey,
+      taskId,
+    });
+
+    if (resultRes.errorId !== 0 && resultRes.errorCode) {
+      classifyApiError(resultRes.errorCode);
+    }
+
+    if (resultRes.status === "ready" && resultRes.solution) {
+      const text =
+        resultRes.solution.text ??
+        resultRes.solution.gRecaptchaResponse ??
+        resultRes.solution.token;
+      if (text) {
+        return {
+          text,
+          solveId: String(taskId),
+          durationMs: Date.now() - start,
+        };
+      }
+    }
+  }
+
+  throw new TwoCaptchaSolveTimeoutError(timeoutMs);
+}
+
 // ---------------------------------------------------------------------------
-// Public API
+// Public API — image task (preserves legacy CEAC contract)
 // ---------------------------------------------------------------------------
 
 /**
@@ -164,58 +223,84 @@ export async function solveImageCaptcha(
   imageBuffer: Buffer,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<CaptchaSolveResult> {
-  const apiKey = getApiKey();
-  const start = Date.now();
-
-  // 1. Create task.
-  //    `case: true` tells 2captcha workers to preserve letter case. The
-  //    CEAC BotDetect CAPTCHA is rendered in uppercase letters + digits;
-  //    without this flag, workers return lowercase answers that CEAC
-  //    rejects as invalid.
-  const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
-    clientKey: apiKey,
-    task: {
+  // `case: true` tells 2captcha workers to preserve letter case. The CEAC
+  // BotDetect CAPTCHA is rendered in uppercase letters + digits; without
+  // this flag, workers return lowercase answers that CEAC rejects.
+  return runTask(
+    {
       type: "ImageToTextTask",
       body: imageBuffer.toString("base64"),
       case: true,
     },
-  });
-
-  if (createRes.errorId !== 0 && createRes.errorCode) {
-    classifyApiError(createRes.errorCode);
-  }
-  if (!createRes.taskId) {
-    throw new TwoCaptchaApiError("NO_TASK_ID");
-  }
-
-  const taskId = createRes.taskId;
-
-  // 2. Poll for result
-  const deadline = start + timeoutMs;
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
-
-    const resultRes = await postJson<GetTaskResultResponse>(`${API_BASE}/getTaskResult`, {
-      clientKey: apiKey,
-      taskId,
-    });
-
-    if (resultRes.errorId !== 0 && resultRes.errorCode) {
-      classifyApiError(resultRes.errorCode);
-    }
-
-    if (resultRes.status === "ready" && resultRes.solution?.text) {
-      return {
-        text: resultRes.solution.text,
-        solveId: String(taskId),
-        durationMs: Date.now() - start,
-      };
-    }
-    // status === "processing" — keep polling
-  }
-
-  throw new TwoCaptchaSolveTimeoutError(timeoutMs);
+    timeoutMs,
+  );
 }
+
+// ---------------------------------------------------------------------------
+// Public API — token tasks (reCAPTCHA / Turnstile / hCaptcha)
+// ---------------------------------------------------------------------------
+
+export type TokenCaptchaInput =
+  | { type: "recaptcha-v2"; siteKey: string; pageUrl: string; isInvisible?: boolean; timeoutMs?: number }
+  | { type: "recaptcha-v3"; siteKey: string; pageUrl: string; action?: string; minScore?: number; timeoutMs?: number }
+  | { type: "turnstile"; siteKey: string; pageUrl: string; action?: string; cdata?: string; timeoutMs?: number }
+  | { type: "hcaptcha"; siteKey: string; pageUrl: string; timeoutMs?: number };
+
+/**
+ * Solve a token-based CAPTCHA (reCAPTCHA, Cloudflare Turnstile, hCaptcha).
+ * Returns the response token to inject into the page's hidden form field.
+ */
+export async function solveCaptcha(input: TokenCaptchaInput): Promise<CaptchaSolveResult> {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  switch (input.type) {
+    case "recaptcha-v2":
+      return runTask(
+        {
+          type: "RecaptchaV2TaskProxyless",
+          websiteURL: input.pageUrl,
+          websiteKey: input.siteKey,
+          isInvisible: input.isInvisible ?? false,
+        },
+        timeoutMs,
+      );
+    case "recaptcha-v3":
+      return runTask(
+        {
+          type: "RecaptchaV3TaskProxyless",
+          websiteURL: input.pageUrl,
+          websiteKey: input.siteKey,
+          pageAction: input.action,
+          minScore: input.minScore ?? 0.7,
+        },
+        timeoutMs,
+      );
+    case "turnstile":
+      return runTask(
+        {
+          type: "TurnstileTaskProxyless",
+          websiteURL: input.pageUrl,
+          websiteKey: input.siteKey,
+          action: input.action,
+          data: input.cdata,
+        },
+        timeoutMs,
+      );
+    case "hcaptcha":
+      return runTask(
+        {
+          type: "HCaptchaTaskProxyless",
+          websiteURL: input.pageUrl,
+          websiteKey: input.siteKey,
+        },
+        timeoutMs,
+      );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reporting
+// ---------------------------------------------------------------------------
 
 /**
  * Report an incorrect CAPTCHA solution to 2captcha for refund.

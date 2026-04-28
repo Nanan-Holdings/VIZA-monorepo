@@ -10,7 +10,7 @@
  */
 
 import type { Page } from "@playwright/test";
-import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "./captcha-solver";
+import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "../captcha";
 import { SessionBootstrapError } from "./errors";
 import { CEAC_URLS } from "./selectors";
 import { waitForAspNetPostback } from "./aspnet";

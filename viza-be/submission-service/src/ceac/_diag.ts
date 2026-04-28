@@ -13,7 +13,7 @@ config({ path: path.join(__dirname, "../../.env") });
 
 import type { Page } from "@playwright/test";
 import { launchStealthBrowser } from "./stealth-browser";
-import { solveImageCaptcha } from "./captcha-solver";
+import { solveImageCaptcha } from "../captcha";
 import { CEAC_URLS } from "./selectors";
 
 const OUT_DIR = path.join(__dirname, "../../diag-out");
