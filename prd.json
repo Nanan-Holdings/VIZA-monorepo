@@ -649,6 +649,79 @@
       "priority": 45,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "TH-001",
+      "title": "Pin the Thailand Tourist e-Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Thailand Tourist e-Visa (single-entry TR + multiple-entry METV variants) submitted via the Royal Thai Ministry of Foreign Affairs portal at thaievisa.go.th, so Ralph builds against a concrete reviewable target instead of a vague 'Thailand visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains TH-001 through TH-005 for this run",
+        "The implementation names thaievisa.go.th (Royal Thai Ministry of Foreign Affairs) as the canonical source and identifies single-entry TR (~USD 30, 60-day stay) and multi-entry METV (~USD 150, 6-month validity, 60-day per entry) tourist variants as the in-scope category",
+        "The scope contract explicitly prioritises official-source parity over manual approximation",
+        "Out-of-scope categories (Non-Immigrant B/ED/O/IM, DTV, Smart Visa, LTR, visa-on-arrival, visa exemption, diplomatic/official) are documented rather than silently assumed",
+        "docs/thailand-visa-scope.md exists with the canonical journey, source URLs, application structure, and design principle"
+      ],
+      "priority": 46,
+      "passes": true,
+      "notes": "Source is the public thaievisa.go.th landing pages, Royal Thai Embassy applicant guidance (London/Washington/Beijing/Berlin/Singapore cross-checked), and the TM.86 / TM.87 paper applications (field-for-field antecedent). Live-portal driving requires an applicant account and is deferred to first staff QA pass; the schema is a high-fidelity reconstruction. Same posture as JP_TOURIST, ID_C1_TOURIST, EG_E_VISA."
+    },
+    {
+      "id": "TH-002",
+      "title": "Model the Thailand Tourist e-Visa field inventory and branching rules in a normalised schema",
+      "description": "As an operator, I need the Thailand Tourist e-Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching the thaievisa.go.th application sections, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-th-tourist-e-visa-form-fields.ts exists with visa_type = TH_TOURIST_E_VISA",
+        "The schema captures all sections (personal, passport, contact + home address, occupation, trip details, host in Thailand, travel history, character + declaration)",
+        "Conditional fields (other-names-used, other-nationalities, married-spouse-block, other-passports, has-host-in-thailand, visited-thailand-before, refused-visa-thailand, refused-visa-other-country, has-criminal-record, has-been-deported, port-of-entry-other) are represented explicitly via conditional_logic.showIf",
+        "Repeatable groups (other_nationalities, other_passports, prior_thailand_visits) are tagged with repeat_group + max_items",
+        "Seed run output reports 'Done: N rows seeded (N defined)' with matching N",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 47,
+      "passes": true,
+      "notes": "Follow JP-002 / ID-002 / EG-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — thaievisa.go.th requires applicant card payment + optional biometric appointment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+    },
+    {
+      "id": "TH-003",
+      "title": "Wire the Thailand Tourist e-Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the Thailand Tourist e-Visa form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the TH_TOURIST_E_VISA package in visa_packages (country = thailand)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 48,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 / AU-003 / JP-003 / ID-003 / EG-003 pattern exactly - DB rows only, no renderer changes. Migration file: 0026_th_tourist_e_visa_package.sql."
+    },
+    {
+      "id": "TH-004",
+      "title": "Publish the Thailand Tourist e-Visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Thailand Tourist e-Visa fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/thailand-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA deferred, document uploads via application_documents, payment + e-Visa delivery out of schema, biometric appointment as separate non-form flow, visa-on-arrival + visa exemption as separate non-form flows), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, in, cross-step) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 49,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real thaievisa.go.th account and document upload wiring as the top open items."
+    },
+    {
+      "id": "TH-005",
+      "title": "Document the Thailand Tourist e-Visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the TH_TOURIST_E_VISA schema was derived, how to rerun or update it, and what the next Thailand-variant expansion should be (Non-Immigrant B / ED / O, DTV, Smart Visa, LTR).",
+      "acceptanceCriteria": [
+        "docs/thailand-visa-scope.md documents the thaievisa.go.th source, canonical journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal QA against thaievisa.go.th with a real applicant account; TH_NON_IMM_B for business inviter block; TH_DTV for digital-nomad / soft-power activities; TH_NON_IMM_O for long-stay / family / retirement; TM.86 PDF rendering for staff intake) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 50,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
     }
   ]
 }
