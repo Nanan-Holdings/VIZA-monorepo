@@ -1018,3 +1018,21 @@ acknowledgment).
   2. The visa_type_requested radio pattern (single vs multi-entry within one schema, no schema fork) holds for any country where the entry-frequency variant is the only meaningful diff. Prefer it to splitting `TH_TOURIST_TR` and `TH_TOURIST_METV` into two packages.
   3. Length-of-stay enums diverge meaningfully across countries (EG max 30, TH max 60, others 90/180). The pattern in trip_details — text input with regex pattern enforcing the max — keeps the schema flexible without hardcoding "days" semantics into the renderer.
 ---
+
+## 2026-04-28 - MY-001..MY-005
+- Shipped Malaysia Tourist eVISA schema (MY_TOURIST_E_VISA): 76 fields across 8 steps mirroring the malaysiavisa.imi.gov.my form (Jabatan Imigresen Malaysia / Department of Immigration). Single-entry + multiple-entry captured by visa_type_requested radio.
+- Files added:
+  - viza-be/agent-backend/scripts/seed-my-tourist-e-visa-form-fields.ts
+  - viza-be/agent-backend/drizzle/0027_my_tourist_e_visa_package.sql
+  - docs/malaysia-visa-scope.md
+  - docs/malaysia-visa-gap-report.md
+  - prd.json MY-001..MY-005 (priority 51..55)
+- Reused TH_TOURIST_E_VISA template — 8-step Asia-tourist pattern continues to converge. Two MY-specific tweaks: (a) optional race / ethnicity field (Malaysian immigration historically collects), (b) port-of-entry list expanded to cover Sarawak/Sabah airports + Johor-Singapore Causeway / Tuas Second Link / Tebedu / Sungai Tujoh land borders.
+- Live-portal QA deferred (account-gated portal, no public form access). Schema reconstructed from public landing pages, Malaysian High Commission guidance (London/New Delhi/Beijing/Riyadh cross-checked), and IMM.47 paper application antecedent.
+- Submission automation deferred per playbook §13.
+- Type-check green: agent-backend.
+- Learnings:
+  1. Racial / ethnic data collection is country-specific. Egypt + Thailand + Indonesia don't ask; Malaysia + Singapore + Hong Kong do (or did historically). Surface as optional in schema; the live QA pass should confirm whether the eVISA still collects it.
+  2. Multi-entry visa eligibility is sometimes nationality-restricted (MY: Indian + Chinese only). Schema doesn't gate the option — the live portal filters at submit time. Avoid encoding nationality-specific rules in v1; the conditional engine doesn't need to know.
+  3. Land-border port-of-entry enumeration matters more for ASEAN countries than for islands. Thailand (4 land borders), Malaysia (5+ land borders), and Vietnam (multiple) need richer port lists than Egypt or the Schengen states.
+---

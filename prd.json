@@ -722,6 +722,79 @@
       "priority": 50,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "MY-001",
+      "title": "Pin the Malaysia Tourist eVISA extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Malaysia Tourist eVISA (single-entry + multi-entry variants) submitted via Jabatan Imigresen Malaysia portal at malaysiavisa.imi.gov.my, so Ralph builds against a concrete reviewable target instead of a vague 'Malaysia visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains MY-001 through MY-005 for this run",
+        "The implementation names malaysiavisa.imi.gov.my (Department of Immigration Malaysia) as the canonical source and identifies single-entry (~USD 50, 30-day stay) and multi-entry (~USD 100, 12-month validity, 30-day per entry) tourist variants as the in-scope category",
+        "The scope contract explicitly prioritises official-source parity over manual approximation",
+        "Out-of-scope categories (Employment Pass, MM2H, PVIP, Sarawak/Sabah-internal permits, Student Pass, visa-on-arrival, visa exemption, diplomatic/official) are documented",
+        "docs/malaysia-visa-scope.md exists with the canonical journey, source URLs, application structure, and design principle"
+      ],
+      "priority": 51,
+      "passes": true,
+      "notes": "Source is malaysiavisa.imi.gov.my landing pages, Malaysian High Commission guidance (London/New Delhi/Beijing/Riyadh cross-checked), and the IMM.47 paper application form. Live-portal driving requires an applicant account and is deferred. Same posture as TH_TOURIST_E_VISA, JP_TOURIST, ID_C1_TOURIST, EG_E_VISA."
+    },
+    {
+      "id": "MY-002",
+      "title": "Model the Malaysia Tourist eVISA field inventory and branching rules in a normalised schema",
+      "description": "As an operator, I need the Malaysia Tourist eVISA journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching the malaysiavisa.imi.gov.my application sections, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-my-tourist-e-visa-form-fields.ts exists with visa_type = MY_TOURIST_E_VISA",
+        "The schema captures all sections (personal, passport, contact + home address, occupation, trip details, host in Malaysia, travel history, character + declaration)",
+        "Conditional fields (other-names-used, other-nationalities, married-spouse-block, other-passports, has-host-in-malaysia, visited-malaysia-before, refused-visa-malaysia, refused-visa-other-country, has-criminal-record, has-been-deported, port-of-entry-other) are represented explicitly via conditional_logic.showIf",
+        "Repeatable groups (other_nationalities, other_passports, prior_malaysia_visits) are tagged with repeat_group + max_items",
+        "Seed run output reports 'Done: N rows seeded (N defined)' with matching N",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 52,
+      "passes": true,
+      "notes": "Follow TH-002 / EG-002 / JP-002 / ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+    },
+    {
+      "id": "MY-003",
+      "title": "Wire the Malaysia Tourist eVISA package into VIZA's dynamic form path",
+      "description": "As a user, I need the Malaysia Tourist eVISA form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the MY_TOURIST_E_VISA package in visa_packages (country = malaysia)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 53,
+      "passes": true,
+      "notes": "Follow TH-003 / EG-003 / UK-003 pattern exactly. Migration file: 0027_my_tourist_e_visa_package.sql."
+    },
+    {
+      "id": "MY-004",
+      "title": "Publish the Malaysia Tourist eVISA gap report",
+      "description": "As a maintainer, I need Malaysia Tourist eVISA fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/malaysia-visa-gap-report.md exists with coverage summary, parity status, conditional-logic status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Live-portal QA pass is flagged as the top open item",
+        "Race / ethnicity field, multi-entry nationality gating, and port-of-entry coverage are explicitly flagged as items to verify on first live QA pass",
+        "Typecheck passes"
+      ],
+      "priority": 54,
+      "passes": true,
+      "notes": "Truthfulness over pretending the first pass is perfect."
+    },
+    {
+      "id": "MY-005",
+      "title": "Document the Malaysia Tourist eVISA workflow and next expansion path",
+      "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining how the MY_TOURIST_E_VISA schema was derived, how to rerun or update it, and what the next Malaysia-variant expansion should be.",
+      "acceptanceCriteria": [
+        "docs/malaysia-visa-scope.md documents the malaysiavisa.imi.gov.my source, canonical journey, and rerun steps",
+        "progress.txt is updated with MY-001..MY-005 entries, learnings, and next expansion path",
+        "Recommended next actions (live-portal QA pass, MY_EMPLOYMENT_PASS, MY_MM2H, MY_PVIP, MY_PROFESSIONAL_VISIT_PASS) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 55,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
