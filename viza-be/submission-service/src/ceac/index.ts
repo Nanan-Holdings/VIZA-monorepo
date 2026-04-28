@@ -135,7 +135,7 @@ export {
   TwoCaptchaSolveTimeoutError,
   type CaptchaSolveResult,
   type CaptchaSolveTelemetry,
-} from "./captcha-solver";
+} from "../captcha";
 
 export {
   solveStartPageCaptcha,
