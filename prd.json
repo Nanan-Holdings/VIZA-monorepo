@@ -1087,6 +1087,79 @@
       "priority": 75,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "RU-001",
+      "title": "Pin the Russia Unified e-Visa extraction scope and canonical source journey",
+      "description": "RU Unified e-Visa scoped to MID Consular Department (KD MID) flow at evisa.kdmid.ru.",
+      "acceptanceCriteria": [
+        "prd.json contains RU-001 through RU-005",
+        "Single-entry only (16-day stay) variant captured",
+        "Multi-purpose (tourism / business / humanitarian / guest) on purpose_of_visit",
+        "Out-of-scope (consular paper visa, legacy FEZ Free e-Visa, visa-free regimes) documented",
+        "docs/russia-visa-scope.md exists"
+      ],
+      "priority": 76,
+      "passes": true,
+      "notes": "Eligibility list excludes Western nationals — VIZA intake should filter on nationality before assigning this package."
+    },
+    {
+      "id": "RU-002",
+      "title": "Model the Russia Unified e-Visa field inventory",
+      "description": "RU e-Visa journey as machine-readable schema matching the MID Unified e-Visa form.",
+      "acceptanceCriteria": [
+        "scripts/seed-ru-e-visa-form-fields.ts exists with visa_type = RU_E_VISA",
+        "8 sections covering all MID-collected fields",
+        "Mandatory medical insurance block (company / policy / coverage)",
+        "MID-designated port-of-entry list",
+        "Latin / Cyrillic name transliteration guidance in field labels",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 77,
+      "passes": true,
+      "notes": "Insurance fields in step 5 are RU-specific. Multi-purpose under one form."
+    },
+    {
+      "id": "RU-003",
+      "title": "Wire the Russia Unified e-Visa package into VIZA's dynamic form path",
+      "description": "RU e-Visa form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers RU_E_VISA in visa_packages (country = russia)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 78,
+      "passes": true,
+      "notes": "Migration file: 0032_ru_e_visa_package.sql."
+    },
+    {
+      "id": "RU-004",
+      "title": "Publish the Russia Unified e-Visa gap report",
+      "description": "RU e-Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/russia-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Nationality eligibility filter flagged as required at VIZA intake",
+        "Geopolitical sensitivity flagged for submission-automation deferral",
+        "Typecheck passes"
+      ],
+      "priority": 79,
+      "passes": true,
+      "notes": "Eligibility-list management is the top open item before this can ship."
+    },
+    {
+      "id": "RU-005",
+      "title": "Document the Russia Unified e-Visa workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for RU_E_VISA.",
+      "acceptanceCriteria": [
+        "docs/russia-visa-scope.md documents the MID source",
+        "progress.txt updated with RU-001..RU-005",
+        "Next actions (eligibility filter, RU_TOURIST_VISA / RU_BUSINESS_VISA / RU_PRIVATE_VISA / RU_TRANSIT_VISA consular paper variants) stated",
+        "Typecheck passes"
+      ],
+      "priority": 80,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
