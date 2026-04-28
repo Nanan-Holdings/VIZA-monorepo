@@ -1,0 +1,31 @@
+{
+  "pageMeta": "5/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Travelling companions",
+    "Additional information for applicants under 18 years",
+    "Is the applicant travelling with a parent or legal guardian?",
+    "Reason the applicant is travelling without a parent or legal guardian",
+    "Are there any other persons travelling with the applicant to Australia?",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 2,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a4a4b1a0",
+      "id": "d215332778e188",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a4a4b1a0",
+      "id": "d215332778e190",
+      "label": "No",
+      "required": false
+    }
+  ]
+}

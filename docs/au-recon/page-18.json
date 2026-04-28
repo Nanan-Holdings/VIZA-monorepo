@@ -1,0 +1,58 @@
+{
+  "pageMeta": "18/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Visa history",
+    "Has the applicant held or does the applicant currently hold a visa to Australia or any other country?",
+    "Has the applicant ever been in Australia or any other country and not complied with visa conditions or departed outside their authorised period of stay?",
+    "Has the applicant ever had a visa for Australia or any other country refused or cancelled?",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 6,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a1b1a",
+      "id": "d215446802e68",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a1b1a",
+      "id": "d215446802e70",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a3b1a",
+      "id": "d215446802e92",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a3b1a",
+      "id": "d215446802e94",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a5b1a",
+      "id": "d215446802e116",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a17a5b1a",
+      "id": "d215446802e118",
+      "label": "No",
+      "required": false
+    }
+  ]
+}
