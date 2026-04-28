@@ -1,0 +1,1185 @@
+{
+  "pageMeta": "2/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Application context",
+    "Current location",
+    "Is the applicant currently outside Australia?",
+    "Are all the applicants currently outside Australia?",
+    "Current location legal status",
+    "Purpose of stay",
+    "Has the applicant been invited to participate in specific event(s) by organisation(s) in Australia?",
+    "Will the applicant receive a payment from an organisation in Australia for their participation in the event?",
+    "Will the applicant undertake highly specialised non-ongoing work?",
+    "Will the applicant be performing as an entertainer in Australia or supporting an entertainer or group of entertainers performing in Australia?",
+    "Will the applicant be directing, producing or taking any other part in a production that will be shown in Australia (including theatre, film, television, radio, concert or recording)?",
+    "Select the stream the applicant is applying for:",
+    "Select the applicant's initial purpose of stay"
+  ],
+  "fieldCount": 12,
+  "fields": [
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a2c1b0",
+      "id": "d215182092e85",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a2c1b0",
+      "id": "d215182092e87",
+      "label": "No",
+      "required": false
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "name": "_2a0b0a0a0e0a0a1a2e3a1a",
+      "id": "_2a0b0a0a0e0a0a1a2e3a1a_input",
+      "label": "Current location",
+      "required": false,
+      "options": [
+        {
+          "v": "",
+          "t": ""
+        },
+        {
+          "v": "AFGH",
+          "t": "AFGHANISTAN"
+        },
+        {
+          "v": "ALBA",
+          "t": "ALBANIA"
+        },
+        {
+          "v": "ALGE",
+          "t": "ALGERIA"
+        },
+        {
+          "v": "ASAM",
+          "t": "AMERICAN SAMOA"
+        },
+        {
+          "v": "ANDO",
+          "t": "ANDORRA"
+        },
+        {
+          "v": "ANGA",
+          "t": "ANGOLA"
+        },
+        {
+          "v": "ANGU",
+          "t": "ANGUILLA"
+        },
+        {
+          "v": "ANBA",
+          "t": "ANTIGUA AND BARBUDA"
+        },
+        {
+          "v": "ARGE",
+          "t": "ARGENTINA"
+        },
+        {
+          "v": "ARME",
+          "t": "ARMENIA"
+        },
+        {
+          "v": "ARUB",
+          "t": "ARUBA"
+        },
+        {
+          "v": "AUST",
+          "t": "AUSTRIA"
+        },
+        {
+          "v": "AZER",
+          "t": "AZERBAIJAN"
+        },
+        {
+          "v": "BHMS",
+          "t": "BAHAMAS"
+        },
+        {
+          "v": "BAHR",
+          "t": "BAHRAIN"
+        },
+        {
+          "v": "BDES",
+          "t": "BANGLADESH"
+        },
+        {
+          "v": "BARS",
+          "t": "BARBADOS"
+        },
+        {
+          "v": "BYEL",
+          "t": "BELARUS"
+        },
+        {
+          "v": "BELM",
+          "t": "BELGIUM"
+        },
+        {
+          "v": "BELZ",
+          "t": "BELIZE"
+        },
+        {
+          "v": "BENI",
+          "t": "BENIN"
+        },
+        {
+          "v": "BERM",
+          "t": "BERMUDA"
+        },
+        {
+          "v": "BHUT",
+          "t": "BHUTAN"
+        },
+        {
+          "v": "BOLI",
+          "t": "BOLIVIA"
+        },
+        {
+          "v": "BSES",
+          "t": "BONAIRE, SINT EUSTATIUS AND SABA"
+        },
+        {
+          "v": "BOHE",
+          "t": "BOSNIA & HERZEGOVINA"
+        },
+        {
+          "v": "BOTS",
+          "t": "BOTSWANA"
+        },
+        {
+          "v": "BVTI",
+          "t": "BOUVET ISLAND"
+        },
+        {
+          "v": "BRAZ",
+          "t": "BRAZIL"
+        },
+        {
+          "v": "BIOT",
+          "t": "BRIT INDIAN OCN TERR"
+        },
+        {
+          "v": "BRUI",
+          "t": "BRUNEI DARUSSALAM"
+        },
+        {
+          "v": "BULG",
+          "t": "BULGARIA"
+        },
+        {
+          "v": "UVOL",
+          "t": "BURKINA FASO"
+        },
+        {
+          "v": "BURU",
+          "t": "BURUNDI"
+        },
+        {
+          "v": "CABV",
+          "t": "CABO VERDE"
+        },
+        {
+          "v": "CAMB",
+          "t": "CAMBODIA"
+        },
+        {
+          "v": "CREP",
+          "t": "CAMEROON"
+        },
+        {
+          "v": "CANA",
+          "t": "CANADA"
+        },
+        {
+          "v": "CAIS",
+          "t": "CAYMAN ISLANDS"
+        },
+        {
+          "v": "CARE",
+          "t": "CENTRAL AFRICAN REP"
+        },
+        {
+          "v": "CHAD",
+          "t": "CHAD"
+        },
+        {
+          "v": "CHIL",
+          "t": "CHILE"
+        },
+        {
+          "v": "PRCH",
+          "t": "CHINA"
+        },
+        {
+          "v": "CSIS",
+          "t": "CHRISTMAS ISLAND"
+        },
+        {
+          "v": "COCO",
+          "t": "COCOS (KEELING) ISL"
+        },
+        {
+          "v": "COLA",
+          "t": "COLOMBIA"
+        },
+        {
+          "v": "COMO",
+          "t": "COMOROS"
+        },
+        {
+          "v": "CONG",
+          "t": "CONGO"
+        },
+        {
+          "v": "DRCO",
+          "t": "CONGO, DEMOCRATIC REPUBLIC OF THE"
+        },
+        {
+          "v": "COOI",
+          "t": "COOK ISLANDS"
+        },
+        {
+          "v": "CRIC",
+          "t": "COSTA RICA"
+        },
+        {
+          "v": "ICOA",
+          "t": "COTE D'IVOIRE"
+        },
+        {
+          "v": "CROA",
+          "t": "CROATIA"
+        },
+        {
+          "v": "CUBA",
+          "t": "CUBA"
+        },
+        {
+          "v": "CURA",
+          "t": "CURACAO"
+        },
+        {
+          "v": "CYPR",
+          "t": "CYPRUS"
+        },
+        {
+          "v": "CZEH",
+          "t": "CZECHIA (CZECH REP)"
+        },
+        {
+          "v": "DENM",
+          "t": "DENMARK"
+        },
+        {
+          "v": "JIBU",
+          "t": "DJIBOUTI"
+        },
+        {
+          "v": "DOMI",
+          "t": "DOMINICA"
+        },
+        {
+          "v": "DREP",
+          "t": "DOMINICAN REPUBLIC"
+        },
+        {
+          "v": "ECUA",
+          "t": "ECUADOR"
+        },
+        {
+          "v": "EGYP",
+          "t": "EGYPT"
+        },
+        {
+          "v": "ESAL",
+          "t": "EL SALVADOR"
+        },
+        {
+          "v": "ENGL",
+          "t": "ENGLAND"
+        },
+        {
+          "v": "EQGN",
+          "t": "EQUATORIAL GUINEA"
+        },
+        {
+          "v": "ERIT",
+          "t": "ERITREA"
+        },
+        {
+          "v": "ESTO",
+          "t": "ESTONIA"
+        },
+        {
+          "v": "ESWA",
+          "t": "ESWATINI"
+        },
+        {
+          "v": "ETHI",
+          "t": "ETHIOPIA"
+        },
+        {
+          "v": "FALI",
+          "t": "FALKLAND ISLANDS"
+        },
+        {
+          "v": "FAIS",
+          "t": "FAROE ISLANDS"
+        },
+        {
+          "v": "FIJI",
+          "t": "FIJI"
+        },
+        {
+          "v": "FINL",
+          "t": "FINLAND"
+        },
+        {
+          "v": "FRAE",
+          "t": "FRANCE"
+        },
+        {
+          "v": "GUYE",
+          "t": "FRENCH GUIANA"
+        },
+        {
+          "v": "FPOL",
+          "t": "FRENCH POLYNESIA"
+        },
+        {
+          "v": "GABO",
+          "t": "GABON"
+        },
+        {
+          "v": "GAMB",
+          "t": "GAMBIA"
+        },
+        {
+          "v": "GEOG",
+          "t": "GEORGIA"
+        },
+        {
+          "v": "SGSI",
+          "t": "GEORGIA/SANDWICH ISL"
+        },
+        {
+          "v": "GERM",
+          "t": "GERMANY"
+        },
+        {
+          "v": "GHAN",
+          "t": "GHANA"
+        },
+        {
+          "v": "GIBR",
+          "t": "GIBRALTAR"
+        },
+        {
+          "v": "GREE",
+          "t": "GREECE"
+        },
+        {
+          "v": "GRED",
+          "t": "GREENLAND"
+        },
+        {
+          "v": "GREN",
+          "t": "GRENADA"
+        },
+        {
+          "v": "GUAE",
+          "t": "GUADELOUPE"
+        },
+        {
+          "v": "GUAM",
+          "t": "GUAM"
+        },
+        {
+          "v": "GUAT",
+          "t": "GUATEMALA"
+        },
+        {
+          "v": "GUER",
+          "t": "GUERNSEY"
+        },
+        {
+          "v": "GUIN",
+          "t": "GUINEA"
+        },
+        {
+          "v": "GUBS",
+          "t": "GUINEA-BISSAU"
+        },
+        {
+          "v": "GUYN",
+          "t": "GUYANA"
+        },
+        {
+          "v": "HAIT",
+          "t": "HAITI"
+        },
+        {
+          "v": "HMDI",
+          "t": "HEARD & MCDONALD ISL"
+        },
+        {
+          "v": "HOND",
+          "t": "HONDURAS"
+        },
+        {
+          "v": "HKON",
+          "t": "HONG KONG SAR"
+        },
+        {
+          "v": "HUNG",
+          "t": "HUNGARY"
+        },
+        {
+          "v": "ICEL",
+          "t": "ICELAND"
+        },
+        {
+          "v": "INDI",
+          "t": "INDIA"
+        },
+        {
+          "v": "INDO",
+          "t": "INDONESIA"
+        },
+        {
+          "v": "IRAN",
+          "t": "IRAN"
+        },
+        {
+          "v": "IRAQ",
+          "t": "IRAQ"
+        },
+        {
+          "v": "IREP",
+          "t": "IRELAND"
+        },
+        {
+          "v": "IMAN",
+          "t": "ISLE OF MAN"
+        },
+        {
+          "v": "ISRA",
+          "t": "ISRAEL"
+        },
+        {
+          "v": "ITAL",
+          "t": "ITALY"
+        },
+        {
+          "v": "JAMA",
+          "t": "JAMAICA"
+        },
+        {
+          "v": "JAPA",
+          "t": "JAPAN"
+        },
+        {
+          "v": "JERS",
+          "t": "JERSEY"
+        },
+        {
+          "v": "JORD",
+          "t": "JORDAN"
+        },
+        {
+          "v": "KAZA",
+          "t": "KAZAKHSTAN"
+        },
+        {
+          "v": "KENY",
+          "t": "KENYA"
+        },
+        {
+          "v": "GIIS",
+          "t": "KIRIBATI"
+        },
+        {
+          "v": "NKOR",
+          "t": "KOREA, NORTH"
+        },
+        {
+          "v": "SKOR",
+          "t": "KOREA, SOUTH"
+        },
+        {
+          "v": "KOSO",
+          "t": "KOSOVO"
+        },
+        {
+          "v": "KUWA",
+          "t": "KUWAIT"
+        },
+        {
+          "v": "KIRG",
+          "t": "KYRGYZSTAN"
+        },
+        {
+          "v": "LAOS",
+          "t": "LAO PEOPLES DEM REP"
+        },
+        {
+          "v": "LATV",
+          "t": "LATVIA"
+        },
+        {
+          "v": "LEBA",
+          "t": "LEBANON"
+        },
+        {
+          "v": "LESO",
+          "t": "LESOTHO"
+        },
+        {
+          "v": "LIBE",
+          "t": "LIBERIA"
+        },
+        {
+          "v": "LIBA",
+          "t": "LIBYA"
+        },
+        {
+          "v": "LIEC",
+          "t": "LIECHTENSTEIN"
+        },
+        {
+          "v": "LITH",
+          "t": "LITHUANIA"
+        },
+        {
+          "v": "LUXE",
+          "t": "LUXEMBOURG"
+        },
+        {
+          "v": "MACS",
+          "t": "MACAU SPCL ADMIN RGN"
+        },
+        {
+          "v": "MADA",
+          "t": "MADAGASCAR"
+        },
+        {
+          "v": "MALW",
+          "t": "MALAWI"
+        },
+        {
+          "v": "MALS",
+          "t": "MALAYSIA"
+        },
+        {
+          "v": "MIS",
+          "t": "MALDIVES"
+        },
+        {
+          "v": "M",
+          "t": "MALI"
+        },
+        {
+          "v": "MALT",
+          "t": "MALTA"
+        },
+        {
+          "v": "MAIS",
+          "t": "MARSHALL ISLANDS"
+        },
+        {
+          "v": "MART",
+          "t": "MARTINIQUE"
+        },
+        {
+          "v": "MAUA",
+          "t": "MAURITANIA"
+        },
+        {
+          "v": "MAUS",
+          "t": "MAURITIUS"
+        },
+        {
+          "v": "MAYO",
+          "t": "MAYOTTE"
+        },
+        {
+          "v": "MEXI",
+          "t": "MEXICO"
+        },
+        {
+          "v": "MICS",
+          "t": "MICRONESIA"
+        },
+        {
+          "v": "MOLD",
+          "t": "MOLDOVA"
+        },
+        {
+          "v": "MONA",
+          "t": "MONACO"
+        },
+        {
+          "v": "MONG",
+          "t": "MONGOLIA"
+        },
+        {
+          "v": "MNTE",
+          "t": "MONTENEGRO"
+        },
+        {
+          "v": "MONT",
+          "t": "MONTSERRAT"
+        },
+        {
+          "v": "MORO",
+          "t": "MOROCCO"
+        },
+        {
+          "v": "MOZA",
+          "t": "MOZAMBIQUE"
+        },
+        {
+          "v": "MYAN",
+          "t": "MYANMAR"
+        },
+        {
+          "v": "NAMI",
+          "t": "NAMIBIA"
+        },
+        {
+          "v": "NAUR",
+          "t": "NAURU"
+        },
+        {
+          "v": "NEPA",
+          "t": "NEPAL"
+        },
+        {
+          "v": "NETH",
+          "t": "NETHERLANDS"
+        },
+        {
+          "v": "NCAL",
+          "t": "NEW CALEDONIA"
+        },
+        {
+          "v": "NZEA",
+          "t": "NEW ZEALAND"
+        },
+        {
+          "v": "NICA",
+          "t": "NICARAGUA"
+        },
+        {
+          "v": "NIGR",
+          "t": "NIGER"
+        },
+        {
+          "v": "NGRA",
+          "t": "NIGERIA"
+        },
+        {
+          "v": "NIUE",
+          "t": "NIUE"
+        },
+        {
+          "v": "NOIS",
+          "t": "NORFOLK ISLAND"
+        },
+        {
+          "v": "NMAC",
+          "t": "NORTH MACEDONIA"
+        },
+        {
+          "v": "NOIR",
+          "t": "NORTHERN IRELAND"
+        },
+        {
+          "v": "NMAI",
+          "t": "NORTHERN MARIANA ISL"
+        },
+        {
+          "v": "NORW",
+          "t": "NORWAY"
+        },
+        {
+          "v": "OMAN",
+          "t": "OMAN"
+        },
+        {
+          "v": "PKSN",
+          "t": "PAKISTAN"
+        },
+        {
+          "v": "PALA",
+          "t": "PALAU"
+        },
+        {
+          "v": "PSTE",
+          "t": "PALESTINE, STATE OF"
+        },
+        {
+          "v": "PANA",
+          "t": "PANAMA"
+        },
+        {
+          "v": "NGUI",
+          "t": "PAPUA NEW GUINEA"
+        },
+        {
+          "v": "PARA",
+          "t": "PARAGUAY"
+        },
+        {
+          "v": "PERU",
+          "t": "PERU"
+        },
+        {
+          "v": "PHIL",
+          "t": "PHILIPPINES"
+        },
+        {
+          "v": "PIIS",
+          "t": "PITCAIRN"
+        },
+        {
+          "v": "POLA",
+          "t": "POLAND"
+        },
+        {
+          "v": "PORL",
+          "t": "PORTUGAL"
+        },
+        {
+          "v": "PRIC",
+          "t": "PUERTO RICO"
+        },
+        {
+          "v": "QATA",
+          "t": "QATAR"
+        },
+        {
+          "v": "REIS",
+          "t": "REUNION"
+        },
+        {
+          "v": "ROUM",
+          "t": "ROMANIA"
+        },
+        {
+          "v": "RFED",
+          "t": "RUSSIAN FEDERATION"
+        },
+        {
+          "v": "RWAN",
+          "t": "RWANDA"
+        },
+        {
+          "v": "STBA",
+          "t": "SAINT BARTHELEMY"
+        },
+        {
+          "v": "SHTC",
+          "t": "SAINT HELENA, ASCENSION AND TRISTAN DA CUNHA"
+        },
+        {
+          "v": "STLU",
+          "t": "SAINT LUCIA"
+        },
+        {
+          "v": "STMA",
+          "t": "SAINT MARTIN"
+        },
+        {
+          "v": "SAMO",
+          "t": "SAMOA"
+        },
+        {
+          "v": "SMAR",
+          "t": "SAN MARINO"
+        },
+        {
+          "v": "STPR",
+          "t": "SAO TOME & PRINCIPE"
+        },
+        {
+          "v": "SAAR",
+          "t": "SAUDI ARABIA"
+        },
+        {
+          "v": "SCOT",
+          "t": "SCOTLAND"
+        },
+        {
+          "v": "SENE",
+          "t": "SENEGAL"
+        },
+        {
+          "v": "SERB",
+          "t": "SERBIA"
+        },
+        {
+          "v": "SEYC",
+          "t": "SEYCHELLES"
+        },
+        {
+          "v": "SLEO",
+          "t": "SIERRA LEONE"
+        },
+        {
+          "v": "SING",
+          "t": "SINGAPORE"
+        },
+        {
+          "v": "SXMN",
+          "t": "SINT MAARTEN (DUTCH PART)"
+        },
+        {
+          "v": "SVKA",
+          "t": "SLOVAK REPUBLIC"
+        },
+        {
+          "v": "SLOV",
+          "t": "SLOVENIA"
+        },
+        {
+          "v": "SOLI",
+          "t": "SOLOMON ISLANDS"
+        },
+        {
+          "v": "SOMA",
+          "t": "SOMALIA"
+        },
+        {
+          "v": "SAFR",
+          "t": "SOUTH AFRICA"
+        },
+        {
+          "v": "SSDN",
+          "t": "SOUTH SUDAN"
+        },
+        {
+          "v": "SPAI",
+          "t": "SPAIN"
+        },
+        {
+          "v": "SRIL",
+          "t": "SRI LANKA"
+        },
+        {
+          "v": "SCKN",
+          "t": "ST KITTS AND NEVIS"
+        },
+        {
+          "v": "STPM",
+          "t": "ST PIERRE & MIQUELON"
+        },
+        {
+          "v": "STVG",
+          "t": "ST VINCENT/GRENADINE"
+        },
+        {
+          "v": "SUDA",
+          "t": "SUDAN"
+        },
+        {
+          "v": "SURI",
+          "t": "SURINAME"
+        },
+        {
+          "v": "SAJM",
+          "t": "SVALBARD & JAN MAYEN"
+        },
+        {
+          "v": "SWED",
+          "t": "SWEDEN"
+        },
+        {
+          "v": "SWIT",
+          "t": "SWITZERLAND"
+        },
+        {
+          "v": "SYRI",
+          "t": "SYRIA"
+        },
+        {
+          "v": "TAIW",
+          "t": "TAIWAN"
+        },
+        {
+          "v": "TADZ",
+          "t": "TAJIKISTAN"
+        },
+        {
+          "v": "TANZ",
+          "t": "TANZANIA"
+        },
+        {
+          "v": "THAI",
+          "t": "THAILAND"
+        },
+        {
+          "v": "TILE",
+          "t": "TIMOR-LESTE"
+        },
+        {
+          "v": "TOGO",
+          "t": "TOGO"
+        },
+        {
+          "v": "TOKE",
+          "t": "TOKELAU"
+        },
+        {
+          "v": "TONG",
+          "t": "TONGA"
+        },
+        {
+          "v": "TRIN",
+          "t": "TRINIDAD AND TOBAGO"
+        },
+        {
+          "v": "TUNI",
+          "t": "TUNISIA"
+        },
+        {
+          "v": "TURE",
+          "t": "TURKIYE"
+        },
+        {
+          "v": "TURM",
+          "t": "TURKMENISTAN"
+        },
+        {
+          "v": "TCIS",
+          "t": "TURKS AND CAICOS ISL"
+        },
+        {
+          "v": "TUVU",
+          "t": "TUVALU"
+        },
+        {
+          "v": "USOI",
+          "t": "U.S. MINOR ISLANDS"
+        },
+        {
+          "v": "UGAN",
+          "t": "UGANDA"
+        },
+        {
+          "v": "UKRA",
+          "t": "UKRAINE"
+        },
+        {
+          "v": "UAEM",
+          "t": "UNITED ARAB EMIRATES"
+        },
+        {
+          "v": "UK",
+          "t": "UNITED KINGDOM"
+        },
+        {
+          "v": "USA",
+          "t": "UNITED STATES"
+        },
+        {
+          "v": "URUG",
+          "t": "URUGUAY"
+        },
+        {
+          "v": "UZBE",
+          "t": "UZBEKISTAN"
+        },
+        {
+          "v": "VANU",
+          "t": "VANUATU"
+        },
+        {
+          "v": "VCIT",
+          "t": "VATICAN CITY STATE"
+        },
+        {
+          "v": "VENE",
+          "t": "VENEZUELA"
+        },
+        {
+          "v": "VIET",
+          "t": "VIETNAM"
+        },
+        {
+          "v": "VIIS",
+          "t": "VIRGIN ISLANDS (U.S.)"
+        },
+        {
+          "v": "VIUK",
+          "t": "VIRGIN ISLNDS (BRIT)"
+        },
+        {
+          "v": "WALE",
+          "t": "WALES"
+        },
+        {
+          "v": "WAFU",
+          "t": "WALLIS & FUTUNA ISL"
+        },
+        {
+          "v": "YEME",
+          "t": "YEMEN"
+        },
+        {
+          "v": "ZAMB",
+          "t": "ZAMBIA"
+        },
+        {
+          "v": "ZIMB",
+          "t": "ZIMBABWE"
+        }
+      ]
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "name": "_2a0b0a0a0e0a0a1a2e4a1a",
+      "id": "_2a0b0a0a0e0a0a1a2e4a1a_input",
+      "label": "Legal status",
+      "required": false,
+      "options": [
+        {
+          "v": "",
+          "t": ""
+        },
+        {
+          "v": "1",
+          "t": "Citizen"
+        },
+        {
+          "v": "2",
+          "t": "Permanent Resident"
+        },
+        {
+          "v": "3",
+          "t": "Visitor"
+        },
+        {
+          "v": "4",
+          "t": "Student"
+        },
+        {
+          "v": "5",
+          "t": "Work Visa"
+        },
+        {
+          "v": "7",
+          "t": "No Legal Status"
+        },
+        {
+          "v": "99",
+          "t": "Other"
+        }
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a3i1b0",
+      "id": "d215182092e297",
+      "label": "Business Visitor stream (business visit for meetings, conferences or negotiations but not for work)",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a3i1b0",
+      "id": "d215182092e299",
+      "label": "Frequent Traveller stream (tourism or business purposes)",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a3i1b0",
+      "id": "d215182092e301",
+      "label": "Sponsored Family stream (requires Sponsorship form 1149)",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a3i1b0",
+      "id": "d215182092e303",
+      "label": "Tourist stream (tourism/visit family or friends)",
+      "required": false
+    },
+    {
+      "tag": "SELECT",
+      "type": "select-one",
+      "name": "_2a0b0a0a0e0a0a1a3bc0b0a",
+      "id": "_2a0b0a0a0e0a0a1a3bc0b0ad215182092e381-1",
+      "label": "Select an option",
+      "required": false,
+      "options": [
+        {
+          "v": "1",
+          "t": ""
+        },
+        {
+          "v": "2",
+          "t": "Business"
+        },
+        {
+          "v": "3",
+          "t": "Tourism"
+        },
+        {
+          "v": "4",
+          "t": "Family visit"
+        },
+        {
+          "v": "5",
+          "t": "Study"
+        },
+        {
+          "v": "6",
+          "t": "Religious event"
+        },
+        {
+          "v": "7",
+          "t": "Other"
+        }
+      ]
+    },
+    {
+      "tag": "TEXTAREA",
+      "type": "textarea",
+      "name": "_2a0b0a0a0e0a0a1a3bd1b0",
+      "id": "_2a0b0a0a0e0a0a1a3bd1b0_input",
+      "label": "Give details of any significant dates on which the applicant needs to be in Australia",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a4c1b0",
+      "id": "d215182092e452",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "tag": "INPUT",
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a1a4c1b0",
+      "id": "d215182092e454",
+      "label": "No",
+      "required": false
+    }
+  ]
+}

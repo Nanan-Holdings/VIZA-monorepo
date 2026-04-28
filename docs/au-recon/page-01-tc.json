@@ -1,0 +1,22 @@
+{
+  "pageMeta": "1/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Terms and Conditions",
+    "Terms and Conditions",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 1,
+  "fields": [
+    {
+      "tag": "INPUT",
+      "type": "checkbox",
+      "name": "_2a0b0a0a0e0a0a0a5a1a",
+      "id": "_2a0b0a0a0e0a0a0a5a1a_input",
+      "label": "I have read and agree to the terms and conditions",
+      "required": false
+    }
+  ]
+}
