@@ -1106,3 +1106,20 @@ acknowledgment).
   2. Health declarations (TB, vaccination history, mental health) are jurisdiction-specific. NZ asks TB; AU asks similar; UK asks generic; Schengen doesn't ask in-form. Future template upgrade: a "health declaration" step that includes country-specific Q's via conditional gates.
   3. NZeTA is a strong candidate for first NZ submission automation runner — simpler auth (no RealMe), simpler form, similar to ETIAS / ESTA pattern. Sets precedent for future ETA-style packages.
 ---
+
+## 2026-04-28 - RU-001..RU-005
+- Shipped Russia Unified e-Visa schema (RU_E_VISA): ~70 fields across 8 steps mirroring the MID Consular Department evisa.kdmid.ru flow. Single-entry only (Aug 2023 supersession of legacy FEZ Free e-Visa).
+- RU-specific schema features:
+  - Mandatory medical insurance block (3 fields: company, policy, coverage amount) in step 5 — insurance min coverage ~30,000 EUR is a hard MID requirement.
+  - MID-designated port-of-entry list (Moscow Sheremetyevo/Domodedovo/Vnukovo/Zhukovsky + SPb Pulkovo + Kazan + Ekaterinburg + Novosibirsk + Vladivostok + Kaliningrad + Sochi + Estonia/Finland land borders + 4 seaports).
+  - Multi-purpose under one form (tourism / business / humanitarian / guest).
+  - Field labels mention Latin/Cyrillic name transliteration.
+- Files: seed-ru-e-visa-form-fields.ts, drizzle/0032_ru_e_visa_package.sql, docs/russia-visa-scope.md, docs/russia-visa-gap-report.md, prd.json RU-001..RU-005 (priority 76..80).
+- Eligibility-list filter at VIZA intake flagged as required: e-Visa is for ~55 nationalities only (China, India, Bahrain, Iran, Mexico, Saudi Arabia, Turkey, Singapore, Japan, Indonesia, Philippines, Vietnam, etc.). Western nationals (US/EU/UK/AU/NZ/CA) are NOT eligible — they need consular paper visa.
+- Live-portal QA + submission automation deferred (geopolitically sensitive).
+- Type-check green.
+- Learnings:
+  1. Mandatory-insurance-pattern emerges: RU requires it, Schengen requires it, NZ recommends it (>6mo). Future template upgrade: a `travel_insurance_required` block (company / policy / coverage) that any country can opt into via seed-script-level convention rather than re-modelling each time.
+  2. Eligibility lists by nationality are a class of constraint that doesn't belong in `visa_form_fields`. Best place to enforce: VIZA intake / package-recommendation engine. Schema captures the form; recommendation captures the rules.
+  3. Multi-purpose-under-one-form (RU's tourism/business/humanitarian/guest) is similar to NZ's tourism/family/business/medical pattern — the purpose_of_visit select unlocks no sub-journey here, just routes the application internally at MID. Compare to UK Standard Visitor where purpose_of_visit unlocks 11 sub-journeys.
+---
