@@ -1,0 +1,30 @@
+# Visa Packages — Continuous Progress Log
+
+Append-only log written by the Claude Code loop after each story is implemented.
+Format per entry:
+
+## YYYY-MM-DD — VP-XX-NN — <story title>
+- Files changed
+- Verification (typecheck / test result)
+- Commit hash
+- Learnings / follow-ups
+---
+
+## 2026-04-28 — VP-INFRA-02 — per-applicant portal credential schema + Edward seed
+- Files changed:
+  - viza-be/agent-backend/drizzle/0024_eg_accounts.sql (new)
+  - viza-be/agent-backend/drizzle/0025_it_vfs_cn_accounts.sql (new)
+  - viza-be/submission-service/src/types.ts (added EgAccount, ItVfsCnAccount)
+  - viza-be/submission-service/src/account-loader.ts (new — loadUk/Au/Fv/Eg/ItVfsCn)
+  - viza-be/submission-service/scripts/seed-edward-test-credentials.ts (new)
+  - viza-be/submission-service/package.json (added seed:edward-creds script)
+  - viza-be/submission-service/docs/visa-packages-status.json (refreshed)
+  - viza-be/submission-service/docs/visa-packages-status.md (Continuous run section)
+- Verification: npm run db:migrate ✓ (3 migrations applied incl. 0023 EG package, 0024 EG accounts, 0025 IT VFS accounts); npm run type-check ✓ in submission-service; rows confirmed in uk_accounts + eg_accounts for applicant f8e36807-36b1-432c-ae1b-c34fb01f053a
+- Commit hash: <pending — uncommitted; loop will pick up>
+- Learnings:
+  - submission-service/.env has empty stubs — agent-backend/.env.local is the authoritative source. Seed scripts must load agent-backend env first to avoid empty values clobbering.
+  - .temp-account-credentials.md sat in docs/ in plaintext after the user pasted — deleted. If a similar file reappears, delete on sight.
+  - Future: post-domain-purchase auto-provisioning pattern documented in migration headers — applicant gets <uuid>@viza.<tld> alias + system password, runner registers portal accounts at intake.
+---
+
