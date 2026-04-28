@@ -795,6 +795,80 @@
       "priority": 55,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "SG-001",
+      "title": "Pin the Singapore Visit Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Singapore Visit Visa (Tourist / Social — single + multi-entry variants) submitted via the ICA SAVE e-Service, so Ralph builds against a concrete reviewable target.",
+      "acceptanceCriteria": [
+        "prd.json contains SG-001 through SG-005 for this run",
+        "The implementation names ICA SAVE (eservices.ica.gov.sg/esvclandingpage/save) as the canonical source",
+        "Local sponsor requirement (Singapore Citizen/PR 21+, ACRA company, visa agent, strategic partner) is explicitly modeled",
+        "Out-of-scope categories (EP/S Pass/Work Permit/LTVP/STP/DP/PR) are documented",
+        "docs/singapore-visa-scope.md exists with canonical journey, source URLs, application structure, and design principle"
+      ],
+      "priority": 56,
+      "passes": true,
+      "notes": "ICA SAVE is identity-gated — local sponsor (Singpass) submits on applicant's behalf. Live-portal QA deferred. Schema reconstruction posture: same as TH/EG/JP/ID."
+    },
+    {
+      "id": "SG-002",
+      "title": "Model the Singapore Visit Visa field inventory and branching rules",
+      "description": "As an operator, I need the SG Visit Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching SAVE.",
+      "acceptanceCriteria": [
+        "scripts/seed-sg-visitor-visa-form-fields.ts exists with visa_type = SG_VISITOR_VISA",
+        "9 sections (personal, passport, contact, occupation, trip, local sponsor, host, travel history, character + declaration)",
+        "Conditional fields (has-local-sponsor, has-host-in-singapore, has-other-names, etc.) are represented via conditional_logic.showIf",
+        "Repeatable groups (other_nationalities, other_passports, prior_singapore_visits) tagged with repeat_group + max_items",
+        "Race + religion modeled as optional (Form 14 antecedent collects both; SAVE may have removed)",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 57,
+      "passes": true,
+      "notes": "Local-sponsor sub-journey is the SG-specific feature — extends the standard 8-step Asia-tourist template by 1 step."
+    },
+    {
+      "id": "SG-003",
+      "title": "Wire the Singapore Visit Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the SG Visit Visa form to render through the existing dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers SG_VISITOR_VISA in visa_packages (country = singapore)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 58,
+      "passes": true,
+      "notes": "Migration file: 0028_sg_visitor_visa_package.sql."
+    },
+    {
+      "id": "SG-004",
+      "title": "Publish the Singapore Visit Visa gap report",
+      "description": "As a maintainer, I need SG Visit Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/singapore-visa-gap-report.md exists with coverage summary, parity status, conditional-logic status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Live-portal QA pass flagged as top open item",
+        "Race / religion presence on SAVE flagged for v1.1 confirmation",
+        "Local-sponsor NRIC / FIN / UEN format validation flagged for tightening",
+        "Typecheck passes"
+      ],
+      "priority": 59,
+      "passes": true,
+      "notes": "Truthfulness over premature parity claims."
+    },
+    {
+      "id": "SG-005",
+      "title": "Document the Singapore Visit Visa workflow and next expansion path",
+      "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining the SG_VISITOR_VISA derivation and next expansion.",
+      "acceptanceCriteria": [
+        "docs/singapore-visa-scope.md documents the SAVE source",
+        "progress.txt updated with SG-001..SG-005 entries + learnings",
+        "Recommended next actions (live-portal QA, Form V39A PDF generation, SG_LTVP, SG_STUDENT_PASS, SG_EMPLOYMENT_PASS) are stated",
+        "Typecheck passes"
+      ],
+      "priority": 60,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
