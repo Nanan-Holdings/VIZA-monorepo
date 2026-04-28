@@ -9,7 +9,8 @@
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "install-browsers": "playwright install chromium",
-    "recon:uk": "ts-node src/uk/form-recon.ts"
+    "recon:uk": "ts-node src/uk/form-recon.ts",
+    "seed:edward-creds": "ts-node scripts/seed-edward-test-credentials.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",

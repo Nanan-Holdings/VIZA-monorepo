@@ -91,6 +91,42 @@ export interface UkAccount {
 }
 
 /**
+ * Egypt e-Visa account credentials row from the `eg_accounts` table.
+ * password_encrypted decrypted at runtime via secret-cipher.
+ */
+export interface EgAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  vistk_token: string | null;
+  resume_url: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Italy Schengen VFS-CN appointment portal credentials row from the
+ * `it_vfs_cn_accounts` table. Used for VFS appointment booking only — the
+ * visa application form itself is the paper Annex I PDF.
+ */
+export interface ItVfsCnAccount {
+  id: string;
+  applicant_id: string;
+  username: string;
+  password_encrypted: string;
+  preferred_centre: string | null;
+  appointment_reference: string | null;
+  appointment_at: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * France-Visas account credentials row from the `fv_accounts` table.
  * `password_encrypted` is stored encrypted at rest; callers must decrypt
  * before passing to `signInWithPassword()`.
