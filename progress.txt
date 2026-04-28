@@ -1056,3 +1056,23 @@ acknowledgment).
   2. The 8-step template stretches well: optional 9th step for sponsor-driven flows; could compress to 7 for very-streamlined visa-on-arrival-style forms (Maldives) by dropping host + sponsor.
   3. The visa_type_requested single-vs-multi pattern continues to compose without forcing a schema fork. Singapore's "1-5 year multi-entry" duration variance is captured at the visa_type_requested radio label level rather than via a separate `validity_years` field.
 ---
+
+## 2026-04-28 - HK-001..HK-005
+- Shipped Hong Kong Visit Visa schema (HK_VISIT_VISA): 80 fields across 8 steps mirroring HK ImmD Form ID 936 (paper visit visa) + PAR (online Pre-arrival Registration for Indian nationals). Three submission variants (Form ID 936 single, Form ID 936 multiple, PAR Indian) on visa_type_requested.
+- HK-specific schema features:
+  - Optional Chinese name field (Form ID 936 collects it for CJK-region applicants).
+  - Host HKID field (loose-validated; ImmD format is `[A-Z]\d{6}\([0-9A]\)`).
+  - Expanded port-of-entry list: HKIA + 6 Mainland borders (Lo Wu, Lok Ma Chau, Spur Line, Shenzhen Bay, HZMB, West Kowloon high-speed rail) + 2 Macao ferry terminals + Kai Tak Cruise + other.
+- Files added:
+  - viza-be/agent-backend/scripts/seed-hk-visit-visa-form-fields.ts
+  - viza-be/agent-backend/drizzle/0029_hk_visit_visa_package.sql
+  - docs/hong-kong-visa-scope.md
+  - docs/hong-kong-visa-gap-report.md
+  - prd.json HK-001..HK-005 (priority 61..65)
+- Form ID 936 is paper-submitted (post / Chinese consular post abroad). The pragmatic submission-automation path is **PDF rendering + posted submission**, mirroring the JP_TOURIST MOFA Form A pipeline. PAR is online but Indian-only.
+- Type-check green: agent-backend.
+- Learnings:
+  1. Paper-form-only countries (HK Form ID 936, JP MOFA Form A, several embassy flows) can be made VIZA-native via PDF rendering. The JP_TOURIST pdf-lib + AcroForm pipeline is the reusable template. Bundle CJK font (fontkit + TTF) is the deferred v1.1 follow-up if applicants type CJK addresses.
+  2. The visa_type_requested radio scales beyond single-vs-multi-entry to multi-channel submission variants. HK uses it for "Form ID 936 single" / "Form ID 936 multiple" / "PAR (Indian)" — three rows that share the same field set but differ in submission channel + nationality eligibility.
+  3. HK + Macao + Mainland China have shared border infrastructure (HZMB, West Kowloon high-speed rail, Lok Ma Chau Spur Line). Future MO_VISIT_VISA can reuse much of this port enumeration.
+---
