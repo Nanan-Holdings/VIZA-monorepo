@@ -621,3 +621,381 @@ acknowledgment).
   2. The submission-service worker IS the queue worker — it's a standalone process polling submission_queue every 30s, not a job-runner library. Adding a new country = (a) extend types.ts status union, (b) add isXJob + processXItem functions, (c) extend the .in() filter in fetchPendingItems, (d) add an `else if (isXJob)` branch to poll(). No queue infra to add.
   3. ImmiAccount MFA is mandatory and persists across logins — the runner must compute TOTP itself or it stalls indefinitely on the prompt. Inline RFC 6238 (sha1, 30s, 6 digits) is ~30 LOC of Node crypto and avoids dragging in otplib. Future-proof for ImmiAccount switching to sha256/sha512 or 8-digit codes via the same module.
 ---
+
+## 2026-04-27 - JP-001
+- Pinned scope: JP_TOURIST = MOFA Application for Visa (Form A) Tourism Short-Term Stay path; v1 audience is mainland-China (PRC) residents who submit through a designated travel agency (JVAC China).
+- Confirmed via MOFA "JAPAN eVISA system" overview that PRC residents are NOT in the direct-eligible list for evisa.mofa.go.jp; they go via designated agency. Live-portal QA is therefore N/A for this audience.
+- Out-of-scope: Business Visit / Conference / Visiting Relatives variants of Form A (future packages); Spouse (Form B); Work / Study (Form C); evisa.mofa.go.jp self-service for non-PRC nationalities (future JP_E_VISA package); MOFA-Form-A-via-embassy direct submission for non-PRC residents (covered by same schema; channel difference documented in scope doc).
+- Files changed: prd.json (JP-001..005 appended at priority 21-25)
+- Learnings:
+  1. User-driven scope correction caught early: the recommended option (JP_E_VISA self-service) was wrong for the actual VIZA audience because PRC residents can't use the portal. The PRC reality is a paper form delivered to a designated travel agency — there is no online portal target, so no submission automation is possible. Recording this lesson because it's the second time (after AU vs eVisitor 651) where "the highest-traffic visa for our market" diverges from "the most digital-feeling option".
+  2. Playbook §0 (Mission statement) survives the pivot: 1:1 schema fidelity to the published MOFA Form A is still the bar, even when the submission channel is human-mediated. The schema is useful even without automation because it enables answer collection, validation, and (next step) PDF rendering for agency intake.
+---
+
+## 2026-04-27 - JP-002
+- Built scripts/seed-jp-tourist-form-fields.ts — 76 fields across 8 steps mirroring MOFA Form A (Application for Visa).
+- Step layout: 1 Personal (17), 2 Passport (9), 3 Contact & Home (6), 4 Occupation (5), 5 Trip Details (10), 6 Inviter in Japan (11), 7 Travel History (8), 8 Character & Declaration (10).
+- Conditional gates explicit: HAS_OTHER_NAMES, HAS_OTHER_NATIONALITIES, IS_MARRIED, HAS_OTHER_PASSPORTS, HAS_INVITER, VISITED_JAPAN_BEFORE, REFUSED_JAPAN, REFUSED_OTHER, HAS_CRIMINAL, HAS_DEPORTED, HAS_OVERSTAYED — all single-atom showIf, no || or && needed.
+- Repeatable groups: other_nationalities (max 3), other_passports (max 3), prior_japan_visits (max 5).
+- Block groups: place_of_birth, spouse, home_address, employer_details, accommodation_details, inviter.
+- Inline groups: passport_dates (issue+expiry), trip_dates (arrival+length).
+- Purpose locked to `tourism` for v1 (single-element select) — other purposes belong on future packages.
+- Seed run: `Done: 76 rows seeded (76 defined)` against live Supabase.
+- Files changed: viza-be/agent-backend/scripts/seed-jp-tourist-form-fields.ts (new)
+---
+
+## 2026-04-27 - JP-003
+- Migration drizzle/0021_jp_tourist_package.sql registers JP_TOURIST in visa_packages with country='japan'. Idempotent ON CONFLICT DO NOTHING.
+- Applied via `set -a; . ./.env.local; set +a; psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f drizzle/0021_jp_tourist_package.sql` — `INSERT 0 1` confirms success.
+- No frontend changes required — DynamicStepForm renders the seeded fields generically (playbook §6 invariant holds).
+- Type-check green: agent-backend (`tsc --noEmit`) and internal-website (`tsc --noEmit`).
+- Files changed: viza-be/agent-backend/drizzle/0021_jp_tourist_package.sql (new)
+---
+
+## 2026-04-27 - JP-004
+- Published docs/japan-visa-gap-report.md.
+- Coverage: 76 fields across 8 steps, 100% of MOFA Form A Tourism Short-Term Stay items present.
+- Documented 5 known limitations: (a) live-portal QA N/A for PRC residents — no portal exists; (b) submission channel (designated agency) is out-of-band, not modeled; (c) document uploads via application_documents per playbook §5.6; (d) no automated submission (matches user-confirmed scope); (e) inviter immigration-status field stored as free text (no canonical enum).
+- Conditional logic status documented: ||, &&, in/not in, cross-step are all available but unused in v1.
+- Reviewer checklist tracks PDF rendering of Form A as the top open item (the missing last-mile piece for agency intake).
+- Files changed: docs/japan-visa-gap-report.md (new)
+---
+
+## 2026-04-27 - JP-005
+- Published docs/japan-visa-scope.md — pins MOFA Form A as canonical source, names the designated-agency channel for PRC residents, lists out-of-scope categories with reasons, documents 4 source-flow ambiguities (embassy supplements, group-vs-individual tourism, PRC eVisa stay-period limit, inviter-status free-text).
+- Recommended next actions stated clearly:
+  - Immediate (v1.0): Render MOFA Form A to PDF from VIZA answers using pdf-lib against the published PDF as the template — needed for agency intake.
+  - Short-term (v1.1): JP_E_VISA package targeting evisa.mofa.go.jp for non-PRC eligible nationalities (live-portal Playwright recon + submission automation similar to France-Visas).
+  - Medium-term (v2): JP_BUSINESS_VISIT (organisation-as-inviter), JP_SPOUSE (Form B), JP_WORK_* (Form C series).
+- Source-material honesty checklist included: live portal not driven (N/A for v1 audience); MOFA Form A PDF + public guidance + Form-A-for-PRC-nationals MOFA page were the canonical inputs; live-portal QA pass deferred to future JP_E_VISA package.
+- Files changed: docs/japan-visa-scope.md (new), progress.txt (this entry + prior 4)
+- Learnings:
+  1. Schema-only builds can ship faster than full automation pipelines and still deliver real value when the submission channel is human-mediated. The framing is "answer collection + validation + (next: PDF rendering) for agency intake", not "fewer features than DS-160". For PRC-resident audiences, that framing is the right one.
+  2. The playbook's "fallback sources" section (§3 Step 2) becomes the primary path here, not a fallback. There's no live portal to drive, so the published MOFA Form A PDF is canonical. Calling this out in the scope doc + gap report keeps the maintenance posture honest — when MOFA revises Form A, that's the trigger to re-run, not "the portal changed".
+  3. User scope correction during the build (eVisa → paper-form) was caught because the user asked "are you sure this is the right one for Chinese nationals?" before committing. Web-search verification on visa eligibility for the actual target audience belongs at the planning step, not as a post-hoc fix. Adding to mental checklist for future country builds.
+---
+
+## 2026-04-27 - ID-001
+- Pinned scope: ID_C1_TOURIST = Indonesia C1 Tourist Single Entry Visa (Visa Kunjungan Wisata, formerly B211A under the pre-2024 framework, renamed C1 in the 2024 Single Entry restructure). Submission portal is the official DGI eVisa site evisa.imigrasi.go.id, which fully replaced molina.imigrasi.go.id during 2024.
+- Confirmed via DGI public guidance + eVisa General Information FAQ that the standard 60-day single-entry path is self-application (no Indonesian guarantor required). The extendable C1 pathway via visa-online.imigrasi.go.id requires a guarantor — sponsor block is gated rather than mandatory.
+- Out-of-scope: B1 / e-VOA Visa on Arrival via indonesiavoa.vfsevisa.id (separate portal, 30 days; future ID_B1_EVOA), C2 Business Visit (future ID_C2_BUSINESS_VISIT), C7/C18 Investor / Pre-Investment (future), D1 Multiple Entry Visit (future ID_D1_VISIT_MULTI), KITAS Limited Stay Permit series (long-term residence; future ID_KITAS_*), visa-on-arrival paper at airport, ASEAN visa-free entries.
+- Files changed: prd.json (ID-001..005 appended at priority 31-35)
+- Learnings:
+  1. Indonesia is now the third country (after AU vs eVisitor 651, JP self-service vs PRC-via-agency) where the digital-feeling path diverges from the realistic visa class for the audience. The 2024 Single Entry framework renamed B211A to C1 — search results still mix both names; pin the canonical name in the scope doc and reference the legacy name as an alias.
+  2. DGI replaced the Molina portal mid-2024 with the unified evisa.imigrasi.go.id. Old guidance pages still URL-reference molina.imigrasi.go.id even though the current journey is on the new domain. Document both URLs in the source list to defuse future confusion.
+---
+
+## 2026-04-27 - ID-002
+- Built scripts/seed-id-c1-tourist-form-fields.ts — 82 fields across 8 steps mirroring the eVisa C1 Visit Visa journey.
+- Step layout: 1 Personal (17), 2 Passport (10), 3 Contact & Home (8), 4 Occupation (5), 5 Trip Details (12), 6 Sponsor in Indonesia (11), 7 Travel History (9), 8 Character & Declaration (10).
+- Conditional gates explicit: HAS_OTHER_NAMES, HAS_OTHER_NATIONALITIES, IS_MARRIED, HAS_OTHER_PASSPORTS, HAS_SPONSOR (top-level), SPONSOR_IS_INDIVIDUAL / SPONSOR_IS_CORPORATE (nested under HAS_SPONSOR), VISITED_INDONESIA_BEFORE, REFUSED_INDONESIA, REFUSED_OTHER, HAS_CRIMINAL, HAS_DEPORTED, HAS_OVERSTAYED — all single-atom showIf, no || or && needed.
+- Repeatable groups: other_nationalities (max 3), other_passports (max 3), prior_indonesia_visits (max 5).
+- Block groups: place_of_birth, spouse, home_address, employer_details, accommodation_details, sponsor.
+- Inline groups: passport_dates (issue+expiry), trip_dates (arrival+length).
+- Mother's full name (mother_full_name) captured as a required step-1 field — surfaced from the live WNA registration form on evisa.imigrasi.go.id. Most other VIZA country schemas (UK, JP, AU, VN, Schengen) do not collect this; documented in the gap report so cross-country renderers don't strip it.
+- NIK (16-digit national ID) and NIB (corporate business registration) captured under the sponsor branch with format pattern validation. Server-side registry checks happen at submission time.
+- Purpose locked to `tourism` for v1 (single-element select) — adjacent purposes (business, investor, multi-entry visit) belong on future Single Entry packages.
+- Seed run: `Done: 82 rows seeded (82 defined)` against live Supabase.
+- Files changed: viza-be/agent-backend/scripts/seed-id-c1-tourist-form-fields.ts (new)
+---
+
+## 2026-04-27 - ID-003
+- Migration drizzle/0022_id_c1_tourist_package.sql registers ID_C1_TOURIST in visa_packages with country='indonesia'. Idempotent ON CONFLICT DO NOTHING.
+- Applied via `set -a; . ./.env.local; set +a; psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f drizzle/0022_id_c1_tourist_package.sql` — `INSERT 0 1` confirms success.
+- No frontend changes required — DynamicStepForm renders the seeded fields generically (playbook §6 invariant holds across UK / SCH / VN / AU / JP / ID now).
+- Type-check green: agent-backend (`tsc --noEmit`) and internal-website (`tsc --noEmit`).
+- Files changed: viza-be/agent-backend/drizzle/0022_id_c1_tourist_package.sql (new)
+---
+
+## 2026-04-27 - ID-004
+- Published docs/indonesia-visa-gap-report.md.
+- Coverage: 82 fields across 8 steps, 100% of the reconstructed C1 Visit Visa Wisata journey present.
+- Documented 6 known limitations: (a) live-portal QA has NOT been performed — top open item, schema is a reconstruction from WNA registration form fields + DGI public guidance; (b) no automated submission (matches v1 scope); (c) document uploads via application_documents per playbook §5.6; (d) sponsor block is reconstructed not live-confirmed; (e) NIK/NIB validation is pattern-only (server-side registry verification at submission); (f) mother's name as cross-country surprise.
+- Conditional logic status documented: ||, &&, in/not in, cross-step are all available but unused in v1; nested two-level sponsor gating (has_sponsor → sponsor_type → individual / corporate fields) called out explicitly.
+- Reviewer checklist tracks live-portal QA against evisa.imigrasi.go.id as the top item before production-ready promotion.
+- Files changed: docs/indonesia-visa-gap-report.md (new)
+---
+
+## 2026-04-27 - KR-001
+- Pinned the Korea C-3-9 Short-Term General Visa (≤90 days, multi-purpose, single-entry) as the v1 target for mainland-China (PRC) applicants. Submission channel: local Korea Visa Application Center (KVAC.com.cn-operated) — visa.go.kr self-service is geo-gated against PRC residents, so live-portal QA is N/A (same posture as JP-PRC). Canonical source form: Annex 17 (별지 제17호서식) "사증발급신청서 / VISA APPLICATION FORM" rev 2022.2.7, the legally-defined application template under the Enforcement Rules of the Immigration Control Act.
+- Added KR-001..KR-005 to prd.json at priorities 26-30 (no prior KR prefix usage; AU/JP/SCH/UK/VN already taken).
+- Wrote docs/korea-visa-scope.md with the canonical journey, source URLs, application structure (12 Annex-17 sections → 8 wizard steps), 5 source-flow ambiguities, and the v1.1/v2 expansion path (PDF generation for KVAC intake, multi-select §8.1 renderer extension, KR_C32_GROUP_TOUR / KR_C33_MEDICAL sub-category packages, K-ETA when reinstated for PRC, D-series long-stay).
+- Files changed: prd.json (KR-001..KR-005 added), docs/korea-visa-scope.md (new).
+- Learnings: cross-country deltas are now mature enough to predict where each new country diverges. Korea-specific shape: §1.7 PRC 18-digit national ID required, §1.2 hanzi name required for PRC (optional for non-CJK applicants), §8.1 multi-select purpose ("check all that apply") that simplifies cleanly to single-select for C-3-9 because tourism+family-visit cover ~95% of cases, no refusal/criminal-history section (handled at consular layer via Section-11 Notice + KVAC supplementary Declaration Form).
+---
+
+## 2026-04-27 - KR-002
+- Implemented scripts/seed-kr-c39-short-term-visit-form-fields.ts with visa_type = KR_C39_SHORT_TERM_VISIT.
+- Coverage: 101 visa_form_fields rows (each repeater-group field counted separately per row; the agent's Annex-17 inventory of 86 collapses to 101 once each repeater field expands and one synthetic gate is added).
+- Structure: 8 wizard steps — Personal Details (13) / Visa Category & Passport (15) / Contact & Emergency (10) / Marital & Family (9) / Education & Employment (10) / Trip & Visit (6) / Travel History & Family (20) / Invitation, Funding & Declaration (18).
+- Conditional gates (17 total): has_used_other_names, is_dual_national, passport_type === other, has_other_passport, has_other_passport && other_passport_type === other (composed `&&`), current_address_same_as_home === no (synthetic gate replacing Annex-17's "if different" prose), marital_status === married, has_children, highest_education === other, employment_status not in [unemployed, retired] (`not in` list-membership), employment_status === other, purpose_of_visit === other, travelled_to_korea_5y, travelled_outside_5y, has_family_in_korea, travelling_with_family, has_inviter, received_form_assistance.
+- Repeatable groups (4): korea_visits, foreign_trips_5y, family_in_korea, family_travelling_with — all gated on parent radio, max_items: 10 on first field of each group per playbook §3 Step 4.
+- Section 2 (visa category) is hard-locked: period_of_stay = short_term, status_of_stay = C-3-9 via validation_rules.locked_value hint. Renderer treats these read-only when the hint is honored; degrades to user-editable otherwise (applicant just confirms the prefilled value).
+- Photo §1.0 + signature §12.3 are intentionally out of schema per playbook §5.6 (file uploads via application_documents; paper signature at KVAC counter).
+- Seed run output: `Done: 101 rows seeded (101 defined)` against Supabase. Type-check (agent-backend): pass. Type-check (internal-website): pass.
+- Files changed: viza-be/agent-backend/scripts/seed-kr-c39-short-term-visit-form-fields.ts (new).
+- Learnings: when a source form prose-instructs "fill if different" or similar, the cleanest schema-side translation is an explicit Y/N gate radio + conditional reveal. The form-utils evaluator does not support arithmetic comparisons (`≠`), and adding a synthetic Yes/No is a 1-row cost for a major UX win. Konvert pattern: every "if different" / "if applicable" prose instruction becomes a `*_same_as_*` or `has_*` radio gate.
+---
+
+## 2026-04-27 - KR-003
+- Created drizzle/0023_kr_c39_package.sql to register the KR_C39_SHORT_TERM_VISIT package in visa_packages (country = south_korea). Idempotent ON CONFLICT DO NOTHING.
+- Filename was originally 0022_kr_c39_package.sql but a concurrent worker had landed 0022_id_c1_tourist_package.sql in the same iteration window. Both ran successfully (the runner does not enforce unique numeric prefixes), but to keep filename ordering meaningful, renamed mine to 0023. Re-applied; runner records both as executed.
+- Files changed: viza-be/agent-backend/drizzle/0023_kr_c39_package.sql (new), docs/korea-visa-scope.md (migration filename updated 0022 → 0023).
+- Learnings: the drizzle migration runner tolerates duplicate numeric prefixes (it tracks by full filename), so filename-collision is cosmetic — but ordering ambiguity matters for review history. When seeding multiple country packages in parallel sprints, claim the next number atomically before writing the file (e.g. `ls drizzle/ | tail -1` immediately before `mv`), or use a hash-suffix convention.
+---
+
+## 2026-04-27 - KR-004
+- Published docs/korea-visa-gap-report.md with the v1 coverage summary (8 limitations documented) and reviewer checklist.
+- Coverage: 101 fields across 8 steps, 100% of Annex-17 §1-§12 (excluding photo §1.0 and signature §12.3 which are out of schema by design).
+- Documented limitations: (a) §8.1 multi-select rendered as single-select — top renderer extension item; (b) photo + signature out of schema by design; (c) live-portal QA against visa.go.kr is N/A for PRC residents — schema is high-fidelity reconstruction; (d) refusal/criminal-history not on Annex 17 (intentional parity); (e) under-17 signature swap not modelled (v1.1 enhancement); (f) KVAC supplementary documents (hukou, employment cert, bank statement, tax cert, business license, Health Condition Report, Declaration Form) live in application_documents per playbook §5.6; (g) post-2026 PRC 5-year multi-entry C-3 eligibility logic is consular-side, no schema change needed; (h) no KVAC submission automation exists (no public API; paper / counter intake only).
+- Conditional logic status documented: ||, &&, `not in [unemployed, retired]` list-membership all used. Cross-step conditionals NOT used (every gate's parent is on the same step). Date arithmetic not used.
+- Files changed: docs/korea-visa-gap-report.md (new).
+- Learnings: Korea is the first country in this codebase to use the `not in [...]` operator in production (all other countries' employer/school blocks were gated on simpler `=== employed` patterns). The §7.2 employer block hides for `unemployed` AND `retired` — naturally expressed as a list-membership negative, not as `!== unemployed && !== retired` (less readable). The renderer's atom parser checks `not in` before `in` so the longer keyword wins; verify in manual walkthrough.
+---
+
+## 2026-04-27 - KR-005
+- Closed the Korea C-3-9 build with operator-usable documentation. The scope doc + gap report together describe how the schema was derived (verbatim pdftotext extraction of the visa.go.kr Annex-17 PDF rev 2022.2.7), how to rerun the seed, how to add a sub-category package (C-3-1 / C-3-2 / C-3-3 / C-3-4), and what the 3 expansion phases look like.
+- Recommended next actions stated clearly:
+  - Immediate (before production): (1) PDF generation of completed Annex-17 from visa_application_answers — KVAC accepts pre-filled paper forms, so this unlocks the user-facing intake flow; (2) multi-select renderer extension for §8.1 purpose-of-visit so applicants can tick multiple purposes per the form's literal instruction.
+  - Short-term (v1.1): under-17 applicant guardian fields, KR_C32_GROUP_TOUR package (designated travel agency name + code), KR_C33_MEDICAL package (medical institution + treatment plan), PRC 18-digit national ID checksum validation.
+  - Medium-term (v2): KR_E_VISA package targeting visa.go.kr self-service for non-PRC nationalities, D-series long-stay packages (D-2 student, D-7/8/9/10 employment, D-4 trainee, F-series resident), KR_K_ETA package when k-eta.go.kr is reinstated for PRC nationals (currently suspended), live-portal QA pass via a non-PRC test account.
+- Source-material honesty checklist included in scope doc §9: live portal NOT driven (geo-gated against PRC), Annex-17 PDF consulted (yes), caseworker guidance partial (KVAC PRC catalogues), legal basis = Enforcement Rules of the Immigration Control Act Annex 17, live-portal QA pass = no (deferred).
+- Files changed: progress.txt (this entry + KR-001..KR-004 above), docs/korea-visa-scope.md, docs/korea-visa-gap-report.md, prd.json (all KR-001..KR-005 flipped to passes:true).
+- Learnings:
+  1. The JP_TOURIST template is the cleanest analog for any "PDF-form, paper-submission, geo-gated portal" country. Korea reused JP's seed shape with ~80% structural identity; the differences are PRC-specific name/ID requirements and Annex-17's heavier travel-history sections (4 repeatable groups vs JP's 1).
+  2. Concurrent-worker migration filename collisions are silent under the current runner. If we expect parallel country sprints to continue, a `claim-migration-number.sh` helper that stages the file under the next free prefix would prevent the post-hoc rename dance — file the cost as a v1.1 ergonomics fix.
+  3. With KR landed, the country count is now 7 (US + UK + SCH + VN + AU + JP + KR) and ID is in flight at 8. The cross-country delta knowledge is rich enough to write a "when to expect what" pre-flight doc (e.g. East-Asian visas tend to need hanzi/kanji name fields and family-in-destination questions; Schengen/UK need refusal-history; identity-gated portals need PDF-fallback as primary source). Worth promoting to playbook §12 in a future cleanup.
+---
+
+## 2026-04-27 - ID-005
+- Published docs/indonesia-visa-scope.md — pins evisa.imigrasi.go.id (formerly molina.imigrasi.go.id) as canonical eVisa portal, names C1 Tourist Single Entry as the visa class, lists out-of-scope categories with reasons, documents 5 source-flow ambiguities (eVisa vs Molina legacy URLs, sponsor optionality across self-applied vs extendable pathways, visa-validity vs stay-permit windows, mother's name field, NIK/NIB sponsor identifiers).
+- Recommended next actions stated clearly:
+  - Immediate (v1.0): Live-portal recon against evisa.imigrasi.go.id with a throwaway WNA account — single biggest open item; the schema is reconstructed from the registration form + public guidance, not from the live application form.
+  - Short-term (v1.1): ID_B1_EVOA package (30-day Visa on Arrival via indonesiavoa.vfsevisa.id); PDF rendering for embassy/agency intake; submission automation against evisa.imigrasi.go.id (Playwright recon required).
+  - Medium-term (v2): ID_C2_BUSINESS_VISIT (replaces C1 with business sponsor block), ID_D1_VISIT_MULTI (multiple-entry, 1-5 year validity), ID_KITAS_* series (long-term residence, telex visa flow).
+- Source-material honesty checklist included: live portal not driven (post-registration C1 application is identity-gated); WNA registration form fields confirmed live; DGI public guidance + eVisa FAQ + 2023 imigrasi guidance article were the canonical inputs; live-portal QA pass deferred and explicitly tracked.
+- Files changed: docs/indonesia-visa-scope.md (new), progress.txt (this entry + prior 4)
+- Learnings:
+  1. Cross-country comparison of "what's actually required" is now strong enough to be a tool. After UK / SCH / VN / AU / JP / ID, the field deltas (mother's name in ID, fingerprints + ATV nationality lists in Schengen, character questions in JP, ImmiAccount TOTP in AU, e-Visa code uniqueness in VN, BRP / national ID / civil penalty in UK) are clear. The next country build should reuse this comparison as a starting checklist before consulting the new country's public docs.
+  2. The playbook's "fallback sources" section (§3 Step 2) becomes the primary path for any identity-gated portal. ID joins JP and UK in that pattern. The schema is still useful pre-QA — it gives applicants a structured intake for VIZA staff to review before the user goes to the official portal — and the gap report makes the QA-not-yet-done state honest.
+  3. 2024 visa-class renames (B211A → C1) are common in Indonesia post-Single-Entry-restructure and similar restructures happen elsewhere. Always reference both the legacy name and the new name in the scope doc; search results from before the rename will use the legacy name and stale guidance pages will mix the two.
+---
+
+## 2026-04-27 - EG-001
+- Pinned scope to Egypt Tourist e-Visa (EG_E_VISA), Visa2Egypt portal (https://visa2egypt.gov.eg) operated by the Egyptian Ministry of Interior. Both single-entry (USD ~25, 90-day validity, 30-day max stay) and multi-entry (USD ~60, 180-day validity, 30-day max stay per visit) variants share one schema; visa_type_requested radio captures the selection.
+- Out of scope (documented explicitly in egypt-visa-scope.md §3): business e-Visa, visit/family e-Visa, consular long-stay (work/student/residence), Sinai-only entry permit, visa-on-arrival cash kiosks, diplomatic/official passports.
+- Files changed: docs/egypt-visa-scope.md (new), prd.json
+- Learnings: Egypt fits the JP_TOURIST + ID_C1_TOURIST mould — identity-gated portal so live-portal QA is deferred, and the published paper antecedent (MFA Form 7) is the field-for-field source of truth. Reusing the cross-country field-delta comparison from the previous progress entry made scoping fast: most of the form is the canonical "personal + passport + contact + occupation + trip + history + declaration" set, with one optional "Host in Egypt" sub-journey for visiting friends/relatives.
+---
+
+## 2026-04-27 - EG-002
+- Created scripts/seed-eg-e-visa-form-fields.ts with visa_type = EG_E_VISA, 74 fields across 8 steps:
+  1. Personal Information (17 fields incl. spouse + parents block)
+  2. Passport (9 fields incl. other_passports repeat group)
+  3. Contact & Home Address (8 fields incl. optional state/postcode)
+  4. Occupation (5 fields, employer details optional)
+  5. Trip Details (13 fields incl. visa_type_requested radio, port_of_entry select w/ "other" reveal, accommodation block)
+  6. Host in Egypt (6 fields, entire step gated on has_host_in_egypt === yes)
+  7. Travel History (8 fields incl. prior_egypt_visits repeat group + refusal-detail textareas)
+  8. Character & Declaration (8 fields incl. final_declaration checkbox)
+- Conditionals: 11 explicit showIf gates (other-names, other-nationalities, married-spouse-block, other-passports, has-host-in-egypt, visited-egypt-before, refused-visa-egypt, refused-visa-other-country, has-criminal-record, has-been-deported, port-of-entry-other).
+- Repeat groups: other_nationalities (max 3), other_passports (max 3), prior_egypt_visits (max 5).
+- Block groups: place_of_birth, spouse, home_address, employer_details, accommodation_details, host. Inline groups: passport_dates, trip_dates.
+- Seed run output: "Done: 74 rows seeded (74 defined)".
+- Files changed: viza-be/agent-backend/scripts/seed-eg-e-visa-form-fields.ts (new), prd.json
+- Learnings: visa_type_requested as a radio (single vs multi) inside Step 5 keeps the schema as one package even though Visa2Egypt presents two priced products on its landing page. Avoids splitting into EG_E_VISA_SINGLE / EG_E_VISA_MULTI — same fields, different fee/validity downstream.
+---
+
+## 2026-04-27 - EG-003
+- Created drizzle/0023_eg_e_visa_package.sql registering EG_E_VISA in visa_packages (country = egypt) with idempotent ON CONFLICT DO NOTHING. Description captures the single vs multi-entry pricing/validity split and out-of-scope categories so the package row is self-explanatory in the admin UI.
+- No frontend changes required — DynamicStepForm renders the seeded fields generically.
+- Files changed: viza-be/agent-backend/drizzle/0023_eg_e_visa_package.sql (new), prd.json
+- Learnings: matches the UK-003 / SCH-003 / VN-003 / AU-003 / JP-003 / ID-003 pattern exactly. The migration is one INSERT statement; everything else lives in the seed.
+---
+
+## 2026-04-27 - EG-004
+- Created docs/egypt-visa-gap-report.md documenting:
+  - Coverage summary table (74 fields × 8 steps)
+  - Visa-type variant note (single vs multi-entry sharing one schema)
+  - Five remaining limitations (live-portal QA deferred, document uploads via application_documents, payment + e-Visa delivery out of schema, visa-on-arrival as separate non-form flow, Sinai-only entry permit as separate non-form flow) with status / impact / why-deferred / workaround for each
+  - Conditional-logic status (||, &&, in, cross-step) — schema does not currently use any of these but they are available
+  - Implementation notes (idempotent seed, repeat groups, block groups, inline groups)
+  - Reviewer checklist
+  - Source material with expected-drift candidates for the next live-portal QA pass (port_of_entry order, passport_type service-vs-official collapse, occupation enum, religion field, father/mother dual-name)
+- Files changed: docs/egypt-visa-gap-report.md (new), prd.json
+- Learnings: the JP_TOURIST gap-report posture (live-portal-blocked-but-honest) generalises cleanly. Calling out drift candidates explicitly turns the gap report into a QA checklist for the first staff who gets a Visa2Egypt account, rather than a passive document.
+---
+
+## 2026-04-27 - EG-005
+- Final scope doc + workflow documentation closed in egypt-visa-scope.md §7 (How the schema was derived) and §8 (Next recommended actions).
+- Recommended next actions:
+  1. Live-portal QA pass with a real Visa2Egypt account before production promotion
+  2. Document-upload wiring confirmation (passport bio page / photo / hotel booking under application_documents)
+  3. EG_BUSINESS_E_VISA package — same Visa2Egypt portal, different inviter block
+  4. EG_VISIT_E_VISA package — family/host sponsor undertaking
+  5. Visa-on-arrival informational flow (non-schema package for the ~46 VOA-eligible nationalities)
+  6. Sinai-only entry permit informational flow (non-schema package)
+  7. PDF rendering of the completed form for staff intake (Form 7 layout)
+- Both typechecks (agent-backend + internal-website) pass.
+- Files changed: docs/egypt-visa-scope.md (updated), progress.txt (this entry), prd.json
+- Learnings:
+  1. The "one schema, multiple priced variants" pattern (single vs multi-entry differing only in fee + validity) is now a third worked example after UK Standard Visitor's 11-purpose umbrella and the Schengen Type C / Type D split. The right tiebreaker is whether the **field set** differs, not whether the price/validity differs. EG keeps one schema; the price live in the package description + downstream submission step.
+  2. After 8 country builds (US / UK / SCH / VN / AU / JP / KR / ID / EG), the canonical reconstruction-style schema converges on ~70-80 fields and ~8 steps for a single-purpose tourist visa with no submission automation. Sharper outliers (DS-160 ~330 fields, UK Standard Visitor 222) are the umbrella visas. New countries should size against this baseline before trying to model anything custom.
+  3. The "Host in Egypt" sub-journey gated on has_host_in_egypt === yes is structurally identical to JP's "Inviter in Japan" block. Both are optional sub-journeys keyed on a yes/no parent. Ralph should treat this as the canonical pattern for any country whose form has a "do you have a host?" gate, rather than re-inventing the conditional shape per country.
+---
+
+## 2026-04-27 - IT-001
+- Pinned scope: Italy Schengen Type C via VFS Global China corridor (`https://visa.vfsglobal.com/chn/en/ita/`).
+- Schema reuse from EU_SCHENGEN_C_SHORT_STAY confirmed — no new seed, no new visa_packages row, no Drizzle migration. Per playbook §3 step 1: "Name the package by the visa type, not a country."
+- Italy is the second realised Schengen-state corridor (after France-Visas). The pattern is: schema-once, corridor-many — one harmonized seed, multiple per-country submission adapters under viza-be/submission-service/src/<country>-<channel>/.
+- Out-of-scope documented: Italy Type D long-stay (separate IT_TYPE_D in v2), other Italy corridors (Italy-from-India / Italy-from-MENA — separate adapters in v1.1+), automated appointment booking (applicant-attested), payment, document upload (application_documents per playbook §5.6).
+- Source-flow ambiguities documented: live walk pending (VFS form is identity-gated), Cloudflare Turnstile risk on registration, language pinning (?lang=en for selector stability), VFS SPA fragment-routing requires URL-first + heading-fallback page detection.
+- Files changed: docs/italy-visa-scope.md (new), prd.json (IT-001..IT-005 added)
+- Learnings:
+  1. Italy MAECI does not run a unified online application portal equivalent to france-visas.gouv.fr. Each consulate routes through different operational channels — most commonly VFS Global (with country-specific URLs), occasionally BLS or direct paper. This is a structural difference vs France that future Schengen-state corridors will likely share (Spain, Greece, Portugal, etc.).
+  2. The user steered scope correctly: "schema same as France, autofill different website" caught the schema-reuse + corridor-divergence pattern in one sentence. The corridor-routing matrix (destination_country, residency_country) → adapter is the right abstraction for any Schengen-state without a unified portal. Recording this as the canonical pattern for v2 work.
+---
+
+## 2026-04-27 - IT-002
+- Built viza-be/submission-service/scripts/walk-italy-vfs-cn.ts — Playwright recon driver for the VFS Global Italy China corridor.
+- Public-pages-only smoke mode (default): walks marketing/landing pages, captures URL, heading, fields (with required state, label, placeholder, options), submit buttons per page → JSON files. STOP_BUTTON_PATTERNS guard against accidentally clicking Pay/Submit/Confirm-appointment/Book-appointment.
+- --login mode is gated behind IT_VFS_CN_EMAIL / IT_VFS_CN_PASSWORD env vars and aborts with TODO until the live walk runs (login form-fill belongs in the runner once selectors are captured).
+- Stealth-light: --disable-blink-features=AutomationControlled launch flag, viewport 1440x900, locale en-US, timezone Asia/Shanghai. Full stealth-hardening profile (parallel to france-visas) deferred to v1.1 post-walk.
+- CLI flags: --headful, --interactive, --login, --out, --start. Default output dir ./italy-walk-out/. JSON dump per page-N + summary.json.
+- Files changed: viza-be/submission-service/scripts/walk-italy-vfs-cn.ts (new)
+- Learnings:
+  1. The walk-recon script is the canonical first artefact for a new corridor — even before the runner. Mirrors the UK (walk-uk-portal.ts) and Vietnam (form-recon-v3.ts) pattern. Without it, fill-steps.ts is guesswork.
+  2. STOP_BUTTON_PATTERNS need to grow with each new portal — VFS adds "Book appointment" / "Confirm appointment" beyond the CEAC "Pay" / "Submit" set. Maintain the union across walks; the recon should never accidentally book a slot.
+---
+
+## 2026-04-27 - IT-003
+- Built viza-be/submission-service/src/italy-vfs-cn/ — corridor adapter skeleton parallel to france-visas/ and au-visitor/.
+- 5 files, 0 fill-steps (deferred to live walk):
+  - errors.ts — ItVfsError taxonomy (UNEXPECTED_PAGE, SESSION_EXPIRED, NAVIGATION_FAILED, VALIDATION_FAILED, SESSION_BOOTSTRAP_FAILED, GATE_DETECTED, LOGIN_FAILED, CORRIDOR_INELIGIBLE) + serializeError parity.
+  - pages.ts — ItVfsPageId enum (17 values: landing/login/register/dashboard/select_visa_type + 9 wizard pages + appointment_eligibility + session_expired), URL_PATTERNS regex table, IT_VFS_HEADING_PATTERNS body-text fallback, detectPage / assertPage / waitForPage helpers.
+  - selectors.ts — IT_VFS_URLS, IT_VFS_LOGIN_SELECTORS, 8 Annex-I-section field groups (PERSONAL / TRAVEL_DOC / CONTACT / OCCUPATION / TRIP / ACCOMMODATION / TRAVEL_HISTORY / COST), IT_VFS_NAV_SELECTORS, validation summary + field-error selectors, IT_VFS_GATE_MARKERS (Cloudflare/reCAPTCHA/maintenance), IT_VFS_PURPOSE_VALUES enum. All DOM names marked TODO(walk).
+  - normalize.ts — assertCorridorEligible (residency=CN, destination=IT pre-flight via CorridorIneligibleError), normalizeItVfsAnswers maps the EU_SCHENGEN_C_SHORT_STAY harmonized seed answer keys to a typed ItVfsAnswers structure (8 sections × ~5-8 fields each = ~50 mappings), enum mappers for sex / number_of_entries / cost_borne_by, ISO-2 country normalization, boolean coercion.
+  - index.ts — public re-export barrel; mirrors france-visas/index.ts shape minus fill-steps/run/orchestrator/registration/sign-in (deferred to live walk).
+- Submission-service typecheck passes clean: `tsc --noEmit` exit 0.
+- Stop-at-appointment-eligibility boundary established (mirrors France-Visas stop-at-PDF, AU stop-at-review). VFS appointment booking + payment intentionally NOT in scope.
+- Files changed: viza-be/submission-service/src/italy-vfs-cn/{errors,pages,selectors,normalize,index}.ts (5 new files)
+- Learnings:
+  1. The corridor adapter is a thin mapping layer + Playwright driver — schema mapping (normalize.ts) and structural identity (errors / pages / selectors) can be authored without live-portal access. Only fill-steps and run.ts need the live walk. Splitting the adapter into walk-required vs walk-independent files cuts the time-to-typecheck-green from days to a few hours.
+  2. assertCorridorEligible (residency-country + destination-country pre-flight) is the right place for corridor routing — caller can fail fast with CorridorIneligibleError before opening a browser context, saving session quota and giving the dispatcher a clear signal to try a different adapter (e.g. fall back to France-Visas).
+  3. Keeping selectors.ts grouped by Annex I section (PERSONAL / TRAVEL_DOC / CONTACT / OCCUPATION / TRIP / ACCOMMODATION / TRAVEL_HISTORY / COST) means the live walk can fold its DOM captures in section-by-section instead of requiring a global rewrite. France-Visas has the same shape and it has held up across 6 step transitions and 3 schema bumps.
+---
+
+## 2026-04-27 - IT-004
+- Published docs/italy-visa-gap-report.md.
+- Coverage: schema 100% reused from EU_SCHENGEN_C_SHORT_STAY (171 fields, 12 logical sections — see docs/schengen-visa-gap-report.md §1). Corridor adapter status: errors / pages / selectors / normalize / index complete; fill-steps and run not yet implemented (depend on live walk).
+- 6 documented gaps: (1) live VFS-CN portal QA pending — top open item; (2) Cloudflare Turnstile / anti-bot risk on registration, possibly login under anomalous traffic; (3) document upload via application_documents per playbook §5.6 — out of scope by design; (4) appointment booking + payment — out of scope (applicant attestation boundary); (5) no corridor-specific schema fields introduced (per playbook §11.13 — country-portal quirks belong in normalize.ts, not the seed); (6) other Italy corridors (Italy-from-India / Italy-from-MENA) — future packages, schema does not move.
+- Conditional-logic carry-over documented (||, &&, in/not in, required_unless, cross-step gating — all from EU_SCHENGEN_C_SHORT_STAY).
+- 10 open questions for live walk explicitly enumerated (page count, section ordering, repeatable group rendering, conditional reveal pattern, validation surface, save/draft semantics, appointment-eligibility page identity, draft reference shape, Turnstile under headless, i18n URL-pinning).
+- Reviewer checklist tracks live walk + fill-steps + queue-worker dispatcher wiring as the open items.
+- Files changed: docs/italy-visa-gap-report.md (new)
+---
+
+## 2026-04-27 - IT-005
+- Closed Italy-VFS-CN scaffold pass with operator-usable docs.
+- docs/italy-visa-scope.md §8 documents next actions:
+  - Immediate (before production): live walk against VFS-CN with provisioned account; implement fill-steps.ts; wire queue worker (it_prefill_pending + processItVfsCnItem + corridor-routing rule on EU_SCHENGEN_C_SHORT_STAY answers).
+  - Short-term (v1.1): hoist France-Visas stealth profile into shared "vfs-global" hardening usable across all VFS corridors; Turnstile-solver wiring or operator-handoff; resume-by-reference (mirror AU resumeApplicationByTrn).
+  - Medium-term (v2): Italy-from-other-corridors (Italy-VFS-IN, Italy-VFS-PH, Italy-VFS-UK, Italy-BLS-MENA — each an independent adapter dir, schema unchanged); Italy Type D long-stay packages (IT_TYPE_D_STUDENT, IT_TYPE_D_WORK, IT_TYPE_D_FAMILY — separate seeds keyed to MAECI's national visto form); per-consulate routing matrix for any Schengen state without a unified portal (Italy, Spain, Greece, Portugal, etc.).
+- Source-material honesty checklist included: live VFS-CN portal not driven (top open item); harmonized Annex I form is the schema source (already QA'd against EU Commission PDF); public VFS-CN landing pages + Italian consulate websites consulted for corridor routing.
+- Files changed: progress.txt (this entry + IT-001..IT-004)
+- Learnings:
+  1. Schema-once, corridor-many is the right abstraction for multilateral visas. The Schengen seed is a single source of truth; per-corridor adapters under submission-service/src/<country>-<channel>/ are the only thing that varies. Italy is the second realisation; Spain / Greece / Portugal will follow the same pattern. Recording this so the next person doesn't waste time forking the seed per country.
+  2. Walk-before-map (playbook §12.7) is a hard rule even when the schema is reused. The Italy adapter scaffold could be authored without live access (errors / pages / selectors / normalize) but fill-steps.ts and run.ts cannot. Splitting the adapter pass into walk-independent vs walk-dependent halves means we ship value (typechecking corridor adapter, normalize layer, recon script) before the operational account is provisioned, instead of blocking on it.
+  3. The corridor-routing rule is a (destination_country, residency_country) lookup — for EU_SCHENGEN_C_SHORT_STAY answers with destination=IT + residency=CN, dispatch italy-vfs-cn; otherwise france-visas (current default). Future v2 work: lift this routing into a shared dispatcher module so adding a new corridor is one row in a table instead of an `else if` branch in submission-service/src/index.ts.
+  4. User confirmation of stop boundary matters. France-Visas stops at PDF download; AU stops at Review; DS-160 stops at Sign and Submit. Italy stops at appointment-eligibility (before VFS prompts to book a slot). Each boundary mirrors a real applicant-attestation step the automation cannot honestly fire. Documenting the boundary up front (scope §2) keeps the runner's contract honest when it lands.
+---
+
+## 2026-04-28 - ID-005 follow-up — live-portal walk-recon
+- Drove the public eVisa pages + WNA registration form live on evisa.imigrasi.go.id (post-registration C1 application form remains identity-gated; not walked in this pass).
+- Built viza-be/submission-service/scripts/walk-id-evisa.ts — Playwright recon driver mirroring the walk-italy-vfs-cn.ts pattern. Public arm walks 6 URLs (landing, eVOA info, WNA register, guarantor register, 2 FAQs); optional --login arm clicks Login → fills creds (with --interactive pause for CAPTCHA/2FA) → autonomously click-throughs Save and continue / Next / Lanjut buttons up to any STOP_BUTTON match (Pay / Submit / Bayar / Kirim Aplikasi).
+- Initial run hit a tsx page.evaluate quirk — tsx injects __name() helper for named function declarations which doesn't exist in browser context. Rewrote field/submit/legend extractors as raw string scripts passed to page.evaluate() instead of TypeScript closures. Recurring tsx + Playwright trap; documenting here so future country recon scripts skip the round trip.
+- Walk capture: 6 pages, 129 KB JSON. Archived to docs/indonesia-visa-recon-2026-04-28.json. Page 3 (/front/register/wna) yielded 18 visible / 28 DOM inputs; page 4 (/front/register/guarantor-register) yielded 24 visible / 82 DOM inputs.
+- Drift findings vs reconstructed seed (full breakdown in docs/indonesia-visa-walk-report.md §3):
+  - full_name is one field on live, seed splits surname + given_names — runner concatenates as canonical "SURNAME, Given Names" passport format. No seed change.
+  - birth_place is one free-text field on live, seed splits city + country — runner concatenates. No seed change.
+  - phone is split into phone_code (262 dial codes) + mobile_phone, seed has free-text — runner extracts +<dial-code> prefix at submission time. No seed change.
+  - mother field REQUIRED on live registration — confirms seed's mother_full_name choice (Indonesian-immigration-specific, surfaces only on this country).
+  - gender enum is uppercase MALE/FEMALE on live, seed lowercase — runner case-folds.
+  - Live field names (release_date / expired_date / release_place / birthday / mother) differ from seed canonical names (passport_issue_date / passport_expiry_date / passport_place_of_issue / date_of_birth / mother_full_name) — runner translates. No seed change.
+  - passport_issuing_authority NOT on registration form — likely on the gated post-registration application form; flagged for next walk.
+  - nationality + marital_status + occupation + trip details + travel history + character questions all unverified — gated behind WNA account.
+- Sponsor / guarantor block patches from /guarantor-register live walk:
+  - sponsor_corporate_npwp added (required when sponsor_type === corporate). NPWP is the Indonesian Tax ID (15-16 digit Nomor Pokok Wajib Pajak); was missing from v1 reconstruction.
+  - sponsor_corporate_nib demoted to optional — live form does not flag it required.
+  - Field count: 82 → 83. Re-seeded; Done: 83 rows seeded (83 defined).
+  - Granular Indonesian address (address + no + rt + rw + postal_code + province + city + district + village) deferred to v1.1 — runner splits the seed's single sponsor_address text at submission rather than bloating the schema with 8 fields for a gated branch.
+  - agencyType (55 UUID opts) + businessType (7 UUID opts) NOT added — those are sponsor-side organisation classifiers, not data the visa applicant provides.
+- Documents: docs/indonesia-visa-walk-report.md (new — page-by-page narrative + drift catalogue + open items), docs/indonesia-visa-gap-report.md updated (§3.1 rewritten with QA-partial state; §4.1 v1.1 closed-items entry).
+- Type-check green: submission-service, agent-backend, internal-website.
+- Top remaining open item: provision a WNA account, re-run walk-id-evisa.ts --login --interactive to capture the gated application form. Without that, application-form steps (3-8) remain reconstructed.
+- Files changed: viza-be/submission-service/scripts/walk-id-evisa.ts (new), viza-be/agent-backend/scripts/seed-id-c1-tourist-form-fields.ts (patched), docs/indonesia-visa-walk-report.md (new), docs/indonesia-visa-recon-2026-04-28.json (new), docs/indonesia-visa-gap-report.md (updated)
+- Learnings:
+  1. tsx + Playwright page.evaluate: never use named function declarations or closures that capture TS-generated helpers. Pass raw string scripts. Adding to mental checklist for the next country walk-recon.
+  2. Identity-gate-only walks still deliver value: 18 confirmed live fields + 24 confirmed live sponsor fields is a real subset of the schema, even when the gated application form remains reconstructed. The walk report makes the QA boundary honest in a way the v1 gap report alone could not.
+  3. UUID-keyed enums on the live portal (document_travel_id, country_id, phone_code, agencyType, businessType, nationality_id) are common to Indonesian government portals. Plan for a runtime UUID-translation table in the runner — same pattern France-Visas needed for its picklists; precedent transfers.
+---
+
+## 2026-04-28 - EG Phase-A live-portal QA
+- Built viza-be/submission-service/src/egypt/form-recon.ts — stealth-patched Playwright walks 9 public pages on visa2egypt.gov.eg via click-based nav (preserves JSF VISTK token + jsessionid). Captures full-page PNGs, raw HTML, parsed form-field metadata into eg-recon-out/.
+- Used france-visas hardening profile from ceac/stealth-browser.ts. No CAPTCHA encountered on public pages, no account creation, no submissions.
+- Findings that changed the schema (Egypt v1.0 → v1.1):
+  1. Fees were wrong. Visa2Egypt FAQ states single = USD 30 / multiple = USD 65 (v1.0 had USD 25 / 60). Corrected VISA_TYPE_REQUESTED_OPTIONS labels and migration description.
+  2. Passport type restricted to Ordinary only. Visa2Egypt Disclaimer item 7 explicitly excludes diplomatic / service / official / special / temporary / Nansen / refugee / mission / alien's / July 51 Agreement passports — those holders apply via embassy/consulate. Schema's PASSPORT_TYPE_OPTIONS collapsed from 5 options to 1 (locked ordinary), mirroring the purpose_of_visit-locked-to-tourism pattern.
+  3. Stack confirmed: JSF / PrimeFaces 6.0 — same family as France-Visas. Phase B automation can reuse france-visas/primefaces-ajax.ts patterns when built.
+  4. Registration form fields confirmed: firstname (required), surname (optional!), email + confirm, password + confirm, reCAPTCHA v2. No nationality/passport at registration — those come post-login in the application form.
+  5. Per-applicant accounts (Disclaimer item 8): each visitor submits from their own account; parents may apply for children from parent account. Confirms playbook §5.5 dependants pattern.
+- Re-seeded — Done: 74 rows seeded (74 defined). Schema bumped to v1.1.
+- Files changed: viza-be/submission-service/src/egypt/form-recon.ts (new, ~270 lines), viza-be/agent-backend/scripts/seed-eg-e-visa-form-fields.ts (PASSPORT_TYPE_OPTIONS + VISA_TYPE_REQUESTED_OPTIONS), viza-be/agent-backend/drizzle/0023_eg_e_visa_package.sql (description), docs/egypt-visa-gap-report.md (§3.1 rewritten + §4 closed list + §7 reviewer checklist), docs/egypt-visa-scope.md (§9 source-material checklist), progress.txt (this entry).
+- Phase B (authenticated form walk) deferred — Visa2Egypt SignUp is reCAPTCHA v2 protected. Requires either user-supplied account creds or explicit 2captcha consent + email mailbox provisioning. No 2captcha key in submission-service .env (.env.local does not exist). Once provisioned, re-run form-recon.ts Phase B against the post-login pages.
+- Type-check green: submission-service, agent-backend.
+- Learnings:
+  1. Always Phase A before scoping is "done". A 30-minute public-page recon caught two material schema errors (fees wrong by USD 5 each, passport_type list 5x too permissive) that would have shipped to staff-review unnoticed. The cost is one Playwright script + one runner; the value removes the worst class of "reconstruction looks plausible but is wrong" risk. Should become a routine step before any country gap report claims "first version".
+  2. JSF portals cluster. France-Visas + Visa2Egypt are both Jakarta Faces + PrimeFaces. The third Schengen country runner I build will likely hit the same stack. Defer factoring france-visas/primefaces-ajax.ts + selectors.ts + the france-visas stealth profile into a jsf-common/ shared module until a third JSF runner concretely exists — YAGNI until then.
+  3. Disclaimer pages contain schema constraints, not just legal boilerplate. The "no diplomatic passports" rule is a passport_type enum constraint that lives nowhere else on the public site. Phase A walkers should always read the Disclaimer text, not just the FAQ + how-to-apply pages.
+  4. VISTK token + jsessionid in URL is a JSF anti-deep-link signal. Direct goto to /eVisa/SignUp without a freshly-issued VISTK returns the home/error template (recon's first run captured 1 field per page — language selector only — until I switched to click-based nav from a freshly-loaded landing). Generalises to any JSF portal: prefer link-click nav over direct goto.
+---
+
+## 2026-04-28 - JP-PDF
+- Shipped MOFA "Application for Visa" Form A rendering — VIZA fills the official AcroForm-bearing PDF from a JP_TOURIST application's visa_application_answers and surfaces a "Download" CTA on the terminal step.
+- Approach: vendor the official PDF (MOFA CDN denies non-browser fetches; user dropped the file at /Users/gel/Desktop/000124525.pdf, copied into viza-fe/internal-website/lib/jp-tourist/templates/mofa-form-a.pdf), use pdf-lib to fill 60 named AcroForm fields by name. XFA layer is stripped by pdf-lib (warned but harmless).
+- Field-name → MOFA T# mapping was derived by sample-filling the template with each field's own short name and reading the resulting PDF visually (scripts/_inspect-mofa-pdf.mjs in agent-backend, kept around as throwaway tooling).
+- Lossy mappings declared in render-form-a.ts: VIZA's 4 character radios cover 6 MOFA questions (only the unambiguous two — crime, deport/overstay — auto-tick; user reviews drug/prostitution/trafficking before signing). VIZA's spouse_full_name/dob/nationality has no Form-A counterpart (Form A only has "Partner's profession") — spouse details go to Remarks. The single VIZA inviter block fills the Guarantor section + "Same as above" in the Inviter section (Form A convention).
+- WinAnsi encoding limit: pdf-lib's default Helvetica can't encode chars outside Latin-1 (no CJK, no smart quotes, no Unicode arrows). Renderer sanitizes — replaces common smart quotes/dashes/arrows with ASCII equivalents, falls back to "?" for anything beyond U+00FF. MOFA Form A is filled in romanized English so ASCII coverage is the right floor for v1. Future v1.1: embed a TTF via fontkit (~5MB bundle hit) for full Unicode if applicants are typing CJK home addresses.
+- T64 maxLength=50 caused initial silent truncation. Fixed by emitting dates only ("DD/MM/YYYY-DD/MM/YYYY; ...") to T64 and routing visit purposes to the Remarks block. Two visits fit cleanly; three+ truncate (acceptable for v1).
+- Wire-up: new JpSubmissionResult country = "JP", status = "form_ready_for_agency", added to the SubmissionResult union in all three mirror files (lib/submission-result.ts, agent-backend/src/types/submission-result.ts, submission-service/src/submission-result.ts) per the existing "keep byte-equivalent below the header" rule. SubmissionResultStatus union extended.
+- handleDynamicReviewComplete in long-form/page.tsx short-circuits for JP_TOURIST: skips the submission_queue insert + agent-backend translate call (no automation pipeline), synthesizes the terminal { country: "JP", status: "form_ready_for_agency", applicationId, formAPdfUrl } client-side, drives the user to the StatusStep.
+- New JpResultCard renders the download CTA + 5-step "what to do next" instructions + amber banner explaining the designated-agency channel for PRC residents. Plumbed into SubmissionStatusStep's switch alongside the other countries.
+- API route /api/applications/[id]/jp-form-a-pdf streams application/pdf with Content-Disposition: attachment filename keyed to surname + applicationId prefix. Auth-gated: applicant must own the application OR an impersonation session is active.
+- Files changed:
+  - viza-fe/internal-website/package.json (+pdf-lib)
+  - viza-fe/internal-website/lib/jp-tourist/country-codes.ts (new)
+  - viza-fe/internal-website/lib/jp-tourist/render-form-a.ts (new)
+  - viza-fe/internal-website/lib/jp-tourist/templates/mofa-form-a.pdf (new, vendored)
+  - viza-fe/internal-website/lib/jp-tourist/__smoke.ts + __smoke.mjs (new, throwaway test scripts)
+  - viza-fe/internal-website/app/api/applications/[id]/jp-form-a-pdf/route.ts (new)
+  - viza-fe/internal-website/app/client/application/_components/result-cards/JpResultCard.tsx (new)
+  - viza-fe/internal-website/app/client/application/_components/result-cards/SubmissionStatusStep.tsx (added JP case)
+  - viza-fe/internal-website/app/client/application/long-form/page.tsx (JP_TOURIST short-circuit in handleDynamicReviewComplete)
+  - viza-fe/internal-website/lib/submission-result.ts (added JpSubmissionResult + form_ready_for_agency status)
+  - viza-be/agent-backend/package.json (+pdf-lib)
+  - viza-be/agent-backend/assets/mofa-form-a.pdf (new, vendored copy used by inspect script)
+  - viza-be/agent-backend/scripts/_inspect-mofa-pdf.mjs (new, throwaway)
+  - viza-be/agent-backend/src/types/submission-result.ts (mirror)
+  - viza-be/submission-service/src/submission-result.ts (mirror)
+  - docs/japan-visa-gap-report.md (§3.2 updated, new §6.4/§6.5 documenting the FE shape + PDF pipeline)
+- Type-check green: agent-backend, submission-service, internal-website.
+- Smoke: rendered fixture (Chinese applicant Shanghai → Tokyo, married, prior Japan visits, business inviter Tanaka) to /tmp/jp-form-a.smoke.pdf; visually verified via Read tool — 36 fields populated on page 1, 11 on page 2, sex/marital/passport-type radios all tick the correct option, CHINA/JAPAN dropdown selections land, "Same as above" pattern in inviter block works. Two cosmetic items (port_of_entry visual truncation, T28[0] remarks visual overflow) noted as data-preserved-but-narrow in the gap report.
+- Learnings:
+  1. Akamai/edge denial on the MOFA CDN means the dev environment can't auto-fetch the official PDF. Asking the user to drop the file in their working tree was faster than scaffolding a proxy. Pattern repeats for any government-published PDF behind anti-bot edge protection — vendor the file with a comment pointing back to the canonical URL.
+  2. "AcroForm + XFA" PDFs are common for government forms (MOFA, IRS, EU Schengen). pdf-lib silently strips XFA but preserves the AcroForm layer, which is enough for fill-by-name. Field names are usually obfuscated (T49, T68, RB1) — the cheap recon path is sample-fill-with-name → visual map → table. ~30 minutes for a 60-field form.
+  3. Three concrete value mappings worth lifting to a future country playbook addendum:
+     (a) RadioGroup export values are not in widget order — capture both the widget x/y AND the opts list, infer the mapping from the sample-filled PDF (we got marital status [1,2,4,3] right by reading the screenshot, not by guessing).
+     (b) Country dropdowns drift between systems — store the schema's country.name string but always provide an override map for the destination system's quirks (USA, VIET NAM, KOREA, the Hong Kong/Macao SAR labels). Don't rely on uppercase-only matching.
+     (c) When the schema is broader-grained than the form (4 character radios → 6 form questions), don't auto-tick the unmappable ones. Tick the unambiguous mapping, dump the rest into the "If yes" details textarea, let the applicant review before signing.
+  4. WinAnsi vs CJK is a real wall for any future Asia-market form. fontkit + a TTF fixes it but bundle cost is non-trivial. Worth a v1.1 follow-up once a Japanese-or-CJK form has actual user demand. For now, romanized-English-only is the documented contract.
+---

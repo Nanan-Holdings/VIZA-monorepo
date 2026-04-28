@@ -91,12 +91,12 @@
       ],
       "priority": 6,
       "passes": true,
-      "notes": "Schengen is a multilateral visa — scope to the harmonized Annex I form, not any individual member state's portal."
+      "notes": "Schengen is a multilateral visa \u2014 scope to the harmonized Annex I form, not any individual member state's portal."
     },
     {
       "id": "SCH-002",
       "title": "Model the Schengen Annex I field inventory and branching rules in a normalized schema",
-      "description": "As an operator, I need the Schengen Type C journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex I fields 1–37, so VIZA can render and validate the form accurately.",
+      "description": "As an operator, I need the Schengen Type C journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex I fields 1\u201337, so VIZA can render and validate the form accurately.",
       "acceptanceCriteria": [
         "A new seed script scripts/seed-eu-schengen-c-short-stay-form-fields.ts exists with visa_type = EU_SCHENGEN_C_SHORT_STAY",
         "The schema captures all Annex I sections (personal, travel document, EU family, contact, occupation, trip, accommodation, travel history, financial support, declaration)",
@@ -105,7 +105,7 @@
       ],
       "priority": 7,
       "passes": true,
-      "notes": "Prefer reuse of UK Standard Visitor patterns — umbrella purpose with sub-journey fields, repeatable groups for prior visas."
+      "notes": "Prefer reuse of UK Standard Visitor patterns \u2014 umbrella purpose with sub-journey fields, repeatable groups for prior visas."
     },
     {
       "id": "SCH-003",
@@ -114,12 +114,12 @@
       "acceptanceCriteria": [
         "A Drizzle migration registers the EU_SCHENGEN_C_SHORT_STAY package in visa_packages (country = european_union)",
         "The migration is idempotent (ON CONFLICT DO NOTHING)",
-        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
+        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
         "Typecheck passes"
       ],
       "priority": 8,
       "passes": true,
-      "notes": "Follow UK-003 pattern exactly — DB rows only, no renderer changes."
+      "notes": "Follow UK-003 pattern exactly \u2014 DB rows only, no renderer changes."
     },
     {
       "id": "SCH-004",
@@ -175,7 +175,7 @@
       ],
       "priority": 12,
       "passes": true,
-      "notes": "Follow UK Standard Visitor + Schengen seed patterns. No hardcoded React steps — pure dynamic."
+      "notes": "Follow UK Standard Visitor + Schengen seed patterns. No hardcoded React steps \u2014 pure dynamic."
     },
     {
       "id": "VN-003",
@@ -184,12 +184,12 @@
       "acceptanceCriteria": [
         "A Drizzle migration registers the VN_E_VISA package in visa_packages (country = vietnam)",
         "The migration is idempotent (ON CONFLICT DO NOTHING)",
-        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
+        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
         "Typecheck passes"
       ],
       "priority": 13,
       "passes": true,
-      "notes": "Follow UK-003 / SCH-003 pattern exactly — DB rows only, no renderer changes."
+      "notes": "Follow UK-003 / SCH-003 pattern exactly \u2014 DB rows only, no renderer changes."
     },
     {
       "id": "VN-004",
@@ -216,6 +216,437 @@
         "Typecheck passes"
       ],
       "priority": 15,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "AU-001",
+      "title": "Pin the Australia Visitor Visa (Subclass 600) extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Australian Visitor Visa Subclass 600 (umbrella covering Tourist, Business Visitor, Sponsored Family, Approved Destination Status and Frequent Traveller streams), so Ralph builds against a concrete, reviewable target instead of a vague 'Australia visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains AU-001 through AU-005 for this run",
+        "The implementation names ImmiAccount + Subclass 600 as the canonical Australia visa source",
+        "The scope contract explicitly prioritizes official-source parity over manual approximation",
+        "Out-of-scope Australia visa categories (eVisitor 651, ETA 601, Working Holiday 462/417, Transit 771, Sponsored Parent 870, Temporary Activity 408) are documented rather than silently assumed"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Source is public Department of Home Affairs material (Forms 1419/1418/1149/956, PAM3, Migration Regulations 1994 Schedule 2 cl.600). Live-portal QA against ImmiAccount is deferred \u2014 portal is identity-gated."
+    },
+    {
+      "id": "AU-002",
+      "title": "Model the Australia Visitor Visa (Subclass 600) field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the Subclass 600 journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic, so VIZA can render and validate the Australian visitor visa form accurately across all five streams.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-au-visitor-600-form-fields.ts exists with visa_type = AU_VISITOR_600",
+        "The schema captures all sections (stream selection, personal, passport, national ID, contact, migration agent, family, travel history, visit, stream-specific, funding, health, character, declaration)",
+        "Conditional fields (other names, other nationalities, other passports, partner block, children, relatives in Australia, previous Australia visits, visa refusals, accompanying applicants, stream sub-journeys, employer, funder, health insurance, military service) are represented explicitly via conditional_logic.showIf",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "Follow UK Standard Visitor + Schengen seed patterns. Five streams gated by single `stream` master select. No hardcoded React steps \u2014 pure dynamic."
+    },
+    {
+      "id": "AU-003",
+      "title": "Wire the Australia Visitor Visa (Subclass 600) package into VIZA's dynamic form path",
+      "description": "As a user, I need the Subclass 600 form to render through the existing dynamic form infrastructure, so Australian visitor visa applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the AU_VISITOR_600 package in visa_packages (country = australia)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 pattern exactly \u2014 DB rows only, no renderer changes."
+    },
+    {
+      "id": "AU-004",
+      "title": "Publish the Australia Visitor Visa (Subclass 600) gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Subclass 600 fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/au-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA, port enum subsetting, multi-select limitation, sponsor reference linkage, document uploads, biometrics/VAC scope), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, cross-step, list membership, date arithmetic) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag the live-portal QA pass as the top open item."
+    },
+    {
+      "id": "AU-005",
+      "title": "Document the Australia Visitor Visa (Subclass 600) form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the Subclass 600 schema was derived, how to rerun or update it, and what the next Australia-variant expansion should be (eVisitor 651, ETA 601, Working Holiday 462/417).",
+      "acceptanceCriteria": [
+        "docs/au-visa-scope.md documents the ImmiAccount source, canonical 14-step journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal QA against ImmiAccount, multi-select renderer extension, eVisitor 651 as separate package) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "JP-001",
+      "title": "Pin the Japan Tourist Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Japan Tourist Visa for Short-Term Stay (Tourism), submitted via the MOFA Application for Visa form (Form A) through a designated travel agency for mainland-China (PRC) residents, so Ralph builds against a concrete, reviewable target instead of a vague 'Japan visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains JP-001 through JP-005 for this run",
+        "The implementation names MOFA Form A (Application for Visa) as the canonical source and JVAC China designated travel agency as the submission channel for PRC residents",
+        "The scope contract explicitly prioritizes official-source parity over manual approximation",
+        "Out-of-scope Japan visa categories (Business Visit, Conference, Spouse, Work, Study via MOFA Form B / Form C series; self-service evisa.mofa.go.jp ineligible for PRC residents; embassy direct submission for non-PRC residents) are documented rather than silently assumed"
+      ],
+      "priority": 21,
+      "passes": true,
+      "notes": "Source is the public MOFA Form A PDF and MOFA Tourist Short-Term Stay guidance. evisa.mofa.go.jp is not directly accessible to PRC residents, so live-portal QA is N/A; the schema is a high-fidelity reconstruction from the published form."
+    },
+    {
+      "id": "JP-002",
+      "title": "Model the Japan Tourist Visa field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the Japan Tourist Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching MOFA Form A items 1-22 plus character-and-declaration items, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-jp-tourist-form-fields.ts exists with visa_type = JP_TOURIST",
+        "The schema captures all sections (personal, passport, contact, occupation, trip, accommodation, inviter in Japan, travel history, character, declaration)",
+        "Conditional fields (other names used, other nationalities, other passports, has-inviter-in-Japan, visited Japan before, has-criminal-record, deported-before, refused-visa-before, married-spouse-block) are represented explicitly via conditional_logic.showIf",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 22,
+      "passes": true,
+      "notes": "Follow VN E-Visa + AU Visitor 600 seed patterns. No hardcoded React steps - pure dynamic. No automated submission target - the form is paper-submitted via a designated travel agency."
+    },
+    {
+      "id": "JP-003",
+      "title": "Wire the Japan Tourist Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the Japan Tourist Visa form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the JP_TOURIST package in visa_packages (country = japan)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 23,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 / AU-003 pattern exactly - DB rows only, no renderer changes."
+    },
+    {
+      "id": "JP-004",
+      "title": "Publish the Japan Tourist Visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Japan Tourist Visa fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/japan-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA N/A, document uploads via application_documents, designated-agency submission channel out of schema, embassy direct submission for non-PRC residents as a future package), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, in, cross-step) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 24,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect - flag the designated-agency submission channel and PDF generation for agency intake as the top open items."
+    },
+    {
+      "id": "JP-005",
+      "title": "Document the Japan Tourist Visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the JP_TOURIST schema was derived, how to rerun or update it, and what the next Japan-variant expansion should be (eVisa for non-PRC residents, MOFA Form B for spouse / long-stay categories, embassy direct submission flows).",
+      "acceptanceCriteria": [
+        "docs/japan-visa-scope.md documents the MOFA Form A source, canonical journey for PRC residents via designated travel agency, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (PDF rendering of MOFA Form A from VIZA answers for agency intake; JP_E_VISA package targeting evisa.mofa.go.jp for eligible nationalities; JP_TOURIST_EMBASSY for non-PRC embassy-direct flows; MOFA Form B for non-Tourism purposes) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 25,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "KR-001",
+      "title": "Pin the Korea C-3-9 Short-Term General Visa extraction scope and canonical source form",
+      "description": "As a maintainer, I need the repo scoped to the Korea C-3-9 Short-Term General visa (\u226490 days, multi-purpose visit) for mainland-China (PRC) residents, submitted via the Annex 17 / \ubcc4\uc9c0 \uc81c17\ud638\uc11c\uc2dd 'VISA APPLICATION FORM' through the local Korea Visa Application Center (KVAC operated by KVAC.com.cn), so Ralph builds against a concrete reviewable target instead of a vague 'Korea visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains KR-001 through KR-005 for this run",
+        "The implementation names Annex 17 of the Enforcement Rules of the Immigration Control Act (rev 2022.2.7) as the canonical source form and KVAC.com.cn as the submission channel for PRC residents",
+        "The scope contract explicitly prioritises official-source parity over manual approximation",
+        "Out-of-scope categories (C-3-1 single-entry, C-3-2 group-tour with designated agency, C-3-3 medical, C-3-4 short-term business, D-series long-stay; visa.go.kr self-service portal not accessible to PRC residents) are documented rather than silently assumed",
+        "docs/korea-visa-scope.md exists with the canonical journey, source URLs, application structure, and design principle"
+      ],
+      "priority": 26,
+      "passes": true,
+      "notes": "Source is the public Annex-17 PDF at https://www.visa.go.kr/downfile/VisaapplicationForm_EN.pdf (rev 2022.2.7, bilingual KR/EN, 5 pages, 12 sections). visa.go.kr self-service is not directly accessible to PRC residents, so live-portal QA is N/A; the schema is a high-fidelity reconstruction from the published form. Same posture as JP-PRC."
+    },
+    {
+      "id": "KR-002",
+      "title": "Model the Korea C-3-9 visa field inventory and branching rules in a normalised schema",
+      "description": "As an operator, I need the Korea C-3-9 Short-Term General visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex-17 sections 1-12, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-kr-c39-short-term-visit-form-fields.ts exists with visa_type = KR_C39_SHORT_TERM_VISIT",
+        "The schema captures all Annex-17 sections (personal, visa-category prefill, passport, contact + emergency contact, marital + family, education, employment, trip, travel history, family in/with Korea, invitation, funding, form-assistance, declaration)",
+        "Conditional fields (other-names-used, dual-national, other-passport, marital-status-married, has-children, employment-status-not-unemployed-or-retired, travelled-to-korea-5y, travelled-outside-5y, has-family-in-korea, travelling-with-family, has-inviter, received-form-assistance) are represented explicitly via conditional_logic.showIf",
+        "Repeatable groups (korea_visits, foreign_trips_5y, family_in_korea, family_travelling_with) are tagged with repeat_group + max_items",
+        "Seed run output reports 'Done: N rows seeded (N defined)' with matching N",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 27,
+      "passes": true,
+      "notes": "Follow JP-002 + AU-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 KVAC paper/agency intake is out of schema. Section 2.1/2.2 prefilled to Short-term / C-3-9 (not user-editable). Final count: 101 field rows seeded (each repeater-group field counted separately per-row); 8 wizard steps; 17 conditional gates; 4 repeatable groups."
+    },
+    {
+      "id": "KR-003",
+      "title": "Wire the Korea C-3-9 Short-Term Visit Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the Korea C-3-9 form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the KR_C39_SHORT_TERM_VISIT package in visa_packages (country = south_korea)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 28,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 / AU-003 / JP-003 pattern exactly - DB rows only, no renderer changes. Migration 0023_kr_c39_package.sql applied (bumped from 0022 due to concurrent 0022_id_c1_tourist_package.sql collision)."
+    },
+    {
+      "id": "KR-004",
+      "title": "Publish the Korea C-3-9 visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Korea C-3-9 fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/korea-visa-gap-report.md exists with coverage summary, known limitations (Section 8.1 multi-select purpose simplified to single-choice, photo + signature out of schema, refusal/criminal-history not on Annex 17, KVAC supplementary forms out of schema, document uploads via application_documents, live-portal QA N/A for PRC, KVAC.com.cn submission channel out of schema), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, in, cross-step) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 29,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag the multi-select renderer extension and PDF generation for KVAC intake as the top open items."
+    },
+    {
+      "id": "KR-005",
+      "title": "Document the Korea C-3-9 form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the KR_C39_SHORT_TERM_VISIT schema was derived, how to rerun or update it, and what the next Korea-variant expansion should be (C-3-1 single-entry, C-3-2 group-tour, C-3-3 medical, K-ETA for non-PRC nationals, D-series long-stay).",
+      "acceptanceCriteria": [
+        "docs/korea-visa-scope.md documents the Annex-17 source, canonical journey for PRC residents via KVAC, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (PDF rendering of Annex-17 from VIZA answers for KVAC intake; KR_C32_GROUP_TOUR / KR_C33_MEDICAL packages for related sub-categories; K-ETA package targeting k-eta.go.kr for non-PRC nationalities; D-series long-stay packages) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 30,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "ID-001",
+      "title": "Pin the Indonesia C1 Tourist Single Entry Visa extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Indonesia C1 Tourist Single Entry Visa (Visa Kunjungan Wisata, formerly B211A) submitted via the official eVisa portal evisa.imigrasi.go.id, so Ralph builds against a concrete, reviewable target instead of a vague 'Indonesia visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains ID-001 through ID-005 for this run",
+        "The implementation names evisa.imigrasi.go.id (formerly molina.imigrasi.go.id, replaced in 2024) as the canonical eVisa portal and the C1 Single Entry Visit Visa as the visa class",
+        "The scope contract explicitly prioritizes official-source parity over manual approximation",
+        "Out-of-scope Indonesia visa categories (B1 e-VOA via VFS Global, C2 business visit, C7/C18 investor, D1 multi-entry visit, KITAS series) are documented rather than silently assumed"
+      ],
+      "priority": 31,
+      "passes": true,
+      "notes": "Source is the eVisa WNA registration form (live), eVisa C1 info page, eVisa General Information FAQ, and DGI public guidance on Visa Kunjungan Wisata. The post-registration application flow is identity-gated and was not driven; schema is a high-fidelity reconstruction with live-portal QA listed as the top open item."
+    },
+    {
+      "id": "ID-002",
+      "title": "Model the Indonesia C1 Tourist Visa field inventory and branching rules in a normalized schema",
+      "description": "As an operator, I need the Indonesia C1 Tourist Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching the eVisa portal C1 Visit Visa Wisata flow, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-id-c1-tourist-form-fields.ts exists with visa_type = ID_C1_TOURIST",
+        "The schema captures all sections (personal, passport, contact, occupation, trip, accommodation, sponsor in Indonesia, travel history, character, declaration)",
+        "Conditional fields (other names, other nationalities, married spouse block, other passports, has-sponsor with nested individual-vs-corporate branches, visited-indonesia-before, refused-visa-indonesia, refused-other-country, criminal record, deported, overstayed) are represented explicitly via conditional_logic.showIf",
+        "Mother's full name is captured as a required field (Indonesian-immigration-specific requirement surfaced on the WNA registration form)",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 32,
+      "passes": true,
+      "notes": "Follow JP_TOURIST + UK Standard Visitor seed patterns. No hardcoded React steps - pure dynamic. No automated submission target - the eVisa portal is identity-gated and recon was not performed in v1."
+    },
+    {
+      "id": "ID-003",
+      "title": "Wire the Indonesia C1 Tourist Visa package into VIZA's dynamic form path",
+      "description": "As a user, I need the Indonesia C1 Tourist Visa form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the ID_C1_TOURIST package in visa_packages (country = indonesia)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 33,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 / AU-003 / JP-003 pattern exactly - DB rows only, no renderer changes."
+    },
+    {
+      "id": "ID-004",
+      "title": "Publish the Indonesia C1 Tourist Visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Indonesia C1 Tourist Visa fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/indonesia-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA not yet performed, document uploads via application_documents, no automated submission, sponsor block reconstructed not live-confirmed, NIK/NIB pattern-only validation, mother's name as cross-country surprise), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, in, cross-step, nested gating) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 34,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect - flag live-portal QA as the top open item before production-ready promotion."
+    },
+    {
+      "id": "ID-005",
+      "title": "Document the Indonesia C1 Tourist Visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the ID_C1_TOURIST schema was derived, how to rerun or update it, and what the next Indonesia-variant expansion should be (B1 e-VOA via VFS Global, C2 business visit, D1 multi-entry, KITAS series).",
+      "acceptanceCriteria": [
+        "docs/indonesia-visa-scope.md documents the eVisa portal source, canonical journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal recon against evisa.imigrasi.go.id; ID_B1_EVOA package targeting indonesiavoa.vfsevisa.id; PDF rendering for embassy/agency intake; ID_C2_BUSINESS_VISIT and ID_D1_VISIT_MULTI for adjacent categories; ID_KITAS_* series for long-stay) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 35,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "EG-001",
+      "title": "Pin the Egypt e-Visa (Tourist) extraction scope and canonical source journey",
+      "description": "As a maintainer, I need the repo scoped to the Egypt Tourist e-Visa (single-entry + multi-entry variants) submitted via the Egyptian Ministry of Interior portal at visa2egypt.gov.eg, so Ralph builds against a concrete reviewable target instead of a vague 'Egypt visa' concept.",
+      "acceptanceCriteria": [
+        "prd.json contains EG-001 through EG-005 for this run",
+        "The implementation names visa2egypt.gov.eg (Egyptian Ministry of Interior) as the canonical source and identifies single-entry (USD ~25, 90-day validity) and multi-entry (USD ~60, 180-day validity) tourist variants as the in-scope category",
+        "The scope contract explicitly prioritises official-source parity over manual approximation",
+        "Out-of-scope categories (business e-Visa, visit/family e-Visa, work, student, Sinai-only entry permit, visa-on-arrival, diplomatic/official) are documented rather than silently assumed",
+        "docs/egypt-visa-scope.md exists with the canonical journey, source URLs, application structure, and design principle"
+      ],
+      "priority": 36,
+      "passes": true,
+      "notes": "Source is the public Visa2Egypt landing pages and the Egyptian MFA Form 7 paper application (field-for-field antecedent). Live-portal driving requires an applicant account and is deferred to first staff QA pass; the schema is a high-fidelity reconstruction. Same posture as JP_TOURIST and ID_C1_TOURIST."
+    },
+    {
+      "id": "EG-002",
+      "title": "Model the Egypt e-Visa field inventory and branching rules in a normalised schema",
+      "description": "As an operator, I need the Egypt Tourist e-Visa journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching the Visa2Egypt application sections, so VIZA can render and validate the form accurately.",
+      "acceptanceCriteria": [
+        "A new seed script scripts/seed-eg-e-visa-form-fields.ts exists with visa_type = EG_E_VISA",
+        "The schema captures all sections (personal, passport, contact + home address, occupation, trip details, host in Egypt, travel history, character + declaration)",
+        "Conditional fields (other-names-used, other-nationalities, married-spouse-block, other-passports, has-host-in-egypt, visited-egypt-before, refused-visa-egypt, refused-visa-other-country, has-criminal-record, has-been-deported, port-of-entry-other) are represented explicitly via conditional_logic.showIf",
+        "Repeatable groups (other_nationalities, other_passports, prior_egypt_visits) are tagged with repeat_group + max_items",
+        "Seed run output reports 'Done: N rows seeded (N defined)' with matching N",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 37,
+      "passes": true,
+      "notes": "Follow JP-002 + ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — Visa2Egypt requires applicant card payment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+    },
+    {
+      "id": "EG-003",
+      "title": "Wire the Egypt e-Visa (Tourist) package into VIZA's dynamic form path",
+      "description": "As a user, I need the Egypt Tourist e-Visa form to render through the existing dynamic form infrastructure, so applicants can complete the flow inside VIZA without any country-specific frontend code.",
+      "acceptanceCriteria": [
+        "A Drizzle migration registers the EG_E_VISA package in visa_packages (country = egypt)",
+        "The migration is idempotent (ON CONFLICT DO NOTHING)",
+        "No frontend code changes are required - DynamicStepForm renders the seeded fields",
+        "Typecheck passes"
+      ],
+      "priority": 38,
+      "passes": true,
+      "notes": "Follow UK-003 / SCH-003 / VN-003 / AU-003 / JP-003 / ID-003 pattern exactly - DB rows only, no renderer changes. Migration file: 0023_eg_e_visa_package.sql."
+    },
+    {
+      "id": "EG-004",
+      "title": "Publish the Egypt e-Visa gap report for unsupported fields or branches",
+      "description": "As a maintainer, I need Egypt Tourist e-Visa fields, branches, and post-form concerns that are not fully captured surfaced explicitly, so we don't silently ship an incomplete form while claiming parity.",
+      "acceptanceCriteria": [
+        "docs/egypt-visa-gap-report.md exists with coverage summary, known limitations (live-portal QA deferred, document uploads via application_documents, payment + e-Visa delivery out of schema, visa-on-arrival as separate non-form flow, Sinai-only entry permit as separate non-form flow), and reviewer checklist",
+        "Fields deferred beyond v1 are documented with reason and workaround",
+        "Conditional-logic status (||, &&, in, cross-step) is called out explicitly",
+        "Typecheck passes"
+      ],
+      "priority": 39,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real Visa2Egypt account and document upload wiring as the top open items."
+    },
+    {
+      "id": "EG-005",
+      "title": "Document the Egypt e-Visa form-generation workflow and next expansion path",
+      "description": "As a maintainer, I need a scope doc and progress log entry explaining how the EG_E_VISA schema was derived, how to rerun or update it, and what the next Egypt-variant expansion should be (business e-Visa, visit/family e-Visa, consular long-stay, Sinai informational flow).",
+      "acceptanceCriteria": [
+        "docs/egypt-visa-scope.md documents the Visa2Egypt source, canonical journey, and rerun steps",
+        "progress.txt is updated with implementation learnings, remaining blockers, and next expansion path",
+        "Recommended next actions (live-portal QA against Visa2Egypt with a real applicant account; EG_BUSINESS_E_VISA package for business inviter block; EG_VISIT_E_VISA for family/host applicants; informational Sinai-only and visa-on-arrival flows; PDF rendering of the completed form for staff intake) are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 40,
+      "passes": true,
+      "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "IT-001",
+      "title": "Pin the Italy Schengen Type C extraction scope and corridor (Italy via VFS Global China)",
+      "description": "As a maintainer, I need the Italy Schengen Type C visa scoped to a concrete submission corridor — VFS Global Italy China — so Ralph builds against a reviewable target instead of a vague 'Italy visa' concept. Italy reuses the harmonized EU_SCHENGEN_C_SHORT_STAY schema; this story pins the corridor adapter target, not a new schema.",
+      "acceptanceCriteria": [
+        "prd.json contains IT-001 through IT-005 for this run",
+        "docs/italy-visa-scope.md exists documenting the canonical journey (VFS Global China-Italy at https://visa.vfsglobal.com/chn/en/ita/), schema reuse from EU_SCHENGEN_C_SHORT_STAY, and the stop-at-appointment-eligibility boundary",
+        "Out-of-scope items (Italy Type D long-stay, other Italy corridors like Italy-from-India, automated appointment booking, payment, document upload) are documented rather than silently assumed",
+        "Source-flow ambiguities (live walk pending, Cloudflare Turnstile, language pinning) are documented",
+        "Typecheck passes"
+      ],
+      "priority": 41,
+      "passes": true,
+      "notes": "Schema reuse only — no new seed, no new visa_packages row. Italy is a corridor of EU_SCHENGEN_C_SHORT_STAY, not a separate visa type."
+    },
+    {
+      "id": "IT-002",
+      "title": "Provide a recon walk script for the VFS Global Italy China corridor",
+      "description": "As an operator, I need a runnable Playwright recon script that drives the public VFS-CN landing pages (and, with credentials, the post-login application form) to capture page IDs, DOM selectors, and validation surfaces for the corridor adapter.",
+      "acceptanceCriteria": [
+        "viza-be/submission-service/scripts/walk-italy-vfs-cn.ts exists and runs without compilation errors",
+        "Script captures URL, heading, fields (with required state, label, placeholder, options), submit buttons per page to JSON files",
+        "STOP_BUTTON_PATTERNS protect against accidentally clicking Pay/Submit/Confirm-appointment",
+        "Script supports --headful, --interactive, --login, --out flags",
+        "Typecheck passes (npm run type-check in viza-be/submission-service)"
+      ],
+      "priority": 42,
+      "passes": true,
+      "notes": "Mirror viza-be/submission-service/scripts/walk-uk-portal.ts shape. --login mode is gated behind IT_VFS_CN_EMAIL / IT_VFS_CN_PASSWORD env vars and aborts cleanly when unset."
+    },
+    {
+      "id": "IT-003",
+      "title": "Build the Italy-VFS-CN corridor adapter skeleton (errors, pages, selectors, normalize)",
+      "description": "As a developer, I need the corridor adapter directory scaffolded with errors, pages, selectors, normalize, and a public index barrel — parallel to france-visas/ and au-visitor/ — so the live-walk follow-up can land fill-steps and run.ts without churning the structural layer.",
+      "acceptanceCriteria": [
+        "viza-be/submission-service/src/italy-vfs-cn/ exists with errors.ts, pages.ts, selectors.ts, normalize.ts, index.ts",
+        "ItVfsError taxonomy mirrors FvError (UNEXPECTED_PAGE / SESSION_EXPIRED / NAVIGATION_FAILED / VALIDATION_FAILED / SESSION_BOOTSTRAP_FAILED / GATE_DETECTED / LOGIN_FAILED / CORRIDOR_INELIGIBLE)",
+        "ItVfsPageId enum + detectPage / assertPage / waitForPage helpers cover the conjectural VFS SPA wizard pages",
+        "normalize.assertCorridorEligible enforces residency=CN and destination=IT pre-flight",
+        "normalizeItVfsAnswers maps the EU_SCHENGEN_C_SHORT_STAY harmonized seed answer keys into a typed ItVfsAnswers structure",
+        "index.ts re-exports the public surface; submission-service typecheck passes clean"
+      ],
+      "priority": 43,
+      "passes": true,
+      "notes": "fill-steps.ts and run.ts are intentionally deferred until the live walk runs — DOM mappings can't be authored without live VFS-CN access. Selectors, page URL regexes, and normalize enum mappings are TODO(walk) until then."
+    },
+    {
+      "id": "IT-004",
+      "title": "Publish the Italy-VFS-CN gap report",
+      "description": "As a maintainer, I need Italy-corridor gaps surfaced explicitly — schema reuse vs new fields, live walk pending, Turnstile risk, document-upload boundary, appointment/payment stop boundary — so we don't silently ship an incomplete autofiller while pretending parity is done.",
+      "acceptanceCriteria": [
+        "docs/italy-visa-gap-report.md exists with coverage summary, corridor adapter status (errors/pages/selectors/normalize complete; fill-steps/run pending), known limitations, conditional-logic carry-over from EU_SCHENGEN_C_SHORT_STAY, reviewer checklist, and open questions for the live walk",
+        "Live-portal QA is flagged as the top open item",
+        "Schema source-truth checklist confirms no new seed, no new package row, schema reused from EU_SCHENGEN_C_SHORT_STAY",
+        "Typecheck passes"
+      ],
+      "priority": 44,
+      "passes": true,
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live walk + Turnstile handling + queue-worker dispatcher wiring as the top open items."
+    },
+    {
+      "id": "IT-005",
+      "title": "Document the Italy-VFS-CN corridor workflow and next expansion path",
+      "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining how the Italy corridor adapter was scaffolded, how to rerun the recon walk, and what the next Italy-corridor / Italy-Type-D expansion should be (Italy-from-India / Italy-from-MENA / Italy-Type-D-long-stay).",
+      "acceptanceCriteria": [
+        "docs/italy-visa-scope.md §8 lists immediate (live walk + fill-steps + queue worker wiring), short-term (stealth-profile hoist, Turnstile, resume-by-reference), and medium-term (other Italy corridors, Italy Type D, per-consulate routing matrix) actions",
+        "progress.txt is updated with IT-001..IT-005 entries, learnings, and the corridor pattern that future Schengen-state corridors should follow",
+        "Recommended next actions are stated clearly",
+        "Typecheck passes"
+      ],
+      "priority": 45,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
     }
