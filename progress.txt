@@ -999,3 +999,22 @@ acknowledgment).
      (c) When the schema is broader-grained than the form (4 character radios → 6 form questions), don't auto-tick the unmappable ones. Tick the unambiguous mapping, dump the rest into the "If yes" details textarea, let the applicant review before signing.
   4. WinAnsi vs CJK is a real wall for any future Asia-market form. fontkit + a TTF fixes it but bundle cost is non-trivial. Worth a v1.1 follow-up once a Japanese-or-CJK form has actual user demand. For now, romanized-English-only is the documented contract.
 ---
+
+## 2026-04-28 - TH-001..TH-005
+- Shipped Thailand Tourist e-Visa schema (TH_TOURIST_E_VISA): 75 fields across 8 steps mirroring the thaievisa.go.th form (Royal Thai MFA / VFS Global e-Visa portal). Single-entry TR + multi-entry METV captured by visa_type_requested radio. Purpose-of-visit locked to tourism, passport_type locked to ordinary.
+- Files added:
+  - viza-be/agent-backend/scripts/seed-th-tourist-e-visa-form-fields.ts (~75 fields, 11+ conditional gates, 3 repeat groups: other_nationalities, other_passports, prior_thailand_visits)
+  - viza-be/agent-backend/drizzle/0026_th_tourist_e_visa_package.sql (idempotent INSERT)
+  - docs/thailand-visa-scope.md (canonical journey, source URLs, application structure, design principle, source-material disclaimer)
+  - docs/thailand-visa-gap-report.md (coverage summary, parity status, conditional-logic status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items)
+  - prd.json TH-001..TH-005 (priority 46..50)
+- Reused EG_E_VISA structural template — Thailand's tourist visa form structure is near-identical to Egypt's e-Visa (personal / passport / contact / occupation / trip / host / travel-history / character + declaration). The 8-step pattern is converging across reconstructed schemas (JP, ID, EG, TH); next country following this template (e.g. Malaysia eVISA) will likely take ~30 minutes of tweaks rather than full re-design.
+- Live-portal QA deferred: thaievisa.go.th requires an applicant account + CAPTCHA before form fields are visible. Schema is a reconstruction from public landing pages, Royal Thai Embassy applicant guidance (London / Washington / Beijing / Berlin / Singapore — cross-checked), and the TM.86 / TM.87 paper antecedents. Same posture as JP_TOURIST, ID_C1_TOURIST, EG_E_VISA. Top open item.
+- Submission automation deferred per playbook §13: requires recon walk + Playwright runner under viza-be/submission-service/src/thailand/. Out of scope until first applicant account exists.
+- Type-check green: agent-backend.
+- Seed not yet run against Supabase (no SUPABASE_SERVICE_ROLE_KEY in current shell env). Schema is structurally validated by tsc; live insert will happen on next run with credentials.
+- Learnings:
+  1. The 8-step Asia-tourist template (JP / ID / EG / now TH) is now stable enough that the marginal cost of a new tourist-e-Visa country is ~30 minutes of port-of-entry enum tweaks + visa-fee figures + sub-journey naming. Future Asia-Pacific tourist visas (MY, SG, KH, LA, LK, MV, IN, PH) should use this template directly rather than re-deriving from each portal's section ordering.
+  2. The visa_type_requested radio pattern (single vs multi-entry within one schema, no schema fork) holds for any country where the entry-frequency variant is the only meaningful diff. Prefer it to splitting `TH_TOURIST_TR` and `TH_TOURIST_METV` into two packages.
+  3. Length-of-stay enums diverge meaningfully across countries (EG max 30, TH max 60, others 90/180). The pattern in trip_details — text input with regex pattern enforcing the max — keeps the schema flexible without hardcoding "days" semantics into the renderer.
+---
