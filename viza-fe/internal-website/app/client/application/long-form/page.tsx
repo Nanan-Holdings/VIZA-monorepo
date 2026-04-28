@@ -1271,12 +1271,18 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      await supabase.from("submission_queue").insert({
-        application_id: appState.applicationId,
-        status: queueStatusForPackage(visaPackage?.visa_type),
-        attempts: 0,
-        created_at: new Date().toISOString(),
-      });
+      const isJpTourist = visaPackage?.visa_type === "JP_TOURIST";
+
+      if (!isJpTourist) {
+        // Standard automated-submission countries enqueue a job for the
+        // submission-service worker to drive the per-country portal.
+        await supabase.from("submission_queue").insert({
+          application_id: appState.applicationId,
+          status: queueStatusForPackage(visaPackage?.visa_type),
+          attempts: 0,
+          created_at: new Date().toISOString(),
+        });
+      }
 
       await supabase.from("applications").update({
         status: "submitted",
@@ -1286,23 +1292,43 @@ export default function ApplicationPage() {
       // Trigger translation (non-blocking — failures don't block submission;
       // the translate route also flips submission_result_status to 'waiting'
       // on success, which the realtime sub picks up).
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-        await fetch(
-          `${backendUrl}/api/applications/${appState.applicationId}/translate`,
-          { method: "POST", headers: { "Content-Type": "application/json" } },
-        );
-      } catch {
-        // Translation is non-blocking; swallow the error so the user still
-        // proceeds to the StatusStep (where SubmissionStatusStep will show
-        // the WaitingCard until the runner writes a terminal payload).
+      // Skipped for JP_TOURIST: there is no portal-side payload to translate.
+      if (!isJpTourist) {
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
+          await fetch(
+            `${backendUrl}/api/applications/${appState.applicationId}/translate`,
+            { method: "POST", headers: { "Content-Type": "application/json" } },
+          );
+        } catch {
+          // Translation is non-blocking; swallow the error so the user still
+          // proceeds to the StatusStep (where SubmissionStatusStep will show
+          // the WaitingCard until the runner writes a terminal payload).
+        }
       }
 
-      setAppState((prev) => ({
-        ...prev,
-        submittedAt: new Date().toISOString(),
-        submissionResultStatus: prev.submissionResultStatus ?? "waiting",
-      }));
+      if (isJpTourist) {
+        // JP_TOURIST has no automation pipeline. Synthesize the terminal
+        // result client-side so the StatusStep can render JpResultCard with
+        // the MOFA Form A download CTA.
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt: new Date().toISOString(),
+          submissionResultStatus: "form_ready_for_agency",
+          submissionResult: {
+            country: "JP",
+            status: "form_ready_for_agency",
+            applicationId: appState.applicationId!,
+            formAPdfUrl: `/api/applications/${appState.applicationId}/jp-form-a-pdf`,
+          },
+        }));
+      } else {
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt: new Date().toISOString(),
+          submissionResultStatus: prev.submissionResultStatus ?? "waiting",
+        }));
+      }
       const reviewStepPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
       setCurrentStep(statusStepIndex);
