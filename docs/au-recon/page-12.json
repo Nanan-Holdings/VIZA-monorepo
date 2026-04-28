@@ -1,0 +1,61 @@
+{
+  "pageMeta": "12/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Financial support",
+    "Funding details",
+    "Will the applicant receive payment for undertaking the work or activity in Australia?",
+    "Give details of how the applicant's stay in Australia will be funded",
+    "Relationship to applicant",
+    "Paying organisation BC",
+    "Business / organisation details",
+    "Family/Given Names",
+    "Organisation address",
+    "Address International",
+    "Contact person details",
+    "Contact telephone numbers",
+    "Electronic communication",
+    "We can communicate about this application more quickly using email and/or fax. Does the contact person agree to this department communicating via email and/or fax? This may include receiving notification of the outcome of the application.",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 5,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a11a2e1b0",
+      "id": "d215424915e110",
+      "label": "Self funded",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a11a2e1b0",
+      "id": "d215424915e112",
+      "label": "Supported by current overseas employer",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a11a2e1b0",
+      "id": "d215424915e114",
+      "label": "Supported by other organisation",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a11a2e1b0",
+      "id": "d215424915e116",
+      "label": "Supported by other person",
+      "required": false
+    },
+    {
+      "type": "textarea",
+      "name": "_2a0b0a0a0e0a0a11a2g0b0a",
+      "id": "_2a0b0a0a0e0a0a11a2g0b0a_input",
+      "label": "What funds will the applicant have available to support their stay in Australia?",
+      "required": false
+    }
+  ]
+}

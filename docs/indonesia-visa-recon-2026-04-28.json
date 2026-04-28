@@ -1,0 +1,4461 @@
+{
+  "capturedAt": "2026-04-28",
+  "pages": [
+    {
+      "pageIndex": 1,
+      "url": "https://evisa.imigrasi.go.id/",
+      "title": "The Official eVisa website for Indonesia",
+      "heading": "The Official e-Visa Website  for Indonesia",
+      "fields": [],
+      "submits": [
+        {
+          "text": "Sign In"
+        },
+        {
+          "text": "Apply"
+        },
+        {
+          "text": "Extend My Visa"
+        },
+        {
+          "text": "Track Your Application"
+        },
+        {
+          "text": "Submit Arrival Card Now"
+        }
+      ],
+      "fieldsetLegends": [],
+      "stoppedAtTerminal": true,
+      "capturedAt": "2026-04-28T06:52:22.695Z"
+    },
+    {
+      "pageIndex": 2,
+      "url": "https://evisa.imigrasi.go.id/front/info/evoa",
+      "title": "The Official eVisa website for Indonesia",
+      "heading": "General Information",
+      "fields": [],
+      "submits": [
+        {
+          "text": "Sign In"
+        },
+        {
+          "text": "General Information"
+        },
+        {
+          "text": "FAQ"
+        },
+        {
+          "text": "What is an Visitor Visa?"
+        },
+        {
+          "text": "What do I need for my Visitor Visa request?"
+        },
+        {
+          "text": "What are the advantages of Visitor Visa?"
+        },
+        {
+          "text": "Does having Visitor Visa guarantee entry to Indonesia?"
+        },
+        {
+          "text": "If I have already obtained the Visitor Visa, what should I do after arriving at the entry port?"
+        },
+        {
+          "text": "What should I do if the information I provide in the Visitor Visa is incorrect?"
+        },
+        {
+          "text": "Do I need to enter Indonesia on the exact date specified in my request?"
+        },
+        {
+          "text": "How do you protect the information that I share during my Visitor Visa request process?"
+        },
+        {
+          "text": "Do I need to obtain a separate Visitor Visa for people accompanying me?"
+        },
+        {
+          "text": "Can I obtain a multiple-entry Visitor Visa?"
+        },
+        {
+          "text": "The information on my Visitor Visa does not fully match the information on my passport.Can I enter Indonesia with this Visitor Visa?"
+        },
+        {
+          "text": "I want to stay in Indonesia for longer than the Visitor Visa permits.What should I do?"
+        },
+        {
+          "text": "Overstay"
+        },
+        {
+          "text": "I have realized that some of the information that I provided in the Visitor Visa request requires correction.What should I do?"
+        },
+        {
+          "text": "I have completed my request. When will I obtain my Visitor Visa?"
+        },
+        {
+          "text": "How long before my travel date should I apply for Visitor Visa?"
+        },
+        {
+          "text": "I have realized that some information on my Visitor Visa does not match the information on my travel document. I know that my Visitor Visa is invalid. Can I get a refund?"
+        },
+        {
+          "text": "I do not want to apply for an Visitor Visa. Can I get a visa on arrival?"
+        },
+        {
+          "text": "Do I need an Visitor Visa if I am on a cruise ship?"
+        },
+        {
+          "text": "My child is included in my passport. Do I need to make a separate Visitor Visa request for them?"
+        },
+        {
+          "text": "Can the citizens of all the countries eligible for Visitor Visa obtain a visa on arrival at the port of entry?"
+        },
+        {
+          "text": "How much is an Visitor Visa fee?"
+        },
+        {
+          "text": "How long will my Visitor Visa be valid for?"
+        },
+        {
+          "text": "Do I have to obtain a visa if I do not leave the international transit area?"
+        },
+        {
+          "text": "Why is there a service fee?"
+        },
+        {
+          "text": "May I apply for a new Visitor Visa while I am in Indonesia?"
+        },
+        {
+          "text": "I have further question. What should I do?"
+        },
+        {
+          "text": "I have applied for a visa at an Indonesian Embassy/ Consulate and wish to be updated on my request. Can I send a request for an update from the Visitor Visa Support Desk?"
+        },
+        {
+          "text": "PAYMENT"
+        }
+      ],
+      "fieldsetLegends": [
+        "General Information & FAQ"
+      ],
+      "stoppedAtTerminal": false,
+      "capturedAt": "2026-04-28T06:52:25.351Z"
+    },
+    {
+      "pageIndex": 3,
+      "url": "https://evisa.imigrasi.go.id/front/register/wna",
+      "title": "The Official Indonesian e-Visa Website | Register",
+      "heading": "",
+      "fields": [
+        {
+          "tag": "input",
+          "type": "hidden",
+          "name": "csrf_token",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "initial_file",
+          "name": "initial_file",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "path_attachment",
+          "name": "path_attachment",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "path_attachment_crop",
+          "name": "path_attachment_crop",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "path_photo",
+          "name": "path_photo",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "attachment-crop",
+          "name": "attachment-crop",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "attachment-files",
+          "name": "attachment-files",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "select",
+          "id": "document_travel_id",
+          "name": "document_travel_id",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "152cc4bc-7f8a-4828-b6a8-c252b932d942",
+              "text": "Passport"
+            },
+            {
+              "value": "6523cd39-5fc8-4573-99da-a6e20af32d45",
+              "text": "Emergency Passport"
+            },
+            {
+              "value": "9734eea2-efc7-44ee-b280-f3e45f579d86",
+              "text": "Service Passport"
+            },
+            {
+              "value": "37341319-791e-40b5-b5a8-9257133d5f1c",
+              "text": "Diplomatic Passport"
+            },
+            {
+              "value": "3487b014-b7da-45eb-88bd-1d54f3bc6355",
+              "text": "Temporary Passport"
+            },
+            {
+              "value": "54d42e65-45a0-4c8c-969a-3effded010d2",
+              "text": "Alien Passport"
+            },
+            {
+              "value": "396df835-3399-4145-a342-e8a68fdb6dd4",
+              "text": "Travel Document"
+            },
+            {
+              "value": "9aaab127-a1a1-4441-b329-f6c1f3733558",
+              "text": "Document of Identity"
+            },
+            {
+              "value": "17cfb176-1c97-496d-905a-81cf512f9b5d",
+              "text": "Laissez Passer"
+            },
+            {
+              "value": "973f6d28-eb2e-4257-b362-5905ffad6d45",
+              "text": "Certificate of Identity"
+            },
+            {
+              "value": "32b0adea-e2f0-4d2b-8c2a-6a46eb86030a",
+              "text": "Alien Travel Document"
+            },
+            {
+              "value": "89420c17-61a0-40a9-aaa9-79cc65133ee9",
+              "text": "Emergency Travel Document"
+            },
+            {
+              "value": "87ea15e9-65fb-4e68-9c1a-f181696d8124",
+              "text": "Titre de voyage"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "attachment",
+          "name": "attachment",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "picture",
+          "name": "picture",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "full_name",
+          "name": "full_name",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "radio",
+          "id": "gender-M",
+          "name": "gender",
+          "required": false,
+          "label": "MALE",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "radio",
+          "id": "gender-F",
+          "name": "gender",
+          "required": false,
+          "label": "FEMALE",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "birth_place",
+          "name": "birth_place",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "birthday",
+          "name": "birthday",
+          "required": false,
+          "label": "(placeholder) DD/MM/YYY",
+          "placeholder": "DD/MM/YYY",
+          "visible": true
+        },
+        {
+          "tag": "select",
+          "id": "phone_code",
+          "name": "phone_code",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "+93",
+              "text": "+93 - AFGHANISTAN"
+            },
+            {
+              "value": "+355",
+              "text": "+355 - ALBANIA"
+            },
+            {
+              "value": "+213",
+              "text": "+213 - ALGERIA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - AMERICAN SAMOA"
+            },
+            {
+              "value": "+376",
+              "text": "+376 - ANDORRA"
+            },
+            {
+              "value": "+244",
+              "text": "+244 - ANGOLA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - ANGUILLA"
+            },
+            {
+              "value": "+6721",
+              "text": "+6721 - ANTARCTICA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - ANTIGUA AND BARBUDA"
+            },
+            {
+              "value": "+54",
+              "text": "+54 - ARGENTINA"
+            },
+            {
+              "value": "+374",
+              "text": "+374 - ARMENIA"
+            },
+            {
+              "value": "+297",
+              "text": "+297 - ARUBA"
+            },
+            {
+              "value": "+61",
+              "text": "+61 - AUSTRALIA"
+            },
+            {
+              "value": "+43",
+              "text": "+43 - AUSTRIA"
+            },
+            {
+              "value": "+994",
+              "text": "+994 - AZERBAIJAN"
+            },
+            {
+              "value": "+1-242",
+              "text": "+1-242 - BAHAMAS"
+            },
+            {
+              "value": "+973",
+              "text": "+973 - BAHRAIN"
+            },
+            {
+              "value": "+880",
+              "text": "+880 - BANGLADESH"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - BARBADOS"
+            },
+            {
+              "value": "+375",
+              "text": "+375 - BELARUS"
+            },
+            {
+              "value": "+32",
+              "text": "+32 - BELGIUM"
+            },
+            {
+              "value": "+501",
+              "text": "+501 - BELIZE"
+            },
+            {
+              "value": "+229",
+              "text": "+229 - BENIN"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - BERMUDA"
+            },
+            {
+              "value": "+975",
+              "text": "+975 - BHUTAN"
+            },
+            {
+              "value": "+591",
+              "text": "+591 - BOLIVIA"
+            },
+            {
+              "value": "+387",
+              "text": "+387 - BOSNIA AND HERZEGOVINA"
+            },
+            {
+              "value": "+267",
+              "text": "+267 - BOTSWANA"
+            },
+            {
+              "value": "+47",
+              "text": "+47 - BOUVET ISLAND"
+            },
+            {
+              "value": "+55",
+              "text": "+55 - BRAZIL"
+            },
+            {
+              "value": "+673",
+              "text": "+673 - BRUNEI DARUSSALAM"
+            },
+            {
+              "value": "+359",
+              "text": "+359 - BULGARIA"
+            },
+            {
+              "value": "+226",
+              "text": "+226 - BURKINA FASO"
+            },
+            {
+              "value": "+95",
+              "text": "+95 - BURMA"
+            },
+            {
+              "value": "+257",
+              "text": "+257 - BURUNDI"
+            },
+            {
+              "value": "+855",
+              "text": "+855 - CAMBODIA"
+            },
+            {
+              "value": "+237",
+              "text": "+237 - CAMEROON"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - CANADA"
+            },
+            {
+              "value": "+238",
+              "text": "+238 - CAPE VERDE"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - CAYMAN ISLANDS"
+            },
+            {
+              "value": "+236",
+              "text": "+236 - CENTRAL AFRICAN REPUBLIC"
+            },
+            {
+              "value": "+235",
+              "text": "+235 - CHAD"
+            },
+            {
+              "value": "+56",
+              "text": "+56 - CHILE"
+            },
+            {
+              "value": "+86",
+              "text": "+86 - CHINA"
+            },
+            {
+              "value": "+61",
+              "text": "+61 - CHRISTMAS ISLAND"
+            },
+            {
+              "value": "+61",
+              "text": "+61 - COCOS ISLANDS"
+            },
+            {
+              "value": "+99",
+              "text": "+99 - COLOMBIA"
+            },
+            {
+              "value": "+269",
+              "text": "+269 - COMOROS"
+            },
+            {
+              "value": "+242",
+              "text": "+242 - CONGO REPUBLIC"
+            },
+            {
+              "value": "+682",
+              "text": "+682 - COOK ISLANDS"
+            },
+            {
+              "value": "+506",
+              "text": "+506 - COSTA RICA"
+            },
+            {
+              "value": "+385",
+              "text": "+385 - CROATIA"
+            },
+            {
+              "value": "+53",
+              "text": "+53 - CUBA"
+            },
+            {
+              "value": "+357",
+              "text": "+357 - CYPRUS"
+            },
+            {
+              "value": "+42",
+              "text": "+42 - CZECHOSLOVAKIA"
+            },
+            {
+              "value": "+420",
+              "text": "+420 - CZECH REPUBLIC"
+            },
+            {
+              "value": "+243",
+              "text": "+243 - DEMOCRATIC REPUBLIC OF CONGO"
+            },
+            {
+              "value": "+45",
+              "text": "+45 - DENMARK"
+            },
+            {
+              "value": "+253",
+              "text": "+253 - DJIBOUTI"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - DOMINICA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - DOMINICAN REPUBLIC"
+            },
+            {
+              "value": "+593",
+              "text": "+593 - ECUADOR"
+            },
+            {
+              "value": "+20",
+              "text": "+20 - EGYPT"
+            },
+            {
+              "value": "+503",
+              "text": "+503 - EL SALVADOR"
+            },
+            {
+              "value": "+240",
+              "text": "+240 - EQUATORIAL GUINEA"
+            },
+            {
+              "value": "+291",
+              "text": "+291 - ERITREA"
+            },
+            {
+              "value": "+372",
+              "text": "+372 - ESTONIA"
+            },
+            {
+              "value": "+268",
+              "text": "+268 - ESWATINI"
+            },
+            {
+              "value": "+251",
+              "text": "+251 - ETHIOPIA"
+            },
+            {
+              "value": "+500",
+              "text": "+500 - FALKLAND ISLANDS"
+            },
+            {
+              "value": "+298",
+              "text": "+298 - FAROE ISLANDS"
+            },
+            {
+              "value": "+679",
+              "text": "+679 - FIJI"
+            },
+            {
+              "value": "+358",
+              "text": "+358 - FINLAND"
+            },
+            {
+              "value": "+33",
+              "text": "+33 - FRANCE"
+            },
+            {
+              "value": "+594",
+              "text": "+594 - FRENCH GUIANA"
+            },
+            {
+              "value": "+689",
+              "text": "+689 - FRENCH, METROPOLITAN"
+            },
+            {
+              "value": "+241",
+              "text": "+241 - GABON"
+            },
+            {
+              "value": "+220",
+              "text": "+220 - GAMBIA"
+            },
+            {
+              "value": "+995",
+              "text": "+995 - GEORGIA"
+            },
+            {
+              "value": "+49",
+              "text": "+49 - GERMANY"
+            },
+            {
+              "value": "+233",
+              "text": "+233 - GHANA"
+            },
+            {
+              "value": "+350",
+              "text": "+350 - GIBRALTAR"
+            },
+            {
+              "value": "+30",
+              "text": "+30 - GREECE"
+            },
+            {
+              "value": "+299",
+              "text": "+299 - GREENLAND"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - GRENADA"
+            },
+            {
+              "value": "+590",
+              "text": "+590 - GUADELOUPE"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - GUAM"
+            },
+            {
+              "value": "+502",
+              "text": "+502 - GUATEMALA"
+            },
+            {
+              "value": "+224",
+              "text": "+224 - GUINEA"
+            },
+            {
+              "value": "+245",
+              "text": "+245 - GUINEA-BISSAU"
+            },
+            {
+              "value": "+592",
+              "text": "+592 - GUYANA"
+            },
+            {
+              "value": "+509",
+              "text": "+509 - HAITI"
+            },
+            {
+              "value": "00161",
+              "text": "00161 - HEARD AND KEPULAUAN MCDONALD"
+            },
+            {
+              "value": "+39",
+              "text": "+39 - HOLY SEE (VATICAN CITY STATE)"
+            },
+            {
+              "value": "+504",
+              "text": "+504 - HONDURAS"
+            },
+            {
+              "value": "+852",
+              "text": "+852 - HONG KONG SAR"
+            },
+            {
+              "value": "+36",
+              "text": "+36 - HUNGARY"
+            },
+            {
+              "value": "+354",
+              "text": "+354 - ICELAND"
+            },
+            {
+              "value": "+91",
+              "text": "+91 - INDIA"
+            },
+            {
+              "value": "+62",
+              "text": "+62 - INDONESIA"
+            },
+            {
+              "value": "+98",
+              "text": "+98 - IRAN"
+            },
+            {
+              "value": "+964",
+              "text": "+964 - IRAQ"
+            },
+            {
+              "value": "+353",
+              "text": "+353 - IRELAND"
+            },
+            {
+              "value": "+972",
+              "text": "+972 - ISRAEL"
+            },
+            {
+              "value": "+39",
+              "text": "+39 - ITALY"
+            },
+            {
+              "value": "+225",
+              "text": "+225 - IVORY COAST"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - JAMAICA"
+            },
+            {
+              "value": "+81",
+              "text": "+81 - JAPAN"
+            },
+            {
+              "value": "+962",
+              "text": "+962 - JORDAN"
+            },
+            {
+              "value": "+7",
+              "text": "+7 - KAZAKHSTAN"
+            },
+            {
+              "value": "+254",
+              "text": "+254 - KENYA"
+            },
+            {
+              "value": "+686",
+              "text": "+686 - KIRIBATI"
+            },
+            {
+              "value": "+383",
+              "text": "+383 - KOSOVO"
+            },
+            {
+              "value": "+965",
+              "text": "+965 - KUWAIT"
+            },
+            {
+              "value": "+996",
+              "text": "+996 - KYRGYZSTAN"
+            },
+            {
+              "value": "+371",
+              "text": "+371 - LATVIA"
+            },
+            {
+              "value": "+961",
+              "text": "+961 - LEBANON"
+            },
+            {
+              "value": "+266",
+              "text": "+266 - LESOTHO"
+            },
+            {
+              "value": "+231",
+              "text": "+231 - LIBERIA"
+            },
+            {
+              "value": "+218",
+              "text": "+218 - LIBYA"
+            },
+            {
+              "value": "+423",
+              "text": "+423 - LIECHTENSTEIN"
+            },
+            {
+              "value": "+370",
+              "text": "+370 - LITHUANIA"
+            },
+            {
+              "value": "+352",
+              "text": "+352 - LUXEMBOURG"
+            },
+            {
+              "value": "+853",
+              "text": "+853 - MACAO SAR"
+            },
+            {
+              "value": "+389",
+              "text": "+389 - MACEDONIA"
+            },
+            {
+              "value": "+261",
+              "text": "+261 - MADAGASCAR"
+            },
+            {
+              "value": "+265",
+              "text": "+265 - MALAWI"
+            },
+            {
+              "value": "+60",
+              "text": "+60 - MALAYSIA"
+            },
+            {
+              "value": "+960",
+              "text": "+960 - MALDIVES"
+            },
+            {
+              "value": "+223",
+              "text": "+223 - MALI"
+            },
+            {
+              "value": "+356",
+              "text": "+356 - MALTA"
+            },
+            {
+              "value": "+692",
+              "text": "+692 - MARSHALL ISLANDS"
+            },
+            {
+              "value": "+596",
+              "text": "+596 - MARTINIQUE"
+            },
+            {
+              "value": "+222",
+              "text": "+222 - MAURITANIA"
+            },
+            {
+              "value": "+230",
+              "text": "+230 - MAURITIUS"
+            },
+            {
+              "value": "+262",
+              "text": "+262 - MAYOTTE"
+            },
+            {
+              "value": "+52",
+              "text": "+52 - MEXICO"
+            },
+            {
+              "value": "+691",
+              "text": "+691 - MICRONESIA"
+            },
+            {
+              "value": "+373",
+              "text": "+373 - MOLDOVA REPUBLIC"
+            },
+            {
+              "value": "+377",
+              "text": "+377 - MONACO"
+            },
+            {
+              "value": "+976",
+              "text": "+976 - MONGOLIA"
+            },
+            {
+              "value": "+382",
+              "text": "+382 - MONTENEGRO"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - MONTSERRAT"
+            },
+            {
+              "value": "+212",
+              "text": "+212 - MOROCCO"
+            },
+            {
+              "value": "+258",
+              "text": "+258 - MOZAMBIQUE"
+            },
+            {
+              "value": "+95",
+              "text": "+95 - MYANMAR"
+            },
+            {
+              "value": "+264",
+              "text": "+264 - NAMIBIA"
+            },
+            {
+              "value": "+674",
+              "text": "+674 - NAURU"
+            },
+            {
+              "value": "+977",
+              "text": "+977 - NEPAL"
+            },
+            {
+              "value": "+31",
+              "text": "+31 - NETHERLANDS"
+            },
+            {
+              "value": "+599",
+              "text": "+599 - NETHERLANDSE ANTILLES"
+            },
+            {
+              "value": "+687",
+              "text": "+687 - NEW CALEDONIA"
+            },
+            {
+              "value": "+64",
+              "text": "+64 - NEW ZEALAND"
+            },
+            {
+              "value": "+505",
+              "text": "+505 - NICARAGUA"
+            },
+            {
+              "value": "+227",
+              "text": "+227 - NIGER"
+            },
+            {
+              "value": "+234",
+              "text": "+234 - NIGERIA"
+            },
+            {
+              "value": "+683",
+              "text": "+683 - NIUE"
+            },
+            {
+              "value": "+000",
+              "text": "+000 - Non Convention Refugee"
+            },
+            {
+              "value": "+672",
+              "text": "+672 - NORFOLK ISLAND"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - NORTHEN MARIANA ISLANDS"
+            },
+            {
+              "value": "+850",
+              "text": "+850 - NORTH KOREA"
+            },
+            {
+              "value": "+389",
+              "text": "+389 - North Macedonia"
+            },
+            {
+              "value": "+47",
+              "text": "+47 - NORWAY"
+            },
+            {
+              "value": "+968",
+              "text": "+968 - OMAN"
+            },
+            {
+              "value": "+92",
+              "text": "+92 - PAKISTAN"
+            },
+            {
+              "value": "+680",
+              "text": "+680 - PALAU"
+            },
+            {
+              "value": "+970",
+              "text": "+970 - PALESTINE"
+            },
+            {
+              "value": "+507",
+              "text": "+507 - PANAMA"
+            },
+            {
+              "value": "+675",
+              "text": "+675 - PAPUA NEW GUINEA"
+            },
+            {
+              "value": "+595",
+              "text": "+595 - PARAGUAY"
+            },
+            {
+              "value": "+856",
+              "text": "+856 - PEOPLE'S DEMOCRATIC REPUBLIC OF LAOS"
+            },
+            {
+              "value": "+51",
+              "text": "+51 - PERU"
+            },
+            {
+              "value": "+63",
+              "text": "+63 - PHILIPPINES"
+            },
+            {
+              "value": "+64",
+              "text": "+64 - PITCAIRN"
+            },
+            {
+              "value": "+48",
+              "text": "+48 - POLAND"
+            },
+            {
+              "value": "+689",
+              "text": "+689 - POLYNESIA FRENCH"
+            },
+            {
+              "value": "+351",
+              "text": "+351 - PORTUGAL"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - PUERTO\u00a0RICO"
+            },
+            {
+              "value": "+974",
+              "text": "+974 - QATAR"
+            },
+            {
+              "value": "+001",
+              "text": "+001 - Refugee Convention of 1950"
+            },
+            {
+              "value": "",
+              "text": "- REFUGEES (CONVENTION ARTICLE 1, 1951)"
+            },
+            {
+              "value": "XXX",
+              "text": "XXX - REFUGEES (NON CONVENTION ARTICLE 1, 1951)"
+            },
+            {
+              "value": "+82",
+              "text": "+82 - REPUBLIC OF KOREA"
+            },
+            {
+              "value": "+27",
+              "text": "+27 - REPUBLIC OF SOUTH AFRICA"
+            },
+            {
+              "value": "+262",
+              "text": "+262 - REUNION"
+            },
+            {
+              "value": "+40",
+              "text": "+40 - ROMANIA"
+            },
+            {
+              "value": "+7",
+              "text": "+7 - RUSSIA"
+            },
+            {
+              "value": "+250",
+              "text": "+250 - RWANDA"
+            },
+            {
+              "value": "+290",
+              "text": "+290 - SAINT HELENA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - SAINT KITTS AND NEVIS"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - SAINT LUCIA"
+            },
+            {
+              "value": "+508",
+              "text": "+508 - SAINT PIERRE AND MIQUELON"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - SAINT VINCENT AND GRENADINES"
+            },
+            {
+              "value": "+685",
+              "text": "+685 - SAMOA"
+            },
+            {
+              "value": "+378",
+              "text": "+378 - SAN MARINO"
+            },
+            {
+              "value": "+239",
+              "text": "+239 - SAO TOME AND PRINCIPE"
+            },
+            {
+              "value": "+966",
+              "text": "+966 - SAUDI ARABIA"
+            },
+            {
+              "value": "0",
+              "text": "0 - SCOTLAND"
+            },
+            {
+              "value": "+221",
+              "text": "+221 - SENEGAL"
+            },
+            {
+              "value": "+381",
+              "text": "+381 - SERBIA"
+            },
+            {
+              "value": "+381",
+              "text": "+381 - SERBIA AND MONTENEGRO"
+            },
+            {
+              "value": "+248",
+              "text": "+248 - SEYCHELLES"
+            },
+            {
+              "value": "+232",
+              "text": "+232 - SIERRA LEONE"
+            },
+            {
+              "value": "+65",
+              "text": "+65 - SINGAPORE"
+            },
+            {
+              "value": "+421",
+              "text": "+421 - SLOVAKIA"
+            },
+            {
+              "value": "+386",
+              "text": "+386 - SLOVENIA"
+            },
+            {
+              "value": "+677",
+              "text": "+677 - SOLOMON ISLANDS"
+            },
+            {
+              "value": "+252",
+              "text": "+252 - SOMALIA"
+            },
+            {
+              "value": "+500",
+              "text": "+500 - SOUTH GEORGIA AND SOUTH SANDWICH ISLANDS"
+            },
+            {
+              "value": "+211",
+              "text": "+211 - SOUTH SUDAN"
+            },
+            {
+              "value": "+34",
+              "text": "+34 - SPAIN"
+            },
+            {
+              "value": "+94",
+              "text": "+94 - SRI LANKA"
+            },
+            {
+              "value": "+249",
+              "text": "+249 - SUDAN"
+            },
+            {
+              "value": "+597",
+              "text": "+597 - SURINAME"
+            },
+            {
+              "value": "+47",
+              "text": "+47 - SVALBARD AND JAN MAYEN"
+            },
+            {
+              "value": "+268",
+              "text": "+268 - SWAZILAND"
+            },
+            {
+              "value": "+46",
+              "text": "+46 - SWEDEN"
+            },
+            {
+              "value": "+41",
+              "text": "+41 - SWITZERLAND"
+            },
+            {
+              "value": "+963",
+              "text": "+963 - SYRIA"
+            },
+            {
+              "value": "+886",
+              "text": "+886 - TAIWAN"
+            },
+            {
+              "value": "+992",
+              "text": "+992 - TAJIKISTAN"
+            },
+            {
+              "value": "+255",
+              "text": "+255 - TANZANIA"
+            },
+            {
+              "value": "+66",
+              "text": "+66 - THAILAND"
+            },
+            {
+              "value": "+670",
+              "text": "+670 - TIMOR LESTE"
+            },
+            {
+              "value": "+228",
+              "text": "+228 - TOGO"
+            },
+            {
+              "value": "+690",
+              "text": "+690 - TOKELAU"
+            },
+            {
+              "value": "+676",
+              "text": "+676 - TONGA"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - TRINIDAD AND TOBAGO"
+            },
+            {
+              "value": "+216",
+              "text": "+216 - TUNISIA"
+            },
+            {
+              "value": "+90",
+              "text": "+90 - TURKIYE"
+            },
+            {
+              "value": "+993",
+              "text": "+993 - TURKMENISTAN"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - TURKS ISLANDS AND CAICOS"
+            },
+            {
+              "value": "+688",
+              "text": "+688 - TUVALU"
+            },
+            {
+              "value": "+256",
+              "text": "+256 - UGANDA"
+            },
+            {
+              "value": "+380",
+              "text": "+380 - UKRAINE"
+            },
+            {
+              "value": "+971",
+              "text": "+971 - UNITED ARAB EMIRATES"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH CITIZEN"
+            },
+            {
+              "value": "+246",
+              "text": "+246 - UNITED KINGDOM - BRITISH INDIAN OCEAN TERRITORY"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH NATIONALITY OVERSEAS"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH OVERSEAS CITIZEN"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH OVERSEAS TERRITORIES CITIZEN"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH PROTECTED PERSON"
+            },
+            {
+              "value": "+44",
+              "text": "+44 - UNITED KINGDOM - BRITISH SUBJECT"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - UNITED STATES OF AMERICA"
+            },
+            {
+              "value": "000",
+              "text": "000 - UNSPECIFIED NATIONALITY"
+            },
+            {
+              "value": "+598",
+              "text": "+598 - URUGUAY"
+            },
+            {
+              "value": "+998",
+              "text": "+998 - UZBEKISTAN"
+            },
+            {
+              "value": "+678",
+              "text": "+678 - VANUATU"
+            },
+            {
+              "value": "+58",
+              "text": "+58 - VENEZUELA"
+            },
+            {
+              "value": "+84",
+              "text": "+84 - VIETNAM"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - VIRGIN ISLANDS (UNITED STATES OF AMERICA)"
+            },
+            {
+              "value": "+1",
+              "text": "+1 - VIRGINS ISLANDS (UNITED KINGDOM)"
+            },
+            {
+              "value": "0",
+              "text": "0 - WALES"
+            },
+            {
+              "value": "+681",
+              "text": "+681 - WALLIS AND FUTUNA"
+            },
+            {
+              "value": "+212",
+              "text": "+212 - WESTERN SAHARA"
+            },
+            {
+              "value": "+",
+              "text": "+ - WITHOUT CITIZENSHIP (STATELESS, TH 1954 CONVENTION ARTICLE 1)"
+            },
+            {
+              "value": "+967",
+              "text": "+967 - YEMEN"
+            },
+            {
+              "value": "+38",
+              "text": "+38 - YUGOSLAVIA"
+            },
+            {
+              "value": "+243",
+              "text": "+243 - ZAIRE"
+            },
+            {
+              "value": "+260",
+              "text": "+260 - ZAMBIA"
+            },
+            {
+              "value": "+263",
+              "text": "+263 - ZIMBABWE"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "mobile_phone",
+          "name": "mobile_phone",
+          "required": false,
+          "label": "(placeholder) xxxxxxxxxxxxxx",
+          "placeholder": "xxxxxxxxxxxxxx",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "mother",
+          "name": "mother",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "number",
+          "name": "passport_number",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "blackListsCountryIds",
+          "name": "blackListsCountryIds",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "select",
+          "id": "country_id",
+          "name": "country_id",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "36830c33-a24a-4aa1-aaa2-2c3651ce787c",
+              "text": "AFGHANISTAN"
+            },
+            {
+              "value": "df26b6b5-b957-44fc-8775-5a307aff676c",
+              "text": "ALBANIA"
+            },
+            {
+              "value": "ee9a47a3-c229-4384-a00e-c5d3132a2b6a",
+              "text": "ALGERIA"
+            },
+            {
+              "value": "f57b1c29-b107-402d-a33c-2198d61dee4a",
+              "text": "AMERICAN SAMOA"
+            },
+            {
+              "value": "7fc48e74-1a09-4edd-9bca-d6622ea82b1e",
+              "text": "ANDORRA"
+            },
+            {
+              "value": "2cd8b0e4-f9a4-44f5-8014-23f1f03d3193",
+              "text": "ANGOLA"
+            },
+            {
+              "value": "7d9c632d-106a-40b5-b4de-d46572bdb18e",
+              "text": "ANGUILLA"
+            },
+            {
+              "value": "dab42168-cd9e-4e6f-86ec-a1a773d34684",
+              "text": "ANTIGUA AND BARBUDA"
+            },
+            {
+              "value": "7a0eaa53-353b-4206-9299-1badcdb0fdf1",
+              "text": "ARGENTINA"
+            },
+            {
+              "value": "e7bcd2e1-fb4b-4748-8fce-b2d0e3b3827c",
+              "text": "ARMENIA"
+            },
+            {
+              "value": "46283cb1-d406-47c1-86fd-8c308ffa173a",
+              "text": "AUSTRALIA"
+            },
+            {
+              "value": "727e690b-fc21-4b8a-b17f-1de1616433b7",
+              "text": "AUSTRIA"
+            },
+            {
+              "value": "a11144b1-8228-42d5-8242-a0f529c0de10",
+              "text": "AZERBAIJAN"
+            },
+            {
+              "value": "0685586c-7e37-4aa1-8020-f4aa453e9472",
+              "text": "BAHAMAS"
+            },
+            {
+              "value": "f3373174-008f-4f5c-b902-e79763719c64",
+              "text": "BAHRAIN"
+            },
+            {
+              "value": "a14de768-1e37-4d93-8def-352266de349a",
+              "text": "BANGLADESH"
+            },
+            {
+              "value": "02054c21-3f67-4fe3-95bc-d20106985e49",
+              "text": "BARBADOS"
+            },
+            {
+              "value": "9ff91215-8e06-45b4-8f88-f7685d249358",
+              "text": "BELARUS"
+            },
+            {
+              "value": "94629b00-f4c4-46bd-b263-cc7c53f8b9d9",
+              "text": "BELGIUM"
+            },
+            {
+              "value": "ada414e8-6fd5-4b69-82eb-89472e20d3be",
+              "text": "BELIZE"
+            },
+            {
+              "value": "88a03b34-1b9e-4bd6-ba7b-2a7bd8838c24",
+              "text": "BENIN"
+            },
+            {
+              "value": "50425995-e990-47c5-8e5e-882840ef2b7a",
+              "text": "BERMUDA"
+            },
+            {
+              "value": "4528297b-9315-45f8-adf1-3a5f0b7e994f",
+              "text": "BHUTAN"
+            },
+            {
+              "value": "bdc856ae-6948-4381-9648-8fc41bef7577",
+              "text": "BOLIVIA"
+            },
+            {
+              "value": "fa943b74-22e9-4650-bccb-14b466bde722",
+              "text": "BOSNIA AND HERZEGOVINA"
+            },
+            {
+              "value": "f98613a2-3816-4af6-8d27-e7edc2e67366",
+              "text": "BOTSWANA"
+            },
+            {
+              "value": "cf4dfdbe-327b-4c9a-bd39-441a338cd276",
+              "text": "BRAZIL"
+            },
+            {
+              "value": "687653fc-236b-4bc8-baf8-88a81f17618a",
+              "text": "BRUNEI DARUSSALAM"
+            },
+            {
+              "value": "7345359f-4f82-4089-a153-acf32254b0a3",
+              "text": "BULGARIA"
+            },
+            {
+              "value": "83c3ceed-af1c-4b06-bb4a-0217712043c8",
+              "text": "BURKINA FASO"
+            },
+            {
+              "value": "ff78c621-fa7f-467b-812c-9912e88ac430",
+              "text": "BURUNDI"
+            },
+            {
+              "value": "3f387ed5-13e6-42b8-ba77-84f281d995f7",
+              "text": "CAMBODIA"
+            },
+            {
+              "value": "1d91caf5-bcf2-4e4b-8c77-7d62781bf220",
+              "text": "CAMEROON"
+            },
+            {
+              "value": "47db151f-ce3e-406d-b707-8fcdfd088a61",
+              "text": "CANADA"
+            },
+            {
+              "value": "3ecf1c2c-de95-4811-9e5e-4b03816a108a",
+              "text": "CAPE VERDE"
+            },
+            {
+              "value": "0c72f1ee-2e31-4713-86ac-e079c0f994e7",
+              "text": "CENTRAL AFRICAN REPUBLIC"
+            },
+            {
+              "value": "abbd5561-fde5-42e5-8237-382ab808ec8f",
+              "text": "CHAD"
+            },
+            {
+              "value": "0c597abe-9cf2-4171-8449-06bcc928afd8",
+              "text": "CHILE"
+            },
+            {
+              "value": "883891b6-1c3f-41c3-9279-4745f63575cb",
+              "text": "CHINA"
+            },
+            {
+              "value": "13fdc3be-15a8-435f-a47a-885f8b687894",
+              "text": "CHRISTMAS ISLAND"
+            },
+            {
+              "value": "4579581c-68de-41c6-bd7b-e68a90db20d4",
+              "text": "COCOS ISLANDS"
+            },
+            {
+              "value": "76578a13-3e64-41da-8d91-deef561311c2",
+              "text": "COLOMBIA"
+            },
+            {
+              "value": "e350c59c-5236-4207-8ef9-88e4aebeda9d",
+              "text": "COMOROS"
+            },
+            {
+              "value": "41d426c7-b47f-4e73-a810-dc78bcaae82f",
+              "text": "CONGO REPUBLIC"
+            },
+            {
+              "value": "d16f1de8-e959-4569-89ab-0e165456eeb0",
+              "text": "COSTA RICA"
+            },
+            {
+              "value": "a93f74b3-fcc6-473c-89f9-0e7af7d7f6b6",
+              "text": "CROATIA"
+            },
+            {
+              "value": "4f6e354a-ca46-49f3-b035-8188b2d1f6b6",
+              "text": "CUBA"
+            },
+            {
+              "value": "8e5508a3-0173-4be4-bdc8-23986b9179d7",
+              "text": "CYPRUS"
+            },
+            {
+              "value": "318736c7-f14f-4560-a65a-8c2304ea6805",
+              "text": "CZECH REPUBLIC"
+            },
+            {
+              "value": "7d5d09ba-f7a2-4780-a730-ac5749aeae88",
+              "text": "DEMOCRATIC REPUBLIC OF CONGO"
+            },
+            {
+              "value": "25d567a3-7a4e-4248-9800-647028da9b71",
+              "text": "DENMARK"
+            },
+            {
+              "value": "79c7ec19-d69c-48f4-9cbc-96110e24667d",
+              "text": "DJIBOUTI"
+            },
+            {
+              "value": "ac9f23a8-fd8e-4877-bab8-367ce26cbb06",
+              "text": "DOMINICA"
+            },
+            {
+              "value": "0df2afd4-1945-40c3-a3bb-bcc1fa8ab081",
+              "text": "DOMINICAN REPUBLIC"
+            },
+            {
+              "value": "c7339e3d-cbe9-4893-af6f-0bdc4b6ebd26",
+              "text": "ECUADOR"
+            },
+            {
+              "value": "29a5479e-3e9a-4fe6-a4b2-705de1654fb7",
+              "text": "EGYPT"
+            },
+            {
+              "value": "c20c9d1a-3d42-48c1-8033-12a837058ba6",
+              "text": "EL SALVADOR"
+            },
+            {
+              "value": "70003abd-8f1e-4baa-b513-a406405c85bd",
+              "text": "EQUATORIAL GUINEA"
+            },
+            {
+              "value": "e9ab2043-0c97-4c52-b103-8118861898d0",
+              "text": "ERITREA"
+            },
+            {
+              "value": "448fa696-e0ca-4e5f-89cd-671f04d48c9f",
+              "text": "ESTONIA"
+            },
+            {
+              "value": "a0a10b9e-3157-4d65-84c3-e96bc8a99979",
+              "text": "ETHIOPIA"
+            },
+            {
+              "value": "6906664e-9925-4ffb-bf88-567e8bf19113",
+              "text": "FALKLAND ISLANDS"
+            },
+            {
+              "value": "7238722f-5081-47e2-aa2b-0867b6d6a3ae",
+              "text": "FAROE ISLANDS"
+            },
+            {
+              "value": "67f91d7d-5166-44d3-b050-45fe4fa6bad7",
+              "text": "FIJI"
+            },
+            {
+              "value": "52006b57-7b02-4902-b55d-0dadc577b75c",
+              "text": "FINLAND"
+            },
+            {
+              "value": "23e8665d-2f2c-4841-acf6-6a2cac358ed4",
+              "text": "FRANCE"
+            },
+            {
+              "value": "b62eb44a-686b-4452-ae09-637e23feb251",
+              "text": "FRENCH GUIANA"
+            },
+            {
+              "value": "38381f24-d8fb-42e4-ba80-f0b1451e5577",
+              "text": "GABON"
+            },
+            {
+              "value": "41d04ba0-6764-4b55-88ed-e1f776743128",
+              "text": "GAMBIA"
+            },
+            {
+              "value": "f851c74a-b9dc-4d9d-a99c-65b6a69afe95",
+              "text": "GEORGIA"
+            },
+            {
+              "value": "2d7c66c1-9341-459c-83a8-8138766b133c",
+              "text": "GERMANY"
+            },
+            {
+              "value": "012e51a0-4e9c-4dfd-8438-b4cc375fb0ed",
+              "text": "GHANA"
+            },
+            {
+              "value": "47aa18d9-ed29-4250-9206-6f0cdaec94ff",
+              "text": "GREECE"
+            },
+            {
+              "value": "9d14a529-4116-449f-818f-538994ae14c8",
+              "text": "GRENADA"
+            },
+            {
+              "value": "0fc0a977-8120-4b88-90ef-d4a94c7824e1",
+              "text": "GUAM"
+            },
+            {
+              "value": "0159ccc8-a34c-4a6d-846f-510296a43536",
+              "text": "GUATEMALA"
+            },
+            {
+              "value": "5cd3306f-e3de-4031-b1f4-fb5d07e4de70",
+              "text": "GUINEA"
+            },
+            {
+              "value": "e04e1e50-e2a8-4b11-97c3-f0c8d759af9a",
+              "text": "GUINEA-BISSAU"
+            },
+            {
+              "value": "77774317-99e1-43c3-ada2-62aaf1a22f81",
+              "text": "GUYANA"
+            },
+            {
+              "value": "91d309f2-de3f-40bb-80e7-4b68077fdc33",
+              "text": "HAITI"
+            },
+            {
+              "value": "20246314-d590-47d9-9f86-59b0740185b0",
+              "text": "HEARD AND KEPULAUAN MCDONALD"
+            },
+            {
+              "value": "cbe8fb4d-7ba4-4108-b379-0abf0b85569a",
+              "text": "HOLY SEE (VATICAN CITY STATE)"
+            },
+            {
+              "value": "1fee433d-5093-4752-bd18-019be82ebcae",
+              "text": "HONDURAS"
+            },
+            {
+              "value": "2ecd2c23-33ff-4624-80d3-900777e7801e",
+              "text": "HONG KONG SAR"
+            },
+            {
+              "value": "5d2f2361-562a-4f59-84f7-a8dabb127add",
+              "text": "HUNGARY"
+            },
+            {
+              "value": "e6ff784e-9de7-44a8-9f67-2c3beecd2efc",
+              "text": "ICELAND"
+            },
+            {
+              "value": "f51f4255-1b0b-4a1b-be01-4bc82909c33e",
+              "text": "INDIA"
+            },
+            {
+              "value": "66c0c992-6f20-4464-afa0-160e48985792",
+              "text": "IRAN"
+            },
+            {
+              "value": "d106dd98-25c4-489d-ae37-a73bdf0b4b7d",
+              "text": "IRAQ"
+            },
+            {
+              "value": "43f85fba-b363-4c2e-aa27-83fb1a9da94c",
+              "text": "IRELAND"
+            },
+            {
+              "value": "fb641517-2f85-411a-9da4-c5c12ccd89d4",
+              "text": "ISRAEL"
+            },
+            {
+              "value": "a24388f2-c0a5-4807-894c-de6823a79a3f",
+              "text": "ITALY"
+            },
+            {
+              "value": "7dc9c73c-4c60-4ebc-bd41-13010e8c2952",
+              "text": "IVORY COAST"
+            },
+            {
+              "value": "652d4cc5-c90a-44d0-866e-94167c3dbd3b",
+              "text": "JAMAICA"
+            },
+            {
+              "value": "1beaa902-fae3-4733-984d-437375211a3d",
+              "text": "JAPAN"
+            },
+            {
+              "value": "4c108286-8eb9-48dc-9590-4a0a3cfe2b40",
+              "text": "JORDAN"
+            },
+            {
+              "value": "4f68af57-24fc-4da3-9524-5a344f7ade7d",
+              "text": "KAZAKHSTAN"
+            },
+            {
+              "value": "009337db-a9ad-43af-b823-c95aca6798b9",
+              "text": "KENYA"
+            },
+            {
+              "value": "e8db8ddf-218a-407d-8065-485693228e9e",
+              "text": "KIRIBATI"
+            },
+            {
+              "value": "6d8dc2ec-dbc0-4416-a3e1-553935ee4f23",
+              "text": "KUWAIT"
+            },
+            {
+              "value": "6214e7cd-b344-4698-ae88-d32b80cc26f3",
+              "text": "KYRGYZSTAN"
+            },
+            {
+              "value": "af83f9ed-713c-4ae6-a588-c3c79fe58d44",
+              "text": "LATVIA"
+            },
+            {
+              "value": "477fc793-7ad7-4955-af53-09d9ffd197b8",
+              "text": "LEBANON"
+            },
+            {
+              "value": "ceef5a50-b212-4f03-b132-1db4fa3ee8d9",
+              "text": "LESOTHO"
+            },
+            {
+              "value": "7be4b3a3-04c1-4a69-ad85-7cce8f53217f",
+              "text": "LIBERIA"
+            },
+            {
+              "value": "a6f469cc-61ca-4640-a200-350e33630a7a",
+              "text": "LIBYA"
+            },
+            {
+              "value": "97dc8df9-6382-47c4-abcb-af92e0833ab3",
+              "text": "LIECHTENSTEIN"
+            },
+            {
+              "value": "f0127376-b8cc-49b6-ba94-90137d5c9912",
+              "text": "LITHUANIA"
+            },
+            {
+              "value": "b2ac4801-ca60-4fd1-9a09-9de023939a17",
+              "text": "LUXEMBOURG"
+            },
+            {
+              "value": "63ad0853-32f7-444a-94d3-1db1515f6411",
+              "text": "MACAO SAR"
+            },
+            {
+              "value": "ca2e8749-8c9c-48ea-8dbe-1d3733ffaf70",
+              "text": "MACEDONIA"
+            },
+            {
+              "value": "22f9fd8e-f208-49c9-8afd-968066319f12",
+              "text": "MADAGASCAR"
+            },
+            {
+              "value": "d2a7beda-5424-4d51-ae10-f37ca2f470c5",
+              "text": "MALAWI"
+            },
+            {
+              "value": "18ea95db-04a0-4564-a871-2d89bf9b6bd5",
+              "text": "MALAYSIA"
+            },
+            {
+              "value": "96304e76-87c2-4ea2-979d-d1dd0a3a8e09",
+              "text": "MALDIVES"
+            },
+            {
+              "value": "5e7032d6-4a29-412a-b1f0-6a88556862be",
+              "text": "MALI"
+            },
+            {
+              "value": "71757f61-a945-4ab0-bccd-3eba9e29ce9b",
+              "text": "MALTA"
+            },
+            {
+              "value": "16826ffe-2e3e-4e26-89a5-2b18b17b61ab",
+              "text": "MARSHALL ISLANDS"
+            },
+            {
+              "value": "b42a1a3a-0b9d-4aea-b586-0d1174ee186b",
+              "text": "MARTINIQUE"
+            },
+            {
+              "value": "b5ec75db-b92d-4b7e-ad2b-d97d132d00cb",
+              "text": "MAURITANIA"
+            },
+            {
+              "value": "a8c9190a-f11a-42f6-914e-32907a9b8c50",
+              "text": "MAURITIUS"
+            },
+            {
+              "value": "89b96bc1-e4ee-433c-953a-d5c5316ad3d8",
+              "text": "MEXICO"
+            },
+            {
+              "value": "a44b74e8-c562-4890-bc31-41aa2dc81bad",
+              "text": "MICRONESIA"
+            },
+            {
+              "value": "e8548c39-a894-4283-8792-1c54b601bd13",
+              "text": "MOLDOVA REPUBLIC"
+            },
+            {
+              "value": "c17c385d-793f-42bf-be59-dd910d88e345",
+              "text": "MONACO"
+            },
+            {
+              "value": "c9464187-3364-4455-9637-a4801beb1293",
+              "text": "MONGOLIA"
+            },
+            {
+              "value": "b12556a9-7ee3-43b8-8630-7b99643d2419",
+              "text": "MONTENEGRO"
+            },
+            {
+              "value": "c3243433-9264-4e49-964b-478fa69ca1b2",
+              "text": "MONTSERRAT"
+            },
+            {
+              "value": "ae28d967-9143-4a3c-88c9-32ecda8a5f14",
+              "text": "MOROCCO"
+            },
+            {
+              "value": "aa50af6e-ffda-421a-8b07-bbd8376ffcbe",
+              "text": "MOZAMBIQUE"
+            },
+            {
+              "value": "63419316-d037-4edc-ab35-d3bd8da1487c",
+              "text": "MYANMAR"
+            },
+            {
+              "value": "bb48769c-3071-42bb-813e-645f18b1ff0b",
+              "text": "NAMIBIA"
+            },
+            {
+              "value": "6039f928-3802-4d23-a715-694f48fcbce3",
+              "text": "NAURU"
+            },
+            {
+              "value": "8da9858f-bdf2-4b6b-9429-238ebec039dd",
+              "text": "NEPAL"
+            },
+            {
+              "value": "220ac96a-b9c9-4f77-8711-677004adaee2",
+              "text": "NETHERLANDS"
+            },
+            {
+              "value": "58a3d993-cd92-43d7-a52d-696b5080d8aa",
+              "text": "NETHERLANDSE ANTILLES"
+            },
+            {
+              "value": "79270a70-6cd0-44a6-9166-7db6d90c976a",
+              "text": "NEW CALEDONIA"
+            },
+            {
+              "value": "ef268b73-8b9e-478f-a459-32058e33b1f3",
+              "text": "NEW ZEALAND"
+            },
+            {
+              "value": "6206cd29-800f-46b1-8a8d-a8cd70123281",
+              "text": "NICARAGUA"
+            },
+            {
+              "value": "edc16d7a-71ac-45ac-8e22-315f2ec89d96",
+              "text": "NIGER"
+            },
+            {
+              "value": "bf74cbb8-d1b6-4c04-8b55-b35b1c1a3c36",
+              "text": "NIGERIA"
+            },
+            {
+              "value": "934a5a5c-96a6-4869-bf21-91efc2bc2de9",
+              "text": "NORTH KOREA"
+            },
+            {
+              "value": "f565a323-3bae-4dcb-b32e-95c6f1819c0f",
+              "text": "North Macedonia"
+            },
+            {
+              "value": "f322b0c9-61a5-4ee8-9cdb-f046a5245e6b",
+              "text": "NORWAY"
+            },
+            {
+              "value": "6aa75c1b-e7eb-43f8-88d7-1f0ad5764b43",
+              "text": "OMAN"
+            },
+            {
+              "value": "d6adb2da-a3d0-4143-bcc5-1651b0671851",
+              "text": "PAKISTAN"
+            },
+            {
+              "value": "90782348-c645-4400-84cb-2c4307e2d374",
+              "text": "PALAU"
+            },
+            {
+              "value": "e7b5ec63-4203-4668-a377-dd2b526682df",
+              "text": "PALESTINE"
+            },
+            {
+              "value": "ec76dc7f-faca-4bfd-b76d-3de68e0cf280",
+              "text": "PANAMA"
+            },
+            {
+              "value": "275b19e4-50a1-41c7-b6d8-cfbbdb03d046",
+              "text": "PAPUA NEW GUINEA"
+            },
+            {
+              "value": "e58d82e1-a65c-410a-ac8a-866c6f25da9f",
+              "text": "PARAGUAY"
+            },
+            {
+              "value": "50ebf46b-2f8e-4345-bc0c-461857b06847",
+              "text": "PEOPLE'S DEMOCRATIC REPUBLIC OF LAOS"
+            },
+            {
+              "value": "e5f942ed-23fd-4f2d-a5d4-97399753ec08",
+              "text": "PERU"
+            },
+            {
+              "value": "8db55c27-d5c2-4cf7-bbaa-6db35fe3863d",
+              "text": "PHILIPPINES"
+            },
+            {
+              "value": "fae13c7a-c6cb-48ea-9eeb-b622022ace25",
+              "text": "PITCAIRN"
+            },
+            {
+              "value": "733b9eb2-8fea-49ab-9b7d-ba9d56ac0108",
+              "text": "POLAND"
+            },
+            {
+              "value": "56a88b66-0733-422d-b3cc-e04273ad84b6",
+              "text": "POLYNESIA FRENCH"
+            },
+            {
+              "value": "2fe14725-2c04-4c6a-963c-dcde840dcfd5",
+              "text": "PORTUGAL"
+            },
+            {
+              "value": "ff4c5ef0-b98c-4316-93a1-401d0e503d23",
+              "text": "QATAR"
+            },
+            {
+              "value": "4f322842-9fd6-4166-a48a-79a9a3d4f78e",
+              "text": "REFUGEES (CONVENTION ARTICLE 1, 1951)"
+            },
+            {
+              "value": "47a06713-9373-4392-8b9e-7c64866d6db6",
+              "text": "REFUGEES (NON CONVENTION ARTICLE 1, 1951)"
+            },
+            {
+              "value": "0e63775f-7370-4203-9ff4-8a7ce1b83da5",
+              "text": "REPUBLIC OF KOREA"
+            },
+            {
+              "value": "89ee80a3-b660-44cc-b09d-9e8b02df327c",
+              "text": "REPUBLIC OF SOUTH AFRICA"
+            },
+            {
+              "value": "cd630114-9710-49a8-a450-9eff8b9f7966",
+              "text": "ROMANIA"
+            },
+            {
+              "value": "c9927f33-3778-4955-a5ed-5be3fe3c2c86",
+              "text": "RUSSIA"
+            },
+            {
+              "value": "fb80a5a2-7da4-4684-9a08-ac9935a7687c",
+              "text": "RWANDA"
+            },
+            {
+              "value": "652bdc10-1147-4da7-b87d-0a2d87f456ff",
+              "text": "SAINT KITTS AND NEVIS"
+            },
+            {
+              "value": "b72c2f44-6a70-44cc-92c9-e14f791ed3a0",
+              "text": "SAINT LUCIA"
+            },
+            {
+              "value": "57c54eb4-4317-4873-b20f-9eca9db38461",
+              "text": "SAINT VINCENT AND GRENADINES"
+            },
+            {
+              "value": "1ff2297d-ca8a-41d0-8ed3-835773306c91",
+              "text": "SAMOA"
+            },
+            {
+              "value": "1bd460aa-a6f7-4517-b557-68c9a5c4b575",
+              "text": "SAN MARINO"
+            },
+            {
+              "value": "a6945046-ca8d-4df0-9d85-76605233e7cd",
+              "text": "SAO TOME AND PRINCIPE"
+            },
+            {
+              "value": "36cb6d47-cfd4-42a0-ac3d-398d76f932c3",
+              "text": "SAUDI ARABIA"
+            },
+            {
+              "value": "02b4584f-7c26-4b8f-8d07-7d79552045a7",
+              "text": "SENEGAL"
+            },
+            {
+              "value": "77514d20-e823-4134-9be1-663279285570",
+              "text": "SERBIA"
+            },
+            {
+              "value": "9a5bf6eb-bdd3-46ce-9298-325ee83c6e8a",
+              "text": "SEYCHELLES"
+            },
+            {
+              "value": "536c5bbc-9d92-4831-856f-0b4183866560",
+              "text": "SIERRA LEONE"
+            },
+            {
+              "value": "76f0332d-ff00-4e69-acda-73d153c6ce66",
+              "text": "SINGAPORE"
+            },
+            {
+              "value": "2c48b68b-5184-4d9f-9635-b4376855f832",
+              "text": "SLOVAKIA"
+            },
+            {
+              "value": "95c29f1b-464b-4985-b5f2-9589e977cd65",
+              "text": "SLOVENIA"
+            },
+            {
+              "value": "a6cc707d-cb28-4fff-aca0-8d7cb53e003b",
+              "text": "SOLOMON ISLANDS"
+            },
+            {
+              "value": "fad95e6e-f5ee-4645-996e-07b7221624dc",
+              "text": "SOMALIA"
+            },
+            {
+              "value": "4a72d20d-8764-4f24-a6c5-5733637e0947",
+              "text": "SOUTH SUDAN"
+            },
+            {
+              "value": "a7391e9c-7a1f-4184-bb40-b8d82b001643",
+              "text": "SPAIN"
+            },
+            {
+              "value": "c0d856c9-bac0-4566-aeb6-db30d16b611c",
+              "text": "SRI LANKA"
+            },
+            {
+              "value": "f5d95a4d-2857-44fe-a124-1c041aab463a",
+              "text": "SUDAN"
+            },
+            {
+              "value": "0697ba08-aea2-40cb-b54a-4dddf66cc568",
+              "text": "SURINAME"
+            },
+            {
+              "value": "aef055ad-cac8-4258-8ce5-fdf9215c408d",
+              "text": "SWAZILAND"
+            },
+            {
+              "value": "5285ce98-204f-42c7-9a8b-0ce793992540",
+              "text": "SWEDEN"
+            },
+            {
+              "value": "4b8a01ac-ebac-4157-ba96-52a42452b8fc",
+              "text": "SWITZERLAND"
+            },
+            {
+              "value": "a4c2a6b9-599e-4f32-a2cb-a7a8c419d3fd",
+              "text": "SYRIA"
+            },
+            {
+              "value": "cab7f051-6e1e-40e8-bc1d-304c7d718205",
+              "text": "TAIWAN"
+            },
+            {
+              "value": "4e06dd54-cb40-4689-ba37-d52ee18b6232",
+              "text": "TAJIKISTAN"
+            },
+            {
+              "value": "781d5b7f-8d72-4ab6-bb85-9d84c7002655",
+              "text": "TANZANIA"
+            },
+            {
+              "value": "568938de-3757-4038-ab10-9515de53dcde",
+              "text": "THAILAND"
+            },
+            {
+              "value": "92991bf5-3eb4-4bcd-a9cd-eb3791f61855",
+              "text": "TIMOR LESTE"
+            },
+            {
+              "value": "4472c324-c691-41ef-993f-1fdc68bdaeb4",
+              "text": "TOGO"
+            },
+            {
+              "value": "176b7997-cf5d-411c-a018-35cc462ff214",
+              "text": "TOKELAU"
+            },
+            {
+              "value": "5da97514-d2f2-49e2-8b3c-c2cd837076c9",
+              "text": "TONGA"
+            },
+            {
+              "value": "7052f57f-ed0f-4af7-a2bd-c56add55c58b",
+              "text": "TRINIDAD AND TOBAGO"
+            },
+            {
+              "value": "d43d13b8-c1f6-4b99-96fc-46f8566cf2f8",
+              "text": "TUNISIA"
+            },
+            {
+              "value": "ef010e72-e3d1-47af-81eb-c801725dfd56",
+              "text": "TURKIYE"
+            },
+            {
+              "value": "d86a010c-3d78-4e3c-a0a2-a8c28ba2faa5",
+              "text": "TURKMENISTAN"
+            },
+            {
+              "value": "0fe8945a-3d4b-4f2b-81be-50211982d6d6",
+              "text": "TUVALU"
+            },
+            {
+              "value": "77291ff1-eab3-4a48-b4f8-a554edb33c54",
+              "text": "UGANDA"
+            },
+            {
+              "value": "e01dfda0-5841-4395-8073-995bac33530c",
+              "text": "UKRAINE"
+            },
+            {
+              "value": "97ed438c-9faf-4f9c-a407-72e3718ca022",
+              "text": "UNITED ARAB EMIRATES"
+            },
+            {
+              "value": "94ce109e-b072-4229-9285-cf9cacc8fb2d",
+              "text": "UNITED KINGDOM - BRITISH CITIZEN"
+            },
+            {
+              "value": "c51ba964-c230-4826-a1d8-3cfad5bb0399",
+              "text": "UNITED KINGDOM - BRITISH INDIAN OCEAN TERRITORY"
+            },
+            {
+              "value": "ce4f1b79-54ee-4690-adcd-81c58eabb966",
+              "text": "UNITED KINGDOM - BRITISH NATIONALITY OVERSEAS"
+            },
+            {
+              "value": "87a991cb-73cb-4c99-b663-2ef257e2f6b1",
+              "text": "UNITED KINGDOM - BRITISH OVERSEAS CITIZEN"
+            },
+            {
+              "value": "96d8e937-6bd6-4ef8-a347-7d24854f5575",
+              "text": "UNITED KINGDOM - BRITISH OVERSEAS TERRITORIES CITIZEN"
+            },
+            {
+              "value": "47abd687-fcad-4d49-96ae-522a9d5fd67b",
+              "text": "UNITED KINGDOM - BRITISH PROTECTED PERSON"
+            },
+            {
+              "value": "864e7171-3d6c-4d8c-8b47-9137dee08ad1",
+              "text": "UNITED KINGDOM - BRITISH SUBJECT"
+            },
+            {
+              "value": "9b23d98e-5f93-47c0-bc86-7c01185dc7a7",
+              "text": "UNITED STATES OF AMERICA"
+            },
+            {
+              "value": "11c74c93-1660-4ada-afd2-32ba5c8531de",
+              "text": "UNSPECIFIED NATIONALITY"
+            },
+            {
+              "value": "2b5383fd-857a-4d13-9da2-6cc8817d94e4",
+              "text": "URUGUAY"
+            },
+            {
+              "value": "78743012-4d5f-499c-b1f7-87a30df735f9",
+              "text": "UZBEKISTAN"
+            },
+            {
+              "value": "402de03b-eba7-4fca-ab14-5a1c8efeeec7",
+              "text": "VANUATU"
+            },
+            {
+              "value": "41b2e501-26aa-4787-97fa-56af1e94b82c",
+              "text": "VENEZUELA"
+            },
+            {
+              "value": "e3838f92-2f1d-449c-b6b8-76b089027f0a",
+              "text": "VIETNAM"
+            },
+            {
+              "value": "60bef538-a6cd-4a75-9187-b74d247bcfec",
+              "text": "VIRGIN ISLANDS (UNITED STATES OF AMERICA)"
+            },
+            {
+              "value": "2781ca6c-143b-4a52-8dcc-89c7dc398147",
+              "text": "VIRGINS ISLANDS (UNITED KINGDOM)"
+            },
+            {
+              "value": "b805f46e-31a9-4ba7-8e87-c093af0b2ba0",
+              "text": "WITHOUT CITIZENSHIP (STATELESS, TH 1954 CONVENTION ARTICLE 1)"
+            },
+            {
+              "value": "e8324fd1-9cee-4772-97af-651408c0bab9",
+              "text": "YEMEN"
+            },
+            {
+              "value": "16543ea3-11bd-4551-9d9e-44abbec77c25",
+              "text": "ZAMBIA"
+            },
+            {
+              "value": "e0ea4fa1-498e-4d95-89eb-24415907dcab",
+              "text": "ZIMBABWE"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "release_date",
+          "name": "release_date",
+          "required": true,
+          "label": "(placeholder) DD/MM/YYY",
+          "placeholder": "DD/MM/YYY",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "expired_date",
+          "name": "expired_date",
+          "required": true,
+          "label": "(placeholder) DD/MM/YYY",
+          "placeholder": "DD/MM/YYY",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "release_place",
+          "name": "release_place",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "username",
+          "name": "_username",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "confirm_email",
+          "name": "confirm_email",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "password",
+          "id": "password",
+          "name": "_password",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "password",
+          "id": "confirm_password",
+          "name": "_confirm_password",
+          "required": true,
+          "visible": true
+        }
+      ],
+      "submits": [
+        {
+          "text": "Upload"
+        },
+        {
+          "name": "send",
+          "text": "Submit"
+        },
+        {
+          "text": "Back"
+        }
+      ],
+      "fieldsetLegends": [
+        "Create Account"
+      ],
+      "stoppedAtTerminal": true,
+      "capturedAt": "2026-04-28T06:52:29.611Z"
+    },
+    {
+      "pageIndex": 4,
+      "url": "https://evisa.imigrasi.go.id/front/register/guarantor-register",
+      "title": "The Official Indonesian e-Visa Website | Register",
+      "heading": "",
+      "fields": [
+        {
+          "tag": "input",
+          "type": "hidden",
+          "name": "csrf_token",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "locale",
+          "name": "locale",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "NO_IDENTITAS",
+          "name": "NO_IDENTITAS",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "NO_PENJAMIN",
+          "name": "NO_PENJAMIN",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "PENJAMIN_ID",
+          "name": "PENJAMIN_ID",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "PERUSAHAAN_SIUP",
+          "name": "PERUSAHAAN_SIUP",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "TANGGAL_REGISTRASI",
+          "name": "TANGGAL_REGISTRASI",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "TEMPAT_DIKELUARKAN_IDENTITAS",
+          "name": "TEMPAT_DIKELUARKAN_IDENTITAS",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "TGL_BERAKHIR_IDENTITAS",
+          "name": "TGL_BERAKHIR_IDENTITAS",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "TGL_DIKELUARKAN_IDENTITAS",
+          "name": "TGL_DIKELUARKAN_IDENTITAS",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "AHU_ID",
+          "name": "AHU_ID",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "path_photo",
+          "name": "path_photo",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "initial_file",
+          "name": "initial_file",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "cqParam",
+          "name": "is_manual",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "username",
+          "name": "_username",
+          "required": true,
+          "label": "(placeholder) Username Visa Online",
+          "placeholder": "Username Visa Online",
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "email",
+          "id": "username_manual",
+          "name": "_username_manual",
+          "required": true,
+          "label": "(placeholder) Enter a valid email",
+          "placeholder": "Enter a valid email",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "password",
+          "id": "password",
+          "name": "_password",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "email",
+          "name": "email",
+          "required": true,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "institunion_name",
+          "name": "institunion_name",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "select",
+          "id": "agencyTypeId",
+          "name": "agencyType",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "43c2a963-f1fa-4e54-8475-3750042317c3",
+              "text": "LEMBAGA PENDIDIKAN"
+            },
+            {
+              "value": "31209f7e-859f-4522-be52-48f29e64f3a2",
+              "text": "LEMBAGA KEAGAMAAN"
+            },
+            {
+              "value": "3559d82e-f79e-45bd-b5a7-157a4a099cda",
+              "text": "ORGANISASI INTERNASIONAL"
+            },
+            {
+              "value": "c4b453ff-eef8-4a22-82f8-8d4912170b21",
+              "text": "PERWAKILAN NEGARA ASING"
+            },
+            {
+              "value": "adbe7223-af84-431a-b7fc-592078564ec7",
+              "text": "KEMENTERIAN"
+            },
+            {
+              "value": "8ab9efae-2dba-4b12-91a8-d2b72e06458f",
+              "text": "LEMBAGA NEGARA"
+            },
+            {
+              "value": "a952ea82-f197-4d19-8bc5-828daba72904",
+              "text": "BADAN USAHA MILIK NEGARA"
+            },
+            {
+              "value": "160a3195-5652-40f2-81a5-aa265e0888b6",
+              "text": "BADAN USAHA MILIK SWASTA"
+            },
+            {
+              "value": "983ead7d-d7f3-49d3-8c4f-6fc033f13f46",
+              "text": "PT"
+            },
+            {
+              "value": "ec754010-81f1-4b44-a371-dc177a862a52",
+              "text": "CV"
+            },
+            {
+              "value": "dda4f56a-47e8-4e2f-8b87-6dfc837f0a52",
+              "text": "UD"
+            },
+            {
+              "value": "c73dc438-462b-427b-bd2a-dab0a8a55a22",
+              "text": "FIRMA"
+            },
+            {
+              "value": "30585e87-cfbe-4439-9a12-9976bf979608",
+              "text": "YAYASAN"
+            },
+            {
+              "value": "fb4ade60-3635-4ad6-8391-81011f46537f",
+              "text": "KOPERASI"
+            },
+            {
+              "value": "94242ae9-3db8-41ae-b3f2-7ad53b92c0f3",
+              "text": "LEMBAGA TINGGI NEGARA"
+            },
+            {
+              "value": "badc04f6-007b-45f6-9272-d23fa81cdd4b",
+              "text": "LEMBAGA NEGARA"
+            },
+            {
+              "value": "b4177b78-2d95-4f9f-885e-89fe32dbe216",
+              "text": "PERWAKINAL NEGARA & KAMAR DAGANG"
+            },
+            {
+              "value": "35807641-0cf0-4ea3-a751-817107acda4d",
+              "text": "LEMBAGA NON STRUKTURAL"
+            },
+            {
+              "value": "13de00c8-277d-4e0b-a11f-c31e854f9427",
+              "text": "LEMBAGA STRUKTURAL DI BAWAH KEMENTERIAN"
+            },
+            {
+              "value": "05b16a58-10cd-4af6-b52a-30ad56225eed",
+              "text": "LEMBAGA DAERAH"
+            },
+            {
+              "value": "98b65c0b-85bf-458d-b325-82c1bbc3fe15",
+              "text": "LEMBAGA PEMERNTAHAN LAINNYA"
+            },
+            {
+              "value": "eaa34e81-f8c4-4650-b315-73c6be10a436",
+              "text": "LEMBAGA INTERNATIONAL NON PEMERINTAH"
+            },
+            {
+              "value": "d8392848-2a85-438f-be41-794594855936",
+              "text": "KORPORASI MULTINATIONAL"
+            },
+            {
+              "value": "d7e2cc5b-3ddd-4732-a124-2ff09f06800d",
+              "text": "ORGANISASI NON PROFIT"
+            },
+            {
+              "value": "6ad72ee6-3910-4255-a2e1-11afdcc3a0d7",
+              "text": "ORGANISASI INTERNASIONAL LAINNYA"
+            },
+            {
+              "value": "823e4be1-d072-4ffa-a224-2e23eb59dae2",
+              "text": "INDUSTRI ENERGI, MINYAK, & GAS"
+            },
+            {
+              "value": "97601f16-ff0f-4089-9f4b-b47e672b61e5",
+              "text": "INDUSTRI MINERAL & BATU BARA"
+            },
+            {
+              "value": "35b14bfc-bb6c-4f54-9f54-cb45195b1e50",
+              "text": "INDUSTRI PERKEBUNAN DAN KEHUTANAN"
+            },
+            {
+              "value": "495f9cb6-626d-47ed-881b-a43b0d176cc3",
+              "text": "INDUSTRI PANGAN DAN PUPUK"
+            },
+            {
+              "value": "6fd94c06-2e0a-490e-a4cc-80370ce079be",
+              "text": "INDUSTRI KESEHATAN"
+            },
+            {
+              "value": "1321ef05-fa77-41eb-8fa3-442498e5333f",
+              "text": "INDUSTRI MANUFAKTUR"
+            },
+            {
+              "value": "bdc3f29c-9157-449b-be58-0cb2f0a867a7",
+              "text": "JASA KEUANGAN"
+            },
+            {
+              "value": "0d9e3821-52db-41a2-b43d-cc74e7ba6bc5",
+              "text": "JASA ASURANSI DAN DANA PENSIUN"
+            },
+            {
+              "value": "9545a572-ecdc-498b-81d0-9e406f1800de",
+              "text": "JASA TELEKOMUNIKASI DAN MEDIA"
+            },
+            {
+              "value": "8fe9ff82-caa4-45c7-9d05-837c0b326b3d",
+              "text": "JASA INFRASTRUKTUR"
+            },
+            {
+              "value": "60987c95-0c80-4a9f-b508-32badbc054f0",
+              "text": "JASA LOGISTIK"
+            },
+            {
+              "value": "e3e42229-56f4-4d1b-9df7-148cfe325fec",
+              "text": "JASA PARIWISATA DAN PENDUKUNG"
+            },
+            {
+              "value": "c36560cc-fd8f-45fc-9d57-78ef19cbe6c3",
+              "text": "BUMN LAINNYA"
+            },
+            {
+              "value": "4dfc2fc4-b72b-434f-ac70-c38327af4df9",
+              "text": "PERUSAHAAN PERSEORANGAN"
+            },
+            {
+              "value": "ed983450-b162-432f-86e0-a6c0e3c50909",
+              "text": "PERSEKUTUAN"
+            },
+            {
+              "value": "a0c75af2-2121-49df-9a5f-270f0538d834",
+              "text": "BADAN USAHA SWASTA ASING"
+            },
+            {
+              "value": "5cb2d4e8-8220-4b7b-9180-747a42a9d2dc",
+              "text": "PERUSAHAAN SWASTA LAINNYA"
+            },
+            {
+              "value": "0732f679-6e36-4db1-ab48-c38ce16e88ce",
+              "text": "LEMBAGA PENDIDIKAN FORMAL"
+            },
+            {
+              "value": "c1cb4065-f62b-4d13-a398-93fd0026aaad",
+              "text": "LEMBAGA PENDIDIKAN NON FORMAL"
+            },
+            {
+              "value": "cbf8fcaa-4a37-49dc-a596-4a4beafb9abc",
+              "text": "DOKTER SPESIALIS"
+            },
+            {
+              "value": "a7876077-593e-4a7c-a48f-d07e2476f56b",
+              "text": "KEMENTERIAN NEGARA"
+            },
+            {
+              "value": "7ebbc27b-96fc-4cd8-a98c-58b5a49c21b2",
+              "text": "ARSITEK"
+            },
+            {
+              "value": "b334c7ad-6220-4960-b011-884ed857010e",
+              "text": "DOKTER SUBSPESIALIS"
+            },
+            {
+              "value": "f39848c9-c297-4aa7-9369-134e8b1063d6",
+              "text": "PERWAKILAN NEGARA & KAMAR DAGANG (EMBASSY & CHAMBERS)"
+            },
+            {
+              "value": "037b398b-f330-485c-954d-224ec2650761",
+              "text": "LEMBAGA STRUKTURAL DI BAWAH KEMENTERIAN"
+            },
+            {
+              "value": "2802b00d-2bac-44e4-8c63-a1a8b19d8cbc",
+              "text": "KORPORASI MULTINASIONAL"
+            },
+            {
+              "value": "5a4c0f23-59fa-4502-afb4-13315e406124",
+              "text": "ORGANISASI NONPROFIT"
+            },
+            {
+              "value": "6cb30343-09b6-4e64-830d-79db4b307141",
+              "text": "PENANAMAN MODAL ASING"
+            },
+            {
+              "value": "6e724c47-b255-41a0-bc27-a3e0ac5d17ba",
+              "text": "PROFESSIONAL"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "select",
+          "id": "businessTypeId",
+          "name": "businessType",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "08705255-2fe0-4983-9cfb-02e492ad80a6",
+              "text": "BADAN USAHA MILIK NEGARA"
+            },
+            {
+              "value": "ebd6958c-de1f-4d4e-ba17-e718262955eb",
+              "text": "KOPERASI"
+            },
+            {
+              "value": "65b27c94-6ab8-40c1-ad72-70befbced50b",
+              "text": "BADAN USAHA MILIK SWASTA"
+            },
+            {
+              "value": "0099306e-b49d-4f60-b602-942ea5a741e4",
+              "text": "PERWAKILAN NEGARA ASING"
+            },
+            {
+              "value": "411cd7c7-df91-453e-9a2f-1fffbd134f65",
+              "text": "PENANAMAN MODAL ASING"
+            },
+            {
+              "value": "2fe1f196-6dbe-4b51-a0e7-4fd1e750d08b",
+              "text": "YAYASAN"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "select",
+          "id": "agencySectorId",
+          "name": "agencySector",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "f2a224a5-3410-442f-a0d5-5f28b4a33561",
+              "text": "PERDAGANGAN BESAR DAN ECERAN; REPARASI DAN PERAWAT"
+            },
+            {
+              "value": "6ab1ca4e-28e0-44ba-9340-09ba8f60ef65",
+              "text": "PENANAMAN MODAL ASING"
+            },
+            {
+              "value": "97673dda-b4a6-4824-9621-1b38877f6dd5",
+              "text": "PERINDUSTRIAN"
+            },
+            {
+              "value": "ecac2acf-ca34-4434-9e61-3d5b9938c91d",
+              "text": "PERTAMBANGAN DAN PENGGALIAN"
+            },
+            {
+              "value": "4194455c-b1c9-45dd-8ca7-ee4013e72d17",
+              "text": "PERTANIAN"
+            },
+            {
+              "value": "410fc53e-a775-48a0-9b14-d36fae8f0428",
+              "text": "AKTIVITAS JASA LAINNYA"
+            }
+          ],
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "no_telepon",
+          "name": "no_telepon",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "npwp",
+          "name": "npwp",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "NO_NIB",
+          "name": "NO_NIB",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "textarea",
+          "type": "text",
+          "id": "address",
+          "name": "address",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "no",
+          "name": "no",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "number",
+          "id": "rt",
+          "name": "rt",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "number",
+          "id": "rw",
+          "name": "rw",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "postal_code",
+          "name": "postal_code",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "province_id",
+          "name": "province_id",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "province_name",
+          "name": "province_name",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "city_id",
+          "name": "city_id",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "city_name",
+          "name": "city_name",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "district_id",
+          "name": "district_id",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "district_name",
+          "name": "district_name",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "hidden",
+          "id": "village_id",
+          "name": "village_id",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "village_name",
+          "name": "village_name",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "full_name",
+          "name": "full_name",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "radio",
+          "id": "inlineRadio1",
+          "name": "gender",
+          "required": false,
+          "label": "MALE",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "radio",
+          "id": "inlineRadio2",
+          "name": "gender",
+          "required": false,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "birth_place",
+          "name": "birth_place",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "birthday",
+          "name": "birthday",
+          "required": false,
+          "label": "(placeholder) DD/MM/YYY",
+          "placeholder": "DD/MM/YYY",
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "position",
+          "name": "position",
+          "required": true,
+          "visible": true
+        },
+        {
+          "tag": "select",
+          "id": "nationality_id",
+          "name": "nationality_id",
+          "required": false,
+          "options": [
+            {
+              "value": "",
+              "text": "--- Choose ---"
+            },
+            {
+              "value": "220ac96a-b9c9-4f77-8711-677004adaee2",
+              "text": "BELANDA"
+            },
+            {
+              "value": "2d7c66c1-9341-459c-83a8-8138766b133c",
+              "text": "JERMAN"
+            },
+            {
+              "value": "f51f4255-1b0b-4a1b-be01-4bc82909c33e",
+              "text": "INDIA"
+            },
+            {
+              "value": "1beaa902-fae3-4733-984d-437375211a3d",
+              "text": "JEPANG"
+            },
+            {
+              "value": "d6adb2da-a3d0-4143-bcc5-1651b0671851",
+              "text": "PAKISTAN"
+            },
+            {
+              "value": "23e8665d-2f2c-4841-acf6-6a2cac358ed4",
+              "text": "PRANCIS"
+            },
+            {
+              "value": "94ce109e-b072-4229-9285-cf9cacc8fb2d",
+              "text": "INGGRIS"
+            },
+            {
+              "value": "8da9858f-bdf2-4b6b-9429-238ebec039dd",
+              "text": "NEPAL"
+            },
+            {
+              "value": "9b23d98e-5f93-47c0-bc86-7c01185dc7a7",
+              "text": "AMERIKA SERIKAT"
+            },
+            {
+              "value": "cf4dfdbe-327b-4c9a-bd39-441a338cd276",
+              "text": "BRASIL"
+            },
+            {
+              "value": "5b697ae0-23cc-43ce-98e3-364246330e1b",
+              "text": "PULAU BOUVET"
+            },
+            {
+              "value": "ceef5a50-b212-4f03-b132-1db4fa3ee8d9",
+              "text": "LESOTHO"
+            },
+            {
+              "value": "8d54a9d9-237e-4a18-917b-b33e5103b743",
+              "text": "PERANCIS, METROPOLITAN"
+            },
+            {
+              "value": "d86a010c-3d78-4e3c-a0a2-a8c28ba2faa5",
+              "text": "TURKMENISTAN"
+            },
+            {
+              "value": "bd32bb8b-11fb-444d-9c8f-7d7d2e6f5def",
+              "text": "BURMA"
+            },
+            {
+              "value": "7a62e179-8538-48d3-bdc1-a5f5bae364a0",
+              "text": "KOSOVO"
+            },
+            {
+              "value": "429b84fc-7b41-4c6c-b89d-e2e7ca8da1b4",
+              "text": "YUGOSLAVIA"
+            },
+            {
+              "value": "0c72f1ee-2e31-4713-86ac-e079c0f994e7",
+              "text": "REPUBLIK AFRIKA TENGAH"
+            },
+            {
+              "value": "4472c324-c691-41ef-993f-1fdc68bdaeb4",
+              "text": "TOGO"
+            },
+            {
+              "value": "3ce47e85-2e38-471c-97a0-541fcc5ce706",
+              "text": "KEPULAUAN CAYMAN"
+            },
+            {
+              "value": "1cde8127-436e-43f1-ac28-429df4c44329",
+              "text": "ARUBA"
+            },
+            {
+              "value": "4a99e2db-66e7-4bb1-8f2a-8f616a466d71",
+              "text": "WALES"
+            },
+            {
+              "value": "0fc0a977-8120-4b88-90ef-d4a94c7824e1",
+              "text": "GUAM"
+            },
+            {
+              "value": "7238722f-5081-47e2-aa2b-0867b6d6a3ae",
+              "text": "KEPULAUAN FAROE"
+            },
+            {
+              "value": "e8db8ddf-218a-407d-8065-485693228e9e",
+              "text": "KIRIBATI"
+            },
+            {
+              "value": "6520d8be-25b0-4dfe-b3fa-188d5c2a67b7",
+              "text": "GREENLAND"
+            },
+            {
+              "value": "16543ea3-11bd-4551-9d9e-44abbec77c25",
+              "text": "ZAMBIA"
+            },
+            {
+              "value": "aef055ad-cac8-4258-8ce5-fdf9215c408d",
+              "text": "SWAZILAND / ESWATINI"
+            },
+            {
+              "value": "41d04ba0-6764-4b55-88ed-e1f776743128",
+              "text": "GAMBIA"
+            },
+            {
+              "value": "9fa54f15-c927-4b83-83fe-16b58db3db20",
+              "text": "GUADELOUPE"
+            },
+            {
+              "value": "1f034dab-d396-441e-ba74-ed511c0dc93f",
+              "text": "WALLIS DAN FUTUNA"
+            },
+            {
+              "value": "8e5508a3-0173-4be4-bdc8-23986b9179d7",
+              "text": "SIPRUS"
+            },
+            {
+              "value": "97ed438c-9faf-4f9c-a407-72e3718ca022",
+              "text": "UNI EMIRAT ARAB"
+            },
+            {
+              "value": "ca2e8749-8c9c-48ea-8dbe-1d3733ffaf70",
+              "text": "MAKEDONIA"
+            },
+            {
+              "value": "1fee433d-5093-4752-bd18-019be82ebcae",
+              "text": "HONDURAS"
+            },
+            {
+              "value": "58a3d993-cd92-43d7-a52d-696b5080d8aa",
+              "text": "ANTILLES BELANDA"
+            },
+            {
+              "value": "6906664e-9925-4ffb-bf88-567e8bf19113",
+              "text": "KEPULAUAN FALKLAND (MALVINAS)"
+            },
+            {
+              "value": "0df2afd4-1945-40c3-a3bb-bcc1fa8ab081",
+              "text": "REPUBLIK DOMINIKA"
+            },
+            {
+              "value": "934a5a5c-96a6-4869-bf21-91efc2bc2de9",
+              "text": "KOREA UTARA"
+            },
+            {
+              "value": "60bef538-a6cd-4a75-9187-b74d247bcfec",
+              "text": "KEPULAUAN VIRGIN (AMERIKA SERIKAT)"
+            },
+            {
+              "value": "50425995-e990-47c5-8e5e-882840ef2b7a",
+              "text": "BERMUDA"
+            },
+            {
+              "value": "99708d27-88de-4160-912d-25dc316183e5",
+              "text": "PUERTO RIKO"
+            },
+            {
+              "value": "56a88b66-0733-422d-b3cc-e04273ad84b6",
+              "text": "POLYNESIA PERANCIS"
+            },
+            {
+              "value": "e9ab2043-0c97-4c52-b103-8118861898d0",
+              "text": "ERITREA"
+            },
+            {
+              "value": "6206cd29-800f-46b1-8a8d-a8cd70123281",
+              "text": "NIKARAGUA"
+            },
+            {
+              "value": "46283cb1-d406-47c1-86fd-8c308ffa173a",
+              "text": "AUSTRALIA"
+            },
+            {
+              "value": "883891b6-1c3f-41c3-9279-4745f63575cb",
+              "text": "CHINA"
+            },
+            {
+              "value": "0fe8945a-3d4b-4f2b-81be-50211982d6d6",
+              "text": "TUVALU"
+            },
+            {
+              "value": "87a991cb-73cb-4c99-b663-2ef257e2f6b1",
+              "text": "BRITISH OVERSEAS CITIZEN"
+            },
+            {
+              "value": "88a03b34-1b9e-4bd6-ba7b-2a7bd8838c24",
+              "text": "BENIN"
+            },
+            {
+              "value": "b5ec75db-b92d-4b7e-ad2b-d97d132d00cb",
+              "text": "MAURITANIA"
+            },
+            {
+              "value": "be931b45-a1b3-45ad-a4ae-9f24dbc0d5d0",
+              "text": "SAHARA BARAT"
+            },
+            {
+              "value": "4579581c-68de-41c6-bd7b-e68a90db20d4",
+              "text": "KEPULAUAN COCOS (KEELING)"
+            },
+            {
+              "value": "5da97514-d2f2-49e2-8b3c-c2cd837076c9",
+              "text": "TONGA"
+            },
+            {
+              "value": "a597c0ff-d9ed-4f3c-8031-6e2cef2adb46",
+              "text": "SAINT HELENA"
+            },
+            {
+              "value": "0e63775f-7370-4203-9ff4-8a7ce1b83da5",
+              "text": "KOREA SELATAN"
+            },
+            {
+              "value": "e01dfda0-5841-4395-8073-995bac33530c",
+              "text": "UKRAINA"
+            },
+            {
+              "value": "18ea95db-04a0-4564-a871-2d89bf9b6bd5",
+              "text": "MALAYSIA"
+            },
+            {
+              "value": "652d4cc5-c90a-44d0-866e-94167c3dbd3b",
+              "text": "JAMAICA"
+            },
+            {
+              "value": "c0d856c9-bac0-4566-aeb6-db30d16b611c",
+              "text": "SRI LANKA"
+            },
+            {
+              "value": "d2a7beda-5424-4d51-ae10-f37ca2f470c5",
+              "text": "MALAWI"
+            },
+            {
+              "value": "e3838f92-2f1d-449c-b6b8-76b089027f0a",
+              "text": "VIETNAM"
+            },
+            {
+              "value": "78743012-4d5f-499c-b1f7-87a30df735f9",
+              "text": "UZBEKISTAN"
+            },
+            {
+              "value": "63ad0853-32f7-444a-94d3-1db1515f6411",
+              "text": "MACAO SAR"
+            },
+            {
+              "value": "6214e7cd-b344-4698-ae88-d32b80cc26f3",
+              "text": "KIRGIZSTAN"
+            },
+            {
+              "value": "e7bcd2e1-fb4b-4748-8fce-b2d0e3b3827c",
+              "text": "ARMENIA"
+            },
+            {
+              "value": "f0127376-b8cc-49b6-ba94-90137d5c9912",
+              "text": "LITUANIA"
+            },
+            {
+              "value": "a14de768-1e37-4d93-8def-352266de349a",
+              "text": "BANGLADESH"
+            },
+            {
+              "value": "733b9eb2-8fea-49ab-9b7d-ba9d56ac0108",
+              "text": "POLANDIA"
+            },
+            {
+              "value": "96304e76-87c2-4ea2-979d-d1dd0a3a8e09",
+              "text": "MALADEWA"
+            },
+            {
+              "value": "6aa75c1b-e7eb-43f8-88d7-1f0ad5764b43",
+              "text": "OMAN"
+            },
+            {
+              "value": "79c7ec19-d69c-48f4-9cbc-96110e24667d",
+              "text": "DJIBOUTI"
+            },
+            {
+              "value": "4f68af57-24fc-4da3-9524-5a344f7ade7d",
+              "text": "KAZAKHSTAN"
+            },
+            {
+              "value": "1ff2297d-ca8a-41d0-8ed3-835773306c91",
+              "text": "SAMOA"
+            },
+            {
+              "value": "c9464187-3364-4455-9637-a4801beb1293",
+              "text": "MONGOLIA"
+            },
+            {
+              "value": "ee9a47a3-c229-4384-a00e-c5d3132a2b6a",
+              "text": "ALGERIA"
+            },
+            {
+              "value": "0697ba08-aea2-40cb-b54a-4dddf66cc568",
+              "text": "SURINAME"
+            },
+            {
+              "value": "43f85fba-b363-4c2e-aa27-83fb1a9da94c",
+              "text": "IRELAND"
+            },
+            {
+              "value": "a11144b1-8228-42d5-8242-a0f529c0de10",
+              "text": "AZERBAIJAN"
+            },
+            {
+              "value": "7052f57f-ed0f-4af7-a2bd-c56add55c58b",
+              "text": "TRINIDAD DAN TOBAGO"
+            },
+            {
+              "value": "d16f1de8-e959-4569-89ab-0e165456eeb0",
+              "text": "COSTA RICA"
+            },
+            {
+              "value": "5285ce98-204f-42c7-9a8b-0ce793992540",
+              "text": "SWEDIA"
+            },
+            {
+              "value": "009337db-a9ad-43af-b823-c95aca6798b9",
+              "text": "KENYA"
+            },
+            {
+              "value": "f322b0c9-61a5-4ee8-9cdb-f046a5245e6b",
+              "text": "NORWEGIA"
+            },
+            {
+              "value": "20246314-d590-47d9-9f86-59b0740185b0",
+              "text": "HEARD DAN KEPULAUAN MCDONALD"
+            },
+            {
+              "value": "7d9c632d-106a-40b5-b4de-d46572bdb18e",
+              "text": "ANGUILLA"
+            },
+            {
+              "value": "2781ca6c-143b-4a52-8dcc-89c7dc398147",
+              "text": "KEPULAUAN VIRGIN (INGGRIS)"
+            },
+            {
+              "value": "6039f928-3802-4d23-a715-694f48fcbce3",
+              "text": "NAURU"
+            },
+            {
+              "value": "25d567a3-7a4e-4248-9800-647028da9b71",
+              "text": "DENMARK"
+            },
+            {
+              "value": "568938de-3757-4038-ab10-9515de53dcde",
+              "text": "THAILAND"
+            },
+            {
+              "value": "727e690b-fc21-4b8a-b17f-1de1616433b7",
+              "text": "AUSTRIA"
+            },
+            {
+              "value": "8db55c27-d5c2-4cf7-bbaa-6db35fe3863d",
+              "text": "FILIPINA"
+            },
+            {
+              "value": "52006b57-7b02-4902-b55d-0dadc577b75c",
+              "text": "FINLANDIA"
+            },
+            {
+              "value": "ef010e72-e3d1-47af-81eb-c801725dfd56",
+              "text": "TURKI"
+            },
+            {
+              "value": "477fc793-7ad7-4955-af53-09d9ffd197b8",
+              "text": "LEBANON"
+            },
+            {
+              "value": "c9927f33-3778-4955-a5ed-5be3fe3c2c86",
+              "text": "RUSIA"
+            },
+            {
+              "value": "89b96bc1-e4ee-433c-953a-d5c5316ad3d8",
+              "text": "MEKSIKO"
+            },
+            {
+              "value": "7a0eaa53-353b-4206-9299-1badcdb0fdf1",
+              "text": "ARGENTINA"
+            },
+            {
+              "value": "95c29f1b-464b-4985-b5f2-9589e977cd65",
+              "text": "SLOVENIA"
+            },
+            {
+              "value": "2c48b68b-5184-4d9f-9635-b4376855f832",
+              "text": "SLOWAKIA"
+            },
+            {
+              "value": "bf74cbb8-d1b6-4c04-8b55-b35b1c1a3c36",
+              "text": "NIGERIA"
+            },
+            {
+              "value": "89ee80a3-b660-44cc-b09d-9e8b02df327c",
+              "text": "AFRIKA SELATAN"
+            },
+            {
+              "value": "36cb6d47-cfd4-42a0-ac3d-398d76f932c3",
+              "text": "SAUDI ARABIA"
+            },
+            {
+              "value": "7345359f-4f82-4089-a153-acf32254b0a3",
+              "text": "BULGARIA"
+            },
+            {
+              "value": "4b8a01ac-ebac-4157-ba96-52a42452b8fc",
+              "text": "SWISS"
+            },
+            {
+              "value": "a24388f2-c0a5-4807-894c-de6823a79a3f",
+              "text": "ITALIA"
+            },
+            {
+              "value": "29a5479e-3e9a-4fe6-a4b2-705de1654fb7",
+              "text": "MESIR"
+            },
+            {
+              "value": "d43d13b8-c1f6-4b99-96fc-46f8566cf2f8",
+              "text": "TUNISIA"
+            },
+            {
+              "value": "cd630114-9710-49a8-a450-9eff8b9f7966",
+              "text": "RUMANIA"
+            },
+            {
+              "value": "5d2f2361-562a-4f59-84f7-a8dabb127add",
+              "text": "HONGARIA"
+            },
+            {
+              "value": "2fe14725-2c04-4c6a-963c-dcde840dcfd5",
+              "text": "PORTUGAL"
+            },
+            {
+              "value": "94629b00-f4c4-46bd-b263-cc7c53f8b9d9",
+              "text": "BELGIA"
+            },
+            {
+              "value": "4c108286-8eb9-48dc-9590-4a0a3cfe2b40",
+              "text": "JORDAN"
+            },
+            {
+              "value": "a7391e9c-7a1f-4184-bb40-b8d82b001643",
+              "text": "SPANYOL"
+            },
+            {
+              "value": "318736c7-f14f-4560-a65a-8c2304ea6805",
+              "text": "REPUBLIK CEKO"
+            },
+            {
+              "value": "ae28d967-9143-4a3c-88c9-32ecda8a5f14",
+              "text": "MAROKO"
+            },
+            {
+              "value": "448fa696-e0ca-4e5f-89cd-671f04d48c9f",
+              "text": "ESTONIA"
+            },
+            {
+              "value": "41b2e501-26aa-4787-97fa-56af1e94b82c",
+              "text": "VENEZUELA"
+            },
+            {
+              "value": "2ecd2c23-33ff-4624-80d3-900777e7801e",
+              "text": "HONG KONG SAR"
+            },
+            {
+              "value": "47db151f-ce3e-406d-b707-8fcdfd088a61",
+              "text": "KANADA"
+            },
+            {
+              "value": "ef268b73-8b9e-478f-a459-32058e33b1f3",
+              "text": "SELANDIA BARU"
+            },
+            {
+              "value": "402de03b-eba7-4fca-ab14-5a1c8efeeec7",
+              "text": "VANUATU"
+            },
+            {
+              "value": "bdc856ae-6948-4381-9648-8fc41bef7577",
+              "text": "BOLIVIA"
+            },
+            {
+              "value": "e04e1e50-e2a8-4b11-97c3-f0c8d759af9a",
+              "text": "GUINEA-BISSAU"
+            },
+            {
+              "value": "a0a10b9e-3157-4d65-84c3-e96bc8a99979",
+              "text": "ETHIOPIA"
+            },
+            {
+              "value": "81b28095-5fdf-4b43-964b-be7e6168ed3c",
+              "text": "Pengungsi Konvensi 1950"
+            },
+            {
+              "value": "13fdc3be-15a8-435f-a47a-885f8b687894",
+              "text": "PULAU NATAL"
+            },
+            {
+              "value": "011426bd-b1db-4675-8728-5fb9342771bb",
+              "text": "PULAU NORFOLK"
+            },
+            {
+              "value": "781d5b7f-8d72-4ab6-bb85-9d84c7002655",
+              "text": "TANZANIA"
+            },
+            {
+              "value": "22f9fd8e-f208-49c9-8afd-968066319f12",
+              "text": "MADAGASKAR"
+            },
+            {
+              "value": "77774317-99e1-43c3-ada2-62aaf1a22f81",
+              "text": "GUYANA"
+            },
+            {
+              "value": "bb81696b-27dd-4912-9102-85bc60a67177",
+              "text": "KEPULAUAN TURKS DAN CAICOS"
+            },
+            {
+              "value": "0c597abe-9cf2-4171-8449-06bcc928afd8",
+              "text": "CHILI"
+            },
+            {
+              "value": "76f0332d-ff00-4e69-acda-73d153c6ce66",
+              "text": "SINGAPURA"
+            },
+            {
+              "value": "dab42168-cd9e-4e6f-86ec-a1a773d34684",
+              "text": "ANTIGUA DAN BARBUDA"
+            },
+            {
+              "value": "033731b5-112f-49bc-a182-7b1429049dbf",
+              "text": "ESWATINI"
+            },
+            {
+              "value": "02054c21-3f67-4fe3-95bc-d20106985e49",
+              "text": "BARBADOS"
+            },
+            {
+              "value": "cab7f051-6e1e-40e8-bc1d-304c7d718205",
+              "text": "TAIWAN"
+            },
+            {
+              "value": "a93f74b3-fcc6-473c-89f9-0e7af7d7f6b6",
+              "text": "KROASIA"
+            },
+            {
+              "value": "0685586c-7e37-4aa1-8020-f4aa453e9472",
+              "text": "BAHAMAS"
+            },
+            {
+              "value": "f57b1c29-b107-402d-a33c-2198d61dee4a",
+              "text": "SAMOA AMERIKA"
+            },
+            {
+              "value": "f5d95a4d-2857-44fe-a124-1c041aab463a",
+              "text": "SUDAN"
+            },
+            {
+              "value": "83c3ceed-af1c-4b06-bb4a-0217712043c8",
+              "text": "BURKINA FASO"
+            },
+            {
+              "value": "b62eb44a-686b-4452-ae09-637e23feb251",
+              "text": "GUYANA PRANCIS"
+            },
+            {
+              "value": "46a942e1-e908-4a63-a144-19e20e957669",
+              "text": "NIUE"
+            },
+            {
+              "value": "47a06713-9373-4392-8b9e-7c64866d6db6",
+              "text": "PENGUNGSI (NON KONVENSI PASAL 1, 1951)"
+            },
+            {
+              "value": "b39d1b3e-6679-4d2f-900f-b4603102061a",
+              "text": "SKOTLANDIA"
+            },
+            {
+              "value": "a6945046-ca8d-4df0-9d85-76605233e7cd",
+              "text": "SAO TOME DAN PRINCIPE"
+            },
+            {
+              "value": "47aa18d9-ed29-4250-9206-6f0cdaec94ff",
+              "text": "YUNANI"
+            },
+            {
+              "value": "97dc8df9-6382-47c4-abcb-af92e0833ab3",
+              "text": "LIECHTENSTEIN"
+            },
+            {
+              "value": "3ecf1c2c-de95-4811-9e5e-4b03816a108a",
+              "text": "CAPE VERDE"
+            },
+            {
+              "value": "786af1a6-b5de-444a-ba86-cc7ce48409fc",
+              "text": "SVALBARD DAN JAN MAYEN"
+            },
+            {
+              "value": "38381f24-d8fb-42e4-ba80-f0b1451e5577",
+              "text": "GABON"
+            },
+            {
+              "value": "9a5bf6eb-bdd3-46ce-9298-325ee83c6e8a",
+              "text": "SEYCHELLES"
+            },
+            {
+              "value": "90782348-c645-4400-84cb-2c4307e2d374",
+              "text": "PALAU"
+            },
+            {
+              "value": "0159ccc8-a34c-4a6d-846f-510296a43536",
+              "text": "GUATEMALA"
+            },
+            {
+              "value": "7dc9c73c-4c60-4ebc-bd41-13010e8c2952",
+              "text": "PANTAI GADING"
+            },
+            {
+              "value": "22182b69-2d23-42b0-bd32-22e7e9c72b73",
+              "text": "GIBRALTAR"
+            },
+            {
+              "value": "77291ff1-eab3-4a48-b4f8-a554edb33c54",
+              "text": "UGANDA"
+            },
+            {
+              "value": "77514d20-e823-4134-9be1-663279285570",
+              "text": "SERBIA"
+            },
+            {
+              "value": "71757f61-a945-4ab0-bccd-3eba9e29ce9b",
+              "text": "MALTA"
+            },
+            {
+              "value": "f851c74a-b9dc-4d9d-a99c-65b6a69afe95",
+              "text": "GEORGIA"
+            },
+            {
+              "value": "7a84169e-16d0-4183-b3b5-bb0b7fc56c4a",
+              "text": "SERBIA AND MONTENEGRO"
+            },
+            {
+              "value": "e8324fd1-9cee-4772-97af-651408c0bab9",
+              "text": "YAMAN"
+            },
+            {
+              "value": "38f58fdc-179f-401e-838f-95796fe05a2e",
+              "text": "SAINT PIERRE DAN MIQUELON"
+            },
+            {
+              "value": "16826ffe-2e3e-4e26-89a5-2b18b17b61ab",
+              "text": "KEPULAUAN MARSHALL"
+            },
+            {
+              "value": "2cd8b0e4-f9a4-44f5-8014-23f1f03d3193",
+              "text": "ANGOLA"
+            },
+            {
+              "value": "79270a70-6cd0-44a6-9166-7db6d90c976a",
+              "text": "NEW CALODENIA"
+            },
+            {
+              "value": "67f91d7d-5166-44d3-b050-45fe4fa6bad7",
+              "text": "FIJI"
+            },
+            {
+              "value": "a6f469cc-61ca-4640-a200-350e33630a7a",
+              "text": "LIBYA"
+            },
+            {
+              "value": "23e7b6c9-9b41-41af-ac38-3edb6022521c",
+              "text": "INDONESIA"
+            },
+            {
+              "value": "a8c9190a-f11a-42f6-914e-32907a9b8c50",
+              "text": "MAURITIUS"
+            },
+            {
+              "value": "9ff91215-8e06-45b4-8f88-f7685d249358",
+              "text": "BELARUS"
+            },
+            {
+              "value": "c17c385d-793f-42bf-be59-dd910d88e345",
+              "text": "MONAKO"
+            },
+            {
+              "value": "66c0c992-6f20-4464-afa0-160e48985792",
+              "text": "IRAN"
+            },
+            {
+              "value": "652bdc10-1147-4da7-b87d-0a2d87f456ff",
+              "text": "SAINT KITTS DAN NEVIS"
+            },
+            {
+              "value": "92991bf5-3eb4-4bcd-a9cd-eb3791f61855",
+              "text": "TIMOR LESTE"
+            },
+            {
+              "value": "e7b5ec63-4203-4668-a377-dd2b526682df",
+              "text": "PALESTINA"
+            },
+            {
+              "value": "a8215fd8-2050-4bee-9183-019c904cf50c",
+              "text": "ZAIRE"
+            },
+            {
+              "value": "4f6e354a-ca46-49f3-b035-8188b2d1f6b6",
+              "text": "KUBA"
+            },
+            {
+              "value": "47abd687-fcad-4d49-96ae-522a9d5fd67b",
+              "text": "BRITISH PROTECTED PERSON"
+            },
+            {
+              "value": "176b7997-cf5d-411c-a018-35cc462ff214",
+              "text": "TOKELAU"
+            },
+            {
+              "value": "a4c2a6b9-599e-4f32-a2cb-a7a8c419d3fd",
+              "text": "SURIAH"
+            },
+            {
+              "value": "687653fc-236b-4bc8-baf8-88a81f17618a",
+              "text": "BRUNEI DARUSSALAM"
+            },
+            {
+              "value": "7fc48e74-1a09-4edd-9bca-d6622ea82b1e",
+              "text": "ANDORRA"
+            },
+            {
+              "value": "7d5d09ba-f7a2-4780-a730-ac5749aeae88",
+              "text": "REPUBLIK DEMOKRATIK KONGO"
+            },
+            {
+              "value": "5a81f29b-4024-4f87-b0a3-d3da43c3d27e",
+              "text": "KEPULAUAN MARIANA UTARA"
+            },
+            {
+              "value": "bb48769c-3071-42bb-813e-645f18b1ff0b",
+              "text": "NAMIBIA"
+            },
+            {
+              "value": "4a72d20d-8764-4f24-a6c5-5733637e0947",
+              "text": "SUDAN SELATAN"
+            },
+            {
+              "value": "4f322842-9fd6-4166-a48a-79a9a3d4f78e",
+              "text": "PENGUNGSI (KONVENSI PASAL 1, 1951)"
+            },
+            {
+              "value": "7935c889-4c4a-4545-9594-8b4929e5b1f3",
+              "text": "GEORGIA SELATAN DAN KEP. SANDWICH SELATAN"
+            },
+            {
+              "value": "cbe8fb4d-7ba4-4108-b379-0abf0b85569a",
+              "text": "HOLY SEE (VATIKAN CITY STATE)"
+            },
+            {
+              "value": "b805f46e-31a9-4ba7-8e87-c093af0b2ba0",
+              "text": "TANPA KEWARGANEGARAAN (STATELESS, KONVENSI TH 1954 PASAL 1)"
+            },
+            {
+              "value": "63419316-d037-4edc-ab35-d3bd8da1487c",
+              "text": "MYANMAR"
+            },
+            {
+              "value": "36830c33-a24a-4aa1-aaa2-2c3651ce787c",
+              "text": "AFGHANISTAN"
+            },
+            {
+              "value": "76578a13-3e64-41da-8d91-deef561311c2",
+              "text": "COLOMBIA"
+            },
+            {
+              "value": "11c74c93-1660-4ada-afd2-32ba5c8531de",
+              "text": "UNSPECIFIED NATIONALITY"
+            },
+            {
+              "value": "012e51a0-4e9c-4dfd-8438-b4cc375fb0ed",
+              "text": "GHANA"
+            },
+            {
+              "value": "ceffce84-14bb-42cc-b77b-a30830ae9add",
+              "text": "KEPULAUAN COOK"
+            },
+            {
+              "value": "70003abd-8f1e-4baa-b513-a406405c85bd",
+              "text": "EQUATORIAL GUINEA"
+            },
+            {
+              "value": "fae13c7a-c6cb-48ea-9eeb-b622022ace25",
+              "text": "PITCAIRN"
+            },
+            {
+              "value": "d106dd98-25c4-489d-ae37-a73bdf0b4b7d",
+              "text": "IRAK"
+            },
+            {
+              "value": "b42a1a3a-0b9d-4aea-b586-0d1174ee186b",
+              "text": "MARTINIQUE"
+            },
+            {
+              "value": "ac9f23a8-fd8e-4877-bab8-367ce26cbb06",
+              "text": "DOMINIKA"
+            },
+            {
+              "value": "df26b6b5-b957-44fc-8775-5a307aff676c",
+              "text": "ALBANIA"
+            },
+            {
+              "value": "fa943b74-22e9-4650-bccb-14b466bde722",
+              "text": "BOSNIA DAN HERZEGOVINA"
+            },
+            {
+              "value": "5cd3306f-e3de-4031-b1f4-fb5d07e4de70",
+              "text": "GUINEA"
+            },
+            {
+              "value": "e0ea4fa1-498e-4d95-89eb-24415907dcab",
+              "text": "ZIMBABWE"
+            },
+            {
+              "value": "50ebf46b-2f8e-4345-bc0c-461857b06847",
+              "text": "REPUBLIK DEMOKRATIK RAKYAT LAOS"
+            },
+            {
+              "value": "e6ff784e-9de7-44a8-9f67-2c3beecd2efc",
+              "text": "ISLANDIA"
+            },
+            {
+              "value": "b2ac4801-ca60-4fd1-9a09-9de023939a17",
+              "text": "LUXEMBURG"
+            },
+            {
+              "value": "ba523d0c-27b0-44c6-9bdf-96a84c6ca628",
+              "text": "Pengungsi Non Konvensi"
+            },
+            {
+              "value": "1bd460aa-a6f7-4517-b557-68c9a5c4b575",
+              "text": "SAN MARINO"
+            },
+            {
+              "value": "7be4b3a3-04c1-4a69-ad85-7cce8f53217f",
+              "text": "LIBERIA"
+            },
+            {
+              "value": "2b5383fd-857a-4d13-9da2-6cc8817d94e4",
+              "text": "URUGUAY"
+            },
+            {
+              "value": "af83f9ed-713c-4ae6-a588-c3c79fe58d44",
+              "text": "LATVIA"
+            },
+            {
+              "value": "fad95e6e-f5ee-4645-996e-07b7221624dc",
+              "text": "SOMALIA"
+            },
+            {
+              "value": "96d8e937-6bd6-4ef8-a347-7d24854f5575",
+              "text": "BRITISH OVERSEAS TERRITORIES CITIZEN"
+            },
+            {
+              "value": "fb641517-2f85-411a-9da4-c5c12ccd89d4",
+              "text": "ISRAEL"
+            },
+            {
+              "value": "f565a323-3bae-4dcb-b32e-95c6f1819c0f",
+              "text": "North Macedonia"
+            },
+            {
+              "value": "a6cc707d-cb28-4fff-aca0-8d7cb53e003b",
+              "text": "KEPULAUAN SOLOMON"
+            },
+            {
+              "value": "ff78c621-fa7f-467b-812c-9912e88ac430",
+              "text": "BURUNDI"
+            },
+            {
+              "value": "864e7171-3d6c-4d8c-8b47-9137dee08ad1",
+              "text": "BRITISH SUBJECT"
+            },
+            {
+              "value": "e5f942ed-23fd-4f2d-a5d4-97399753ec08",
+              "text": "PERU"
+            },
+            {
+              "value": "9d14a529-4116-449f-818f-538994ae14c8",
+              "text": "GRENADA"
+            },
+            {
+              "value": "edc16d7a-71ac-45ac-8e22-315f2ec89d96",
+              "text": "NIGER"
+            },
+            {
+              "value": "abbd5561-fde5-42e5-8237-382ab808ec8f",
+              "text": "CHAD"
+            },
+            {
+              "value": "f3373174-008f-4f5c-b902-e79763719c64",
+              "text": "BAHRAIN"
+            },
+            {
+              "value": "c7339e3d-cbe9-4893-af6f-0bdc4b6ebd26",
+              "text": "EKUADOR"
+            },
+            {
+              "value": "aa50af6e-ffda-421a-8b07-bbd8376ffcbe",
+              "text": "MOZAMBIK"
+            },
+            {
+              "value": "ff4c5ef0-b98c-4316-93a1-401d0e503d23",
+              "text": "QATAR"
+            },
+            {
+              "value": "26e58515-f688-4d12-b8b5-e9f430a280ca",
+              "text": "CZECHOSLOVAKIA"
+            },
+            {
+              "value": "41d426c7-b47f-4e73-a810-dc78bcaae82f",
+              "text": "KONGO"
+            },
+            {
+              "value": "a2a3f52c-8bcf-474a-bc16-d5ade2ecf2e9",
+              "text": "MAYOTTE"
+            },
+            {
+              "value": "536c5bbc-9d92-4831-856f-0b4183866560",
+              "text": "SIERRA LEONE"
+            },
+            {
+              "value": "c20c9d1a-3d42-48c1-8033-12a837058ba6",
+              "text": "EL SALVADOR"
+            },
+            {
+              "value": "ce4f1b79-54ee-4690-adcd-81c58eabb966",
+              "text": "BRITISH NATIONALITY OVERSEAS"
+            },
+            {
+              "value": "4528297b-9315-45f8-adf1-3a5f0b7e994f",
+              "text": "BHUTAN"
+            },
+            {
+              "value": "e8548c39-a894-4283-8792-1c54b601bd13",
+              "text": "REPUBLIK MOLDOVA"
+            },
+            {
+              "value": "5e7032d6-4a29-412a-b1f0-6a88556862be",
+              "text": "MALI"
+            },
+            {
+              "value": "e350c59c-5236-4207-8ef9-88e4aebeda9d",
+              "text": "KOMORO"
+            },
+            {
+              "value": "57c54eb4-4317-4873-b20f-9eca9db38461",
+              "text": "SAINT VINCENT DAN GRENADINES"
+            },
+            {
+              "value": "275b19e4-50a1-41c7-b6d8-cfbbdb03d046",
+              "text": "PAPUA NUGINI"
+            },
+            {
+              "value": "bf451e21-6009-4dcf-afa0-f7d9f4f03bbc",
+              "text": "ANTARTIKA"
+            },
+            {
+              "value": "e58d82e1-a65c-410a-ac8a-866c6f25da9f",
+              "text": "PARAGUAY"
+            },
+            {
+              "value": "a44b74e8-c562-4890-bc31-41aa2dc81bad",
+              "text": "MIKRONESIA, NEGARA FEDERASI"
+            },
+            {
+              "value": "3f387ed5-13e6-42b8-ba77-84f281d995f7",
+              "text": "KAMBOJA"
+            },
+            {
+              "value": "ec76dc7f-faca-4bfd-b76d-3de68e0cf280",
+              "text": "PANAMA"
+            },
+            {
+              "value": "fb80a5a2-7da4-4684-9a08-ac9935a7687c",
+              "text": "RWANDA"
+            },
+            {
+              "value": "f98613a2-3816-4af6-8d27-e7edc2e67366",
+              "text": "BOTSWANA"
+            },
+            {
+              "value": "6d8dc2ec-dbc0-4416-a3e1-553935ee4f23",
+              "text": "KUWAIT"
+            },
+            {
+              "value": "91d309f2-de3f-40bb-80e7-4b68077fdc33",
+              "text": "HAITI"
+            },
+            {
+              "value": "02b4584f-7c26-4b8f-8d07-7d79552045a7",
+              "text": "SENEGAL"
+            },
+            {
+              "value": "b12556a9-7ee3-43b8-8630-7b99643d2419",
+              "text": "MONTENEGRO"
+            },
+            {
+              "value": "b72c2f44-6a70-44cc-92c9-e14f791ed3a0",
+              "text": "SAINT LUCIA"
+            },
+            {
+              "value": "4e06dd54-cb40-4689-ba37-d52ee18b6232",
+              "text": "TAJIKISTAN"
+            },
+            {
+              "value": "bb7ad83f-cd1a-4483-bb51-6442719eb7ae",
+              "text": "REUNION"
+            },
+            {
+              "value": "c3243433-9264-4e49-964b-478fa69ca1b2",
+              "text": "MONTSERRAT"
+            },
+            {
+              "value": "c51ba964-c230-4826-a1d8-3cfad5bb0399",
+              "text": "BRITISH INDIAN OCEAN TERRITORY"
+            },
+            {
+              "value": "1d91caf5-bcf2-4e4b-8c77-7d62781bf220",
+              "text": "KAMERUN"
+            },
+            {
+              "value": "ada414e8-6fd5-4b69-82eb-89472e20d3be",
+              "text": "BELIZE"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "picture",
+          "name": "picture",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-FOREIGNCOUNTRY-1",
+          "name": "support-[FOREIGNCOUNTRY-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-FOREIGNCOUNTRY-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-ORGINTER1",
+          "name": "support-[ORGINTER1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-ORGINTER1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GOVERMENT-1",
+          "name": "support-[GOVERMENT-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GOVERMENT-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-WNI-1",
+          "name": "support-[WNI-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-WNI-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPERSONAL-1",
+          "name": "support-[GUARANTORPERSONAL-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPERSONAL-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPT-1",
+          "name": "support-[GUARANTORPT-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPT-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-YAYASAN-1",
+          "name": "support-[YAYASAN-1]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-YAYASAN-1-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-ORGINTER2",
+          "name": "support-[ORGINTER2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-ORGINTER2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-FOREIGNCOUNTRY-2",
+          "name": "support-[FOREIGNCOUNTRY-2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-FOREIGNCOUNTRY-2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-YAYASAN-2",
+          "name": "support-[YAYASAN-2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-YAYASAN-2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPERSONAL-2",
+          "name": "support-[GUARANTORPERSONAL-2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPERSONAL-2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GOVERMENT-2",
+          "name": "support-[GOVERMENT-2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GOVERMENT-2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPT-2",
+          "name": "support-[GUARANTORPT-2]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPT-2-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPT-3",
+          "name": "support-[GUARANTORPT-3]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPT-3-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPT-4",
+          "name": "support-[GUARANTORPT-4]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPT-4-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-KK",
+          "name": "support-[KK]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-KK-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-GUARANTORPT-5",
+          "name": "support-[GUARANTORPT-5]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-GUARANTORPT-5-name",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "file",
+          "id": "support-AKTALAHIR",
+          "name": "support-[AKTALAHIR]",
+          "required": false,
+          "visible": false
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "id": "support-AKTALAHIR-name",
+          "required": false,
+          "visible": false
+        }
+      ],
+      "submits": [
+        {
+          "text": "Upload"
+        },
+        {
+          "text": "Submit"
+        },
+        {
+          "text": "Back"
+        }
+      ],
+      "fieldsetLegends": [
+        "Create Account - Corporate\n                                     If you do not have a guarantor account in visa online application click here."
+      ],
+      "stoppedAtTerminal": true,
+      "capturedAt": "2026-04-28T06:52:32.514Z"
+    },
+    {
+      "pageIndex": 5,
+      "url": "https://evisa.imigrasi.go.id/front/faq/aff9642b-0b57-443f-8de1-a51601de0ebb",
+      "title": "The Official eVisa website for Indonesia",
+      "heading": "General Information",
+      "fields": [],
+      "submits": [
+        {
+          "text": "Sign In"
+        },
+        {
+          "text": "General Information"
+        },
+        {
+          "text": "FAQ"
+        }
+      ],
+      "fieldsetLegends": [
+        "General Information & FAQ"
+      ],
+      "stoppedAtTerminal": false,
+      "capturedAt": "2026-04-28T06:52:34.930Z"
+    },
+    {
+      "pageIndex": 6,
+      "url": "https://evisa.imigrasi.go.id/front/faq/dd5c2220-28a7-4024-9a10-82f30a09e0d2",
+      "title": "The Official eVisa website for Indonesia",
+      "heading": "General Information",
+      "fields": [],
+      "submits": [
+        {
+          "text": "Sign In"
+        },
+        {
+          "text": "General Information"
+        },
+        {
+          "text": "FAQ"
+        }
+      ],
+      "fieldsetLegends": [
+        "General Information & FAQ"
+      ],
+      "stoppedAtTerminal": false,
+      "capturedAt": "2026-04-28T06:52:37.242Z"
+    }
+  ]
+}

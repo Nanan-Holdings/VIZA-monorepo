@@ -1,0 +1,120 @@
+{
+  "pageMeta": "16/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Health declarations",
+    "In the last five years, has any applicant visited, or lived, outside their country of passport, for more than 3 consecutive months? Do not include time spent in Australia.",
+    "Does any applicant intend to enter a hospital or a health care facility (including nursing homes) while in Australia?",
+    "Does any applicant intend to work as, or study or train to be, a health care worker or work within a health care facility while in Australia?",
+    "Does any applicant intend to work, study or train within aged care or disability care while in Australia?",
+    "Does any applicant intend to work or be a trainee at a child care centre (including preschools and creches) while in Australia?",
+    "Does any applicant intend to be in a classroom situation for more than 3 months (eg. as either a student, teacher, lecturer or observer)?",
+    "Has any applicant:ever had, or currently have, tuberculosis?been in close contact with a family member that has active tuberculosis?ever had a chest x-ray which showed an abnormality?",
+    "During their proposed visit to Australia, does any applicant expect to incur medical costs, or require treatment or medical follow up for:blood disordercancerheart diseasehepatitis B or C and/or liver diseaseHIV infection, including AIDSkidney disease, including dialysismental illnesspregnancyrespiratory disease that has required hospital admission or oxygen therapyother?",
+    "Does any applicant require ongoing medical care or need special equipment, assistive technology or assistance from others for daily living?",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 14,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a2b1a",
+      "id": "d215433687e73",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a2b1a",
+      "id": "d215433687e75",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a4b1a",
+      "id": "d215433687e124",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a4b1a",
+      "id": "d215433687e126",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a6b1a",
+      "id": "d215433687e167",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a6b1a",
+      "id": "d215433687e169",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a8b1a",
+      "id": "d215433687e214",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a8b1a",
+      "id": "d215433687e216",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a15a1a",
+      "id": "d215433687e375",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a15a1a",
+      "id": "d215433687e377",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a18a1a",
+      "id": "d215433687e487",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a18a1a",
+      "id": "d215433687e489",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a20b1a0",
+      "id": "d215433687e533",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a15a20b1a0",
+      "id": "d215433687e535",
+      "label": "No",
+      "required": false
+    }
+  ]
+}
