@@ -1036,3 +1036,23 @@ acknowledgment).
   2. Multi-entry visa eligibility is sometimes nationality-restricted (MY: Indian + Chinese only). Schema doesn't gate the option — the live portal filters at submit time. Avoid encoding nationality-specific rules in v1; the conditional engine doesn't need to know.
   3. Land-border port-of-entry enumeration matters more for ASEAN countries than for islands. Thailand (4 land borders), Malaysia (5+ land borders), and Vietnam (multiple) need richer port lists than Egypt or the Schengen states.
 ---
+
+## 2026-04-28 - SG-001..SG-005
+- Shipped Singapore Visit Visa schema (SG_VISITOR_VISA): 80 fields across 9 steps mirroring the ICA SAVE e-Service. Single-entry + multi-entry captured by visa_type_requested radio.
+- The SG schema breaks the standard 8-step Asia-tourist template by adding step 6: Local Sponsor (Singapore Citizen/PR 21+, ACRA company, authorised visa agent, or strategic partner) — a SAVE-specific requirement that makes Singapore visa-required nationals submit through a Singpass-authenticated sponsor.
+- Race + religion fields modeled as optional (Form 14 antecedent collects both; modern SAVE eForm may have dropped them). Live QA confirms.
+- Singapore postal code regex enforced (`^[0-9]{6}$`).
+- Files added:
+  - viza-be/agent-backend/scripts/seed-sg-visitor-visa-form-fields.ts
+  - viza-be/agent-backend/drizzle/0028_sg_visitor_visa_package.sql
+  - docs/singapore-visa-scope.md
+  - docs/singapore-visa-gap-report.md
+  - prd.json SG-001..SG-005 (priority 56..60)
+- Live-portal QA deferred (Singpass-gated). Schema reconstructed from public landing pages, ICA Form 14 paper antecedent, and ICA + High Commission applicant guidance.
+- Submission automation deferred per playbook §13. SAVE submission requires sponsor's Singpass — runner would need the sponsor in the loop, not just the applicant.
+- Type-check green: agent-backend.
+- Learnings:
+  1. Sponsor-mandated visa flows (SG SAVE, future SG_LTVP, future US K1 visa, etc.) need an explicit sponsor block — distinct from the optional "host" block. Step 6 (Local Sponsor) gated by has_local_sponsor === yes is the right shape for this. The host block (step 7) remains separately optional for accommodation purposes.
+  2. The 8-step template stretches well: optional 9th step for sponsor-driven flows; could compress to 7 for very-streamlined visa-on-arrival-style forms (Maldives) by dropping host + sponsor.
+  3. The visa_type_requested single-vs-multi pattern continues to compose without forcing a schema fork. Singapore's "1-5 year multi-entry" duration variance is captured at the visa_type_requested radio label level rather than via a separate `validity_years` field.
+---
