@@ -729,6 +729,10 @@
         "submit": "Looks good — submit",
         "empty": "Nothing entered yet.",
         "notProvided": "—"
+      },
+      "tripDates": {
+        "duration": "Trip length: {days} days",
+        "invalid": "Departure date must be after arrival date."
       }
     },
     "us": {
@@ -759,105 +763,883 @@
     },
     "uk": {
       "steps": {
-        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "Match your passport exactly." },
-        "passport": { "label": "Passport", "title": "Your passport", "subtitle": "Numbers and dates from the data page." },
-        "contact": { "label": "Contact", "title": "How can we reach you?", "subtitle": "Phone, email, and home address." },
-        "ukvi": { "label": "UKVI account", "title": "UK Visas & Immigration account", "subtitle": "We'll link to your existing account if you have one." },
-        "trip": { "label": "Trip", "title": "Your trip to the UK", "subtitle": "Dates, purpose, and where you'll stay." },
-        "employment": { "label": "Employment", "title": "Your employment", "subtitle": "What you do day-to-day." },
-        "finances": { "label": "Finances", "title": "Trip finances", "subtitle": "Who pays for the trip and how much it'll cost." }
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you visiting the UK?",
+          "subtitle": "Pick the option that best matches your main reason for travel."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport — exactly as it appears."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Travel-document details for the visa."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How UKVI can reach you."
+        },
+        "ukvi": {
+          "label": "UKVI",
+          "title": "UKVI account",
+          "subtitle": "Link the UKVI account you'll apply with."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "When are you visiting?",
+          "subtitle": "Standard Visitor visas typically allow stays of up to 6 months per visit."
+        },
+        "uk_address": {
+          "label": "UK address",
+          "title": "Where you'll stay in the UK",
+          "subtitle": "First UK address and host details if any."
+        },
+        "employment": {
+          "label": "Work",
+          "title": "Employment & income",
+          "subtitle": "Where you work and what you earn."
+        },
+        "history": {
+          "label": "History",
+          "title": "Travel & visa history",
+          "subtitle": "Past UK visits and any prior visa refusals."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
       },
       "review": {
         "label": "Review",
         "title": "Review your UK Standard Visitor answers",
         "subtitle": "Edit anything that's wrong before submitting.",
-        "personal": "Personal", "passport": "Passport", "contact": "Contact", "ukvi": "UKVI account",
-        "trip": "Trip", "employment": "Employment", "finances": "Finances"
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "ukvi": "UKVI account",
+        "tripDates": "Trip dates",
+        "ukAddress": "UK address",
+        "employment": "Employment",
+        "history": "History",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over180Hint": "Standard Visitor visa is limited to 6 months per visit."
+      },
+      "fields": {
+        "givenNames": "Given name(s)",
+        "givenNamesPlaceholder": "e.g. John Michael",
+        "surname": "Surname",
+        "surnamePlaceholder": "e.g. Smith",
+        "anyOtherNames": "Have you been known by any other names?",
+        "otherNames": "Other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "hasOtherNationalities": "Do you hold any other nationalities?",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Town/city of birth",
+        "placeOfBirthPlaceholder": "e.g. Manchester",
+        "maritalStatus": "Marital status",
+        "passportNumber": "Passport number",
+        "passportNumberPlaceholder": "e.g. 123456789",
+        "passportIssuingCountry": "Issuing country",
+        "passportPlaceOfIssue": "Place of issue",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "email": "Email",
+        "emailPlaceholder": "name@example.com",
+        "phone": "Phone",
+        "phonePlaceholder": "+44 20 …",
+        "homeAddressLine1": "Home address",
+        "homeAddressLine1Placeholder": "Street and number",
+        "homeAddressCity": "City",
+        "postalCode": "Postal code",
+        "homeCountry": "Country of residence",
+        "ownsHome": "Do you own your home?",
+        "hasUkviAccount": "Do you already have a UKVI account?",
+        "ukviEmail": "UKVI account email",
+        "ukviEmailPlaceholder": "Your UKVI email",
+        "ukAddress": "UK address",
+        "ukAddressPlaceholder": "Hotel name, street and number",
+        "ukCity": "UK city",
+        "ukPostcode": "UK postcode",
+        "ukContactPhone": "UK contact phone",
+        "stayingWithSomeone": "Will you be staying with someone in the UK?",
+        "hostName": "Host name",
+        "hostRelationship": "Relationship to host",
+        "arrivalDate": "Intended arrival",
+        "departureDate": "Intended departure",
+        "numberOfEntries": "Type of visa requested",
+        "employmentStatus": "Employment status",
+        "employerName": "Employer name",
+        "jobTitle": "Job title",
+        "employerAddress": "Employer address",
+        "employerPhone": "Employer phone",
+        "monthlyIncome": "Monthly income",
+        "monthlyIncomePlaceholder": "Net amount, in GBP",
+        "hasVisitedUkBefore": "Have you visited the UK before?",
+        "previousUkVisitDates": "Approximate dates of previous visits",
+        "hasBeenRefusedUkVisa": "Have you ever been refused a UK visa?",
+        "ukRefusalExplanation": "Briefly explain the refusal",
+        "hasBeenRefusedOtherVisa": "Have you been refused a visa for any other country?",
+        "fundingSource": "Trip funding source",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "estimatedTripCost": "Estimated trip cost",
+        "estimatedTripCostPlaceholder": "e.g. 3000",
+        "fundsAmount": "Estimated trip cost",
+        "fundsAmountPlaceholder": "e.g. 3000",
+        "fundsCurrency": "Currency",
+        "hasSavings": "Do you have savings to support the trip?"
       },
       "options": {
-        "sex": { "male": "Male", "female": "Female" },
-        "purpose": { "tourism": "Tourism", "business": "Business", "visitingFamily": "Visiting family", "study": "Study", "medical": "Medical", "other": "Other" },
-        "employment": { "employed": "Employed", "selfEmployed": "Self-employed", "student": "Student", "retired": "Retired", "unemployed": "Unemployed" },
-        "funding": { "self": "Myself", "family": "Family", "employer": "Employer", "sponsor": "Sponsor" }
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "civilPartnership": "Civil partnership",
+          "unmarriedPartner": "Unmarried partner",
+          "divorced": "Divorced",
+          "widowed": "Widowed",
+          "separated": "Separated"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "visitingFamily": "Visiting family",
+          "study": "Short study",
+          "medical": "Medical",
+          "wedding": "Wedding/civil partnership",
+          "transit": "Transit",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, conferences, contracts",
+          "family": "Visiting relatives or close friends",
+          "study": "Course or training under 6 months",
+          "medical": "Medical treatment in the UK",
+          "wedding": "Attending or having a wedding/civil partnership",
+          "transit": "Transit through the UK",
+          "other": "Other reason"
+        },
+        "entries": {
+          "single": "Single visit",
+          "multi2y": "2-year multi-visit",
+          "multi5y": "5-year multi-visit",
+          "multi10y": "10-year multi-visit"
+        },
+        "employment": {
+          "employed": "Employed",
+          "selfEmployed": "Self-employed",
+          "student": "Student",
+          "retired": "Retired",
+          "unemployed": "Unemployed"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "sponsor": "Sponsor"
+        },
+        "currency": {
+          "gbp": "GBP",
+          "usd": "USD",
+          "eur": "EUR",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "Do you have any criminal convictions in any country?",
+        "noWarCrimes": "Have you ever been involved in war crimes, crimes against humanity, or genocide?",
+        "noTerrorism": "Have you ever been involved in, or supported, terrorism?",
+        "willLeaveBeforeExpiry": "I undertake to leave the UK before my visa expires."
       }
     },
     "schengen": {
       "steps": {
-        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "From your passport." },
-        "document": { "label": "Document", "title": "Travel document", "subtitle": "Passport or other accepted travel document." },
-        "contact": { "label": "Contact", "title": "Contact & residence", "subtitle": "How the consulate can reach you." },
-        "trip": { "label": "Trip", "title": "Trip details", "subtitle": "Where, when, and why." },
-        "accommodation": { "label": "Stay", "title": "Where you'll stay", "subtitle": "Address of your accommodation in Schengen." },
-        "occupation": { "label": "Occupation", "title": "Your occupation", "subtitle": "Employer or school details." },
-        "financial": { "label": "Funds", "title": "Trip funding", "subtitle": "How the trip is paid for." }
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you travelling?",
+          "subtitle": "Pick the option that best matches the main reason for your trip."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport — exactly as it appears."
+        },
+        "document": {
+          "label": "Document",
+          "title": "Travel document",
+          "subtitle": "Passport or other accepted travel document."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How the consulate can reach you."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "Trip dates",
+          "subtitle": "Schengen Type C lets you stay up to 90 days within any 180-day period."
+        },
+        "trip_destination": {
+          "label": "Where",
+          "title": "Where you're going",
+          "subtitle": "Main destination and the first Schengen country you'll enter."
+        },
+        "accommodation": {
+          "label": "Stay",
+          "title": "Where you'll stay",
+          "subtitle": "Accommodation details for your time in Schengen."
+        },
+        "occupation": {
+          "label": "Work",
+          "title": "Your occupation",
+          "subtitle": "Employer or school details."
+        },
+        "family_eu": {
+          "label": "EU family",
+          "title": "EU/EEA/CH family member",
+          "subtitle": "Only fill in if you're travelling as the family member of an EU/EEA/Swiss citizen."
+        },
+        "travel_history": {
+          "label": "History",
+          "title": "Travel history",
+          "subtitle": "Past Schengen visas, fingerprints, and onward entry permits."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for and whether you have travel insurance."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting your answers."
+        }
       },
       "review": {
         "label": "Review",
         "title": "Review your Schengen Type C answers",
         "subtitle": "Edit anything that's wrong before submitting.",
-        "personal": "Personal", "document": "Travel document", "contact": "Contact",
-        "trip": "Trip", "accommodation": "Accommodation", "occupation": "Occupation", "financial": "Funds"
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "document": "Travel document",
+        "contact": "Contact",
+        "tripDates": "Trip dates",
+        "tripDestination": "Destination",
+        "accommodation": "Accommodation",
+        "occupation": "Occupation",
+        "familyEu": "EU family member",
+        "travelHistory": "Travel history",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "Schengen Type C is limited to 90 days within any 180-day period."
+      },
+      "fields": {
+        "surname": "Surname (family name)",
+        "surnameAtBirthDifferent": "Is your surname at birth different from your current surname?",
+        "surnameAtBirth": "Surname at birth",
+        "givenNames": "Given name(s)",
+        "dob": "Date of birth",
+        "placeOfBirth": "Place of birth",
+        "countryOfBirth": "Country of birth",
+        "nationality": "Current nationality",
+        "nationalityAtBirth": "Nationality at birth (if different)",
+        "nationalIdNumber": "National identity number",
+        "sex": "Sex",
+        "civilStatus": "Civil status",
+        "passportType": "Type of travel document",
+        "passportNumber": "Travel document number",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Valid until",
+        "passportIssuingCountry": "Issued by (country)",
+        "homeAddress": "Home address",
+        "city": "City",
+        "postalCode": "Postal code",
+        "countryOfResidence": "Country of residence",
+        "email": "Email",
+        "phone": "Phone",
+        "mainDestination": "Main destination (Schengen state)",
+        "firstEntry": "First Schengen state of entry",
+        "arrivalDate": "Intended arrival date",
+        "departureDate": "Intended departure date",
+        "numberOfEntries": "Number of entries requested",
+        "accommodationType": "Type of accommodation",
+        "accommodationName": "Hotel name or accommodation label",
+        "accommodationAddress": "Accommodation address",
+        "accommodationCity": "City",
+        "accommodationCountry": "Country",
+        "accommodationPhone": "Accommodation phone",
+        "occupation": "Current occupation",
+        "employerName": "Employer or school name",
+        "employerAddress": "Employer or school address",
+        "employerPhone": "Employer or school phone",
+        "isFamilyMemberOfEu": "Are you the family member of an EU/EEA/Swiss citizen?",
+        "euFamilySurname": "Family member surname",
+        "euFamilyGivenNames": "Family member given names",
+        "euFamilyDob": "Family member date of birth",
+        "euFamilyNationality": "Family member nationality",
+        "euFamilyRelationship": "Relationship to you",
+        "hadPreviousSchengenVisas": "Have you held a Schengen visa in the last 3 years?",
+        "previousSchengenVisaDates": "Dates of previous Schengen visas",
+        "fingerprintsCollectedPreviously": "Have your fingerprints been collected for a Schengen visa before?",
+        "fingerprintsCollectedDate": "Approximate date of collection",
+        "hasOnwardEntryPermit": "Do you hold an entry permit for any country after Schengen?",
+        "costsCoveredBy": "Cost of travel and living covered by",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Available funds",
+        "fundsAmountPlaceholder": "e.g. 2000",
+        "fundsCurrency": "Currency",
+        "hasInsurance": "Do you have travel medical insurance for this trip?"
       },
       "options": {
-        "sex": { "male": "Male", "female": "Female" },
-        "civil": { "single": "Single", "married": "Married", "separated": "Separated", "divorced": "Divorced", "widowed": "Widowed" },
-        "passport": { "ordinary": "Ordinary", "diplomatic": "Diplomatic", "service": "Service", "official": "Official", "special": "Special", "other": "Other" },
-        "purpose": { "tourism": "Tourism", "business": "Business", "family": "Visiting family", "medical": "Medical", "study": "Study", "transit": "Transit", "other": "Other" },
-        "entries": { "single": "Single entry", "two": "Two entries", "multiple": "Multiple entries" },
-        "accommodation": { "hotel": "Hotel", "private": "Private home", "rental": "Short-term rental", "other": "Other" },
-        "funding": { "self": "Myself", "sponsor": "Sponsor", "employer": "Employer" }
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "civil": {
+          "single": "Single",
+          "married": "Married",
+          "registeredPartnership": "Registered partnership",
+          "separated": "Separated",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "passport": {
+          "ordinary": "Ordinary",
+          "diplomatic": "Diplomatic",
+          "service": "Service",
+          "official": "Official",
+          "special": "Special",
+          "other": "Other"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "family": "Visiting family or friends",
+          "cultural": "Cultural",
+          "sports": "Sports",
+          "official": "Official visit",
+          "medical": "Medical",
+          "study": "Short study",
+          "transit": "Airport transit",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, conferences, contracts",
+          "family": "Visiting relatives or close friends in Schengen",
+          "cultural": "Festivals, exhibitions, performances",
+          "sports": "Tournaments, training, sporting events",
+          "official": "Government or diplomatic delegation",
+          "medical": "Medical treatment in Schengen",
+          "study": "Short course or training (under 90 days)",
+          "transit": "Connecting flight via a Schengen airport",
+          "other": "Other reason — explain on the next steps"
+        },
+        "entries": {
+          "single": "Single entry",
+          "two": "Two entries",
+          "multiple": "Multiple entries"
+        },
+        "accommodation": {
+          "hotel": "Hotel",
+          "private": "Private home",
+          "rental": "Short-term rental",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "sponsor": "Sponsor",
+          "employer": "Employer",
+          "both": "Both myself and a sponsor"
+        },
+        "currency": {
+          "eur": "EUR",
+          "usd": "USD",
+          "gbp": "GBP",
+          "cny": "CNY"
+        },
+        "relationship": {
+          "spouse": "Spouse",
+          "child": "Child",
+          "grandchild": "Grandchild",
+          "dependentAscendant": "Dependent ascendant",
+          "registeredPartner": "Registered partner"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "I confirm that all information provided is true and complete to the best of my knowledge.",
+        "willLeaveBeforeExpiry": "I undertake to leave the Schengen territory before the visa expires.",
+        "understandsNoEntryGuarantee": "I understand that the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "I am aware that my personal data will be processed by Schengen consular and border authorities."
       }
     },
     "vn": {
       "steps": {
-        "personal": { "label": "Personal", "title": "Personal information", "subtitle": "From your passport." },
-        "passport": { "label": "Passport", "title": "Passport information", "subtitle": "Numbers and dates from the data page." },
-        "contact": { "label": "Contact", "title": "Contact information", "subtitle": "Address, email, and phone." },
-        "trip": { "label": "Trip", "title": "Trip information", "subtitle": "Entry/exit dates and location." },
-        "requested": { "label": "Visa", "title": "Visa requested", "subtitle": "Type and validity dates." },
-        "occupation": { "label": "Occupation", "title": "Your occupation", "subtitle": "Employer or school details." }
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you entering Vietnam?",
+          "subtitle": "Pick the option that best matches your trip."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport details",
+          "subtitle": "Travel document used for entry."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How we can reach you."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "Trip dates",
+          "subtitle": "Vietnam e-visa allows stays of up to 90 days."
+        },
+        "vn_destination": {
+          "label": "Where",
+          "title": "Where you're going",
+          "subtitle": "Address in Vietnam and entry/exit gates."
+        },
+        "host": {
+          "label": "Host",
+          "title": "Local contact in Vietnam",
+          "subtitle": "Who will host you, if applicable."
+        },
+        "occupation": {
+          "label": "Work",
+          "title": "Occupation",
+          "subtitle": "Employer or school details."
+        },
+        "companions": {
+          "label": "Family",
+          "title": "Accompanying family",
+          "subtitle": "Travelling with minors or family members."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
       },
       "review": {
         "label": "Review",
-        "title": "Review your Vietnam E-Visa answers",
+        "title": "Review your Vietnam e-visa answers",
         "subtitle": "Edit anything that's wrong before submitting.",
-        "personal": "Personal", "passport": "Passport", "contact": "Contact",
-        "trip": "Trip", "requested": "Visa requested", "occupation": "Occupation"
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "tripDates": "Trip dates",
+        "vnDestination": "Destination",
+        "host": "Local contact",
+        "occupation": "Occupation",
+        "companions": "Family",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "Vietnam e-visa is limited to 90 days per stay."
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenName": "Given name",
+        "otherNamesUsed": "Any other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "nationalityAtBirth": "Nationality at birth",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Place of birth",
+        "nationalIdNumber": "National identity number",
+        "religion": "Religion",
+        "maritalStatus": "Marital status",
+        "passportNumber": "Passport number",
+        "passportType": "Type of passport",
+        "passportIssuing": "Issuing authority",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "hasOtherPassports": "Do you hold other passports?",
+        "permanentAddress": "Permanent residential address",
+        "contactAddress": "Contact address",
+        "city": "City",
+        "country": "Country",
+        "phone": "Phone",
+        "email": "Email",
+        "emergencyContactName": "Emergency contact name",
+        "emergencyContactPhone": "Emergency contact phone",
+        "intendedAddress": "Intended address in Vietnam",
+        "borderGateEntry": "Entry border gate",
+        "borderGateExit": "Exit border gate",
+        "hasVnContact": "Do you have a contact/host in Vietnam?",
+        "vnContactName": "Contact name",
+        "vnContactRelationship": "Relationship",
+        "vnContactPhone": "Contact phone",
+        "vnContactAddress": "Contact address",
+        "occupation": "Occupation",
+        "employerOrSchool": "Employer or school name",
+        "employerAddress": "Employer address",
+        "position": "Position",
+        "employerPhone": "Employer phone",
+        "isAccompaniedByMinor": "Are you travelling with a minor?",
+        "accompanyingMinorCount": "Number of accompanying minors",
+        "parentOrGuardianName": "Parent or legal guardian name",
+        "entryDate": "Intended entry date",
+        "exitDate": "Intended exit date",
+        "requestedVisaType": "Visa type",
+        "tripPayer": "Trip paid by",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Trip budget",
+        "fundsAmountPlaceholder": "e.g. 1500",
+        "fundsCurrency": "Currency",
+        "hasInsurance": "Do you have travel insurance for this trip?"
       },
       "options": {
-        "sex": { "male": "Male", "female": "Female" },
-        "religion": { "none": "None", "buddhism": "Buddhism", "christianity": "Christianity", "islam": "Islam", "hinduism": "Hinduism", "other": "Other" },
-        "passport": { "ordinary": "Ordinary", "diplomatic": "Diplomatic", "official": "Official" },
-        "purpose": { "tourism": "Tourism", "business": "Business", "relatives": "Visiting relatives", "investment": "Investment", "study": "Study", "work": "Work", "other": "Other" },
-        "gates": { "noiBai": "Noi Bai (Hanoi)", "tanSonNhat": "Tan Son Nhat (HCMC)", "daNang": "Da Nang", "camRanh": "Cam Ranh", "other": "Other" },
-        "visa": { "single": "Single entry", "multiple": "Multiple entry" }
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "religion": {
+          "none": "None",
+          "buddhism": "Buddhism",
+          "christianity": "Christianity",
+          "islam": "Islam",
+          "hinduism": "Hinduism",
+          "other": "Other"
+        },
+        "passport": {
+          "ordinary": "Ordinary",
+          "diplomatic": "Diplomatic",
+          "official": "Official"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "relatives": "Visiting relatives",
+          "investment": "Investment",
+          "study": "Study",
+          "work": "Work",
+          "press": "Press",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, contracts",
+          "relatives": "Visiting family in Vietnam",
+          "investment": "Investment-related visit",
+          "study": "Course or training",
+          "work": "Short-term work",
+          "press": "Journalism or press",
+          "other": "Other reason"
+        },
+        "visa": {
+          "single": "Single entry (up to 90 days)",
+          "multiple": "Multiple entry (up to 90 days)"
+        },
+        "gates": {
+          "noiBai": "Noi Bai (Hanoi)",
+          "tanSonNhat": "Tan Son Nhat (HCMC)",
+          "daNang": "Da Nang",
+          "camRanh": "Cam Ranh (Nha Trang)",
+          "phuQuoc": "Phu Quoc",
+          "landBorder": "Land border",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "host": "Host in Vietnam"
+        },
+        "currency": {
+          "usd": "USD",
+          "vnd": "VND",
+          "eur": "EUR",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "Do you have any criminal convictions in any country?",
+        "noCommunicableDisease": "Do you currently have a communicable disease of public health concern?",
+        "noDrugAddiction": "Do you have any history of drug addiction?",
+        "willObeyLocalLaws": "I undertake to obey Vietnamese laws during my stay."
       }
     },
     "au": {
       "steps": {
-        "stream": { "label": "Stream", "title": "Visa stream", "subtitle": "Pick the stream that matches your trip." },
-        "personal": { "label": "Personal", "title": "Personal details", "subtitle": "From your passport." },
-        "passport": { "label": "Passport", "title": "Passport", "subtitle": "Numbers and dates from the data page." },
-        "contact": { "label": "Contact", "title": "Contact details", "subtitle": "Address, email, and phone." },
-        "visit": { "label": "Visit", "title": "Visit details", "subtitle": "When you'll arrive and depart." },
-        "funding": { "label": "Funding", "title": "Trip funding", "subtitle": "How the trip is paid for." },
-        "health": { "label": "Health", "title": "Health insurance", "subtitle": "Coverage during your stay." },
-        "character": { "label": "Character", "title": "Character declarations", "subtitle": "Required disclosures." }
+        "stream": {
+          "label": "Stream",
+          "title": "Which Subclass 600 stream?",
+          "subtitle": "Pick the stream that best matches your purpose of visit."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Travel document for the visa."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How Home Affairs can reach you."
+        },
+        "application_context": {
+          "label": "Context",
+          "title": "Application context",
+          "subtitle": "Where you are applying from and the nature of your visit."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "When are you visiting?",
+          "subtitle": "Subclass 600 streams allow stays of 3, 6, or 12 months depending on the stream."
+        },
+        "visit": {
+          "label": "Visit",
+          "title": "Visit details",
+          "subtitle": "Reason, port of arrival, prior travel."
+        },
+        "companions": {
+          "label": "Family",
+          "title": "Accompanying family",
+          "subtitle": "Family travelling with you, if any."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "health": {
+          "label": "Health",
+          "title": "Health declarations",
+          "subtitle": "Confirm each health-related question."
+        },
+        "character": {
+          "label": "Character",
+          "title": "Character declarations",
+          "subtitle": "Confirm each character-related question."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Final declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
       },
       "review": {
         "label": "Review",
-        "title": "Review your Australia Visitor answers",
+        "title": "Review your Subclass 600 answers",
         "subtitle": "Edit anything that's wrong before submitting.",
-        "stream": "Stream", "personal": "Personal", "passport": "Passport", "contact": "Contact",
-        "visit": "Visit", "funding": "Funding", "health": "Health", "character": "Character"
+        "stream": "Stream",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "applicationContext": "Application context",
+        "tripDates": "Trip dates",
+        "visit": "Visit",
+        "companions": "Family",
+        "funding": "Funds",
+        "health": "Health",
+        "character": "Character",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over12mHint": "Subclass 600 stays are typically capped at 3, 6, or 12 months depending on stream."
+      },
+      "fields": {
+        "givenNames": "Given name(s)",
+        "familyName": "Family name",
+        "anyOtherNames": "Have you been known by any other names?",
+        "otherNames": "Other names",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Town/city of birth",
+        "relationshipStatus": "Relationship status",
+        "hasNationalId": "Do you have a national identity card?",
+        "nationalIdNumber": "National ID number",
+        "pacificAustraliaCardHolder": "Are you a Pacific-Australia Card holder?",
+        "passportNumber": "Passport number",
+        "passportIssuing": "Issuing country",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "passportPlaceOfIssue": "Place of issue",
+        "chineseCommercialCodeNumber": "Chinese commercial code number (PRC only)",
+        "email": "Email",
+        "phoneMobile": "Mobile phone",
+        "phoneHome": "Home phone",
+        "phoneBusiness": "Business phone",
+        "residentialAddress": "Residential address",
+        "city": "City",
+        "postcode": "Postcode",
+        "country": "Country",
+        "applyingAllOutside": "Will all applicants be outside Australia when the application is decided?",
+        "currentLocationLegalStatus": "What is your legal status in your current country?",
+        "purposeOfStayInitial": "Primary purpose of your initial stay",
+        "significantDatesInAustralia": "Any significant dates in Australia (events, ceremonies, deadlines)?",
+        "eventInvitedByOrganisation": "Have you been invited by an Australian organisation for an event?",
+        "eventPaidByAustralianOrganisation": "Will an Australian organisation pay for any part of your visit?",
+        "applyingAsPartOfGroup": "Are you applying as part of a group of applications?",
+        "arrivalDate": "Intended arrival",
+        "departureDate": "Intended departure",
+        "mainReason": "Main reason for visit",
+        "portOfArrival": "Port of arrival",
+        "previousAuTravel": "Have you previously travelled to Australia?",
+        "previousAuVisaGrantDates": "Approximate dates of previous Australian visas",
+        "hasAccompanyingFamily": "Are family members travelling with you?",
+        "accompanyingFamilyCount": "Number of accompanying family members",
+        "hasNonAccompanyingFamily": "Do you have non-accompanying family members?",
+        "fundingSource": "Trip funding source",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Available funds",
+        "fundsAmountPlaceholder": "e.g. 5000",
+        "fundsCurrency": "Currency"
       },
       "options": {
-        "stream": { "tourist": "Tourist", "business": "Business visitor", "sponsored": "Sponsored family", "ads": "Approved Destination Status", "frequent": "Frequent traveller" },
-        "sex": { "male": "Male", "female": "Female" },
-        "rel": { "never": "Never married", "married": "Married", "deFacto": "De facto", "engaged": "Engaged", "separated": "Separated", "divorced": "Divorced", "widowed": "Widowed" },
-        "port": { "sydney": "Sydney", "melbourne": "Melbourne", "brisbane": "Brisbane", "perth": "Perth", "adelaide": "Adelaide", "other": "Other" },
-        "funding": { "self": "Myself", "family": "Family", "employer": "Employer", "sponsor": "Sponsor", "other": "Other" },
-        "currency": { "aud": "AUD", "usd": "USD", "eur": "EUR", "gbp": "GBP", "cny": "CNY" }
+        "sex": {
+          "male": "Male",
+          "female": "Female",
+          "indeterminate": "Indeterminate"
+        },
+        "rel": {
+          "never": "Never married",
+          "married": "Married",
+          "deFacto": "De facto",
+          "engaged": "Engaged",
+          "separated": "Separated",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "stream": {
+          "tourist": "Tourist",
+          "business": "Business Visitor",
+          "sponsored": "Sponsored Family",
+          "frequent": "Frequent Traveller"
+        },
+        "streamDesc": {
+          "tourist": "Holiday, sightseeing, visiting family or friends",
+          "business": "Short business activities — meetings, conferences, negotiations",
+          "sponsored": "Family-sponsored visits where a relative supports the application",
+          "frequent": "Long-validity visa for eligible passport holders making multiple short visits"
+        },
+        "locStatus": {
+          "citizen": "Citizen",
+          "pr": "Permanent resident",
+          "temporary": "Temporary visa holder",
+          "visitor": "Visitor",
+          "other": "Other"
+        },
+        "initial": {
+          "business": "Business",
+          "tourism": "Tourism",
+          "family": "Family visit",
+          "study": "Study",
+          "religious": "Religious event",
+          "other": "Other"
+        },
+        "port": {
+          "sydney": "Sydney",
+          "melbourne": "Melbourne",
+          "brisbane": "Brisbane",
+          "perth": "Perth",
+          "adelaide": "Adelaide",
+          "goldCoast": "Gold Coast",
+          "cairns": "Cairns",
+          "darwin": "Darwin",
+          "hobart": "Hobart",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "sponsor": "Sponsor"
+        },
+        "currency": {
+          "aud": "AUD",
+          "usd": "USD",
+          "eur": "EUR",
+          "gbp": "GBP",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "healthLivedOutsidePassport": "Have you lived outside your passport country for more than 5 years (or 3 months in the last year)?",
+        "healthVisitedFacility": "Have you been an inpatient at a hospital or health facility in the last 5 years?",
+        "healthHealthcareWorker": "Are you a healthcare worker (doctor, nurse, paramedic, etc.)?",
+        "healthAgedOrChildcare": "Have you worked in aged-care or childcare in the last 5 years?",
+        "healthClassroom3Months": "Have you spent 3+ consecutive months in a classroom (as student or teacher) in the last 5 years?",
+        "healthTbOrChestXray": "Have you had tuberculosis, an abnormal chest X-ray, or close contact with a TB patient?",
+        "hasHealthInsurance": "Do you have health insurance covering your stay in Australia?",
+        "charCriminalConvictions": "Have you been charged with or convicted of any criminal offence anywhere?",
+        "charWarCrimes": "Have you been involved in war crimes, crimes against humanity, or genocide?",
+        "charSexualOffence": "Have you been charged with or convicted of a sexual offence (including against a child)?",
+        "charTerrorism": "Have you been involved in, or supported, terrorism?",
+        "charPeopleSmuggling": "Have you been involved in people smuggling or human trafficking?",
+        "charMilitaryTraining": "Have you received specialised military, paramilitary, or weapons/explosives training?",
+        "charVisaRefused": "Have you ever been refused a visa for any country, or had a visa cancelled?",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "understandsNoEntryGuarantee": "I understand the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "I am aware that my personal data will be processed by Australian authorities.",
+        "willLeaveBeforeExpiry": "I undertake to leave Australia before my visa expires.",
+        "genuineVisitor": "I confirm that I am a genuine visitor and intend to stay temporarily for the purpose stated."
       }
     },
     "loading": "Getting your intake form ready…",
