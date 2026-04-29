@@ -27,6 +27,17 @@ function formatExpiry(expiresAt) {
   return date.toLocaleString();
 }
 
+function formatAuthErrorMessage(message) {
+  const text = (message || '').toString();
+  if (text.startsWith('network_unreachable')) {
+    return 'Network unreachable. Check Supabase URL, permissions, or network.';
+  }
+  if (text === 'network_offline') {
+    return 'Network offline. Please reconnect and retry.';
+  }
+  return text || 'unknown';
+}
+
 async function refreshSessionStatus() {
   try {
     const response = await sendMessage({ action: 'authGetSession' });
@@ -42,34 +53,63 @@ async function refreshSessionStatus() {
   }
 }
 
-async function handleLogin() {
+async function handleSendOtp() {
   const emailInput = document.getElementById('supabaseEmail');
-  const passwordInput = document.getElementById('supabasePassword');
   const email = emailInput?.value?.trim();
-  const password = passwordInput?.value || '';
 
-  if (!email || !password) {
-    setStatus('Email and password are required', 'warn');
+  if (!email) {
+    setStatus('Email is required', 'warn');
     return;
   }
 
-  setStatus('Signing in...', 'info');
+  setStatus('Sending code...', 'info');
 
   try {
     const response = await sendMessage({
-      action: 'authLogin',
-      email,
-      password
+      action: 'authSendOtp',
+      email
     });
 
     if (response?.success) {
+      setStatus('Code sent. Check your email.', 'ok');
+      return;
+    }
+
+    setStatus(`Send failed: ${formatAuthErrorMessage(response?.error)}`, 'warn');
+  } catch (error) {
+    setStatus(`Send failed: ${formatAuthErrorMessage(error.message)}`, 'warn');
+  }
+}
+
+async function handleVerifyOtp() {
+  const emailInput = document.getElementById('supabaseEmail');
+  const codeInput = document.getElementById('supabaseOtpCode');
+  const email = emailInput?.value?.trim();
+  const token = codeInput?.value?.trim();
+
+  if (!email || !token) {
+    setStatus('Email and code are required', 'warn');
+    return;
+  }
+
+  setStatus('Verifying code...', 'info');
+
+  try {
+    const response = await sendMessage({
+      action: 'authVerifyOtp',
+      email,
+      token
+    });
+
+    if (response?.success) {
+      if (codeInput) codeInput.value = '';
       await refreshSessionStatus();
       return;
     }
 
-    setStatus(`Login failed: ${response?.error || 'unknown'}`, 'warn');
+    setStatus(`Verify failed: ${formatAuthErrorMessage(response?.error)}`, 'warn');
   } catch (error) {
-    setStatus(`Login failed: ${error.message}`, 'warn');
+    setStatus(`Verify failed: ${formatAuthErrorMessage(error.message)}`, 'warn');
   }
 }
 
@@ -137,12 +177,14 @@ async function handleUpdatePassword() {
 }
 
 function initSupabaseControls() {
-  const loginBtn = document.getElementById('supabaseLogin');
+  const sendBtn = document.getElementById('supabaseSendOtp');
+  const verifyBtn = document.getElementById('supabaseVerifyOtp');
   const logoutBtn = document.getElementById('supabaseLogout');
   const syncBtn = document.getElementById('supabaseSync');
   const updateBtn = document.getElementById('supabaseUpdatePassword');
 
-  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+  if (sendBtn) sendBtn.addEventListener('click', handleSendOtp);
+  if (verifyBtn) verifyBtn.addEventListener('click', handleVerifyOtp);
   if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
   if (syncBtn) syncBtn.addEventListener('click', handleFetchProfile);
   if (updateBtn) updateBtn.addEventListener('click', handleUpdatePassword);

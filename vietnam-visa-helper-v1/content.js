@@ -3611,88 +3611,88 @@ function triggerEvents(element) {
   element.dispatchEvent(new Event('focusout', { bubbles: true }));
 }
 
-function getValueFromUserData(key) {
-  const paths = {
-    // Personal Information
-    'full_name': 'personalInfo.full_name',
-    'surname': 'personalInfo.surname',
-    'given_name': 'personalInfo.given_name',
-    'date_of_birth': 'personalInfo.date_of_birth',
-    'gender': 'personalInfo.gender',
-    'nationality': 'personalInfo.nationality',
-    'religion': 'personalInfo.religion',
-    'place_of_birth': 'personalInfo.place_of_birth',
-    'identity_card': 'personalInfo.identity_card',
-    'multiple_nationalities': 'personalInfo.multiple_nationalities',
-    'violation_of_laws': 'personalInfo.violation_of_laws',
-    
-    // Passport Information
-    'passport_number': 'personalInfo.passport_number',
-    'passport_issue_authority': 'personalInfo.passport_issue_authority',
-    'passport_type': 'personalInfo.passport_type',
-    'passport_date_of_issue': 'personalInfo.passport_date_of_issue',
-    'passport_expiry': 'personalInfo.passport_expiry',
-    'other_passports': 'personalInfo.other_passports',
-    
-    // Contact Information
-    'email': 'contactInfo.email',
-    're_enter_email': 'contactInfo.email',  // Same as email
-    'phone': 'contactInfo.phone',
-    'phone_in_vietnam': 'contactInfo.phone_in_vietnam',
-    'emergency_contact_name': 'contactInfo.emergency_contact_name',
-    'emergency_contact_relationship': 'contactInfo.emergency_contact_relationship',
-    'emergency_contact_phone': 'contactInfo.emergency_contact_phone',
-    'emergency_contact_current_address': 'contactInfo.emergency_contact_current_address',
-    
-    // Occupation Information
-    'occupation': 'occupationInfo.occupation',
-    'occupation_info': 'occupationInfo.occupation_info',
-    'company_name': 'occupationInfo.company_name',
-    'position_course': 'occupationInfo.position_course',
-    'company_address': 'occupationInfo.company_address',
-    'company_phone': 'occupationInfo.company_phone',
-    
-    // Travel Information
-    'purpose': 'travelInfo.purpose',
-    'duration': 'travelInfo.duration',
-    'intended_length_of_stay': 'travelInfo.duration',  // Same as duration
-    'arrival_date': 'travelInfo.arrival_date',
-    'intended_date_of_entry': 'travelInfo.intended_date_of_entry',
-    'departure_date': 'travelInfo.departure_date',
-    'arrival_city': 'travelInfo.arrival_city',
-    'destination_address': 'travelInfo.destination_address',
-    'destiny_residential_address': 'travelInfo.destination_address',  // Same as destination_address
-    'residential_address_in_vietnam': 'travelInfo.destination_address',  // Same
-    'contact_address': 'travelInfo.contact_address',
-    'province_city': 'travelInfo.province_city',
-    'ward_commune': 'travelInfo.ward_commune',
-    
-    // Visa Information
-    'visa_type': 'visaInfo.visa_type',
-    'visa_valid_from': 'visaInfo.visa_valid_from',
-    'visa_valid_to': 'visaInfo.visa_valid_to',
-    'intended_border_gate_of_entry': 'visaInfo.intended_border_gate_of_entry',
-    'intended_border_gate_of_exit': 'visaInfo.intended_border_gate_of_exit',
-    
-    // Confirmations
-    'temporary_residence_declaration': 'confirmations.temporary_residence_declaration',
-    'agree_to_create_account': 'confirmations.agree_to_create_account',
-    'legal_declaration': 'confirmations.legal_declaration',
-    
-    // Trip Expenses
-    'intended_expenses': 'tripExpenses.intended_expenses',
-    'bought_insurance': 'tripExpenses.bought_insurance',
-    'expense_coverage': 'tripExpenses.expense_coverage',
-    'payment_method': 'tripExpenses.payment_method',
-    'insurance_form': 'tripExpenses.payment_method',
-    'relatives_in_vietnam': 'tripExpenses.relatives_in_vietnam',
+const USER_DATA_PATHS = {
+  // Personal Information
+  'full_name': 'personalInfo.full_name',
+  'surname': 'personalInfo.surname',
+  'given_name': 'personalInfo.given_name',
+  'date_of_birth': 'personalInfo.date_of_birth',
+  'gender': 'personalInfo.gender',
+  'nationality': 'personalInfo.nationality',
+  'religion': 'personalInfo.religion',
+  'place_of_birth': 'personalInfo.place_of_birth',
+  'identity_card': 'personalInfo.identity_card',
+  'multiple_nationalities': 'personalInfo.multiple_nationalities',
+  'violation_of_laws': 'personalInfo.violation_of_laws',
 
-    // Upload Documents
-    'passport_photo': 'documents.passport_photo',
-    'passport_copy': 'documents.passport_copy'
-  };
-  
-  const path = paths[key];
+  // Passport Information
+  'passport_number': 'personalInfo.passport_number',
+  'passport_issue_authority': 'personalInfo.passport_issue_authority',
+  'passport_type': 'personalInfo.passport_type',
+  'passport_date_of_issue': 'personalInfo.passport_date_of_issue',
+  'passport_expiry': 'personalInfo.passport_expiry',
+  'other_passports': 'personalInfo.other_passports',
+
+  // Contact Information
+  'email': 'contactInfo.email',
+  're_enter_email': 'contactInfo.email',
+  'phone': 'contactInfo.phone',
+  'phone_in_vietnam': 'contactInfo.phone_in_vietnam',
+  'emergency_contact_name': 'contactInfo.emergency_contact_name',
+  'emergency_contact_relationship': 'contactInfo.emergency_contact_relationship',
+  'emergency_contact_phone': 'contactInfo.emergency_contact_phone',
+  'emergency_contact_current_address': 'contactInfo.emergency_contact_current_address',
+
+  // Occupation Information
+  'occupation': 'occupationInfo.occupation',
+  'occupation_info': 'occupationInfo.occupation_info',
+  'company_name': 'occupationInfo.company_name',
+  'position_course': 'occupationInfo.position_course',
+  'company_address': 'occupationInfo.company_address',
+  'company_phone': 'occupationInfo.company_phone',
+
+  // Travel Information
+  'purpose': 'travelInfo.purpose',
+  'duration': 'travelInfo.duration',
+  'intended_length_of_stay': 'travelInfo.duration',
+  'arrival_date': 'travelInfo.arrival_date',
+  'intended_date_of_entry': 'travelInfo.intended_date_of_entry',
+  'departure_date': 'travelInfo.departure_date',
+  'arrival_city': 'travelInfo.arrival_city',
+  'destination_address': 'travelInfo.destination_address',
+  'destiny_residential_address': 'travelInfo.destination_address',
+  'residential_address_in_vietnam': 'travelInfo.destination_address',
+  'contact_address': 'travelInfo.contact_address',
+  'province_city': 'travelInfo.province_city',
+  'ward_commune': 'travelInfo.ward_commune',
+
+  // Visa Information
+  'visa_type': 'visaInfo.visa_type',
+  'visa_valid_from': 'visaInfo.visa_valid_from',
+  'visa_valid_to': 'visaInfo.visa_valid_to',
+  'intended_border_gate_of_entry': 'visaInfo.intended_border_gate_of_entry',
+  'intended_border_gate_of_exit': 'visaInfo.intended_border_gate_of_exit',
+
+  // Confirmations
+  'temporary_residence_declaration': 'confirmations.temporary_residence_declaration',
+  'agree_to_create_account': 'confirmations.agree_to_create_account',
+  'legal_declaration': 'confirmations.legal_declaration',
+
+  // Trip Expenses
+  'intended_expenses': 'tripExpenses.intended_expenses',
+  'bought_insurance': 'tripExpenses.bought_insurance',
+  'expense_coverage': 'tripExpenses.expense_coverage',
+  'payment_method': 'tripExpenses.payment_method',
+  'insurance_form': 'tripExpenses.payment_method',
+  'relatives_in_vietnam': 'tripExpenses.relatives_in_vietnam',
+
+  // Upload Documents
+  'passport_photo': 'documents.passport_photo',
+  'passport_copy': 'documents.passport_copy'
+};
+
+function getValueFromUserData(key) {
+  const path = USER_DATA_PATHS[key];
   if (!path) return undefined;
   
   let value = userData;
@@ -3713,6 +3713,117 @@ function getValueFromUserData(key) {
   }
 
   return value;
+}
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value || {}));
+}
+
+function shouldPersistValue(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string' && value.trim() === '') return false;
+  return true;
+}
+
+function setValueInUserData(key, value, target) {
+  const path = USER_DATA_PATHS[key];
+  if (!path) return false;
+
+  const segments = path.split('.');
+  let node = target;
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const segment = segments[i];
+    if (!node[segment] || typeof node[segment] !== 'object') {
+      node[segment] = {};
+    }
+    node = node[segment];
+  }
+
+  node[segments[segments.length - 1]] = value;
+  return true;
+}
+
+function extractFieldValue(input) {
+  if (!input) return undefined;
+
+  if (input.tagName === 'SELECT') {
+    const option = input.selectedOptions?.[0];
+    const textValue = option?.textContent?.trim();
+    return input.value || textValue || '';
+  }
+
+  if (input.type === 'checkbox') {
+    return input.checked ? (input.value || 'on') : '';
+  }
+
+  if (input.type === 'radio') {
+    return input.checked ? (input.value || 'on') : '';
+  }
+
+  const antSelect = input.closest?.('.ant-select');
+  if (antSelect) {
+    const selectedText = antSelect.querySelector('.ant-select-selection-item')?.textContent?.trim();
+    if (selectedText) return selectedText;
+  }
+
+  const rawValue = input.value;
+  return typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+}
+
+function collectUserProfileFromForm() {
+  const baseProfile = deepClone(userData || {});
+  const inputs = document.querySelectorAll('input, select, textarea');
+
+  inputs.forEach((input) => {
+    if (input.type === 'file') return;
+    const fieldInfo = identifyField(input);
+    if (!fieldInfo?.key || fieldInfo.key === 'generic_date') return;
+    if (UPLOAD_FIELD_KEYS.has(fieldInfo.key)) return;
+
+    const value = extractFieldValue(input);
+    if (!shouldPersistValue(value)) return;
+    setValueInUserData(fieldInfo.key, value, baseProfile);
+  });
+
+  if (uploadDocumentsCache) {
+    baseProfile.documents = {
+      ...(baseProfile.documents || {}),
+      ...uploadDocumentsCache
+    };
+  }
+
+  return baseProfile;
+}
+
+async function saveUserProfileToSupabase() {
+  if (!userData) {
+    showNotification('没有可保存的数据', 'warn');
+    return;
+  }
+
+  setPanelStatusText('正在保存到云端...');
+  showNotification('正在保存到 Supabase...', 'info');
+
+  try {
+    const profile = collectUserProfileFromForm();
+    const response = await sendRuntimeMessage({
+      action: 'saveProfile',
+      profile
+    });
+
+    if (response?.success) {
+      userData = response.profile || profile;
+      setPanelStatusText('已保存到云端');
+      showNotification('已保存到 Supabase', 'success');
+      return;
+    }
+
+    setPanelStatusText('保存失败');
+    showNotification(`保存失败: ${response?.error || 'unknown'}`, 'error');
+  } catch (error) {
+    setPanelStatusText('保存失败');
+    showNotification(`保存失败: ${error.message}`, 'error');
+  }
 }
 
 // ===== DISCLAIMER PAGE HANDLER =====
@@ -4235,10 +4346,19 @@ function showUserData() {
     <div style="background:white;padding:20px;border-radius:8px;max-width:500px;max-height:80vh;overflow-y:auto">
       <h3>📋 你的信息</h3>
       <pre style="font-size:12px;background:#f5f5f5;padding:10px;border-radius:4px">${JSON.stringify(userData, null, 2)}</pre>
-      <button onclick="this.closest('div').parentElement.remove()" style="background:#28a745;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer">关闭</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button id="vh-save-profile" type="button" style="background:#1f6feb;color:white;border:none;padding:10px 18px;border-radius:4px;cursor:pointer">☁️ 保存到云端</button>
+        <button id="vh-close-modal" type="button" style="background:#28a745;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer">关闭</button>
+      </div>
     </div>
   `;
   document.body.appendChild(modal);
+  modal.querySelector('#vh-save-profile')?.addEventListener('click', () => {
+    saveUserProfileToSupabase();
+  });
+  modal.querySelector('#vh-close-modal')?.addEventListener('click', () => {
+    modal.remove();
+  });
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.remove();
   });
