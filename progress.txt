@@ -1226,3 +1226,19 @@ acknowledgment).
 - Public portal — strong Playwright runner candidate.
 - Type-check green.
 ---
+
+## 2026-04-29 - ZA-001..ZA-005
+- Shipped South Africa Visitor's Visa + eVisa schema (ZA_VISITOR_VISA): 80 fields across 8 steps mirroring DHA-1738 + VFS Global + eVisa pilot. Three variants on visa_type_requested: eVisa (selected nationalities CN/IN/NG/KE/CM/MX/SA/AE/EG), Visitor single, Visitor multi.
+- ZA-specific schema features:
+  - Life-partner marital_status (Sec 11 distinct from married); spouse block gated via `marital_status === married || marital_status === life_partner` — third VIZA schema using `||` (joins NZ + CA).
+  - Yellow-fever endemic-country travel screening + Yellow Fever Vaccination Certificate (gated on yellow_fever_country_recent === yes). Mandatory SA public-health rule.
+  - Available funds ZAR numeric field.
+  - Comprehensive port-of-entry list: 6 airports (JNB/CPT/DUR/PLZ/HLA/MQP) + 6 SADC land borders (Beitbridge ZW / Lebombo MZ / Ficksburg LS / Oshoek SZ / Vioolsdrift NA / Kopfontein BW) + 2 cruise ports (Durban / Cape Town).
+- Files: seed-za-visitor-visa-form-fields.ts, drizzle/0041_za_visitor_visa_package.sql, docs/south-africa-visa-scope.md, docs/south-africa-visa-gap-report.md, prd.json ZA-001..ZA-005 (priority 121..125).
+- eVisa = easier live QA + auto-runner candidate. VFS Global = account-gated.
+- Type-check green.
+- Learnings:
+  1. `||` in sub-journey gates is now load-bearing across NZ (de_facto), CA (common_law), ZA (life_partner) — three jurisdictions, three different terms for the same concept (long-term unmarried partnership). A future i18n pass might want to abstract into a `MARITAL_STATUS_PARTNER_EQUIVALENT` concept; for now, jurisdiction-specific labels are correct.
+  2. Yellow-fever screening is the first public-health-specific dependency I've modeled (TB-history in NZ + CA was simpler — no follow-up gating). The two-step gate (endemic-country travel? → certificate held?) sets the pattern for future health-prerequisite checks (e.g. polio for Egypt, COVID-19 historically).
+  3. SADC land borders are jurisdiction-specific and reusable across SA + neighbour countries (BW, NA, SZ, LS, MZ, ZW). Future shared `sadc_borders` enum if other SADC packages added.
+---

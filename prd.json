@@ -1655,6 +1655,51 @@
       "priority": 120,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "ZA-001",
+      "title": "Pin South Africa Visitor's Visa + eVisa scope",
+      "description": "ZA Visitor's Visa scoped to DHA via VFS Global + eVisa pilot.",
+      "acceptanceCriteria": ["prd.json contains ZA-001..ZA-005", "Three variants (eVisa, Visitor Single, Visitor Multi) on visa_type_requested", "Life-partner status modeled distinctly via `||` showIf", "Yellow-fever screening gated on endemic-country travel", "Out-of-scope (Work / Study / Relative / Retired / Treaty / PR / Asylum) documented", "docs/south-africa-visa-scope.md exists"],
+      "priority": 121,
+      "passes": true,
+      "notes": "Third VIZA schema using `||` in sub-journey (joins NZ + CA)."
+    },
+    {
+      "id": "ZA-002",
+      "title": "Model South Africa Visitor's Visa field inventory",
+      "description": "ZA Visitor's Visa as machine-readable schema matching DHA-1738 + VFS Global + eVisa.",
+      "acceptanceCriteria": ["scripts/seed-za-visitor-visa-form-fields.ts exists with visa_type = ZA_VISITOR_VISA", "8 sections incl. yellow-fever screening", "Life-partner marital status; spouse block via `||`", "Available funds ZAR field", "ZA port-of-entry list (6 airports + 6 SADC borders + 2 cruise)", "Typecheck passes"],
+      "priority": 122,
+      "passes": true,
+      "notes": "Yellow-fever screening is jurisdiction-specific public-health rule."
+    },
+    {
+      "id": "ZA-003",
+      "title": "Wire South Africa Visitor's Visa package into VIZA",
+      "description": "ZA Visitor's Visa renders through dynamic form.",
+      "acceptanceCriteria": ["Drizzle migration registers ZA_VISITOR_VISA (country = south_africa)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "priority": 123,
+      "passes": true,
+      "notes": "Migration: 0041_za_visitor_visa_package.sql."
+    },
+    {
+      "id": "ZA-004",
+      "title": "Publish South Africa Visitor's Visa gap report",
+      "description": "ZA gaps surfaced.",
+      "acceptanceCriteria": ["docs/south-africa-visa-gap-report.md exists", "eVisa flagged as easier QA + auto-runner candidate", "VFS Global flagged as account-gated", "Yellow-fever certificate gating documented", "Typecheck passes"],
+      "priority": 124,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "ZA-005",
+      "title": "Document South Africa Visitor's Visa workflow",
+      "description": "Scope + gap docs + progress entry.",
+      "acceptanceCriteria": ["docs/south-africa-visa-scope.md docs DHA + VFS + eVisa sources", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "priority": 125,
+      "passes": true,
+      "notes": ""
     }
   ]
 }
