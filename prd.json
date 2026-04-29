@@ -1450,6 +1450,76 @@
       "priority": 100,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "PH-001",
+      "title": "Pin the Philippines 9(a) Temporary Visitor Visa + eTravel extraction scope",
+      "description": "PH 9(a) Visa + eTravel scoped to BI/DFA + eTravel.gov.ph flows.",
+      "acceptanceCriteria": [
+        "prd.json contains PH-001 through PH-005",
+        "Four submission variants on visa_type_requested (eTravel-only, 9(a) single, 9(a) multi-6mo, 9(a) multi-1y)",
+        "Out-of-scope (9(d)/9(e)/9(f)/9(g), SRRV, SIRV, Balikbayan, VOA) documented",
+        "docs/philippines-visa-scope.md exists"
+      ],
+      "priority": 101,
+      "passes": true,
+      "notes": "9(a) is paper-only at consular posts. eTravel is online + mandatory for all arrivals."
+    },
+    {
+      "id": "PH-002",
+      "title": "Model the Philippines 9(a) + eTravel field inventory",
+      "description": "PH 9(a) + eTravel as machine-readable schema.",
+      "acceptanceCriteria": [
+        "scripts/seed-ph-temporary-visitor-visa-form-fields.ts exists with visa_type = PH_TEMPORARY_VISITOR_VISA",
+        "8 sections covering both 9(a) consular fields + eTravel fields",
+        "PH-specific: mandatory flight number (eTravel requirement), PH port-of-entry list",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 102,
+      "passes": true,
+      "notes": "Same Asia-tourist 8-step. 4 variants on visa_type_requested route at submission."
+    },
+    {
+      "id": "PH-003",
+      "title": "Wire the Philippines 9(a) + eTravel package into VIZA's dynamic form path",
+      "description": "PH 9(a) + eTravel renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers PH_TEMPORARY_VISITOR_VISA in visa_packages (country = philippines)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 103,
+      "passes": true,
+      "notes": "Migration file: 0037_ph_temporary_visitor_visa_package.sql."
+    },
+    {
+      "id": "PH-004",
+      "title": "Publish the Philippines 9(a) + eTravel gap report",
+      "description": "PH 9(a) + eTravel gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/philippines-visa-gap-report.md exists with coverage summary, parity status, automation strategy (eTravel runner / 9(a) PDF render)",
+        "eTravel flagged as strong Playwright runner candidate (no auth)",
+        "9(a) flagged for PDF render path (mirror JP_TOURIST)",
+        "Typecheck passes"
+      ],
+      "priority": 104,
+      "passes": true,
+      "notes": "Two-flow split (online eTravel + paper 9(a)) is the PH-specific automation challenge."
+    },
+    {
+      "id": "PH-005",
+      "title": "Document the Philippines 9(a) + eTravel workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for PH_TEMPORARY_VISITOR_VISA.",
+      "acceptanceCriteria": [
+        "docs/philippines-visa-scope.md documents the BI/DFA + eTravel sources",
+        "progress.txt updated with PH-001..PH-005",
+        "Next actions (eTravel QA, eTravel Playwright runner, 9(a) PDF render, PH_SRRV, PH_9G) stated",
+        "Typecheck passes"
+      ],
+      "priority": 105,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }

@@ -1188,3 +1188,15 @@ acknowledgment).
   2. Customs declarations are jurisdiction-specific (currency thresholds, restricted-item lists differ wildly: MV bans alcohol+pork+non-Islamic religious materials, others ban only currency+narcotics). Capture in separate "Customs Declaration" step rather than embedding in character/declaration.
   3. Health symptom screening as a discrete step (separate from criminal/security character declaration) is the right shape for arrival-only forms. CA + NZ schemas use TB-history as a question; MV uses broader symptom set. Both gate textarea on yes-radio.
 ---
+
+## 2026-04-29 - PH-001..PH-005
+- Shipped Philippines 9(a) Temporary Visitor Visa + eTravel schema (PH_TEMPORARY_VISITOR_VISA): 75 fields across 8 steps. Four variants on visa_type_requested: eTravel-only (visa-free + VOA arrivals), 9(a) single-entry, 9(a) multi-entry 6-month, 9(a) multi-entry 1-year.
+- Two-flow split: 9(a) is paper at consular posts abroad (BI/DFA); eTravel is online + mandatory for ALL arrivals. Same field set covers both.
+- PH-specific: mandatory flight_number (eTravel requirement), PH port-of-entry list (NAIA/CRK/CEB/DVO/ILO/KLO/PPS + cruise ports).
+- Files: seed-ph-temporary-visitor-visa-form-fields.ts, drizzle/0037_ph_temporary_visitor_visa_package.sql, docs/philippines-visa-scope.md, docs/philippines-visa-gap-report.md, prd.json PH-001..PH-005 (priority 101..105).
+- eTravel = strong Playwright runner candidate (no auth, public). 9(a) = PDF render path (mirror JP_TOURIST).
+- Type-check green.
+- Learnings:
+  1. Hybrid online-arrival-declaration + paper-visa flows are common in Southeast Asia (PH eTravel + 9(a), TH e-Visa + on-arrival, MY eVISA + on-arrival). The visa_type_requested radio absorbs the variant routing cleanly: pick the variant, downstream submission picks the channel.
+  2. Mandatory flight_number is unusual — only PH eTravel + MV IMUGA require it pre-arrival. Most visa schemas treat it as optional. The schema's `validation_rules.required: true` on visa_type-conditional fields is a pattern worth tightening if/when conditional-required becomes supported (currently we mark required: true at field level regardless of variant).
+---
