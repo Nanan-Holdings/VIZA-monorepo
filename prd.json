@@ -1380,6 +1380,76 @@
       "priority": 95,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "MV-001",
+      "title": "Pin the Maldives IMUGA Traveller Declaration extraction scope",
+      "description": "Maldives IMUGA scoped to the mandatory pre-arrival declaration (replaces visa form since Maldives grants free 30-day VOA to all nationalities).",
+      "acceptanceCriteria": [
+        "prd.json contains MV-001 through MV-005",
+        "Single submission variant (IMUGA Traveller Declaration) on visa_type_requested",
+        "Out-of-scope (Resort Permit, Business / Long-Stay / Work / Student visa) documented",
+        "docs/maldives-visa-scope.md exists"
+      ],
+      "priority": 96,
+      "passes": true,
+      "notes": "IMUGA is the smallest VIZA-modeled schema (32 fields, 7 steps). Replaces tourist visa form for visa-free destinations."
+    },
+    {
+      "id": "MV-002",
+      "title": "Model the Maldives IMUGA field inventory",
+      "description": "MV IMUGA journey as machine-readable schema matching the IMUGA Traveller Declaration.",
+      "acceptanceCriteria": [
+        "scripts/seed-mv-imuga-form-fields.ts exists with visa_type = MV_IMUGA",
+        "7 sections (personal, passport, trip, accommodation, health, customs, declaration)",
+        "MV-specific: atoll + island accommodation breakdown, health screening, customs declarations",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 97,
+      "passes": true,
+      "notes": "Slim 7-step schema for visa-free + arrival-declaration destinations. Sets precedent for similar packages (e.g. UAE arrival declaration if added)."
+    },
+    {
+      "id": "MV-003",
+      "title": "Wire the Maldives IMUGA package into VIZA's dynamic form path",
+      "description": "MV IMUGA renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers MV_IMUGA in visa_packages (country = maldives)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 98,
+      "passes": true,
+      "notes": "Migration file: 0036_mv_imuga_package.sql."
+    },
+    {
+      "id": "MV-004",
+      "title": "Publish the Maldives IMUGA gap report",
+      "description": "MV IMUGA gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/maldives-visa-gap-report.md exists with coverage summary, parity status, atoll-enum gap, customs threshold flag, automation candidacy",
+        "IMUGA flagged as strong Playwright runner candidate (publicly accessible, no auth)",
+        "Atoll closed-enum upgrade flagged as v1.1 follow-up",
+        "Typecheck passes"
+      ],
+      "priority": 99,
+      "passes": true,
+      "notes": "Smallest schema, easiest QA path."
+    },
+    {
+      "id": "MV-005",
+      "title": "Document the Maldives IMUGA workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for MV_IMUGA.",
+      "acceptanceCriteria": [
+        "docs/maldives-visa-scope.md documents the IMUGA source",
+        "progress.txt updated with MV-001..MV-005",
+        "Next actions (live-QA, atoll enum, Playwright runner, MV_RESORT_PERMIT) stated",
+        "Typecheck passes"
+      ],
+      "priority": 100,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
