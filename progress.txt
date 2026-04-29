@@ -1153,3 +1153,21 @@ acknowledgment).
   1. Sponsor-driven flows (SG SAVE local sponsor, AE sponsor block) extend the standard 8-step Asia-tourist template by 1 step. The pattern is now stable enough to anticipate: any country where a third-party intermediary submits the visa needs a Sponsor sub-journey + a separately-optional Host sub-journey.
   2. Mixed sponsor ecosystems (airline / agent / hotel / resident / self) are the riskiest source of parity drift — the live form likely shows different field subsets per sponsor type. Schema captures the union; runtime validation tightens at submission time. Future v1.1 might use sub-journey gates within the sponsor block (`sponsor_type === airline_emirates && requires_emirates_id_xxx`).
 ---
+
+## 2026-04-29 - CA-001..CA-005
+- Shipped Canada TRV + eTA schema (CA_TRV): 85 fields across 8 steps mirroring IRCC IMM 5257 + IMM 5645 + eTA. Three variants (eTA, TRV single-entry, TRV multi-entry up to 10 years) on visa_type_requested.
+- CA-specific schema features:
+  - Common-law partner status (1+ year cohabitation) as distinct marital_status; spouse block gated via `marital_status === married || marital_status === common_law` (joins NZ_VISITOR_VISA as second VIZA schema using `||` in sub-journey).
+  - Military-service question (IMM 5645) — captures conscription periods + civil-defence + police; gates a textarea for branch / rank / dates.
+  - TB-history question separate from criminal/security declaration.
+  - Available funds CAD + monthly income CAD numeric fields with regex validation.
+  - Inclusive gender select (Male / Female / Another gender).
+  - Port-of-entry list: 8 airports (YYZ/YVR/YUL/YYC/YEG/YOW/YHZ/YWG) + 4 US-Canada land borders (Peace Bridge/Ambassador Bridge/Pacific Highway/Rainbow Bridge) + 2 cruise ports (Vancouver Canada Place + Halifax).
+- Files: seed-ca-trv-form-fields.ts, drizzle/0035_ca_trv_package.sql, docs/canada-visa-scope.md, docs/canada-visa-gap-report.md, prd.json CA-001..CA-005 (priority 91..95).
+- Live-portal QA deferred (GCKey/Sign-In Partner authenticated). eTA flagged as strongest first-runner candidate.
+- Type-check green.
+- Learnings:
+  1. ANZAC + Canada all collect "common-law" or "de facto" partner status as distinct from "married". The `||` operator pattern (NZ-001 learnings) is now load-bearing across multiple jurisdictions. Suggests a future shared `MARITAL_STATUS_PARTNERS` constant in the seed-script template.
+  2. Military-service questions appear in CA, US (DS-160), and partially in UK/AU. The gate-then-detail pattern (radio + conditional textarea) is the standard shape. CA is the first VIZA schema modeling it explicitly post DS-160.
+  3. TB-history declarations now appear in CA + NZ schemas. Both gate on independent radio with conditional textarea. Pattern is stable enough to consider abstracting into a "Health Declaration" reusable block in the seed template.
+---
