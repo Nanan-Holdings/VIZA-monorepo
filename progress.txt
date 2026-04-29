@@ -1218,3 +1218,11 @@ acknowledgment).
 - Learnings:
   1. Mekong Region package ports overlap meaningfully (LA Friendship Bridges connect to TH; KH borders connect to TH+VN+LA; VN borders connect to KH+LA+CN). Future shared `mekong_borders` enum module could reduce duplication across LA/KH/VN/TH packages.
 ---
+
+## 2026-04-29 - LK-001..LK-005
+- Shipped Sri Lanka ETA schema (LK_ETA): 70 fields across 8 steps mirroring eta.gov.lk (Department of Immigration and Emigration). Four variants on visa_type_requested: Tourist single/double/multi-entry + Business single.
+- LK-specific: 3 airports (CMB/HRI/RML) + 4 seaports (Colombo/Galle/Trincomalee/Hambantota).
+- Files: seed-lk-eta-form-fields.ts, drizzle/0040_lk_eta_package.sql, docs/sri-lanka-visa-scope.md, docs/sri-lanka-visa-gap-report.md, prd.json LK-001..LK-005 (priority 116..120).
+- Public portal — strong Playwright runner candidate.
+- Type-check green.
+---
