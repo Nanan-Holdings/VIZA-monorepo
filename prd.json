@@ -1610,6 +1610,51 @@
       "priority": 115,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "LK-001",
+      "title": "Pin Sri Lanka ETA scope",
+      "description": "LK ETA scoped to Department of Immigration eta.gov.lk.",
+      "acceptanceCriteria": ["prd.json contains LK-001..LK-005", "Four variants (Tourist single/double/multi, Business single) on visa_type_requested", "Out-of-scope (Resident/Work/Student/Investor/Dependent) documented", "docs/sri-lanka-visa-scope.md exists"],
+      "priority": 116,
+      "passes": true,
+      "notes": "Public portal, strong automation candidate."
+    },
+    {
+      "id": "LK-002",
+      "title": "Model Sri Lanka ETA field inventory",
+      "description": "LK ETA as machine-readable schema.",
+      "acceptanceCriteria": ["scripts/seed-lk-eta-form-fields.ts exists with visa_type = LK_ETA", "8 sections", "LK port-of-entry list (3 airports + 4 seaports)", "Typecheck passes"],
+      "priority": 117,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "LK-003",
+      "title": "Wire Sri Lanka ETA package into VIZA",
+      "description": "LK ETA renders through dynamic form.",
+      "acceptanceCriteria": ["Drizzle migration registers LK_ETA (country = sri_lanka)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "priority": 118,
+      "passes": true,
+      "notes": "Migration: 0040_lk_eta_package.sql."
+    },
+    {
+      "id": "LK-004",
+      "title": "Publish Sri Lanka ETA gap report",
+      "description": "LK gaps surfaced.",
+      "acceptanceCriteria": ["docs/sri-lanka-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Typecheck passes"],
+      "priority": 119,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "LK-005",
+      "title": "Document Sri Lanka ETA workflow",
+      "description": "Scope + gap docs + progress entry.",
+      "acceptanceCriteria": ["docs/sri-lanka-visa-scope.md docs Department of Immigration source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "priority": 120,
+      "passes": true,
+      "notes": ""
     }
   ]
 }
