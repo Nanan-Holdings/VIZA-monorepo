@@ -1242,3 +1242,40 @@ acknowledgment).
   2. Yellow-fever screening is the first public-health-specific dependency I've modeled (TB-history in NZ + CA was simpler — no follow-up gating). The two-step gate (endemic-country travel? → certificate held?) sets the pattern for future health-prerequisite checks (e.g. polio for Egypt, COVID-19 historically).
   3. SADC land borders are jurisdiction-specific and reusable across SA + neighbour countries (BW, NA, SZ, LS, MZ, ZW). Future shared `sadc_borders` enum if other SADC packages added.
 ---
+
+## 2026-04-29 - IN-001..IN-005
+- Shipped India e-Visa schema (IN_E_VISA): 110 fields across 9 steps mirroring indianvisaonline.gov.in/evisa (Bureau of Immigration). Largest non-DS-160 schema. Seven variants on visa_type_requested: e-Tourist 30-day double / 1-year multi / 5-year multi, e-Business 1-year multi, e-Medical 60-day triple, e-Medical-Attendant 60-day triple, e-Conference 30-day single.
+- IN-specific schema features:
+  - SAARC nationality declaration (BD/BT/NP/PK/LK/MV/AF) with required follow-up textarea
+  - Religion select (Hinduism/Islam/Christianity/Sikhism/Buddhism/Jainism/Judaism/Zoroastrianism/etc.)
+  - Parents' nationality + birthplace (4 fields, on top of names)
+  - Transgender option in sex select
+  - MEA conference clearance number (gated on e-Conference variant)
+  - Multi-purpose sub-journey (step 6 Purpose-Specific Details): business / medical / conference each with their own block_group and conditional gates on purpose_of_visit
+  - Cities-to-visit textarea + countries-visited-last-10-years textarea
+  - Host Aadhaar / PAN / passport identifier
+  - Comprehensive port-of-entry list: 13 international airports + 5 cruise seaports
+- Files: seed-in-e-visa-form-fields.ts, drizzle/0042_in_e_visa_package.sql, docs/india-visa-scope.md, docs/india-visa-gap-report.md, prd.json IN-001..IN-005 (priority 126..130).
+- Live-portal QA easy (public portal, no auth). Strong Playwright runner candidate, complexity in multi-page state machine + biometric-on-arrival.
+- Type-check green.
+- Learnings:
+  1. Multi-purpose sub-journey pattern (UK Standard Visitor = 11 purposes; IN e-Visa = 4 purposes) scales cleanly with `block_group` per purpose. Step 6 contains all sub-journey fields side-by-side; runtime gating shows only the relevant block. The `IS_BUSINESS / IS_MEDICAL / IS_CONFERENCE` constant pattern from UK seed is now reused across UK + IN.
+  2. Parental data depth varies by jurisdiction: most countries collect parents' names; India collects parents' names + nationality + birthplace; DS-160 collects parents' DOB + birthplace + names. Schema captures the union per jurisdiction; future i18n / consolidation could extract a `parental_block` reusable subset.
+  3. SAARC-style political/security follow-up declarations have no standard shape. India asks SAARC; Russia asks insurance + visa; UK asks 11 purpose sub-journeys; Schengen asks Annex I starred fields. Each is jurisdiction-specific; the conditional engine handles them all uniformly.
+
+## 2026-04-29 - LOOP COMPLETE
+- All 30 countries from the user's priority list now have shipped schemas:
+  - Pre-existing (13): KR, VN, JP, ID, AU, EG, UK, IT, FR, CH, DE, ES, US (DS-160)
+  - Schengen-shared (5): IT/FR/CH/DE/ES via EU_SCHENGEN_C_SHORT_STAY
+  - This loop (17): TH, MY, SG, HK, MO, NZ, RU, TR, AE, CA, MV, PH, KH, LA, LK, ZA, IN
+- Migrations 0026 → 0042 applied; PRD entries through priority 130; type-check green throughout; all individually committed.
+- Patterns codified:
+  - Asia-tourist 8-step template (TH, MY, KH, LA, LK)
+  - 9-step Sponsor extension (SG, AE)
+  - 9-step Purpose sub-journey (IN — business/medical/conference like UK)
+  - Slim 7-step arrival-only (MV)
+  - `||` partner gating (NZ de_facto, CA common_law, ZA life_partner)
+  - Health declaration (NZ TB, CA TB, ZA yellow-fever)
+  - Multi-variant `visa_type_requested` (3-7 variants per package)
+- Loop ends. Ralph stop signal not output (PRD is per-country group; user's loop covers schema work, not a global "all stories pass" gate).
+---
