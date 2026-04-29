@@ -1123,3 +1123,18 @@ acknowledgment).
   2. Eligibility lists by nationality are a class of constraint that doesn't belong in `visa_form_fields`. Best place to enforce: VIZA intake / package-recommendation engine. Schema captures the form; recommendation captures the rules.
   3. Multi-purpose-under-one-form (RU's tourism/business/humanitarian/guest) is similar to NZ's tourism/family/business/medical pattern — the purpose_of_visit select unlocks no sub-journey here, just routes the application internally at MID. Compare to UK Standard Visitor where purpose_of_visit unlocks 11 sub-journeys.
 ---
+
+## 2026-04-29 - TR-001..TR-005
+- Shipped Türkiye Tourist e-Visa schema (TR_E_VISA): ~70 fields across 8 steps mirroring evisa.gov.tr (MFA portal).
+- TR-specific schema features:
+  - Two entry-frequency variants (single, multiple) on visa_type_requested
+  - Two purposes (tourism, commerce/business visit) on purpose_of_visit — first VIZA tourist schema with explicit business-visit purpose
+  - Port-of-entry list: 8 airports (IST/SAW/ESB/AYT/ADB/BJV/DLM/TZX) + 4 land borders (Bulgaria/Greece/Georgia/Iraq) + 3 cruise ports (Istanbul/Kuşadası/İzmir)
+  - Dual-language country naming (Türkiye / Turkey)
+- Files: seed-tr-e-visa-form-fields.ts, drizzle/0033_tr_e_visa_package.sql, docs/turkiye-visa-scope.md, docs/turkiye-visa-gap-report.md, prd.json TR-001..TR-005 (priority 81..85).
+- evisa.gov.tr is publicly accessible without account — easiest live-portal QA candidate. Strong submission-automation candidate (no Cloudflare/WAF, no auth, predictable validation). Flag for first auto-runner expansion.
+- Type-check green.
+- Learnings:
+  1. No-account-required e-Visa portals (TR, future ETIAS, future US ESTA-style) are the cheapest auto-runners to build — no credential management, no Singpass/RealMe/encrypted-account-table overhead. Prioritise these for first submission-automation iterations.
+  2. Stay-length is nationality-dependent in many e-Visa systems (TR: 30 vs 90 days, NZ: 90 days NZeTA vs 9 months Visitor, US ESTA: 90 days). Future template upgrade: a `nationality_to_max_stay` lookup table referenced by the recommendation engine, surfacing accurate max-stay messaging at intake.
+---
