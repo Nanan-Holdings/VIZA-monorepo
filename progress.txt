@@ -1200,3 +1200,11 @@ acknowledgment).
   1. Hybrid online-arrival-declaration + paper-visa flows are common in Southeast Asia (PH eTravel + 9(a), TH e-Visa + on-arrival, MY eVISA + on-arrival). The visa_type_requested radio absorbs the variant routing cleanly: pick the variant, downstream submission picks the channel.
   2. Mandatory flight_number is unusual — only PH eTravel + MV IMUGA require it pre-arrival. Most visa schemas treat it as optional. The schema's `validation_rules.required: true` on visa_type-conditional fields is a pattern worth tightening if/when conditional-required becomes supported (currently we mark required: true at field level regardless of variant).
 ---
+
+## 2026-04-29 - KH-001..KH-005
+- Shipped Cambodia Tourist e-Visa schema (KH_TOURIST_E_VISA): 70 fields across 8 steps mirroring evisa.gov.kh (MFA + General Department of Immigration). Single-entry only.
+- KH-specific: 3 international airports (PNH/REP/KOS) + 5 land borders (Poipet TH / Bavet VN / Cham Yeam TH / Dong Kralor LA / Phnom Den VN) + Sihanoukville seaport.
+- Files: seed-kh-e-visa-form-fields.ts, drizzle/0038_kh_tourist_e_visa_package.sql, docs/cambodia-visa-scope.md, docs/cambodia-visa-gap-report.md, prd.json KH-001..KH-005 (priority 106..110).
+- evisa.gov.kh = public portal, no auth — strong Playwright runner candidate.
+- Type-check green.
+---

@@ -1520,6 +1520,51 @@
       "priority": 105,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "KH-001",
+      "title": "Pin Cambodia Tourist e-Visa scope",
+      "description": "KH Tourist e-Visa scoped to MFA evisa.gov.kh.",
+      "acceptanceCriteria": ["prd.json contains KH-001..KH-005", "Single-entry variant on visa_type_requested", "Out-of-scope (Business e-Visa, E-Class/K-Class, VOA) documented", "docs/cambodia-visa-scope.md exists"],
+      "priority": 106,
+      "passes": true,
+      "notes": "Public portal, no auth. Strong automation candidate."
+    },
+    {
+      "id": "KH-002",
+      "title": "Model Cambodia Tourist e-Visa field inventory",
+      "description": "KH e-Visa as machine-readable schema.",
+      "acceptanceCriteria": ["scripts/seed-kh-e-visa-form-fields.ts exists with visa_type = KH_TOURIST_E_VISA", "8 sections", "KH port-of-entry list (3 airports + 5 land borders + cruise)", "Typecheck passes"],
+      "priority": 107,
+      "passes": true,
+      "notes": "Same Asia-tourist template."
+    },
+    {
+      "id": "KH-003",
+      "title": "Wire Cambodia e-Visa package into VIZA dynamic form",
+      "description": "KH e-Visa renders through dynamic form.",
+      "acceptanceCriteria": ["Drizzle migration registers KH_TOURIST_E_VISA (country = cambodia)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "priority": 108,
+      "passes": true,
+      "notes": "Migration: 0038_kh_tourist_e_visa_package.sql."
+    },
+    {
+      "id": "KH-004",
+      "title": "Publish Cambodia e-Visa gap report",
+      "description": "KH gaps surfaced.",
+      "acceptanceCriteria": ["docs/cambodia-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Typecheck passes"],
+      "priority": 109,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "KH-005",
+      "title": "Document Cambodia e-Visa workflow",
+      "description": "Scope + gap docs + progress entry.",
+      "acceptanceCriteria": ["docs/cambodia-visa-scope.md docs MFA source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "priority": 110,
+      "passes": true,
+      "notes": ""
     }
   ]
 }
