@@ -1160,6 +1160,77 @@
       "priority": 80,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "TR-001",
+      "title": "Pin the Türkiye Tourist e-Visa extraction scope and canonical source journey",
+      "description": "TR Tourist e-Visa scoped to MFA evisa.gov.tr flow.",
+      "acceptanceCriteria": [
+        "prd.json contains TR-001 through TR-005",
+        "Two entry-frequency variants (single, multiple) on visa_type_requested",
+        "Two purposes (tourism, commerce) on purpose_of_visit",
+        "Out-of-scope (Work Permit, Student Visa, Residence Permit, Citizenship by Investment, VOA) documented",
+        "docs/turkiye-visa-scope.md exists"
+      ],
+      "priority": 81,
+      "passes": true,
+      "notes": "evisa.gov.tr is publicly accessible without account — easiest live-portal QA candidate of all VIZA-modeled e-Visa flows."
+    },
+    {
+      "id": "TR-002",
+      "title": "Model the Türkiye Tourist e-Visa field inventory",
+      "description": "TR e-Visa journey as machine-readable schema matching the MFA e-Visa form.",
+      "acceptanceCriteria": [
+        "scripts/seed-tr-e-visa-form-fields.ts exists with visa_type = TR_E_VISA",
+        "8 sections covering all MFA-collected fields",
+        "TR-specific: dual-language country naming (Türkiye / Turkey), 8 airports + 4 land borders + 3 cruise ports in port-of-entry list",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 82,
+      "passes": true,
+      "notes": "Stay-length cap is nationality-dependent; schema caps at 90 (max), live portal enforces specific cap."
+    },
+    {
+      "id": "TR-003",
+      "title": "Wire the Türkiye Tourist e-Visa package into VIZA's dynamic form path",
+      "description": "TR e-Visa form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers TR_E_VISA in visa_packages (country = turkey)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 83,
+      "passes": true,
+      "notes": "Migration file: 0033_tr_e_visa_package.sql."
+    },
+    {
+      "id": "TR-004",
+      "title": "Publish the Türkiye Tourist e-Visa gap report",
+      "description": "TR e-Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/turkiye-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Live-portal QA flagged as easy due to no-auth-required portal",
+        "Submission automation flagged as strong candidate (no Cloudflare/WAF, no auth)",
+        "Typecheck passes"
+      ],
+      "priority": 84,
+      "passes": true,
+      "notes": "TR is a strong automation candidate — flag as priority for first auto-runner expansion."
+    },
+    {
+      "id": "TR-005",
+      "title": "Document the Türkiye Tourist e-Visa workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for TR_E_VISA.",
+      "acceptanceCriteria": [
+        "docs/turkiye-visa-scope.md documents the MFA source",
+        "progress.txt updated with TR-001..TR-005",
+        "Next actions (live-QA, Playwright runner, nationality-stay-mapping table, TR_RESIDENCE_PERMIT / TR_WORK_PERMIT / TR_STUDENT_VISA) stated",
+        "Typecheck passes"
+      ],
+      "priority": 85,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
