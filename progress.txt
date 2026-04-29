@@ -1138,3 +1138,18 @@ acknowledgment).
   1. No-account-required e-Visa portals (TR, future ETIAS, future US ESTA-style) are the cheapest auto-runners to build — no credential management, no Singpass/RealMe/encrypted-account-table overhead. Prioritise these for first submission-automation iterations.
   2. Stay-length is nationality-dependent in many e-Visa systems (TR: 30 vs 90 days, NZ: 90 days NZeTA vs 9 months Visitor, US ESTA: 90 days). Future template upgrade: a `nationality_to_max_stay` lookup table referenced by the recommendation engine, surfacing accurate max-stay messaging at intake.
 ---
+
+## 2026-04-29 - AE-001..AE-005
+- Shipped UAE Tourist Visa schema (AE_TOURIST_VISA): 78 fields across 9 steps mirroring ICP Smart Services + GDRFA Dubai. Three variants (30-day single, 60-day single, 5-year multi) on visa_type_requested.
+- AE-specific schema features:
+  - Optional Arabic name field + optional religion select (UAE retains both for some applications)
+  - Emirate field separate from city
+  - Sponsor sub-journey (step 6) covering all 9 sponsor types: 4 airlines (Emirates/Etihad/flydubai/Air Arabia) + travel agents + hotel + UAE Resident + self-apply via ICP
+  - Sponsor identifier: Emirates ID OR trade-license number (loose-validated)
+- Files: seed-ae-tourist-visa-form-fields.ts, drizzle/0034_ae_tourist_visa_package.sql, docs/uae-visa-scope.md, docs/uae-visa-gap-report.md, prd.json AE-001..AE-005 (priority 86..90).
+- Live-portal QA deferred (both portals identity-gated; sponsor accounts often issued by sponsor entity rather than direct to applicant).
+- Type-check green.
+- Learnings:
+  1. Sponsor-driven flows (SG SAVE local sponsor, AE sponsor block) extend the standard 8-step Asia-tourist template by 1 step. The pattern is now stable enough to anticipate: any country where a third-party intermediary submits the visa needs a Sponsor sub-journey + a separately-optional Host sub-journey.
+  2. Mixed sponsor ecosystems (airline / agent / hotel / resident / self) are the riskiest source of parity drift — the live form likely shows different field subsets per sponsor type. Schema captures the union; runtime validation tightens at submission time. Future v1.1 might use sub-journey gates within the sponsor block (`sponsor_type === airline_emirates && requires_emirates_id_xxx`).
+---
