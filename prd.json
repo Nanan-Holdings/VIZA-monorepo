@@ -1305,6 +1305,81 @@
       "priority": 90,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "CA-001",
+      "title": "Pin the Canada TRV + eTA extraction scope and canonical source journey",
+      "description": "Canada TRV + eTA scoped to IRCC Secure Account portal flow, covering visitor visa categories.",
+      "acceptanceCriteria": [
+        "prd.json contains CA-001 through CA-005",
+        "Three submission variants (eTA, TRV Single, TRV Multi) on visa_type_requested",
+        "Common-law partner status modeled distinctly via `||` showIf gate on spouse block",
+        "Out-of-scope (Work Permit / Study Permit / PR / Super Visa / Refugee / TRP) documented",
+        "docs/canada-visa-scope.md exists"
+      ],
+      "priority": 91,
+      "passes": true,
+      "notes": "IRCC Secure Account uses GCKey or Sign-In Partner SSO. Live-portal QA deferred."
+    },
+    {
+      "id": "CA-002",
+      "title": "Model the Canada TRV + eTA field inventory",
+      "description": "CA TRV journey as machine-readable schema matching IMM 5257 + IMM 5645 + eTA flow.",
+      "acceptanceCriteria": [
+        "scripts/seed-ca-trv-form-fields.ts exists with visa_type = CA_TRV",
+        "8 sections incl. military-service question (IMM 5645) + TB-history question",
+        "Common-law partner status; spouse block gated via `||`",
+        "Available funds CAD + monthly income CAD numeric fields",
+        "Inclusive gender select (Male / Female / Another gender)",
+        "CA port-of-entry list (8 airports + 4 US-Canada land borders + 2 cruise ports)",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 92,
+      "passes": true,
+      "notes": "Joins NZ_VISITOR_VISA as second schema using `||` in sub-journey gate."
+    },
+    {
+      "id": "CA-003",
+      "title": "Wire the Canada TRV + eTA package into VIZA's dynamic form path",
+      "description": "CA TRV form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers CA_TRV in visa_packages (country = canada)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 93,
+      "passes": true,
+      "notes": "Migration file: 0035_ca_trv_package.sql."
+    },
+    {
+      "id": "CA-004",
+      "title": "Publish the Canada TRV + eTA gap report",
+      "description": "CA TRV gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/canada-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "GCKey authentication flagged as auto-blocker",
+        "eTA flagged as easier auto-runner candidate",
+        "IMM 5257 + IMM 5645 PDF render flagged as JP_TOURIST-pattern follow-up",
+        "Typecheck passes"
+      ],
+      "priority": 94,
+      "passes": true,
+      "notes": "PDF render path is canonical for sponsor-driven government forms."
+    },
+    {
+      "id": "CA-005",
+      "title": "Document the Canada TRV + eTA workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for CA_TRV.",
+      "acceptanceCriteria": [
+        "docs/canada-visa-scope.md documents the IRCC source",
+        "progress.txt updated with CA-001..CA-005",
+        "Next actions (live-QA, eTA Playwright runner, IMM 5257/5645 PDF render, CA_SUPER_VISA / CA_STUDY_PERMIT / CA_WORK_PERMIT) stated",
+        "Typecheck passes"
+      ],
+      "priority": 95,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
