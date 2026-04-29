@@ -1208,3 +1208,13 @@ acknowledgment).
 - evisa.gov.kh = public portal, no auth — strong Playwright runner candidate.
 - Type-check green.
 ---
+
+## 2026-04-29 - LA-001..LA-005
+- Shipped Laos Tourist e-Visa schema (LA_TOURIST_E_VISA): 65 fields across 8 steps mirroring laoevisa.gov.la (MFA). Two variants on visa_type_requested: e-Visa single + VOA pre-clearance.
+- LA-specific: 4 international airports (VTE/LPQ/PKZ/ZVK) + 4 Mekong Friendship Bridges (Nong Khai/Mukdahan/Nakhon Phanom/Chiang Khong, all TH borders) + Boten (CN) + Namphao+Lao Bao (VN) + Veun Kham (KH).
+- Files: seed-la-e-visa-form-fields.ts, drizzle/0039_la_tourist_e_visa_package.sql, docs/laos-visa-scope.md, docs/laos-visa-gap-report.md, prd.json LA-001..LA-005 (priority 111..115).
+- Public portal — strong Playwright runner candidate.
+- Type-check green.
+- Learnings:
+  1. Mekong Region package ports overlap meaningfully (LA Friendship Bridges connect to TH; KH borders connect to TH+VN+LA; VN borders connect to KH+LA+CN). Future shared `mekong_borders` enum module could reduce duplication across LA/KH/VN/TH packages.
+---
