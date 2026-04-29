@@ -1565,6 +1565,51 @@
       "priority": 110,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "LA-001",
+      "title": "Pin Laos Tourist e-Visa scope",
+      "description": "LA Tourist e-Visa scoped to MFA laoevisa.gov.la + VOA pre-clearance.",
+      "acceptanceCriteria": ["prd.json contains LA-001..LA-005", "Two variants (e-Visa, VOA) on visa_type_requested", "Out-of-scope (NA-B / NA-LS / Investment) documented", "docs/laos-visa-scope.md exists"],
+      "priority": 111,
+      "passes": true,
+      "notes": "Public portal; strong automation candidate."
+    },
+    {
+      "id": "LA-002",
+      "title": "Model Laos e-Visa field inventory",
+      "description": "LA e-Visa as machine-readable schema.",
+      "acceptanceCriteria": ["scripts/seed-la-e-visa-form-fields.ts exists with visa_type = LA_TOURIST_E_VISA", "8 sections", "LA port-of-entry list (4 airports + 4 Mekong Friendship Bridges + 4 land borders)", "Typecheck passes"],
+      "priority": 112,
+      "passes": true,
+      "notes": "Same Asia-tourist template + 4 Friendship Bridges from TH."
+    },
+    {
+      "id": "LA-003",
+      "title": "Wire Laos e-Visa package into VIZA",
+      "description": "LA e-Visa renders through dynamic form.",
+      "acceptanceCriteria": ["Drizzle migration registers LA_TOURIST_E_VISA (country = laos)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "priority": 113,
+      "passes": true,
+      "notes": "Migration: 0039_la_tourist_e_visa_package.sql."
+    },
+    {
+      "id": "LA-004",
+      "title": "Publish Laos e-Visa gap report",
+      "description": "LA gaps surfaced.",
+      "acceptanceCriteria": ["docs/laos-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Nationality-based fee variation flagged", "Typecheck passes"],
+      "priority": 114,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "LA-005",
+      "title": "Document Laos e-Visa workflow",
+      "description": "Scope + gap docs + progress entry.",
+      "acceptanceCriteria": ["docs/laos-visa-scope.md docs MFA source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "priority": 115,
+      "passes": true,
+      "notes": ""
     }
   ]
 }
