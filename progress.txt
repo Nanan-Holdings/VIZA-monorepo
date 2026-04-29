@@ -1171,3 +1171,20 @@ acknowledgment).
   2. Military-service questions appear in CA, US (DS-160), and partially in UK/AU. The gate-then-detail pattern (radio + conditional textarea) is the standard shape. CA is the first VIZA schema modeling it explicitly post DS-160.
   3. TB-history declarations now appear in CA + NZ schemas. Both gate on independent radio with conditional textarea. Pattern is stable enough to consider abstracting into a "Health Declaration" reusable block in the seed template.
 ---
+
+## 2026-04-29 - MV-001..MV-005
+- Shipped Maldives IMUGA schema (MV_IMUGA): 32 fields across 7 steps — smallest VIZA-modeled package. IMUGA replaces what would be a tourist visa form since Maldives grants free 30-day VOA to all nationalities.
+- MV-specific schema features:
+  - Slim 7-step structure (no host / sponsor / character & declaration blocks — IMUGA is health/arrival declaration, not visa screening)
+  - Atoll + island accommodation breakdown (text fields; closed enum is v1.1 follow-up)
+  - Health symptoms screening (fever / cough / breathing difficulty / diarrhoea / vomiting / rash / jaundice + outbreak-country recent travel)
+  - Customs declarations (currency >USD 30,000 + restricted items: alcohol, pork products, non-Islamic religious materials, narcotics)
+  - Resort / liveaboard / yacht accommodation types (MV-specific tourism mix)
+- Files: seed-mv-imuga-form-fields.ts, drizzle/0036_mv_imuga_package.sql, docs/maldives-visa-scope.md, docs/maldives-visa-gap-report.md, prd.json MV-001..MV-005 (priority 96..100).
+- IMUGA is publicly accessible (no auth) — strongest first-runner candidate after TR_E_VISA.
+- Type-check green.
+- Learnings:
+  1. Visa-free + arrival-declaration destinations need a slimmer template than the standard 8-step Asia-tourist. IMUGA's 7-step shape (no host/sponsor/character) sets the precedent. Future similar packages: UAE arrival declaration if introduced, Bhutan Sustainable Development Fee declaration, Bahrain eVisa for visa-free arrivals.
+  2. Customs declarations are jurisdiction-specific (currency thresholds, restricted-item lists differ wildly: MV bans alcohol+pork+non-Islamic religious materials, others ban only currency+narcotics). Capture in separate "Customs Declaration" step rather than embedding in character/declaration.
+  3. Health symptom screening as a discrete step (separate from criminal/security character declaration) is the right shape for arrival-only forms. CA + NZ schemas use TB-history as a question; MV uses broader symptom set. Both gate textarea on yes-radio.
+---
