@@ -1231,6 +1231,80 @@
       "priority": 85,
       "passes": true,
       "notes": "Close with operator-usable documentation."
+    },
+    {
+      "id": "AE-001",
+      "title": "Pin the UAE Tourist Visa extraction scope and canonical source journey",
+      "description": "UAE Tourist Visa scoped to ICP Smart Services + GDRFA Dubai flows, covering 30-day, 60-day, and 5-year multi-entry tourist variants.",
+      "acceptanceCriteria": [
+        "prd.json contains AE-001 through AE-005",
+        "Three submission variants (30-day, 60-day, 5-year multi) on visa_type_requested",
+        "Sponsor block captured with all 9 sponsor types (airline/agent/hotel/UAE Resident/self-ICP)",
+        "Out-of-scope (Residence Visa families, Green Visa, Freelance Permit, Mission visa, VOA) documented",
+        "docs/uae-visa-scope.md exists"
+      ],
+      "priority": 86,
+      "passes": true,
+      "notes": "ICP and GDRFA share field set; sponsor types vary by emirate. Live-portal QA deferred."
+    },
+    {
+      "id": "AE-002",
+      "title": "Model the UAE Tourist Visa field inventory",
+      "description": "UAE Tourist Visa journey as machine-readable schema matching ICP Smart Services + GDRFA Dubai forms.",
+      "acceptanceCriteria": [
+        "scripts/seed-ae-tourist-visa-form-fields.ts exists with visa_type = AE_TOURIST_VISA",
+        "9 sections incl. UAE-specific Sponsor sub-journey",
+        "Optional Arabic name + religion captured",
+        "Emirate field captured",
+        "Sponsor types include airline (Emirates/Etihad/flydubai/Air Arabia) + travel agent + hotel + UAE Resident + self-ICP",
+        "Typecheck passes for agent-backend"
+      ],
+      "priority": 87,
+      "passes": true,
+      "notes": "Sponsor sub-journey is the AE-specific feature. Religion field follows past UAE consular practice."
+    },
+    {
+      "id": "AE-003",
+      "title": "Wire the UAE Tourist Visa package into VIZA's dynamic form path",
+      "description": "UAE Tourist Visa form renders through dynamic form infrastructure.",
+      "acceptanceCriteria": [
+        "Drizzle migration registers AE_TOURIST_VISA in visa_packages (country = united_arab_emirates)",
+        "Migration is idempotent",
+        "No frontend code changes",
+        "Typecheck passes"
+      ],
+      "priority": 88,
+      "passes": true,
+      "notes": "Migration file: 0034_ae_tourist_visa_package.sql."
+    },
+    {
+      "id": "AE-004",
+      "title": "Publish the UAE Tourist Visa gap report",
+      "description": "UAE Tourist Visa gaps surfaced explicitly.",
+      "acceptanceCriteria": [
+        "docs/uae-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
+        "Live-portal QA pass flagged as top open item",
+        "Sponsor-type field-variation matrix flagged for QA",
+        "Emirate enum closure flagged as low-priority improvement",
+        "Typecheck passes"
+      ],
+      "priority": 89,
+      "passes": true,
+      "notes": "Sponsor variation is the riskiest unknown for parity drift."
+    },
+    {
+      "id": "AE-005",
+      "title": "Document the UAE Tourist Visa workflow and next expansion path",
+      "description": "Scope + gap docs and progress entry for AE_TOURIST_VISA.",
+      "acceptanceCriteria": [
+        "docs/uae-visa-scope.md documents the ICP + GDRFA sources",
+        "progress.txt updated with AE-001..AE-005",
+        "Next actions (live-QA, AE_GOLDEN_VISA / AE_GREEN_VISA / AE_EMPLOYMENT_RESIDENCE / AE_FREELANCE_PERMIT) stated",
+        "Typecheck passes"
+      ],
+      "priority": 90,
+      "passes": true,
+      "notes": "Close with operator-usable documentation."
     }
   ]
 }
