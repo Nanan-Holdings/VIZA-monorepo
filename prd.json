@@ -1700,6 +1700,51 @@
       "priority": 125,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "IN-001",
+      "title": "Pin India e-Visa scope",
+      "description": "IN e-Visa scoped to Bureau of Immigration indianvisaonline.gov.in/evisa across Tourist / Business / Medical / Conference categories.",
+      "acceptanceCriteria": ["prd.json contains IN-001..IN-005", "Seven variants (e-Tourist 30d/1y/5y, e-Business 1y, e-Medical 60d, e-Medical-Attendant 60d, e-Conference 30d) on visa_type_requested", "SAARC nationality declaration captured", "Purpose-specific sub-journeys for business / medical / conference", "Out-of-scope (Regular Tourist paper, Employment, Student, Research, Journalist, OCI) documented", "docs/india-visa-scope.md exists"],
+      "priority": 126,
+      "passes": true,
+      "notes": "Largest non-DS-160 schema. SAARC declaration is jurisdiction-specific intelligence."
+    },
+    {
+      "id": "IN-002",
+      "title": "Model India e-Visa field inventory",
+      "description": "IN e-Visa as machine-readable schema matching Bureau of Immigration form across 4 categories.",
+      "acceptanceCriteria": ["scripts/seed-in-e-visa-form-fields.ts exists with visa_type = IN_E_VISA", "9 sections incl. Purpose-Specific Details", "IN-specific: SAARC nationality + religion + parents' nationality + parents' birthplace", "Transgender option in sex select", "MEA clearance number for e-Conference (gated)", "Cities-to-visit textarea + countries-visited-last-10-years", "Sub-journey gating for business/medical/conference via purpose_of_visit", "Typecheck passes"],
+      "priority": 127,
+      "passes": true,
+      "notes": "Multi-purpose sub-journey pattern joins UK Standard Visitor as the only multi-purpose-with-sub-journey schemas."
+    },
+    {
+      "id": "IN-003",
+      "title": "Wire India e-Visa package into VIZA",
+      "description": "IN e-Visa renders through dynamic form.",
+      "acceptanceCriteria": ["Drizzle migration registers IN_E_VISA (country = india)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "priority": 128,
+      "passes": true,
+      "notes": "Migration: 0042_in_e_visa_package.sql."
+    },
+    {
+      "id": "IN-004",
+      "title": "Publish India e-Visa gap report",
+      "description": "IN gaps surfaced.",
+      "acceptanceCriteria": ["docs/india-visa-gap-report.md exists", "Strong Playwright candidate flagged (no auth)", "Stay-length nationality cap variation flagged (90 vs 180 days)", "Multi-purpose sub-journey complexity documented", "Typecheck passes"],
+      "priority": 129,
+      "passes": true,
+      "notes": "Multi-page state machine + biometric-on-arrival are the auto-runner challenges."
+    },
+    {
+      "id": "IN-005",
+      "title": "Document India e-Visa workflow",
+      "description": "Scope + gap docs + progress entry.",
+      "acceptanceCriteria": ["docs/india-visa-scope.md docs Bureau of Immigration source", "progress.txt updated", "Next actions stated (live-QA, IN e-Visa runner, IN_OCI, IN_EMPLOYMENT_VISA, IN_STUDENT_VISA)", "Typecheck passes"],
+      "priority": 130,
+      "passes": true,
+      "notes": ""
     }
   ]
 }
