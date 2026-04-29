@@ -573,7 +573,7 @@ const fieldMappings = {
   }
 };
 
-const SUPABASE_URL = 'https://oyjhxzsoejraedqghndi.supabase.co';
+const SUPABASE_URL = 'https://oyjxdzsoejraedqghndi.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_F5iLwR2PAMWH79sSHUXslA_67aA6GTj';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95anhkenNvZWpyYWVkcWdobmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxOTUsImV4cCI6MjA4OTYyMzE5NX0.Hw6DgY6fDVe5ky8wVj7F8Ib_kJaNgGrCiVc_hC5o_fk';
 const SUPABASE_PROFILE_TABLE = 'visa_vietnam';
@@ -594,6 +594,25 @@ function getSupabaseApiKey() {
     return SUPABASE_ANON_KEY.trim();
   }
   return '';
+}
+
+function normalizeEmailAddress(value) {
+  return (value || '').toString().trim().toLowerCase();
+}
+
+function buildSupabaseOtpPayload(email) {
+  const normalizedEmail = normalizeEmailAddress(email);
+  if (!normalizedEmail) {
+    throw new Error('missing_email');
+  }
+
+  return {
+    email: normalizedEmail,
+    options: {
+      shouldCreateUser: true
+    },
+    create_user: true
+  };
 }
 
 function isPlainObject(value) {
@@ -654,6 +673,15 @@ function mergeProfileWithDefaults(defaults, remote) {
   }
 
   return merged;
+}
+
+function sanitizeProfileForSave(profile) {
+  if (!isPlainObject(profile)) return {};
+  const cleaned = cloneDeep(profile);
+  if (cleaned.documents) {
+    delete cleaned.documents;
+  }
+  return cleaned;
 }
 
 function replaceFileExtension(fileName, extension) {
@@ -863,6 +891,18 @@ function buildSupabaseStorageHeaders(accessToken, contentType = '') {
   return headers;
 }
 
+function formatSupabaseFetchError(error, contextLabel) {
+  const message = error?.message || '';
+  if (message.toLowerCase().includes('failed to fetch')) {
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (offline) {
+      return new Error('network_offline');
+    }
+    return new Error(`network_unreachable:${contextLabel}`);
+  }
+  return new Error(message || `supabase_${contextLabel}_failed`);
+}
+
 function getFileExtensionFromMimeType(mimeType) {
   const normalized = (mimeType || '').toLowerCase();
   if (normalized.includes('png')) return '.png';
@@ -1052,6 +1092,76 @@ async function loginSupabaseWithPassword(email, password) {
   return session;
 }
 
+async function sendSupabaseOtp(email) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const payload = buildSupabaseOtpPayload(email);
+
+  let response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+      method: 'POST',
+      headers: buildSupabaseHeaders(),
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    throw formatSupabaseFetchError(error, 'otp_send');
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error_description || data?.error || data?.msg || 'supabase_otp_send_failed');
+  }
+
+  return true;
+}
+
+async function verifySupabaseOtp(email, token) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const normalizedEmail = normalizeEmailAddress(email);
+  const normalizedToken = (token || '').toString().trim();
+  if (!normalizedEmail || !normalizedToken) {
+    throw new Error('missing_code');
+  }
+
+  let response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: buildSupabaseHeaders(),
+      body: JSON.stringify({
+        email: normalizedEmail,
+        token: normalizedToken,
+        type: 'email'
+      })
+    });
+  } catch (error) {
+    throw formatSupabaseFetchError(error, 'otp_verify');
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error_description || data?.error || data?.msg || 'supabase_otp_verify_failed');
+  }
+
+  const sessionPayload = data?.access_token ? data : data?.session;
+  const session = normalizeSupabaseSession(sessionPayload);
+  if (!session) {
+    throw new Error('supabase_invalid_session');
+  }
+
+  await setStoredSupabaseSession(session);
+  await clearCachedSupabaseProfile();
+  return session;
+}
+
 async function signOutSupabase(session) {
   const apiKey = getSupabaseApiKey();
   if (!SUPABASE_URL || !apiKey || !session?.access_token) return;
@@ -1116,6 +1226,34 @@ async function fetchSupabaseProfile({ force = false } = {}) {
   const profile = Array.isArray(data) && data.length ? data[0].profile_data || null : null;
   await setCachedSupabaseProfile(profile);
   return profile;
+}
+
+async function saveSupabaseProfile(profileData) {
+  const apiKey = getSupabaseApiKey();
+  if (!SUPABASE_URL || !apiKey) {
+    throw new Error('supabase_not_configured');
+  }
+
+  const session = await ensureValidSupabaseSession();
+  if (!session?.access_token || !session?.user?.id) {
+    throw new Error('supabase_not_authenticated');
+  }
+
+  const sanitizedProfile = sanitizeProfileForSave(profileData);
+  let mergedProfile = sanitizedProfile;
+
+  try {
+    const currentProfile = await fetchSupabaseProfile({ force: true });
+    if (isPlainObject(currentProfile)) {
+      mergedProfile = mergeProfileWithDefaults(currentProfile, sanitizedProfile);
+    }
+  } catch (error) {
+    console.warn('Supabase profile merge failed:', error.message);
+  }
+
+  await upsertSupabaseProfile(session, mergedProfile);
+  await setCachedSupabaseProfile(mergedProfile);
+  return mergedProfile;
 }
 
 function normalizeRemoteDocumentPayload(payload) {
@@ -1438,6 +1576,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'authSendOtp') {
+    const email = request.email;
+    if (!email) {
+      sendResponse({ success: false, error: 'missing_email' });
+      return false;
+    }
+
+    (async () => {
+      try {
+        await sendSupabaseOtp(email);
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'authVerifyOtp') {
+    const email = request.email;
+    const token = request.token;
+    if (!email || !token) {
+      sendResponse({ success: false, error: 'missing_code' });
+      return false;
+    }
+
+    (async () => {
+      try {
+        const session = await verifySupabaseOtp(email, token);
+        sendResponse({ success: true, session: buildSessionSummary(session) });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
   if (request.action === 'authLogout') {
     (async () => {
       try {
@@ -1466,6 +1641,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         await updateSupabasePassword(password);
         sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'saveProfile') {
+    const profile = request.profile;
+    if (!isPlainObject(profile)) {
+      sendResponse({ success: false, error: 'invalid_profile' });
+      return false;
+    }
+
+    (async () => {
+      try {
+        const savedProfile = await saveSupabaseProfile(profile);
+        sendResponse({ success: true, profile: savedProfile });
       } catch (error) {
         sendResponse({ success: false, error: error.message });
       }
