@@ -346,8 +346,8 @@
           <input id="supabaseEmail" type="email" autocomplete="username" placeholder="you@example.com">
         </label>
         <label>
-          Password
-          <input id="supabasePassword" type="password" autocomplete="current-password" placeholder="Password">
+          Verification code
+          <input id="supabaseOtpCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
         </label>
         <label>
           New password
@@ -355,7 +355,8 @@
         </label>
       </div>
       <div class="auth-actions">
-        <button class="btn btn-primary btn-small" id="supabaseLogin" type="button">Sign in</button>
+        <button class="btn btn-primary btn-small" id="supabaseSendOtp" type="button">Send code</button>
+        <button class="btn btn-secondary btn-small" id="supabaseVerifyOtp" type="button">Verify code</button>
         <button class="btn btn-secondary btn-small" id="supabaseLogout" type="button">Sign out</button>
         <button class="btn btn-secondary btn-small" id="supabaseSync" type="button">Fetch profile</button>
         <button class="btn btn-secondary btn-small" id="supabaseUpdatePassword" type="button">Update password</button>
