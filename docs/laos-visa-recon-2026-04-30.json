@@ -1,0 +1,21 @@
+{
+  "countryCode": "la",
+  "baseUrl": "https://laoevisa.gov.la",
+  "walks": [
+    {
+      "slug": "01-landing",
+      "url": "https://laoevisa.gov.la/index",
+      "title": "Lao Official Online Visa - Get your lao eVisa online - Lao eVisa",
+      "status": "ok",
+      "fields": 3
+    },
+    {
+      "slug": "02-apply",
+      "url": "https://laoevisa.gov.la/index",
+      "title": "Lao Official Online Visa - Get your lao eVisa online - Lao eVisa",
+      "status": "ok",
+      "fields": 3,
+      "notes": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a:has-text(\"Apply\"), a[href*=\"/apply\"], a[href*=\"/start\"]').first()\u001b[22m\n\u001b[2m    - locator resolved to <a translate=\"\" data-toggle=\"dropdown\" _ngcontent-serverapp-c2=\"\" class=\"nav-link dropdown-toggle\">Apply</a>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div _ngcontent-serverapp-c1=\"\">…</div> from <ngb-modal-window role=\"dialog\" tabindex=\"-1\" aria-modal=\"true\" class=\"modal fade show d-block app-session-modal-window\">…</ngb-modal-window> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div _ngcontent-serverapp-c1=\"\">…</div> from <ngb-modal-window role=\"dialog\" tabindex=\"-1\" aria-modal=\"true\" class=\"modal fade show d-block app-session-modal-window\">…</ngb-modal-window> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div _ngcontent-serverapp-c1=\"\">…</div> from <ngb-modal-window role=\"dialog\" tabindex=\"-1\" aria-modal=\"true\" class=\"modal fade show d-block app-session-modal-window\">…</ngb-modal-window> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    }
+  ]
+}

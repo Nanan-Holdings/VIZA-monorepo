@@ -1,0 +1,20 @@
+{
+  "countryCode": "za",
+  "baseUrl": "https://visa.vfsglobal.com/zaf/en/dha",
+  "walks": [
+    {
+      "slug": "01-landing",
+      "url": "https://visa.vfsglobal.com/zaf/en/dha",
+      "title": "Welcome to VFS Global | vfsglobal",
+      "status": "ok",
+      "fields": 10
+    },
+    {
+      "slug": "02-attend-centre",
+      "url": "https://visa.vfsglobal.com/zaf/en/dha/attend-centre",
+      "title": "Attend a centre | vfsglobal",
+      "status": "ok",
+      "fields": 10
+    }
+  ]
+}

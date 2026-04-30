@@ -63,7 +63,7 @@ export interface RunPortalReconOptions {
   pages: ReconPageStep[];
   headless?: boolean;
   navTimeoutMs?: number;
-  /** Extra wait after each navigation for SPA hydration. Default 2500ms. */
+  /** Extra wait after each navigation for SPA hydration. Default 5000ms. */
   postNavSettleMs?: number;
 }
 
@@ -83,7 +83,7 @@ export async function runPortalRecon(
     pages,
     headless = process.env.RECON_HEADFUL !== "1",
     navTimeoutMs = 60_000,
-    postNavSettleMs = 2_500,
+    postNavSettleMs = 5_000,
   } = opts;
 
   await fs.mkdir(outDir, { recursive: true });
