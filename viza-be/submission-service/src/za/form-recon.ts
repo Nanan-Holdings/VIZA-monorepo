@@ -15,37 +15,27 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { runPortalRecon, type ReconPageStep } from "../recon/walker";
 
-const BASE_URL = process.env.ZA_RECON_BASE_URL || "https://www.evisa.gov.za";
+// `evisa.gov.za` does not resolve and `ehome.dha.gov.za` returns 403/404
+// for public paths (DNS + curl probed 2026-04-30 — that host is the
+// internal Home Affairs portal). The real public application route for
+// the South Africa Visitor's Visa is VFS Global at
+// `visa.vfsglobal.com/zaf/en/dha`. Override via ZA_RECON_BASE_URL.
+const BASE_URL = process.env.ZA_RECON_BASE_URL || "https://visa.vfsglobal.com/zaf/en/dha";
 const OUT_DIR = path.resolve(__dirname, "../../recon-out/za");
 
 const PAGES: ReconPageStep[] = [
   {
     slug: "01-landing",
-    description: "Public landing page",
+    description: "VFS Global ZA-DHA landing",
     navigate: async (page) => {
       await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
     },
   },
   {
-    slug: "02-apply",
-    description: "Start eVisa application",
+    slug: "02-attend-centre",
+    description: "Attend a VFS centre — visa-type chooser",
     navigate: async (page) => {
-      const link = page.locator('a:has-text("Apply"), a:has-text("Start"), a[href*="apply"]').first();
-      if ((await link.count()) > 0) {
-        await link.click({ timeout: 10_000 });
-      } else {
-        await page.goto(`${BASE_URL}/apply`, { waitUntil: "domcontentloaded" });
-      }
-    },
-  },
-  {
-    slug: "03-register",
-    description: "Account creation form (read-only — do NOT submit)",
-    navigate: async (page) => {
-      const link = page.locator('a:has-text("Register"), a:has-text("Sign Up"), a[href*="register"]').first();
-      if ((await link.count()) > 0) {
-        await link.click({ timeout: 10_000 });
-      }
+      await page.goto(`${BASE_URL}/attend-centre`, { waitUntil: "domcontentloaded" });
     },
   },
 ];

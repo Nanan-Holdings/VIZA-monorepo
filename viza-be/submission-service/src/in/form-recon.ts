@@ -28,18 +28,12 @@ const PAGES: ReconPageStep[] = [
     },
   },
   {
-    slug: "02-apply",
-    description: "Apply / new application",
+    slug: "02-registration",
+    description: "Apply / Registration form (direct goto)",
     navigate: async (page) => {
-      const link = page.locator('a:has-text("Apply"), a:has-text("New"), a[href*="Registration"]').first();
-      if ((await link.count()) > 0) {
-        await link.click({ timeout: 10_000 });
-      } else {
-        await page.goto(
-          "https://indianvisaonline.gov.in/evisa/Registration",
-          { waitUntil: "domcontentloaded" },
-        );
-      }
+      await page.goto("https://indianvisaonline.gov.in/evisa/Registration", {
+        waitUntil: "domcontentloaded",
+      });
     },
   },
 ];

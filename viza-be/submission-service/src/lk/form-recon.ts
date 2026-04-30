@@ -24,15 +24,23 @@ const PAGES: ReconPageStep[] = [
     },
   },
   {
-    slug: "02-apply-individual",
-    description: "Apply (individual)",
+    slug: "02-visainfo-center",
+    description: "Visa info center (locale picker)",
     navigate: async (page) => {
-      const link = page.locator('a:has-text("Apply"), a:has-text("Individual"), a[href*="apply"]').first();
-      if ((await link.count()) > 0) {
-        await link.click({ timeout: 10_000 });
-      } else {
-        await page.goto(`${BASE_URL}/slvisa/visainfo/center.jsp`, { waitUntil: "domcontentloaded" });
-      }
+      await page.goto(`${BASE_URL}/slvisa/visainfo/center.jsp?locale=en_US`, {
+        waitUntil: "domcontentloaded",
+      });
+    },
+  },
+  {
+    slug: "03-apply",
+    description: "ETA application — Apply for Individual",
+    navigate: async (page) => {
+      // The visa-info center page links to `apply.jsp` for the Tourist
+      // ETA flow. Direct goto bypasses the locale chooser.
+      await page.goto(`${BASE_URL}/slvisa/visainfo/apply.jsp?locale=en_US`, {
+        waitUntil: "domcontentloaded",
+      });
     },
   },
 ];
