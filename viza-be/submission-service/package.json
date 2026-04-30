@@ -13,7 +13,12 @@
     "seed:edward-creds": "ts-node scripts/seed-edward-test-credentials.ts",
     "seed:test-ds160-applicant": "ts-node scripts/seed-test-ds160-applicant.ts",
     "audit:ds160-parity": "ts-node scripts/audit-ds160-field-parity.ts",
-    "imap:smoke": "ts-node scripts/imap-smoke.ts"
+    "imap:smoke": "ts-node scripts/imap-smoke.ts",
+    "recon:kh": "ts-node src/kh/form-recon.ts",
+    "recon:la": "ts-node src/la/form-recon.ts",
+    "recon:lk": "ts-node src/lk/form-recon.ts",
+    "recon:za": "ts-node src/za/form-recon.ts",
+    "recon:in": "ts-node src/in/form-recon.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
