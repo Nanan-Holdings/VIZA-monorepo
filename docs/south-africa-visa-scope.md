@@ -12,9 +12,23 @@
 **VIZA visa_type key:** `ZA_VISITOR_VISA`
 
 DHA (Department of Home Affairs) processes Visitor's Visa via VFS
-Global at `https://www.vfsglobal.com/en/individuals/`. eVisa pilot is
-at `https://www.evisa.gov.za` for selected nationalities (CN, IN, NG,
-KE, CM, MX, SA, AE, EG).
+Global. The canonical public application route — verified live on
+2026-04-30 — is the country-specific VFS portal at
+`https://visa.vfsglobal.com/zaf/en/dha`.
+
+The previously listed `https://www.evisa.gov.za` host does **not**
+resolve (NXDOMAIN), and `https://ehome.dha.gov.za` returns 403/404
+on every public path probed (it is the internal Home Affairs portal,
+not the applicant entry point). The DHA website
+(`https://www.dha.gov.za`) only links outward to VFS Global —
+`https://visa.vfsglobal.com/zaf/en/dha/attend-centre`,
+`https://visa.vfsglobal.com/zaf/en/dha`. Treat VFS as the sole live
+target for ZA recon and orchestration.
+
+The eVisa pilot for selected nationalities (CN, IN, NG, KE, CM, MX,
+SA, AE, EG) is currently routed through the same VFS pages — there
+is no separate self-service eVisa host as of this scope's verification
+pass.
 
 Three variants on `visa_type_requested`:
 - eVisa (selected nationalities, ~ZAR 1,520, online)
@@ -98,11 +112,14 @@ npx tsx scripts/seed-za-visitor-visa-form-fields.ts
 - DHA-1738 (Application for Visa) paper antecedent
 - DHA-84 forms
 - VFS Global SA applicant guidance
-- evisa.gov.za public landing
+- VFS Global ZA-DHA portal landing + attend-centre page
+  (visa.vfsglobal.com/zaf/en/dha — recon captured 2026-04-30,
+  20 fields across 2 pages)
 - DHA Immigration Act Sec 11 reference
 
-**Live-portal QA pass** for eVisa is straightforward; Visitor's Visa
-needs VFS Global account.
+**Live-portal QA pass** runs through VFS Global; both Visitor's Visa
+and the eVisa pilot use the same portal entry point. A VFS account
+is required before the form surface becomes navigable.
 
 ---
 
