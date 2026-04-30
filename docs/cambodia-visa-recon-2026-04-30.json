@@ -1,0 +1,20 @@
+{
+  "countryCode": "kh",
+  "baseUrl": "https://www.evisa.gov.kh",
+  "walks": [
+    {
+      "slug": "01-landing",
+      "url": "https://www.evisa.gov.kh/",
+      "title": "eVisa Kingdom of Cambodia (Official Government Website)",
+      "status": "ok",
+      "fields": 0
+    },
+    {
+      "slug": "02-application-new",
+      "url": "https://www.evisa.gov.kh/application_new",
+      "title": "eVisa Kingdom of Cambodia (Official Government Website)",
+      "status": "ok",
+      "fields": 1
+    }
+  ]
+}
