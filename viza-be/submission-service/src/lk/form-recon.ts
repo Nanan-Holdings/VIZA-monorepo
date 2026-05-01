@@ -33,14 +33,42 @@ const PAGES: ReconPageStep[] = [
     },
   },
   {
-    slug: "03-apply",
-    description: "ETA application — Apply for Individual",
+    slug: "03-apply-info",
+    description: "Apply info / overview (still on www.eta.gov.lk)",
     navigate: async (page) => {
-      // The visa-info center page links to `apply.jsp` for the Tourist
-      // ETA flow. Direct goto bypasses the locale chooser.
       await page.goto(`${BASE_URL}/slvisa/visainfo/apply.jsp?locale=en_US`, {
         waitUntil: "domcontentloaded",
       });
+    },
+  },
+  {
+    slug: "04-terms-and-conditions",
+    description: "ETA T&C — gateway to the live application form",
+    navigate: async (page) => {
+      // The real ETA application engine is hosted at `eta.gov.lk`
+      // (no `www.`). The Apply link from apply.jsp is to
+      // `etaslvisa/pages/termnconuser.jsp?ucode=123` — accepting the
+      // T&C posts to the live application form on the same host.
+      await page.goto(
+        "https://eta.gov.lk/etaslvisa/pages/termnconuser.jsp?ucode=123",
+        { waitUntil: "domcontentloaded" },
+      );
+    },
+  },
+  {
+    slug: "05-eta-application",
+    description: "ETA application form — accept T&C then capture",
+    navigate: async (page) => {
+      // The T&C page from step 04 holds two radios — `terms=yes`
+      // wires `onclick=submitform(this)` and posts to the real
+      // application form. Click it and wait for navigation.
+      const agree = page.locator('input[type="radio"][name="terms"][value="yes"]');
+      if ((await agree.count()) > 0) {
+        await Promise.all([
+          page.waitForLoadState("domcontentloaded"),
+          agree.first().click({ force: true, timeout: 10_000 }),
+        ]).catch(() => { /* form may submit via JS without a full nav event */ });
+      }
     },
   },
 ];
