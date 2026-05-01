@@ -29,11 +29,18 @@ const PAGES: ReconPageStep[] = [
   },
   {
     slug: "02-registration",
-    description: "Apply / Registration form (direct goto)",
+    description: "Apply Here for e-Visa (click from landing — Referer-gated)",
     navigate: async (page) => {
-      await page.goto("https://indianvisaonline.gov.in/evisa/Registration", {
-        waitUntil: "domcontentloaded",
-      });
+      // Direct goto to /evisa/Registration server-side redirects back
+      // to tvoa.html when the Referer header is missing. Clicking the
+      // landing-page link preserves the session + Referer so the
+      // Registration page actually renders.
+      const link = page
+        .locator('a[href="Registration"], a[title="e-Visa Application"]')
+        .first();
+      await link.waitFor({ state: "visible", timeout: 15_000 });
+      await link.click({ timeout: 10_000 });
+      await page.waitForLoadState("domcontentloaded");
     },
   },
 ];

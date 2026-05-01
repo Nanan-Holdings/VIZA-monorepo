@@ -1,0 +1,20 @@
+{
+  "countryCode": "in",
+  "baseUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+  "walks": [
+    {
+      "slug": "01-landing",
+      "url": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "title": "e-Visa",
+      "status": "ok",
+      "fields": 0
+    },
+    {
+      "slug": "02-registration",
+      "url": "https://indianvisaonline.gov.in/evisa/Registration",
+      "title": "Indian e-Visa",
+      "status": "ok",
+      "fields": 12
+    }
+  ]
+}
