@@ -1745,6 +1745,1294 @@
       "priority": 130,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "SECRETS-001",
+      "title": "Per-applicant credential vault using Supabase Vault",
+      "description": "As a platform owner, I need per-applicant secrets (portal logins, 2captcha keys, derived tokens) stored encrypted at rest and decrypted only inside the runner sandbox, so a DB leak does not expose every applicant's credentials.",
+      "acceptanceCriteria": [
+        "Supabase Vault (or pgcrypto + KMS) wired in agent-backend with `applicant_secret(applicant_id, key, ciphertext)` table",
+        "Read access guarded by RLS such that only service-role + the owning applicant_id can decrypt",
+        "Encryption key sourced from env / KMS, never committed",
+        "Migration adds `applicant_secret` table; seed script removed for any plaintext secrets",
+        "Typecheck passes"
+      ],
+      "priority": 131,
+      "passes": true,
+      "notes": "Replaces ad-hoc .env stuffing. Submission-service must read through this API only."
+    },
+    {
+      "id": "SECRETS-002",
+      "title": "Submission-service consumes secrets only via the vault",
+      "description": "As an operator, I need the Playwright runner to fetch credentials from the vault at job start and never receive plaintext from anywhere else, so credential exposure is bounded to a single trusted code path.",
+      "acceptanceCriteria": [
+        "All `process.env.PORTAL_*` reads in submission-service replaced with `vault.get(applicant_id, key)`",
+        "Runner crashes loudly if vault returns null instead of falling back to env",
+        "Existing manual-qa harness updated to seed test secrets via vault helper script",
+        "Typecheck passes",
+        "docs/manual-qa-prompt.md updated to reflect vault flow"
+      ],
+      "priority": 132,
+      "passes": false,
+      "notes": "Run after SECRETS-001."
+    },
+    {
+      "id": "SECRETS-003",
+      "title": "Secret rotation + audit log",
+      "description": "As an operator, I need every secret read/write recorded with applicant_id, requesting service, and timestamp, so we can prove which job touched which credential after an incident.",
+      "acceptanceCriteria": [
+        "`secret_access_log` table records (applicant_id, key, action, actor, ts)",
+        "Vault read/write helpers append to log atomically",
+        "Admin portal exposes a per-applicant secret-access view (read-only, no values)",
+        "Rotation helper script: `scripts/rotate-applicant-secret.ts <applicant_id> <key>`",
+        "Typecheck passes"
+      ],
+      "priority": 133,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "SECRETS-004",
+      "title": "Strip plaintext secrets from existing repo + history audit",
+      "description": "As a security reviewer, I need to confirm no portal credentials, captcha keys, or service-role keys live in the repo, scripts, or sample .env files, so we are clean before onboarding real clients.",
+      "acceptanceCriteria": [
+        "Run `gitleaks` (or equivalent) over the repo and resolve every finding",
+        "All `.env.example` files sanitized; placeholders only",
+        "Any historical leak documented in a `SECURITY.md` postmortem",
+        "Pre-commit hook installed to block future secret commits",
+        "Typecheck passes"
+      ],
+      "priority": 134,
+      "passes": false,
+      "notes": "Hard gate before public client launch."
+    },
+    {
+      "id": "SECRETS-005",
+      "title": "Service-role key boundary review",
+      "description": "As a maintainer, I need every `createAdminClient()` / service-role usage justified and minimised, so the blast radius of a leaked service-role key is contained.",
+      "acceptanceCriteria": [
+        "Audit of every `createAdminClient()` call site documented in `docs/service-role-audit.md`",
+        "Frontend never imports admin client (verified by lint rule)",
+        "Server actions that need elevation funnel through a single `withAdmin()` helper",
+        "Typecheck passes"
+      ],
+      "priority": 135,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INBOX-001",
+      "title": "Cloudflare Email Routing baseline on haggstorm.com",
+      "description": "As a platform owner, I need haggstorm.com configured to receive mail via Cloudflare Email Routing with verified DNS, so we can address per-applicant aliases under a domain we control.",
+      "acceptanceCriteria": [
+        "Email Routing enabled in Cloudflare dashboard for haggstorm.com",
+        "MX, SPF, and DKIM records present and validated by Cloudflare",
+        "A canary alias `inbox-canary@haggstorm.com` forwards successfully to a maintainer mailbox",
+        "DNS state and rollback steps documented in `docs/inbox-cloudflare-setup.md`"
+      ],
+      "priority": 136,
+      "passes": false,
+      "notes": "One-time manual ops + write-up."
+    },
+    {
+      "id": "INBOX-002",
+      "title": "Email Worker that ingests inbound mail to Supabase",
+      "description": "As an operator, I need a Cloudflare Email Worker that receives every message to *@haggstorm.com, parses it, and writes a row to Supabase `inbound_email`, so submission-service can read OTPs without IMAP.",
+      "acceptanceCriteria": [
+        "Worker repo path under `viza-be/email-worker/` with deploy script",
+        "Worker handler signature `email(message, env)` parses from / to / subject / text / html / message-id",
+        "Insert to Supabase `inbound_email(id, to_addr, from_addr, subject, text, html, headers, raw_size, received_at, processed)` via service-role REST",
+        "Large bodies (>1MB) stored in R2 and the row references the R2 key",
+        "Drizzle migration adds `inbound_email` table with indexes on `to_addr` and `received_at`",
+        "Typecheck passes"
+      ],
+      "priority": 137,
+      "passes": false,
+      "notes": "Cloudflare Email Workers free tier (100k/day) covers MVP."
+    },
+    {
+      "id": "INBOX-003",
+      "title": "Per-applicant alias generator + reverse map",
+      "description": "As a runner, I need each applicant assigned a stable alias `appl-{token}@haggstorm.com` and the inbound table queryable by alias, so I can poll only that applicant's mail.",
+      "acceptanceCriteria": [
+        "Server action `assignApplicantInboxAlias(applicantId)` returns `appl-{ulid}@haggstorm.com` and persists to `applicant.inbox_alias`",
+        "Aliases are case-insensitive and one-per-applicant",
+        "`inbound_email.to_addr` is normalised lowercase and joins to applicant",
+        "Helper `inbox.waitForMessage(applicantId, predicate, timeoutMs)` polls Supabase realtime",
+        "Typecheck passes"
+      ],
+      "priority": 138,
+      "passes": false,
+      "notes": "Helper replaces IMAP polling for new flows."
+    },
+    {
+      "id": "INBOX-004",
+      "title": "OTP / confirmation extractor with provider profiles",
+      "description": "As a runner, I need a configurable extractor that pulls 6-digit codes, magic links, and confirmation references from inbound mail by sender domain, so flows do not hand-roll regex per country.",
+      "acceptanceCriteria": [
+        "`inbox/extractors/{vfsglobal,evisa-gov-vn,ceac-state-gov,...}.ts` registry of regex/selector profiles",
+        "`inbox.extract(message, profile)` returns `{ code?, link?, reference? }`",
+        "Unit tests cover at least 5 real (anonymised) sample messages",
+        "Falls back to a generic 6-digit-code extractor when no profile matches",
+        "Typecheck passes"
+      ],
+      "priority": 139,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INBOX-005",
+      "title": "Wire Cloudflare inbox into Vietnam + UK runners",
+      "description": "As an operator, I need at least two existing runners to use the Cloudflare-backed inbox helper end-to-end, so we have proof the path works before retrofitting all flows.",
+      "acceptanceCriteria": [
+        "Vietnam e-Visa runner reads OTP via `inbox.waitForMessage`",
+        "UK runner (when it requires email confirmation) reads via the same helper",
+        "Smoke test demonstrates an OTP message landing in `inbound_email` and being consumed under 30s",
+        "IMAP fallback documented as deprecated for these two flows",
+        "Typecheck passes"
+      ],
+      "priority": 140,
+      "passes": false,
+      "notes": "Pilot before global cutover."
+    },
+    {
+      "id": "INBOX-006",
+      "title": "Inbox viewer in client + staff portal",
+      "description": "As a client, I need to see emails received on my behalf at my applicant alias, so I can audit what the agency saw and forward anything missed.",
+      "acceptanceCriteria": [
+        "`/client/inbox` lists messages for the signed-in applicant (via RLS)",
+        "`/staff/applicants/[id]/inbox` shows the same view for staff",
+        "HTML rendering is sanitised (no remote tracking pixels by default)",
+        "Attachments downloadable from R2-signed URLs",
+        "Typecheck passes"
+      ],
+      "priority": 141,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INBOX-007",
+      "title": "Inbox retention, abuse, and bounce policy",
+      "description": "As a platform owner, I need inbound messages retained on a finite schedule and bounced when an alias is retired, so we are not a perpetual mail sink.",
+      "acceptanceCriteria": [
+        "Inbound messages older than 180d auto-purged (configurable)",
+        "Aliases for applicants in terminal status (delivered/cancelled) optionally retired with a tombstone",
+        "Worker rejects (with 5xx) messages over 25MB and logs the rejection",
+        "Spam score threshold applied (Cloudflare provides spamScore) with quarantine bucket",
+        "docs/inbox-cloudflare-setup.md updated with retention policy",
+        "Typecheck passes"
+      ],
+      "priority": 142,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LEGAL-001",
+      "title": "Terms of Service + Privacy Policy + DPA drafts",
+      "description": "As a platform owner, I need legally-reviewable ToS, Privacy Policy, and Data Processing Agreement drafts that match what VIZA actually does (handle PII for visa applications across 30 jurisdictions), so we can engage counsel and put them behind signup.",
+      "acceptanceCriteria": [
+        "`docs/legal/terms-of-service.md` covers scope of service, fees, refund stance, liability cap, jurisdiction",
+        "`docs/legal/privacy-policy.md` enumerates PII categories collected, retention, third-party processors (Supabase, Cloudflare, 2captcha, Stripe, government portals)",
+        "`docs/legal/dpa.md` for B2B clients (corporate immigration)",
+        "Each doc flagged `STATUS: draft — pending counsel review`",
+        "All third-party processors listed in a single `subprocessors.md`"
+      ],
+      "priority": 143,
+      "passes": false,
+      "notes": "Not legal advice. Required artefact before counsel engagement."
+    },
+    {
+      "id": "LEGAL-002",
+      "title": "Consent capture + signup gate",
+      "description": "As a platform owner, I need every applicant to explicitly accept ToS + Privacy + the agency authorisation before any submission, recorded with timestamp, IP, and version hash, so we have evidence of consent.",
+      "acceptanceCriteria": [
+        "Signup form blocks until ToS + Privacy checkboxes are explicitly ticked",
+        "Per-application authorisation (\"I authorise VIZA to submit on my behalf\") captured separately",
+        "`consent_event(user_id, doc_kind, doc_version, ip, ua, ts)` table populated",
+        "Doc version is the SHA-256 of the rendered markdown to detect drift",
+        "Typecheck passes"
+      ],
+      "priority": 144,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LEGAL-003",
+      "title": "PII retention + automated deletion",
+      "description": "As a data steward, I need a configurable retention policy with automated deletion of expired applicant PII, so we honour stated retention without manual work.",
+      "acceptanceCriteria": [
+        "Retention windows defined per data class (passport scan, photo, form answers, runner artefacts) in `docs/legal/retention.md`",
+        "Cron / scheduled job purges expired rows + R2 objects",
+        "Deletion is idempotent and audit-logged",
+        "Privacy Policy reflects actual code behaviour",
+        "Typecheck passes"
+      ],
+      "priority": 145,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LEGAL-004",
+      "title": "Data export + deletion endpoints (GDPR Art. 15 / 17)",
+      "description": "As a data subject, I need to download a complete export of my data and request deletion, so we are compliant with GDPR / CPRA / PIPEDA.",
+      "acceptanceCriteria": [
+        "`/client/account/export` produces a ZIP containing JSON of all user data + uploaded files",
+        "`/client/account/delete` initiates a verified deletion flow with a 7-day soft-delete window",
+        "Both endpoints rate-limited and audit-logged",
+        "Privacy Policy enumerates these rights and how to exercise them",
+        "Typecheck passes"
+      ],
+      "priority": 146,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LEGAL-005",
+      "title": "PII access audit log",
+      "description": "As a data steward, I need every staff/admin read of applicant PII recorded, so we can prove who saw what during an incident.",
+      "acceptanceCriteria": [
+        "Server actions that touch passport / photo / form-answer rows wrap reads in `auditPiiRead(actor, applicant_id, fields)`",
+        "`pii_access_log` queryable from admin dashboard",
+        "Customers can request their own access log via export endpoint",
+        "Typecheck passes"
+      ],
+      "priority": 147,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LEGAL-006",
+      "title": "Country-specific compliance addenda",
+      "description": "As a platform owner, I need a per-country addendum noting any jurisdiction-specific data rules (e.g., India's DPDPA, China's PIPL, EU GDPR, Canada's PIPEDA, Australia's Privacy Act), so counsel review is targeted.",
+      "acceptanceCriteria": [
+        "`docs/legal/jurisdictions/{cc}.md` for every country in the schema set with material data rules",
+        "Each note flags whether VIZA's current architecture appears compliant or needs work",
+        "Cross-linked from `subprocessors.md`"
+      ],
+      "priority": 148,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PAY-001",
+      "title": "Pricing model + government-fee pass-through schema",
+      "description": "As a platform owner, I need a data model that separates agency fees, government fees, and third-party costs (captcha solves, proxy spend) per application, so revenue and unit economics are auditable.",
+      "acceptanceCriteria": [
+        "`order(application_id, agency_fee_cents, govt_fee_cents, currency, status, ...)` table",
+        "`order_line(order_id, kind, amount_cents, payee, ...)` table for line items",
+        "Per-package pricing config in `viza-fe/internal-website/lib/pricing.ts`",
+        "Drizzle migration applied; seed for the 30 packages with placeholder pricing",
+        "Typecheck passes"
+      ],
+      "priority": 149,
+      "passes": false,
+      "notes": "Pricing values placeholder; ops fills real numbers."
+    },
+    {
+      "id": "PAY-002",
+      "title": "Stripe Checkout integration for agency fees",
+      "description": "As a client, I need to pay the VIZA agency fee through a familiar Stripe Checkout flow before submission begins, so payment is collected before automation runs.",
+      "acceptanceCriteria": [
+        "Stripe webhook handler processes `checkout.session.completed` and marks the order paid",
+        "Application status gates on `order.status = paid` before runner enqueues",
+        "Test mode covered by an integration test against Stripe CLI fixtures",
+        "Refunds reflected back to order state",
+        "Typecheck passes"
+      ],
+      "priority": 150,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PAY-003",
+      "title": "Government-fee handling design + per-country routing",
+      "description": "As a platform owner, I need a documented design for how government fees are paid for each of the 30 jurisdictions (in-portal card during runner, escrow, applicant-direct, etc.), so AU/VN/IT/Schengen can complete their submission lifecycle.",
+      "acceptanceCriteria": [
+        "`docs/payments/government-fee-routing.md` lists each country and the chosen mechanism",
+        "Mechanism options enumerated: (a) runner pays with virtual card from escrow, (b) client pays in-portal mid-flow, (c) applicant pays directly via shared link, (d) paper-only no fee",
+        "Per-country runner code documents which mechanism it uses",
+        "At least one country (suggest Vietnam) has the mechanism implemented end-to-end as proof",
+        "Typecheck passes"
+      ],
+      "priority": 151,
+      "passes": false,
+      "notes": "Hardest non-trivial design decision in the system."
+    },
+    {
+      "id": "PAY-004",
+      "title": "Refund + chargeback policy implemented",
+      "description": "As an operator, I need a refund flow that respects which costs are recoverable (agency fee yes, government fee usually no), so support staff cannot accidentally over-refund.",
+      "acceptanceCriteria": [
+        "Staff portal action `refund(order_id, line_ids[])` with per-line refundability rules",
+        "Refunds executed via Stripe Refund API; webhook reconciles state",
+        "Chargeback webhook records dispute and pauses any in-flight automation",
+        "Refund policy in ToS reflects code behaviour",
+        "Typecheck passes"
+      ],
+      "priority": 152,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PAY-005",
+      "title": "Receipts + invoicing",
+      "description": "As a client, I need a downloadable PDF receipt and a B2B invoice option, so I can expense the visa cost.",
+      "acceptanceCriteria": [
+        "Receipt PDF generated server-side from order data",
+        "Invoice template supports company name + tax ID + VAT line",
+        "Download link in `/client/orders/[id]`",
+        "Email delivery on payment success",
+        "Typecheck passes"
+      ],
+      "priority": 153,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PAY-006",
+      "title": "Tax + currency support per jurisdiction",
+      "description": "As a platform owner, I need taxation handled correctly per applicant geography (VAT for EU, GST for AU/CA/NZ/SG, sales tax for US), so we are not accidentally evading tax.",
+      "acceptanceCriteria": [
+        "Stripe Tax enabled and verified for at least the EU, UK, AU, CA, US",
+        "Tax line surfaced separately in checkout and on invoices",
+        "Multi-currency pricing for at least USD, EUR, GBP, AUD, CAD",
+        "Typecheck passes"
+      ],
+      "priority": 154,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PAY-007",
+      "title": "Operational ledger + revenue dashboard",
+      "description": "As a finance owner, I need a daily ledger of payments, refunds, government-fee outflows, and per-package gross margin, so unit economics are visible.",
+      "acceptanceCriteria": [
+        "`/admin/revenue` shows MRR, gross margin per package, refund rate",
+        "Stripe payouts reconciled against internal `order` table daily",
+        "Discrepancies > $5 alert via the OPS alerting channel",
+        "Typecheck passes"
+      ],
+      "priority": 155,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-001",
+      "title": "Containerised Playwright runner image",
+      "description": "As a platform owner, I need the submission-service runner packaged as a deterministic container image with pinned Chromium and stealth plugins, so production runs match dev.",
+      "acceptanceCriteria": [
+        "`viza-be/submission-service/Dockerfile` builds a runnable image",
+        "Image pins Playwright + Chromium + stealth plugin versions",
+        "Image runs the existing `_e2e.ts` smoke tests successfully",
+        "GitHub Actions builds + pushes to a container registry on main",
+        "Typecheck passes"
+      ],
+      "priority": 156,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-002",
+      "title": "Job queue for runner work",
+      "description": "As a platform owner, I need application submissions enqueued and processed by workers so we are not running Playwright inside the API request path.",
+      "acceptanceCriteria": [
+        "BullMQ (Redis) or Cloudflare Queues chosen and documented in `docs/infra/queue.md`",
+        "`runner_job(application_id, country, status, attempts, last_error, started_at, finished_at)` table mirrors queue state",
+        "Producer: server action enqueues after `order.status = paid`",
+        "Consumer: worker process picks jobs and updates state",
+        "Typecheck passes"
+      ],
+      "priority": 157,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-003",
+      "title": "Worker pool autoscaling + concurrency limits",
+      "description": "As an operator, I need worker concurrency capped per country (so we do not flood a portal) and autoscaled to drain the queue, so SLAs are predictable.",
+      "acceptanceCriteria": [
+        "Per-country max concurrency configured in env / DB",
+        "Autoscaling driver targets queue depth (e.g., Fly Machines, Cloud Run jobs, or k8s HPA)",
+        "Concurrency violations alert via OPS channel",
+        "Documented in `docs/infra/scaling.md`",
+        "Typecheck passes"
+      ],
+      "priority": 158,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-004",
+      "title": "Residential / mobile proxy pool integration",
+      "description": "As an operator, I need each runner job route through a residential proxy tied to the applicant's claimed location, so portals do not anti-bot us off datacenter IPs.",
+      "acceptanceCriteria": [
+        "Provider chosen (Bright Data / Oxylabs / IPRoyal) and documented",
+        "`getProxyForApplicant(applicantId, country)` helper returns a sticky session",
+        "Each runner registers proxy use to the artefact bundle",
+        "Per-country override: some flows must run from in-country IPs (e.g., CN-via-VFS)",
+        "Typecheck passes"
+      ],
+      "priority": 159,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-005",
+      "title": "Browser fingerprint + session persistence per applicant",
+      "description": "As an operator, I need each applicant's runner to use a stable browser fingerprint across runs (canvas, fonts, timezone), so portals do not flag us across sessions.",
+      "acceptanceCriteria": [
+        "`applicant_browser_profile(applicant_id, fingerprint_json)` table",
+        "Stealth plugin reads from this table per run",
+        "Profile created on first run and reused thereafter",
+        "Typecheck passes"
+      ],
+      "priority": 160,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-006",
+      "title": "Artefact storage in R2 / Supabase Storage",
+      "description": "As an operator, I need each runner job to persist screenshots, HAR files, and submission PDFs to durable storage with signed-URL retrieval, so support can debug a failed run.",
+      "acceptanceCriteria": [
+        "Bucket created with lifecycle rules (retain 90d, glacier 365d)",
+        "Helper `artifact.put(jobId, name, body)` returns signed URL",
+        "Existing `artifact-storage.ts` refactored to use the new bucket",
+        "Staff portal links to artefacts from job detail view",
+        "Typecheck passes"
+      ],
+      "priority": 161,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "INFRA-007",
+      "title": "Production deployment topology documented",
+      "description": "As a platform owner, I need a single document explaining where every component runs in prod (Vercel for FE, Fly/Cloud Run for runners, Supabase, Cloudflare, Redis, R2), so onboarding and incident response are straightforward.",
+      "acceptanceCriteria": [
+        "`docs/infra/topology.md` includes a diagram + per-service spec",
+        "Cost estimate at 1k applications/month",
+        "Disaster recovery + backup policy stated",
+        "Runbook links per service"
+      ],
+      "priority": 162,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-001",
+      "title": "Application status dashboard for staff",
+      "description": "As a staff member, I need a single view of every application with its status, blocking step, and last runner artefact, so I can answer \"where is my visa?\" without paging an engineer.",
+      "acceptanceCriteria": [
+        "`/staff/applications` lists with filter by status, country, applicant",
+        "Detail view shows runner timeline + artefacts + payment state + inbox",
+        "Realtime updates via Supabase channel",
+        "Typecheck passes"
+      ],
+      "priority": 163,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-002",
+      "title": "Runner job log viewer with screenshots",
+      "description": "As an engineer, I need to step through every page transition of a failed runner job with screenshot + console log + network request, so I can root-cause anti-bot triggers and selector drift.",
+      "acceptanceCriteria": [
+        "`/admin/jobs/[id]` renders timeline of runner steps",
+        "Each step links to screenshot + HAR slice + console output",
+        "Compare-with-previous-run view shows step-level diff",
+        "Typecheck passes"
+      ],
+      "priority": 164,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-003",
+      "title": "Failure alerting (Slack / email / push)",
+      "description": "As an on-call engineer, I need a job failure to page me with enough context to triage in 60 seconds, so SLAs are real.",
+      "acceptanceCriteria": [
+        "Slack webhook integration with severity levels",
+        "Per-failure-class throttling (do not fire 100 alerts when a portal goes down)",
+        "Each alert links to the job artefact viewer",
+        "Documented in `docs/runbooks/alerts.md`",
+        "Typecheck passes"
+      ],
+      "priority": 165,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-004",
+      "title": "Per-portal canary health check",
+      "description": "As an operator, I need a synthetic canary running against each supported portal hourly that detects layout / selector / login changes before real applicants do, so we get advance warning.",
+      "acceptanceCriteria": [
+        "`canary` cron runs each runner's `recon`/`probe` against the live portal",
+        "Failures open an OPS alert + a tracking issue",
+        "Per-portal status badge on `/admin/portal-health`",
+        "Typecheck passes"
+      ],
+      "priority": 166,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-005",
+      "title": "Metrics + KPI tracking",
+      "description": "As a platform owner, I need success rate, time-to-submit, captcha cost, and proxy cost tracked per country with weekly trend, so we know where to invest.",
+      "acceptanceCriteria": [
+        "Metrics emitted to Supabase or PostHog from the runner",
+        "`/admin/metrics` shows the four KPIs by country, weekly bucket",
+        "Threshold on success rate < 90% triggers an alert",
+        "Typecheck passes"
+      ],
+      "priority": 167,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-006",
+      "title": "Runbooks for common failure classes",
+      "description": "As an on-call engineer, I need a written runbook per common failure class (CAPTCHA budget exhausted, portal anti-bot trigger, OTP not received, payment dispute, document rejected), so I can resolve incidents without tribal knowledge.",
+      "acceptanceCriteria": [
+        "`docs/runbooks/{failure-class}.md` for at least 8 failure classes",
+        "Each runbook follows: symptoms / diagnosis / mitigation / escalation",
+        "Linked from OPS-003 alerts",
+        "Reviewed and dated"
+      ],
+      "priority": 168,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OPS-007",
+      "title": "On-call rotation + escalation policy",
+      "description": "As a platform owner, I need a published on-call schedule + escalation path so production incidents get a human within 15 minutes.",
+      "acceptanceCriteria": [
+        "Schedule published in PagerDuty / Opsgenie / similar",
+        "Escalation policy documented in `docs/runbooks/oncall.md`",
+        "Test page / silence drill executed monthly",
+        "Linked from OPS-003"
+      ],
+      "priority": 169,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOC-001",
+      "title": "Photo capture + ICAO compliance check",
+      "description": "As an applicant, I need to upload a passport-style photo and have it auto-validated for size, head position, background, and lighting per the destination's spec, so the runner does not get rejected at the portal photo step.",
+      "acceptanceCriteria": [
+        "Client-side capture component (web + mobile-web) with crop guides",
+        "Server-side validation against per-country spec (DS-160 / Schengen / IN / etc.)",
+        "Failed validation returns a human-readable reason",
+        "Spec table in `docs/photo-specs.md` for all 30 jurisdictions",
+        "Typecheck passes"
+      ],
+      "priority": 170,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOC-002",
+      "title": "Passport scan OCR + auto-fill into form",
+      "description": "As an applicant, I need to upload a passport scan and have name / DOB / passport number / nationality / expiry auto-extracted, so I do not retype data prone to typos.",
+      "acceptanceCriteria": [
+        "OCR provider chosen (Textract / Google Doc AI / Azure / open-source)",
+        "MRZ parsed deterministically; visual fields fall back to OCR",
+        "Confidence threshold + manual confirm UI",
+        "Extracted fields populate the dynamic form for the active package",
+        "Typecheck passes"
+      ],
+      "priority": 171,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOC-003",
+      "title": "Supporting document upload + checklist per package",
+      "description": "As an applicant, I need a per-package checklist of supporting documents (bank statement, itinerary, employment letter, invitation, photo) with upload slots, so I know what is required before I pay.",
+      "acceptanceCriteria": [
+        "Checklist rendered from package metadata",
+        "Each slot accepts PDF/JPEG/PNG with size + virus scan",
+        "Status indicator per slot (missing / uploaded / accepted / rejected)",
+        "Staff can reject + comment",
+        "Typecheck passes"
+      ],
+      "priority": 172,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOC-004",
+      "title": "Per-jurisdiction PDF assembly for paper-channel flows",
+      "description": "As a runner, I need to assemble a fillable / printed PDF for jurisdictions where the channel is paper (e.g., Japan tourist, Korea C-3-9, India OCI when relevant), so the agency can mail or hand-deliver to the consulate.",
+      "acceptanceCriteria": [
+        "PDF template registered per package that needs paper output",
+        "`paper-renderer.ts` fills the template from the canonical answer set",
+        "Output stored in artefact storage and downloadable from staff portal",
+        "Typecheck passes"
+      ],
+      "priority": 173,
+      "passes": false,
+      "notes": "Handles JP / KR / others where automation halts at \"print and submit\"."
+    },
+    {
+      "id": "DOC-005",
+      "title": "E-signature capture for agency authorisation forms",
+      "description": "As an applicant, I need to e-sign the agency authorisation + any consulate-required power of attorney inline, so the staff does not chase paper signatures.",
+      "acceptanceCriteria": [
+        "Signature canvas component with audit trail (IP, ts, doc hash)",
+        "Signed PDF stored in artefact storage",
+        "Reuses existing `/client/signing/[applicationId]` flow where applicable",
+        "Typecheck passes"
+      ],
+      "priority": 174,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOC-006",
+      "title": "Document retention + redaction on delivery",
+      "description": "As a data steward, I need uploaded documents purged or redacted on a schedule after the visa is delivered, so we are not storing passports forever.",
+      "acceptanceCriteria": [
+        "Per-document-class retention schedule defined",
+        "Cron purges or redacts per schedule",
+        "Audit log records every purge event",
+        "Privacy Policy reflects",
+        "Typecheck passes"
+      ],
+      "priority": 175,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "CS-001",
+      "title": "In-portal applicant chat (extends existing Socket.IO)",
+      "description": "As an applicant, I need to chat with VIZA staff (and optionally an AI agent) inside the portal without leaving the application context, so I can ask \"why is my application stuck?\" without email tag.",
+      "acceptanceCriteria": [
+        "`/client/chat` widget reuses the existing `/visa` namespace",
+        "Staff-side `/staff/chat` shows queued conversations",
+        "Per-conversation context includes the active application and last runner step",
+        "Typecheck passes"
+      ],
+      "priority": 176,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "CS-002",
+      "title": "Status update notifications (email + push)",
+      "description": "As an applicant, I need to be emailed (and optionally push-notified) on every meaningful application transition, so I do not have to babysit the portal.",
+      "acceptanceCriteria": [
+        "Transition events: paid, runner-started, runner-stopped-for-input, submitted, decision-issued, document-ready",
+        "Emails templated and delivered via Resend / Postmark",
+        "Mobile push via Expo / OneSignal where the mobile app is in scope",
+        "User preferences page lets applicant opt out of non-essential",
+        "Typecheck passes"
+      ],
+      "priority": 177,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "CS-003",
+      "title": "Operator takeover for stuck runners",
+      "description": "As a staff member, I need to take over a Playwright session that hit an unhandled state (e.g., new ID-verify page, blocked by anti-bot) and finish it manually, so a single new portal change does not stall every applicant.",
+      "acceptanceCriteria": [
+        "Runner emits `needs-human` state with a remote-debug URL",
+        "Staff portal exposes the URL behind 2FA",
+        "Operator actions logged to the runner artefact bundle",
+        "Operator completion writes results back to the canonical answer set",
+        "Typecheck passes"
+      ],
+      "priority": 178,
+      "passes": false,
+      "notes": "High-leverage capability for new-portal incidents."
+    },
+    {
+      "id": "CS-004",
+      "title": "Help articles + FAQ per package",
+      "description": "As an applicant, I need package-specific FAQs covering documents required, processing time, refund eligibility, and common rejection reasons, so I do not need to ask staff.",
+      "acceptanceCriteria": [
+        "FAQ content authored as MDX in `docs/help/{cc}.mdx`",
+        "Surfaced in `/client/help` filtered by active package",
+        "Searchable",
+        "Linked from chat as suggested replies",
+        "Typecheck passes"
+      ],
+      "priority": 179,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "CS-005",
+      "title": "SLA published per package",
+      "description": "As an applicant, I need the agency's expected processing time per package published up front, so I can plan travel.",
+      "acceptanceCriteria": [
+        "Per-package SLA (median + p95) published in pricing page",
+        "Real measured times back-fill the displayed values weekly",
+        "Breach triggers OPS alert + applicant comms",
+        "Typecheck passes"
+      ],
+      "priority": 180,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-KH-01",
+      "title": "Cambodia e-Visa: prefill runner to checkpoint",
+      "description": "Build a Phase-3 runner for evisa.gov.kh that drives the public form from canonical answers and stops before payment.",
+      "acceptanceCriteria": [
+        "`viza-be/submission-service/src/kh/` extends the existing recon scaffold to a full prefill runner",
+        "Runner consumes canonical answers (KH_TOURIST_E_VISA schema)",
+        "Halts before clicking final submit / pay",
+        "Smoke test reaches checkpoint without manual intervention",
+        "Artefacts (screenshots + HAR) saved per run",
+        "Typecheck passes"
+      ],
+      "priority": 181,
+      "passes": false,
+      "notes": "KH portal is public — no auth gate."
+    },
+    {
+      "id": "AUTO-KH-02",
+      "title": "Cambodia e-Visa: error + halt-page handling",
+      "description": "Wire validation errors, anti-bot gates, and OTP / email confirmations into structured runner outcomes.",
+      "acceptanceCriteria": [
+        "Per-page error catalog in `kh/errors.ts`",
+        "Anti-bot detection triggers `needs-human` instead of crash",
+        "Inbox helper consumed for any email step",
+        "Typecheck passes"
+      ],
+      "priority": 182,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-KH-03",
+      "title": "Cambodia e-Visa: payment relay + reference return",
+      "description": "Implement the chosen payment mechanism (per PAY-003) for KH and capture the e-Visa PDF reference back into the applicant record.",
+      "acceptanceCriteria": [
+        "Payment mechanism implemented end-to-end on KH",
+        "Issued e-Visa PDF saved to artefact storage and emailed to applicant",
+        "Application status transitions to `delivered`",
+        "Typecheck passes"
+      ],
+      "priority": 183,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-KH-04",
+      "title": "Cambodia e-Visa: production handoff",
+      "description": "Promote KH from staging to production: queue wiring, secrets, canary, runbook, alerts.",
+      "acceptanceCriteria": [
+        "Job enqueues automatically after payment",
+        "OPS canary monitors KH",
+        "Runbook in `docs/runbooks/kh.md`",
+        "10 staging applications submitted successfully end-to-end",
+        "Typecheck passes"
+      ],
+      "priority": 184,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LA-01",
+      "title": "Laos e-Visa: prefill runner to checkpoint",
+      "description": "Phase-3 runner for laoevisa.gov.la driving the public form from canonical answers and stopping before payment.",
+      "acceptanceCriteria": [
+        "`la/` runner extends recon scaffold to full prefill",
+        "Halts before submit / pay",
+        "Smoke test green",
+        "Artefacts saved",
+        "Typecheck passes"
+      ],
+      "priority": 185,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LA-02",
+      "title": "Laos e-Visa: error + halt-page handling",
+      "description": "Same as AUTO-KH-02 for Laos.",
+      "acceptanceCriteria": ["LA-specific error catalog", "Anti-bot fallback", "Inbox helper integration", "Typecheck passes"],
+      "priority": 186,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LA-03",
+      "title": "Laos e-Visa: payment relay + reference return",
+      "description": "Same as AUTO-KH-03 for Laos.",
+      "acceptanceCriteria": ["Payment mechanism implemented", "Issued PDF captured", "Status -> delivered", "Typecheck passes"],
+      "priority": 187,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LA-04",
+      "title": "Laos e-Visa: production handoff",
+      "description": "Same as AUTO-KH-04 for Laos.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 188,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LK-01",
+      "title": "Sri Lanka ETA: prefill runner to checkpoint",
+      "description": "Phase-3 runner for eta.gov.lk driving the public form and halting before payment.",
+      "acceptanceCriteria": ["`lk/` extends recon to prefill", "Halts before pay", "Smoke green", "Artefacts saved", "Typecheck passes"],
+      "priority": 189,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LK-02",
+      "title": "Sri Lanka ETA: error + halt-page handling",
+      "description": "LK error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["LK error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 190,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LK-03",
+      "title": "Sri Lanka ETA: payment relay + reference return",
+      "description": "LK payment + ETA capture.",
+      "acceptanceCriteria": ["Payment implemented", "Issued ETA captured", "Status -> delivered", "Typecheck passes"],
+      "priority": 191,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-LK-04",
+      "title": "Sri Lanka ETA: production handoff",
+      "description": "LK prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 192,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-ZA-01",
+      "title": "South Africa eVisa: prefill runner to checkpoint",
+      "description": "Phase-3 runner for the SA eVisa pilot portal (selected nationalities) driving the form to the checkpoint.",
+      "acceptanceCriteria": ["`za/` extends recon to prefill", "Halts before pay/sign", "Smoke green", "Artefacts saved", "Typecheck passes"],
+      "priority": 193,
+      "passes": false,
+      "notes": "VFS Global Visitor's flow is account-gated; pursue eVisa first."
+    },
+    {
+      "id": "AUTO-ZA-02",
+      "title": "South Africa eVisa: error + halt-page handling",
+      "description": "ZA error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["ZA error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 194,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-ZA-03",
+      "title": "South Africa eVisa: payment relay + reference return",
+      "description": "ZA payment + reference capture.",
+      "acceptanceCriteria": ["Payment implemented", "Issued eVisa captured", "Status -> delivered", "Typecheck passes"],
+      "priority": 195,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-ZA-04",
+      "title": "South Africa eVisa: production handoff",
+      "description": "ZA prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 196,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-IN-01",
+      "title": "India e-Visa: prefill runner to checkpoint",
+      "description": "Phase-3 runner for indianvisaonline.gov.in/evisa driving the multi-page state machine.",
+      "acceptanceCriteria": ["`in/` extends recon to prefill", "Multi-purpose sub-journey gating wired", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 197,
+      "passes": false,
+      "notes": "Largest non-DS-160 schema; expect more selector volume."
+    },
+    {
+      "id": "AUTO-IN-02",
+      "title": "India e-Visa: error + halt-page handling",
+      "description": "IN error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["IN error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 198,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-IN-03",
+      "title": "India e-Visa: payment relay + reference return",
+      "description": "IN payment + e-Visa PDF capture.",
+      "acceptanceCriteria": ["Payment implemented", "Issued e-Visa captured", "Status -> delivered", "Typecheck passes"],
+      "priority": 199,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-IN-04",
+      "title": "India e-Visa: production handoff",
+      "description": "IN prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 200,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-UK-01",
+      "title": "UK Standard Visitor: complete backend prefill runner",
+      "description": "Complete the UK Phase-2 runner from frontend wizard parity to a full Playwright prefill that halts before payment.",
+      "acceptanceCriteria": ["`uk/` runner reaches the checkpoint", "Multi-purpose sub-journey gating wired", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 201,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-UK-02",
+      "title": "UK Standard Visitor: error + halt-page handling",
+      "description": "UK error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["UK error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 202,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-UK-03",
+      "title": "UK Standard Visitor: payment relay + reference return",
+      "description": "UK payment + visa decision tracking.",
+      "acceptanceCriteria": ["Payment implemented", "Decision letter captured", "Status -> delivered", "Typecheck passes"],
+      "priority": 203,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-UK-04",
+      "title": "UK Standard Visitor: production handoff",
+      "description": "UK prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 204,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-AU-01",
+      "title": "Australia Subclass 600: complete prefill + sign handoff",
+      "description": "Take the existing Phase-3 AU runner past Review and sign in ImmiAccount, including PDF upload after sign.",
+      "acceptanceCriteria": ["`au-visitor/` runner completes Review", "Sign step + PDF upload implemented", "Halts only on payment if applicable", "Smoke green", "Typecheck passes"],
+      "priority": 205,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-AU-02",
+      "title": "Australia Subclass 600: error + halt-page handling",
+      "description": "AU error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["AU error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 206,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-AU-03",
+      "title": "Australia Subclass 600: payment relay + grant capture",
+      "description": "AU government fee + grant letter capture.",
+      "acceptanceCriteria": ["Payment implemented", "Grant letter captured + emailed", "Status -> delivered", "Typecheck passes"],
+      "priority": 207,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-AU-04",
+      "title": "Australia Subclass 600: production handoff",
+      "description": "AU prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 208,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-VN-01",
+      "title": "Vietnam e-Visa: complete prefill + payment handoff",
+      "description": "Take the existing Phase-3 VN runner past pre-pay into payment relay and reference return.",
+      "acceptanceCriteria": ["`vietnam/` runner reaches pay step from canonical answers", "Payment relay implemented per PAY-003", "Halts only on submit confirmation", "Smoke green", "Typecheck passes"],
+      "priority": 209,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-VN-02",
+      "title": "Vietnam e-Visa: error + halt-page handling",
+      "description": "VN error catalog + anti-bot fallback + inbox.",
+      "acceptanceCriteria": ["VN error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "priority": 210,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-VN-03",
+      "title": "Vietnam e-Visa: PDF reference return",
+      "description": "Capture the issued e-Visa PDF and write back to applicant.",
+      "acceptanceCriteria": ["PDF download implemented", "Stored to artefact storage", "Emailed to applicant", "Status -> delivered", "Typecheck passes"],
+      "priority": 211,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-VN-04",
+      "title": "Vietnam e-Visa: production handoff",
+      "description": "VN prod handoff.",
+      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "priority": 212,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-JP",
+      "title": "Japan Tourist Visa: paper-channel pipeline",
+      "description": "Wire JP_TOURIST through the DOC-004 PDF assembly path (consular paper submission) plus document checklist for staff hand-delivery.",
+      "acceptanceCriteria": ["DOC-004 PDF template registered", "Staff hand-delivery checklist generated", "Status -> staff-action-required after generation", "Typecheck passes"],
+      "priority": 213,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-KR",
+      "title": "Korea C-3-9: paper-channel pipeline",
+      "description": "Wire KR_C39 through DOC-004 paper assembly path.",
+      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "priority": 214,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-ID",
+      "title": "Indonesia C1 Tourist: prefill runner",
+      "description": "Build a Phase-3 prefill runner for Indonesia evisa.imigrasi.go.id.",
+      "acceptanceCriteria": ["`egypt/`-style runner for ID", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 215,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-EG",
+      "title": "Egypt e-Visa: prefill runner",
+      "description": "Promote the existing `egypt/` scaffold to a full Phase-3 prefill runner.",
+      "acceptanceCriteria": ["`egypt/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 216,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-IT",
+      "title": "Italy via VFS Global China: corridor runner",
+      "description": "Promote the `italy-vfs-cn/` adapter skeleton to a working Phase-3 runner for the China corridor.",
+      "acceptanceCriteria": ["`italy-vfs-cn/` runner books appointment + prefills", "Halts at submit / pay", "Smoke green", "Typecheck passes"],
+      "priority": 217,
+      "passes": false,
+      "notes": "VFS account-gated; needs SECRETS-001."
+    },
+    {
+      "id": "AUTO-T3-TH",
+      "title": "Thailand e-Visa: prefill runner",
+      "description": "Phase-3 runner for thaievisa.go.th.",
+      "acceptanceCriteria": ["`th/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 218,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-MY",
+      "title": "Malaysia eVISA: prefill runner",
+      "description": "Phase-3 runner for windowmalaysia.my (or current canonical portal).",
+      "acceptanceCriteria": ["`my/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 219,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-SG",
+      "title": "Singapore Visit Visa: paper-channel pipeline",
+      "description": "Wire SG_VISITOR_VISA through DOC-004 (sponsor-required paper path).",
+      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "priority": 220,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-HK",
+      "title": "Hong Kong Visit Visa: paper-channel pipeline",
+      "description": "Wire HK_VISIT_VISA through DOC-004.",
+      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "priority": 221,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-MO",
+      "title": "Macau Visit Visa: paper-channel pipeline",
+      "description": "Wire MO_VISIT_VISA through DOC-004.",
+      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "priority": 222,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-NZ",
+      "title": "New Zealand Visitor Visa: prefill runner",
+      "description": "Phase-3 runner for the INZ online portal.",
+      "acceptanceCriteria": ["`nz/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 223,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-RU",
+      "title": "Russia Unified e-Visa: prefill runner",
+      "description": "Phase-3 runner for evisa.kdmid.ru.",
+      "acceptanceCriteria": ["`ru/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 224,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-TR",
+      "title": "Türkiye e-Visa: prefill runner",
+      "description": "Phase-3 runner for evisa.gov.tr.",
+      "acceptanceCriteria": ["`tr/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 225,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-AE",
+      "title": "UAE Tourist Visa: prefill runner",
+      "description": "Phase-3 runner for the chosen UAE channel (smartservices.icp.gov.ae or partner).",
+      "acceptanceCriteria": ["`ae/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 226,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTO-T3-CA",
+      "title": "Canada eTA + TRV: prefill runner",
+      "description": "Phase-3 runner for IRCC eTA (public) plus TRV via GCKey/Sign-In Partner.",
+      "acceptanceCriteria": ["`ca/` eTA runner reaches checkpoint (public, easier)", "TRV runner stubbed pending GCKey live-QA", "Halts before pay", "Smoke green for eTA", "Typecheck passes"],
+      "priority": 227,
+      "passes": false,
+      "notes": "eTA first; TRV gated on GCKey credential strategy."
+    },
+    {
+      "id": "AUTO-T3-MV",
+      "title": "Maldives IMUGA: prefill runner",
+      "description": "Phase-3 runner for imuga.immigration.gov.mv (free arrival declaration; no fee).",
+      "acceptanceCriteria": ["`mv/` runner reaches checkpoint", "No payment step (free)", "Smoke green", "Typecheck passes"],
+      "priority": 228,
+      "passes": false,
+      "notes": "Easiest of the remaining set."
+    },
+    {
+      "id": "AUTO-T3-PH",
+      "title": "Philippines eTravel + 9(a): mixed pipeline",
+      "description": "Phase-3 runner for eTravel (public) + DOC-004 paper path for 9(a).",
+      "acceptanceCriteria": ["`ph/` eTravel runner reaches checkpoint", "9(a) PDF template registered", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "priority": 229,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LAUNCH-001",
+      "title": "MVP-1 launch gate: US + France",
+      "description": "Gate the first real-client launch on US CEAC DS-160 + France Schengen with the full cross-cutting stack (SECRETS, INBOX, LEGAL, PAY, INFRA, OPS, DOC, CS) wired only for these two countries.",
+      "acceptanceCriteria": [
+        "All cross-cutting tracks marked `passes: true` for at least the US + France slice",
+        "End-to-end test: 5 real applications (staff-internal) submitted successfully through US, 5 through France",
+        "Privacy + ToS counsel-reviewed",
+        "Stripe live mode enabled with refund policy operative",
+        "OPS canary + alerting live for both portals",
+        "MVP-1 launch checklist in `docs/launch/mvp-1.md` all green"
+      ],
+      "priority": 230,
+      "passes": false,
+      "notes": "First revenue-bearing milestone."
+    },
+    {
+      "id": "LAUNCH-002",
+      "title": "MVP-2 launch gate: AU + VN + UK",
+      "description": "Add three high-volume markets after MVP-1 has 30 days of clean operation.",
+      "acceptanceCriteria": [
+        "AUTO-UK-* / AUTO-AU-* / AUTO-VN-* all `passes: true`",
+        "30 days of MVP-1 operations with success rate >= 95%",
+        "Per-country government-fee mechanism implemented",
+        "5 internal end-to-end submissions per country",
+        "MVP-2 launch checklist in `docs/launch/mvp-2.md` all green"
+      ],
+      "priority": 231,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LAUNCH-003",
+      "title": "MVP-3 launch gate: AUTO-T1 (KH/LA/LK/ZA/IN)",
+      "description": "Add the recon-scaffolded countries once their AUTO-T1 stories close.",
+      "acceptanceCriteria": [
+        "AUTO-KH-* / AUTO-LA-* / AUTO-LK-* / AUTO-ZA-* / AUTO-IN-* all `passes: true`",
+        "Per-country canary monitors live",
+        "MVP-3 launch checklist in `docs/launch/mvp-3.md` all green"
+      ],
+      "priority": 232,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LAUNCH-004",
+      "title": "MVP-4 launch gate: AUTO-T3 prefill cohort",
+      "description": "Add the remaining online-portal countries (ID/EG/IT/TH/MY/NZ/RU/TR/AE/CA-eTA/MV/PH-eTravel) once their AUTO-T3 stories close.",
+      "acceptanceCriteria": [
+        "Each AUTO-T3 country with an online portal `passes: true`",
+        "Per-country canary monitors live",
+        "MVP-4 launch checklist in `docs/launch/mvp-4.md` all green"
+      ],
+      "priority": 233,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LAUNCH-005",
+      "title": "Paper-channel cohort launch (JP/KR/SG/HK/MO/PH-9a/CA-TRV)",
+      "description": "Launch the paper-channel-only or auth-gated countries once DOC-004 PDF assembly is mature and staff hand-delivery process is documented.",
+      "acceptanceCriteria": [
+        "DOC-004 templates exist for every paper-channel country",
+        "Staff hand-delivery runbook in `docs/runbooks/paper-channel.md`",
+        "5 internal end-to-end submissions per country",
+        "Paper-channel launch checklist in `docs/launch/paper.md` all green"
+      ],
+      "priority": 234,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "LAUNCH-006",
+      "title": "Public marketing launch: pricing page + signup live",
+      "description": "Open public signup with pricing, marketing site, and SLA promises after at least one MVP gate is closed.",
+      "acceptanceCriteria": [
+        "Pricing page renders package list with real numbers + SLAs",
+        "Signup flow gated on LEGAL-002 consent capture",
+        "Customer support inbox staffed with documented response targets",
+        "Marketing site copy reviewed for compliance with consumer-protection rules in launch jurisdictions"
+      ],
+      "priority": 235,
+      "passes": false,
+      "notes": "Final go-public switch."
     }
   ]
 }
