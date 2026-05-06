@@ -1296,3 +1296,12 @@ acknowledgment).
 - Typecheck: pass
 - Note: TWOCAPTCHA_API_KEY and IMAP_PASSWORD remain platform-wide env vars (not per-applicant); SECRETS-002 acceptance only calls out PORTAL_* keys.
 ---
+
+## 2026-05-06 - SECRETS-003
+- Added drizzle/0044_secret_access_log.sql (applicant_id, key, action, actor, correlation_id, error_class, ts) with RLS owner-SELECT, deny writes (service-role only).
+- Updated agent-backend/src/db/applicant-vault.ts: every get/set/delete (and read_miss / error path) appends a secret_access_log row. Audit failures log loud but never mask the underlying op.
+- Mirrored audit logging in submission-service/src/applicant-vault.ts.
+- Added admin portal read-only audit view at /admin/users/[id]/secret-access (most-recent-500 entries, action badges, no plaintext / ciphertext).
+- Added agent-backend/scripts/rotate-applicant-secret.ts — reads new value from stdin, calls setApplicantSecret() so the rotation is itself audited (actor=scripts/rotate-applicant-secret.ts).
+- Typecheck: agent-backend ✅, submission-service ✅, internal-website ✅
+---
