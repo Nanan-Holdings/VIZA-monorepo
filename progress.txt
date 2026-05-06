@@ -1305,3 +1305,14 @@ acknowledgment).
 - Added agent-backend/scripts/rotate-applicant-secret.ts — reads new value from stdin, calls setApplicantSecret() so the rotation is itself audited (actor=scripts/rotate-applicant-secret.ts).
 - Typecheck: agent-backend ✅, submission-service ✅, internal-website ✅
 ---
+
+## 2026-05-06 - SECRETS-004
+- Added .gitleaks.toml — extends default ruleset, allowlists VIZA placeholder strings + .env.example paths.
+- Added scripts/git-hooks/pre-commit + scripts/install-git-hooks.sh: gitleaks-aware hook with regex fallback covering Supabase JWTs, Resend live keys, 32-char hex (2captcha), and *_PASSWORD/_SECRET/_TOKEN/_API_KEY assignments. Hook respects same path allowlist as gitleaks config (.gitleaks.toml, SECURITY.md, the hook itself, .env.example files, manual-qa doc).
+- Added SECURITY.md — documents secret storage matrix, rotation flow, hook install, and current audit status (clean as of 2026-05-06 — no historical leaks on file). Includes postmortem template.
+- root package.json: added security:install-hooks and security:gitleaks scripts.
+- Verified .env.example files (viza-fe + submission-service) contain placeholders only.
+- Greped repo for real-shaped Supabase JWTs / Resend live keys / 2captcha hex / IMAP passwords — none found.
+- Typecheck: no TS files modified, skipped.
+- Hook installed via ./scripts/install-git-hooks.sh on dev machine.
+---
