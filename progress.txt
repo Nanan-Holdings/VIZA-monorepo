@@ -1316,3 +1316,12 @@ acknowledgment).
 - Typecheck: no TS files modified, skipped.
 - Hook installed via ./scripts/install-git-hooks.sh on dev machine.
 ---
+
+## 2026-05-06 - SECRETS-005
+- Added lib/auth/with-admin.ts: single `withAdmin(mode, actor, fn)` helper. mode='admin' enforces getCurrentUser().role==='admin'; mode='system' bypass for trusted server-only callers (webhook, signed token).
+- eslint.config.mjs: no-restricted-imports override for app/client/** and components/** blocking @/lib/supabase/admin and @/lib/auth/with-admin (paths + patterns).
+- docs/service-role-audit.md: classified every createAdminClient() call site (~24 files: lib helpers, route handlers, server pages, server actions). Each row tagged with mode + auth boundary.
+- Confirmed via grep that no client component currently imports the admin client. Lint rule passes (existing 18 errors are pre-existing @ts-nocheck / missing-plugin issues unrelated to this story).
+- Migration plan: gradual — new code uses withAdmin(); legacy createAdminClient() sites migrate as touched.
+- Typecheck: internal-website ✅
+---
