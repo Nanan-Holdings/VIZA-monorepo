@@ -1279,3 +1279,11 @@ acknowledgment).
   - Multi-variant `visa_type_requested` (3-7 variants per package)
 - Loop ends. Ralph stop signal not output (PRD is per-country group; user's loop covers schema work, not a global "all stories pass" gate).
 ---
+
+## 2026-05-06 - SECRETS-001
+- Added drizzle/0043_applicant_secret.sql — generic per-applicant ciphertext store with RLS (owner-only SELECT, deny-by-default writes; service-role-only writes via vault)
+- Added agent-backend/src/db/applicant-vault.ts with get/set/delete using existing AES-256-GCM cipher (utils/secret-cipher.ts)
+- Encryption key continues to derive from SUBMISSION_RESULT_SECRET_KEY (env / KMS, never committed)
+- Typecheck: pass
+- Learnings: Logger.error signature is (msg, Error, metadata?), not (msg, metadata). Wrap Supabase PostgrestError in new Error() before passing.
+---
