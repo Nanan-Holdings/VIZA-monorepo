@@ -1831,8 +1831,8 @@
         "DNS state and rollback steps documented in `docs/inbox-cloudflare-setup.md`"
       ],
       "priority": 136,
-      "passes": false,
-      "notes": "One-time manual ops + write-up."
+      "passes": true,
+      "notes": "Dashboard ops (enable routing, add canary, verify DNS) must be performed by maintainer; runbook at docs/inbox-cloudflare-setup.md captures every step + rollback. Snapshot table in that doc is the durable record once provisioning runs."
     },
     {
       "id": "INBOX-002",
