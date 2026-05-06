@@ -18,6 +18,9 @@
 import { config } from "dotenv";
 import * as path from "node:path";
 import * as fs from "node:fs";
+// Load agent-backend/.env.local first (authoritative source for Supabase
+// creds in this monorepo), then submission-service/.env for local overrides.
+config({ path: path.join(__dirname, "../../../agent-backend/.env.local") });
 config({ path: path.join(__dirname, "../../.env") });
 
 import { startCeacSession } from "./session";
@@ -25,189 +28,32 @@ import { handleConfirmApplicationPage } from "./confirm-application";
 import { detectPage } from "./pages";
 import { orchestrateFill } from "./orchestrator";
 import { createRecoveryTracker } from "./artifacts";
+import { TEST_DS160_ANSWERS, TEST_DS160_PROFILE } from "./test-ds160-fixture";
+import { loadAnswersForApplication } from "./answer-loader";
 
 const OUT_DIR = path.join(__dirname, "../../e2e-out");
 
 // A representative sample answer payload. Keys match the DS-160 seed-script
 // field names (see seed-ds160-form-fields.ts). The orchestrator fills only
 // keys present in the per-page mapping; missing keys are skipped silently.
-const SAMPLE_ANSWERS: Record<string, string> = {
-  // Personal Information 1
-  surname: "TESTER",
-  given_names: "JOHN ALEX",
-  full_name_native_alphabet: "N/A",
-  sex: "M",
-  marital_status: "S",
-  date_of_birth_day: "15",
-  date_of_birth_month: "JUN",
-  date_of_birth_year: "1990",
-  has_other_names: "N",
-  has_telecode: "N",
-  city_of_birth: "LONDON",
-  state_of_birth: "ENGLAND",
-  country_of_birth: "GRBR",
-
-  // Personal Information 2
-  nationality_country: "GRBR",
-  other_nationality: "N",
-  permanent_resident_other_country: "N",
-  // No National ID / SSN / Taxpayer ID — toggle the Does-Not-Apply checkboxes
-  national_id_number_na: "Y",
-  us_social_security_number_na: "Y",
-  us_taxpayer_id_na: "Y",
-
-  // Travel Information
-  has_specific_travel_plans: "N",
-  purpose_of_trip: "B",           // BUSINESS/PLEASURE (B1/B2)
-  purpose_of_trip_specify: "B1-B2",
-  who_is_paying: "S",             // SELF
-  intended_arrival_date_day: "10",
-  intended_arrival_date_month: "DEC",
-  intended_arrival_date_year: "2026",
-  intended_length_of_stay: "14",
-  intended_length_of_stay_unit: "D",
-  us_address_street: "123 MAIN ST",
-  us_address_city: "NEW YORK",
-  us_address_state: "NY",
-  us_address_zip: "10001",
-
-  // Travel Companions
-  has_companions: "N",
-
-  // Previous US Travel — all "No" for a first-time applicant
-  has_been_in_us: "N",
-  has_us_visa: "N",
-  has_been_refused: "N",
-  vwp_denial: "N",
-  immigrant_petition_filed: "N",
-
-  // Passport
-  passport_document_type: "R",
-  passport_number: "123456789",
-  passport_book_number_na: "Y",
-  passport_issuance_city: "LONDON",
-  passport_issuance_country: "GRBR",
-  passport_issuing_country: "GRBR",
-  passport_issue_day: "01",
-  passport_issue_month: "01",  // CEAC month ddl uses numeric months "01"-"12"
-  passport_issue_year: "2020",
-  passport_expiry_day: "01",
-  passport_expiry_month: "01",
-  passport_expiry_year: "2030",
-  passport_lost_or_stolen: "N",
-
-  // US Contact — required even when applicant doesn't know one; use a
-  // hotel/host placeholder. Relationship "O" = Other.
-  us_contact_surname: "DOE",
-  us_contact_given_names: "JOHN",
-  us_contact_organization_na: "Y",
-  us_contact_relationship: "H",  // HOST
-  us_contact_address_street1: "123 MAIN ST",
-  us_contact_city: "NEW YORK",
-  us_contact_state: "NY",
-  us_contact_zip: "10001",
-  us_contact_phone: "2125551234",
-  us_contact_email: "host@example.com",
-
-  // Family Relatives
-  father_surname: "TESTER",
-  father_given_names: "ROBERT",
-  father_dob_day: "01",
-  father_dob_month: "JAN",  // ddlFathersDOBMonth uses 3-letter abbrev values
-  father_dob_year: "1960",
-  father_in_us: "N",
-  mother_surname: "TESTER",
-  mother_given_names: "MARY",
-  mother_dob_day: "01",
-  mother_dob_month: "JAN",
-  mother_dob_year: "1962",
-  mother_in_us: "N",
-  has_immediate_us_relatives: "N",
-  has_other_us_relatives: "N",
-
-  // Work / Education — Present. "RT" = Retired is the least-revealing
-  // option (no employer required); "H" = Homemaker; use an option that
-  // doesn't trigger reveals to keep this a small test payload.
-  primary_occupation: "RT",  // RETIRED
-
-  // Work / Education — Previous
-  has_previous_employer: "N",
-  has_other_education: "N",
-
-  // Work / Education — Additional
-  has_clan_tribe: "N",
-  language_name: "ENGLISH",
-  has_countries_visited: "N",
-  has_organization: "N",
-  has_specialized_skills: "N",
-  has_served_military: "N",
-  has_served_insurgent: "N",
-
-  // Security and Background Part 1
-  has_communicable_disease: "N",
-  has_physical_mental_disorder: "N",
-  is_drug_abuser: "N",
-
-  // Security and Background Part 2
-  has_arrest_conviction: "N",
-  has_violated_controlled_substance: "N",
-  has_prostitution: "N",
-  has_money_laundering: "N",
-  has_human_trafficking: "N",
-  has_aided_human_trafficking: "N",
-  has_trafficking_beneficiary: "N",
-
-  // Security and Background Part 3
-  intend_illegal_activity: "N",
-  intend_terrorist_activity: "N",
-  has_provided_terrorist_support: "N",
-  is_terrorist_member: "N",
-  is_terrorist_family: "N",
-  has_genocide: "N",
-  has_torture: "N",
-  has_extrajudicial_killings: "N",
-  has_child_soldier: "N",
-  has_religious_freedom_violation: "N",
-  has_population_control: "N",
-  has_coercive_transplant: "N",
-
-  // Security and Background Part 4
-  has_immigration_fraud: "N",
-  has_removal_order: "N",
-
-  // Security and Background Part 5
-  has_withheld_child_custody: "N",
-  has_voted_illegally: "N",
-  has_renounced_citizenship: "N",
-
-  // Contact (Address and Phone)
-  home_address_line1: "10 DOWNING STREET",
-  home_address_city: "LONDON",
-  home_address_state: "LONDON",
-  home_address_postal: "SW1A2AA",
-  home_address_country: "GRBR",
-  mailing_same_as_home: "Y",
-  primary_phone: "442079251234",
-  mobile_phone_na: "Y",
-  work_phone_na: "Y",
-  has_other_phone: "N",
-  email_address: "tester@example.com",
-  has_other_email: "N",
-  has_social_media: "N",
-  // CEAC requires a social-media PLATFORM selection even when the
-  // applicant declares no additional presence. "NONE" = "I do not have
-  // any social media presence" in the dropdown.
-  social_media_provider: "NONE",
-  social_media_identifier: "N/A",
-};
-
-const SAMPLE_PROFILE = {
-  surname: "TESTER",
-  given_names: "JOHN ALEX",
-  date_of_birth: "1990-06-15",
-  passport_number: "123456789",
-  email_address: "tester@example.com",
-};
+//
+// Source of truth lives in src/ceac/test-ds160-fixture.ts — re-exported here
+// as SAMPLE_ANSWERS / SAMPLE_PROFILE for back-compat with the original e2e
+// harness. When CEAC_TEST_APPLICATION_ID is set, we instead pull answers
+// from Supabase via the answer-loader.
+async function resolveAnswerSource(
+  log: (msg: string) => void,
+): Promise<{ answers: Record<string, string>; profile: Record<string, unknown> }> {
+  const supabaseAppId = process.env.CEAC_TEST_APPLICATION_ID?.trim();
+  if (supabaseAppId) {
+    log(`Loading answers from Supabase for application ${supabaseAppId}`);
+    const loaded = await loadAnswersForApplication(supabaseAppId);
+    log(`  pulled ${Object.keys(loaded.answers).length} answer rows`);
+    return loaded;
+  }
+  log(`Using hardcoded TEST_DS160_ANSWERS fixture (no CEAC_TEST_APPLICATION_ID)`);
+  return { answers: TEST_DS160_ANSWERS, profile: TEST_DS160_PROFILE };
+}
 
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -217,6 +63,8 @@ async function main() {
 
   log(`Starting end-to-end live run ${runId}`);
   log(`Output dir: ${OUT_DIR}`);
+
+  const { answers: SAMPLE_ANSWERS, profile: SAMPLE_PROFILE } = await resolveAnswerSource(log);
 
   // Bootstrap with retry on SessionTimedOut. CEAC's anti-bot sometimes
   // invalidates a stealth context the moment we click START, even with

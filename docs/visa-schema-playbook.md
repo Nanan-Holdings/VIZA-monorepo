@@ -1448,3 +1448,399 @@ script, before the seed is finalized. Skipping this step costs 5–10×
 more iteration than running the recon once. Pattern in
 `viza-be/submission-service/scripts/walk-uk-portal.ts` and
 `viza-be/submission-service/src/vietnam/form-recon-v3.ts`.
+
+---
+
+## 13. Playwright autofill testing — driving a country runner end-to-end
+
+This section is the operational guide for the **submission-service**
+side of the pipeline: turning a finalized seed into a Playwright
+runner, smoke-testing it against the live portal, and validating the
+result payload. The schema work in §1–§10 is upstream of this; do
+not attempt §13 until the seed is live, type-checking, and at least
+one user has answered the form on `/application`.
+
+The two pipelines that have been QA'd against live portals are
+DS-160 (§9) and France-Visas (§11). Treat them as **paired
+templates**: ASP.NET WebForms (§9) and Jakarta Faces / PrimeFaces
+(§11). Almost every gov portal is one shape or the other; pick the
+closer template and copy.
+
+### 13.1 The submission-service module layout
+
+For every country with autofill, you should end up with this layout
+under `viza-be/submission-service/src/<country>/`:
+
+| File | Role | Required? |
+|------|------|-----------|
+| `selectors.ts` | CSS / XPath selectors for every page, gate markers, taxonomy enums (sex / civil status / occupation codes) | yes |
+| `pages.ts` | `<Country>PageId` enum, `detectPage`, `assertPage`, `waitForPage` | yes |
+| `errors.ts` | Typed error classes (`SessionExpired`, `ValidationFailed`, `GateDetected`) parallel to `ceac/errors.ts` | yes |
+| `normalize.ts` | Maps the seed answer map (flat `field_name → value`) to the portal's wire format (per-step nested or per-page-id record) | yes |
+| `field-mappings.ts` | `<Country>_FIELD_MAPPINGS` — from CEAC pattern; group entries by page id | yes if many fields |
+| `session.ts` | Login, restore from `storageState`, MFA / TOTP plumbing | yes if portal is auth'd |
+| `fill-steps.ts` (or `fillers.ts`) | `fillStep1` … `fillStepN` — per-page form drivers using `selectors.ts` + portal-specific helpers | yes |
+| `orchestrator.ts` | `<Country>Orchestrator` — page-by-page walk, gate detection, advance loop, stop-boundary enforcement | yes |
+| `run.ts` | Top-level `fill<Country>Application(input)` — what the queue worker and smoke script call | yes |
+| `<portal>-ajax.ts` | Portal-specific helpers for AJAX postback waits (CEAC: `aspnet.ts`; France: `primefaces-ajax.ts`) | yes if portal uses AJAX postbacks |
+| `index.ts` | Barrel exports — keep the public surface small and explicit | yes |
+| `form-recon.ts` / `form-recon-v3.ts` | Playwright recon walker — captures screenshots, DOM, gate markers per page; output → `docs/<country>-recon-*.json` | yes during build, can stay after |
+
+A country that doesn't reach this layout isn't autofill-ready. Use
+`uk/`, `vietnam/`, and `au-visitor/` as size references — they all
+have less than DS-160 / France but the same shape.
+
+### 13.2 Recon → selectors → fill — the build order
+
+**Step 1 — Recon** (always first; §12.7 rule)
+
+Write `src/<country>/form-recon.ts` modelled on
+`viza-be/submission-service/scripts/walk-uk-portal.ts`. The recon
+script must:
+
+1. Launch a stealth Chromium (`launchStealthBrowser` from
+   `src/ceac/stealth-browser.ts`) in headed mode for the first run.
+2. Walk every reachable page from the portal entry point to the
+   sign / submit / pay boundary using **manual** click-throughs (or
+   pre-recorded credentials if auth is required).
+3. At each page, capture:
+   - Full-page screenshot to `<country>-recon-out/page-NN-*.png`
+   - `page.content()` HTML to `page-NN-*.html`
+   - Every `<input>`, `<select>`, `<textarea>` with `name`, `id`,
+     `type`, current value, `disabled`, `aria-hidden`
+   - Conditional / hidden field markers (e.g. `style="display:none"`)
+4. Emit a single `summary.json` with per-page field counts and the
+   page-id detection heuristic for each (URL or heading).
+
+Commit the recon JSON to `docs/<country>-visa-recon-YYYY-MM-DD.json`
+and write a `<country>-walk-report.md` summarising what you saw.
+**This is the single most important deliverable before fill code.**
+Patterns: `egypt/form-recon.ts`, `vietnam/form-recon-v3.ts`,
+`uk/form-recon.ts`.
+
+**Step 2 — Selectors**
+
+Translate the recon JSON into `selectors.ts`. Conventions that pay
+off later:
+
+- One named constant per page-field group:
+  `FV_STEP1_FIELDS`, `IT_VFS_PERSONAL_FIELDS`, `CEAC_PERSONAL_PAGE_1`.
+- Always qualify selectors by step / page id when the same `name`
+  appears on multiple steps (Annex I `visas-selected-applicant-country_input`
+  collision in §11.3 — bit me, will bite you).
+- Split CAPTCHA selectors into `solvableCaptchaSelectors` (image →
+  2captcha) and `blockingCaptchaSelectors` (reCAPTCHA / hCaptcha /
+  Cloudflare → give up). Mirrors `ceac/selectors.ts`.
+- Gate markers (`MAINTENANCE_TEXT`, `SESSION_TIMED_OUT`,
+  `LOGIN_ERROR`) live next to the page selectors so `gates.ts` can
+  re-export them.
+
+**Step 3 — Page detection + errors**
+
+`pages.ts` must have an exhaustive `<Country>PageId` enum and a
+`detectPage(page)` that classifies the current URL + heading into
+one. URL detection takes precedence over heading detection — the
+CEAC review-chain bug (§9.9) is the canonical failure mode.
+
+`errors.ts` mirrors `ceac/errors.ts`:
+
+```ts
+export class GateDetectedError extends Error { /* CAPTCHA / WAF / anti-bot */ }
+export class SessionBootstrapError extends Error { /* browser / network */ }
+export class ValidationFailedError extends Error { /* portal rejected our values */ }
+```
+
+These three drive queue-item classification (`<country>_blocked`
+vs `<country>_prefill_failed`). Add country-specific subclasses if
+you need finer grain (e.g. `FvLoginError` for Keycloak `/login-error`).
+
+**Step 4 — Fill helpers + orchestrator**
+
+`fill-steps.ts` exports one `fillStepN(page, answers)` per portal
+step. Each one:
+
+1. Asserts the current page id matches expectation
+   (`assertPage(page, "step1")`).
+2. Fires selects → radios → checkboxes → text fields **in that
+   order** (text last because postbacks clear text — §11.4).
+3. Awaits the AJAX postback after every gating field
+   (`waitForJsfIdle`, `waitForAspNetPostback`).
+4. Re-applies cleared upstream selects defensively (§11.4
+   `reapplyClearedSelects`).
+5. Returns `{ filled: string[], skipped: string[], errors: [] }`
+   so the orchestrator can build `sectionCoverage`.
+
+`orchestrator.ts` chains the fill steps and enforces the **stop
+boundary**:
+
+| Country | Stop point | Why |
+|---|---|---|
+| US (DS-160) | `signtheapplication.aspx?node=SignCertify` | Human attestation required |
+| France (Schengen C) | In-progress CERFA PDF download | Phase 3 is biometric-appointment certification |
+| Australia (Subclass 600) | Review page | Submit + payment is in scope for Phase 4 |
+| Vietnam (e-visa) | Just before Pay/Submit button | External payment, e-visa PDF arrives by email |
+| UK (Standard Visitor) | Registration page (Phase 2) | Post-auth selectors not yet mapped |
+
+**Never click past the stop boundary.** If you see a smoke run
+about to click Pay / Submit / Sign, that is a regression — fix the
+orchestrator, do not paper over with a manual `await page.pause()`.
+
+**Step 5 — Run wrapper**
+
+`run.ts` is the public entry point:
+
+```ts
+export async function fill<Country>Application(
+  input: { credentials?: <Country>Credentials; answers: <Country>Answers },
+  options: { headless?: boolean; runId?: string },
+): Promise<<Country>RunResult>
+```
+
+`<Country>RunResult` always includes `outcome`, `pagesWalked`,
+`sectionCoverage`, and a country-specific reference field
+(`applicationId` for CEAC, `applicationReference` for France,
+`trn` for AU, `registrationCode` for VN).
+
+### 13.3 Credentials — never hardcode, always load via `account-loader`
+
+Portal credentials live in per-country tables (`uk_accounts`,
+`eg_accounts`, `it_vfs_cn_accounts`, `fv_accounts`, `au_accounts`)
+with the password stored as `password_encrypted` (AES-GCM via
+`src/secret-cipher.ts`). The runtime path is:
+
+1. `scripts/seed-edward-test-credentials.ts` upserts the row
+   (encrypts at write time).
+2. `src/account-loader.ts` `load<Country>Account(applicantId)`
+   fetches the latest row and decrypts at read time.
+3. `run.ts` accepts the decrypted `{ username, password, totpSecret? }`
+   in its `credentials` argument — never reads from env directly.
+
+For local smoke runs, pass credentials via env (`FV_EMAIL`,
+`AU_USERNAME`, etc.) so you don't depend on Supabase access. For
+the queue-worker path, always go through `account-loader`.
+
+**Drizzle migrations for new account tables** follow `0024_eg_accounts.sql`
+/ `0025_it_vfs_cn_accounts.sql` shape — applicant FK + encrypted
+password + optional encrypted resume URL + timestamps. Idempotent
+`CREATE TABLE IF NOT EXISTS`.
+
+### 13.4 Smoke script — minimum viable harness
+
+Every country runner must ship with a `scripts/run-<country>-smoke.ts`
+so a human can verify the runner end-to-end without booting the
+queue worker. Use `scripts/run-fv-smoke.ts` as the canonical
+template. Required behaviour:
+
+1. Reads credentials from env vars (not Supabase).
+2. Reads a JSON answers file from `argv[2]`. Ship a placeholder
+   `scripts/<country>-answers.example.json` for QA.
+3. `--headful` flag to force a visible browser. Default to
+   headless **only** if explicitly opted in.
+4. Calls `fill<Country>Application` and prints the full
+   `<Country>RunResult` JSON.
+5. Exits 0 on `outcome: "<terminal-state>"` only; non-zero on any
+   other outcome so CI can branch on it.
+
+Skeleton (adapt for each country):
+
+```ts
+import "dotenv/config";
+import * as fs from "node:fs";
+import { launchStealthBrowser } from "../src/ceac/stealth-browser";
+import { fill<Country>Application } from "../src/<country>/run";
+
+async function main() {
+  const username = process.env.<COUNTRY>_USERNAME ?? fail("<COUNTRY>_USERNAME required");
+  const password = process.env.<COUNTRY>_PASSWORD ?? fail("<COUNTRY>_PASSWORD required");
+  const answers = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+  const headless = !process.argv.includes("--headful");
+
+  const handles = await launchStealthBrowser({ headless, hardening: "<country>" });
+  try {
+    const result = await fill<Country>Application(
+      { credentials: { username, password }, answers },
+      { runId: `<country>-smoke-${Date.now()}` },
+    );
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.outcome === "<terminal-state>" ? 0 : 1);
+  } finally {
+    await handles.browser.close();
+  }
+}
+main().catch((err) => { console.error(err); process.exit(2); });
+```
+
+### 13.5 Environment + browser setup
+
+One-time per fresh clone (mirrors `submission-service/docs/manual-qa-prompt.md`):
+
+```bash
+cd viza-be/submission-service
+npm install
+npm run install-browsers      # installs Playwright Chromium
+cp .env.example .env          # then fill in secrets
+npm run type-check
+```
+
+Required `.env` keys, by country:
+
+| Variable | Used by | Required for |
+|---|---|---|
+| `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | `account-loader`, queue worker | Any country once `account-loader` is wired |
+| `SUBMISSION_RESULT_SECRET_KEY` | `secret-cipher` | Any country with encrypted accounts |
+| `TWOCAPTCHA_API_KEY` | CEAC start-page CAPTCHA, France-Visas Captchetat | US, France |
+| `RESEND_API_KEY` | Worker loop email callbacks | Worker path only — smoke runs skip |
+| `FV_EMAIL`, `FV_PASSWORD` | France smoke | France only |
+| `AU_USERNAME`, `AU_PASSWORD`, `AU_TOTP_SECRET` | AU smoke | Australia only |
+| `EDWARD_UK_PASSWORD`, `EDWARD_UK_RESUME_URL` | UK seed creds | UK only (developer profile) |
+| `EDWARD_EG_EMAIL`, `EDWARD_EG_PASSWORD` | Egypt seed creds | Egypt only |
+
+**Never commit `.env`.** It is in `.gitignore`. If you copy from
+agent-backend's `.env.local`, double-check you didn't drag it into
+a staged file.
+
+### 13.6 Headed first, headless second
+
+**Always run a new country runner headed first.** The whole point
+of the smoke script is to watch the browser walk the form and catch
+selector drift, anti-bot redirects, and stop-boundary regressions
+visually. Headless smoke is for CI and post-stabilization — not for
+the first 10 runs.
+
+Two specific anti-bot lessons from existing runs:
+
+- **Headless triggers Keycloak `/login-error` on France-Visas**
+  (§11.6). The fix is the per-call `hardening: "france-visas"`
+  stealth profile in `stealth-browser.ts`. For any new Schengen
+  portal that uses Keycloak, reach for that profile first.
+- **CEAC has a separate `SessionTimedOut.aspx` anti-bot redirect
+  on the START click** (§9.9), independent of CAPTCHA. Recovery is
+  fresh browser context + quadratic backoff (5s, 20s, 45s, 80s,
+  125s).
+
+If your smoke is failing only headless, add a per-call hardening
+profile before assuming the runner is broken.
+
+### 13.7 What "the run passed" means — verification checklist
+
+A green smoke run is **not** the same as a working runner. Verify
+all of these per smoke pass:
+
+- [ ] Final stdout JSON shows the expected terminal `outcome`
+      (e.g. `handoff_ready` for US, `prefilled` for France).
+- [ ] `pagesWalked` length matches the expected page count for the
+      portal (CEAC: 18; France: 6; AU: 20; VN: ~10).
+- [ ] `sectionCoverage.filled` covers every page with input fields;
+      `sectionCoverage.skipped` is empty (or only contains
+      explicitly-informational pages like France step 6).
+- [ ] The country-specific reference field is populated
+      (`applicationId` / `applicationReference` / `trn` /
+      `registrationCode`).
+- [ ] No `errors` entries that would cause the queue worker to
+      classify as `<country>_prefill_failed`.
+- [ ] The browser stopped on the expected stop-boundary URL — open
+      the trace / screenshot and confirm visually.
+- [ ] Open the portal in a normal browser using the same account →
+      verify the draft exists with the expected answers → delete the
+      draft so the account is clean for the next run.
+
+The last bullet is the one most easily skipped and the one that
+most reliably catches "we filled it wrong but the runner thinks it
+succeeded" bugs.
+
+### 13.8 Coverage audits — adopt for any country with submission
+
+DS-160 enforces 100% coverage of CEAC autofill-mapped keys via
+`ds160-completeness-verify.ts` (§9.8). Two reasons it matters:
+
+1. The seed and the submission mappings drift. New seed fields land
+   without a `PAGE_FILL_MAP` entry; submission silently skips them.
+2. The CEAC alias keys (§9.5) need to round-trip — schema → answers
+   → normalize → submission → portal — without losing values.
+
+For any new country with autofill, port the audit pattern:
+
+- `<country>-coverage-audit.ts` — measures `field-mappings.ts` →
+  portal coverage. Fail if any seed field has no mapping AND no
+  explicit `skip: true` annotation.
+- `<country>-completeness-verify.ts` — sample answer map per
+  section, asserts every wire-level key is populated.
+
+For Phase 2 / Phase 3 countries where submission isn't automated
+yet, the §7 reviewer checklist is enough — don't write the audit
+until you have a real submission contract to verify against.
+
+### 13.9 Wiring into the queue worker
+
+Once smoke is green, wire the runner into `submission-service/src/index.ts`:
+
+1. Add a `<country>_prefill_pending` status to the queue's
+   accepted-states list.
+2. In the worker dispatch, on pickup of a `<country>_prefill_pending`
+   item:
+   - Load credentials via `account-loader.load<Country>Account`.
+   - Load answers from `visa_application_answers` keyed by the
+     applicant + visa_type.
+   - Call `fill<Country>Application` with both.
+   - Persist `<country>_result_payload` (mirror `ceac_result_payload`).
+   - Transition the queue row to `<country>_prefilled` /
+     `<country>_prefill_failed` / `<country>_blocked` based on the
+     run result + error classification.
+3. Wire callbacks (Resend email, in-app notification) on terminal
+   transitions so the applicant knows to attend their VAC / sign /
+   pay step.
+
+Update `viza-be/submission-service/docs/visa-packages-status.md`
+to bump the country to Phase 3.
+
+### 13.10 Manual QA prompt — for the human in the loop
+
+Once the smoke runs cleanly on the dev machine, hand off to a
+non-developer for manual QA using the prompt in
+`viza-be/submission-service/docs/manual-qa-prompt.md`. That doc
+is the canonical "drive the live portal in headed mode and report
+back" script. Add a new section per country following the existing
+US / France / AU / VN layout:
+
+- Goal + pass criteria
+- Exact terminal commands (env exports + `npx tsx scripts/run-<country>-smoke.ts`)
+- Fail modes to capture verbatim
+- Reference files for the QA agent to read if anything goes wrong
+- Cleanup step (delete the test draft)
+
+Update the **Notes for me (Edward)** secrets table at the bottom
+of that file with the new country's required credentials so they
+get handed off out-of-band.
+
+### 13.11 The full per-country deliverable list
+
+When a country reaches Phase 3 (autofill operational, halts before
+the irreversible action), you should have all of:
+
+```
+viza-be/agent-backend/
+├── drizzle/NNNN_<country>_<visa_type>_package.sql
+├── drizzle/NNNN_<country>_accounts.sql                  # if portal needs auth
+└── scripts/seed-<country>-<visa-type>-form-fields.ts
+
+viza-be/submission-service/
+├── src/<country>/                                       # full §13.1 layout
+├── scripts/run-<country>-smoke.ts                       # §13.4 harness
+├── scripts/<country>-answers.example.json               # placeholder QA answers
+└── docs/manual-qa-prompt.md                             # add §<country> section
+
+viza-fe/internal-website/
+└── components/client/wizards/<country>/                 # client wizard config
+
+docs/
+├── <country>-visa-scope.md                              # §1–§3
+├── <country>-visa-gap-report.md                         # §10
+├── <country>-walk-report.md                             # §12.7 + §13.2
+└── <country>-visa-recon-YYYY-MM-DD.json                 # §13.2 step 1
+```
+
+Cross-reference this checklist against
+`viza-be/submission-service/docs/visa-packages-status.md` — every
+file listed there for an existing country at Phase 3 should have a
+counterpart for yours. If any are missing, you are not at Phase 3
+yet.

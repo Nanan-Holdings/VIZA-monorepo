@@ -546,6 +546,35 @@ async function fillPageFields(
   profile: Record<string, unknown>,
 ): Promise<void> {
   const debug = process.env.CEAC_FILL_DEBUG === "1";
+
+  // Warm-up wait: CEAC sections rendered inside an ASP.NET FormView
+  // (e.g. passport) sometimes take an extra postback cycle to bind their
+  // fields. detectPage matches on the H2 heading + URL — those settle
+  // before the FormView's contents do. Without a wait here, every field
+  // selector returns count=0 and silently skips, leaving the page submit
+  // empty and CEAC rejecting on validation. Wait up to 10s for any one
+  // mapping selector to resolve to a visible match before proceeding.
+  const allSelectors = Object.values(mappings)
+    .flatMap((m) => m.selector.split(",").map((s) => s.trim()))
+    .filter((s) => s.length > 0);
+  if (allSelectors.length > 0) {
+    const combinedSelector = allSelectors.join(", ");
+    try {
+      await page
+        .locator(combinedSelector)
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 });
+    } catch {
+      // If nothing ever appears, fall through — fillPageFields will warn
+      // per field and the orchestrator's downstream Next click will still
+      // surface a CEAC validation error if values are required.
+      if (debug) console.log(`[fill] warm-up wait timed out — no mapping selector became visible`);
+    }
+    // Give CEAC's MSAJAX one more tick to finish binding any companion
+    // controls (e.g. date dropdowns siblings of a parent select).
+    await waitForAspNetPostback(page, 3_000);
+  }
+
   for (const [fieldName, mapping] of Object.entries(mappings)) {
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
