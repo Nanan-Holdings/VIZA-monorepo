@@ -1325,3 +1325,9 @@ acknowledgment).
 - Migration plan: gradual — new code uses withAdmin(); legacy createAdminClient() sites migrate as touched.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-06 - INBOX-001
+- Authored docs/inbox-cloudflare-setup.md: covers dashboard one-time setup (enable Email Routing, accept auto MX/SPF/DKIM records, expected record table), DNS verification (dig commands), canary alias inbox-canary@haggstorm.com → maintainer mailbox, end-to-end canary message test, DNS state snapshot table, rollback to a different MX provider, common failure modes, and pointers to follow-on stories (INBOX-002 worker, INBOX-003 aliases, INBOX-007 retention).
+- Note in prd.json updated: dashboard ops still need maintainer execution; the runbook is the durable artefact.
+- No code changes — typecheck not applicable.
+---
