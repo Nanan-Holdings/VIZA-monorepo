@@ -1287,3 +1287,12 @@ acknowledgment).
 - Typecheck: pass
 - Learnings: Logger.error signature is (msg, Error, metadata?), not (msg, metadata). Wrap Supabase PostgrestError in new Error() before passing.
 ---
+
+## 2026-05-06 - SECRETS-002
+- Added submission-service/src/applicant-vault.ts (mirrors agent-backend; exposes applicantVault.get/require/set with VaultMissError)
+- index.ts UK handoff path: replaced UK_PORTAL_RESUME_URL/USERNAME/PASSWORD env reads with applicantVault.require(applicant_id, "uk.portal.*"). No env fallback — runner crashes loudly via VaultMissError if not seeded.
+- scripts/seed-edward-test-credentials.ts: also seeds applicant_secret rows for uk.portal.{resume_url,username,password}
+- docs/manual-qa-prompt.md: documented SUBMISSION_RESULT_SECRET_KEY requirement and the vault seed step
+- Typecheck: pass
+- Note: TWOCAPTCHA_API_KEY and IMAP_PASSWORD remain platform-wide env vars (not per-applicant); SECRETS-002 acceptance only calls out PORTAL_* keys.
+---

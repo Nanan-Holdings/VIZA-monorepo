@@ -37,6 +37,7 @@ import {
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
+import { applicantVault } from "./applicant-vault";
 import type {
   FrSubmissionResult,
   UkSubmissionResult,
@@ -1135,25 +1136,21 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
 
     if (result.handoffReady) {
       // Post-auth runner extension landed: capture portal credentials and
-      // surface to user. Encrypts the password before persisting; FE asks
-      // the agent-backend credentials endpoint for the plaintext on demand.
-      const portalUrl = process.env.UK_PORTAL_RESUME_URL ?? "";
-      const portalUsername = process.env.UK_PORTAL_USERNAME ?? "";
-      const portalPassword = process.env.UK_PORTAL_PASSWORD ?? "";
-      if (portalUrl && portalUsername && portalPassword) {
-        const ukPayload: UkSubmissionResult = {
-          country: "UK",
-          status: "stopped_at_pay",
-          portalUrl,
-          portalUsername,
-          generatedPasswordCipher: encryptSecret(portalPassword),
-        };
-        await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
-      } else {
-        console.warn(
-          `[uk] handoffReady=true but UK_PORTAL_* env not set — skipping submission_result write`,
-        );
-      }
+      // surface to user. Reads through the applicant vault — no env
+      // fallback (SECRETS-002). Crashes loudly via VaultMissError if the
+      // expected secrets were not seeded.
+      const applicantId = application.applicant_id;
+      const portalUrl = await applicantVault.require(applicantId, "uk.portal.resume_url");
+      const portalUsername = await applicantVault.require(applicantId, "uk.portal.username");
+      const portalPassword = await applicantVault.require(applicantId, "uk.portal.password");
+      const ukPayload: UkSubmissionResult = {
+        country: "UK",
+        status: "stopped_at_pay",
+        portalUrl,
+        portalUsername,
+        generatedPasswordCipher: encryptSecret(portalPassword),
+      };
+      await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
     } else {
       console.log(
         `[uk] Run ${runId} stopped at ${result.stoppedAt.id} (pre-auth scaffold) — submission_result not written until walk extension lands`,

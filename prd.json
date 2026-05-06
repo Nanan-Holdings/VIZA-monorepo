@@ -1773,7 +1773,7 @@
         "docs/manual-qa-prompt.md updated to reflect vault flow"
       ],
       "priority": 132,
-      "passes": false,
+      "passes": true,
       "notes": "Run after SECRETS-001."
     },
     {

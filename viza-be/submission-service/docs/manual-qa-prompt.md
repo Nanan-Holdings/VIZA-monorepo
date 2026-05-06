@@ -36,8 +36,19 @@ Run every Playwright session in HEADED mode (visible browser) so I can watch eac
    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — to read applicant data (US + AU paths)
    - `TWOCAPTCHA_API_KEY` — needed for the US CEAC start-page CAPTCHA
    - `RESEND_API_KEY` — only needed if you exercise the worker loop; safe to leave blank for smoke runs
+   - `SUBMISSION_RESULT_SECRET_KEY` — encrypts/decrypts ciphertext in the per-applicant credential vault (≥16 chars). Required for the UK + EG + IT flows since the runner now reads through `applicant_secret` (SECRETS-002) — there is no `process.env.UK_PORTAL_*` fallback.
 
-4. Confirm `npm run type-check` passes before running any flow.
+4. **Seed per-applicant credentials into the vault** (UK + EG + IT only). The submission-service runner reads UK portal credentials exclusively from the `applicant_secret` table via `applicantVault.require()`. To seed Edward's developer applicant for QA:
+
+   ```
+   EDWARD_UK_PASSWORD=... EDWARD_UK_RESUME_URL=https://... \
+   EDWARD_EG_EMAIL=... EDWARD_EG_PASSWORD=... \
+   npx tsx scripts/seed-edward-test-credentials.ts
+   ```
+
+   The seed script populates both the legacy `*_accounts` rows AND the new `applicant_secret` rows (`uk.portal.resume_url`, `uk.portal.username`, `uk.portal.password`). If you skip this step the UK runner will throw `VaultMissError` on the handoff write and abort the run.
+
+5. Confirm `npm run type-check` passes before running any flow.
 
 For each flow below: write down the exact terminal command you ran, the final outcome JSON / status line, and screenshots of any failure. If a step needs a credential I haven't given you, stop and ask me.
 

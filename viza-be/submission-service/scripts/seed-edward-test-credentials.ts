@@ -77,6 +77,30 @@ async function main() {
       );
     if (error) throw new Error(`uk_accounts upsert failed: ${error.message}`);
     console.log(`✅ uk_accounts seeded for ${ukEmail}`);
+
+    // SECRETS-002: also seed the generic applicant_secret vault rows the
+    // submission-service runner reads through applicantVault.require().
+    const vaultRows = [
+      { key: "uk.portal.resume_url", value: ukResumeUrl },
+      { key: "uk.portal.username", value: ukEmail },
+      { key: "uk.portal.password", value: ukPassword },
+    ];
+    for (const row of vaultRows) {
+      const { error: vErr } = await supabase
+        .from("applicant_secret")
+        .upsert(
+          {
+            applicant_id: EDWARD_APPLICANT_ID,
+            key: row.key,
+            ciphertext: encryptSecret(row.value),
+            note: "seeded via seed-edward-test-credentials",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "applicant_id,key" },
+        );
+      if (vErr) throw new Error(`applicant_secret(${row.key}) upsert failed: ${vErr.message}`);
+    }
+    console.log(`✅ applicant_secret seeded uk.portal.{resume_url,username,password}`);
   } else {
     console.log("⏭️  Skipping uk_accounts (EDWARD_UK_PASSWORD or EDWARD_UK_RESUME_URL not set)");
   }
