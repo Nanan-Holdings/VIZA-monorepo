@@ -104,6 +104,107 @@ Tracks the development phase of each visa package across two axes:
 5. **Egypt** — provision preregistered account, then build wizard + Phase-B automation.
 6. **Indonesia / Japan / Korea** — start wizard scaffolding from existing scope docs.
 
+## Onboarding a new country (Phase 0 → 4)
+
+This section is the recipe a new agent (or contributor) follows to drive a country from `phase: 0` to `phase: 4`. The machine-readable companion `visa-packages-status.json` encodes the same contract via its `phase3Acceptance` / `phase4Acceptance` arrays and the per-story `dependsOn` chains; this section mirrors them for humans.
+
+### Phase acceptance checklists
+
+**Phase 3 — backend autofill operational, halts before submit/pay/sign:**
+
+- `viza-be/submission-service/src/<cc>/run.ts` exports `fillXApplication(credentials, answers)` returning a typed result.
+- Orchestrator walks every form page/step until immediately before submit / pay / sign.
+- Result captures any pre-pay reference (`TRN` / `registrationCode` / `draftReference`) and lists `fieldsFilled` / `fieldsSkipped`.
+- Errors typed in `src/<cc>/errors.ts`: `SESSION_EXPIRED`, `VALIDATION_FAILED`, `GATE_DETECTED` at minimum.
+- Wizard config exists at `viza-fe/internal-website/components/client/wizards/<cc>/config.ts` with steps + payload builder.
+- `npm run type-check` passes in both `viza-be/submission-service` and `viza-fe/internal-website`.
+
+**Phase 4 — end-to-end with reference returned to user:**
+
+- Phase 3 acceptance satisfied.
+- Submission, signing, or external-pay handoff implemented; reference (TRN / VAF# / `registrationCode`) flows back to the applicant.
+- Callback or polling captures the post-submit reference into `submission_queue` / application row.
+
+### File skeleton per country
+
+Each new country needs the following files, created in this order so each layer can consume the previous one:
+
+| Order | File | Purpose |
+|-------|------|---------|
+| 1 | `viza-be/submission-service/src/<cc>/form-recon.ts` | Live authenticated walk; emits `docs/<cc>-visa-recon-<date>.json` keyed by page slug. |
+| 2 | `viza-be/submission-service/src/<cc>/form-mappings.ts` | `X_FIELD_MAPPINGS` typed against the wizard payload shape. |
+| 3 | `viza-fe/internal-website/components/client/wizards/<cc>/config.ts` (+ `types.ts`, `payload.ts`) | Wizard schema following neighbouring `au/` and `vn/` shape. |
+| 4 | `viza-be/submission-service/src/<cc>/errors.ts` | `SESSION_EXPIRED` / `VALIDATION_FAILED` / `GATE_DETECTED` + country-specific gates. |
+| 5 | `viza-be/submission-service/src/<cc>/run.ts` | `fillXApplication(credentials, answers)` orchestrator halting before pay/sign. |
+| 6 | `viza-be/submission-service/src/<cc>/__tests__/run.test.ts` | Fixture-driven walk; asserts halt page reached. |
+| 7 | `viza-be/submission-service/src/<cc>/sign-and-submit.ts` (Phase 4 only, when applicable) | Post-halt submit + reference callback. |
+
+### Story dependency chain
+
+```
+form-recon.ts                         (recon JSON committed)
+  → form-mappings.ts                  (selectors → wizard payload)
+    → wizard config.ts                (frontend schema + payload builder)
+      → run.ts + errors.ts            (orchestrator halt-before-pay = Phase 3)
+        → __tests__/run.test.ts       (fixture coverage)
+          → sign-and-submit.ts        (Phase 4 — sign-submit pattern)
+            or payment-relay handoff  (Phase 4 — external-pay pattern)
+            or appointment + PDF      (Phase 4 — VFS pattern)
+```
+
+### Account / credential seeding
+
+If the portal requires a preregistered government account, do this before any authenticated recon:
+
+1. Add migration `viza-be/agent-backend/drizzle/<NNNN>_<cc>_accounts.sql` (mirror `0024_eg_accounts.sql`).
+2. Extend `viza-be/submission-service/src/types.ts` with the `<Cc>Account` type.
+3. Add `loadXAccount()` to `viza-be/submission-service/src/account-loader.ts`.
+4. Seed Edward's row via `viza-be/submission-service/scripts/seed-edward-test-credentials.ts`.
+
+If creds are not yet provisioned, set the recon story `blocked: true` with `blockedReason` in the JSON — do not attempt the live walk.
+
+### Shared infrastructure
+
+- **Captcha**: import from `viza-be/submission-service/src/captcha/index.ts`. Generic helper `solveCaptcha(siteKey, pageUrl, type)` reads `TWOCAPTCHA_API_KEY` from env. Do not vendor a new solver per country.
+- **Account loader**: extend `src/account-loader.ts`; do not query Supabase directly from the orchestrator.
+- **Page detection**: reuse the heading-based pattern from `src/au-visitor/orchestrator.ts` or the URL-marker pattern from `src/italy-vfs-cn/index.ts` (`detectPage` / `assertPage` / `waitForPage`).
+
+### Phase 4 sub-patterns
+
+Phase 4 is not a single shape — pick the pattern that matches the portal:
+
+1. **Sign-and-submit** (AU pattern, in flight):
+   - Native HTML5 canvas signature pad in `viza-fe/internal-website/components/client/signing/`.
+   - PNG output 600×200 @ 2× DPR, transparent background.
+   - `/client/signing/[applicationId]/page.tsx` route + `app/actions/submit-signature.ts` server action.
+   - `src/<cc>/sign-and-submit.ts` loads the PNG from Supabase storage, attaches it on the declaration page, submits, captures the final reference.
+   - Reference written to `submission_queue.<cc>_trn` (or equivalent) and `application.confirmation_number`.
+
+2. **External pay + email PDF ingestion** (VN pattern, deferred):
+   - Payment-relay UX hands the applicant to the official portal for card entry.
+   - Email-PDF ingestion job polls a mailbox for the issued e-visa PDF (~3 working days for VN) and attaches it to the application row.
+
+3. **Appointment booking + Annex I PDF** (Italy VFS pattern):
+   - Orchestrator books a VFS appointment slot, captures `appointment_reference`, halts before any payment.
+   - `pdf-lib` AcroForm overlay generates the official Annex I Schengen short-stay PDF for the applicant to print and bring. **Not** an online form fill.
+
+### Loop control fields (in `visa-packages-status.json`)
+
+When wiring a new country into the autonomous loop, set these per-country and per-story fields:
+
+- `countries.<cc>.phase` — current phase 0–4.
+- `countries.<cc>.targetPhase` — usually `3` (loop scope) or `4` if Phase 4 work is in scope.
+- `countries.<cc>.atTarget` — derived; flip to `true` when phase reaches `targetPhase`.
+- `countries.<cc>.deferred` + `deferReason` — skip entirely (e.g. Japan, Korea).
+- `countries.<cc>.note` — country-specific scope clarification (e.g. AU "Phase 4 = signature pad + /signing + post-Review submit; payment skipped"; Italy-VFS-CN "VFS appointment autofill + Annex I PDF, NOT online form fill").
+- `stories[].priority` — lower number picked first; group by country in tens (UK 10–13, IT 20–23, EG 30–32, ID 40–42, AU 50–54).
+- `stories[].dependsOn` — list of story IDs that must be `passes:true` first.
+- `stories[].blocked` + `blockedReason` — set when human-in-the-loop recon or unprovisioned creds gate the work; the loop skips and picks the next eligible story.
+
+### Out-of-scope escapes
+
+If a story's acceptance cannot be met without a Phase 3 → 4 capability that is not in scope (live submission, payment provider, email ingestion), stop and flip `blocked:true` with `blockedReason` — do not paper over the boundary by stubbing.
+
 ## How to update this file
 
 When a visa moves between phases or selectors are mapped:
