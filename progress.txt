@@ -1520,3 +1520,12 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: package-lock.json absent in repo; npm ci falls back to install. When package-lock lands, ci is faster + reproducible.
 ---
+
+## 2026-05-07 - INFRA-002
+- drizzle/0054_runner_job.sql: runner_job(application_id, country, status, attempts, max_attempts, correlation_id, last_error, enqueued_at/started_at/finished_at, leased_by, leased_until, metadata) with indexes on (status, country, enqueued_at), application_id, and active leases. Service-role-only RLS.
+- viza-fe lib/queue/enqueue.ts: enqueueRunnerJob(applicationId, country, opts?) idempotent on application_id (reuses queued/running rows). Through withAdmin('system').
+- app/api/stripe/webhook/route.ts: on result.kind==='paid' looks up the application's country and fires enqueueRunnerJob asynchronously (PAY-002 → INFRA-002 hand-off).
+- viza-be/submission-service/src/queue/worker.ts: claimNextJob (compare-and-swap update on status='queued' → 'running' with lease), markSucceeded, markFailedWithRetry (back to 'queued' with attempts+1 or 'failed' once max_attempts hits), pollAndRun convenience driver.
+- docs/infra/queue.md: chose Postgres FIFO over BullMQ/CF Queues for MVP — single dependency, source-of-truth visibility, headroom. Documented swap path to Cloudflare Queues + lease-recovery + per-country concurrency follow-ons (INFRA-003).
+- Typecheck: internal-website ✅, submission-service ✅
+---
