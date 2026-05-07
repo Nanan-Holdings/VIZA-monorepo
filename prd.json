@@ -1892,7 +1892,7 @@
         "Typecheck passes"
       ],
       "priority": 140,
-      "passes": false,
+      "passes": true,
       "notes": "Pilot before global cutover."
     },
     {
