@@ -1593,3 +1593,11 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: PAY-007 reconciler + INFRA-003 autoscaler currently send via Resend directly; one-line migrate-to-sendAlert is queued in the doc.
 ---
+
+## 2026-05-07 - OPS-004
+- drizzle/0059_portal_health.sql: portal_health(country PK, status, http_status, latency_ms, note, error, last_run_at, probe_url) + 26-country seed mapping each catalog country to its public-facing visa portal homepage as the canary probe URL.
+- viza-be/agent-backend/scripts/canary.ts: hourly cron-runnable canary. fetch each probe_url with 15s timeout + browser-y UA + redirect:'manual'. Status rule: 2xx<5s=ok, 2xx<15s/3xx/4xx=degraded, 5xx/network/timeout=down. Upserts portal_health row + emits OPS alert via Resend on non-ok states (alert class portal.health.<country>).
+- viza-fe app/admin/(dashboard)/portal-health/page.tsx: admin badge view. Per-country pill (ok/degraded/down/unknown) + http status + latency + last_run_at + probe URL link.
+- Typecheck: agent-backend ✅, internal-website ✅
+- Notes: OPS-004 doesn't open a tracking-issue automatically — the alert is the trigger; ops files an issue manually until we wire a GitHub Actions hook from the alert dispatcher.
+---
