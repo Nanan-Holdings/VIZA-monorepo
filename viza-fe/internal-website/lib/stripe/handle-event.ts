@@ -26,6 +26,8 @@ export async function applyStripeEvent(
         payment_status?: string;
         payment_intent?: string;
         amount_total?: number;
+        total_details?: { amount_tax?: number };
+        customer_details?: { address?: { country?: string } | null };
         metadata?: { order_id?: string };
       };
       const orderId = session.metadata?.order_id;
@@ -33,12 +35,22 @@ export async function applyStripeEvent(
       if (session.payment_status !== "paid") {
         return { kind: "ignored", type: event.type };
       }
+      const taxCents = session.total_details?.amount_tax ?? 0;
+      const taxCountry = session.customer_details?.address?.country ?? null;
+      const amountTotal = session.amount_total ?? 0;
+      const taxRateBps =
+        amountTotal > taxCents && taxCents > 0
+          ? Math.round((taxCents * 10_000) / (amountTotal - taxCents))
+          : 0;
       const { error } = await admin
         .from("order")
         .update({
           status: "paid",
           stripe_payment_intent_id: session.payment_intent ?? null,
           paid_at: new Date().toISOString(),
+          tax_amount_cents: taxCents,
+          tax_country: taxCountry,
+          tax_rate_basis_points: taxRateBps,
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId);

@@ -33,6 +33,9 @@ interface OrderRow {
   status: string;
   paid_at: string | null;
   stripe_payment_intent_id: string | null;
+  tax_amount_cents?: number;
+  tax_country?: string | null;
+  tax_rate_basis_points?: number | null;
 }
 
 interface OrderLineRow {
@@ -68,7 +71,7 @@ async function loadOrderForCaller(
     const { data: order, error: orderErr } = await admin
       .from("order")
       .select(
-        "id, application_id, applicant_id, agency_fee_cents, govt_fee_cents, currency, status, paid_at, stripe_payment_intent_id",
+        "id, application_id, applicant_id, agency_fee_cents, govt_fee_cents, currency, status, paid_at, stripe_payment_intent_id, tax_amount_cents, tax_country, tax_rate_basis_points",
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -129,6 +132,9 @@ function toPdfOrder(
     currency: order.currency,
     agencyFeeCents: order.agency_fee_cents,
     govtFeeCents: order.govt_fee_cents,
+    taxAmountCents: order.tax_amount_cents ?? 0,
+    taxCountry: order.tax_country ?? null,
+    taxRateBasisPoints: order.tax_rate_basis_points ?? null,
     lines: pdfLines,
     packageLabel: `${app.country}/${app.visa_type}`,
     stripePaymentIntentId: order.stripe_payment_intent_id,

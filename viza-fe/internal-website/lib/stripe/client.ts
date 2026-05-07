@@ -66,6 +66,14 @@ export interface CheckoutSession {
   metadata: Record<string, string> | null;
   amount_total: number | null;
   currency: string | null;
+  total_details?: {
+    amount_tax?: number;
+    amount_discount?: number;
+    amount_shipping?: number;
+  } | null;
+  customer_details?: {
+    address?: { country?: string } | null;
+  } | null;
 }
 
 export interface CreateCheckoutInput {
@@ -122,7 +130,15 @@ export async function createCheckoutSession(
     "line_items[0][price_data][currency]": input.currency.toLowerCase(),
     "line_items[0][price_data][unit_amount]": input.amountCents,
     "line_items[0][price_data][product_data][name]": input.productName,
+    "line_items[0][price_data][tax_behavior]": "exclusive",
     "line_items[0][quantity]": 1,
+    // PAY-006: enable Stripe Tax. Stripe geolocates the customer via
+    // the billing address it collects during checkout and applies the
+    // right rate per jurisdiction. The tax amount lands on
+    // `total_details.amount_tax` on the session.
+    "automatic_tax[enabled]": "true",
+    billing_address_collection: "required",
+    "tax_id_collection[enabled]": "true",
     "metadata[order_id]": input.orderId,
     "metadata[application_id]": input.applicationId,
   };

@@ -26,6 +26,12 @@ export interface PdfOrder {
   currency: string;
   agencyFeeCents: number;
   govtFeeCents: number;
+  /** Tax computed by Stripe Tax (PAY-006). 0 when no tax applied. */
+  taxAmountCents?: number;
+  /** ISO-3166 country Stripe used for tax (or null). */
+  taxCountry?: string | null;
+  /** Tax rate in basis points (e.g. 2000 = 20.00%). */
+  taxRateBasisPoints?: number | null;
   lines: PdfOrderLine[];
   packageLabel: string;
   stripePaymentIntentId: string | null;
@@ -99,13 +105,31 @@ function buildLineItems(order: PdfOrder, invoice?: InvoiceMeta): PdfLine[] {
     text: `Subtotal: ${formatAmount(subtotal, order.currency)}`,
     bold: true,
   });
-  if (invoice && invoice.vatPercent && invoice.vatPercent > 0) {
-    const vatCents = Math.round((subtotal * invoice.vatPercent) / 100);
+
+  // PAY-006: prefer the Stripe-Tax-computed amount when present
+  // (filled in on order.tax_amount_cents by the webhook). Fall back
+  // to the invoice meta's vatPercent when Stripe Tax was off and the
+  // caller is asking for a B2B invoice override.
+  let taxCents = 0;
+  let taxLine = "";
+  if ((order.taxAmountCents ?? 0) > 0) {
+    taxCents = order.taxAmountCents ?? 0;
+    const ratePct = order.taxRateBasisPoints
+      ? (order.taxRateBasisPoints / 100).toFixed(2)
+      : null;
+    const country = order.taxCountry ? ` (${order.taxCountry})` : "";
+    taxLine = ratePct
+      ? `Tax @ ${ratePct}%${country}: ${formatAmount(taxCents, order.currency)}`
+      : `Tax${country}: ${formatAmount(taxCents, order.currency)}`;
+  } else if (invoice && invoice.vatPercent && invoice.vatPercent > 0) {
+    taxCents = Math.round((subtotal * invoice.vatPercent) / 100);
+    taxLine = `VAT @ ${invoice.vatPercent}%: ${formatAmount(taxCents, order.currency)}`;
+  }
+
+  if (taxCents > 0) {
+    out.push({ text: taxLine });
     out.push({
-      text: `VAT @ ${invoice.vatPercent}%: ${formatAmount(vatCents, order.currency)}`,
-    });
-    out.push({
-      text: `Total: ${formatAmount(subtotal + vatCents, order.currency)}`,
+      text: `Total: ${formatAmount(subtotal + taxCents, order.currency)}`,
       bold: true,
     });
   } else {
