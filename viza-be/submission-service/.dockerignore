@@ -1,0 +1,12 @@
+node_modules
+dist
+diag-out
+e2e-out
+recon-out
+eg-recon-out
+.env
+.env.*
+*.log
+**/__tests__
+.git
+.DS_Store
