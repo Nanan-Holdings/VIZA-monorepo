@@ -2055,7 +2055,7 @@
         "Typecheck passes"
       ],
       "priority": 151,
-      "passes": false,
+      "passes": true,
       "notes": "Hardest non-trivial design decision in the system."
     },
     {
