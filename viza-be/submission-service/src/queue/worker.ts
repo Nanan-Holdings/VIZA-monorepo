@@ -1,4 +1,5 @@
 import { supabase } from "../supabase.js";
+import { sendAlert } from "../alerts/dispatch.js";
 
 /**
  * runner_job consumer (INFRA-002).
@@ -140,6 +141,20 @@ export async function markFailedWithRetry(
     .eq("id", job.id);
   if (updErr) {
     throw new Error(`runner_job mark failed: ${updErr.message}`);
+  }
+  if (exhausted) {
+    // OPS-003: page on-call once retries are exhausted. Per-country
+    // throttle absorbs portal-outage storms.
+    void sendAlert({
+      severity: "error",
+      class: `runner.failed.${job.country}`,
+      title: `Runner job failed (${job.country})`,
+      body:
+        `Job ${job.id.slice(0, 8)} hit max_attempts=${job.max_attempts}.\n` +
+        `Last error: ${message}`,
+      jobId: job.id,
+      applicationId: job.application_id,
+    });
   }
 }
 
