@@ -66,6 +66,28 @@ export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
   const candidate = candidates?.[0];
   if (!candidate) return null;
 
+  // INFRA-003: per-country concurrency cap. Decline the claim if the
+  // country is paused or already at cap.
+  const { data: cap, error: capErr } = await supabase
+    .from("runner_concurrency_cap")
+    .select("max_concurrent, paused")
+    .eq("country", candidate.country)
+    .maybeSingle();
+  if (capErr) {
+    throw new Error(`runner_concurrency_cap read: ${capErr.message}`);
+  }
+  if (cap?.paused) return null;
+  const max = cap?.max_concurrent ?? 1;
+  const { count: running, error: countErr } = await supabase
+    .from("runner_job")
+    .select("id", { count: "exact", head: true })
+    .eq("country", candidate.country)
+    .eq("status", "running");
+  if (countErr) {
+    throw new Error(`runner_job running count: ${countErr.message}`);
+  }
+  if ((running ?? 0) >= max) return null;
+
   const { data: claimed, error: claimErr } = await supabase
     .from("runner_job")
     .update({

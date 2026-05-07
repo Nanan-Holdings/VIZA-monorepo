@@ -2158,8 +2158,8 @@
         "Typecheck passes"
       ],
       "priority": 158,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Driver target = Fly Machines (production); autoscaler emits per-country desired counts via --json."
     },
     {
       "id": "INFRA-004",
