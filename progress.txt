@@ -1359,3 +1359,14 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Tests: 5/5 pass.
 ---
+
+## 2026-05-07 - INBOX-005
+- viza-be/submission-service/src/vietnam/inbox.ts: waitForVnRegistrationEmail(applicantId, timeoutMs?) — predicates on @xuatnhapcanh.gov.vn from + subject; runs evisa-gov-vn extractor; returns { message, registrationCode, resultLink }.
+- viza-be/submission-service/src/uk/inbox.ts: waitForUkResumeEmail + waitForUkSecurityCode helpers using gov-uk extractor profile.
+- scripts/inbox-smoke.ts: synthetic-row insert + waitFor helper round-trip with 30s timeout. Modes: vn / uk-resume / uk-security. Asserts elapsed < 30s.
+- package.json: added `inbox:smoke` script.
+- src/email/imap-poll.ts header marked DEPRECATED for VN + UK flows; pointer to new modules.
+- docs/inbox-cloudflare-setup.md: appended IMAP-deprecation section + smoke instructions.
+- Typecheck: submission-service ✅
+- Note: VN + UK runners do not currently invoke email steps in their main paths; these helpers are the integration points for when those steps land. The smoke script proves the round-trip independently of the orchestrator.
+---

@@ -1,6 +1,12 @@
 /**
  * Shared IMAP mailbox helper for per-country submission runners.
  *
+ * **DEPRECATED for Vietnam + UK flows (INBOX-005).** Use
+ * `src/inbox/wait-for-message.ts` (Cloudflare Email Worker → Supabase
+ * `inbound_email`) plus `src/vietnam/inbox.ts` /
+ * `src/uk/inbox.ts` instead. The IMAP path is kept only for
+ * country runners that have not yet been migrated.
+ *
  * Visa portals routinely email a verification link (account activation),
  * a one-time code (login MFA), or a reference number (post-submission).
  * Country-specific orchestrators call `waitForEmail` with sender/subject
