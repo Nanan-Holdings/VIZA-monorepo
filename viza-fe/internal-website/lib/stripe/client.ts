@@ -79,6 +79,39 @@ export interface CreateCheckoutInput {
   customerEmail?: string;
 }
 
+export interface RefundResult {
+  id: string;
+  amount: number;
+  currency: string;
+  status: "pending" | "succeeded" | "failed" | "canceled" | "requires_action";
+  payment_intent: string;
+  reason: string | null;
+}
+
+export interface CreateRefundInput {
+  paymentIntentId: string;
+  amountCents: number;
+  reason?: "duplicate" | "fraudulent" | "requested_by_customer";
+  /** Free-form metadata copied to the refund object. */
+  metadata?: Record<string, string>;
+}
+
+export async function createRefund(
+  input: CreateRefundInput,
+): Promise<RefundResult> {
+  const form: StripeForm = {
+    payment_intent: input.paymentIntentId,
+    amount: input.amountCents,
+  };
+  if (input.reason) form.reason = input.reason;
+  if (input.metadata) {
+    for (const [k, v] of Object.entries(input.metadata)) {
+      form[`metadata[${k}]`] = v;
+    }
+  }
+  return postForm<RefundResult>("/refunds", encodeForm(form));
+}
+
 export async function createCheckoutSession(
   input: CreateCheckoutInput,
 ): Promise<CheckoutSession> {
