@@ -1482,3 +1482,14 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: Refund policy in docs/legal/terms-of-service.md §5 already matches the code path (agency fee fully refundable pre-submission, non-refundable once submission starts; govt fee per portal). No doc edit needed.
 ---
+
+## 2026-05-07 - PAY-005
+- lib/pdf/simple-pdf.ts: hand-rolled PDF 1.4 generator (US-letter single page, Helvetica + Helvetica-Bold built-ins, no font files / npm dep). Renders title-tagged sequence of PdfLine{ text, size, bold }.
+- lib/pdf/receipt.ts: buildReceiptPdf(order) and buildInvoicePdf(order, invoice) — header (VIZA brand + order/application id + paid-at + Stripe PI), bill-to block on invoices, line-items table, subtotal / VAT / total. Supports zero-decimal currencies (JPY/KRW/etc). Footer flips wording for receipt vs invoice.
+- lib/email/resend.ts: tiny Resend REST helper (POST /emails) — no `resend` npm dep.
+- app/actions/receipts.ts: getOrderReceiptPdf(orderId, mode, invoice?) (RLS-aware caller check); mailReceiptOnPaid(orderId) bound to the Stripe webhook flow — base64-encodes the PDF as an attachment.
+- app/api/orders/[id]/receipt/route.ts: GET ?mode=receipt|invoice + company/tax_id/vat_percent/billing query params → application/pdf attachment.
+- app/client/orders/[id]/page.tsx: order overview (lines table + total) + 'Download receipt' button + collapsible 'Need a B2B invoice?' form (company / tax ID / VAT% / billing).
+- app/api/stripe/webhook/route.ts: on result.kind==='paid', fire mailReceiptOnPaid asynchronously.
+- Typecheck: internal-website ✅
+---
