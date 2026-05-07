@@ -1331,3 +1331,10 @@ acknowledgment).
 - Note in prd.json updated: dashboard ops still need maintainer execution; the runbook is the durable artefact.
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-07 - INBOX-002
+- drizzle/0045_inbound_email.sql: inbound_email(to_addr, from_addr, subject, message_id, text, html, headers JSONB, raw_size, r2_key, spam_score, received_at, processed). Indexes on (to_addr, received_at desc), (received_at desc), and (received_at desc) WHERE NOT processed. RLS deny-by-default — INBOX-003 will wire applicant joins.
+- New package viza-be/email-worker/: package.json (wrangler + typescript), wrangler.toml (R2 binding INBOX_BODIES, INLINE_BODY_MAX_BYTES var, preview env), tsconfig.json (strict, no @types deps), src/types.d.ts (local ambient runtime types so tsc --noEmit passes without npm install), src/index.ts (email(message, env) handler: stream raw bytes, parse RFC 822 headers, split text/plain + text/html bodies on top-level multipart/alternative boundary, R2 upload when raw > INLINE_BODY_MAX_BYTES, Supabase REST insert via service-role), README.md (deploy + schema docs).
+- Typecheck: email-worker ✅ (used agent-backend's tsc against the worker tsconfig — no install in the new package).
+- Deferred: postal-mime / mimemessage. Hand-rolled parser is good enough for OTP extraction; INBOX-004 can swap to a richer parser if needed.
+---

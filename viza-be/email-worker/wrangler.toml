@@ -1,0 +1,30 @@
+# Cloudflare Email Worker — viza-email-worker (INBOX-002)
+#
+# Bind the route at the Cloudflare dashboard:
+#   Email → Email Routing → Routes → Catch-all → Send to a worker → viza-email-worker
+#
+# Required env vars (set via `wrangler secret put`):
+#   SUPABASE_URL                — https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY   — service-role key (writes inbound_email)
+#
+# Optional:
+#   INLINE_BODY_MAX_BYTES       — switch threshold for offloading to R2.
+#                                 Defaults to 1_048_576 (1 MB).
+
+name = "viza-email-worker"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Vars (non-secret). Secrets configured via `wrangler secret put`.
+[vars]
+INLINE_BODY_MAX_BYTES = "1048576"
+
+# R2 bucket for offloaded bodies (>1 MB) and any future attachments.
+[[r2_buckets]]
+binding = "INBOX_BODIES"
+bucket_name = "viza-inbox-bodies"
+preview_bucket_name = "viza-inbox-bodies-preview"
+
+[env.preview]
+name = "viza-email-worker-preview"
