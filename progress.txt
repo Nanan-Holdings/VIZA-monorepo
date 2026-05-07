@@ -1439,3 +1439,11 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: more wrap sites as PII-touching actions land — the helper is the canonical entry.
 ---
+
+## 2026-05-07 - LEGAL-006
+- docs/legal/jurisdictions/README.md: index with per-country status pill (compliant / largely compliant / needs work / N/A).
+- 15 country addenda: eu.md, uk.md, sg.md, in.md, cn.md, au.md, ca.md, us.md, kr.md, jp.md, za.md, vn.md, id.md, th.md, nz.md. Each note: applicability, key obligations table (VIZA posture), gap list.
+- China file scoped as N/A — VIZA does not operate in mainland China; addendum kept for the future.
+- subprocessors.md: appended cross-link section pointing at every per-jurisdiction file.
+- No code changes — typecheck not applicable.
+---
