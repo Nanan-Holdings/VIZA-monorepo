@@ -56,6 +56,14 @@ This is what keeps a country-portal outage from emitting 100 pages.
   `runner.concurrency.violation` when a country's running count
   exceeds its cap (INFRA-003). Same Resend → `sendAlert` migration.
 
+## Per-class runbooks
+
+Every recurring alert class has a runbook under
+[`docs/runbooks/`](../runbooks/README.md) following the standard
+symptoms / diagnosis / mitigation / escalation shape. The
+dispatcher should append a `runbook:` link to every Slack message
+(implementation TODO).
+
 ## Adding new alerts
 
 1. Pick a stable `class` ID. Convention: `<area>.<event>[.<scope>]`.
