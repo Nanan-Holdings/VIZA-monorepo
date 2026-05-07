@@ -1472,3 +1472,13 @@ acknowledgment).
 - viza-be/submission-service/src/__tests__/payment-routing.spec.ts: 5/5 node:test cases (parity with FE pricing, no extra packages, VN/UK/paper-only spot-checks).
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-07 - PAY-004
+- lib/payments/refund-rules.ts: pure classifyRefundability(kind, ctx) — agency=always, govt=refundable only when govtFeeChannel===viza_passthrough AND order not yet submitted/completed (refunds for portal_direct go through the portal), third_party_*=non-recoverable, refund=non-recursive.
+- lib/stripe/client.ts: added createRefund(paymentIntentId, amountCents, reason, metadata) via POST /v1/refunds.
+- app/actions/refunds.ts: refundOrderLines(orderId, lineIds[]) — admin-only via withAdmin('admin'). Loads order + lines + pricing.govtFeeChannel, runs per-line classifier, returns RefundLineDecision[] (refundable+reason) so the staff UI can show the refusal next to each line. Sums refundable cents → single Stripe refund + tagged metadata. Inserts a kind='refund' negative-amount order_line tying the Stripe refund id back to the order.
+- lib/stripe/handle-event.ts: added charge.dispute.created / charge.dispute.updated handler. Sets order.status='disputed' + dispute metadata, and flips submission_queue.status='paused_dispute' so the runner skips the row.
+- lib/stripe/__tests__/handle-event.spec.ts: added dispute test (5/5 pass).
+- Typecheck: internal-website ✅
+- Notes: Refund policy in docs/legal/terms-of-service.md §5 already matches the code path (agency fee fully refundable pre-submission, non-refundable once submission starts; govt fee per portal). No doc edit needed.
+---
