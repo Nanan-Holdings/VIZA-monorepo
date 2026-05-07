@@ -12,7 +12,8 @@ import type { StripeEventBase } from "./client";
 export type StripeHandled =
   | { kind: "ignored"; type: string }
   | { kind: "paid"; orderId: string }
-  | { kind: "refunded"; orderId: string };
+  | { kind: "refunded"; orderId: string }
+  | { kind: "disputed"; orderId: string };
 
 export async function applyStripeEvent(
   admin: SupabaseClient,
@@ -72,6 +73,55 @@ export async function applyStripeEvent(
         .eq("id", order.id);
       if (error) throw new Error(`order refunded update: ${error.message}`);
       return { kind: "refunded", orderId: order.id as string };
+    }
+
+    case "charge.dispute.created":
+    case "charge.dispute.updated": {
+      // PAY-004: chargebacks. Mark the order disputed and pause the
+      // submission queue row so the runner does not continue spending
+      // money against a charged-back card.
+      const dispute = event.data.object as {
+        id?: string;
+        payment_intent?: string;
+        reason?: string;
+        status?: string;
+      };
+      const pi = dispute.payment_intent;
+      if (!pi) return { kind: "ignored", type: event.type };
+      const { data: order, error: lookupErr } = await admin
+        .from("order")
+        .select("id, application_id")
+        .eq("stripe_payment_intent_id", pi)
+        .maybeSingle();
+      if (lookupErr) throw new Error(`order lookup: ${lookupErr.message}`);
+      if (!order) return { kind: "ignored", type: event.type };
+      const { error } = await admin
+        .from("order")
+        .update({
+          status: "disputed",
+          metadata: {
+            stripe_dispute_id: dispute.id ?? null,
+            dispute_reason: dispute.reason ?? null,
+            dispute_status: dispute.status ?? null,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id);
+      if (error) throw new Error(`order dispute update: ${error.message}`);
+
+      // Pause any in-flight automation. We use a sentinel status so the
+      // runner skips the row; ops can resume by flipping back manually.
+      if (order.application_id) {
+        await admin
+          .from("submission_queue")
+          .update({
+            status: "paused_dispute",
+            last_error: `Stripe dispute ${dispute.id ?? "unknown"}: ${dispute.reason ?? ""}`.trim(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("application_id", order.application_id);
+      }
+      return { kind: "disputed", orderId: order.id as string };
     }
 
     default:

@@ -128,6 +128,32 @@ test("charge.refunded marks order refunded", async () => {
   assert.equal(updates[0].patch.status, "refunded");
 });
 
+test("charge.dispute.created marks order disputed + pauses submission_queue", async () => {
+  const { client, updates, selectStubs } = fakeAdmin();
+  selectStubs.set(
+    "order|stripe_payment_intent_id=pi_test_xyz",
+    { id: "ord_123", application_id: "app_456" },
+  );
+  const result = await applyStripeEvent(client as never, {
+    id: "evt_test_5",
+    type: "charge.dispute.created",
+    data: {
+      object: {
+        id: "dp_test",
+        payment_intent: "pi_test_xyz",
+        reason: "fraudulent",
+        status: "needs_response",
+      },
+    },
+  });
+  assert.deepEqual(result, { kind: "disputed", orderId: "ord_123" });
+  assert.equal(updates.length, 2);
+  assert.equal(updates[0].table, "order");
+  assert.equal(updates[0].patch.status, "disputed");
+  assert.equal(updates[1].table, "submission_queue");
+  assert.equal(updates[1].patch.status, "paused_dispute");
+});
+
 test("unknown event type is ignored without DB writes", async () => {
   const { client, updates } = fakeAdmin();
   const result = await applyStripeEvent(client as never, {
