@@ -5,6 +5,7 @@ import {
   StripeSignatureError,
 } from "@/lib/stripe/client";
 import { applyStripeEvent } from "@/lib/stripe/handle-event";
+import { mailReceiptOnPaid } from "@/app/actions/receipts";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,13 @@ export async function POST(req: Request) {
       `api/stripe/webhook:${event.type}`,
       (admin) => applyStripeEvent(admin, event),
     );
+    if (result.kind === "paid") {
+      // PAY-005: email the receipt. Don't fail the webhook if Resend
+      // hiccups — Stripe would re-deliver the event and we'd re-mail.
+      mailReceiptOnPaid(result.orderId).catch((err) => {
+        console.error("[receipts] mailReceiptOnPaid failed", err);
+      });
+    }
     return NextResponse.json({ ok: true, result }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "handler error";
