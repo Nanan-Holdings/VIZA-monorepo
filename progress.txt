@@ -1416,3 +1416,14 @@ acknowledgment).
 - inbound_email purge already shipped under INBOX-007; cron schedule lists it.
 - No TS files modified — typecheck not applicable.
 ---
+
+## 2026-05-07 - LEGAL-004
+- drizzle/0050_account_actions.sql: account_action_log(user_id, applicant_id, action, ip, ua, outcome, detail JSONB, ts) with owner-SELECT RLS. Added applicant_profiles.deletion_requested_at / deletion_scheduled_at / deleted_at columns.
+- lib/legal/zip-encoder.ts: pure-Node STORE-only ZIP encoder (CRC32 table-based, no extra dep). Single buildZip(entries) function.
+- app/actions/account.ts: exportAccountData(), requestAccountDeletion(), revokeAccountDeletion(). Export gathers profile + applications + answers + documents + audit/consent rows + downloads submission-artifacts attachments and returns a ZIP buffer. Both write-paths go through withAdmin('system') and audit to account_action_log. Rate limits: 1 export/hour, 1 delete-request/24h via row-count check on account_action_log.
+- app/client/account/export/route.ts: GET → streams the ZIP (Blob over fresh ArrayBuffer to satisfy strict DOM typing).
+- app/client/account/delete/route.ts: POST → request, POST {revoke:true} → revoke. Returns DeletionStatus JSON.
+- Privacy Policy §9 already enumerated /client/account/export and /client/account/delete; no further doc edit required this iteration.
+- Typecheck: internal-website ✅
+- Notes: 7-day grace stamp lives on applicant_profiles.deletion_scheduled_at; cron finaliser is a follow-on (purges PII when deletion_scheduled_at < now() and writes outcome='delete_finalise' to the audit log).
+---
