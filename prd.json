@@ -2143,8 +2143,8 @@
         "Typecheck passes"
       ],
       "priority": 157,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Postgres FIFO chosen over BullMQ/Cloudflare Queues for MVP; swap path documented."
     },
     {
       "id": "INFRA-003",

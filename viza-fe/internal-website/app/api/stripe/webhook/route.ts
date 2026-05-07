@@ -6,6 +6,7 @@ import {
 } from "@/lib/stripe/client";
 import { applyStripeEvent } from "@/lib/stripe/handle-event";
 import { mailReceiptOnPaid } from "@/app/actions/receipts";
+import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,27 @@ export async function POST(req: Request) {
       // hiccups — Stripe would re-deliver the event and we'd re-mail.
       mailReceiptOnPaid(result.orderId).catch((err) => {
         console.error("[receipts] mailReceiptOnPaid failed", err);
+      });
+      // INFRA-002: enqueue the runner_job for this application.
+      // Idempotent on application_id — re-deliveries reuse the queued row.
+      withAdmin("system", "api/stripe/webhook:enqueue-paid", async (admin) => {
+        const { data: order } = await admin
+          .from("order")
+          .select("application_id")
+          .eq("id", result.orderId)
+          .maybeSingle();
+        if (!order?.application_id) return;
+        const { data: app } = await admin
+          .from("applications")
+          .select("country")
+          .eq("id", order.application_id)
+          .maybeSingle();
+        if (!app?.country) return;
+        await enqueueRunnerJob(order.application_id, app.country, {
+          correlationId: `stripe:${result.orderId}`,
+        });
+      }).catch((err) => {
+        console.error("[queue] enqueueRunnerJob on paid failed", err);
       });
     }
     return NextResponse.json({ ok: true, result }, { status: 200 });
