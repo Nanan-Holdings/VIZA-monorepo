@@ -1568,3 +1568,11 @@ acknowledgment).
 - docs/infra/topology.md: ASCII diagram (Cloudflare edge → Vercel FE → Supabase → runner_job FIFO → Fly Machines per-country runners → portals; plus Cloudflare Email Routing → Email Worker → Supabase + R2 inbound mail; plus Stripe webhook + reconciliation cron). Per-service spec table. 1k-apps/month cost estimate (~$560 infra + ~$3.2k passthrough card). DR + backup policy (Postgres PITR, Storage region mirror plan, vault-key Shamir TODO, RTO/RPO). Runbook links to every supporting doc (INBOX/PAY/INFRA/LEGAL/SECURITY).
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-07 - OPS-001
+- app/admin/(dashboard)/applications/page.tsx: list of latest 100 applications with status/country select filters + free-text search across id/name/email. Distinct-values dropdowns derived from the live page so empty filter buckets don't poison the UI.
+- app/admin/(dashboard)/applications/[id]/page.tsx: detail with runner timeline (last 20 runner_job rows linked to /admin/jobs/[id]), payment block (orders + amount + currency), inbox preview (last 10 inbound_email for the applicant alias).
+- app/admin/(dashboard)/applications/[id]/realtime-status.tsx: client component subscribed to postgres_changes UPDATE on applications filtered by id; live-updates the status pill + timestamp without reload.
+- Shipped under /admin/applications (repo has /admin not /staff); will rehome if a staff portal lands.
+- Typecheck: internal-website ✅
+---
