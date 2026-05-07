@@ -1,0 +1,17 @@
+{
+  "name": "viza-email-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Email Worker for *@haggstorm.com — ingests inbound mail to Supabase + R2 (INBOX-002).",
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler deploy --env preview",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "wrangler": "^3.78.0"
+  }
+}

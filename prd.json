@@ -1847,7 +1847,7 @@
         "Typecheck passes"
       ],
       "priority": 137,
-      "passes": false,
+      "passes": true,
       "notes": "Cloudflare Email Workers free tier (100k/day) covers MVP."
     },
     {
