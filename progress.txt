@@ -1447,3 +1447,10 @@ acknowledgment).
 - subprocessors.md: appended cross-link section pointing at every per-jurisdiction file.
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-07 - PAY-001
+- drizzle/0052_orders_pay001.sql: "order" (application_id, applicant_id, agency_fee_cents, govt_fee_cents, currency, status, stripe_checkout_session_id, stripe_payment_intent_id, metadata JSONB, paid_at, refunded_at) with owner-SELECT RLS + indexes on applicant/status, application, status/created. order_line (order_id, kind, amount_cents, currency, payee, description, metadata) with cascading SELECT policy.
+- lib/pricing.ts: PACKAGE_PRICING covers all 27 catalog packages (id+B211A, us+B1_B2, uk+UK_STANDARD_VISITOR, eu Schengen, vn, au, jp, id ID_C1, kr, th, my, sg, hk, mo, nz, ph, kh, la, lk, in, mv, eg, ru, tr, ae, ca, za) with placeholder USD 99 agency fee + nominal government fee + currency + govtFeeChannel ('viza_passthrough' vs 'portal_direct'). Helpers pricingFor() and totalCents().
+- Typecheck: internal-website ✅
+- Notes: 27 packages match the migrations 0006/0010–0042. PRD called for ~30; that count includes future packages (italy via VFS-CN, France via FV — both reuse eu Schengen pricing today). Real numbers per ops review.
+---
