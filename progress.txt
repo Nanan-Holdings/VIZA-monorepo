@@ -1610,3 +1610,11 @@ acknowledgment).
 - Typecheck: submission-service ✅, internal-website ✅
 - Notes: SQL-side rollup cron + automatic alert on threshold breach is queued; the page surfaces the threshold visually today.
 ---
+
+## 2026-05-07 - OPS-006
+- docs/runbooks/README.md: alert-class → runbook index.
+- 9 runbooks (≥8 required): captcha-budget-exhausted, portal-anti-bot-trigger, otp-not-received, payment-dispute, document-rejected, portal-down, runner-job-stuck, proxy-pool-exhausted, payment-reconcile-delta. Each follows symptoms / diagnosis / mitigation / escalation with paste-ready SQL.
+- docs/ops/alerting.md: appended per-class-runbooks pointer.
+- Reviewed 2026-05-07.
+- No code changes — typecheck N/A.
+---
