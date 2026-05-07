@@ -1907,8 +1907,8 @@
         "Typecheck passes"
       ],
       "priority": 141,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Staff route ships at /admin/users/[id]/inbox — repo has /admin/* (no /staff/* yet). Same RLS-driven data path as /client/inbox; will rehome under /staff if/when staff portal lands."
     },
     {
       "id": "INBOX-007",
