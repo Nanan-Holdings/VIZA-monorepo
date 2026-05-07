@@ -1537,3 +1537,11 @@ acknowledgment).
 - docs/infra/scaling.md: documents cap edits + paused emergency switch, queue-depth view, autoscaler decision rule, driver options (Fly Machines preferred — sub-second spin-up + region pinning matches INFRA-004 proxy geography), suggested 1-minute cron, and the lease-recovery follow-on.
 - Typecheck: submission-service ✅, agent-backend ✅
 ---
+
+## 2026-05-07 - INFRA-004
+- docs/infra/proxy-pool.md: Bright Data Residential chosen (largest pool, native sticky sessions, per-city geo). Per-country override matrix (italy_vfs_cn → CN/Shanghai for VFS-CN geo-fence; US CEAC → US for anti-bot tolerance; VN → VN for locale fingerprint). Required env documented (BRIGHTDATA_PROXY_HOST/PORT/USERNAME/PASSWORD), cost guard-rail tied to PAY-007 third_party_proxy line items.
+- viza-be/submission-service/src/proxy/country-overrides.ts: PROXY_COUNTRY_OVERRIDES single source of truth + SLUG_TO_ISO2 fallback for the 26-country catalog. resolveEgressCountry(country) returns { brightDataCountry, city?, override }.
+- viza-be/submission-service/src/proxy/get-proxy.ts: getProxyForApplicant(applicantId, country, ctx?) returns { server, username, password, sessionId, ... } shaped for Playwright launch options. Sticky-session token = `viza-<cc>-<applicantSlug>-<random>` with `session_duration-<m>` baked into the Bright Data username. registerProxyOnJob() merges { provider, country, session_id, city, sticky_minutes, worker_id, override_reason } into runner_job.metadata.proxy.
+- Typecheck: submission-service ✅
+- Notes: BRIGHTDATA_* creds are platform-wide, not per-applicant — env / Cloud Run secret manager, not applicant_secret. Documented.
+---
