@@ -1427,3 +1427,15 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: 7-day grace stamp lives on applicant_profiles.deletion_scheduled_at; cron finaliser is a follow-on (purges PII when deletion_scheduled_at < now() and writes outcome='delete_finalise' to the audit log).
 ---
+
+## 2026-05-07 - LEGAL-005
+- drizzle/0051_pii_access_log.sql: pii_access_log(applicant_id, application_id, actor_user_id, actor, purpose, fields TEXT[], ip, ua, ts) with owner-SELECT RLS. Service role bypasses for staff dashboards (admin role gate in the page).
+- lib/legal/audit-pii.ts: auditPiiRead(actor, applicantId, fields, opts) — fire-and-forget; reads auth.user via @/lib/supabase/server then logs through withAdmin('system', ...). Catches insert errors so a logger failure never blocks the underlying read.
+- Wrapped reads:
+  - app/actions/visa-application-answers.ts loadDynamicAnswers: logs fields=['form_answers'] purpose=self_view
+  - app/admin/(dashboard)/users/[id]/page.tsx detail page: logs fields=['passport','contact','address','form_answers'] purpose=admin_review
+- Added admin view at /admin/users/[id]/pii-access (most-recent-500 entries, table format).
+- Customer export: app/actions/account.ts now includes pii_access_log rows in the LEGAL-004 export bundle.
+- Typecheck: internal-website ✅
+- Notes: more wrap sites as PII-touching actions land — the helper is the canonical entry.
+---

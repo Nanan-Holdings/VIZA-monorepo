@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { auditPiiRead } from "@/lib/legal/audit-pii";
 
 /**
  * Save dynamic form answers for a visa application.
@@ -248,6 +249,12 @@ export async function loadDynamicAnswers(
 
     const adminClient = createAdminClient();
 
+    const { data: app } = await adminClient
+      .from("applications")
+      .select("applicant_id")
+      .eq("id", applicationId)
+      .maybeSingle();
+
     const { data: rows, error } = await adminClient
       .from("visa_application_answers")
       .select("field_name, value_text")
@@ -261,6 +268,15 @@ export async function loadDynamicAnswers(
       // Skip reserved meta keys (e.g. simplified-form wizard state blob).
       if (row.field_name.startsWith("__")) continue;
       answers[row.field_name] = row.value_text;
+    }
+
+    if (app?.applicant_id) {
+      await auditPiiRead(
+        "actions/visa-application-answers:loadDynamicAnswers",
+        app.applicant_id,
+        ["form_answers"],
+        { applicationId, purpose: "self_view" },
+      );
     }
 
     return { answers };
