@@ -2301,8 +2301,8 @@
         "Reviewed and dated"
       ],
       "priority": 168,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "9 runbooks shipped + index; reviewed 2026-05-07."
     },
     {
       "id": "OPS-007",
