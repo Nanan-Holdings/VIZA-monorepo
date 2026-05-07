@@ -102,13 +102,23 @@ copies.
 ## 7. Retention
 
 Default retention windows are set in
-[`docs/legal/retention.md`](./retention.md) (LEGAL-003). At a glance:
+[`docs/legal/retention.md`](./retention.md) (LEGAL-003) and enforced
+by the SQL purge functions in
+`viza-be/agent-backend/drizzle/0049_retention_purge.sql` (run on a
+daily schedule via Supabase pg_cron). At a glance:
 
+- Passport scans + photos: 12 months from submission completion.
 - Submission artefacts (screenshots, run logs): 12 months.
 - Application answers: 36 months unless deletion is requested earlier.
+- Walker / recon captures: 90 days.
 - Inbound mail received at the applicant alias: 180 days
   (configurable; see INBOX-007 retention policy).
 - Audit logs (consent, PII access, secret access): 24 months.
+- Payment metadata: 7 years (statutory).
+
+Each scheduled purge writes a row to `retention_purge_log` so we can
+prove the sweep ran. R2 / Storage objects are deleted by a follow-on
+worker reading that log.
 
 When you request deletion (LEGAL-004) we remove or pseudonymise PII
 within 30 days, except where retention is legally required (e.g. tax

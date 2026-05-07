@@ -1408,3 +1408,11 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: Per-application authorisation action exposed (`recordApplicationAuthorisation`); wiring it into the signing page submit is a follow-on touch.
 ---
+
+## 2026-05-07 - LEGAL-003
+- docs/legal/retention.md: retention table per data class (passport/photo/answers/artefacts/recon/inbound mail/audit/payment) with rationale, full pg_cron schedule snippet, idempotency/audit notes, R2/Storage cleanup-worker hand-off.
+- drizzle/0049_retention_purge.sql: retention_purge_log(class, retention_days, rows_deleted, started_at, finished_at, error) + idempotent SQL functions purge_old_application_answers, purge_old_application_documents, purge_old_submission_artifacts (nulls payload columns), purge_old_recon_artifacts (intent-only — R2 cleanup worker reads the log), purge_old_audit_logs (secret_access_log + consent_event + tolerant of pii_access_log absence).
+- Privacy Policy §7 updated: cross-references retention.md and the SQL migration; added passport/photo/payment/recon rows to the user-facing summary.
+- inbound_email purge already shipped under INBOX-007; cron schedule lists it.
+- No TS files modified — typecheck not applicable.
+---
