@@ -19,6 +19,11 @@ compatibility_flags = ["nodejs_compat"]
 # Vars (non-secret). Secrets configured via `wrangler secret put`.
 [vars]
 INLINE_BODY_MAX_BYTES = "1048576"
+# 25 MB hard-reject ceiling (INBOX-007). Sender retries on the 5xx.
+MAX_RAW_BYTES = "26214400"
+# Cloudflare's spamScore is 0..1 in practice, but 3rd-party headers
+# (X-Spam-Score) can run up to 5+. Quarantine at >=5 — tune in prod.
+SPAM_SCORE_QUARANTINE = "5"
 
 # R2 bucket for offloaded bodies (>1 MB) and any future attachments.
 [[r2_buckets]]
