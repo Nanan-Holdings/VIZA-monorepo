@@ -2216,7 +2216,7 @@
         "Runbook links per service"
       ],
       "priority": 162,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

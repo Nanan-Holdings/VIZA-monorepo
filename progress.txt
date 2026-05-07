@@ -1563,3 +1563,8 @@ acknowledgment).
 - Typecheck: submission-service ✅, internal-website ✅
 - Notes: bucket lifecycle is configured on the bucket itself (Supabase / R2 dashboard) — no SQL needed.
 ---
+
+## 2026-05-07 - INFRA-007
+- docs/infra/topology.md: ASCII diagram (Cloudflare edge → Vercel FE → Supabase → runner_job FIFO → Fly Machines per-country runners → portals; plus Cloudflare Email Routing → Email Worker → Supabase + R2 inbound mail; plus Stripe webhook + reconciliation cron). Per-service spec table. 1k-apps/month cost estimate (~$560 infra + ~$3.2k passthrough card). DR + backup policy (Postgres PITR, Storage region mirror plan, vault-key Shamir TODO, RTO/RPO). Runbook links to every supporting doc (INBOX/PAY/INFRA/LEGAL/SECURITY).
+- No code changes — typecheck not applicable.
+---
