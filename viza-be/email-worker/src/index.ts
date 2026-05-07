@@ -22,6 +22,10 @@ interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   INLINE_BODY_MAX_BYTES?: string;
+  /** Hard reject threshold in bytes. Default 26_214_400 (25 MB). */
+  MAX_RAW_BYTES?: string;
+  /** Spam score above which the worker quarantines the row (default 5). */
+  SPAM_SCORE_QUARANTINE?: string;
   INBOX_BODIES: R2Bucket;
 }
 
@@ -181,14 +185,57 @@ async function insertRow(
   }
 }
 
+async function aliasIsActive(env: Env, toAddr: string): Promise<boolean> {
+  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(toAddr)}&select=inbox_alias_retired_at&limit=1`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  if (!res.ok) {
+    // Fail open on a transient lookup error — better to record the
+    // message than to bounce a real applicant's mail.
+    return true;
+  }
+  const rows = (await res.json()) as Array<{ inbox_alias_retired_at: string | null }>;
+  if (rows.length === 0) {
+    // Unknown alias; the applicant_profiles row has not been minted yet.
+    // Default-allow so we don't lose mail during the assignment race.
+    return true;
+  }
+  return rows[0].inbox_alias_retired_at === null;
+}
+
 export default {
   async email(message: CfEmailMessage, env: Env): Promise<void> {
     const inlineCap = Number.parseInt(env.INLINE_BODY_MAX_BYTES ?? "", 10) ||
       1_048_576;
+    const maxRawBytes = Number.parseInt(env.MAX_RAW_BYTES ?? "", 10) ||
+      26_214_400; // 25 MB
+    const spamQuarantineThreshold =
+      Number.parseFloat(env.SPAM_SCORE_QUARANTINE ?? "") || 5;
+    const toAddr = message.to.toLowerCase();
+
+    // Hard reject oversized messages before reading the body. Cloudflare
+    // surfaces rawSize on the message envelope so we don't have to drain
+    // the stream first.
+    if (message.rawSize > maxRawBytes) {
+      throw new Error(
+        `[viza-email-worker] reject oversized message ${message.rawSize}B > ${maxRawBytes}B from=${message.from} to=${toAddr}`,
+      );
+    }
+
+    if (!(await aliasIsActive(env, toAddr))) {
+      throw new Error(
+        `[viza-email-worker] reject retired alias ${toAddr} from=${message.from}`,
+      );
+    }
+
     const rawBytes = await readAll(message.raw);
     const rawText = bytesToString(rawBytes);
     const parsed = parseMessage(rawText);
-    const toAddr = message.to.toLowerCase();
 
     let r2Key: string | null = null;
     let inlineText: string | null = parsed.text;
@@ -200,10 +247,12 @@ export default {
       await env.INBOX_BODIES.put(r2Key, rawBytes, {
         httpMetadata: { contentType: "message/rfc822" },
       });
-      // Drop inline columns in favour of the R2 reference.
       inlineText = null;
       inlineHtml = null;
     }
+
+    const quarantined =
+      parsed.spamScore !== null && parsed.spamScore >= spamQuarantineThreshold;
 
     await insertRow(env, {
       to_addr: toAddr,
@@ -216,6 +265,10 @@ export default {
       raw_size: message.rawSize,
       r2_key: r2Key,
       spam_score: parsed.spamScore,
+      quarantined,
+      rejection_reason: quarantined
+        ? `spam_score>=${spamQuarantineThreshold}`
+        : null,
       received_at: new Date().toISOString(),
       processed: false,
     });

@@ -1923,7 +1923,7 @@
         "Typecheck passes"
       ],
       "priority": 142,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

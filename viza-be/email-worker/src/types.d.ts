@@ -16,6 +16,7 @@ declare global {
     ok: boolean;
     status: number;
     text(): Promise<string>;
+    json(): Promise<unknown>;
   }
   const crypto: {
     randomUUID(): string;
