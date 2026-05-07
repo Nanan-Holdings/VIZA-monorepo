@@ -1345,3 +1345,17 @@ acknowledgment).
 - viza-be/submission-service/src/inbox/wait-for-message.ts: inbox.waitForMessage(applicantId, predicate, timeoutMs, opts?). Polls inbound_email WHERE to_addr=alias AND received_at >= since AND processed=false; on match, marks processed=true (configurable) and resolves. Throws InboxTimeoutError on deadline, InboxAliasMissingError when alias not assigned. Default 5s poll cadence; future swap to Supabase Realtime is API-compatible.
 - Typecheck: submission-service ✅, internal-website ✅
 ---
+
+## 2026-05-07 - INBOX-004
+- New module viza-be/submission-service/src/inbox/extractors/:
+  - types.ts (ExtractInput, ExtractResult { code?, link?, reference? }, ExtractorProfile interface)
+  - generic.ts (last-resort 6-digit fallback)
+  - vfsglobal.ts (VFS Global OTP / activation link / reference)
+  - evisa-gov-vn.ts (Vietnam e-Visa registration code + result link, no OTP)
+  - ceac-state-gov.ts (US CEAC DS-160 AA-prefixed application id)
+  - gov-uk.ts (UKVI security code + forceResume URL + GWF reference)
+  - index.ts: extract(input, profile?), extractAuto(input) auto-selects by sender domain (with subdomain match), falls back to generic
+- __tests__/extractors.spec.ts (node:test + node:assert): 5 anonymised samples, all pass under `npx tsx --test`.
+- Typecheck: submission-service ✅
+- Tests: 5/5 pass.
+---
