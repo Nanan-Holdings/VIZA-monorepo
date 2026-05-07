@@ -1,15 +1,23 @@
 import * as fs from "node:fs";
 import { supabase } from "./supabase";
+import { ARTIFACT_BUCKET } from "./artifact";
 
 /**
- * Single private bucket for per-country runner artifacts. Path layout:
+ * Legacy per-country artifact path helper.
+ *
+ * Path layout:
  *
  *   {authUserId}/{applicationId}/{countryCode}/{kind}-{utcMillis}.{ext}
  *
  * RLS policy on storage.objects ties the first path segment to auth.uid()
  * so signed URLs minted by the agent-backend stay scoped to the owner.
+ *
+ * **New code should use `artifact.put(jobId, name, body)` from
+ * `./artifact.ts` instead** — that helper writes under
+ * `jobs/<jobId>/...` and is the canonical entry point for INFRA-006.
+ * This shim continues to exist while per-country runners migrate.
  */
-export const SUBMISSION_ARTIFACTS_BUCKET = "submission-artifacts";
+export const SUBMISSION_ARTIFACTS_BUCKET = ARTIFACT_BUCKET;
 
 export type CountryCode = "US" | "FR" | "UK" | "VN" | "AU";
 
