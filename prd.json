@@ -2202,8 +2202,8 @@
         "Typecheck passes"
       ],
       "priority": 161,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Lifecycle rules documented for bucket-side config; new path family `jobs/<jobId>/` coexists with legacy."
     },
     {
       "id": "INFRA-007",
