@@ -1554,3 +1554,12 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: stealth plugin (puppeteer-extra-plugin-stealth, already in deps) consumes asContextOpts() output. Per-runner wiring left for the country runners as they migrate to the queue worker (INFRA-002 + INFRA-003).
 ---
+
+## 2026-05-07 - INFRA-006
+- viza-be/submission-service/src/artifact.ts: new canonical helper. `artifact.put(jobId, name, body, opts?)` writes under `jobs/<jobId>/<name>` in submission-artifacts bucket, returns ArtifactRef { path, signedUrl, sizeBytes, contentType, ttlSeconds }. 5-minute default URL TTL, capped at 7 days. `list/sign/remove` round out the API.
+- viza-be/submission-service/src/artifact-storage.ts: header rewritten to point new code at artifact.ts; SUBMISSION_ARTIFACTS_BUCKET re-exports ARTIFACT_BUCKET so the legacy uploadArtifact path keeps working until per-country runners migrate.
+- app/admin/(dashboard)/jobs/[id]/page.tsx: runner-job detail with status/attempts/timestamps + last_error block + artefact list (signed URL per row, 5-minute TTL) + collapsible metadata view (proxy session etc).
+- docs/infra/artefact-storage.md: documents bucket lifecycle (90d hot → 365d glacier → delete unless legal_hold), aligns with docs/legal/retention.md, helper API examples, RLS notes, staff portal entry, per-country runner migration plan.
+- Typecheck: submission-service ✅, internal-website ✅
+- Notes: bucket lifecycle is configured on the bucket itself (Supabase / R2 dashboard) — no SQL needed.
+---
