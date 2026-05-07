@@ -2259,8 +2259,8 @@
         "Typecheck passes"
       ],
       "priority": 165,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Doc landed at docs/ops/alerting.md (project tree has docs/ops/, no docs/runbooks/ today)."
     },
     {
       "id": "OPS-004",

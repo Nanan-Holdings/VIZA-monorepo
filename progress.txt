@@ -1584,3 +1584,12 @@ acknowledgment).
 - Typecheck: internal-website ✅, submission-service ✅
 - Notes: per-country runners adopt step-log opportunistically when they migrate to the queue worker; the schema is shape-stable so retrofits are cheap.
 ---
+
+## 2026-05-07 - OPS-003
+- drizzle/0058_alert_throttle.sql: alert_throttle(class PK, last_fired_at, fire_count) — atomic insert-or-update keyed on the class.
+- viza-be/submission-service/src/alerts/dispatch.ts: sendAlert({ severity, class, title, body, jobId?, applicationId?, throttleSeconds? }) routes Slack always + Resend on error/critical. Severity emoji prefix in Slack text. Dashboard links (/admin/jobs/<id>, /admin/applications/<id>) appended automatically. shouldFire() compares last_fired_at against the window; suppressed hits bump fire_count for forensics.
+- viza-be/submission-service/src/queue/worker.ts: markFailedWithRetry fires `runner.failed.<country>` at error severity once max_attempts is exhausted.
+- docs/ops/alerting.md: severity → channel matrix, API examples, env requirements (SLACK_WEBHOOK_URL, RESEND_OPS_ALERT_TO, NEXT_PUBLIC_SITE_URL), wired call sites, migration plan for the existing Resend-only alerts in autoscaler/reconciliation scripts.
+- Typecheck: submission-service ✅
+- Notes: PAY-007 reconciler + INFRA-003 autoscaler currently send via Resend directly; one-line migrate-to-sendAlert is queued in the doc.
+---
