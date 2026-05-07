@@ -1454,3 +1454,13 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: 27 packages match the migrations 0006/0010–0042. PRD called for ~30; that count includes future packages (italy via VFS-CN, France via FV — both reuse eu Schengen pricing today). Real numbers per ops review.
 ---
+
+## 2026-05-07 - PAY-002
+- lib/stripe/client.ts: tiny REST client (no `stripe` npm dep). createCheckoutSession() POSTs form-encoded to /v1/checkout/sessions; verifyWebhookSignature() implements Stripe's `t=...,v1=...` HMAC SHA-256 protocol with timing-safe comparison + 300s tolerance. Throws StripeSignatureError on tamper.
+- lib/stripe/handle-event.ts: pure applyStripeEvent(admin, event) handler. checkout.session.completed → order.status='paid' + paid_at + stripe_payment_intent_id. charge.refunded / charge.refund.updated → look up by stripe_payment_intent_id, set status='refunded' + refunded_at. Other events ignored.
+- app/actions/payments.ts: startCheckoutForApplication(applicationId) — auth-checks the caller against the applicant, finds or creates a draft order + order_line rows, mints a Stripe session for the VIZA-passthrough portion (agency + viza_passthrough govt fee), persists the session id. applicationIsPaidFor() runner gate (status IN paid/submitted/completed).
+- app/api/stripe/webhook/route.ts: signature-verify + delegate to applyStripeEvent under withAdmin('system', ...).
+- lib/stripe/__tests__/handle-event.spec.ts: 4 node:test cases against in-memory fake admin (paid happy-path, unpaid ignored, refunded happy-path, unknown event ignored). All green.
+- Typecheck: internal-website ✅; tests: 4/4 pass.
+- Notes: ZERO_DECIMAL currency conversion (JPY/KRW/etc) in stripeAmount(). Govt fee is included in checkout only when govtFeeChannel === 'viza_passthrough'.
+---
