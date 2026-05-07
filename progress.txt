@@ -1545,3 +1545,12 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: BRIGHTDATA_* creds are platform-wide, not per-applicant — env / Cloud Run secret manager, not applicant_secret. Documented.
 ---
+
+## 2026-05-07 - INFRA-005
+- drizzle/0056_applicant_browser_profile.sql: applicant_browser_profile(applicant_id PK, fingerprint_json JSONB, storage_state_json JSONB) with cascade delete + service-role-only RLS.
+- viza-be/submission-service/src/browser/profile.ts: getOrCreateApplicantProfile(applicantId) — first call mints a deterministic-from-applicantId fingerprint (UA + viewport + locale + timezone + hardwareConcurrency + deviceMemory + canvasNoiseSeed + WebGL vendor/renderer pair) and persists; subsequent calls return the same JSON. asContextOpts(fp) → Playwright newContext options. saveStorageState/loadStorageState for cookie+localStorage reuse. fingerprintShortId() for metadata.
+- Deterministic seed = SHA-256("v1:applicantId") so an accidental row delete doesn't change the portal-visible identity. FP_VERSION constant gates global rotations.
+- Race-safe insert: on 23505 unique violation, re-read the existing row.
+- Typecheck: submission-service ✅
+- Notes: stealth plugin (puppeteer-extra-plugin-stealth, already in deps) consumes asContextOpts() output. Per-runner wiring left for the country runners as they migrate to the queue worker (INFRA-002 + INFRA-003).
+---
