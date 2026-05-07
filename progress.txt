@@ -1576,3 +1576,11 @@ acknowledgment).
 - Shipped under /admin/applications (repo has /admin not /staff); will rehome if a staff portal lands.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-07 - OPS-002
+- drizzle/0057_runner_step_log.sql: runner_step_log(job_id, application_id, step_index, name, status, started_at, finished_at, screenshot_path, har_path, console_path, error, metadata) with indexes on (job_id, step_index) and (application_id, started_at).
+- viza-be/submission-service/src/queue/step-log.ts: createStepRecorder(jobId, applicationId) returns { begin(name) → StepHandle }. StepHandle.attachScreenshot/attachHar/attachConsole pipes into artifact.put() under jobs/<jobId>/step-NNN.{png,har,log}; complete() stamps status/error/metadata + finished_at. Atomic counter so each step gets a monotonic step_index.
+- app/admin/(dashboard)/jobs/[id]/page.tsx: extended with step timeline + per-step signed URLs (screenshot/HAR/console). Diff column compares step_index/name/status against the previous runner_job for the same application_id and tags rows added/renamed/status/same.
+- Typecheck: internal-website ✅, submission-service ✅
+- Notes: per-country runners adopt step-log opportunistically when they migrate to the queue worker; the schema is shape-stable so retrofits are cheap.
+---
