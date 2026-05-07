@@ -28,6 +28,20 @@ interface ArtifactEntry {
   signedUrl: string;
 }
 
+interface StepRow {
+  id: number;
+  step_index: number;
+  name: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  screenshot_path: string | null;
+  har_path: string | null;
+  console_path: string | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
 const ARTIFACT_BUCKET = "submission-artifacts";
 const SIGNED_TTL_S = 300;
 
@@ -80,6 +94,61 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
 
   const job = data as JobRow;
   const artefacts = await listJobArtifacts(id);
+
+  // OPS-002: per-step trace + diff against the previous run for the
+  // same application.
+  const { data: stepRows } = await adminClient
+    .from("runner_step_log")
+    .select(
+      "id, step_index, name, status, started_at, finished_at, screenshot_path, har_path, console_path, error, metadata",
+    )
+    .eq("job_id", id)
+    .order("step_index", { ascending: true });
+  const steps = (stepRows ?? []) as StepRow[];
+
+  const { data: priorJob } = await adminClient
+    .from("runner_job")
+    .select("id, started_at")
+    .eq("application_id", job.application_id)
+    .lt("started_at", job.started_at ?? new Date().toISOString())
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { data: priorStepRows } = priorJob
+    ? await adminClient
+        .from("runner_step_log")
+        .select("step_index, name, status")
+        .eq("job_id", priorJob.id)
+        .order("step_index", { ascending: true })
+    : { data: [] as Array<{ step_index: number; name: string; status: string }> };
+  const priorSteps = priorStepRows ?? [];
+
+  const stepLinks = await Promise.all(
+    steps.map(async (s) => {
+      const sign = async (p: string | null) => {
+        if (!p) return null;
+        const { data: signed } = await adminClient.storage
+          .from(ARTIFACT_BUCKET)
+          .createSignedUrl(p, SIGNED_TTL_S);
+        return signed?.signedUrl ?? null;
+      };
+      return {
+        ...s,
+        screenshotUrl: await sign(s.screenshot_path),
+        harUrl: await sign(s.har_path),
+        consoleUrl: await sign(s.console_path),
+      };
+    }),
+  );
+
+  // Diff: walk both lists by step_index, label changes.
+  const diff = stepLinks.map((s) => {
+    const prior = priorSteps.find((p) => p.step_index === s.step_index);
+    if (!prior) return { ...s, diff: "added" as const };
+    if (prior.name !== s.name) return { ...s, diff: "renamed" as const };
+    if (prior.status !== s.status) return { ...s, diff: "status" as const };
+    return { ...s, diff: "same" as const };
+  });
 
   return (
     <div className="w-full p-6 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -158,6 +227,86 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
                 >
                   Download
                 </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b bg-[#fafafa] flex items-center justify-between">
+          <h2 className="font-semibold text-[#232323]">Step timeline</h2>
+          <span className="text-xs text-[#6b6b6b]">
+            {priorJob
+              ? `diff vs job ${priorJob.id.slice(0, 8)}`
+              : "no previous run"}
+          </span>
+        </div>
+        {diff.length === 0 ? (
+          <p className="p-6 text-sm text-[#9ca3af]">
+            No step trace recorded for this job yet.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {diff.map((s) => (
+              <li key={s.id} className="px-4 py-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-[#6b6b6b] w-8">
+                    {String(s.step_index).padStart(3, "0")}
+                  </span>
+                  <span className="font-medium text-[#232323]">{s.name}</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded border ${
+                      s.status === "failed"
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : s.status === "ok"
+                          ? "border-green-200 bg-green-50 text-green-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {s.status}
+                  </span>
+                  {s.diff !== "same" ? (
+                    <span className="text-xs text-[#6b6b6b]">[{s.diff}]</span>
+                  ) : null}
+                </div>
+                <div className="text-xs text-[#6b6b6b] mt-1">
+                  {new Date(s.started_at).toLocaleTimeString()}
+                  {s.finished_at
+                    ? ` → ${new Date(s.finished_at).toLocaleTimeString()}`
+                    : ""}
+                </div>
+                {s.error ? (
+                  <pre className="text-xs text-red-700 whitespace-pre-wrap mt-1">
+                    {s.error}
+                  </pre>
+                ) : null}
+                <div className="flex gap-3 mt-2">
+                  {s.screenshotUrl ? (
+                    <a
+                      href={s.screenshotUrl}
+                      className="text-xs text-brand-500 hover:underline"
+                    >
+                      screenshot
+                    </a>
+                  ) : null}
+                  {s.harUrl ? (
+                    <a
+                      href={s.harUrl}
+                      className="text-xs text-brand-500 hover:underline"
+                    >
+                      HAR
+                    </a>
+                  ) : null}
+                  {s.consoleUrl ? (
+                    <a
+                      href={s.consoleUrl}
+                      className="text-xs text-brand-500 hover:underline"
+                    >
+                      console
+                    </a>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
