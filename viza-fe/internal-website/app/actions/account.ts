@@ -110,6 +110,7 @@ const APPLICANT_TABLES: ExportTable[] = [
   { table: "user_packages", filterCol: "auth_user_id" },
   { table: "consent_event", filterCol: "applicant_id" },
   { table: "secret_access_log", filterCol: "applicant_id" },
+  { table: "pii_access_log", filterCol: "applicant_id" },
   { table: "account_action_log", filterCol: "applicant_id" },
 ];
 

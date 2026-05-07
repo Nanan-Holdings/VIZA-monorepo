@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/rbac";
+import { auditPiiRead } from "@/lib/legal/audit-pii";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AssignPackageForm } from "./assign-package-form";
@@ -76,6 +77,13 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   const applications = applicationsRes.data ?? [];
   const answers = answersRes.data ?? [];
   const visaPackages = visaPackagesRes.data ?? [];
+
+  await auditPiiRead(
+    "app/admin/users/[id]:detail",
+    profile.id,
+    ["passport", "contact", "address", "form_answers"],
+    { purpose: "admin_review" },
+  );
 
   return (
     <div className="w-full p-6 md:p-8 space-y-6">
