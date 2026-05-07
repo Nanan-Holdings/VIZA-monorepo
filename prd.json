@@ -2128,7 +2128,7 @@
         "Typecheck passes"
       ],
       "priority": 156,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

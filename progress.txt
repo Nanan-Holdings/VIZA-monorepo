@@ -1512,3 +1512,11 @@ acknowledgment).
 - Typecheck: internal-website ✅, agent-backend ✅
 - Notes: cron schedule not wired in this iter — runbook for the OPS team is pg_cron / k8s CronJob calling `npx tsx viza-be/agent-backend/scripts/reconcile-stripe-payouts.ts`.
 ---
+
+## 2026-05-07 - INFRA-001
+- viza-be/submission-service/Dockerfile: pinned base mcr.microsoft.com/playwright:v1.50.0-jammy (ships Chromium + Firefox + WebKit + system fonts pre-baked). PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 since the base supplies them. npm ci over package-lock; src + scripts copied; tsc compile to /app/dist; runs as pwuser (chromium sandbox-friendly). Default CMD = `node dist/index.js` (worker loop); smoke override documented.
+- .dockerignore drops node_modules/dist/diag-out/e2e-out/recon-out/.env to keep the build context lean.
+- .github/workflows/runner-image.yml: PR run = build only (Dockerfile validation). main push = build + push to ghcr.io/<repo>/viza-runner:{sha,latest} via docker/login-action + docker/build-push-action with GHA cache. Smoke step `docker run … npx tsx src/ceac/_e2e.ts --reachability-only` exercises the image without portal cost.
+- Typecheck: submission-service ✅
+- Notes: package-lock.json absent in repo; npm ci falls back to install. When package-lock lands, ci is faster + reproducible.
+---
