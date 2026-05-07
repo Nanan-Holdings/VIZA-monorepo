@@ -1399,3 +1399,12 @@ acknowledgment).
 - docs/legal/subprocessors.md: single source of truth — Supabase, Cloudflare, Stripe, Anthropic, 2captcha, Resend with categories of PII + region + DPA reference. Government portals listed separately as data recipients, not processors. Adding-a-subprocessor process documented.
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-07 - LEGAL-002
+- drizzle/0048_consent_event.sql: consent_event(id, user_id, applicant_id, application_id, email, doc_kind, doc_version, ip, ua, ts) with CHECK (one of user_id / applicant_id / email present), indexes on user_id, applicant_id, lower(email), and RLS owner-SELECT policy.
+- lib/legal/document-versions.ts: documentVersion(kind) returns SHA-256 of the bundled markdown source (docs/legal/{terms-of-service,privacy-policy,dpa,application-authorisation}.md). Module-level cache; falls back to a stable sentinel hash when a doc has no separate file (per-application authorisation lives inline on the signing page today).
+- app/actions/consent.ts: recordConsentEvent({ docKind, applicantId?, applicationId?, email? }), recordSignupConsent (ToS+Privacy bundle), recordApplicationAuthorisation(applicationId). Reads cf-connecting-ip / x-forwarded-for / x-real-ip + user-agent for forensics. Insert via withAdmin('system', ...).
+- app/client/(auth)/signup/page.tsx: added explicit ToS + Privacy checkboxes; submit gated on `consentReady`; success path calls recordSignupConsent.
+- Typecheck: internal-website ✅
+- Notes: Per-application authorisation action exposed (`recordApplicationAuthorisation`); wiring it into the signing page submit is a follow-on touch.
+---

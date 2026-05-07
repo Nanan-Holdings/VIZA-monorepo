@@ -1953,7 +1953,7 @@
         "Typecheck passes"
       ],
       "priority": 144,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
