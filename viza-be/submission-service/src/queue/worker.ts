@@ -1,5 +1,6 @@
 import { supabase } from "../supabase.js";
 import { sendAlert } from "../alerts/dispatch.js";
+import { emitRunnerMetric } from "../metrics/emit.js";
 
 /**
  * runner_job consumer (INFRA-002).
@@ -109,16 +110,40 @@ export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
 }
 
 export async function markSucceeded(jobId: string): Promise<void> {
+  const finishedAt = new Date().toISOString();
+  // Capture lifecycle stamps before the update so we can compute time-to-submit.
+  const { data: pre } = await supabase
+    .from("runner_job")
+    .select("application_id, country, started_at")
+    .eq("id", jobId)
+    .maybeSingle();
   const { error } = await supabase
     .from("runner_job")
     .update({
       status: "succeeded",
-      finished_at: new Date().toISOString(),
+      finished_at: finishedAt,
       leased_by: null,
       leased_until: null,
     })
     .eq("id", jobId);
   if (error) throw new Error(`runner_job mark succeeded: ${error.message}`);
+  if (pre?.application_id && pre.country) {
+    const ttsSeconds = pre.started_at
+      ? Math.max(
+          0,
+          Math.round(
+            (Date.parse(finishedAt) - Date.parse(pre.started_at as string)) / 1000,
+          ),
+        )
+      : null;
+    void emitRunnerMetric({
+      jobId,
+      applicationId: pre.application_id as string,
+      country: pre.country as string,
+      success: true,
+      timeToSubmitSeconds: ttsSeconds,
+    });
+  }
 }
 
 export async function markFailedWithRetry(
@@ -154,6 +179,15 @@ export async function markFailedWithRetry(
         `Last error: ${message}`,
       jobId: job.id,
       applicationId: job.application_id,
+    });
+    // OPS-005: emit a failure metric so the success-rate KPI on
+    // /admin/metrics reflects exhaustion as a hard fail.
+    void emitRunnerMetric({
+      jobId: job.id,
+      applicationId: job.application_id,
+      country: job.country,
+      success: false,
+      timeToSubmitSeconds: null,
     });
   }
 }
