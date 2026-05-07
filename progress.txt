@@ -1529,3 +1529,11 @@ acknowledgment).
 - docs/infra/queue.md: chose Postgres FIFO over BullMQ/CF Queues for MVP — single dependency, source-of-truth visibility, headroom. Documented swap path to Cloudflare Queues + lease-recovery + per-country concurrency follow-ons (INFRA-003).
 - Typecheck: internal-website ✅, submission-service ✅
 ---
+
+## 2026-05-07 - INFRA-003
+- drizzle/0055_runner_concurrency.sql: runner_concurrency_cap(country PK, max_concurrent, paused, notes, updated_at) seeded with conservative defaults (1–2 per country) for all 26 catalog countries. Plus runner_queue_depth view: per-country queued / running / failed_24h.
+- viza-be/submission-service/src/queue/worker.ts: claimNextJob now reads runner_concurrency_cap, declines on paused=TRUE, and refuses claim when count(running) >= cap.max_concurrent. Per-country fairness emerges naturally — slots free up only for countries that own them.
+- viza-be/agent-backend/scripts/autoscale-runners.ts: reads runner_queue_depth, computes desired worker count per country (clamp(ceil(queued/cap), 0, cap)), prints human or `--json` form. Sends OPS alert via Resend when running > cap; exits 1 on violation.
+- docs/infra/scaling.md: documents cap edits + paused emergency switch, queue-depth view, autoscaler decision rule, driver options (Fly Machines preferred — sub-second spin-up + region pinning matches INFRA-004 proxy geography), suggested 1-minute cron, and the lease-recovery follow-on.
+- Typecheck: submission-service ✅, agent-backend ✅
+---
