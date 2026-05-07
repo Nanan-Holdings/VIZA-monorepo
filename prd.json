@@ -2025,7 +2025,7 @@
         "Typecheck passes"
       ],
       "priority": 149,
-      "passes": false,
+      "passes": true,
       "notes": "Pricing values placeholder; ops fills real numbers."
     },
     {
