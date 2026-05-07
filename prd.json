@@ -2230,8 +2230,8 @@
         "Typecheck passes"
       ],
       "priority": 163,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Shipped under /admin/applications (repo has /admin not /staff); same data path."
     },
     {
       "id": "OPS-002",
