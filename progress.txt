@@ -1381,3 +1381,13 @@ acknowledgment).
 - Story called for /staff/applicants/[id]/inbox; repo has /admin/* not /staff/*. Shipped under /admin/users/[id]/inbox; documented the deviation in prd notes.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-07 - INBOX-007
+- drizzle/0047_inbound_email_retention.sql: ADD COLUMN quarantined BOOLEAN DEFAULT FALSE, rejection_reason TEXT to inbound_email; ADD COLUMN inbox_alias_retired_at TIMESTAMPTZ to applicant_profiles. Re-created the per-applicant SELECT policy to also exclude quarantined rows + retired aliases. Added SQL function purge_old_inbound_email(retention_days int) for daily cron.
+- Email worker (viza-be/email-worker/src/index.ts): hard-rejects messages > MAX_RAW_BYTES (default 25 MB) before draining the body; rejects mail to retired aliases (5xx so Cloudflare retries / sender bounces); writes quarantined=true + rejection_reason="spam_score>=N" when parsed.spamScore exceeds SPAM_SCORE_QUARANTINE (default 5). Added aliasIsActive() lookup against Supabase REST.
+- wrangler.toml: MAX_RAW_BYTES, SPAM_SCORE_QUARANTINE vars (overridable per-env).
+- types.d.ts: added Response.json() to ambient stubs.
+- viza-fe app/actions/applicant-inbox.ts: retireApplicantInboxAlias(applicantId) (admin-only, idempotent — stamps inbox_alias_retired_at).
+- docs/inbox-cloudflare-setup.md: appended INBOX-007 retention policy section (knobs, retire flow, pg_cron schedule snippet, quarantine + hard-reject behaviour).
+- Typecheck: internal-website ✅, email-worker ✅
+---

@@ -90,3 +90,48 @@ export async function assignApplicantInboxAlias(
     );
   });
 }
+
+/**
+ * Retire an applicant's inbox alias (INBOX-007). Stamps
+ * `inbox_alias_retired_at` so the worker rejects further mail to that
+ * address with a 5xx and the per-applicant SELECT policy hides past
+ * messages from the client view. Existing rows are kept until the
+ * retention purge (`purge_old_inbound_email`) runs.
+ *
+ * Use when an applicant reaches a terminal status (visa delivered or
+ * application cancelled). Idempotent — re-calling on an already-retired
+ * applicant is a no-op.
+ */
+export async function retireApplicantInboxAlias(
+  applicantId: string,
+): Promise<{ retiredAt: string | null }> {
+  return withAdmin("admin", "actions/applicant-inbox:retire", async (admin) => {
+    const { data: existing, error: readErr } = await admin
+      .from("applicant_profiles")
+      .select("inbox_alias, inbox_alias_retired_at")
+      .eq("id", applicantId)
+      .maybeSingle();
+    if (readErr) {
+      throw new Error(`retireApplicantInboxAlias read failed: ${readErr.message}`);
+    }
+    if (!existing) {
+      throw new Error(`Applicant not found: ${applicantId}`);
+    }
+    if (!existing.inbox_alias) {
+      // Nothing to retire — no alias was ever minted.
+      return { retiredAt: null };
+    }
+    if (existing.inbox_alias_retired_at) {
+      return { retiredAt: existing.inbox_alias_retired_at };
+    }
+    const retiredAt = new Date().toISOString();
+    const { error: writeErr } = await admin
+      .from("applicant_profiles")
+      .update({ inbox_alias_retired_at: retiredAt })
+      .eq("id", applicantId);
+    if (writeErr) {
+      throw new Error(`retireApplicantInboxAlias write failed: ${writeErr.message}`);
+    }
+    return { retiredAt };
+  });
+}

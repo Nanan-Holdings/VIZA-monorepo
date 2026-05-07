@@ -146,6 +146,61 @@ If we need to detach `haggstorm.com` from Cloudflare Email Routing
   `inbox.waitForMessage` helper.
 - INBOX-007 layers retention + abuse rules on top.
 
+## Retention, abuse, and bounce policy (INBOX-007)
+
+Defaults — tune via Cloudflare Worker vars or env on the cron job:
+
+| Knob | Default | Where it lives |
+|---|---|---|
+| Retention (auto-purge) | 180 days | `purge_old_inbound_email(retention_days)` SQL function called by daily cron |
+| Hard reject size | 25 MB | `MAX_RAW_BYTES` (wrangler `[vars]`) |
+| Inline-vs-R2 cutover | 1 MB | `INLINE_BODY_MAX_BYTES` (wrangler `[vars]`) |
+| Spam quarantine threshold | 5.0 | `SPAM_SCORE_QUARANTINE` (wrangler `[vars]`) |
+
+### Retired aliases
+
+Call `retireApplicantInboxAlias(applicantId)` (server action) when the
+applicant reaches a terminal status (visa delivered or application
+cancelled). The call stamps `applicant_profiles.inbox_alias_retired_at`
+and the worker then rejects further mail to that address with a 5xx so
+the sending side bounces / retries. Existing rows remain readable to
+admins until the retention purge sweeps them up.
+
+### Cron — daily purge
+
+Schedule the SQL function via Supabase pg_cron:
+
+```sql
+SELECT cron.schedule(
+  'inbound-email-purge-180d',
+  '17 3 * * *',
+  $$ SELECT purge_old_inbound_email(180); $$
+);
+```
+
+The function returns the row count, which lands in `cron.job_run_details`
+for visibility.
+
+### Quarantine
+
+Messages with a Cloudflare `spamScore >= SPAM_SCORE_QUARANTINE`
+(default 5) are inserted with `quarantined = TRUE`. RLS hides them
+from the per-applicant SELECT policy; admins can still query the
+column directly. The runners' `inbox.waitForMessage` predicate runs
+against the same SELECT so a quarantined message is invisible to OTP
+extraction by default — the operator must triage it from the
+quarantine view first.
+
+### Hard rejects
+
+The worker throws (returning 5xx to Cloudflare Email Routing) when:
+
+- `message.rawSize > MAX_RAW_BYTES` (default 25 MB).
+- The recipient alias has `inbox_alias_retired_at` set.
+
+Cloudflare retries 5xx per RFC 5321; the sender eventually sees a
+delayed-delivery bounce.
+
 ## IMAP fallback — deprecated for VN + UK (INBOX-005)
 
 `viza-be/submission-service/src/email/imap-poll.ts` is the legacy
