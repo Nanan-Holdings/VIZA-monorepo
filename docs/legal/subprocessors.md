@@ -51,3 +51,18 @@ Process when adding a new vendor that processes Customer PII:
 ## Removed subprocessors
 
 _None recorded yet._
+
+## Per-jurisdiction compliance addenda
+
+See [`jurisdictions/`](./jurisdictions/) — one note per country with
+material data rules in the schema set, each cross-linked here so the
+subprocessor decisions and the local-law analysis stay paired:
+
+- [EU / Schengen](./jurisdictions/eu.md), [UK](./jurisdictions/uk.md),
+  [Singapore](./jurisdictions/sg.md), [India](./jurisdictions/in.md),
+  [China](./jurisdictions/cn.md), [Australia](./jurisdictions/au.md),
+  [Canada](./jurisdictions/ca.md), [United States](./jurisdictions/us.md),
+  [South Korea](./jurisdictions/kr.md), [Japan](./jurisdictions/jp.md),
+  [South Africa](./jurisdictions/za.md), [Vietnam](./jurisdictions/vn.md),
+  [Indonesia](./jurisdictions/id.md), [Thailand](./jurisdictions/th.md),
+  [New Zealand](./jurisdictions/nz.md).
