@@ -2315,8 +2315,8 @@
         "Linked from OPS-003"
       ],
       "priority": 169,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "PagerDuty schedule provisioning + first drill TODO post-launch; runbook + escalation tree shipped 2026-05-07."
     },
     {
       "id": "DOC-001",

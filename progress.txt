@@ -1618,3 +1618,11 @@ acknowledgment).
 - Reviewed 2026-05-07.
 - No code changes — typecheck N/A.
 ---
+
+## 2026-05-07 - OPS-007
+- docs/runbooks/oncall.md: PagerDuty rotation pointer (24×7 weekly, Monday 09:00 SGT hand-off, primary + secondary + maintainer tier), escalation tree (10 → 20 → 30 min auto-escalate), severity → SLA matrix, monthly drill protocol (first Tuesday), drill log table, hand-off ritual.
+- docs/ops/alerting.md: appended On-call section linking to oncall.md.
+- Reviewed 2026-05-07. PagerDuty schedule-id placeholder; drill log empty until first run (post-provisioning).
+- No code changes — typecheck N/A.
+- OPS suite (001–007) complete.
+---
