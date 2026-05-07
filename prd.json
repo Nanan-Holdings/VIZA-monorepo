@@ -2273,7 +2273,7 @@
         "Typecheck passes"
       ],
       "priority": 166,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
