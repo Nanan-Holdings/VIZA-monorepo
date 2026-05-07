@@ -1391,3 +1391,11 @@ acknowledgment).
 - docs/inbox-cloudflare-setup.md: appended INBOX-007 retention policy section (knobs, retire flow, pg_cron schedule snippet, quarantine + hard-reject behaviour).
 - Typecheck: internal-website ✅, email-worker ✅
 ---
+
+## 2026-05-07 - LEGAL-001
+- docs/legal/terms-of-service.md: scope of service, eligibility, applicant duties, fees + refund stance, no-guarantee, liability cap (capped at agency fees paid for the application giving rise to the claim), Singapore governing law / SICC forum, change-of-terms ref to consent_event hash. STATUS: draft — pending counsel review.
+- docs/legal/privacy-policy.md: PII category table, processing purposes, GDPR legal bases, subprocessor pointer, international transfer mechanism, retention summary (180d inbox / 12mo artefacts / 36mo answers / 24mo audit), DSR rights, security controls (vault, audit log), children policy, contact addresses. STATUS: draft.
+- docs/legal/dpa.md: B2B controller-to-processor agreement — definitions, scope, customer instructions, security obligations, 48h breach window (counsel TODO to align with GDPR 72h), subprocessor authorisation + 30d notice, SCC Module 2 reference, audit rights, return/deletion on termination. STATUS: draft.
+- docs/legal/subprocessors.md: single source of truth — Supabase, Cloudflare, Stripe, Anthropic, 2captcha, Resend with categories of PII + region + DPA reference. Government portals listed separately as data recipients, not processors. Adding-a-subprocessor process documented.
+- No code changes — typecheck not applicable.
+---
