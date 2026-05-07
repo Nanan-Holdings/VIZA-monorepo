@@ -1504,3 +1504,11 @@ acknowledgment).
 - Existing webhook tests still 5/5 pass.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-07 - PAY-007
+- app/actions/revenue.ts: getRevenueDashboard() (admin via withAdmin('admin')) — last-30d window over orders + order_lines + applications. Returns MRR (paid agency-fee revenue), 30d refund total + refund rate, per-package roll-up { ordersPaid, agencyRevenue, thirdPartyCosts, refunds, grossMargin } sorted by agency revenue.
+- app/admin/(dashboard)/revenue/page.tsx: 3 KPI cards (MRR, refunds + rate, packages active) + per-package gross-margin table (zero-decimal currency formatting).
+- viza-be/agent-backend/scripts/reconcile-stripe-payouts.ts: daily cron-runnable script. Lists past-24h Stripe charges (paid + succeeded, minus amount_refunded), sums internal orders (paid - refunded) over the same window. Delta > 500 cents (USD 5) emits OPS alert via Resend (RESEND_OPS_ALERT_TO env) and exits 1. Otherwise exits 0.
+- Typecheck: internal-website ✅, agent-backend ✅
+- Notes: cron schedule not wired in this iter — runbook for the OPS team is pg_cron / k8s CronJob calling `npx tsx viza-be/agent-backend/scripts/reconcile-stripe-payouts.ts`.
+---
