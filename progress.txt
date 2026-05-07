@@ -1370,3 +1370,14 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Note: VN + UK runners do not currently invoke email steps in their main paths; these helpers are the integration points for when those steps land. The smoke script proves the round-trip independently of the orchestrator.
 ---
+
+## 2026-05-07 - INBOX-006
+- lib/inbox/sanitize-html.ts: allowlist HTML sanitiser. Strips <script>/<style>/<iframe>/<object>/<embed>/<link>/<meta>/<form>/<input>/<button> blocks (with content), drops every <img> (no remote tracking pixels), removes on*= handlers + style attrs, neutralises non-http(s)/mailto href/src to `#`. Output safe for dangerouslySetInnerHTML.
+- lib/inbox/r2-presign.ts: AWS SigV4 presigner for Cloudflare R2 (S3-compatible) using only node:crypto — no SDK dep. Reads R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_INBOX_BUCKET from env. Default 5-minute TTL.
+- app/actions/inbox.ts: listClientInbox (RLS-aware via @/lib/supabase/server), listApplicantInboxAsStaff (admin via withAdmin), getInboundEmailDownloadUrl (RLS-aware lookup → presignR2Get).
+- app/client/inbox/page.tsx: server-rendered list of inbox rows for the signed-in applicant, sanitised html or text, download link when r2_key present.
+- app/admin/(dashboard)/users/[id]/inbox/page.tsx: staff view of the same data scoped by applicant id (admin role gate).
+- app/api/inbox/[id]/download/route.ts: 302 redirect to the presigned R2 URL.
+- Story called for /staff/applicants/[id]/inbox; repo has /admin/* not /staff/*. Shipped under /admin/users/[id]/inbox; documented the deviation in prd notes.
+- Typecheck: internal-website ✅
+---
