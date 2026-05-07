@@ -145,3 +145,25 @@ If we need to detach `haggstorm.com` from Cloudflare Email Routing
 - INBOX-003 generates per-applicant aliases and the runner-facing
   `inbox.waitForMessage` helper.
 - INBOX-007 layers retention + abuse rules on top.
+
+## IMAP fallback — deprecated for VN + UK (INBOX-005)
+
+`viza-be/submission-service/src/email/imap-poll.ts` is the legacy
+shared-mailbox path. As of INBOX-005 it is **deprecated** for the
+Vietnam e-Visa and UK Apply-UK-Visa runners — those flows use the
+Cloudflare-backed inbox (`src/inbox/wait-for-message.ts` +
+`src/vietnam/inbox.ts` / `src/uk/inbox.ts`) instead. Country runners
+that have not yet been migrated may keep using IMAP until their own
+INBOX-cutover ticket lands.
+
+Smoke test for the new path:
+
+```
+APPLICANT_ID=<uuid> npx tsx viza-be/submission-service/scripts/inbox-smoke.ts vn
+APPLICANT_ID=<uuid> npx tsx viza-be/submission-service/scripts/inbox-smoke.ts uk-resume
+APPLICANT_ID=<uuid> npx tsx viza-be/submission-service/scripts/inbox-smoke.ts uk-security
+```
+
+Each invocation inserts a synthetic `inbound_email` row addressed to
+the applicant's alias, calls the matching wait-for-message wrapper
+with a 30 s timeout, and asserts the helper returned in under 30 s.
