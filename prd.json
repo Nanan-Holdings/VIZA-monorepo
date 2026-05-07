@@ -1862,7 +1862,7 @@
         "Typecheck passes"
       ],
       "priority": 138,
-      "passes": false,
+      "passes": true,
       "notes": "Helper replaces IMAP polling for new flows."
     },
     {

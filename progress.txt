@@ -1338,3 +1338,10 @@ acknowledgment).
 - Typecheck: email-worker ✅ (used agent-backend's tsc against the worker tsconfig — no install in the new package).
 - Deferred: postal-mime / mimemessage. Hand-rolled parser is good enough for OTP extraction; INBOX-004 can swap to a richer parser if needed.
 ---
+
+## 2026-05-07 - INBOX-003
+- drizzle/0046_applicant_inbox_alias.sql: ADD COLUMN applicant_profiles.inbox_alias + UNIQUE INDEX on LOWER(inbox_alias) so aliases are case-insensitive and 1-per-applicant. RLS policy on inbound_email opens SELECT to the owning applicant via LOWER(to_addr) = LOWER(inbox_alias) JOIN auth.uid(). Service-role writes still bypass RLS.
+- viza-fe app/actions/applicant-inbox.ts: assignApplicantInboxAlias(id) — idempotent. Reads existing alias first; otherwise mints appl-{ulid-lowercase}@haggstorm.com (Crockford base32, 26 chars, time + 80-bit random) and UPDATEs WHERE inbox_alias IS NULL. Retries on 23505 collisions (3 attempts). Uses withAdmin('system', actor, fn).
+- viza-be/submission-service/src/inbox/wait-for-message.ts: inbox.waitForMessage(applicantId, predicate, timeoutMs, opts?). Polls inbound_email WHERE to_addr=alias AND received_at >= since AND processed=false; on match, marks processed=true (configurable) and resolves. Throws InboxTimeoutError on deadline, InboxAliasMissingError when alias not assigned. Default 5s poll cadence; future swap to Supabase Realtime is API-compatible.
+- Typecheck: submission-service ✅, internal-website ✅
+---
