@@ -2173,8 +2173,8 @@
         "Typecheck passes"
       ],
       "priority": 159,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Bright Data residential pool chosen; sticky-session helper writes to runner_job.metadata.proxy."
     },
     {
       "id": "INFRA-005",
