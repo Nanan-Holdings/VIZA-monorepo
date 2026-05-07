@@ -1601,3 +1601,12 @@ acknowledgment).
 - Typecheck: agent-backend ✅, internal-website ✅
 - Notes: OPS-004 doesn't open a tracking-issue automatically — the alert is the trigger; ops files an issue manually until we wire a GitHub Actions hook from the alert dispatcher.
 ---
+
+## 2026-05-07 - OPS-005
+- drizzle/0060_runner_metrics.sql: runner_metric(job_id, application_id, country, week_start, success, time_to_submit_s, captcha_cost_cents, proxy_cost_cents, ts) with indexes on (country, week_start desc) and application_id. Helper iso_week_start(ts) for the SQL side.
+- viza-be/submission-service/src/metrics/emit.ts: emitRunnerMetric() inserts one row per finished job. Computes Monday-of-week in UTC client-side.
+- viza-be/submission-service/src/queue/worker.ts: markSucceeded reads pre-update started_at, computes time_to_submit_s, emits success metric. markFailedWithRetry on exhausted path emits failure metric (in addition to the OPS-003 alert).
+- app/admin/(dashboard)/metrics/page.tsx: 8-week window. Aggregates per (country, week) → success rate / total / avg TTS / captcha+proxy USD. Highlights cells where success_rate < 90% AND total >= 5. Top alert banner lists current-week violators.
+- Typecheck: submission-service ✅, internal-website ✅
+- Notes: SQL-side rollup cron + automatic alert on threshold breach is queued; the page surfaces the threshold visually today.
+---
