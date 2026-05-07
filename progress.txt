@@ -1464,3 +1464,11 @@ acknowledgment).
 - Typecheck: internal-website ✅; tests: 4/4 pass.
 - Notes: ZERO_DECIMAL currency conversion (JPY/KRW/etc) in stripeAmount(). Govt fee is included in checkout only when govtFeeChannel === 'viza_passthrough'.
 ---
+
+## 2026-05-07 - PAY-003
+- docs/payments/government-fee-routing.md: 4 mechanisms (runner_escrow_card / client_in_portal / applicant_direct_link / paper_only_no_fee) + per-country table covering all 27 catalog packages + reference-implementation walkthrough for Vietnam.
+- viza-be/submission-service/src/payment-routing.ts: GOVT_FEE_ROUTING source-of-truth array + GovtFeeMechanism type + routingFor() helper + UnknownPackageError.
+- viza-be/submission-service/src/vietnam/govt-payment.ts: Vietnam reference implementation. loadEscrowCard(applicantId) reads viza.escrow.card.{pan,expiry,cvv} via applicantVault.require (vault audit logged); recordPortalReceipt() inserts kind='govt' order_line + flips order paid → submitted; recordPortalDecline() flips to 'govt_payment_failed' with reason metadata. VN_GOVT_PAYMENT_MECHANISM constant exported for consumers.
+- viza-be/submission-service/src/__tests__/payment-routing.spec.ts: 5/5 node:test cases (parity with FE pricing, no extra packages, VN/UK/paper-only spot-checks).
+- Typecheck: submission-service ✅
+---
