@@ -1,0 +1,2994 @@
+{
+  "common": {
+    "loading": "[VI] Loading your dashboard...",
+    "error": "[VI] An error occurred",
+    "searchLanguage": "[VI] Search language...",
+    "noLanguagesFound": "[VI] No languages found"
+  },
+  "nav": {
+    "home": "[VI] Home",
+    "application": "[VI] Application",
+    "chat": "[VI] Chat",
+    "documents": "[VI] Documents",
+    "inviteFriends": "[VI] Invite Friends"
+  },
+  "menu": {
+    "inviteFriends": "[VI] Invite Friends",
+    "settings": "[VI] Settings",
+    "help": "[VI] Help",
+    "logout": "[VI] Logout",
+    "loggingOut": "[VI] Logging out..."
+  },
+  "session": {
+    "invalidatedTitle": "[VI] Session No Longer Active",
+    "invalidatedBody": "[VI] Another user view was opened in a different tab. This session has been invalidated for security.",
+    "invalidatedHint": "[VI] Please close this tab and use the new user view tab."
+  },
+  "home": {
+    "welcomeBack": "[VI] Welcome back, {name}.",
+    "vizaApplication": "[VI] Here is your VIZA Application",
+    "recentActivity": "[VI] Recent Activity",
+    "noRecentActivity": "[VI] No recent activity yet. Start your application to see updates here.",
+    "loadingDashboard": "[VI] Loading your dashboard...",
+    "authError": "[VI] Authentication failed. Please try clicking the link again.",
+    "dashboardError": "[VI] An error occurred while loading your dashboard",
+    "application": "[VI] Application",
+    "indonesia": "[VI] Indonesia",
+    "touristVisaB211A": "[VI] Tourist Visa B211A",
+    "notStarted": "[VI] Not started",
+    "submitted": "[VI] Submitted {date}",
+    "documentsTitle": "[VI] Documents",
+    "ofRequired": "[VI] of {total} required",
+    "percentComplete": "[VI] {pct}% complete",
+    "quickActions": {
+      "title": "[VI] Quick Actions",
+      "continueWithAI": "[VI] Continue with AI",
+      "uploadDocuments": "[VI] Upload Documents",
+      "viewApplication": "[VI] View Application"
+    },
+    "emptyApplication": {
+      "noActiveApplication": "[VI] No active application",
+      "subtitle": "[VI] Start your Indonesian tourist visa application today.",
+      "cta": "[VI] Start your Indonesia visa application"
+    },
+    "statusLabels": {
+      "draft": "[VI] Draft",
+      "in_progress": "[VI] In Progress",
+      "submitted": "[VI] Submitted",
+      "approved": "[VI] Approved",
+      "rejected": "[VI] Rejected"
+    },
+    "docLabels": {
+      "passport_copy": "[VI] Passport Copy",
+      "photo": "[VI] Photo",
+      "flight_booking": "[VI] Flight Booking",
+      "hotel_booking": "[VI] Hotel Booking",
+      "travel_itinerary": "[VI] Travel Itinerary",
+      "bank_statement": "[VI] Bank Statement"
+    },
+    "activity": {
+      "applicationSubmitted": "[VI] Application submitted",
+      "applicationCreated": "[VI] Application created",
+      "visaType": "[VI] Indonesia Tourist Visa B211A",
+      "documentUploaded": "[VI] {docType} uploaded",
+      "documentRejected": "[VI] Document rejected — please re-upload",
+      "documentReceived": "[VI] Document received",
+      "justNow": "[VI] Just now",
+      "minutesAgo": "[VI] {count}m ago",
+      "hoursAgo": "[VI] {count}h ago",
+      "daysAgo": "[VI] {count}d ago"
+    },
+    "visaTimeline": {
+      "heading": "[VI] Indonesia Tourist Visa B211A",
+      "subheading": "[VI] Complete each step to submit your visa application",
+      "stages": {
+        "application": {
+          "title": "[VI] Complete your application",
+          "subtitle": "[VI] Fill in personal info, passport and travel details",
+          "badge": "[VI] Start"
+        },
+        "documents": {
+          "title": "[VI] Upload your documents",
+          "subtitle": "[VI] 6 documents required for the B211A tourist visa",
+          "badge": "[VI] Not yet"
+        },
+        "submit": {
+          "title": "[VI] Submit application",
+          "subtitle": "[VI] Review everything and submit to our processing team",
+          "badge": "[VI] Not yet"
+        },
+        "review": {
+          "title": "[VI] Under review",
+          "subtitle": "[VI] Typically processed within 3 business days",
+          "badge": "[VI] Awaiting"
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] Visa approved and e-visa document sent to you",
+          "badge": "[VI] Awaiting"
+        }
+      }
+    },
+    "overview": {
+      "phaseOfTotal": "[VI] Phase {current} of {total}",
+      "notStartedYet": "[VI] Not started yet",
+      "etaLabel": "[VI] Expected decision",
+      "estimatedTotal": "[VI] Estimated total"
+    },
+    "nextAction": {
+      "title": "[VI] Next action",
+      "allDone": "[VI] All done",
+      "allDoneSub": "[VI] Awaiting decision from the consulate.",
+      "getStarted": "[VI] Get started",
+      "getStartedSub": "[VI] Pick up where you left off when you're ready.",
+      "cta": {
+        "start": "[VI] Start",
+        "continue": "[VI] Continue",
+        "payNow": "[VI] Pay now",
+        "signDeclaration": "[VI] Sign your declaration",
+        "uploadDocs": "[VI] Upload documents",
+        "bookAppointment": "[VI] Book appointment",
+        "bookInterview": "[VI] Book interview",
+        "viewDetails": "[VI] View details"
+      }
+    },
+    "duration": {
+      "day1": "[VI] Day 1",
+      "daysOneToThree": "[VI] 1–3 days",
+      "daysThreeToFive": "[VI] 3–5 days",
+      "sameDay": "[VI] Same day",
+      "withinOneWeek": "[VI] Within 1 week",
+      "aboutOneWeek": "[VI] ~1 week",
+      "oneToTwoWeeks": "[VI] 1–2 weeks",
+      "aboutThreeWeeks": "[VI] ~3 weeks",
+      "threeToSixWeeks": "[VI] 3–6 weeks",
+      "aboutFifteenWorkingDays": "[VI] ~15 working days",
+      "aboutThreeWorkingDays": "[VI] ~3 working days",
+      "aboutFiveWorkingDays": "[VI] ~5 working days",
+      "dayOf": "[VI] Day of",
+      "varies": "[VI] Varies"
+    },
+    "realWorld": {
+      "in_person": "[VI] In person",
+      "mail": "[VI] Mail",
+      "online": "[VI] Online"
+    },
+    "phase": {
+      "doneOn": "[VI] Done · {date}",
+      "startedOn": "[VI] Started · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "[VI] Here's how the rest of your application unfolds. Estimated time:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "[VI] Create UKVI account",
+          "subtitle": "[VI] Sign up for a UK Visas & Immigration account to start your application."
+        },
+        "form": {
+          "title": "[VI] Online application",
+          "subtitle": "[VI] Fill out the 44-page Standard Visitor application."
+        },
+        "pay": {
+          "title": "[VI] Pay visa fee",
+          "subtitle": "[VI] Pay the UK visa application fee online."
+        },
+        "documents": {
+          "title": "[VI] Supporting documents",
+          "subtitle": "[VI] Upload bank statements, travel plans, and proof of accommodation."
+        },
+        "ukvcas": {
+          "title": "[VI] UKVCAS biometrics",
+          "subtitle": "[VI] Book and attend a biometrics appointment at a UKVCAS centre."
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] UKVI reviews your application and returns a decision."
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "[VI] Schengen application",
+          "subtitle": "[VI] Complete the harmonized Schengen short-stay application."
+        },
+        "documents": {
+          "title": "[VI] Supporting documents",
+          "subtitle": "[VI] Travel insurance, accommodation, financials, and itinerary."
+        },
+        "vfs_appointment": {
+          "title": "[VI] VFS appointment",
+          "subtitle": "[VI] Book an appointment at the relevant VFS Global centre."
+        },
+        "biometrics": {
+          "title": "[VI] Biometrics",
+          "subtitle": "[VI] Provide fingerprints and a photo at your appointment."
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] The consulate decides on your short-stay visa."
+        },
+        "passport_pickup": {
+          "title": "[VI] Passport pickup",
+          "subtitle": "[VI] Collect your passport from the VFS centre once ready."
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "[VI] Pick visitor stream",
+          "subtitle": "[VI] Choose between Tourist, Business, Sponsored Family, ADS, or Frequent Traveller."
+        },
+        "form": {
+          "title": "[VI] Online application",
+          "subtitle": "[VI] Complete the Subclass 600 ImmiAccount application."
+        },
+        "signing": {
+          "title": "[VI] Sign your declaration",
+          "subtitle": "[VI] Review your character and health declarations and sign them before submission."
+        },
+        "pay": {
+          "title": "[VI] Pay visa fee",
+          "subtitle": "[VI] Pay the visa application charge in ImmiAccount."
+        },
+        "submit_online": {
+          "title": "[VI] Submit online",
+          "subtitle": "[VI] Submit your application through ImmiAccount."
+        },
+        "biometrics_optional": {
+          "title": "[VI] Biometrics (if required)",
+          "subtitle": "[VI] Some nationalities must provide biometrics at a VAC."
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] Home Affairs assesses and issues a decision."
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "[VI] E-Visa form",
+          "subtitle": "[VI] Fill out the Vietnam e-Visa application online."
+        },
+        "pay": {
+          "title": "[VI] Pay visa fee",
+          "subtitle": "[VI] Pay the e-Visa fee online."
+        },
+        "wait_email": {
+          "title": "[VI] Wait for email",
+          "subtitle": "[VI] Vietnam Immigration emails the e-Visa PDF when approved."
+        },
+        "print_and_travel": {
+          "title": "[VI] Print and travel",
+          "subtitle": "[VI] Print the e-Visa PDF and present it on arrival."
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "[VI] Application",
+          "subtitle": "[VI] Complete your visa application."
+        },
+        "documents": {
+          "title": "[VI] Documents",
+          "subtitle": "[VI] Upload required supporting documents."
+        },
+        "submit": {
+          "title": "[VI] Submit",
+          "subtitle": "[VI] Submit your application for review."
+        },
+        "review": {
+          "title": "[VI] Review",
+          "subtitle": "[VI] Your application is being reviewed."
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] Awaiting a decision."
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "[VI] DS-160 form",
+          "subtitle": "[VI] Complete the online DS-160 nonimmigrant visa application."
+        },
+        "pay": {
+          "title": "[VI] Pay MRV fee",
+          "subtitle": "[VI] Pay the visa application fee at a designated bank or online."
+        },
+        "schedule_interview": {
+          "title": "[VI] Schedule interview",
+          "subtitle": "[VI] Book your visa interview at the U.S. embassy or consulate."
+        },
+        "documents": {
+          "title": "[VI] Supporting documents",
+          "subtitle": "[VI] Gather passport, photo, financials, and travel evidence."
+        },
+        "interview": {
+          "title": "[VI] Consular interview",
+          "subtitle": "[VI] Attend your interview at the U.S. consulate or embassy."
+        },
+        "passport_pickup": {
+          "title": "[VI] Passport return",
+          "subtitle": "[VI] Your passport is mailed or returned for pickup with the visa."
+        },
+        "decision": {
+          "title": "[VI] Decision",
+          "subtitle": "[VI] The consular officer issues a decision after the interview."
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "[VI] Application form",
+          "subtitle": "[VI] Complete the Indonesia tourist visa B211A form."
+        },
+        "submit": {
+          "title": "[VI] Submit application",
+          "subtitle": "[VI] Submit through the Indonesia immigration portal."
+        },
+        "pay": {
+          "title": "[VI] Pay visa fee",
+          "subtitle": "[VI] Pay the B211A application fee."
+        },
+        "email_visa": {
+          "title": "[VI] E-Visa email",
+          "subtitle": "[VI] Receive your B211A approval by email."
+        }
+      }
+    }
+  },
+  "client": {
+    "signing": {
+      "loading": "[VI] Loading your declaration…",
+      "errorTitle": "[VI] We couldn't load this signing page",
+      "notAuApplication": "[VI] Signing is only required for Australian Subclass 600 visa applications.",
+      "alreadySignedTitle": "[VI] Declaration already signed",
+      "alreadySignedBody": "[VI] Your signature is on file. The submission service is taking it from here.",
+      "submittedTitle": "[VI] Signature submitted",
+      "submittedBody": "[VI] We've queued your application for the final submit step.",
+      "backToHome": "[VI] Back to dashboard",
+      "pageTitle": "[VI] Sign your declaration",
+      "pageSubtitle": "[VI] Review the answers below and sign at the bottom. Your signature is rendered onto the official Subclass 600 declaration before submission.",
+      "healthHeading": "[VI] Health declarations",
+      "characterHeading": "[VI] Character declarations",
+      "finalHeading": "[VI] Final acknowledgements",
+      "yes": "[VI] Yes",
+      "no": "[VI] No",
+      "unanswered": "[VI] Not answered",
+      "signHeading": "[VI] Sign here",
+      "signSubtitle": "[VI] Use your finger, stylus, or mouse. Tap Clear to retry.",
+      "padAriaLabel": "[VI] Signature pad",
+      "clear": "[VI] Clear",
+      "submit": "[VI] Submit signature",
+      "submitting": "[VI] Submitting…"
+    }
+  },
+  "services": {
+    "title": "[VI] Services",
+    "scheduled": "[VI] Scheduled",
+    "yourHistory": "[VI] Your history",
+    "reschedule": "[VI] Reschedule",
+    "cancel": "[VI] Cancel",
+    "cancelling": "[VI] Cancelling...",
+    "cannotReschedule": "[VI] Cannot reschedule within 24 hours",
+    "comingSoon": "[VI] Coming Soon",
+    "noScheduledServices": "[VI] No scheduled services",
+    "noScheduledDescription": "[VI] You don't have any upcoming services. Browse our recommended tests below to get started.",
+    "noServiceHistory": "[VI] No service history",
+    "noHistoryDescription": "[VI] You haven't completed any services yet. Your history will appear here.",
+    "cancelDialog": {
+      "title": "[VI] Cancel scheduled service?",
+      "keep": "[VI] Keep"
+    },
+    "recommended": {
+      "heading": "[VI] Recommended for you",
+      "subheading": "[VI] Our top test recommendations"
+    },
+    "personalized": {
+      "heading": "[VI] Personalized recommendations",
+      "subheading": "[VI] Tests based on your profile and health data"
+    },
+    "upcoming": {
+      "heading": "[VI] Upcoming tests",
+      "subheading": "[VI] New tests we're working on"
+    },
+    "marketplace": {
+      "supplement": {
+        "title": "[VI] Supplement Marketplace",
+        "description": "[VI] Insider prices on 300+ curated longevity products"
+      },
+      "service": {
+        "title": "[VI] Service Marketplace",
+        "description": "[VI] Access to curated RX's like documents or peptides"
+      }
+    },
+    "cards": {
+      "bloodPanel": {
+        "title": "[VI] Blood Panel",
+        "description": "[VI] 40+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "[VI] Included in your plan"
+      },
+      "advancedBloodPanel": {
+        "title": "[VI] Advanced Blood Panel",
+        "description": "[VI] 130+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "[VI] Get Started",
+        "badge": "[VI] Recommended"
+      },
+      "glp1": {
+        "title": "[VI] GLP-1 Treatment",
+        "description": "[VI] You may be a candidate for GLP-1 service. See how it could help you.",
+        "cta": "[VI] Get Started"
+      },
+      "allergyTesting": {
+        "title": "[VI] Food & Environmental Allergy Testing",
+        "description": "[VI] Determine your specific food and environmental allergies.",
+        "cta": "[VI] Coming Soon"
+      },
+      "cancerTest": {
+        "title": "[VI] Grail Galleri Multi Cancer Test",
+        "description": "[VI] Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
+        "cta": "[VI] Coming Soon"
+      },
+      "dexaScan": {
+        "title": "[VI] DEXA Bone Density Scan",
+        "description": "[VI] Measure your bone density and risk of osteoporosis.",
+        "cta": "[VI] Coming Soon"
+      },
+      "gutMicrobiome": {
+        "title": "[VI] Gut Microbiome Testing",
+        "description": "[VI] Analyze your gut microbiome to understand your digestive health.",
+        "cta": "[VI] Coming Soon"
+      },
+      "toxicology": {
+        "title": "[VI] Environmental Toxicology Testing",
+        "description": "[VI] Analyze your environmental toxins and exposure.",
+        "cta": "[VI] Coming Soon"
+      }
+    }
+  },
+  "application": {
+    "title": "[VI] Indonesia Tourist Visa B211A",
+    "saving": "[VI] Saving...",
+    "edit": "[VI] Edit",
+    "stepOf": "[VI] Step {current} of {total}: {name}",
+    "steps": {
+      "personalInfo": {
+        "name": "[VI] Personal Info",
+        "description": "[VI] Full name, date of birth, nationality"
+      },
+      "passport": {
+        "name": "[VI] Passport",
+        "description": "[VI] Passport number, dates, issuing country"
+      },
+      "travelDetails": {
+        "name": "[VI] Travel Details",
+        "description": "[VI] Arrival, departure, accommodation"
+      },
+      "documents": {
+        "name": "[VI] Documents",
+        "description": "[VI] Upload all 6 required documents"
+      },
+      "review": {
+        "name": "[VI] Review",
+        "description": "[VI] Confirm your details are correct"
+      },
+      "status": {
+        "name": "[VI] Status",
+        "description": "[VI] Application submitted"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "[VI] Not authenticated",
+      "failedToSave": "[VI] Failed to save",
+      "failedToSubmit": "[VI] Failed to submit",
+      "profileNotFound": "[VI] Profile not found",
+      "noApplicationFound": "[VI] No application found"
+    },
+    "dynamicSteps": {
+      "Personal Information": "[VI] Personal Information",
+      "Personal Information 1": "[VI] Personal Information 1",
+      "Personal Information 2": "[VI] Personal Information 2",
+      "Personal Information II": "[VI] Personal Information II",
+      "Travel Information": "[VI] Travel Information",
+      "Travel Companions": "[VI] Travel Companions",
+      "Previous US Travel": "[VI] Previous U.S. Travel",
+      "Address and Phone": "[VI] Address and Phone",
+      "Address and Phone Information": "[VI] Address and Phone Information",
+      "Passport Information": "[VI] Passport Information",
+      "US Contact Information": "[VI] U.S. Contact Information",
+      "US Point of Contact": "[VI] US Point of Contact",
+      "Family Information": "[VI] Family Information",
+      "Family Information: Relatives": "[VI] Family Information: Relatives",
+      "Family Information: Spouse": "[VI] Family Information: Spouse",
+      "Family Information: Partner": "[VI] Family Information: Partner",
+      "Family Information: Deceased Spouse": "[VI] Family Information: Deceased Spouse",
+      "Family Information: Former Spouse": "[VI] Family Information: Former Spouse",
+      "Work/Education/Training": "[VI] Work/Education/Training",
+      "Work/Education/Training: Present": "[VI] Work/Education/Training: Present",
+      "Work/Education/Training: Previous": "[VI] Work/Education/Training: Previous",
+      "Work/Education/Training: Additional": "[VI] Work/Education/Training: Additional",
+      "Work and Education": "[VI] Work and Education",
+      "Security and Background": "[VI] Security and Background",
+      "Security and Background: Part 1": "[VI] Security and Background: Part 1",
+      "Security and Background: Part 2": "[VI] Security and Background: Part 2",
+      "Security and Background: Part 3": "[VI] Security and Background: Part 3",
+      "Security and Background: Part 4": "[VI] Security and Background: Part 4",
+      "Security and Background: Part 5": "[VI] Security and Background: Part 5",
+      "Upload Photo": "[VI] Upload Photo",
+      "Review": "[VI] Review Application",
+      "Confirmation": "[VI] Confirmation"
+    },
+    "dynamicSections": {
+      "personal": "[VI] Personal",
+      "travel": "[VI] Travel",
+      "travelCompanions": "[VI] Travel Companions",
+      "previousTravel": "[VI] Previous U.S. Travel",
+      "addressAndPhone": "[VI] Address and Phone",
+      "passport": "[VI] Passport",
+      "usContact": "[VI] U.S. Contact",
+      "family": "[VI] Family",
+      "workEducationTraining": "[VI] Work / Education / Training",
+      "securityAndBackground": "[VI] Security and Background",
+      "photo": "[VI] Upload Photo",
+      "review": "[VI] Review",
+      "confirmation": "[VI] Confirmation"
+    },
+    "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
+    "photoStepDescription": "[VI] Upload your passport-style photo",
+    "reviewStepDescription": "[VI] Review and confirm your details",
+    "statusStepDescription": "[VI] Application submitted",
+    "dynamicButtons": {
+      "continue": "[VI] Continue",
+      "saving": "[VI] Saving...",
+      "selectFallback": "[VI] Select…",
+      "addAnother": "[VI] Add another",
+      "remove": "[VI] Remove"
+    }
+  },
+  "applicationSteps": {
+    "continue": "[VI] Continue",
+    "submit": "[VI] Submit",
+    "confirm": "[VI] Confirm",
+    "cancel": "[VI] Cancel",
+    "edit": "[VI] Edit",
+    "select": "[VI] Select...",
+    "uploadFailed": "[VI] Upload failed",
+    "upload": "[VI] Upload",
+    "replace": "[VI] Replace",
+    "personalInfo": {
+      "fullName": "[VI] Full name (as on passport)",
+      "fullNamePlaceholder": "[VI] John Smith",
+      "dateOfBirth": "[VI] Date of birth",
+      "dateOfBirthPlaceholder": "[VI] Select date of birth",
+      "placeOfBirth": "[VI] Place of birth",
+      "placeOfBirthPlaceholder": "[VI] City, Country",
+      "gender": "[VI] Gender",
+      "male": "[VI] Male",
+      "female": "[VI] Female",
+      "other": "[VI] Other",
+      "nationality": "[VI] Nationality",
+      "nationalityPlaceholder": "[VI] e.g. Australian",
+      "occupation": "[VI] Occupation",
+      "occupationPlaceholder": "[VI] e.g. Software Engineer",
+      "currentAddress": "[VI] Current address",
+      "currentAddressPlaceholder": "[VI] Street, City, Country"
+    },
+    "passport": {
+      "passportNumber": "[VI] Passport number",
+      "passportNumberPlaceholder": "[VI] PA1234567",
+      "issueDate": "[VI] Issue date",
+      "issueDatePlaceholder": "[VI] Select issue date",
+      "expiryDate": "[VI] Expiry date",
+      "expiryDatePlaceholder": "[VI] Select expiry date",
+      "issuingCountry": "[VI] Issuing country",
+      "issuingCountryPlaceholder": "[VI] e.g. Australia",
+      "issuingAuthority": "[VI] Issuing authority",
+      "issuingAuthorityPlaceholder": "[VI] e.g. Department of Home Affairs"
+    },
+    "travel": {
+      "arrivalDate": "[VI] Arrival date",
+      "arrivalDatePlaceholder": "[VI] Select arrival date",
+      "departureDate": "[VI] Departure date",
+      "departureDatePlaceholder": "[VI] Select departure date",
+      "portOfEntry": "[VI] Port of entry",
+      "portOfEntryPlaceholder": "[VI] e.g. Ngurah Rai International Airport (Bali)",
+      "purposeOfVisit": "[VI] Purpose of visit",
+      "selectPurpose": "[VI] Select purpose...",
+      "tourism": "[VI] Tourism",
+      "business": "[VI] Business",
+      "socialCultural": "[VI] Social / Cultural",
+      "familyVisit": "[VI] Family Visit",
+      "accommodationName": "[VI] Accommodation name",
+      "accommodationNamePlaceholder": "[VI] Hotel / Airbnb name",
+      "accommodationAddress": "[VI] Accommodation address",
+      "accommodationAddressPlaceholder": "[VI] Full address in Indonesia"
+    },
+    "documentUpload": {
+      "title": "[VI] Document Upload",
+      "description": "[VI] Upload all required documents for your Indonesia B211A tourist visa application.",
+      "uploadAllToContinue": "[VI] Upload all {count} documents to continue.",
+      "docs": {
+        "passport_copy": "[VI] Passport bio page (scan or photo)",
+        "photo": "[VI] Recent passport-size photo",
+        "flight_booking": "[VI] Flight booking confirmation",
+        "hotel_booking": "[VI] Hotel / accommodation booking",
+        "travel_itinerary": "[VI] Travel itinerary",
+        "bank_statement": "[VI] Bank statement (last 3 months)"
+      }
+    },
+    "dynamicField": {
+      "selectCountry": "[VI] Select a country",
+      "doNotKnow": "[VI] Do Not Know",
+      "doesNotApply": "[VI] Does Not Apply",
+      "usSocialSecurityNumber": "[VI] U.S. Social Security Number"
+    },
+    "review": {
+      "title": "[VI] Review Your Application",
+      "personalInformation": "[VI] Personal Information",
+      "fullName": "[VI] Full name",
+      "dateOfBirth": "[VI] Date of birth",
+      "placeOfBirth": "[VI] Place of birth",
+      "gender": "[VI] Gender",
+      "nationality": "[VI] Nationality",
+      "occupation": "[VI] Occupation",
+      "address": "[VI] Address",
+      "passportDetails": "[VI] Passport Details",
+      "passportNumber": "[VI] Passport number",
+      "issueDate": "[VI] Issue date",
+      "expiryDate": "[VI] Expiry date",
+      "issuingCountry": "[VI] Issuing country",
+      "issuingAuthority": "[VI] Issuing authority",
+      "travelInformation": "[VI] Travel Information",
+      "arrivalDate": "[VI] Arrival date",
+      "departureDate": "[VI] Departure date",
+      "portOfEntry": "[VI] Port of entry",
+      "purpose": "[VI] Purpose",
+      "accommodation": "[VI] Accommodation",
+      "accommodationAddress": "[VI] Accommodation address",
+      "reviewMessage": "[VI] Please review your details carefully before submitting.",
+      "confirmAndSubmit": "[VI] Confirm & Submit",
+      "validation": {
+        "failed": "[VI] Validation failed",
+        "hasErrors": "[VI] Application has errors — please fix before submitting",
+        "hasWarnings": "[VI] Warnings — review before submitting",
+        "allGood": "[VI] Application validated — ready to submit",
+        "errorFallback": "[VI] ⚠️ {error} — you can still submit below.",
+        "validating": "[VI] Validating…",
+        "validateButton": "[VI] Validate Application",
+        "submitWithWarnings": "[VI] Submit (with warnings)"
+      }
+    },
+    "photoUpload": {
+      "title": "[VI] Upload Photo",
+      "prepareTitle": "[VI] Prepare Photo for Submission",
+      "instructions": "[VI] Please refer to the Department of State's image requirements. Your photo must be in JPEG format (.jpg), 240KB or less, and taken within the last 6 months.",
+      "cropToolTitle": "[VI] Photo Cropping Tool",
+      "cropToolDescription": "[VI] Use this tool to resize and crop your photo to meet the Department of State's head-size and digital image submission requirements.",
+      "startCropTool": "[VI] Start Photo Tool",
+      "selectPhoto": "[VI] Select Your Photo",
+      "browse": "[VI] Browse",
+      "formatHint": "[VI] Choose a JPEG format image (.jpg file type) that is 240KB or less in file size.",
+      "qualityTitle": "[VI] Photo Quality Standards",
+      "qualityDescription": "[VI] To ensure the highest quality photos will be used in the final printed travel document: color photo, plain white or off-white background, full-face view directly facing the camera, neutral facial expression, both eyes open, taken within the last 6 months.",
+      "resultTitle": "[VI] Photo Quality Standards Result",
+      "passed": "[VI] Photo passed quality standards. Your photo has successfully been uploaded and passed all quality checks.",
+      "failed": "[VI] The submitted photo did not meet the image quality requirements.",
+      "reasonsTitle": "[VI] Reasons why photo failed:",
+      "backSelect": "[VI] Back: Select a Different Photo",
+      "nextWithPhoto": "[VI] Next: Continue Using this Photo",
+      "nextWithoutPhoto": "[VI] Next: Continue Without a Photo",
+      "confirmTitle": "[VI] Confirm Photo",
+      "confirmNotice": "[VI] Please note that you may be required to bring a passport-like photo to your interview.",
+      "uploadNew": "[VI] Upload New Photo",
+      "continue": "[VI] Continue",
+      "uploading": "[VI] Uploading photo...",
+      "uploadError": "[VI] Failed to upload photo. Please try again.",
+      "noPhoto": "[VI] No Photo Provided",
+      "photoProvided": "[VI] Photo Provided",
+      "formatSpec": "[VI] JPEG (.jpg) · Max 240KB",
+      "notAuthenticated": "[VI] Not authenticated",
+      "failures": {
+        "file_too_large": "[VI] File size exceeds the 240KB maximum",
+        "wrong_format": "[VI] File must be in JPEG format (.jpg)",
+        "dimensions_too_small": "[VI] Image must be at least 600x600 pixels",
+        "not_square": "[VI] Image must have a square (1:1) aspect ratio",
+        "poor_illumination": "[VI] Illumination appears to be poor"
+      },
+      "applyCrop": "[VI] Apply Crop",
+      "cancelCrop": "[VI] Cancel",
+      "zoom": "[VI] Zoom"
+    },
+    "translation": {
+      "tabOriginal": "[VI] 中文 (Original)",
+      "tabEnglish": "[VI] English Translation",
+      "aiTranslated": "[VI] Auto Translated",
+      "userEdited": "[VI] Edited",
+      "translating": "[VI] Translating your application...",
+      "translationFailed": "[VI] Translation could not be completed automatically.",
+      "retryTranslation": "[VI] Retry",
+      "editTranslation": "[VI] Edit",
+      "saveTranslation": "[VI] Save",
+      "sectionPersonal": "[VI] Personal Information",
+      "sectionPassport": "[VI] Passport Details",
+      "sectionTravel": "[VI] Travel Information",
+      "sectionDynamic": "[VI] Application Questions"
+    },
+    "status": {
+      "title": "[VI] Application Submitted",
+      "confirmationNumber": "[VI] Confirmation number",
+      "submittedOn": "[VI] Submitted on",
+      "estimatedProcessing": "[VI] Estimated processing",
+      "businessDays": "[VI] business days",
+      "message": "[VI] Your application has been submitted to the Indonesian e-visa portal. You will receive an email confirmation once your visa is approved. Keep your confirmation number for reference.",
+      "viewReceipt": "[VI] View Receipt",
+      "done": "[VI] Done"
+    },
+    "documentChecklist": {
+      "missingDocuments": "[VI] Missing Documents ({count})",
+      "missingDescription": "[VI] The following documents are still required before your application can be submitted:",
+      "uploadNow": "[VI] Got it, I'll upload them now",
+      "docs": {
+        "passport_copy": "[VI] Passport bio page",
+        "photo": "[VI] Passport-size photo",
+        "flight_booking": "[VI] Flight booking confirmation",
+        "hotel_booking": "[VI] Hotel booking confirmation",
+        "travel_itinerary": "[VI] Travel itinerary",
+        "bank_statement": "[VI] Bank statement (3 months)"
+      }
+    },
+    "statusCard": {
+      "applicationStatus": "[VI] Application Status",
+      "draft": "[VI] Draft",
+      "inProgress": "[VI] In Progress",
+      "submitted": "[VI] Submitted",
+      "approved": "[VI] Approved",
+      "rejected": "[VI] Rejected"
+    }
+  },
+  "simplifiedForm": {
+    "shared": {
+      "loading": "[VI] Getting your intake form ready…",
+      "progress": "[VI] Step {current} of {total} · {name}",
+      "back": "[VI] Back",
+      "continue": "[VI] Continue",
+      "submitting": "[VI] Saving your answers…",
+      "edit": "[VI] Edit",
+      "yes": "[VI] Yes",
+      "no": "[VI] No",
+      "openLongFormLead": "[VI] Need to fill the detailed form?",
+      "openLongFormLink": "[VI] Open the full version",
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your answers",
+        "subtitle": "[VI] Check each section and submit when everything looks right.",
+        "submit": "[VI] Looks good — submit",
+        "empty": "[VI] Nothing entered yet.",
+        "notProvided": "[VI] —"
+      },
+      "tripDates": {
+        "duration": "[VI] Trip length: {days} days",
+        "invalid": "[VI] Departure date must be after arrival date."
+      }
+    },
+    "us": {
+      "steps": {
+        "identity": "[VI] Identity",
+        "contact": "[VI] Contact",
+        "passport": "[VI] Passport",
+        "travel": "[VI] Travel",
+        "usStay": "[VI] U.S. stay",
+        "work": "[VI] Work & education",
+        "usContact": "[VI] U.S. Contact",
+        "family": "[VI] Family",
+        "background": "[VI] Background"
+      },
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your DS-160 answers",
+        "subtitle": "[VI] Edit anything that's wrong before submitting.",
+        "identity": "[VI] Identity",
+        "contact": "[VI] Contact",
+        "passport": "[VI] Passport",
+        "travel": "[VI] Travel",
+        "work": "[VI] Work & education",
+        "usContact": "[VI] U.S. contact",
+        "family": "[VI] Family",
+        "background": "[VI] Background"
+      }
+    },
+    "uk": {
+      "steps": {
+        "purpose": {
+          "label": "[VI] Purpose",
+          "title": "[VI] Why are you visiting the UK?",
+          "subtitle": "[VI] Pick the option that best matches your main reason for travel."
+        },
+        "personal": {
+          "label": "[VI] Personal",
+          "title": "[VI] Personal details",
+          "subtitle": "[VI] From your passport — exactly as it appears."
+        },
+        "passport": {
+          "label": "[VI] Passport",
+          "title": "[VI] Passport",
+          "subtitle": "[VI] Travel-document details for the visa."
+        },
+        "contact": {
+          "label": "[VI] Contact",
+          "title": "[VI] Contact & residence",
+          "subtitle": "[VI] How UKVI can reach you."
+        },
+        "ukvi": {
+          "label": "[VI] UKVI",
+          "title": "[VI] UKVI account",
+          "subtitle": "[VI] Link the UKVI account you'll apply with."
+        },
+        "tripDates": {
+          "label": "[VI] Dates",
+          "title": "[VI] When are you visiting?",
+          "subtitle": "[VI] Standard Visitor visas typically allow stays of up to 6 months per visit."
+        },
+        "uk_address": {
+          "label": "[VI] UK address",
+          "title": "[VI] Where you'll stay in the UK",
+          "subtitle": "[VI] First UK address and host details if any."
+        },
+        "employment": {
+          "label": "[VI] Work",
+          "title": "[VI] Employment & income",
+          "subtitle": "[VI] Where you work and what you earn."
+        },
+        "history": {
+          "label": "[VI] History",
+          "title": "[VI] Travel & visa history",
+          "subtitle": "[VI] Past UK visits and any prior visa refusals."
+        },
+        "funding": {
+          "label": "[VI] Funds",
+          "title": "[VI] Trip funding",
+          "subtitle": "[VI] How the trip is paid for."
+        },
+        "declaration": {
+          "label": "[VI] Declare",
+          "title": "[VI] Declarations",
+          "subtitle": "[VI] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your UK Standard Visitor answers",
+        "subtitle": "[VI] Edit anything that's wrong before submitting.",
+        "purpose": "[VI] Purpose",
+        "personal": "[VI] Personal",
+        "passport": "[VI] Passport",
+        "contact": "[VI] Contact",
+        "ukvi": "[VI] UKVI account",
+        "tripDates": "[VI] Trip dates",
+        "ukAddress": "[VI] UK address",
+        "employment": "[VI] Employment",
+        "history": "[VI] History",
+        "funding": "[VI] Funds",
+        "declaration": "[VI] Declarations"
+      },
+      "tripDates": {
+        "over180Hint": "[VI] Standard Visitor visa is limited to 6 months per visit."
+      },
+      "fields": {
+        "givenNames": "[VI] Given name(s)",
+        "givenNamesPlaceholder": "[VI] e.g. John Michael",
+        "surname": "[VI] Surname",
+        "surnamePlaceholder": "[VI] e.g. Smith",
+        "anyOtherNames": "[VI] Have you been known by any other names?",
+        "otherNames": "[VI] Other names used",
+        "dob": "[VI] Date of birth",
+        "sex": "[VI] Sex",
+        "nationality": "[VI] Nationality",
+        "hasOtherNationalities": "[VI] Do you hold any other nationalities?",
+        "countryOfBirth": "[VI] Country of birth",
+        "placeOfBirth": "[VI] Town/city of birth",
+        "placeOfBirthPlaceholder": "[VI] e.g. Manchester",
+        "maritalStatus": "[VI] Marital status",
+        "passportNumber": "[VI] Passport number",
+        "passportNumberPlaceholder": "[VI] e.g. 123456789",
+        "passportIssuingCountry": "[VI] Issuing country",
+        "passportPlaceOfIssue": "[VI] Place of issue",
+        "passportIssueDate": "[VI] Date of issue",
+        "passportExpiryDate": "[VI] Date of expiry",
+        "email": "[VI] Email",
+        "emailPlaceholder": "[VI] name@example.com",
+        "phone": "[VI] Phone",
+        "phonePlaceholder": "[VI] +44 20 …",
+        "homeAddressLine1": "[VI] Home address",
+        "homeAddressLine1Placeholder": "[VI] Street and number",
+        "homeAddressCity": "[VI] City",
+        "postalCode": "[VI] Postal code",
+        "homeCountry": "[VI] Country of residence",
+        "ownsHome": "[VI] Do you own your home?",
+        "hasUkviAccount": "[VI] Do you already have a UKVI account?",
+        "ukviEmail": "[VI] UKVI account email",
+        "ukviEmailPlaceholder": "[VI] Your UKVI email",
+        "ukAddress": "[VI] UK address",
+        "ukAddressPlaceholder": "[VI] Hotel name, street and number",
+        "ukCity": "[VI] UK city",
+        "ukPostcode": "[VI] UK postcode",
+        "ukContactPhone": "[VI] UK contact phone",
+        "stayingWithSomeone": "[VI] Will you be staying with someone in the UK?",
+        "hostName": "[VI] Host name",
+        "hostRelationship": "[VI] Relationship to host",
+        "arrivalDate": "[VI] Intended arrival",
+        "departureDate": "[VI] Intended departure",
+        "numberOfEntries": "[VI] Type of visa requested",
+        "employmentStatus": "[VI] Employment status",
+        "employerName": "[VI] Employer name",
+        "jobTitle": "[VI] Job title",
+        "employerAddress": "[VI] Employer address",
+        "employerPhone": "[VI] Employer phone",
+        "monthlyIncome": "[VI] Monthly income",
+        "monthlyIncomePlaceholder": "[VI] Net amount, in GBP",
+        "hasVisitedUkBefore": "[VI] Have you visited the UK before?",
+        "previousUkVisitDates": "[VI] Approximate dates of previous visits",
+        "hasBeenRefusedUkVisa": "[VI] Have you ever been refused a UK visa?",
+        "ukRefusalExplanation": "[VI] Briefly explain the refusal",
+        "hasBeenRefusedOtherVisa": "[VI] Have you been refused a visa for any other country?",
+        "fundingSource": "[VI] Trip funding source",
+        "sponsorName": "[VI] Sponsor name",
+        "sponsorNamePlaceholder": "[VI] Full legal name",
+        "sponsorRelationship": "[VI] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[VI] e.g. parent, employer",
+        "estimatedTripCost": "[VI] Estimated trip cost",
+        "estimatedTripCostPlaceholder": "[VI] e.g. 3000",
+        "fundsAmount": "[VI] Estimated trip cost",
+        "fundsAmountPlaceholder": "[VI] e.g. 3000",
+        "fundsCurrency": "[VI] Currency",
+        "hasSavings": "[VI] Do you have savings to support the trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[VI] Male",
+          "female": "[VI] Female"
+        },
+        "marital": {
+          "single": "[VI] Single",
+          "married": "[VI] Married",
+          "civilPartnership": "[VI] Civil partnership",
+          "unmarriedPartner": "[VI] Unmarried partner",
+          "divorced": "[VI] Divorced",
+          "widowed": "[VI] Widowed",
+          "separated": "[VI] Separated"
+        },
+        "purpose": {
+          "tourism": "[VI] Tourism",
+          "business": "[VI] Business",
+          "visitingFamily": "[VI] Visiting family",
+          "study": "[VI] Short study",
+          "medical": "[VI] Medical",
+          "wedding": "[VI] Wedding/civil partnership",
+          "transit": "[VI] Transit",
+          "other": "[VI] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[VI] Holiday or sightseeing",
+          "business": "[VI] Meetings, conferences, contracts",
+          "family": "[VI] Visiting relatives or close friends",
+          "study": "[VI] Course or training under 6 months",
+          "medical": "[VI] Medical treatment in the UK",
+          "wedding": "[VI] Attending or having a wedding/civil partnership",
+          "transit": "[VI] Transit through the UK",
+          "other": "[VI] Other reason"
+        },
+        "entries": {
+          "single": "[VI] Single visit",
+          "multi2y": "[VI] 2-year multi-visit",
+          "multi5y": "[VI] 5-year multi-visit",
+          "multi10y": "[VI] 10-year multi-visit"
+        },
+        "employment": {
+          "employed": "[VI] Employed",
+          "selfEmployed": "[VI] Self-employed",
+          "student": "[VI] Student",
+          "retired": "[VI] Retired",
+          "unemployed": "[VI] Unemployed"
+        },
+        "funding": {
+          "self": "[VI] Myself",
+          "family": "[VI] Family",
+          "employer": "[VI] Employer",
+          "sponsor": "[VI] Sponsor"
+        },
+        "currency": {
+          "gbp": "[VI] GBP",
+          "usd": "[VI] USD",
+          "eur": "[VI] EUR",
+          "cny": "[VI] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[VI] Briefly explain the circumstances",
+        "informationCorrect": "[VI] All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "[VI] Do you have any criminal convictions in any country?",
+        "noWarCrimes": "[VI] Have you ever been involved in war crimes, crimes against humanity, or genocide?",
+        "noTerrorism": "[VI] Have you ever been involved in, or supported, terrorism?",
+        "willLeaveBeforeExpiry": "[VI] I undertake to leave the UK before my visa expires."
+      }
+    },
+    "schengen": {
+      "steps": {
+        "purpose": {
+          "label": "[VI] Purpose",
+          "title": "[VI] Why are you travelling?",
+          "subtitle": "[VI] Pick the option that best matches the main reason for your trip."
+        },
+        "personal": {
+          "label": "[VI] Personal",
+          "title": "[VI] Personal details",
+          "subtitle": "[VI] From your passport — exactly as it appears."
+        },
+        "document": {
+          "label": "[VI] Document",
+          "title": "[VI] Travel document",
+          "subtitle": "[VI] Passport or other accepted travel document."
+        },
+        "contact": {
+          "label": "[VI] Contact",
+          "title": "[VI] Contact & residence",
+          "subtitle": "[VI] How the consulate can reach you."
+        },
+        "tripDates": {
+          "label": "[VI] Dates",
+          "title": "[VI] Trip dates",
+          "subtitle": "[VI] Schengen Type C lets you stay up to 90 days within any 180-day period."
+        },
+        "trip_destination": {
+          "label": "[VI] Where",
+          "title": "[VI] Where you're going",
+          "subtitle": "[VI] Main destination and the first Schengen country you'll enter."
+        },
+        "accommodation": {
+          "label": "[VI] Stay",
+          "title": "[VI] Where you'll stay",
+          "subtitle": "[VI] Accommodation details for your time in Schengen."
+        },
+        "occupation": {
+          "label": "[VI] Work",
+          "title": "[VI] Your occupation",
+          "subtitle": "[VI] Employer or school details."
+        },
+        "family_eu": {
+          "label": "[VI] EU family",
+          "title": "[VI] EU/EEA/CH family member",
+          "subtitle": "[VI] Only fill in if you're travelling as the family member of an EU/EEA/Swiss citizen."
+        },
+        "travel_history": {
+          "label": "[VI] History",
+          "title": "[VI] Travel history",
+          "subtitle": "[VI] Past Schengen visas, fingerprints, and onward entry permits."
+        },
+        "funding": {
+          "label": "[VI] Funds",
+          "title": "[VI] Trip funding",
+          "subtitle": "[VI] How the trip is paid for and whether you have travel insurance."
+        },
+        "declaration": {
+          "label": "[VI] Declare",
+          "title": "[VI] Declarations",
+          "subtitle": "[VI] Confirm each statement before submitting your answers."
+        }
+      },
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your Schengen Type C answers",
+        "subtitle": "[VI] Edit anything that's wrong before submitting.",
+        "purpose": "[VI] Purpose",
+        "personal": "[VI] Personal",
+        "document": "[VI] Travel document",
+        "contact": "[VI] Contact",
+        "tripDates": "[VI] Trip dates",
+        "tripDestination": "[VI] Destination",
+        "accommodation": "[VI] Accommodation",
+        "occupation": "[VI] Occupation",
+        "familyEu": "[VI] EU family member",
+        "travelHistory": "[VI] Travel history",
+        "funding": "[VI] Funds",
+        "declaration": "[VI] Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "[VI] Schengen Type C is limited to 90 days within any 180-day period."
+      },
+      "fields": {
+        "surname": "[VI] Surname (family name)",
+        "surnameAtBirthDifferent": "[VI] Is your surname at birth different from your current surname?",
+        "surnameAtBirth": "[VI] Surname at birth",
+        "givenNames": "[VI] Given name(s)",
+        "dob": "[VI] Date of birth",
+        "placeOfBirth": "[VI] Place of birth",
+        "countryOfBirth": "[VI] Country of birth",
+        "nationality": "[VI] Current nationality",
+        "nationalityAtBirth": "[VI] Nationality at birth (if different)",
+        "nationalIdNumber": "[VI] National identity number",
+        "sex": "[VI] Sex",
+        "civilStatus": "[VI] Civil status",
+        "passportType": "[VI] Type of travel document",
+        "passportNumber": "[VI] Travel document number",
+        "passportIssueDate": "[VI] Date of issue",
+        "passportExpiryDate": "[VI] Valid until",
+        "passportIssuingCountry": "[VI] Issued by (country)",
+        "homeAddress": "[VI] Home address",
+        "city": "[VI] City",
+        "postalCode": "[VI] Postal code",
+        "countryOfResidence": "[VI] Country of residence",
+        "email": "[VI] Email",
+        "phone": "[VI] Phone",
+        "mainDestination": "[VI] Main destination (Schengen state)",
+        "firstEntry": "[VI] First Schengen state of entry",
+        "arrivalDate": "[VI] Intended arrival date",
+        "departureDate": "[VI] Intended departure date",
+        "numberOfEntries": "[VI] Number of entries requested",
+        "accommodationType": "[VI] Type of accommodation",
+        "accommodationName": "[VI] Hotel name or accommodation label",
+        "accommodationAddress": "[VI] Accommodation address",
+        "accommodationCity": "[VI] City",
+        "accommodationCountry": "[VI] Country",
+        "accommodationPhone": "[VI] Accommodation phone",
+        "occupation": "[VI] Current occupation",
+        "employerName": "[VI] Employer or school name",
+        "employerAddress": "[VI] Employer or school address",
+        "employerPhone": "[VI] Employer or school phone",
+        "isFamilyMemberOfEu": "[VI] Are you the family member of an EU/EEA/Swiss citizen?",
+        "euFamilySurname": "[VI] Family member surname",
+        "euFamilyGivenNames": "[VI] Family member given names",
+        "euFamilyDob": "[VI] Family member date of birth",
+        "euFamilyNationality": "[VI] Family member nationality",
+        "euFamilyRelationship": "[VI] Relationship to you",
+        "hadPreviousSchengenVisas": "[VI] Have you held a Schengen visa in the last 3 years?",
+        "previousSchengenVisaDates": "[VI] Dates of previous Schengen visas",
+        "fingerprintsCollectedPreviously": "[VI] Have your fingerprints been collected for a Schengen visa before?",
+        "fingerprintsCollectedDate": "[VI] Approximate date of collection",
+        "hasOnwardEntryPermit": "[VI] Do you hold an entry permit for any country after Schengen?",
+        "costsCoveredBy": "[VI] Cost of travel and living covered by",
+        "sponsorName": "[VI] Sponsor name",
+        "sponsorNamePlaceholder": "[VI] Full legal name",
+        "sponsorRelationship": "[VI] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[VI] e.g. parent, employer",
+        "fundsAmount": "[VI] Available funds",
+        "fundsAmountPlaceholder": "[VI] e.g. 2000",
+        "fundsCurrency": "[VI] Currency",
+        "hasInsurance": "[VI] Do you have travel medical insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[VI] Male",
+          "female": "[VI] Female"
+        },
+        "civil": {
+          "single": "[VI] Single",
+          "married": "[VI] Married",
+          "registeredPartnership": "[VI] Registered partnership",
+          "separated": "[VI] Separated",
+          "divorced": "[VI] Divorced",
+          "widowed": "[VI] Widowed"
+        },
+        "passport": {
+          "ordinary": "[VI] Ordinary",
+          "diplomatic": "[VI] Diplomatic",
+          "service": "[VI] Service",
+          "official": "[VI] Official",
+          "special": "[VI] Special",
+          "other": "[VI] Other"
+        },
+        "purpose": {
+          "tourism": "[VI] Tourism",
+          "business": "[VI] Business",
+          "family": "[VI] Visiting family or friends",
+          "cultural": "[VI] Cultural",
+          "sports": "[VI] Sports",
+          "official": "[VI] Official visit",
+          "medical": "[VI] Medical",
+          "study": "[VI] Short study",
+          "transit": "[VI] Airport transit",
+          "other": "[VI] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[VI] Holiday or sightseeing",
+          "business": "[VI] Meetings, conferences, contracts",
+          "family": "[VI] Visiting relatives or close friends in Schengen",
+          "cultural": "[VI] Festivals, exhibitions, performances",
+          "sports": "[VI] Tournaments, training, sporting events",
+          "official": "[VI] Government or diplomatic delegation",
+          "medical": "[VI] Medical treatment in Schengen",
+          "study": "[VI] Short course or training (under 90 days)",
+          "transit": "[VI] Connecting flight via a Schengen airport",
+          "other": "[VI] Other reason — explain on the next steps"
+        },
+        "entries": {
+          "single": "[VI] Single entry",
+          "two": "[VI] Two entries",
+          "multiple": "[VI] Multiple entries"
+        },
+        "accommodation": {
+          "hotel": "[VI] Hotel",
+          "private": "[VI] Private home",
+          "rental": "[VI] Short-term rental",
+          "other": "[VI] Other"
+        },
+        "funding": {
+          "self": "[VI] Myself",
+          "sponsor": "[VI] Sponsor",
+          "employer": "[VI] Employer",
+          "both": "[VI] Both myself and a sponsor"
+        },
+        "currency": {
+          "eur": "[VI] EUR",
+          "usd": "[VI] USD",
+          "gbp": "[VI] GBP",
+          "cny": "[VI] CNY"
+        },
+        "relationship": {
+          "spouse": "[VI] Spouse",
+          "child": "[VI] Child",
+          "grandchild": "[VI] Grandchild",
+          "dependentAscendant": "[VI] Dependent ascendant",
+          "registeredPartner": "[VI] Registered partner"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[VI] Briefly explain the circumstances",
+        "informationCorrect": "[VI] I confirm that all information provided is true and complete to the best of my knowledge.",
+        "willLeaveBeforeExpiry": "[VI] I undertake to leave the Schengen territory before the visa expires.",
+        "understandsNoEntryGuarantee": "[VI] I understand that the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "[VI] I am aware that my personal data will be processed by Schengen consular and border authorities."
+      }
+    },
+    "vn": {
+      "steps": {
+        "purpose": {
+          "label": "[VI] Purpose",
+          "title": "[VI] Why are you entering Vietnam?",
+          "subtitle": "[VI] Pick the option that best matches your trip."
+        },
+        "personal": {
+          "label": "[VI] Personal",
+          "title": "[VI] Personal details",
+          "subtitle": "[VI] From your passport."
+        },
+        "passport": {
+          "label": "[VI] Passport",
+          "title": "[VI] Passport details",
+          "subtitle": "[VI] Travel document used for entry."
+        },
+        "contact": {
+          "label": "[VI] Contact",
+          "title": "[VI] Contact & residence",
+          "subtitle": "[VI] How we can reach you."
+        },
+        "tripDates": {
+          "label": "[VI] Dates",
+          "title": "[VI] Trip dates",
+          "subtitle": "[VI] Vietnam e-visa allows stays of up to 90 days."
+        },
+        "vn_destination": {
+          "label": "[VI] Where",
+          "title": "[VI] Where you're going",
+          "subtitle": "[VI] Address in Vietnam and entry/exit gates."
+        },
+        "host": {
+          "label": "[VI] Host",
+          "title": "[VI] Local contact in Vietnam",
+          "subtitle": "[VI] Who will host you, if applicable."
+        },
+        "occupation": {
+          "label": "[VI] Work",
+          "title": "[VI] Occupation",
+          "subtitle": "[VI] Employer or school details."
+        },
+        "companions": {
+          "label": "[VI] Family",
+          "title": "[VI] Accompanying family",
+          "subtitle": "[VI] Travelling with minors or family members."
+        },
+        "funding": {
+          "label": "[VI] Funds",
+          "title": "[VI] Trip funding",
+          "subtitle": "[VI] How the trip is paid for."
+        },
+        "declaration": {
+          "label": "[VI] Declare",
+          "title": "[VI] Declarations",
+          "subtitle": "[VI] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your Vietnam e-visa answers",
+        "subtitle": "[VI] Edit anything that's wrong before submitting.",
+        "purpose": "[VI] Purpose",
+        "personal": "[VI] Personal",
+        "passport": "[VI] Passport",
+        "contact": "[VI] Contact",
+        "tripDates": "[VI] Trip dates",
+        "vnDestination": "[VI] Destination",
+        "host": "[VI] Local contact",
+        "occupation": "[VI] Occupation",
+        "companions": "[VI] Family",
+        "funding": "[VI] Funds",
+        "declaration": "[VI] Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "[VI] Vietnam e-visa is limited to 90 days per stay."
+      },
+      "fields": {
+        "surname": "[VI] Surname",
+        "givenName": "[VI] Given name",
+        "otherNamesUsed": "[VI] Any other names used",
+        "dob": "[VI] Date of birth",
+        "sex": "[VI] Sex",
+        "nationality": "[VI] Nationality",
+        "nationalityAtBirth": "[VI] Nationality at birth",
+        "countryOfBirth": "[VI] Country of birth",
+        "placeOfBirth": "[VI] Place of birth",
+        "nationalIdNumber": "[VI] National identity number",
+        "religion": "[VI] Religion",
+        "maritalStatus": "[VI] Marital status",
+        "passportNumber": "[VI] Passport number",
+        "passportType": "[VI] Type of passport",
+        "passportIssuing": "[VI] Issuing authority",
+        "passportIssueDate": "[VI] Date of issue",
+        "passportExpiryDate": "[VI] Date of expiry",
+        "hasOtherPassports": "[VI] Do you hold other passports?",
+        "permanentAddress": "[VI] Permanent residential address",
+        "contactAddress": "[VI] Contact address",
+        "city": "[VI] City",
+        "country": "[VI] Country",
+        "phone": "[VI] Phone",
+        "email": "[VI] Email",
+        "emergencyContactName": "[VI] Emergency contact name",
+        "emergencyContactPhone": "[VI] Emergency contact phone",
+        "intendedAddress": "[VI] Intended address in Vietnam",
+        "borderGateEntry": "[VI] Entry border gate",
+        "borderGateExit": "[VI] Exit border gate",
+        "hasVnContact": "[VI] Do you have a contact/host in Vietnam?",
+        "vnContactName": "[VI] Contact name",
+        "vnContactRelationship": "[VI] Relationship",
+        "vnContactPhone": "[VI] Contact phone",
+        "vnContactAddress": "[VI] Contact address",
+        "occupation": "[VI] Occupation",
+        "employerOrSchool": "[VI] Employer or school name",
+        "employerAddress": "[VI] Employer address",
+        "position": "[VI] Position",
+        "employerPhone": "[VI] Employer phone",
+        "isAccompaniedByMinor": "[VI] Are you travelling with a minor?",
+        "accompanyingMinorCount": "[VI] Number of accompanying minors",
+        "parentOrGuardianName": "[VI] Parent or legal guardian name",
+        "entryDate": "[VI] Intended entry date",
+        "exitDate": "[VI] Intended exit date",
+        "requestedVisaType": "[VI] Visa type",
+        "tripPayer": "[VI] Trip paid by",
+        "sponsorName": "[VI] Sponsor name",
+        "sponsorNamePlaceholder": "[VI] Full legal name",
+        "sponsorRelationship": "[VI] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[VI] e.g. parent, employer",
+        "fundsAmount": "[VI] Trip budget",
+        "fundsAmountPlaceholder": "[VI] e.g. 1500",
+        "fundsCurrency": "[VI] Currency",
+        "hasInsurance": "[VI] Do you have travel insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[VI] Male",
+          "female": "[VI] Female"
+        },
+        "marital": {
+          "single": "[VI] Single",
+          "married": "[VI] Married",
+          "divorced": "[VI] Divorced",
+          "widowed": "[VI] Widowed"
+        },
+        "religion": {
+          "none": "[VI] None",
+          "buddhism": "[VI] Buddhism",
+          "christianity": "[VI] Christianity",
+          "islam": "[VI] Islam",
+          "hinduism": "[VI] Hinduism",
+          "other": "[VI] Other"
+        },
+        "passport": {
+          "ordinary": "[VI] Ordinary",
+          "diplomatic": "[VI] Diplomatic",
+          "official": "[VI] Official"
+        },
+        "purpose": {
+          "tourism": "[VI] Tourism",
+          "business": "[VI] Business",
+          "relatives": "[VI] Visiting relatives",
+          "investment": "[VI] Investment",
+          "study": "[VI] Study",
+          "work": "[VI] Work",
+          "press": "[VI] Press",
+          "other": "[VI] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[VI] Holiday or sightseeing",
+          "business": "[VI] Meetings, contracts",
+          "relatives": "[VI] Visiting family in Vietnam",
+          "investment": "[VI] Investment-related visit",
+          "study": "[VI] Course or training",
+          "work": "[VI] Short-term work",
+          "press": "[VI] Journalism or press",
+          "other": "[VI] Other reason"
+        },
+        "visa": {
+          "single": "[VI] Single entry (up to 90 days)",
+          "multiple": "[VI] Multiple entry (up to 90 days)"
+        },
+        "gates": {
+          "noiBai": "[VI] Noi Bai (Hanoi)",
+          "tanSonNhat": "[VI] Tan Son Nhat (HCMC)",
+          "daNang": "[VI] Da Nang",
+          "camRanh": "[VI] Cam Ranh (Nha Trang)",
+          "phuQuoc": "[VI] Phu Quoc",
+          "landBorder": "[VI] Land border",
+          "other": "[VI] Other"
+        },
+        "funding": {
+          "self": "[VI] Myself",
+          "family": "[VI] Family",
+          "employer": "[VI] Employer",
+          "host": "[VI] Host in Vietnam"
+        },
+        "currency": {
+          "usd": "[VI] USD",
+          "vnd": "[VI] VND",
+          "eur": "[VI] EUR",
+          "cny": "[VI] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[VI] Briefly explain the circumstances",
+        "informationCorrect": "[VI] All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "[VI] Do you have any criminal convictions in any country?",
+        "noCommunicableDisease": "[VI] Do you currently have a communicable disease of public health concern?",
+        "noDrugAddiction": "[VI] Do you have any history of drug addiction?",
+        "willObeyLocalLaws": "[VI] I undertake to obey Vietnamese laws during my stay."
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": {
+          "label": "[VI] Stream",
+          "title": "[VI] Which Subclass 600 stream?",
+          "subtitle": "[VI] Pick the stream that best matches your purpose of visit."
+        },
+        "personal": {
+          "label": "[VI] Personal",
+          "title": "[VI] Personal details",
+          "subtitle": "[VI] From your passport."
+        },
+        "passport": {
+          "label": "[VI] Passport",
+          "title": "[VI] Passport",
+          "subtitle": "[VI] Travel document for the visa."
+        },
+        "contact": {
+          "label": "[VI] Contact",
+          "title": "[VI] Contact & residence",
+          "subtitle": "[VI] How Home Affairs can reach you."
+        },
+        "application_context": {
+          "label": "[VI] Context",
+          "title": "[VI] Application context",
+          "subtitle": "[VI] Where you are applying from and the nature of your visit."
+        },
+        "tripDates": {
+          "label": "[VI] Dates",
+          "title": "[VI] When are you visiting?",
+          "subtitle": "[VI] Subclass 600 streams allow stays of 3, 6, or 12 months depending on the stream."
+        },
+        "visit": {
+          "label": "[VI] Visit",
+          "title": "[VI] Visit details",
+          "subtitle": "[VI] Reason, port of arrival, prior travel."
+        },
+        "companions": {
+          "label": "[VI] Family",
+          "title": "[VI] Accompanying family",
+          "subtitle": "[VI] Family travelling with you, if any."
+        },
+        "funding": {
+          "label": "[VI] Funds",
+          "title": "[VI] Trip funding",
+          "subtitle": "[VI] How the trip is paid for."
+        },
+        "health": {
+          "label": "[VI] Health",
+          "title": "[VI] Health declarations",
+          "subtitle": "[VI] Confirm each health-related question."
+        },
+        "character": {
+          "label": "[VI] Character",
+          "title": "[VI] Character declarations",
+          "subtitle": "[VI] Confirm each character-related question."
+        },
+        "declaration": {
+          "label": "[VI] Declare",
+          "title": "[VI] Final declarations",
+          "subtitle": "[VI] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[VI] Review",
+        "title": "[VI] Review your Subclass 600 answers",
+        "subtitle": "[VI] Edit anything that's wrong before submitting.",
+        "stream": "[VI] Stream",
+        "personal": "[VI] Personal",
+        "passport": "[VI] Passport",
+        "contact": "[VI] Contact",
+        "applicationContext": "[VI] Application context",
+        "tripDates": "[VI] Trip dates",
+        "visit": "[VI] Visit",
+        "companions": "[VI] Family",
+        "funding": "[VI] Funds",
+        "health": "[VI] Health",
+        "character": "[VI] Character",
+        "declaration": "[VI] Declarations"
+      },
+      "tripDates": {
+        "over12mHint": "[VI] Subclass 600 stays are typically capped at 3, 6, or 12 months depending on stream."
+      },
+      "fields": {
+        "givenNames": "[VI] Given name(s)",
+        "familyName": "[VI] Family name",
+        "anyOtherNames": "[VI] Have you been known by any other names?",
+        "otherNames": "[VI] Other names",
+        "dob": "[VI] Date of birth",
+        "sex": "[VI] Sex",
+        "nationality": "[VI] Nationality",
+        "countryOfBirth": "[VI] Country of birth",
+        "placeOfBirth": "[VI] Town/city of birth",
+        "relationshipStatus": "[VI] Relationship status",
+        "hasNationalId": "[VI] Do you have a national identity card?",
+        "nationalIdNumber": "[VI] National ID number",
+        "pacificAustraliaCardHolder": "[VI] Are you a Pacific-Australia Card holder?",
+        "passportNumber": "[VI] Passport number",
+        "passportIssuing": "[VI] Issuing country",
+        "passportIssueDate": "[VI] Date of issue",
+        "passportExpiryDate": "[VI] Date of expiry",
+        "passportPlaceOfIssue": "[VI] Place of issue",
+        "chineseCommercialCodeNumber": "[VI] Chinese commercial code number (PRC only)",
+        "email": "[VI] Email",
+        "phoneMobile": "[VI] Mobile phone",
+        "phoneHome": "[VI] Home phone",
+        "phoneBusiness": "[VI] Business phone",
+        "residentialAddress": "[VI] Residential address",
+        "city": "[VI] City",
+        "postcode": "[VI] Postcode",
+        "country": "[VI] Country",
+        "applyingAllOutside": "[VI] Will all applicants be outside Australia when the application is decided?",
+        "currentLocationLegalStatus": "[VI] What is your legal status in your current country?",
+        "purposeOfStayInitial": "[VI] Primary purpose of your initial stay",
+        "significantDatesInAustralia": "[VI] Any significant dates in Australia (events, ceremonies, deadlines)?",
+        "eventInvitedByOrganisation": "[VI] Have you been invited by an Australian organisation for an event?",
+        "eventPaidByAustralianOrganisation": "[VI] Will an Australian organisation pay for any part of your visit?",
+        "applyingAsPartOfGroup": "[VI] Are you applying as part of a group of applications?",
+        "arrivalDate": "[VI] Intended arrival",
+        "departureDate": "[VI] Intended departure",
+        "mainReason": "[VI] Main reason for visit",
+        "portOfArrival": "[VI] Port of arrival",
+        "previousAuTravel": "[VI] Have you previously travelled to Australia?",
+        "previousAuVisaGrantDates": "[VI] Approximate dates of previous Australian visas",
+        "hasAccompanyingFamily": "[VI] Are family members travelling with you?",
+        "accompanyingFamilyCount": "[VI] Number of accompanying family members",
+        "hasNonAccompanyingFamily": "[VI] Do you have non-accompanying family members?",
+        "fundingSource": "[VI] Trip funding source",
+        "sponsorName": "[VI] Sponsor name",
+        "sponsorNamePlaceholder": "[VI] Full legal name",
+        "sponsorRelationship": "[VI] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[VI] e.g. parent, employer",
+        "fundsAmount": "[VI] Available funds",
+        "fundsAmountPlaceholder": "[VI] e.g. 5000",
+        "fundsCurrency": "[VI] Currency"
+      },
+      "options": {
+        "sex": {
+          "male": "[VI] Male",
+          "female": "[VI] Female",
+          "indeterminate": "[VI] Indeterminate"
+        },
+        "rel": {
+          "never": "[VI] Never married",
+          "married": "[VI] Married",
+          "deFacto": "[VI] De facto",
+          "engaged": "[VI] Engaged",
+          "separated": "[VI] Separated",
+          "divorced": "[VI] Divorced",
+          "widowed": "[VI] Widowed"
+        },
+        "stream": {
+          "tourist": "[VI] Tourist",
+          "business": "[VI] Business Visitor",
+          "sponsored": "[VI] Sponsored Family",
+          "frequent": "[VI] Frequent Traveller"
+        },
+        "streamDesc": {
+          "tourist": "[VI] Holiday, sightseeing, visiting family or friends",
+          "business": "[VI] Short business activities — meetings, conferences, negotiations",
+          "sponsored": "[VI] Family-sponsored visits where a relative supports the application",
+          "frequent": "[VI] Long-validity visa for eligible passport holders making multiple short visits"
+        },
+        "locStatus": {
+          "citizen": "[VI] Citizen",
+          "pr": "[VI] Permanent resident",
+          "temporary": "[VI] Temporary visa holder",
+          "visitor": "[VI] Visitor",
+          "other": "[VI] Other"
+        },
+        "initial": {
+          "business": "[VI] Business",
+          "tourism": "[VI] Tourism",
+          "family": "[VI] Family visit",
+          "study": "[VI] Study",
+          "religious": "[VI] Religious event",
+          "other": "[VI] Other"
+        },
+        "port": {
+          "sydney": "[VI] Sydney",
+          "melbourne": "[VI] Melbourne",
+          "brisbane": "[VI] Brisbane",
+          "perth": "[VI] Perth",
+          "adelaide": "[VI] Adelaide",
+          "goldCoast": "[VI] Gold Coast",
+          "cairns": "[VI] Cairns",
+          "darwin": "[VI] Darwin",
+          "hobart": "[VI] Hobart",
+          "other": "[VI] Other"
+        },
+        "funding": {
+          "self": "[VI] Myself",
+          "family": "[VI] Family",
+          "employer": "[VI] Employer",
+          "sponsor": "[VI] Sponsor"
+        },
+        "currency": {
+          "aud": "[VI] AUD",
+          "usd": "[VI] USD",
+          "eur": "[VI] EUR",
+          "gbp": "[VI] GBP",
+          "cny": "[VI] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[VI] Briefly explain the circumstances",
+        "healthLivedOutsidePassport": "[VI] Have you lived outside your passport country for more than 5 years (or 3 months in the last year)?",
+        "healthVisitedFacility": "[VI] Have you been an inpatient at a hospital or health facility in the last 5 years?",
+        "healthHealthcareWorker": "[VI] Are you a healthcare worker (doctor, nurse, paramedic, etc.)?",
+        "healthAgedOrChildcare": "[VI] Have you worked in aged-care or childcare in the last 5 years?",
+        "healthClassroom3Months": "[VI] Have you spent 3+ consecutive months in a classroom (as student or teacher) in the last 5 years?",
+        "healthTbOrChestXray": "[VI] Have you had tuberculosis, an abnormal chest X-ray, or close contact with a TB patient?",
+        "hasHealthInsurance": "[VI] Do you have health insurance covering your stay in Australia?",
+        "charCriminalConvictions": "[VI] Have you been charged with or convicted of any criminal offence anywhere?",
+        "charWarCrimes": "[VI] Have you been involved in war crimes, crimes against humanity, or genocide?",
+        "charSexualOffence": "[VI] Have you been charged with or convicted of a sexual offence (including against a child)?",
+        "charTerrorism": "[VI] Have you been involved in, or supported, terrorism?",
+        "charPeopleSmuggling": "[VI] Have you been involved in people smuggling or human trafficking?",
+        "charMilitaryTraining": "[VI] Have you received specialised military, paramilitary, or weapons/explosives training?",
+        "charVisaRefused": "[VI] Have you ever been refused a visa for any country, or had a visa cancelled?",
+        "informationCorrect": "[VI] All information provided is true and complete to the best of my knowledge.",
+        "understandsNoEntryGuarantee": "[VI] I understand the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "[VI] I am aware that my personal data will be processed by Australian authorities.",
+        "willLeaveBeforeExpiry": "[VI] I undertake to leave Australia before my visa expires.",
+        "genuineVisitor": "[VI] I confirm that I am a genuine visitor and intend to stay temporarily for the purpose stated."
+      }
+    },
+    "loading": "[VI] Getting your intake form ready…",
+    "progress": "[VI] Step {current} of {total} · {name}",
+    "steps": {
+      "0": "[VI] Identity",
+      "1": "[VI] Contact",
+      "2": "[VI] Passport",
+      "3": "[VI] Travel",
+      "usStay": "[VI] U.S. stay",
+      "usContact": "[VI] U.S. Contact",
+      "4": "[VI] Family",
+      "5": "[VI] Background",
+      "6": "[VI] Work & education"
+    },
+    "common": {
+      "continue": "[VI] Continue",
+      "back": "[VI] Back",
+      "submitting": "[VI] Saving your answers…",
+      "yes": "[VI] Yes",
+      "no": "[VI] No"
+    },
+    "identity": {
+      "scanTitle": "[VI] Let's start with your identity",
+      "scanSubtitle": "[VI] Scan your passport to auto-fill, or type the details yourself.",
+      "scanOption": "[VI] Scan passport",
+      "scanOptionHint": "[VI] Auto-fills your details from a photo",
+      "scanComingSoon": "[VI] Coming soon — use manual entry for now",
+      "scanUploadTitle": "[VI] Upload your passport",
+      "scanInstructions": "[VI] Lay the data page flat under good light. We need to read the photo, MRZ, and all printed text.",
+      "scanBrowse": "[VI] Choose a file",
+      "scanBrowseHint": "[VI] JPG, PNG, or WEBP — up to 8 MB",
+      "scanTakePhoto": "[VI] Take a photo",
+      "scanTakePhotoHint": "[VI] Use your camera (mobile)",
+      "scanExtracting": "[VI] Reading your passport…",
+      "scanExtractError": "[VI] We couldn't read this photo. Try a clearer shot or type it manually.",
+      "scanResultTitle": "[VI] Confirm what we found",
+      "scanResultSubtitle": "[VI] Edit anything that looks wrong before continuing.",
+      "scanUseDetails": "[VI] Use these details",
+      "scanRetry": "[VI] Try another photo",
+      "scanFallbackManual": "[VI] Type it manually instead",
+      "scanPrivacyNote": "[VI] Your scan is encrypted in transit, used only for extraction, and removed after submission.",
+      "scanNoDraft": "[VI] Couldn't start a draft application. Reload the page and try again.",
+      "scanWrongFormat": "[VI] Please upload a JPG, PNG, or WEBP image.",
+      "scanTooLarge": "[VI] Image is too large — please use one under 8 MB.",
+      "scanNotAuthenticated": "[VI] Please sign in again to scan your passport.",
+      "scanPassportNumber": "[VI] Passport number",
+      "scanPassportType": "[VI] Passport type",
+      "scanIssuingCountry": "[VI] Issuing country",
+      "scanIssueDate": "[VI] Issue date",
+      "scanExpiryDate": "[VI] Expiry date",
+      "scanWarningsTitle": "[VI] Heads up",
+      "scanConfidence": {
+        "high": "[VI] High confidence",
+        "medium": "[VI] Medium confidence — please double-check",
+        "low": "[VI] Low confidence — please review every field"
+      },
+      "manualOption": "[VI] Type it in",
+      "manualDescription": "[VI] Enter your details manually",
+      "title": "[VI] Your details",
+      "subtitle": "[VI] Enter these exactly as they appear on your passport.",
+      "firstName": "[VI] First name",
+      "firstNamePlaceholder": "[VI] e.g. Edward",
+      "lastName": "[VI] Last name",
+      "lastNamePlaceholder": "[VI] e.g. Zhang",
+      "dateOfBirth": "[VI] Date of birth",
+      "dateOfBirthPlaceholder": "[VI] Select your date of birth",
+      "gender": "[VI] Gender",
+      "male": "[VI] Male",
+      "female": "[VI] Female",
+      "countryOfBirth": "[VI] Country of birth",
+      "countryOfBirthPlaceholder": "[VI] Select country",
+      "cityOfBirth": "[VI] City of birth",
+      "cityOfBirthPlaceholder": "[VI] e.g. Shanghai",
+      "stateOfBirth": "[VI] State/Province of birth",
+      "stateOfBirthPlaceholder": "[VI] e.g. Guangdong",
+      "noStateProvince": "[VI] My country of birth has no states/provinces",
+      "nationality": "[VI] Nationality",
+      "nationalityPlaceholder": "[VI] Select nationality",
+      "maritalStatus": "[VI] Marital status",
+      "maritalStatusPlaceholder": "[VI] Select marital status",
+      "single": "[VI] Single",
+      "married": "[VI] Married",
+      "commonLawMarriage": "[VI] Common Law Marriage",
+      "civilUnion": "[VI] Civil Union / Domestic Partnership",
+      "legallySeparated": "[VI] Legally Separated",
+      "divorced": "[VI] Divorced",
+      "widowed": "[VI] Widowed",
+      "other": "[VI] Other",
+      "maritalStatusOtherExplain": "[VI] Please describe your marital status",
+      "maritalStatusOtherExplainPlaceholder": "[VI] Describe your marital status",
+      "hasOtherName": "[VI] Have you gone by a different name?",
+      "hasOtherNameTooltip": "[VI] This includes maiden names, religious names, professional names or any other name previously used on official documents. For example: Former name: Wang Xiaohong → Li Xiaohong (after marriage)",
+      "otherFirstName": "[VI] Other first name",
+      "otherFirstNamePlaceholder": "[VI] Previous or alternate first name",
+      "otherLastName": "[VI] Other last name",
+      "otherLastNamePlaceholder": "[VI] Previous or alternate last name",
+      "hasNativeAlphabet": "[VI] Does your name use non-English characters?",
+      "hasNativeAlphabetTooltip": "[VI] If your passport shows your name in Chinese characters, select 'Yes' and enter it as shown. For example: 张伟 or 李明",
+      "nativeAlphabetName": "[VI] Full name in native alphabet",
+      "nativeAlphabetNamePlaceholder": "[VI] e.g. 张泽华",
+      "hasTelecode": "[VI] Do you have a telecode for your name?",
+      "hasTelecodeTooltip": "[VI] A telecode is a 4-digit number representing a Chinese character. If you know your telecode, select 'Yes' and enter the number. For example: 张 = 1728, 伟 = 0251, 李 = 2621, 明 = 2494",
+      "telecodeFirstName": "[VI] Telecode given names",
+      "telecodeFirstNamePlaceholder": "[VI] Telecode given names",
+      "telecodeLastName": "[VI] Telecode surname",
+      "telecodeLastNamePlaceholder": "[VI] Telecode surname",
+      "spouseTitle": "[VI] Spouse's details",
+      "spouseFirstName": "[VI] Spouse's given names",
+      "spouseLastName": "[VI] Spouse's surname",
+      "spouseDob": "[VI] Spouse's date of birth",
+      "spouseNationality": "[VI] Spouse's nationality",
+      "spouseCityOfBirth": "[VI] Spouse's city of birth",
+      "spouseCountryOfBirth": "[VI] Spouse's country of birth"
+    },
+    "contact": {
+      "title": "[VI] How can the embassy reach you?",
+      "subtitle": "[VI] Primary contact, home address, and any social profiles required by DS-160.",
+      "email": "[VI] Email",
+      "emailPlaceholder": "[VI] you@example.com",
+      "phone": "[VI] Phone",
+      "phonePlaceholder": "[VI] +1 555 000 0000",
+      "secondaryPhone": "[VI] Other phone (optional)",
+      "secondaryPhoneHint": "[VI] A second number the embassy can reach you at",
+      "secondaryPhonePlaceholder": "[VI] Additional phone number",
+      "secondaryEmail": "[VI] Other email (optional)",
+      "secondaryEmailHint": "[VI] A second email you use",
+      "secondaryEmailPlaceholder": "[VI] another@example.com",
+      "homeAddressTitle": "[VI] Home address",
+      "homeCountry": "[VI] Country",
+      "homeCountryPlaceholder": "[VI] Select country",
+      "street": "[VI] Street address",
+      "streetPlaceholder": "[VI] Street and number",
+      "city": "[VI] City",
+      "cityPlaceholder": "[VI] City",
+      "state": "[VI] State / Province",
+      "statePlaceholder": "[VI] State or province (optional)",
+      "postalCode": "[VI] Postal code",
+      "postalCodePlaceholder": "[VI] Postal code",
+      "mailingSame": "[VI] Is your mailing address the same?",
+      "socialMedia": "[VI] Social media",
+      "socialMediaHint": "[VI] DS-160 requires disclosing the platforms you use. Pick any that apply.",
+      "useSocialMedia": "[VI] Do you use social media?",
+      "socialHandlePlaceholder": "[VI] {platform} username or handle",
+      "otherPlatforms": "[VI] Other platforms",
+      "otherPlatformsPlaceholder": "[VI] Select a platform",
+      "customPlatformLabel": "[VI] Platform",
+      "customPlatformPlaceholder": "[VI] e.g. WeChat",
+      "customUsernameLabel": "[VI] Username",
+      "customUsernamePlaceholder": "[VI] @username",
+      "addAnotherPlatform": "[VI] Add other platform"
+    },
+    "passport": {
+      "title": "[VI] Passport & identification",
+      "subtitle": "[VI] Match what's printed on your passport exactly.",
+      "type": "[VI] Passport type",
+      "typeRegular": "[VI] Regular",
+      "typeRegularHint": "[VI] Most common",
+      "typeOfficial": "[VI] Official",
+      "typeDiplomatic": "[VI] Diplomatic",
+      "typePermit": "[VI] Permit",
+      "typeOther": "[VI] Other",
+      "number": "[VI] Passport number",
+      "numberPlaceholder": "[VI] e.g. E12345678",
+      "numberHint": "[VI] On the passport information page. Usually 8-9 characters.",
+      "bookNumber": "[VI] Passport book number",
+      "bookNumberQuestion": "[VI] Does your passport have a separate book number?",
+      "bookNumberHint": "[VI] Only if your passport has a separate book number",
+      "bookNumberHelp": "[VI] Some passports include an extra number on the inside cover page. Most do not. If unsure, choose \"No\".",
+      "bookNumberPlaceholder": "[VI] Book number",
+      "issuingCountry": "[VI] Issuing country",
+      "issuingCountryPlaceholder": "[VI] Select country",
+      "issuedInAnotherCountry": "[VI] Was it issued in another country?",
+      "issuedInAnotherCountryCountry": "[VI] Country where passport was issued",
+      "issuanceCity": "[VI] City",
+      "issuanceCityPlaceholder": "[VI] City",
+      "issuanceProvince": "[VI] State / Province",
+      "issuanceProvincePlaceholder": "[VI] State / Province",
+      "extraQuestionsTitle": "[VI] A few extra questions",
+      "extraOtherCitizenship": "[VI] Do you hold citizenship of another country?",
+      "extraOtherCountryPermanentResidence": "[VI] Are you a permanent resident of another country?",
+      "extraUsSocialSecurityOrTaxId": "[VI] Have you ever had a U.S. social security number or taxpayer ID?",
+      "extraNationalityCardTitle": "[VI] Nationality {index}",
+      "extraNationalityCountry": "[VI] Country",
+      "extraNationalityCountryPlaceholder": "[VI] Select",
+      "extraNationalityHasPassport": "[VI] Do you hold that country's passport?",
+      "extraNationalityPassportNumber": "[VI] Passport number",
+      "extraNationalityPassportNumberPlaceholder": "[VI] Passport number",
+      "extraAddNationality": "[VI] Add nationality",
+      "extraAddCountry": "[VI] Add country",
+      "extraSsnLabel": "[VI] Social Security Number (SSN)",
+      "extraSsnInputLabel": "[VI] SSN",
+      "extraSsnPlaceholder": "[VI] •••-••-••••",
+      "extraSsnHint": "[VI] Only fill this if you had one before (for example, if you previously worked in the U.S.).",
+      "extraItinLabel": "[VI] Taxpayer Identification Number (ITIN)",
+      "extraItinInputLabel": "[VI] ITIN",
+      "extraItinPlaceholder": "[VI] 9XX-XX-XXXX",
+      "extraItinHint": "[VI] IRS-issued tax number. Only fill this if you previously filed U.S. taxes.",
+      "nationalIdSectionTitle": "[VI] National ID",
+      "nationalIdInputLabel": "[VI] Resident ID Number",
+      "nationalIdHelp": "[VI] Your 18-digit Chinese Resident Identity Card number.",
+      "nationalIdPlaceholderLong": "[VI] e.g. 110101199001011234",
+      "nationalIdNone": "[VI] I do not have one",
+      "lostPassportSectionTitle": "[VI] Lost or Stolen Passport",
+      "lostPassportQuestion": "[VI] Have you ever lost a passport or had one stolen?",
+      "lostPassportCardTitle": "[VI] Lost passport 1",
+      "lostPassportKnowNumber": "[VI] Do you know the passport number?",
+      "lostPassportNumber": "[VI] Passport number",
+      "lostPassportCountry": "[VI] Country / issuing authority",
+      "lostPassportExplanationPlaceholderLong": "[VI] Describe what happened...",
+      "issueDate": "[VI] Issue date",
+      "issueDatePlaceholder": "[VI] Select issue date",
+      "expiryDate": "[VI] Expiration date",
+      "expiryDatePlaceholder": "[VI] Select expiry date",
+      "additionalNationality": "[VI] Are you a citizen of any other country?",
+      "additionalNationalityPlaceholder": "[VI] Select additional nationality",
+      "nationalId": "[VI] Do you have a national ID from your country?",
+      "nationalIdHint": "[VI] e.g. China Resident ID, Indian Aadhaar",
+      "nationalIdPlaceholder": "[VI] National ID number",
+      "lostPassport": "[VI] Have you ever lost a passport or had one stolen?",
+      "lostPassportExplanation": "[VI] What happened?",
+      "lostPassportExplanationPlaceholder": "[VI] Briefly describe the circumstances"
+    },
+    "travel": {
+      "title": "[VI] Your trip & U.S. visa history",
+      "subtitle": "[VI] Rough dates are fine. Most answers here are simple yes/no.",
+      "specificPlanTitle": "[VI] Travel dates",
+      "estimatedPlanTitle": "[VI] Estimated trip details",
+      "usAddressTitle": "[VI] Address where you'll stay in the U.S.",
+      "usStayPageTitle": "[VI] Where will you stay in the U.S.?",
+      "usStayPageSubtitle": "[VI] Please provide your accommodation details while in the U.S.",
+      "accomTypeTitle": "[VI] Accommodation type",
+      "accomHotel": "[VI] Hotel/Resort",
+      "accomAirbnb": "[VI] Airbnb/Short-term",
+      "accomFriends": "[VI] Friends/Family",
+      "accomBusiness": "[VI] Business",
+      "accomSchool": "[VI] School/University",
+      "accomOther": "[VI] Other",
+      "accomHotelNameTitle": "[VI] Hotel/Resort name",
+      "accomHostNameTitle": "[VI] Host's name",
+      "accomFriendsContactTitle": "[VI] Contact's name",
+      "accomBusinessTitle": "[VI] Company name",
+      "accomSchoolTitle": "[VI] School/University name",
+      "accomOtherContactTitle": "[VI] Contact person",
+      "accomContactSubtitle": "[VI] Who or where will you be staying with",
+      "hotelHint": "[VI] You can find the hotel address and phone number in your booking confirmation email or on the hotel's website.",
+      "airbnbHint": "[VI] Please use the host's name and property address from your Airbnb booking.",
+      "howKnowThem": "[VI] How do you know them?",
+      "relative": "[VI] Relative",
+      "friend": "[VI] Friend",
+      "accomHotelAddressTitle": "[VI] Hotel address",
+      "accomAirbnbAddressTitle": "[VI] Rental address",
+      "accomFriendsAddressTitle": "[VI] Their U.S. address",
+      "accomBusinessAddressTitle": "[VI] Company address",
+      "accomSchoolAddressTitle": "[VI] School address",
+      "accomOtherAddressTitle": "[VI] Contact address",
+      "accomAddressSubtitle": "[VI] The full address of your U.S. accommodation",
+      "schoolName": "[VI] School name",
+      "schoolNamePlaceholder": "[VI] School or university name",
+      "hostFirstNamePlaceholder": "[VI] e.g. John",
+      "hostLastNamePlaceholder": "[VI] e.g. Smith",
+      "contactFirstNamePlaceholder": "[VI] e.g. John",
+      "contactLastNamePlaceholder": "[VI] e.g. Doe",
+      "usStreet2": "[VI] Address line 2",
+      "usStreet2Placeholder": "[VI] e.g. Apt 4B",
+      "usStateLabel": "[VI] State",
+      "usCityPlaceholderUs": "[VI] e.g. New York",
+      "usStatePlaceholderUs": "[VI] e.g. New York",
+      "usZipPlaceholderUs": "[VI] e.g. 10001",
+      "contactInfoHotel": "[VI] Hotel contact info",
+      "contactInfoAirbnb": "[VI] Host contact info",
+      "contactInfoFriends": "[VI] Your contact's phone & email",
+      "contactInfoBusiness": "[VI] Company contact info",
+      "contactInfoSchool": "[VI] School contact info",
+      "contactInfoOther": "[VI] Contact person info",
+      "contactInfoHotelSubtitle": "[VI] The hotel's phone and email — not yours",
+      "contactInfoFriendsSubtitle": "[VI] Your friend or relative's phone and email — not yours",
+      "contactInfoDefaultSubtitle": "[VI] Their phone and email — not yours",
+      "contactEmailHotelPlaceholder": "[VI] e.g. hotel@example.com",
+      "contactEmailPlaceholder": "[VI] e.g. contact@example.com",
+      "unknownContactEmail": "[VI] I don't know their email",
+      "plans": "[VI] Do you have specific travel plans?",
+      "plansYes": "[VI] Yes",
+      "plansYesHint": "[VI] Dates & address confirmed",
+      "plansIdea": "[VI] Have an idea",
+      "plansIdeaHint": "[VI] Approximate dates",
+      "plansUnsure": "[VI] Not sure yet",
+      "plansUnsureHint": "[VI] Skip these details",
+      "arrivalDate": "[VI] Arrival date",
+      "arrivalDatePlaceholder": "[VI] Select arrival date",
+      "departureDate": "[VI] Departure date",
+      "departureDatePlaceholder": "[VI] Select departure date",
+      "arrivalCity": "[VI] Arrival city",
+      "arrivalCityPlaceholder": "[VI] e.g. New York",
+      "arrivalFlight": "[VI] Arrival flight (if known)",
+      "arrivalFlightPlaceholder": "[VI] e.g. AA1234",
+      "departureCity": "[VI] Departure city",
+      "departureCityPlaceholder": "[VI] e.g. Los Angeles",
+      "departureFlight": "[VI] Departure flight (if known)",
+      "departureFlightPlaceholder": "[VI] e.g. UA5678",
+      "placesToVisit": "[VI] Places you plan to visit in the U.S.",
+      "placeToVisitPlaceholder": "[VI] e.g. New York",
+      "addPlace": "[VI] Add place",
+      "estimatedArrivalDate": "[VI] Approximate arrival date",
+      "lengthOfStay": "[VI] Length of stay",
+      "lengthOfStayPlaceholder": "[VI] 14",
+      "lengthUnit": "[VI] Duration",
+      "days": "[VI] Days",
+      "weeks": "[VI] Weeks",
+      "months": "[VI] Months",
+      "years": "[VI] Years",
+      "lessThan24Hours": "[VI] Less than 24 hours",
+      "accommodationPlaceholder": "[VI] Select accommodation type",
+      "accommodation": "[VI] Where will you stay?",
+      "hotelMotel": "[VI] Hotel/Motel",
+      "privateHome": "[VI] Private home",
+      "shortTermRental": "[VI] Short-term rental",
+      "other": "[VI] Other",
+      "hotelName": "[VI] Hotel name",
+      "hotelNamePlaceholder": "[VI] e.g. Hilton Garden Inn",
+      "usStreet": "[VI] U.S. street address",
+      "usStreetPlaceholder": "[VI] e.g. 350 Fifth Avenue",
+      "usCity": "[VI] City",
+      "usCityPlaceholder": "[VI] City",
+      "usState": "[VI] State",
+      "usStatePlaceholder": "[VI] State",
+      "usZip": "[VI] ZIP",
+      "usZipPlaceholder": "[VI] ZIP",
+      "companionsTitle": "[VI] Travel companions",
+      "payer": "[VI] Who is paying for this trip?",
+      "payerSelf": "[VI] Self",
+      "payerFamily": "[VI] Family",
+      "payerEmployer": "[VI] Employer",
+      "payerOther": "[VI] Other",
+      "embassyLocation": "[VI] Embassy / consulate where you'll interview",
+      "embassyLocationHint": "[VI] Usually the U.S. embassy closest to where you live",
+      "embassyLocationPlaceholder": "[VI] e.g. China — Beijing",
+      "tripPaymentTitle": "[VI] Trip payment",
+      "payerPlaceholder": "[VI] Select payer",
+      "payerOtherPerson": "[VI] Other person",
+      "payerCurrentEmployer": "[VI] Current employer",
+      "payerUsEmployer": "[VI] U.S. employer",
+      "payerOtherCompany": "[VI] Other company/organization",
+      "payerOtherPersonDetails": "[VI] Other person details",
+      "firstName": "[VI] First name",
+      "firstNamePlaceholder": "[VI] e.g. Zhang",
+      "lastName": "[VI] Last name",
+      "lastNamePlaceholder": "[VI] e.g. Wei",
+      "phone": "[VI] Phone number",
+      "phonePlaceholder": "[VI] 11-digit number",
+      "dialCode": "[VI] Dial code",
+      "email": "[VI] Email",
+      "emailPlaceholder": "[VI] e.g. email@example.com",
+      "unknownPayerEmail": "[VI] I don't know their email",
+      "yourRelationship": "[VI] Your relationship",
+      "relationshipPlaceholder": "[VI] Select relationship",
+      "payerAddressSameAsYou": "[VI] Is their address the same as yours?",
+      "street1": "[VI] Street address (line 1)",
+      "street1Placeholder": "[VI] e.g. 123 Main St",
+      "street2": "[VI] Street address (line 2)",
+      "street2Placeholder": "[VI] e.g. Apt 4B",
+      "city": "[VI] City",
+      "cityPlaceholder": "[VI] e.g. Beijing",
+      "stateProvince": "[VI] State/Province",
+      "stateProvincePlaceholder": "[VI] State/Province",
+      "noStateProvince": "[VI] This country has no state/province",
+      "postalCode": "[VI] Postal code",
+      "postalCodePlaceholder": "[VI] Postal code",
+      "noPostalCode": "[VI] This country has no postal code",
+      "country": "[VI] Country",
+      "payerOrgDetails": "[VI] Company/organization details",
+      "orgName": "[VI] Company/organization name",
+      "orgNamePlaceholder": "[VI] e.g. Acme Corp",
+      "orgRelationshipPlaceholder": "[VI] e.g. Sponsor, Employer",
+      "visaHistoryTitle": "[VI] U.S. visa history",
+      "previousVisa": "[VI] Have you ever been issued a U.S. visa?",
+      "previousVisaNumber": "[VI] Visa number",
+      "previousVisaNumberPlaceholder": "[VI] Previous U.S. visa number",
+      "previousVisaExpiry": "[VI] Visa expiry",
+      "previousVisaExpiryPlaceholder": "[VI] Expiration date",
+      "previousRefusal": "[VI] Have you ever been refused a U.S. visa or admission?",
+      "refusalExplanation": "[VI] Briefly explain",
+      "refusalExplanationPlaceholder": "[VI] Share the date and circumstances",
+      "estaDenied": "[VI] Have you ever been denied ESTA?",
+      "petitionFiled": "[VI] Has anyone filed an immigration petition for you?",
+      "hasCompanions": "[VI] Are there other people traveling with you?",
+      "companionGroupTravel": "[VI] Are you traveling as part of a group or organization?",
+      "companionGroupName": "[VI] Group/organization name",
+      "companionGroupNamePlaceholder": "[VI] Group or organization name",
+      "travelerN": "[VI] Traveler {index}",
+      "hasCompanionsHint": "[VI] Family, friends, or colleagues",
+      "companionFirstName": "[VI] Companion's given names",
+      "companionFirstNamePlaceholder": "[VI] e.g. Jane",
+      "companionLastName": "[VI] Companion's surname",
+      "companionLastNamePlaceholder": "[VI] e.g. Doe",
+      "companionRelationship": "[VI] Relationship",
+      "companionRelationshipPlaceholder": "[VI] Please select...",
+      "relationshipChild": "[VI] Child",
+      "relationshipParent": "[VI] Parent",
+      "relationshipSpouse": "[VI] Spouse",
+      "relationshipRelative": "[VI] Relative",
+      "relationshipFriend": "[VI] Friend",
+      "relationshipBusinessPartner": "[VI] Business partner",
+      "addTraveler": "[VI] Add traveler",
+      "internationalTravelTitle": "[VI] International travel history",
+      "hasVisitedOtherCountriesLast5Years": "[VI] In the last five years, have you visited any other countries?",
+      "visitedCountries": "[VI] Countries visited",
+      "countryPlaceholder": "[VI] Select",
+      "addCountry": "[VI] Add country",
+      "previousUsTravelTitle": "[VI] Previous U.S. travel",
+      "previousVisits": "[VI] Previous visits",
+      "visitN": "[VI] Visit {index}",
+      "unit": "[VI] Unit",
+      "addVisit": "[VI] Add visit",
+      "licenseN": "[VI] License {index}",
+      "unknownLicenseNumber": "[VI] I don't know the license number",
+      "addLicense": "[VI] Add license",
+      "previousUsVisaTitle": "[VI] Previous U.S. visa",
+      "visaIssueCountry": "[VI] Visa issuing country",
+      "visaIssueDate": "[VI] Issue date",
+      "visaValidUntil": "[VI] Valid until",
+      "unknownVisaNumber": "[VI] I don't know the visa number",
+      "sameVisaType": "[VI] Are you applying for the same visa class?",
+      "sameCountryApply": "[VI] Are you applying in the same country where it was issued?",
+      "tenPrinted": "[VI] Have your ten fingerprints been taken?",
+      "visaLostStolen": "[VI] Has your visa ever been lost or stolen?",
+      "visaLostStolenYear": "[VI] Year lost",
+      "visaCancelledRevoked": "[VI] Has your visa ever been cancelled or revoked?",
+      "received221g": "[VI] Have you ever received a 221(g) notice?",
+      "explanation": "[VI] Explanation",
+      "explanationPlaceholder": "[VI] Brief explanation",
+      "explanationDetailPlaceholder": "[VI] Describe the situation...",
+      "refusalDateKnown": "[VI] Refusal date (if known)",
+      "refusalDatePlaceholder": "[VI] Select refusal date",
+      "hasBeenInUs": "[VI] Have you ever been to the U.S. before?",
+      "hasBeenInUsHint": "[VI] Even a short tourist trip counts",
+      "previousVisitDate": "[VI] Date of last visit",
+      "previousVisitDatePlaceholder": "[VI] Date of last visit",
+      "previousVisitLength": "[VI] Length of stay",
+      "previousVisitLengthPlaceholder": "[VI] 14",
+      "hasUsDriversLicense": "[VI] Do you hold a U.S. driver's license?",
+      "driversLicenseNumber": "[VI] Driver's license number",
+      "driversLicenseNumberPlaceholder": "[VI] License number",
+      "driversLicenseState": "[VI] State that issued it",
+      "driversLicenseStatePlaceholder": "[VI] e.g. California"
+    },
+    "work": {
+      "title": "[VI] Work & education",
+      "subtitle": "[VI] What you do day-to-day — used for the DS-160 employment / study section.",
+      "primaryOccupation": "[VI] Primary occupation",
+      "primaryOccupationPlaceholder": "[VI] Select your occupation",
+      "occupations": {
+        "business": "[VI] Business",
+        "education": "[VI] Education",
+        "engineering": "[VI] Engineering",
+        "computerScience": "[VI] Computer Science",
+        "medical": "[VI] Medical / Health",
+        "government": "[VI] Government",
+        "artist": "[VI] Artist / Performer",
+        "student": "[VI] Student",
+        "homemaker": "[VI] Homemaker",
+        "retired": "[VI] Retired",
+        "notEmployed": "[VI] Not Employed",
+        "other": "[VI] Other"
+      },
+      "occupationOtherExplain": "[VI] Describe your occupation",
+      "occupationOtherExplainPlaceholder": "[VI] e.g. Freelance translator",
+      "employerTitle": "[VI] Current employer / school",
+      "employerName": "[VI] Employer or school name",
+      "employerNamePlaceholder": "[VI] e.g. Tencent",
+      "jobTitle": "[VI] Job title",
+      "jobTitlePlaceholder": "[VI] e.g. Software Engineer",
+      "employmentStartDate": "[VI] Start date",
+      "employmentStartDatePlaceholder": "[VI] Select start date",
+      "monthlySalary": "[VI] Monthly salary (local currency)",
+      "monthlySalaryPlaceholder": "[VI] e.g. 30000",
+      "jobDuties": "[VI] Brief description of duties",
+      "jobDutiesPlaceholder": "[VI] e.g. Backend development for ad platform",
+      "employerPhone": "[VI] Employer phone",
+      "employerPhonePlaceholder": "[VI] +86 10 0000 0000",
+      "employerStreet": "[VI] Employer street address",
+      "employerStreetPlaceholder": "[VI] Street and number",
+      "employerCity": "[VI] City",
+      "employerCityPlaceholder": "[VI] City",
+      "employerState": "[VI] State / Province",
+      "employerStatePlaceholder": "[VI] State or province",
+      "employerPostal": "[VI] Postal code",
+      "employerPostalPlaceholder": "[VI] Postal code",
+      "employerCountry": "[VI] Country",
+      "employerCountryPlaceholder": "[VI] Select country",
+      "hasPreviousEmployer": "[VI] Have you had a previous employer?",
+      "prevEmployerTitle": "[VI] Previous employer",
+      "prevEmployerName": "[VI] Previous employer name",
+      "prevEmployerNamePlaceholder": "[VI] e.g. Alibaba",
+      "prevJobTitle": "[VI] Previous job title",
+      "prevJobTitlePlaceholder": "[VI] e.g. Junior Engineer",
+      "prevEmploymentStart": "[VI] Started",
+      "prevEmploymentEnd": "[VI] Ended",
+      "hasAttendedEducation": "[VI] Have you attended any school past secondary?",
+      "educationTitle": "[VI] Education",
+      "educationInstitution": "[VI] Institution name",
+      "educationInstitutionPlaceholder": "[VI] e.g. Tsinghua University",
+      "educationCourse": "[VI] Course of study",
+      "educationCoursePlaceholder": "[VI] e.g. Computer Science",
+      "educationStart": "[VI] Started",
+      "educationEnd": "[VI] Ended",
+      "educationCity": "[VI] City",
+      "educationCityPlaceholder": "[VI] City",
+      "educationCountry": "[VI] Country",
+      "educationCountryPlaceholder": "[VI] Select country"
+    },
+    "usContact": {
+      "title": "[VI] Your U.S. contact",
+      "subtitle": "[VI] A person or organization in the U.S. that knows you. Required for every DS-160.",
+      "contactType": "[VI] Type of contact",
+      "typePerson": "[VI] Person",
+      "typeOrganization": "[VI] Organization",
+      "organizationName": "[VI] Organization name",
+      "organizationNamePlaceholder": "[VI] e.g. ABC Corporation",
+      "contactFirstName": "[VI] First name",
+      "contactFirstNamePlaceholder": "[VI] e.g. Jane",
+      "contactLastName": "[VI] Last name",
+      "contactLastNamePlaceholder": "[VI] e.g. Smith",
+      "relationship": "[VI] Relationship to you",
+      "relationshipPlaceholder": "[VI] Select relationship",
+      "relationships": {
+        "relative": "[VI] Relative",
+        "spouse": "[VI] Spouse",
+        "friend": "[VI] Friend",
+        "businessAssociate": "[VI] Business associate",
+        "employer": "[VI] Employer",
+        "schoolOfficial": "[VI] School official",
+        "other": "[VI] Other"
+      },
+      "street1": "[VI] Street address",
+      "street1Placeholder": "[VI] Street and number",
+      "street2": "[VI] Address line 2 (optional)",
+      "street2Placeholder": "[VI] Apartment, suite, etc.",
+      "city": "[VI] City",
+      "cityPlaceholder": "[VI] City",
+      "state": "[VI] State",
+      "statePlaceholder": "[VI] Select state",
+      "zip": "[VI] ZIP code",
+      "zipPlaceholder": "[VI] e.g. 10001",
+      "phone": "[VI] Phone",
+      "phonePlaceholder": "[VI] +1 555 000 0000",
+      "email": "[VI] Email",
+      "emailPlaceholder": "[VI] contact@example.com"
+    },
+    "family": {
+      "title": "[VI] Family & background",
+      "subtitle": "[VI] A few questions about your family — standard for all visa applications.",
+      "fatherTitle": "[VI] Father's information",
+      "motherTitle": "[VI] Mother",
+      "parentSubtitle": "[VI] As shown on ID or as best you know",
+      "fatherUnknown": "[VI] I don't know my father's information",
+      "fatherMarkedUnknown": "[VI] Father's information is marked as unknown",
+      "motherUnknown": "[VI] I don't know my mother's information",
+      "motherMarkedUnknown": "[VI] Mother's information is marked as unknown",
+      "givenName": "[VI] Given name",
+      "givenNamePlaceholder": "[VI] e.g. Wei",
+      "surname": "[VI] Surname",
+      "surnamePlaceholder": "[VI] e.g. Zhang",
+      "noGivenName": "[VI] No given name (single name only)",
+      "notApplicable": "[VI] Not applicable",
+      "required": "[VI] Required",
+      "wrongStatus": "[VI] Wrong status? Go back",
+      "spouseTitle": "[VI] Spouse information",
+      "spouseSubtitle": "[VI] Legal name and basic details",
+      "deceasedSpouseTitle": "[VI] Deceased spouse",
+      "formerSpouseTitle": "[VI] Former spouses",
+      "formerSpouseSubtitle": "[VI] Provide info for each former spouse (max 5)",
+      "formerSpouseN": "[VI] Former spouse {n}",
+      "addFormerSpouse": "[VI] Add former spouse",
+      "addAnotherFormerSpouse": "[VI] Add another former spouse",
+      "dateOfBirth": "[VI] Date of birth",
+      "dateOfBirthPlaceholder": "[VI] Select date",
+      "nationality": "[VI] Nationality",
+      "cityOfBirth": "[VI] City of birth",
+      "cityOfBirthPlaceholder": "[VI] e.g. Beijing",
+      "countryOfBirth": "[VI] Country of birth",
+      "countryPlaceholder": "[VI] Select",
+      "datePlaceholder": "[VI] Select date",
+      "spouseAddressType": "[VI] Spouse address type",
+      "spouseAddressTypePlaceholder": "[VI] Select address type",
+      "addressHome": "[VI] Same as home address",
+      "addressWork": "[VI] Same as work address",
+      "addressOther": "[VI] Other address",
+      "street1": "[VI] Street address (line 1)",
+      "street1Placeholder": "[VI] e.g. 123 Main St",
+      "street2": "[VI] Street address (line 2)",
+      "street2Placeholder": "[VI] e.g. Apt 4B",
+      "city": "[VI] City",
+      "cityPlaceholder": "[VI] e.g. Beijing",
+      "stateProvince": "[VI] State/Province",
+      "stateProvincePlaceholder": "[VI] State/Province",
+      "noStateProvince": "[VI] This country has no state/province",
+      "postalCode": "[VI] Postal code",
+      "postalCodePlaceholder": "[VI] Postal code",
+      "noPostalCode": "[VI] This country has no postal code",
+      "country": "[VI] Country",
+      "marriageDate": "[VI] Marriage date",
+      "divorceDate": "[VI] Marriage end date",
+      "howEnded": "[VI] How did the marriage end?",
+      "howEndedHint": "[VI] Free text — max 200 characters",
+      "howEndedPlaceholder": "[VI] e.g. Mutual divorce",
+      "divorceCountry": "[VI] Country where marriage ended",
+      "fatherKnown": "[VI] Father known?",
+      "fatherFirstName": "[VI] Father first name",
+      "fatherLastName": "[VI] Father last name",
+      "motherKnown": "[VI] Mother known?",
+      "motherFirstName": "[VI] Mother first name",
+      "motherLastName": "[VI] Mother last name",
+      "iKnow": "[VI] I know",
+      "iDontKnow": "[VI] I don't know",
+      "firstNamePlaceholder": "[VI] First name",
+      "lastNamePlaceholder": "[VI] Last name",
+      "relativesInUs": "[VI] Do you have immediate relatives in the U.S.?",
+      "relativesInUsHint": "[VI] Spouse, fiancé(e), children, siblings, or parents",
+      "relativeN": "[VI] Relative {n}",
+      "relativeFirstName": "[VI] Given names",
+      "relativeFirstNamePlaceholder": "[VI] Given names",
+      "relativeLastName": "[VI] Surname",
+      "relativeLastNamePlaceholder": "[VI] Surname",
+      "relativeRelationship": "[VI] Relationship",
+      "relationSpouse": "[VI] Spouse",
+      "relationFiance": "[VI] Fiancé(e)",
+      "relationChild": "[VI] Child",
+      "relationSibling": "[VI] Sibling",
+      "relativeStatus": "[VI] Their status in the U.S.",
+      "statusCitizen": "[VI] Citizen",
+      "statusLpr": "[VI] Permanent resident",
+      "statusNonimmigrant": "[VI] Nonimmigrant",
+      "statusOther": "[VI] Other / unknown",
+      "hasOtherRelatives": "[VI] Do you have any other relatives in the U.S.?",
+      "hasOtherRelativesHint": "[VI] Cousins, aunts/uncles, in-laws — most select No",
+      "addAnotherRelative": "[VI] Add another relative",
+      "removeRelative": "[VI] Remove relative",
+      "clanTribe": "[VI] Do you belong to a clan or tribe?",
+      "clanTribeHint": "[VI] Most applicants select No",
+      "clanTribeName": "[VI] Clan or tribe name",
+      "clanTribeNamePlaceholder": "[VI] Clan or tribe name",
+      "languages": "[VI] Languages you speak",
+      "languagesHint": "[VI] Pick all that apply — add more if needed",
+      "recommendedLanguages": "[VI] Recommended for you",
+      "languageN": "[VI] Language {n}",
+      "languageEnglish": "[VI] English",
+      "languageSpanish": "[VI] Spanish",
+      "languageFrench": "[VI] French",
+      "languageArabic": "[VI] Arabic",
+      "languageChineseMandarin": "[VI] Chinese (Mandarin)",
+      "languageChineseCantonese": "[VI] Chinese (Cantonese)",
+      "languageHindi": "[VI] Hindi",
+      "languagePortuguese": "[VI] Portuguese",
+      "languageRussian": "[VI] Russian",
+      "languageJapanese": "[VI] Japanese",
+      "languageKorean": "[VI] Korean",
+      "languageGerman": "[VI] German",
+      "languageItalian": "[VI] Italian",
+      "languageTurkish": "[VI] Turkish",
+      "languageVietnamese": "[VI] Vietnamese",
+      "languageThai": "[VI] Thai",
+      "languageMalay": "[VI] Malay",
+      "languageTamil": "[VI] Tamil",
+      "addLanguage": "[VI] Add another language",
+      "addLanguagePlaceholder": "[VI] Another language",
+      "removeLanguage": "[VI] Remove {lang}"
+    },
+    "background": {
+      "title": "[VI] Background & embassy account",
+      "subtitle": "[VI] Most applicants select \"none apply\". The three security questions at the bottom are required by every DS-160.",
+      "grounds": "[VI] Do any of these apply to you?",
+      "noneApply": "[VI] None apply to me",
+      "noneApplyHint": "[VI] Health, criminal, security, immigration — all set to No",
+      "someApply": "[VI] One or more apply",
+      "someApplyHint": "[VI] You'll be prompted in the full form",
+      "addMoreInFullForm": "[VI] We'll set the obvious questions to No for now. You can edit any of them in the full form review.",
+      "needAnswer": "[VI] Yes, I need to answer",
+      "needAnswerHint": "[VI] Choose categories and answer the detailed questions",
+      "categoryPrompt": "[VI] Which categories apply to you? Select all that apply:",
+      "categoryHealth": "[VI] Health",
+      "categoryHealthSubtitle": "[VI] Communicable disease, physical or mental disorder, drug abuse",
+      "categoryCriminal": "[VI] Criminal record",
+      "categoryCriminalSubtitle": "[VI] Arrests, convictions, controlled substance and related violations",
+      "categorySecurity": "[VI] Security and terrorism",
+      "categorySecuritySubtitle": "[VI] Espionage, sabotage, terrorism, and related activity",
+      "categoryPolitical": "[VI] Political and social affiliations",
+      "categoryPoliticalSubtitle": "[VI] Party membership, Nazi involvement, or persecution",
+      "categoryImmigration": "[VI] Immigration violations",
+      "categoryImmigrationSubtitle": "[VI] Visa fraud, removal, unlawful presence, and custody issues",
+      "categoryOther": "[VI] Other issues",
+      "categoryOtherSubtitle": "[VI] Public charge, withheld custody, and other grounds",
+      "detailPlaceholder": "[VI] Please provide details...",
+      "questions": {
+        "has_communicable_disease": "[VI] Do you have a communicable disease of public health significance?",
+        "has_physical_mental_disorder": "[VI] Do you have a mental or physical disorder that may pose a threat to the safety or welfare of yourself or others?",
+        "has_drug_abuse": "[VI] Have you ever been a drug abuser or addict?",
+        "has_been_arrested": "[VI] Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar action?",
+        "has_violated_substance_law": "[VI] Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?",
+        "has_prostitution_involvement": "[VI] Are you coming to the United States to engage in prostitution or unlawful commercialized vice, or have you been engaged in prostitution or procuring prostitutes within the past 10 years?",
+        "has_money_laundering": "[VI] Have you ever been involved in, or do you seek to engage in, money laundering?",
+        "has_human_trafficking": "[VI] Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?",
+        "has_supported_trafficking": "[VI] Have you ever knowingly aided, abetted, assisted, or colluded with an individual who has committed or conspired to commit a severe human trafficking offense?",
+        "is_trafficking_relative": "[VI] Are you the child, spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense, and have you knowingly benefited from the trafficking activities in the last five years?",
+        "has_been_detained": "[VI] Have you ever been detained, retained, or confined by any country?",
+        "intends_espionage": "[VI] Do you seek to engage in espionage, sabotage, export control violations, or any other illegal activity while in the United States?",
+        "intends_terrorism": "[VI] Do you seek to engage in terrorist activities while in the United States, or have you ever engaged in terrorist activities?",
+        "will_support_terrorists": "[VI] Have you ever or do you intend to provide financial assistance or other support to terrorists or terrorist organizations?",
+        "is_terrorist_organization_member": "[VI] Are you a member or representative of a terrorist organization?",
+        "is_terrorist_relative": "[VI] Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity that caused harm to another person?",
+        "has_committed_genocide": "[VI] Have you ever ordered, incited, committed, assisted, or otherwise participated in genocide?",
+        "has_committed_torture": "[VI] Have you ever committed, ordered, incited, assisted, or otherwise participated in torture?",
+        "has_committed_extrajudicial_killings": "[VI] Have you committed, ordered, incited, assisted, or otherwise participated in extrajudicial killings, political killings, or other acts of violence?",
+        "has_used_child_soldiers": "[VI] Have you ever engaged in the recruitment or the use of child soldiers?",
+        "violated_religious_freedom": "[VI] Have you, while serving as a government official, been responsible for or directly carried out particularly severe violations of religious freedom?",
+        "involved_population_control": "[VI] Have you ever ordered, incited, committed, assisted, or otherwise participated in forced sterilization?",
+        "involved_organ_trafficking": "[VI] Have you ever been directly involved in the coercive transplantation of human organs or bodily tissue?",
+        "obtained_visa_by_fraud": "[VI] Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?",
+        "has_been_removed": "[VI] Have you ever been removed or deported from any country?",
+        "subject_to_removal_order": "[VI] Have you ever been subject to a removal or deportation order from the United States?",
+        "failed_removal_hearing": "[VI] Have you ever failed to attend a removal or deportation hearing in the United States?",
+        "has_overstayed": "[VI] Have you ever been unlawfully present in the United States or violated the terms of entry?",
+        "withheld_child_custody": "[VI] Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court?",
+        "voted_illegally": "[VI] Have you voted in the United States in violation of any law or regulation?",
+        "renounced_citizenship": "[VI] Have you ever renounced United States citizenship for the purposes of avoiding taxation?",
+        "practicing_polygamy": "[VI] Are you practicing polygamy?"
+      },
+      "embassyTitle": "[VI] Embassy account security",
+      "embassySubtitle": "[VI] Used to create your embassy account. Pick answers you'll remember.",
+      "birthCity": "[VI] What city were you born in?",
+      "birthCityPlaceholder": "[VI] e.g. London",
+      "favoriteFood": "[VI] What is your least favorite food?",
+      "favoriteFoodPlaceholder": "[VI] e.g. Broccoli",
+      "childhoodHero": "[VI] Who is your childhood hero?",
+      "childhoodHeroPlaceholder": "[VI] e.g. Superman",
+      "submit": "[VI] Continue to review"
+    },
+    "workEducation": {
+      "title": "[VI] Work & education",
+      "subtitle": "[VI] Tell us about your current work, studies, and recent history.",
+      "currentTitle": "[VI] Current work or studies",
+      "currentSubtitle": "[VI] Used for the DS-160 work/education/training section.",
+      "educationDetailsTitle": "[VI] Education details",
+      "educationDetailsSubtitle": "[VI] Add your current school or university information.",
+      "primaryOccupation": "[VI] Primary occupation",
+      "primaryOccupationPlaceholder": "[VI] Select primary occupation",
+      "occupation": {
+        "AGRICULTURE": "[VI] Agriculture",
+        "ARTIST/PERFORMER": "[VI] Artist/performer",
+        "BUSINESS": "[VI] Business",
+        "COMMUNICATIONS": "[VI] Communications",
+        "COMPUTER SCIENCE": "[VI] Computer science",
+        "CULINARY/FOOD SERVICES": "[VI] Culinary/food services",
+        "EDUCATION": "[VI] Education",
+        "ENGINEERING": "[VI] Engineering",
+        "GOVERNMENT": "[VI] Government",
+        "LEGAL PROFESSION": "[VI] Legal profession",
+        "MEDICAL/HEALTH": "[VI] Medical/health",
+        "MILITARY": "[VI] Military",
+        "NATURAL SCIENCE": "[VI] Natural science",
+        "PHYSICAL SCIENCES": "[VI] Physical sciences",
+        "RELIGIOUS VOCATION": "[VI] Religious vocation",
+        "RESEARCH": "[VI] Research",
+        "SOCIAL SCIENCE": "[VI] Social science",
+        "STUDENT": "[VI] Student",
+        "HOMEMAKER": "[VI] Homemaker",
+        "RETIRED": "[VI] Retired",
+        "NOT EMPLOYED": "[VI] Not employed",
+        "OTHER": "[VI] Other"
+      },
+      "occupationOtherExplain": "[VI] Please explain",
+      "occupationOtherExplainPlaceholder": "[VI] Please explain your occupation or situation...",
+      "employerName": "[VI] Employer/company name",
+      "employerNamePlaceholder": "[VI] e.g. Acme Corp",
+      "schoolName": "[VI] School name",
+      "schoolNamePlaceholder": "[VI] e.g. Peking University",
+      "jobTitle": "[VI] Job title",
+      "jobTitlePlaceholder": "[VI] e.g. Product manager",
+      "courseOfStudy": "[VI] Course of study",
+      "courseOfStudyPlaceholder": "[VI] e.g. Computer science",
+      "employmentStartDate": "[VI] Start date",
+      "datePlaceholder": "[VI] Select date",
+      "monthlySalary": "[VI] Monthly salary",
+      "monthlySalaryPlaceholder": "[VI] e.g. 5000",
+      "monthlySalaryHint": "[VI] Currency is for reference. Only submit the number.",
+      "noMonthlySalary": "[VI] I do not have a fixed monthly income",
+      "salaryCurrency": "[VI] Salary currency",
+      "employerPhone": "[VI] Work phone",
+      "schoolPhone": "[VI] School phone",
+      "dialCode": "[VI] Dial code",
+      "phonePlaceholder": "[VI] Phone number",
+      "employerCountry": "[VI] Country",
+      "countryPlaceholder": "[VI] Select country",
+      "employerStreet": "[VI] Employer address",
+      "schoolStreet": "[VI] School address",
+      "streetPlaceholder": "[VI] e.g. 123 Main St",
+      "employerCity": "[VI] City",
+      "cityPlaceholder": "[VI] e.g. Beijing",
+      "employerState": "[VI] State/Province",
+      "statePlaceholder": "[VI] State/Province",
+      "employerPostal": "[VI] Postal code",
+      "postalPlaceholder": "[VI] Postal code",
+      "jobDuties": "[VI] Briefly describe your duties",
+      "jobDutiesPlaceholder": "[VI] e.g. Manage client accounts and prepare reports",
+      "previousEmployerTitle": "[VI] Any other work in the last 5 years?",
+      "previousEmployerSubtitle": "[VI] Add 1-2 recent jobs and fill what you remember.",
+      "hasPreviousEmployer": "[VI] Have you had a previous employer?",
+      "previousEmployerN": "[VI] Previous job {n}",
+      "addPreviousEmployer": "[VI] Add another job",
+      "removePreviousEmployer": "[VI] Remove previous job",
+      "prevEmployerName": "[VI] Previous employer name",
+      "prevJobTitle": "[VI] Previous job title",
+      "prevJobDuties": "[VI] What did you do there?",
+      "prevJobDutiesPlaceholder": "[VI] Briefly describe duties (optional)",
+      "supervisorFirstName": "[VI] Supervisor given names",
+      "supervisorFirstNamePlaceholder": "[VI] Given names (optional)",
+      "supervisorLastName": "[VI] Supervisor surname",
+      "supervisorLastNamePlaceholder": "[VI] Surname (optional)",
+      "prevEmploymentStart": "[VI] Start date",
+      "prevEmploymentEnd": "[VI] End date",
+      "educationTitle": "[VI] Education history",
+      "educationSubtitle": "[VI] If you attended school beyond elementary level, add it here.",
+      "educationHistoryTitle": "[VI] Tell us about your education",
+      "educationHistorySubtitle": "[VI] We only need your highest or most recent schooling. Keep it simple.",
+      "hasAttendedEducation": "[VI] Have you attended school?",
+      "educationN": "[VI] Education {n}",
+      "addEducation": "[VI] Add another (optional)",
+      "removeEducation": "[VI] Remove education",
+      "educationHistoryFootnote": "[VI] Most applicants only need 1-2 schools",
+      "noEducationHint": "[VI] No education history to report? Select No and continue.",
+      "educationLevel": "[VI] Education level",
+      "educationLevelPlaceholder": "[VI] Select level (optional)",
+      "educationLevelSecondary": "[VI] High school",
+      "educationLevelCollege": "[VI] University/college",
+      "educationLevelVocationalOther": "[VI] Vocational/other",
+      "educationInstitution": "[VI] School/institution name",
+      "educationInstitutionPlaceholder": "[VI] School or institution name",
+      "educationCourse": "[VI] Course of study",
+      "educationStart": "[VI] Start date",
+      "educationEnd": "[VI] End date",
+      "educationCity": "[VI] City",
+      "educationCountry": "[VI] Country",
+      "organizationTitle": "[VI] Any clubs, groups, or organizations?",
+      "organizationSubtitle": "[VI] Professional, social, or charitable organizations. Names are enough.",
+      "organizationN": "[VI] Organization {n}",
+      "organizationName": "[VI] Organization name",
+      "organizationNamePlaceholder": "[VI] Organization name",
+      "addOrganization": "[VI] Add another organization",
+      "removeOrganization": "[VI] Remove organization",
+      "militaryTitle": "[VI] Have you ever served in the military?",
+      "militarySubtitle": "[VI] Any country, any branch, including reserve service.",
+      "militaryServiceN": "[VI] Military service {n}",
+      "militaryCountry": "[VI] Country served",
+      "militaryBranch": "[VI] Branch of service",
+      "militaryBranchPlaceholder": "[VI] Branch of service",
+      "militaryRank": "[VI] Rank/position",
+      "militaryRankPlaceholder": "[VI] Rank/position",
+      "militarySpecialty": "[VI] Military specialty",
+      "militarySpecialtyPlaceholder": "[VI] Military specialty",
+      "militaryStartDate": "[VI] Start date",
+      "militaryEndDate": "[VI] End date",
+      "addMilitaryService": "[VI] Add another service record",
+      "removeMilitaryService": "[VI] Remove service record",
+      "specializedSkillsTitle": "[VI] Any specialized skills or training?",
+      "specializedSkillsSubtitle": "[VI] For example firearms, explosives, nuclear, biological, or chemical experience.",
+      "specializedSkillsExplain": "[VI] Please explain",
+      "specializedSkillsExplainPlaceholder": "[VI] Describe your specialized skills or training...",
+      "submit": "[VI] Continue to review"
+    }
+  },
+  "documents": {
+    "title": "[VI] Documents",
+    "loading": "[VI] Loading documents...",
+    "documentsUploaded": "[VI] {count} of {total} documents uploaded",
+    "percentComplete": "[VI] {pct}% complete",
+    "rejected": "[VI] Rejected: ",
+    "upload": "[VI] Upload",
+    "uploading": "[VI] Uploading...",
+    "reupload": "[VI] Re-upload",
+    "replace": "[VI] Replace",
+    "statusLabels": {
+      "uploaded": "[VI] Uploaded",
+      "validated": "[VI] Validated",
+      "missing": "[VI] Missing",
+      "rejected": "[VI] Rejected"
+    },
+    "requiredDocs": {
+      "passport_copy": {
+        "label": "[VI] Passport Copy",
+        "description": "[VI] Bio-data page of your passport"
+      },
+      "photo": {
+        "label": "[VI] Photo",
+        "description": "[VI] Recent passport-size photo, white background"
+      },
+      "flight_booking": {
+        "label": "[VI] Flight Booking",
+        "description": "[VI] Return flight booking confirmation"
+      },
+      "hotel_booking": {
+        "label": "[VI] Hotel Booking",
+        "description": "[VI] Accommodation confirmation"
+      },
+      "travel_itinerary": {
+        "label": "[VI] Travel Itinerary",
+        "description": "[VI] Detailed travel plan"
+      },
+      "bank_statement": {
+        "label": "[VI] Bank Statement",
+        "description": "[VI] Last 3 months, showing sufficient funds"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "[VI] Not authenticated. Please log in.",
+      "noProfile": "[VI] No applicant profile found. Please complete onboarding.",
+      "noApplication": "[VI] No application found. Please start your application.",
+      "uploadFailed": "[VI] Upload failed: {message}",
+      "completeApplicationFirst": "[VI] Please complete your application first before uploading documents."
+    }
+  },
+  "chat": {
+    "searchChats": "[VI] Search chats",
+    "searchPlaceholder": "[VI] Search chats...",
+    "noResults": "[VI] No results found",
+    "sessionHistory": "[VI] Session History",
+    "noConversations": "[VI] No conversations yet",
+    "chatWith": "[VI] Chat with",
+    "vizaAI": "[VI] VIZA AI",
+    "vizaAIDescription": "[VI] Visa guidance, document help, and Q&A",
+    "immediate": "[VI] Immediate",
+    "askSupportTeam": "[VI] Ask the Support Team",
+    "supportDescription": "[VI] Complex topics and customer service",
+    "supportResponseTime": "[VI] <24h on weekdays",
+    "inputPlaceholder": "[VI] Ask about your visa application...",
+    "supportComingSoon": "[VI] Support team chat coming soon",
+    "connectionReconnecting": "[VI] Connection issue - reconnecting...",
+    "connectedSending": "[VI] Connected - sending queued messages",
+    "agentNotified": "[VI] Your visa agent has been notified about this conversation",
+    "failedToStart": "[VI] Failed to start conversation",
+    "willSendWhenConnected": "[VI] Message will be sent when connected"
+  },
+  "inviteFriends": {
+    "heroTitle": "[VI] Refer your friends",
+    "heroSubtitle": "[VI] Earn rewards",
+    "referHeading": "[VI] Refer your friends and earn ₱9,999",
+    "referDescription": "[VI] Share your unique referral link with friends and family. When they sign up, you'll each receive ₱9,999 to spend in VIZA Services.",
+    "referralLink": "[VI] Referral link",
+    "loadingLink": "[VI] Loading your link...",
+    "copyLink": "[VI] Copy link",
+    "copied": "[VI] Copied!",
+    "orInviteViaEmail": "[VI] or invite via email",
+    "emailPlaceholder": "[VI] Your friend's email",
+    "sendInvite": "[VI] Send invite",
+    "sending": "[VI] Sending...",
+    "howItWorks": "[VI] How it works",
+    "steps": {
+      "share": {
+        "title": "[VI] Share your unique link",
+        "description": "[VI] Invite your friends to join VIZA using your unique referral link"
+      },
+      "give": {
+        "title": "[VI] Give ₱9,999 to your friends",
+        "description": "[VI] When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services"
+      },
+      "earn": {
+        "title": "[VI] Earn ₱9,999 in credit",
+        "description": "[VI] You'll also receive ₱9,999 for every friend who signs up with your link."
+      },
+      "redeem": {
+        "title": "[VI] Redeem your credits",
+        "description": "[VI] Use your credits in the VIZA Services page."
+      }
+    },
+    "faqTitle": "[VI] Frequently Asked Questions",
+    "faqs": {
+      "whenReward": {
+        "question": "[VI] When do I get my reward?",
+        "answer": "[VI] Your reward will be credited to your account within 24 hours after your friend completes their first purchase."
+      },
+      "howUseCredit": {
+        "question": "[VI] How do I use the credit?",
+        "answer": "[VI] Credits can be applied at checkout when purchasing any service from VIZA Services page."
+      },
+      "whoEligible": {
+        "question": "[VI] Who's eligible?",
+        "answer": "[VI] New members only. One discount per new member."
+      }
+    }
+  },
+  "settings": {
+    "title": "[VI] Settings",
+    "loading": "[VI] Loading your settings...",
+    "tabs": {
+      "billing": "[VI] Billing",
+      "account": "[VI] Account"
+    },
+    "account": {
+      "title": "[VI] Account",
+      "email": "[VI] Email",
+      "displayName": "[VI] Display Name",
+      "namePlaceholder": "[VI] Your full name",
+      "saveChanges": "[VI] Save changes",
+      "saving": "[VI] Saving...",
+      "failedToSave": "[VI] Failed to save.",
+      "saved": "[VI] Saved."
+    },
+    "signOut": {
+      "title": "[VI] Sign Out",
+      "description": "[VI] Sign out of your account on this device.",
+      "button": "[VI] Sign out"
+    },
+    "billing": {
+      "title": "[VI] Billing",
+      "noPaymentMethods": "[VI] No payment methods",
+      "noPaymentDescription": "[VI] Billing and payment management will be available here soon. Contact support if you need to update your billing details."
+    }
+  },
+  "help": {
+    "heroTitle": "[VI] Help Center",
+    "heroSubtitle": "[VI] Find answers, guides, and support for your account.",
+    "quickLinks": {
+      "title": "[VI] Quick links",
+      "accountProfile": {
+        "title": "[VI] Account & Profile",
+        "description": "[VI] Update your profile details, password, and preferences."
+      },
+      "referrals": {
+        "title": "[VI] Referrals",
+        "description": "[VI] Invite friends and track your rewards."
+      },
+      "payments": {
+        "title": "[VI] Payments & Credits",
+        "description": "[VI] View transactions, credits, and receipts."
+      }
+    },
+    "guides": {
+      "title": "[VI] Guides",
+      "gettingStarted": {
+        "title": "[VI] Getting started",
+        "completeProfile": "[VI] Complete your profile",
+        "addPayment": "[VI] Add a payment method",
+        "exploreServices": "[VI] Explore services"
+      },
+      "usingCredits": {
+        "title": "[VI] Using your credits",
+        "whereApply": "[VI] Where credits apply",
+        "expiration": "[VI] Expiration rules",
+        "troubleshooting": "[VI] Troubleshooting"
+      },
+      "privacy": {
+        "title": "[VI] Privacy & security",
+        "dataUsage": "[VI] Data usage",
+        "securityTips": "[VI] Account security tips",
+        "twoFactor": "[VI] Two-factor support"
+      }
+    },
+    "faqTitle": "[VI] Frequently Asked Questions",
+    "faqs": {
+      "resetPassword": {
+        "question": "[VI] How do I reset my password?",
+        "answer": "[VI] Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
+      },
+      "seeCredits": {
+        "question": "[VI] Where can I see my credits?",
+        "answer": "[VI] Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
+      },
+      "referrals": {
+        "question": "[VI] How do referrals work?",
+        "answer": "[VI] Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
+      },
+      "bookBloodTest": {
+        "question": "[VI] How do I book a blood test?",
+        "answer": "[VI] Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
+      },
+      "labResults": {
+        "question": "[VI] When will I receive my results?",
+        "answer": "[VI] Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+      },
+      "updateInfo": {
+        "question": "[VI] How do I update my personal information?",
+        "answer": "[VI] Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes."
+      },
+      "updatePayment": {
+        "question": "[VI] How do I add or update a payment method?",
+        "answer": "[VI] Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
+      },
+      "cancelReschedule": {
+        "question": "[VI] Can I cancel or reschedule a booked service?",
+        "answer": "[VI] Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
+      },
+      "dataPrivate": {
+        "question": "[VI] Is my health data private?",
+        "answer": "[VI] Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+      },
+      "contactSupport": {
+        "question": "[VI] How do I contact support?",
+        "answer": "[VI] You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "[VI] Login to your account",
+      "noAccount": "[VI] Don't have an account?",
+      "signUp": "[VI] Sign up",
+      "emailPlaceholder": "[VI] Enter your email",
+      "sendingCode": "[VI] Sending code...",
+      "loginButton": "[VI] Login",
+      "noAccountFound": "[VI] No account found with this email. Please contact support.",
+      "failedToSendCode": "[VI] Failed to send code",
+      "noAccountWithEmail": "[VI] No account found with this email",
+      "notRegistered": "[VI] This email is not registered as an applicant.",
+      "authFailed": "[VI] Authentication failed. Please try again.",
+      "unexpectedError": "[VI] An unexpected error occurred. Please try again.",
+      "failedToResend": "[VI] Failed to resend code.",
+      "checkEmail": "[VI] Check your email",
+      "sentCodeTo": "[VI] We sent an 8-digit code to",
+      "clickLink": "[VI] Click the link in your email to sign in.",
+      "resendIn": "[VI] Resend in {seconds}s",
+      "resendCode": "[VI] Resend code",
+      "privacyPolicy": "[VI] Privacy Policy",
+      "termsOfService": "[VI] Terms of Service"
+    },
+    "signup": {
+      "title": "[VI] Request your account",
+      "subtitle": "[VI] Enter your email and our team will send an invite if you are eligible.",
+      "emailPlaceholder": "[VI] Enter your email",
+      "invalidEmail": "[VI] Please enter a valid email address.",
+      "submitting": "[VI] Submitting...",
+      "requestInvite": "[VI] Request Invite",
+      "thankYou": "[VI] Thanks. We will email you if you are eligible for access.",
+      "urgentAccess": "[VI] For urgent access, contact support at support@viza.com.",
+      "backToLogin": "[VI] Back to Login",
+      "privacyPolicy": "[VI] Privacy Policy",
+      "termsOfService": "[VI] Terms of Service"
+    },
+    "register": {
+      "accountCreated": "[VI] Account Created!",
+      "accountCreatedMessage": "[VI] Your account has been created successfully. You can now log in to start using VIZA.",
+      "goToLogin": "[VI] Go to Login",
+      "validatingReferral": "[VI] Validating referral...",
+      "referredBy": "[VI] Referred by {name} — you'll get ₱9,999 credit!",
+      "noReferralCode": "[VI] No referral code found. Please use a valid referral link to sign up.",
+      "invalidReferralCode": "[VI] Invalid referral code. Please check your link and try again.",
+      "createAccount": "[VI] Create your account",
+      "alreadyHaveAccount": "[VI] Already have an account?",
+      "logIn": "[VI] Log in",
+      "fullNamePlaceholder": "[VI] Enter Full Name",
+      "emailPlaceholder": "[VI] Enter your email",
+      "creatingAccount": "[VI] Creating account...",
+      "signUpButton": "[VI] Sign Up",
+      "agreeToTerms": "[VI] I agree to the",
+      "termsOfService": "[VI] Terms of Service",
+      "and": "[VI] and",
+      "privacyPolicy": "[VI] Privacy Policy",
+      "pleaseAgree": "[VI] Please agree to the Terms of Service and Privacy Policy",
+      "invalidReferralLink": "[VI] Invalid referral link",
+      "registrationFailed": "[VI] Registration failed",
+      "unexpectedError": "[VI] An unexpected error occurred. Please try again."
+    },
+    "loginForm": {
+      "email": "[VI] Email address",
+      "emailPlaceholder": "[VI] you@example.com",
+      "password": "[VI] Password",
+      "forgotPassword": "[VI] Forgot password?",
+      "passwordPlaceholder": "[VI] Enter your password",
+      "signingIn": "[VI] Signing in...",
+      "signIn": "[VI] Sign in"
+    },
+    "polaroids": {
+      "sanFrancisco": "[VI] San Francisco",
+      "newYork": "[VI] New York",
+      "tokyo": "[VI] Tokyo",
+      "sydney": "[VI] Sydney",
+      "beijing": "[VI] Beijing",
+      "egypt": "[VI] Egypt",
+      "pisa": "[VI] Pisa",
+      "singapore": "[VI] Singapore"
+    }
+  },
+  "terms": {
+    "title": "[VI] Terms of Service",
+    "subtitle": "[VI] The rules and guidelines that govern your use of our platform.",
+    "sections": {
+      "acceptance": {
+        "title": "[VI] Acceptance of terms",
+        "p1": "[VI] By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
+        "p2": "[VI] These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
+      },
+      "services": {
+        "title": "[VI] Our services",
+        "intro": "[VI] VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
+        "item1": "[VI] Online visa consultations with licensed consultants.",
+        "item2": "[VI] Blood panel bookings and lab result delivery.",
+        "item3": "[VI] Supplement and product purchases through the Services marketplace.",
+        "item4": "[VI] Personalized action plans and health recommendations.",
+        "item5": "[VI] Concierge support for your health journey.",
+        "disclaimer": "[VI] Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
+      },
+      "eligibility": {
+        "title": "[VI] Eligibility",
+        "intro": "[VI] To use our services, you must:",
+        "item1": "[VI] Be at least 18 years of age, or have parental or guardian consent.",
+        "item2": "[VI] Provide accurate, current, and complete information when registering.",
+        "item3": "[VI] Maintain the security of your account credentials.",
+        "item4": "[VI] Reside in a location where our services are available."
+      },
+      "responsibilities": {
+        "title": "[VI] User responsibilities",
+        "intro": "[VI] When using our platform, you agree to:",
+        "item1": "[VI] Provide truthful and complete health information during consultations and questionnaires.",
+        "item2": "[VI] Follow visa advice provided by our licensed professionals responsibly.",
+        "item3": "[VI] Not share your account credentials with any other person.",
+        "item4": "[VI] Not use the platform for any unlawful or unauthorized purpose.",
+        "item5": "[VI] Notify us promptly if you suspect any unauthorized access to your account."
+      },
+      "visa": {
+        "title": "[VI] Visa disclaimer",
+        "p1": "[VI] The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
+        "p2": "[VI] Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
+      },
+      "payments": {
+        "title": "[VI] Payments and credits",
+        "p1": "[VI] By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
+        "p2": "[VI] Credits earned through referrals or promotions have no cash value and cannot be transferred.",
+        "p3": "[VI] Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
+        "p4": "[VI] Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
+      },
+      "ip": {
+        "title": "[VI] Intellectual property",
+        "p1": "[VI] All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
+      },
+      "liability": {
+        "title": "[VI] Limitation of liability",
+        "p1": "[VI] To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
+      },
+      "termination": {
+        "title": "[VI] Termination",
+        "p1": "[VI] We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
+        "p2": "[VI] You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
+      },
+      "changes": {
+        "title": "[VI] Changes to these terms",
+        "p1": "[VI] We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
+      },
+      "law": {
+        "title": "[VI] Governing law",
+        "p1": "[VI] These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
+      },
+      "contact": {
+        "title": "[VI] Contact us",
+        "p1": "[VI] If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.com."
+      }
+    }
+  },
+  "privacy": {
+    "title": "[VI] Privacy Policy",
+    "subtitle": "[VI] How we collect, use, and protect your personal information.",
+    "sections": {
+      "introduction": {
+        "title": "[VI] Introduction",
+        "p1": "[VI] VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
+        "p2": "[VI] By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
+      },
+      "collect": {
+        "title": "[VI] Information we collect",
+        "intro": "[VI] We collect information that you provide directly to us and information generated through your use of our services.",
+        "item1": "[VI] Personal identifiers such as your name, email address, phone number, and date of birth.",
+        "item2": "[VI] Health and visa information including results, profile data, visa history, allergies, and current documents.",
+        "item3": "[VI] Payment information processed securely through our payment providers.",
+        "item4": "[VI] Communications between you and our visa team, including consultation notes and messages.",
+        "item5": "[VI] Device and usage data such as IP address, browser type, and pages visited."
+      },
+      "use": {
+        "title": "[VI] How we use your information",
+        "intro": "[VI] We use the information we collect to deliver and improve our services, including:",
+        "item1": "[VI] Providing visa services consultations, lab bookings, and service services.",
+        "item2": "[VI] Communicating with you about your health, appointments, and orders.",
+        "item3": "[VI] Processing payments and fulfilling orders through our platform.",
+        "item4": "[VI] Improving the accuracy and quality of our health assessments.",
+        "item5": "[VI] Complying with applicable laws, regulations, and visa standards.",
+        "noSell": "[VI] We never sell your personal or health information to third parties for marketing purposes."
+      },
+      "sharing": {
+        "title": "[VI] Sharing your information",
+        "intro": "[VI] We may share your information only in the following limited circumstances:",
+        "item1": "[VI] With licensed visa professionals involved in your care.",
+        "item2": "[VI] With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
+        "item3": "[VI] With payment processors to complete transactions securely.",
+        "item4": "[VI] When required by law, court order, or applicable regulation.",
+        "item5": "[VI] With your explicit consent for any other purpose."
+      },
+      "security": {
+        "title": "[VI] Data security",
+        "p1": "[VI] We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
+        "p2": "[VI] While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
+      },
+      "rights": {
+        "title": "[VI] Your rights",
+        "intro": "[VI] You have the following rights regarding your personal information:",
+        "access": "[VI] Access: Request a copy of the personal information we hold about you.",
+        "correction": "[VI] Correction: Request that inaccurate or incomplete information be corrected.",
+        "deletion": "[VI] Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
+        "portability": "[VI] Portability: Request your data in a machine-readable format where applicable.",
+        "withdrawal": "[VI] Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
+      },
+      "retention": {
+        "title": "[VI] Data retention",
+        "p1": "[VI] We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
+      },
+      "changes": {
+        "title": "[VI] Changes to this policy",
+        "p1": "[VI] We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
+      },
+      "contact": {
+        "title": "[VI] Contact us",
+        "p1": "[VI] If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+      }
+    }
+  }
+}
