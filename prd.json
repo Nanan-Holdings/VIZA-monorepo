@@ -2568,7 +2568,7 @@
       "description": "Same as AUTO-KH-03 for Laos.",
       "acceptanceCriteria": ["Payment mechanism implemented", "Issued PDF captured", "Status -> delivered", "Typecheck passes"],
       "priority": 187,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
