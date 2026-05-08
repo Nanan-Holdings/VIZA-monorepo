@@ -1854,3 +1854,18 @@ acknowledgment).
 - scripts/in-smoke.ts 90s synthetic-answer smoke.
 - typecheck clean.
 ---
+
+## 2026-05-08 - AUTO-IN-02
+- IN error catalog + needs-human + inbox helper.
+- src/in/errors.ts in.* code union + classifyPage. src/in/runner.ts probe/dispatchError wired. waitForInConfirmationEmail filtered on indianvisaonline/gov.in.
+- 5/5 unit tests green.
+
+## 2026-05-08 - AUTO-IN-03
+- IN payment + finalize.
+- src/in/payment.ts payInWithEscrowCard (shared loadEscrowCard).
+- src/in/finalize.ts persistInDelivered (in-evisa.pdf, application_documents, status='delivered', doc_ready queue).
+
+## 2026-05-08 - AUTO-IN-04
+- IN production handoff runbook.
+- docs/runbooks/in.md with sub-journey gating reference table.
+---
