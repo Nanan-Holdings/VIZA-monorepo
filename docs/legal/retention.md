@@ -85,6 +85,35 @@ reads `retention_purge_log` for `class IN ('inbound_email_r2',
 respective buckets for any keys whose corresponding row no longer
 exists in the database.
 
+## Post-delivery document purge (DOC-006)
+
+A second sweep runs once an application reaches `status IN ('delivered',
+'cancelled')`. Defaults:
+
+- Passport scans + photos: 30 days post-delivery (kind=`passport`, `photo`).
+- Supporting documents (bank statements, itineraries, etc.): 90 days
+  post-delivery.
+- Submission artefacts (HAR, screenshots, per-country payloads): 180
+  days post-delivery — long enough for refund / appeal disputes,
+  short enough to bound risk.
+
+Function: `purge_post_delivery_documents(passport_days, supporting_days,
+artefacts_days)` — defined in
+`viza-be/agent-backend/drizzle/0064_post_delivery_purge.sql`. Cron:
+
+```sql
+SELECT cron.schedule(
+  'docs-post-delivery-purge',
+  '49 3 * * *',
+  $$ SELECT purge_post_delivery_documents(); $$
+);
+```
+
+Each run writes `class='post_delivery_documents'` to
+`retention_purge_log`. R2 / Storage object cleanup is decoupled —
+the existing cleanup worker reads the log and removes the bucket
+keys whose database rows are gone.
+
 ## Customer-initiated deletion
 
 Customer-initiated deletion (LEGAL-004) bypasses the retention
