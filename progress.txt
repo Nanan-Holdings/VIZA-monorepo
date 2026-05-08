@@ -2054,3 +2054,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: routing every status mutation through updateApplicationStatus is the only way to keep ASH the source of truth — silent updates in legacy code paths will desync the timeline.
 ---
+
+## 2026-05-08 - SUPPORT-001 + SUPPORT-002
+- Migration 0076_support_ticket adds support_ticket + support_message with RLS dual-policy (applicants see own via applicant_profiles join, staff/admin see all). Drizzle schema: supportTicket, supportMessage.
+- ticket_received NOTIFY-002 template (subject + body + SMS) registered in templates/index.ts; createSupportTicket queues a notification_event_log row so the worker emails the acknowledgement.
+- components/support-button.tsx floating LifeBuoy button drawer collects subject + body, links application_id when supplied; brand-* tokens, focus rings via shadcn.
+- /support/[ticketId]/page.tsx + SupportThread.tsx render the thread with staff (brand-50, left) vs applicant (brand-500, right) bubbles; supabase.channel postgres_changes INSERT subscription updates both sides without refresh.
+- app/actions/support.ts: createSupportTicket / listMyTickets / loadTicketThread / postTicketMessage; staff-or-owner gate on read+write.
+- Both typechecks clean.
+- Learning: realtime postgres_changes filter `ticket_id=eq.<id>` plus de-dup by id avoids the optimistic-vs-realtime double-render that bites naive append-on-insert handlers.
+---
