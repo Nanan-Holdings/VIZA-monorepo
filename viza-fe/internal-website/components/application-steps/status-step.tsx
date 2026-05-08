@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +73,16 @@ export function StatusStep({
         <p className="text-sm text-muted-foreground">
           {t("status.message")}
         </p>
+
+        <div className="rounded-lg border border-[#03346E]/20 bg-[#03346E]/5 p-3">
+          <p className="mb-2 text-sm font-medium text-[#03346E]">
+            {t("status.travelPlannerTitle")}
+          </p>
+          <p className="mb-3 text-xs text-gray-600">{t("status.travelPlannerHint")}</p>
+          <Button asChild className="w-full bg-[#03346E] text-white hover:bg-[#02264f]">
+            <Link href="/client/travel-chat">{t("status.openTravelPlanner")}</Link>
+          </Button>
+        </div>
 
         {receiptUrl && (
           <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
