@@ -2462,8 +2462,8 @@
         "Typecheck passes"
       ],
       "priority": 179,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "6 MDX articles authored (vn/us/uk/eu/au/in) under docs/help/. Surfaced at /client/help/articles with active-package filter + substring search; chat-suggestion server action returns top-3 hits."
     },
     {
       "id": "CS-005",

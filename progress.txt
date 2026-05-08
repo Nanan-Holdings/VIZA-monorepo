@@ -1707,3 +1707,13 @@ acknowledgment).
 - Typecheck: submission-service ✅, internal-website ✅
 - Notes: detailed operator workspace UI (CDP-attached browser embed) is a follow-on. The contract — 2FA-gated URL reveal, action log, answer write-back — is final.
 ---
+
+## 2026-05-08 - CS-004
+- docs/help/{README.md, vn.mdx, us.mdx, uk.mdx, eu.mdx, au.mdx, in.mdx}: 6 per-package FAQ articles authored as plain markdown (.mdx-named for forward-compat). Each follows Documents required / Processing time / Refund eligibility / Common rejection reasons / Useful links.
+- viza-fe/internal-website/lib/help/index.ts: HELP_ARTICLES registry (country + visaType → file). loadAllHelpArticles() reads from repo root, skips missing files. searchHelpArticles(q) substring filter on title + body.
+- viza-fe/internal-website/lib/help/render.ts: tiny markdown renderer (H1/H2/H3, paragraphs, ul, [text](url), **bold**). Escapes < / > / & — no raw HTML allowed in source.
+- app/client/help/articles/page.tsx + help-client.tsx: server-loads articles + applicant's active applications, filters by active-package (or shows all if applicant has none), client-side search input + sticky-left article list.
+- app/actions/help.ts: searchHelp(query) → top-3 LoadedArticle slices for chat suggested-replies (country, visaType, title, snippet).
+- Typecheck: internal-website ✅
+- Notes: existing /client/help is the static landing page (Getting started / Privacy / Credits); FAQ content lives at /client/help/articles. MDX-with-JSX requires a compiler dep — held off until JSX components actually appear in the source.
+---
