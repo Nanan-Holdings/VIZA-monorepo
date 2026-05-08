@@ -1626,3 +1626,13 @@ acknowledgment).
 - No code changes — typecheck N/A.
 - OPS suite (001–007) complete.
 ---
+
+## 2026-05-08 - DOC-001
+- docs/photo-specs.md: 26-country photo spec table (mm + 300dpi pixels + background + head-height range + format + max bytes) + ICAO baseline. Counsel TODO at launch to re-confirm against live portal docs.
+- viza-fe/internal-website/lib/photo/specs.ts: PHOTO_SPECS array mirroring the doc; specFor(country, visaType) helper with default ±5% dimension tolerance.
+- viza-fe/internal-website/lib/photo/validate.ts: dependency-free server validator. detectFormat() via JPEG/PNG magic bytes; jpegDims() walks marker segments to find the SOFx height/width; pngDims() reads IHDR. Returns structured PhotoValidationFail with stable codes (spec_missing | format_unsupported | format_corrupt | file_too_large | dimensions_off | image_too_small) and a human-readable reason.
+- app/actions/photo.ts: validatePhotoAction(base64, country, visaType) decodes + delegates to validatePhoto.
+- components/client/photo-capture.tsx: client-side photo capture button + JPEG-only file input with `capture="user"` for mobile cameras. Uploads via the action, surfaces structured failure to the user, calls onAccepted(base64) on pass. Aspect-ratio-correct preview tile based on the spec.
+- Typecheck: internal-website ✅
+- Notes: visual ICAO checks (background colour, head height, expression) require ML and are explicitly out-of-scope for this story.
+---
