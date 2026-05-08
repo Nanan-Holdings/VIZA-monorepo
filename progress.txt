@@ -1688,3 +1688,13 @@ acknowledgment).
 - Existing /client/chat (Companion) keeps the /visa Socket.IO namespace for AI streaming. Human-handoff CTA → openOrResumeApplicantThread is the integration point; client widget wiring is a follow-on touch.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-08 - CS-002
+- drizzle/0066_notification_preferences.sql: notification_preferences (channel_email, channel_push, per-event opt-outs, push_token + push_provider) and notification_event_log (per-channel delivery audit). Owner-SELECT/upsert RLS for prefs; owner-SELECT for log.
+- viza-fe/internal-website/lib/notify/templates.ts: renderTemplate(event, ctx) for paid / runner_started / runner_input_needed / submitted / decision_issued / doc_ready. paid + runner_input_needed + decision_issued flagged essential — opt-out fields don't apply.
+- viza-fe/internal-website/lib/notify/dispatch.ts: sendTransitionNotification(applicantId, event, ctx) loads prefs, suppresses non-essential opt-outs (writes channel='suppressed' to the log), sends Resend email (Resend message id captured), and POSTs to Expo push when push_provider='expo'. Per-channel result row written.
+- app/actions/notification-prefs.ts: getNotificationPreferences / updateNotificationPreferences (caller-applicant-scoped via auth user → applicant_profiles). Defaults filled in when no row.
+- app/client/account/notifications/page.tsx + prefs-form.tsx: per-event toggles (channel_email/push, runner_started, submitted, document_ready, marketing). Saves on toggle via useTransition + Server Action.
+- Typecheck: internal-website ✅
+- Notes: callers (Stripe webhook, runner queue worker) wire sendTransitionNotification at the existing transition write-paths in a follow-on touch — the dispatcher contract is final.
+---

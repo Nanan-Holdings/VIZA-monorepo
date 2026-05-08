@@ -2432,8 +2432,8 @@
         "Typecheck passes"
       ],
       "priority": 177,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Six events templated. Email via Resend; push via Expo (token+provider on prefs row); essential vs opt-out enforced server-side."
     },
     {
       "id": "CS-003",
