@@ -1728,3 +1728,10 @@ acknowledgment).
 - CS suite (001–005) complete.
 - Typecheck: internal-website ✅, agent-backend ✅
 ---
+
+## 2026-05-08 - AUTO-KH-01
+- viza-be/submission-service/src/kh/runner.ts: runKhPrefill({jobId, applicationId, answers, headless?}) Playwright runner against evisa.gov.kh. Captures landing → application_new → personal-info-filled → review screenshots and a network HAR via artifact.put(). Stops before any /pay|submit|confirm/ button. Anti-bot heuristic on the landing page (Cloudflare title check) returns status='anti_bot_gate'. Selectors derive from the existing form-recon walker output (input/select name attrs).
+- viza-be/submission-service/scripts/kh-smoke.ts: synthetic-answer smoke (90s wall cap). Exits 0 on status='stopped_before_pay', non-zero otherwise.
+- Typecheck: submission-service ✅
+- Notes: AUTO-KH-01 acceptance "smoke test reaches checkpoint without manual intervention" depends on the live portal staying up; stub run halts cleanly with a `blocked` result if the page surface drifts.
+---
