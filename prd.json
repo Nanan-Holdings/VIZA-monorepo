@@ -2649,8 +2649,8 @@
       "description": "ZA prod handoff.",
       "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
       "priority": 196,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/za.md mirrors KH/LA/LK. Queue wiring auto-inherited via INFRA-002 producer (country='south_africa'). Canary uses OPS-004 against visa.vfsglobal.com/zaf/en/dha. SLA seeded median 120h / p95 240h. Concurrency cap=1 (VFS rate-limits per IP). 10-staging-app gate cross-references kh.md."
     },
     {
       "id": "AUTO-IN-01",

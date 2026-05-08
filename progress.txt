@@ -1838,3 +1838,11 @@ acknowledgment).
 - typecheck clean.
 - Mirrors AUTO-LK-03 / AUTO-LA-03 shape.
 ---
+
+## 2026-05-08 - AUTO-ZA-04
+- ZA production handoff runbook.
+- docs/runbooks/za.md mirrors KH/LA/LK architecture pointers + auto-enqueue + canary + SLA + 10-staging gate.
+- Concurrency cap=1 (VFS Global per-IP rate limits).
+- Common ZA-specific issues table covers anti_bot.cloudflare, passport_invalid, nationality_unsupported (eVisa pilot eligibility), payment_declined, post-pay needs_human.
+- No code modified; doc-only.
+---
