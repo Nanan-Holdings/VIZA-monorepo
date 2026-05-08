@@ -1636,3 +1636,12 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: visual ICAO checks (background colour, head height, expression) require ML and are explicitly out-of-scope for this story.
 ---
+
+## 2026-05-08 - DOC-002
+- viza-fe/internal-website/lib/passport/mrz.ts: ICAO 9303 TD3 parser. parseTd3(line1, line2) returns MrzFields with per-field validity flags + composite check digit. Century pivot uses ±80/±30 windows around current year so 1996-issued + already-expired passports parse correctly.
+- viza-fe/internal-website/lib/passport/extract.ts: extractPassport(payload) prefers MRZ when check digits validate (high confidence), falls back to OCR visual-zone fields with LOW_CONFIDENCE_THRESHOLD=0.85. toFormAnswers() maps to the runner's form-answer keys (passport_number, surname, given_names, nationality, passport_issuing_country, date_of_birth, passport_expiry_date, sex). Provider doc: Anthropic Claude vision via existing agent-backend `/api/passport-scan/extract` route.
+- viza-fe/internal-website/components/client/passport-confirm.tsx: editable per-field confirm UI. Confidence pill per row (green ≥95%, gray ≥85%, amber below). Auto-focuses below-threshold rows.
+- lib/passport/__tests__/mrz.spec.ts: 4 node:test cases (check-digit reference, happy path, mutated digit detection, wrong-length rejection). 4/4 pass.
+- Existing route app/api/passport-scan/extract/route.ts already proxies to agent-backend Claude vision; new module sits in front of that response.
+- Typecheck: internal-website ✅
+---
