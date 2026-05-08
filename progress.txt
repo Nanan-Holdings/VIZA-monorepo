@@ -1973,3 +1973,13 @@ acknowledgment).
 - typecheck clean.
 - Learning: supabase storage bucket policies are necessary but not sufficient — server-side post-upload list() check catches multipart-spoofed mime/size before status flips to 'uploaded'.
 ---
+
+## 2026-05-08 - DOCUP-002
+- OCR/MRZ verify against typed answers.
+- Migration 0070_application_documents_metadata.sql adds JSONB metadata column.
+- Drizzle schema: applicationDocuments.metadata jsonb.
+- viza-fe/internal-website/app/actions/ocr-consistency.ts runOcrConsistencyCheck server action: signs storage URL, posts to AGENT_BACKEND_URL/api/passport-scan/extract (existing route), runs extractPassport (lib/passport/extract.ts MRZ parser), compares 5 fields (surname/given_names/dob/passport_number/passport_expiry_date) against visa_application_answers via alphanumeric uppercase normalization, persists snapshot to application_documents.metadata.ocr_consistency.
+- components/ocr-consistency-panel.tsx renders per-field {typed, ocr, match, source} list with "Use OCR" button per mismatch (calls saveDynamicAnswers + optimistic state update).
+- Both typechecks clean.
+- Learning: ExtractedPassport has mixed-shape keys (ExtractedField | null + raw strings/booleans) — narrowing the binding-key type avoids a `keyof` index returning the broad union.
+---
