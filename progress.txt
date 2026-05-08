@@ -1813,3 +1813,12 @@ acknowledgment).
 - Common LK-specific issues table covers anti_bot.cloudflare, passport_invalid, nationality_unsupported, payment_declined, post-pay needs_human.
 - No code modified; doc-only.
 ---
+
+## 2026-05-08 - AUTO-ZA-01
+- South Africa eVisa prefill runner.
+- src/za/runner.ts runZaPrefill drives landing→apply→personal-info-filled→review, halts before pay/signature.
+- captureStep uploads per-step PNG + post-run HAR via artifact.put.
+- detectAntiBotGate handles VFS Global Cloudflare interstitial.
+- scripts/za-smoke.ts synthetic-answer smoke (90s cap, exits 0 on stopped_before_pay).
+- typecheck clean. AUTO-ZA-02 will graft on error catalog + needs-human dispatch.
+---
