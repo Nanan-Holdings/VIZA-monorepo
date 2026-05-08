@@ -1912,3 +1912,14 @@ acknowledgment).
 - LAUNCH-006: docs/launch/public-marketing.md DNS cutover + Stripe webhook rotation + Sentry release tag + post-launch monitoring schedule.
 - All 235 stories pass.
 ---
+
+## 2026-05-08 - BOT-001
+- Parallel recon orchestrator fan-outs every per-country form-recon walker concurrently.
+- viza-be/submission-service/scripts/parallel-recon.ts (spawn ts-node child per country, RECON_HEADFUL=0, MAX_BOTS cap default 30, RECON_DEADLINE_MS default 5min, SIGKILL on timeout).
+- Per-country artefacts consolidated into recon-out/<YYYY-MM-DD>/<country>/{dom.html,screenshot.png,selectors.json,summary.json,child.log} from existing per-country recon-out/<country>/ tree.
+- ROSTER kh/la/lk/za/in/egypt/vietnam/uk; UK marked manual=skipped (auth-gated headful walk).
+- Failure summary table classifies blocked/not_found/timed_out/failed per country (reads child summary.json walks[].status).
+- npm run recon:parallel.
+- typecheck clean.
+- Learning: existing form-recon.ts modules each own their OUT_DIR, so subprocess fan-out + post-hoc copy was simpler than refactoring 8 files to export PAGES.
+---
