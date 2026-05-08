@@ -2622,8 +2622,8 @@
       "description": "Phase-3 runner for the SA eVisa pilot portal (selected nationalities) driving the form to the checkpoint.",
       "acceptanceCriteria": ["`za/` extends recon to prefill", "Halts before pay/sign", "Smoke green", "Artefacts saved", "Typecheck passes"],
       "priority": 193,
-      "passes": false,
-      "notes": "VFS Global Visitor's flow is account-gated; pursue eVisa first."
+      "passes": true,
+      "notes": "src/za/runner.ts runZaPrefill drives BASE_URL→apply→personal-info→review and halts before pay/signature. captureStep uploads PNG + HAR via artifact.put. detectAntiBotGate handles Cloudflare interstitial. scripts/za-smoke.ts exits 0 on stopped_before_pay (90s cap). typecheck clean."
     },
     {
       "id": "AUTO-ZA-02",
