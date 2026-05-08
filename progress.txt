@@ -2064,3 +2064,12 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: realtime postgres_changes filter `ticket_id=eq.<id>` plus de-dup by id avoids the optimistic-vs-realtime double-render that bites naive append-on-insert handlers.
 ---
+
+## 2026-05-08 - ANTIBOT-001..003
+- Migration 0077_antibot adds runner_job.fingerprint_history JSONB + proxy_pool table (ip, sticky_session_id, cooled_until, challenge_streak). Drizzle proxyPool schema.
+- ANTIBOT-001 viza-be/submission-service/scripts/load-test-kh.ts: drives N=50 sequential KH submissions over 6h window (configurable), classifies anti_bot_gate hits via /anti_?bot|cloudflare|captcha|challenge/i regex on result.reason+status, writes load-test-results/<date>/kh.json with averageDurationMs + antiBotRate, exits non-zero if antiBotRate≥5%.
+- ANTIBOT-002 src/runner/fingerprint.ts rotateFingerprint(applicantId, attempt): SHA-256 deterministic rotation_key per attempt, applyRotation shifts viewport ±20px and reseeds canvasNoiseSeed (preserves realistic shape), 7d window cap of 3 distinct rotations — beyond cap, reuses most-recent rotation_key. recordFingerprintUsage appends to runner_job.fingerprint_history.
+- ANTIBOT-003 src/runner/proxy-pool.ts: pickStickySession() filters cooled_until<=now, orders by last_challenge_at NULLS FIRST, optional region filter. markChallenged() escalates to 4h cooldown after 3 consecutive challenges (challenge_streak), markSuccess() resets streak.
+- Both typechecks clean.
+- Learning: capping fingerprint rotation at 3-per-7d is critical — unlimited rotation looks more bot-like than a stable identity getting occasionally challenged.
+---
