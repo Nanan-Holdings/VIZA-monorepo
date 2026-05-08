@@ -1680,3 +1680,11 @@ acknowledgment).
 - No code changes — typecheck not applicable.
 - DOC suite (001–006) complete.
 ---
+
+## 2026-05-08 - CS-001
+- drizzle/0065_staff_chat.sql: staff_chat_thread(applicant_id, application_id, status, applicant_context, assigned_to, last_message_at, …) + staff_chat_message(thread_id, sender_role, sender_user_id, body, created_at). Owner-SELECT RLS on both. Indexes on status+last_message_at and applicant_id.
+- viza-fe app/actions/staff-chat.ts: openOrResumeApplicantThread() (idempotent on queued/active), postApplicantMessage / postStaffMessage (admin-gated, marks status='active' + assigned_to), listStaffQueuedThreads (resolves applicant + application status + last runner step from runner_step_log via per-application latest row).
+- /admin/chat page: queue list with applicant name/email + status pill (queued/active), application status, last runner step (e.g. "review (failed)"), timestamp.
+- Existing /client/chat (Companion) keeps the /visa Socket.IO namespace for AI streaming. Human-handoff CTA → openOrResumeApplicantThread is the integration point; client widget wiring is a follow-on touch.
+- Typecheck: internal-website ✅
+---

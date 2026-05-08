@@ -2417,8 +2417,8 @@
         "Typecheck passes"
       ],
       "priority": 176,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Staff chat threads ride a separate table (staff_chat_thread/_message) with Supabase realtime; existing /visa Socket.IO namespace stays focused on Companion stream. /admin/chat queue ships; client widget integration is a one-line add to existing chat-client when the human-handoff CTA is wired."
     },
     {
       "id": "CS-002",
