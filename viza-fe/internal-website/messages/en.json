@@ -449,6 +449,9 @@
       "estimatedProcessing": "Estimated processing",
       "businessDays": "business days",
       "message": "Your application has been submitted to the Indonesian e-visa portal. You will receive an email confirmation once your visa is approved. Keep your confirmation number for reference.",
+      "travelPlannerTitle": "Next step: Plan your trip",
+      "travelPlannerHint": "Now that your visa form is complete, you can start the travel chatbot to build your itinerary, compare flights/hotels, and export Word/PDF.",
+      "openTravelPlanner": "Open Travel Chatbot",
       "viewReceipt": "View Receipt",
       "done": "Done"
     },
