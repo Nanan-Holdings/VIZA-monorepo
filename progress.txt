@@ -2020,3 +2020,12 @@ acknowledgment).
 - typecheck clean.
 - Learning: when adding stable-URL alias pages, pass searchParams through verbatim — supabase recovery codes are query-bound and silently dropped if you redirect without them.
 ---
+
+## 2026-05-08 - AUTH-003
+- MFA optional (TOTP).
+- /account/security enrols/disables TOTP via supabase.auth.mfa.{enroll,challenge,verify,unenroll,listFactors}; QR code from Supabase + 8 client-generated recovery codes shown once after enrol; secret fallback (Copy button) for users who can't scan.
+- middleware injects forced-enrol redirect for userRole='admin'|'staff' on protected paths when no verified TOTP factor exists (skips /account/security itself + auth callbacks to avoid redirect loops).
+- Login challenge already covered by Supabase client-side aal2 flow (existing /admin/login).
+- typecheck clean.
+- Learning: middleware.listFactors() is the cleanest staff-MFA gate — avoids a separate "mfa_enrolled" column on the users table.
+---

@@ -85,6 +85,26 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/admin";
       return NextResponse.redirect(url);
     }
+
+    // Staff/admin roles are required to enroll TOTP. If they have no
+    // verified factor, push them through /account/security on first login.
+    // Excludes the security page itself + sign-out + the auth callback so
+    // we don't trap users in a redirect loop.
+    if (
+      (userRole === "admin" || userRole === "staff") &&
+      isProtectedPath &&
+      !pathname.startsWith("/account/security")
+    ) {
+      const factorListResponse = await supabase.auth.mfa.listFactors();
+      const totpFactors = factorListResponse.data?.totp ?? [];
+      const hasVerifiedTotp = totpFactors.some((f) => f.status === "verified");
+      if (!hasVerifiedTotp) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/account/security";
+        url.searchParams.set("required", "1");
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
