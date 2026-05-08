@@ -21,7 +21,9 @@
     "recon:za": "ts-node src/za/form-recon.ts",
     "recon:in": "ts-node src/in/form-recon.ts",
     "recon:parallel": "ts-node scripts/parallel-recon.ts",
-    "promote:selectors": "ts-node scripts/promote-selectors.ts"
+    "promote:selectors": "ts-node scripts/promote-selectors.ts",
+    "stress:run": "ts-node scripts/runner-stress.ts",
+    "stress:digest": "ts-node scripts/runner-stress-digest.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
