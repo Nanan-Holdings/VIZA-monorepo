@@ -1791,3 +1791,10 @@ acknowledgment).
 - scripts/lk-smoke.ts: 90s synthetic-answer smoke; exits 0 on stopped_before_pay.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-LK-02
+- src/lk/errors.ts: LkRunnerError catalog (lk.* codes; same retry/human/fail dispositions). classifyPage covers cloudflare / 429 / session-expired / invalid-passport / ineligible-nationality / payment-declined / maintenance / 5xx.
+- src/lk/runner.ts: probe()/dispatchError() wired after landing + after Next click. waitForLkConfirmationEmail(applicantId) helper exported.
+- src/lk/__tests__/errors.spec.ts: 5 node:test cases, all green.
+- Typecheck: submission-service ✅
+---

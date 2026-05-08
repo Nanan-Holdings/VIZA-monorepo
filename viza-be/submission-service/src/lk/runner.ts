@@ -3,9 +3,12 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { classifyPage, type LkRunnerError } from "./errors.js";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
+import { extractAuto } from "../inbox/extractors/index.js";
 
 /**
- * Sri Lanka ETA prefill runner (AUTO-LK-01).
+ * Sri Lanka ETA prefill runner (AUTO-LK-01 + AUTO-LK-02).
  *
  * Drives the public eta.gov.lk form from the canonical answer set
  * for LK_ETA and **stops before payment**. Per-step screenshot and
@@ -45,6 +48,26 @@ export interface LkRunResult {
   reason: string;
   reachedStep: string;
   artefacts: string[];
+  error?: LkRunnerError;
+}
+
+/** Pull a LK ETA confirmation email when the portal sends one. */
+export async function waitForLkConfirmationEmail(
+  applicantId: string,
+  timeoutMs: number = 60_000,
+): Promise<{ message: InboundMessage; reference: string | null }> {
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (m) => /eta\.gov\.lk|sri[- ]?lanka/i.test(m.from_addr),
+    timeoutMs,
+  );
+  const parsed = extractAuto({
+    from: message.from_addr,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  return { message, reference: parsed.reference ?? null };
 }
 
 interface StepCtx {
@@ -111,16 +134,28 @@ export async function runLkPrefill(input: LkRunInput): Promise<LkRunResult> {
     artefacts: [],
   };
 
+  const probe = async (): Promise<LkRunnerError | null> => {
+    const title = (await page.title()).slice(0, 200);
+    const bodyText = (
+      await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "")
+    ).slice(0, 1024);
+    return classifyPage({ title, bodyText });
+  };
+  const dispatchError = (err: LkRunnerError): LkRunResult => {
+    result.error = err;
+    result.reason = `${err.code}: ${err.message}`;
+    if (err.disposition === "human") result.status = "needs_human";
+    else if (err.code === "lk.anti_bot.cloudflare") result.status = "anti_bot_gate";
+    else result.status = "blocked";
+    return result;
+  };
+
   try {
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
-
-    if ((await page.title()).toLowerCase().includes("just a moment")) {
-      result.status = "anti_bot_gate";
-      result.reason = "cloudflare challenge on landing";
-      return result;
-    }
+    const landingErr = await probe();
+    if (landingErr) return dispatchError(landingErr);
 
     // Click into the apply path.
     const opened =
@@ -165,6 +200,8 @@ export async function runLkPrefill(input: LkRunInput): Promise<LkRunResult> {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");
       result.reachedStep = "review";
+      const reviewErr = await probe();
+      if (reviewErr) return dispatchError(reviewErr);
     }
 
     result.status = "stopped_before_pay";

@@ -2595,7 +2595,7 @@
       "description": "LK error catalog + anti-bot fallback + inbox.",
       "acceptanceCriteria": ["LK error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
       "priority": 190,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
