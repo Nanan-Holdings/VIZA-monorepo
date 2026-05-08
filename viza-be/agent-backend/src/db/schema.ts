@@ -712,3 +712,23 @@ export const supportMessage = pgTable("support_message", {
 export type SupportMessage = typeof supportMessage.$inferSelect;
 export type NewSupportMessage = typeof supportMessage.$inferInsert;
 
+// =============================================================================
+// PROXY POOL (ANTIBOT-003)
+// =============================================================================
+
+export const proxyPool = pgTable("proxy_pool", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ip: text("ip").notNull(),
+  region: text("region"),
+  stickySessionId: text("sticky_session_id").notNull().unique(),
+  cooledUntil: timestamp("cooled_until", { withTimezone: true }),
+  lastChallengeAt: timestamp("last_challenge_at", { withTimezone: true }),
+  challengeStreak: integer("challenge_streak").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ProxyPool = typeof proxyPool.$inferSelect;
+export type NewProxyPool = typeof proxyPool.$inferInsert;
+
