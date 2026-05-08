@@ -2029,3 +2029,12 @@ acknowledgment).
 - typecheck clean.
 - Learning: middleware.listFactors() is the cleanest staff-MFA gate — avoids a separate "mfa_enrolled" column on the users table.
 ---
+
+## 2026-05-08 - AUTH-004
+- Account-recovery via support escalation.
+- Migration 0073_account_recovery.sql + Drizzle accountRecoveryAudit (target_user_id, performed_by, reason, identity_checks JSONB, action_kind).
+- /account-recovery info page: support@viza.app email instruction, identity-verify checklist (passport match + email thread + selfie with passport), explanation of why recovery is manual.
+- app/actions/account-recovery.ts performAccountRecovery server action: enforces actor.role='admin'|'staff', requires every REQUIRED_CHECKS to be true, reason ≥10 chars, then per actionKind runs supabase.auth.admin.mfa.{listFactors,deleteFactor} loop + supabase.auth.resetPasswordForEmail + always inserts audit row.
+- Both typechecks clean.
+- Learning: requiring the staff console to assert each identity-check explicitly (rather than a single boolean) gives the audit row enough forensic detail to defend against social-engineering attempts after the fact.
+---

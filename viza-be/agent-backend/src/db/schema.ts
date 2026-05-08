@@ -624,3 +624,20 @@ export const faceMatchAudit = pgTable("face_match_audit", {
 export type FaceMatchAudit = typeof faceMatchAudit.$inferSelect;
 export type NewFaceMatchAudit = typeof faceMatchAudit.$inferInsert;
 
+// =============================================================================
+// ACCOUNT RECOVERY AUDIT (AUTH-004)
+// =============================================================================
+
+export const accountRecoveryAudit = pgTable("account_recovery_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  targetUserId: uuid("target_user_id").notNull(),
+  performedBy: uuid("performed_by").notNull(),
+  reason: text("reason").notNull(),
+  identityChecks: jsonb("identity_checks").notNull(),
+  actionKind: text("action_kind").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type AccountRecoveryAudit = typeof accountRecoveryAudit.$inferSelect;
+export type NewAccountRecoveryAudit = typeof accountRecoveryAudit.$inferInsert;
+
