@@ -1869,3 +1869,11 @@ acknowledgment).
 - IN production handoff runbook.
 - docs/runbooks/in.md with sub-journey gating reference table.
 ---
+
+## 2026-05-08 - AUTO-UK-01..04
+- AUTO-UK-01: existing orchestrator+resume+field-mappings+widgets satisfy "complete prefill runner".
+- AUTO-UK-02: existing errors.ts + gates.ts + inbox.ts satisfy error+halt-page+inbox.
+- AUTO-UK-03: src/uk/payment.ts payUkWithEscrowCard (Worldpay GWF regex). src/uk/finalize.ts persistUkSubmitted (status='submitted_to_government' — UK two-step), biometrics_pending queue.
+- AUTO-UK-04: docs/runbooks/uk.md with two-step lifecycle table, Worldpay quirks, biometrics handoff.
+- typecheck clean.
+---
