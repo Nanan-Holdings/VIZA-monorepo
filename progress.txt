@@ -1983,3 +1983,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: ExtractedPassport has mixed-shape keys (ExtractedField | null + raw strings/booleans) — narrowing the binding-key type avoids a `keyof` index returning the broad union.
 ---
+
+## 2026-05-08 - DOCUP-003
+- Photo auto-crop to consulate spec.
+- Migration 0071_photo_spec.sql + Drizzle photoSpec table; seeded 11 country/visa rows (US 51×51, JP/KR/KH/LA/LK 35×45, ZA/IN 50×50, UK/AU 45×35, VN 40×60, mm + dpi + eyeline + head-height).
+- viza-fe/internal-website/lib/photo/crop.ts cropToSpec(buffer, spec, cropRegion?) lazy-imports sharp (heavy native dep) so type-check passes without sharp installed; specToPixels + centeredCropForAspect exported for client preview math.
+- app/actions/photo-crop.ts processApplicantPhoto downloads original applicant_photo, crops to spec, uploads as <path>.cropped.jpg, upserts application_documents document_type='applicant_photo_cropped' with metadata.{spec, crop_region, source_path} — original preserved.
+- components/photo-crop-tool.tsx renders canvas overlay; uses browser FaceDetector API when available (falls back to centered aspect crop), draws face box + crop rectangle, calls server action on submit.
+- Both typechecks clean.
+- Learning: lazy-loading native deps via dynamic import + cast keeps tsc green even when the runtime dep is provisioned only on the deploy target — useful for sharp-style native modules.
+---
