@@ -2003,3 +2003,12 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: `new Function("s","return import(s)")(s)` is the cleanest TS escape hatch for optional deps — keeps `npm i` graph small and unblocks deploy targets that don't need every provider.
 ---
+
+## 2026-05-08 - AUTH-001
+- Signup flow: email + password + verify.
+- /signup top-level redirect → /client/signup (preserves stable public URL while reusing existing rich /client/(auth)/signup design system + brand-* tokens).
+- /verify-email page: shows the email being verified, supabase.auth.resend({type:'signup'}) wires the resend-verification button, brand-50 mail icon container, link back to /login, success/error inline state.
+- Existing supabase.auth callback already redirects to /home after verify (auth/callback/route.ts).
+- typecheck clean.
+- Learning: top-level redirects keep deep-linkable URLs stable while the actual UI lives under /client; cheaper than duplicating the page.
+---
