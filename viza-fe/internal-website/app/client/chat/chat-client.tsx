@@ -21,6 +21,7 @@ import { ThinkingIndicator } from "@/components/client/companion/thinking-indica
 import { DateDivider, isDifferentDay } from "@/components/client/companion/date-divider";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { HistoryBoundaryMessage } from "@/components/client/companion/history-boundary-message";
+import { TravelChatClient } from "../travel-chat/travel-chat-client";
 import type { Message } from "@/app/actions/companion-sessions";
 import type {
   ChatMessage as SocketChatMessage,
@@ -100,6 +101,8 @@ interface ChatClientProps {
   userId: string;
   initialSessionId: string | null;
   initialMessages: Message[];
+  travelApplicationId: string | null;
+  travelApplicationStatus: string | null;
 }
 
 // Agent backend URL
@@ -253,6 +256,8 @@ export function ChatClient({
   userId,
   initialSessionId,
   initialMessages,
+  travelApplicationId,
+  travelApplicationStatus,
 }: ChatClientProps) {
   const t = useTranslations("chat");
 
@@ -267,6 +272,7 @@ export function ChatClient({
     }
     return initialMessages.length > 0 || !!initialSessionId;
   });
+  const [chatMode, setChatMode] = useState<"viza" | "travel">("viza");
   const [showDebug] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages] = useState(false);
@@ -838,6 +844,13 @@ export function ChatClient({
 
   const handleVizaAiClick = useCallback(() => {
     setShowChat(true);
+    setChatMode("viza");
+    sessionStorage.setItem("viza_chat_active", "true");
+  }, []);
+
+  const handleTravelAiClick = useCallback(() => {
+    setShowChat(true);
+    setChatMode("travel");
     sessionStorage.setItem("viza_chat_active", "true");
   }, []);
 
@@ -1072,6 +1085,36 @@ export function ChatClient({
                         </div>
                       </motion.button>
                     </div>
+
+                    <div className="rounded-[16px] border border-[#e5e5e5] bg-white p-4 md:p-5">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-heading text-[16px] font-medium text-[#3d3d3d]">
+                            Travel AI Testing
+                          </p>
+                          <p className="mt-1 text-[12px] text-[rgba(0,0,0,0.45)]">
+                            {!travelApplicationId
+                              ? "No application found yet. Create one in Application first."
+                              : "Application linked. You can use Travel AI now."}
+                          </p>
+                          {travelApplicationStatus && (
+                            <p className="mt-1 text-[11px] text-[rgba(0,0,0,0.35)]">
+                              Current application status: {travelApplicationStatus}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          className={cn(
+                            "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                            "bg-[#03346E] text-white hover:bg-[#02264f]"
+                          )}
+                          onClick={handleTravelAiClick}
+                          type="button"
+                        >
+                          Open Travel AI
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-5 md:gap-6 w-full mt-4 md:mt-8 lg:mt-12">
@@ -1146,12 +1189,45 @@ export function ChatClient({
               className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-0 pb-4 h-full min-h-0 overflow-hidden"
             >
               <div className="w-full max-w-[980px] flex flex-col flex-1 relative overflow-hidden min-h-0 mx-auto">
-                <div
-                  ref={messagesContainerRef}
-                  onScroll={checkScrollPosition}
-                  className="flex-1 overflow-y-auto space-y-12 mb-0 relative overscroll-y-contain min-h-0 w-full max-w-[900px] mx-auto pt-10"
-                  style={{ WebkitOverflowScrolling: "touch" }}
-                >
+                <div className="mx-auto mb-2 mt-3 flex w-full max-w-[900px] items-center gap-2">
+                  <button
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
+                      chatMode === "viza"
+                        ? "bg-[#03346E] text-white"
+                        : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
+                    )}
+                    onClick={() => setChatMode("viza")}
+                    type="button"
+                  >
+                    VIZA AI
+                  </button>
+                  <button
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
+                      chatMode === "travel"
+                        ? "bg-[#03346E] text-white"
+                        : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
+                    )}
+                    onClick={() => setChatMode("travel")}
+                    type="button"
+                  >
+                    Travel AI
+                  </button>
+                </div>
+
+                {chatMode === "travel" ? (
+                  <div className="w-full flex-1 overflow-y-auto">
+                    <TravelChatClient applicationId={travelApplicationId} />
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      ref={messagesContainerRef}
+                      onScroll={checkScrollPosition}
+                      className="flex-1 overflow-y-auto space-y-12 mb-0 relative overscroll-y-contain min-h-0 w-full max-w-[900px] mx-auto pt-10"
+                      style={{ WebkitOverflowScrolling: "touch" }}
+                    >
                   {continuousChat.isLoadingMore && (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
@@ -1211,24 +1287,26 @@ export function ChatClient({
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="mt-auto pt-0 relative">
-                  <ScrollToBottomFab
-                    show={continuousChat.showScrollToBottom}
-                    onClick={scrollToBottom}
-                    hasNewMessage={continuousChat.showNewMessageButton}
-                    className="-top-24 right-2 sm:-top-16"
-                  />
+                    <div className="mt-auto pt-0 relative">
+                      <ScrollToBottomFab
+                        show={continuousChat.showScrollToBottom}
+                        onClick={scrollToBottom}
+                        hasNewMessage={continuousChat.showNewMessageButton}
+                        className="-top-24 right-2 sm:-top-16"
+                      />
 
-                  <ChatInput
-                    onSend={handleSendMessage}
-                    disabled={status !== "connected"}
-                    isConnecting={status === "connecting"}
-                  />
-                  <p className="mt-3 text-center text-sm text-gray-400">
-                    VIZA AI can make mistakes. Please double-check important
-                    information.
-                  </p>
-                </div>
+                      <ChatInput
+                        onSend={handleSendMessage}
+                        disabled={status !== "connected"}
+                        isConnecting={status === "connecting"}
+                      />
+                      <p className="mt-3 text-center text-sm text-gray-400">
+                        VIZA AI can make mistakes. Please double-check important
+                        information.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
