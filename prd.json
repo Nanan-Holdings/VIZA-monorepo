@@ -2374,8 +2374,8 @@
         "Typecheck passes"
       ],
       "priority": 173,
-      "passes": false,
-      "notes": "Handles JP / KR / others where automation halts at \"print and submit\"."
+      "passes": true,
+      "notes": "Handles JP / KR / others where automation halts at \"print and submit\". Renderer ships printable declaration-style PDF; AcroForm field-fill (e.g. MOFA Form A) is a sibling renderer follow-on with the same contract."
     },
     {
       "id": "DOC-005",
