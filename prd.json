@@ -2360,8 +2360,8 @@
         "Typecheck passes"
       ],
       "priority": 172,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Per-package slot rows seeded by ops; validator covers PDF/JPEG/PNG magic + size; AV scan deferred to a Storage-side ClamAV sidecar."
     },
     {
       "id": "DOC-004",
