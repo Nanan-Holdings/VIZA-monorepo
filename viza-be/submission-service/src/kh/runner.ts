@@ -4,6 +4,7 @@ import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { classifyPage, type KhRunnerError } from "./errors.js";
+import { KH_SELECTORS } from "./selectors.js";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 
@@ -193,17 +194,17 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
 
     // 03 — fill personal info. Selectors derive from form-recon.ts walker;
     // KH renders a Livewire-driven SPA with stable name attributes.
-    await safeFill(page, 'input[name="last_name"]', input.answers.surname, "surname");
-    await safeFill(page, 'input[name="first_name"]', input.answers.given_names, "given_names");
-    await safeFill(page, 'input[name="email"]', input.answers.email, "email");
-    await safeFill(page, 'input[name="phone"]', input.answers.phone, "phone");
-    await safeFill(page, 'input[name="date_of_birth"]', input.answers.date_of_birth, "dob");
-    await safeFill(page, 'select[name="nationality"]', input.answers.nationality, "nationality");
-    await safeFill(page, 'input[name="passport_number"]', input.answers.passport_number, "passport_number");
-    await safeFill(page, 'input[name="passport_expiry"]', input.answers.passport_expiry_date, "passport_expiry");
+    await safeFill(page, KH_SELECTORS.last_name, input.answers.surname, "surname");
+    await safeFill(page, KH_SELECTORS.first_name, input.answers.given_names, "given_names");
+    await safeFill(page, KH_SELECTORS.email, input.answers.email, "email");
+    await safeFill(page, KH_SELECTORS.phone, input.answers.phone, "phone");
+    await safeFill(page, KH_SELECTORS.date_of_birth, input.answers.date_of_birth, "dob");
+    await safeFill(page, KH_SELECTORS.nationality, input.answers.nationality, "nationality");
+    await safeFill(page, KH_SELECTORS.passport_number, input.answers.passport_number, "passport_number");
+    await safeFill(page, KH_SELECTORS.passport_expiry, input.answers.passport_expiry_date, "passport_expiry");
     await safeFill(
       page,
-      'select[name="passport_issuing_country"]',
+      KH_SELECTORS.passport_issuing_country,
       input.answers.passport_issuing_country,
       "passport_issuing_country",
     );
@@ -212,7 +213,7 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
 
     // 04 — advance to review. The KH form's "Next" button typically has
     // wire:click hooks; we rely on a stable text match.
-    const advanced = await safeClick(page, 'button:has-text("Next")', "next-personal");
+    const advanced = await safeClick(page, KH_SELECTORS.next_button, "next-personal");
     if (advanced) {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");
