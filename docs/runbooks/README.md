@@ -21,5 +21,10 @@ Indexed by alert class so OPS-003 dispatcher can append a one-liner
 | `runner.failed.<country>`, `runner.job.stuck` | [runner-job-stuck.md](./runner-job-stuck.md) |
 | `runner.proxy.exhausted` | [proxy-pool-exhausted.md](./proxy-pool-exhausted.md) |
 | `payments.reconcile.delta` | [payment-reconcile-delta.md](./payment-reconcile-delta.md) |
+| KH country runner | [kh.md](./kh.md) |
 
-Last reviewed: 2026-05-07.
+## On-call
+
+[oncall.md](./oncall.md) — rotation, escalation tree, drills.
+
+Last reviewed: 2026-05-08.

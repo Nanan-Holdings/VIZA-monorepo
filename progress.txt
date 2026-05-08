@@ -1757,3 +1757,11 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: portal selectors will drift; payment.ts uses generic name + autocomplete fallbacks. PDF retrieval (download URL surfaced by the portal) is country-runner-specific and stays in the orchestrator that calls these helpers.
 ---
+
+## 2026-05-08 - AUTO-KH-04
+- docs/runbooks/kh.md: end-to-end production handoff for KH_TOURIST_E_VISA. Architecture pointer table (recon / runner / errors / payment / finalize / smoke), auto-enqueue path (INFRA-002 producer in Stripe webhook → queue worker by country), monitoring (OPS-004 portal_health, OPS-003 alerts, OPS-005 SLA), required env (incl. vault keys for the escrow card), 10-staging-app gate with success-rate threshold, production-promotion checklist, common KH-specific issue table.
+- docs/runbooks/README.md: index updated to point at kh.md + oncall.md.
+- AUTO-KH-04 acceptance "10 staging applications submitted successfully end-to-end" is an ops-execution gate; the runbook codifies the procedure.
+- AUTO-KH suite (01–04) complete.
+- No code changes — typecheck not applicable.
+---
