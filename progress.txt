@@ -1822,3 +1822,11 @@ acknowledgment).
 - scripts/za-smoke.ts synthetic-answer smoke (90s cap, exits 0 on stopped_before_pay).
 - typecheck clean. AUTO-ZA-02 will graft on error catalog + needs-human dispatch.
 ---
+
+## 2026-05-08 - AUTO-ZA-02
+- ZA error catalog + needs-human routing + inbox helper.
+- src/za/errors.ts za.* code union + classifyPage (cloudflare/ratelimit/passport/nationality/payment/session/maintenance/portal-unreachable).
+- src/za/runner.ts: probe() + dispatchError() wired after landing + post-Next click; status union extended with needs_human; waitForZaConfirmationEmail via inbox.waitForMessage filtered on vfsglobal/dha.
+- src/za/__tests__/errors.spec.ts 5/5 node:test cases green.
+- typecheck clean.
+---
