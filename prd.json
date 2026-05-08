@@ -2975,8 +2975,8 @@
         "Typecheck passes"
       ],
       "priority": 205,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/au/runner.ts runAuPrefill drives ImmiAccount login \u2192 new application \u2192 Subclass 600 \u2192 personal-info-filled \u2192 review, halts before declaration/signature. immi_account_password_ref resolves via vault loader (NOT plain password). captureStep uploads PNG + HAR."
     },
     {
       "id": "AUTO-AU-02",
@@ -2989,8 +2989,8 @@
         "Typecheck passes"
       ],
       "priority": 206,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/au/errors.ts au.* codes including au.auth.invalid_credentials + au.auth.account_locked (ImmiAccount-specific). 5/5 unit tests green. waitForAuConfirmationEmail filtered on immi.gov.au/homeaffairs."
     },
     {
       "id": "AUTO-AU-03",
@@ -3003,8 +3003,8 @@
         "Typecheck passes"
       ],
       "priority": 207,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/au/payment.ts payAuWithEscrowCard with TRN regex (TRN: ALPHA-NUM); src/au/finalize.ts persistAuSubmitted uploads jobs/<jobId>/au-acknowledgement.pdf, inserts application_documents kind=submission_acknowledgement_pdf, flips status='submitted_to_government' (NOT delivered \u2014 AU is two-step), persists trn column, queues grant_pending."
     },
     {
       "id": "AUTO-AU-04",
@@ -3018,8 +3018,8 @@
         "Typecheck passes"
       ],
       "priority": 208,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/au.md covers two-step lifecycle (TRN at submit, grant letter via email later), ImmiAccount credentials via vault, au.auth.* error rows, anti-automation Cloudflare quirks. SLA seeded median 14d / p95 45d. Concurrency cap=1."
     },
     {
       "id": "AUTO-VN-01",
