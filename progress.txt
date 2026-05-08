@@ -1963,3 +1963,13 @@ acknowledgment).
 - FE typecheck clean.
 - Learning: server actions are the cleanest channel for save-on-blur — no separate /api/answer route needed.
 ---
+
+## 2026-05-08 - DOCUP-001
+- Passport scan + photo upload widget.
+- viza-fe/internal-website/components/document-upload.tsx reusable <DocumentUpload kind=...> with drag-drop + click + capture="environment" rear-camera mobile, 10MB cap, accept=image/jpeg|png|webp|pdf, image min-side 480px sanity check, 3-attempt exponential retry on transient (network/408/429/5xx).
+- app/actions/document-upload.ts verifyUploadedDocument server action re-checks size + mime via supabase admin storage.list() metadata, marks application_documents.status='rejected' on mismatch (defense-in-depth).
+- Brand-* tokens for drag/hover/success/destructive states; shadcn Button + Input.
+- Component upserts to application_documents (existing table) keyed (application_id, document_type) — no schema change needed.
+- typecheck clean.
+- Learning: supabase storage bucket policies are necessary but not sufficient — server-side post-upload list() check catches multipart-spoofed mime/size before status flips to 'uploaded'.
+---
