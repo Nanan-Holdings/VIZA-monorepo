@@ -3400,6 +3400,547 @@
       "priority": 235,
       "passes": true,
       "notes": "docs/launch/public-marketing.md public signup + pricing + marketing site. Day-of cutover checklist (DNS, Stripe webhook key rotation, Sentry release tag, status page seeding). Post-launch monitoring schedule (1-min Sentry retention; weekly cohort digest)."
+    },
+    {
+      "id": "BOT-001",
+      "title": "Parallel recon orchestrator: spawn N bots across all countries at once",
+      "description": "CLI + script that fan-outs to every per-country form-recon.ts walker concurrently (configurable N=30). Produces a single recon-out/<date>/ tree with per-country DOM dumps + screenshots. Goal: harvest real selectors in one shot instead of one-country-at-a-time.",
+      "acceptanceCriteria": [
+        "scripts/parallel-recon.ts spawns up to N=30 chromium contexts concurrently",
+        "Per-country results land under recon-out/<YYYY-MM-DD>/<country>/{dom.html,screenshot.png,selectors.json}",
+        "Concurrency cap respects MAX_BOTS env (default 30) and a per-country deadline (5 min)",
+        "Failure summary printed at end (countries that 4xx'd or hit anti-bot)",
+        "Typecheck passes"
+      ],
+      "priority": 240,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "BOT-002",
+      "title": "Selector promotion pipeline: recon-out \u2192 per-country runner config",
+      "description": "Selectors harvested by BOT-001 must flow into runner config files (src/<cc>/selectors.ts) so runners stop guessing input[name=\"first_name\"]. Build a `promote-selectors` script that diffs recon-out vs current selectors and proposes patches.",
+      "acceptanceCriteria": [
+        "scripts/promote-selectors.ts reads latest recon-out/<date>/<country>/selectors.json",
+        "Generates src/<cc>/selectors.ts with named constants per logical field",
+        "Per-country runner replaces hard-coded strings with imports from selectors.ts",
+        "Diff output shows added/changed/removed selectors per country",
+        "Typecheck passes"
+      ],
+      "priority": 241,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "BOT-003",
+      "title": "Runner stress test: 10 staging applicants per country in CI",
+      "description": "Drive each country's runner against staging-mode synthetic answers in a CI matrix. Pass criterion: 10/10 reach stopped_before_pay (or pay-success in pass-through mode) for \u226595% of countries.",
+      "acceptanceCriteria": [
+        ".github/workflows/runner-matrix.yml runs all per-country smokes nightly",
+        "Per-country pass rate \u2265 95% over 10 staging applicants",
+        "Failures captured as artefacts (PNG + HAR) and uploaded to runner-failures bucket",
+        "Slack/email digest summarising which countries regressed",
+        "Typecheck passes"
+      ],
+      "priority": 242,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROD-001",
+      "title": "Question-set derivation from canonical answers + recon walker output",
+      "description": "Question schemas per package_id are needed to render the answer-collection UI. Currently visa_packages exists but question_set rows are sparse. Derive from each country's CanonicalAnswers TS interface + form-recon DOM dump.",
+      "acceptanceCriteria": [
+        "scripts/derive-question-sets.ts emits one question_set row per (country, visa_type) with field_name + label + widget_type + required",
+        "Branching rules captured (e.g. IN medical \u2192 hospital_name required)",
+        "Output upserted into question_set + question_field tables via Drizzle",
+        "Per-country JSON snapshot committed under db/seeds/question-sets/<country>.json for review",
+        "Typecheck passes"
+      ],
+      "priority": 243,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROD-002",
+      "title": "Answer-collection driver UI: per-package multi-step form with save-resume",
+      "description": "Frontend at /application/<id>/answer renders a question_set as a multi-step form with shadcn primitives + brand-* tokens. Save-resume on every blur. Conditional branching wired.",
+      "acceptanceCriteria": [
+        "viza-fe/internal-website/app/application/[id]/answer/page.tsx",
+        "Loads question_set + question_field for the application's package",
+        "Step navigation persists answers to visa_application_answers on blur",
+        "Conditional fields render/hide via question_field.depends_on",
+        "Validation surfaces per-field errors before allowing Next",
+        "Typecheck passes"
+      ],
+      "priority": 244,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOCUP-001",
+      "title": "Passport scan + photo upload widget",
+      "description": "Applicant uploads passport scan + photo. Stored in applicant_documents with kind='passport_scan' or 'applicant_photo'. Client-side validation: file type, size cap (10MB), dimensions sanity.",
+      "acceptanceCriteria": [
+        "Reusable <DocumentUpload kind=...> shadcn component",
+        "Drag-drop + click-to-pick + camera capture (mobile)",
+        "File constraints enforced client-side AND server-side",
+        "Upload progress + retry on transient failure",
+        "Typecheck passes"
+      ],
+      "priority": 245,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOCUP-002",
+      "title": "OCR/MRZ verify against typed answers",
+      "description": "Reuse existing MRZ parser to OCR the passport scan and cross-check against typed surname/given_names/dob/passport_number/expiry. Surface diffs for applicant correction.",
+      "acceptanceCriteria": [
+        "Server action runOcrConsistencyCheck(applicationId)",
+        "Returns per-field {typed, ocr, match: true|false}",
+        "UI shows mismatches inline with 'use OCR value' button",
+        "Stored as application_documents.metadata.ocr_consistency snapshot",
+        "Typecheck passes"
+      ],
+      "priority": 246,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOCUP-003",
+      "title": "Photo auto-crop to consulate spec",
+      "description": "Different consulates require different photo dimensions (US 51\u00d751mm, JP/KR 35\u00d745mm, ZA/IN 50\u00d750mm, etc.). Auto-crop applicant photo to package spec; preserve original.",
+      "acceptanceCriteria": [
+        "lib/photo/crop.ts cropToSpec(buffer, spec) returns cropped Buffer",
+        "Per-package photo_spec rows in db (mm + dpi)",
+        "UI lets applicant adjust crop region; previews face-detection box",
+        "Both original + cropped saved to applicant_documents",
+        "Typecheck passes"
+      ],
+      "priority": 247,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DOCUP-004",
+      "title": "Face-match liveness check (basic)",
+      "description": "Verify the uploaded photo matches the passport scan. Use a third-party face-match API (e.g. AWS Rekognition or Face API) or open-source (face-api.js) for MVP. Liveness can be selfie-with-prompt at MVP-2.",
+      "acceptanceCriteria": [
+        "lib/face/match.ts compareFaces(passportImg, applicantImg) returns similarity score",
+        "Score < threshold flags the application for staff review (status='staff-action-required')",
+        "Audit row written to face_match_audit (applicant_id, score, decision, ts)",
+        "Typecheck passes"
+      ],
+      "priority": 248,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTH-001",
+      "title": "Signup flow: email + password + verify",
+      "description": "Build /signup using existing /login design system + brand-* tokens. Calls supabase.auth.signUp; redirects to verify-email page; resumable.",
+      "acceptanceCriteria": [
+        "/signup mirrors /login styling",
+        "Email-verify magic-link flow + resend-verification button",
+        "Redirect to /home after verify",
+        "Typecheck passes"
+      ],
+      "priority": 249,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTH-002",
+      "title": "Password reset flow UI",
+      "description": "/forgot-password + /reset-password pages over supabase.auth.resetPasswordForEmail. Reuse design system.",
+      "acceptanceCriteria": [
+        "/forgot-password collects email, sends Supabase reset link",
+        "/reset-password page accepts token + new password",
+        "Error states surfaced (expired, invalid, weak password)",
+        "Typecheck passes"
+      ],
+      "priority": 250,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTH-003",
+      "title": "MFA optional (TOTP)",
+      "description": "Optional TOTP setup under /account/security. Supabase MFA flow. Required for staff users (admin/staff roles).",
+      "acceptanceCriteria": [
+        "/account/security page enrolls/disables TOTP",
+        "QR code + recovery codes shown once",
+        "Login challenges TOTP when enrolled",
+        "Staff role users forced to enrol on first login",
+        "Typecheck passes"
+      ],
+      "priority": 251,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "AUTH-004",
+      "title": "Account-recovery via support escalation",
+      "description": "When MFA + email both lost: recovery requires contacting support, identity-verification, manual reset by staff.",
+      "acceptanceCriteria": [
+        "/account-recovery info page",
+        "Staff console action: 'Reset MFA + force password reset' under audit log",
+        "Identity-verify checklist captured before staff action",
+        "Typecheck passes"
+      ],
+      "priority": 252,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "NOTIFY-001",
+      "title": "notification_event_log drain worker (Resend + Twilio)",
+      "description": "Background worker that polls notification_event_log WHERE outcome='queued' and sends via Resend (email) / Twilio (SMS). FE already wired to Resend; backend worker missing. Updates outcome='sent' or 'failed_<reason>'.",
+      "acceptanceCriteria": [
+        "viza-be/agent-backend/src/notify/worker.ts polls every 30s",
+        "Resend client used for kind='email'; Twilio for kind='sms'",
+        "Per-event template resolution via template_key",
+        "Failure \u2192 exponential backoff + DLQ after 5 retries",
+        "Typecheck passes"
+      ],
+      "priority": 253,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "NOTIFY-002",
+      "title": "Per-event template files (doc_ready, grant_pending, biometrics_pending, ...)",
+      "description": "MJML/HTML email templates + plain SMS bodies under viza-be/agent-backend/src/notify/templates/. Variables interpolated at send time.",
+      "acceptanceCriteria": [
+        "Templates for: doc_ready, grant_pending, biometrics_pending, payment_received, application_submitted, application_decision, password_reset, signup_verify",
+        "Per-template subject + body + plaintext fallback",
+        "Variable schema documented per template",
+        "Typecheck passes"
+      ],
+      "priority": 254,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "NOTIFY-003",
+      "title": "Failure retry + DLQ + admin replay",
+      "description": "When sender fails, retry with backoff; after 5 retries \u2192 notification_dlq table. Admin UI under /admin/notifications shows DLQ + replay button.",
+      "acceptanceCriteria": [
+        "notification_dlq table + Drizzle migration",
+        "Worker writes to DLQ on terminal failure",
+        "/admin/notifications/dlq page lists rows + replay action",
+        "Typecheck passes"
+      ],
+      "priority": 255,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "STATUS-001",
+      "title": "Application timeline UI: /home + /application[id] expansion",
+      "description": "/home already has a partial timeline. Expand to show all status transitions with timestamps + per-stage CTA. Stage-aware UI cards on /application[id] (e.g. payment-pending shows pay button; doc-ready shows download).",
+      "acceptanceCriteria": [
+        "Per-stage card renders on /application[id] based on applications.status",
+        "/home timeline lists all applications with last status + ETA",
+        "All status transitions persisted in application_status_history",
+        "Typecheck passes"
+      ],
+      "priority": 256,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "STATUS-002",
+      "title": "application_status_history table + emitter hook",
+      "description": "Source of truth for the timeline. Every status change emits a row. Server action wrapper updateApplicationStatus(applicationId, newStatus, actor) writes both applications.status + history row in a single transaction.",
+      "acceptanceCriteria": [
+        "Drizzle migration creates application_status_history",
+        "All callsites that mutate applications.status routed through updateApplicationStatus",
+        "RLS: applicants see their own history; staff see all",
+        "Typecheck passes"
+      ],
+      "priority": 257,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "SUPPORT-001",
+      "title": "Applicant-side ticket creation widget",
+      "description": "Floating help button on /application + /home opens a ticket creation drawer. Posts to support_ticket; staff sees it in /admin/cs.",
+      "acceptanceCriteria": [
+        "support_ticket table (Drizzle migration)",
+        "<SupportButton> component on every applicant page",
+        "Subject + body + attached application_id (when relevant)",
+        "Acknowledgement email via NOTIFY-002 template ticket_received",
+        "Typecheck passes"
+      ],
+      "priority": 258,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "SUPPORT-002",
+      "title": "Applicant-staff messaging thread",
+      "description": "Per-ticket message thread. Staff replies surface in applicant /support; applicant replies surface in staff /admin/cs. Realtime via Supabase Realtime channel.",
+      "acceptanceCriteria": [
+        "support_message table (Drizzle migration)",
+        "/support/[ticketId] page renders thread with applicant/staff tabs",
+        "Realtime subscription updates both sides without refresh",
+        "Typecheck passes"
+      ],
+      "priority": 259,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ANTIBOT-001",
+      "title": "Load-test runner against KH portal (cheapest portal first)",
+      "description": "Drive 50 sequential KH submissions through the runner with full Bright Data sticky session + per-applicant fingerprint. Measure Cloudflare-trip rate; tune if > 5%.",
+      "acceptanceCriteria": [
+        "scripts/load-test-kh.ts runs 50 staging-mode submissions over 6h",
+        "Records anti_bot_gate hit rate + average step duration",
+        "Output written to load-test-results/<date>/kh.json",
+        "Pass criterion: < 5% anti_bot_gate over 50 runs",
+        "Typecheck passes"
+      ],
+      "priority": 260,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ANTIBOT-002",
+      "title": "Fingerprint rotation under load",
+      "description": "Per-applicant SHA-256 fingerprint exists. Add per-job fingerprint nonce so retries don't reuse the same fingerprint that just got challenged. Tracked + capped to prevent fingerprint churn.",
+      "acceptanceCriteria": [
+        "src/runner/fingerprint.ts rotateFingerprint(applicantId, attempt) returns deterministic-but-distinct fp per attempt",
+        "Fingerprint history persisted in runner_job.fingerprint_history JSONB",
+        "Cap: max 3 distinct fingerprints per applicant per 7d window",
+        "Typecheck passes"
+      ],
+      "priority": 261,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ANTIBOT-003",
+      "title": "Per-IP cooldown after Cloudflare hit",
+      "description": "When a Bright Data IP gets challenged, mark it cool for N minutes; runners pick a different sticky session for next attempt.",
+      "acceptanceCriteria": [
+        "proxy_pool table tracks (ip, cooled_until, last_challenge_at)",
+        "Runner queries proxy_pool WHERE cooled_until < now() before sticky-session pick",
+        "Typecheck passes"
+      ],
+      "priority": 262,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FEES-001",
+      "title": "Government-fee scraper cron",
+      "description": "Weekly cron scrapes published fee tables for every supported country and writes to package_pricing. Diffs against last snapshot; flags changes for staff review.",
+      "acceptanceCriteria": [
+        "viza-be/agent-backend/src/jobs/fee-scraper.ts runs Sunday 03:00 UTC",
+        "Per-country scraper stub (initially manual; targets gov pages)",
+        "Diff posted to staff Slack via SUPPORT/notify channel",
+        "Typecheck passes"
+      ],
+      "priority": 263,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FEES-002",
+      "title": "package_pricing table + staff override UI",
+      "description": "Staff can override scraped fees (e.g. when scraper breaks or fee was wrong). Override has expiry + audit row.",
+      "acceptanceCriteria": [
+        "package_pricing table with (package_id, currency, government_fee_cents, agency_fee_cents, override_until, override_reason)",
+        "/admin/pricing page lets staff edit + see history",
+        "Pricing page (consumer-facing) reads from package_pricing",
+        "Typecheck passes"
+      ],
+      "priority": 264,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ALERT-001",
+      "title": "Sentry release tagging + source-map upload",
+      "description": "Every deploy tags Sentry with the git SHA + uploads source maps so stack traces are readable.",
+      "acceptanceCriteria": [
+        "Vercel/CI step uploads sourcemaps to Sentry on deploy",
+        "process.env.SENTRY_RELEASE = git SHA at boot",
+        "Verified by triggering a test error and checking the symbolicated stack",
+        "Typecheck passes"
+      ],
+      "priority": 265,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ALERT-002",
+      "title": "PagerDuty rotation + alert routes",
+      "description": "Alerts from Sentry / runner_job failure rate / canary downtime route to PagerDuty. Founder pager rotation defined.",
+      "acceptanceCriteria": [
+        "PagerDuty service + escalation policy created",
+        "Sentry \u2192 PagerDuty integration on critical errors",
+        "Canary cron pages on > 10 min downtime",
+        "Runbook URL embedded in every alert",
+        "Typecheck passes"
+      ],
+      "priority": 266,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ALERT-003",
+      "title": "On-call runbook",
+      "description": "docs/operations/oncall.md covers: how to ack, common alerts, escalation paths, post-incident retro template.",
+      "acceptanceCriteria": [
+        "Runbook published",
+        "Linked from every PagerDuty alert payload",
+        "First-response < 5 min from page"
+      ],
+      "priority": 267,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DR-001",
+      "title": "Supabase PITR + verified restore drill",
+      "description": "Enable Point-In-Time Recovery on the Supabase project; run a quarterly restore drill into a staging branch.",
+      "acceptanceCriteria": [
+        "PITR enabled (paid plan)",
+        "Quarterly restore drill documented",
+        "Restored data validated against checksum of source"
+      ],
+      "priority": 268,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "I18N-001",
+      "title": "i18n pipeline scaffolding",
+      "description": "Adopt next-intl (or similar). Wrap all user-facing strings; English first, ZH/VI/ES translation files populated stub.",
+      "acceptanceCriteria": [
+        "viza-fe/internal-website wired with next-intl",
+        "Locale picker in header",
+        "All hardcoded strings extracted to messages/en.json",
+        "Typecheck passes"
+      ],
+      "priority": 269,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "I18N-002",
+      "title": "ZH/VI/ES translations for /application + /home + critical emails",
+      "description": "Human-translated (or LLM-assisted-then-reviewed) strings for the 3 ICP languages.",
+      "acceptanceCriteria": [
+        "messages/zh.json, vi.json, es.json populated for /application + /home + signup + payment + notify templates",
+        "Translation review pass logged in commit messages",
+        "Typecheck passes"
+      ],
+      "priority": 270,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ENV-001",
+      "title": "Env-var matrix doc",
+      "description": "docs/operations/env-vars.md lists every env var across packages + which env it's needed in (dev/staging/prod) + secret category.",
+      "acceptanceCriteria": [
+        "Matrix covers viza-fe, viza-be, submission-service, email-worker",
+        "Includes rotation cadence per secret"
+      ],
+      "priority": 271,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "ENV-002",
+      "title": "Secret-rotation playbook",
+      "description": "docs/security/secret-rotation.md: how to rotate Stripe / Resend / Twilio / Supabase service role / vault root keys without downtime.",
+      "acceptanceCriteria": [
+        "Per-secret rotation procedure with copy-paste commands",
+        "Tested by rotating one non-critical secret end-to-end"
+      ],
+      "priority": 272,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "STRIPE-LIVE-001",
+      "title": "[ON HOLD] Stripe live-mode application + key swap",
+      "description": "Test-mode webhook + checkout works; need to apply for Stripe live access (business verification, KYC, MCC code) and swap keys without downtime.",
+      "acceptanceCriteria": [
+        "Stripe live account approved",
+        "Live keys stored in vault",
+        "Webhook endpoint registered on live",
+        "Smoke transaction at $1 + refund proves live flow"
+      ],
+      "priority": 280,
+      "passes": false,
+      "notes": "ON HOLD: Stripe live access requires business verification we haven't started. /loop ralph: SKIP this story until note unflagged.",
+      "onHold": true
+    },
+    {
+      "id": "REFUND-LIVE-001",
+      "title": "[ON HOLD] Stripe refund execution + accounting reconciliation",
+      "description": "PAY-004 marks status; need to actually call Stripe refund + reconcile in financial-records.",
+      "acceptanceCriteria": [
+        "POST /api/refunds calls Stripe refund API",
+        "financial_record row written for both charge + refund",
+        "Reconciliation cron compares Stripe export vs financial_record nightly",
+        "Typecheck passes"
+      ],
+      "priority": 281,
+      "passes": false,
+      "notes": "ON HOLD: Depends on STRIPE-LIVE-001. /loop ralph: SKIP this story until note unflagged.",
+      "onHold": true
+    },
+    {
+      "id": "RETENTION-001",
+      "title": "[ON HOLD] GDPR/CCPA: user-delete + data-export endpoints",
+      "description": "Self-service delete + export under /account/data. Soft-delete with 30d grace; hard-delete cron after.",
+      "acceptanceCriteria": [
+        "POST /api/account/export returns ZIP of all applicant data",
+        "POST /api/account/delete schedules hard-delete in 30d",
+        "Audit row written for every export/delete",
+        "Typecheck passes"
+      ],
+      "priority": 290,
+      "passes": false,
+      "notes": "ON HOLD: Compliance review pending \u2014 defer until counsel reviews jurisdictional matrix. /loop ralph: SKIP this story until note unflagged.",
+      "onHold": true
+    },
+    {
+      "id": "AUDIT-001",
+      "title": "[ON HOLD] Audit-log dashboard for financial + secret-access",
+      "description": "Compliance/auditor view of every secret-access + financial transaction. Per-actor filterable.",
+      "acceptanceCriteria": [
+        "/admin/audit page lists secret_access_log + financial_record + status_history rows",
+        "Filterable by actor + date range",
+        "CSV export",
+        "Typecheck passes"
+      ],
+      "priority": 291,
+      "passes": false,
+      "notes": "ON HOLD: Compliance review pending \u2014 defer with RETENTION-001. /loop ralph: SKIP this story until note unflagged.",
+      "onHold": true
+    },
+    {
+      "id": "POLISH-001",
+      "title": "Validate /application end-to-end coverage",
+      "description": "User says answer-collection is at /application \u2014 confirm it covers all packages + edge cases (resume, branching, doc-upload integration). Add any missing per-package quirks.",
+      "acceptanceCriteria": [
+        "Manual run-through of every package's /application path documented",
+        "Gaps captured as PROD-* sub-stories",
+        "Typecheck passes"
+      ],
+      "priority": 273,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
