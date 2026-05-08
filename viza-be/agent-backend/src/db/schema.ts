@@ -682,3 +682,33 @@ export const applicationStatusHistory = pgTable("application_status_history", {
 export type ApplicationStatusHistory = typeof applicationStatusHistory.$inferSelect;
 export type NewApplicationStatusHistory = typeof applicationStatusHistory.$inferInsert;
 
+// =============================================================================
+// SUPPORT TICKETS + MESSAGES (SUPPORT-001 / SUPPORT-002)
+// =============================================================================
+
+export const supportTicket = pgTable("support_ticket", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportTicket = typeof supportTicket.$inferSelect;
+export type NewSupportTicket = typeof supportTicket.$inferInsert;
+
+export const supportMessage = pgTable("support_message", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull(),
+  authorKind: text("author_kind").notNull(),
+  authorId: uuid("author_id"),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportMessage = typeof supportMessage.$inferSelect;
+export type NewSupportMessage = typeof supportMessage.$inferInsert;
+

@@ -17,6 +17,7 @@ import { applicationSubmittedTemplate } from "./application-submitted.js";
 import { applicationDecisionTemplate } from "./application-decision.js";
 import { passwordResetTemplate } from "./password-reset.js";
 import { signupVerifyTemplate } from "./signup-verify.js";
+import { ticketReceivedTemplate } from "./ticket-received.js";
 
 export interface NotificationTemplate {
   key: string;
@@ -36,6 +37,7 @@ export const TEMPLATES: Record<string, NotificationTemplate> = {
   application_decision: applicationDecisionTemplate,
   password_reset: passwordResetTemplate,
   signup_verify: signupVerifyTemplate,
+  ticket_received: ticketReceivedTemplate,
 };
 
 export function resolveTemplate(key: string): NotificationTemplate | null {
