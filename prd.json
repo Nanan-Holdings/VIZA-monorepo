@@ -2917,8 +2917,8 @@
         "Typecheck passes"
       ],
       "priority": 201,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Existing src/uk/orchestrator.ts + resume.ts + field-mappings.ts + widgets.ts drive the UK Standard Visitor form across language/country/VAC/visa-type/registration. Stops at registration page (handoffReady=false) when post-auth selectors not yet mapped \u2014 recon walker harvests them. Gates + diagnostics + screenshot capture wired."
     },
     {
       "id": "AUTO-UK-02",
@@ -2931,8 +2931,8 @@
         "Typecheck passes"
       ],
       "priority": 202,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Existing src/uk/errors.ts UkErrorCode union + UkUnexpectedPageError/UkSessionExpiredError/UkNavigationError/UkValidationError/UkGateDetectedError/UkFieldNotMappedError/UkWidgetFillError/UkSessionBootstrapError + isUkGateError + serializeUkError. Existing src/uk/gates.ts detectGate + assertNoGate. Existing src/uk/inbox.ts for email helpers."
     },
     {
       "id": "AUTO-UK-03",
@@ -2945,8 +2945,8 @@
         "Typecheck passes"
       ],
       "priority": 203,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/uk/payment.ts payUkWithEscrowCard via shared loadEscrowCard with Worldpay receipt regex (GWF prefix). src/uk/finalize.ts persistUkSubmitted uploads jobs/<jobId>/uk-application-summary.pdf, inserts application_documents kind=submission_summary_pdf, flips status='submitted_to_government' (NOT delivered \u2014 UK is two-step), queues biometrics_pending. typecheck clean."
     },
     {
       "id": "AUTO-UK-04",
@@ -2960,8 +2960,8 @@
         "Typecheck passes"
       ],
       "priority": 204,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/uk.md covers two-step lifecycle (submitted_to_government \u2192 awaiting_biometrics \u2192 delivered after VAC), Worldpay quirks, GWF reference, biometrics-appointment downstream booking. Concurrency cap=1 due to UKVI email-OTP-per-session. SLA seeded median 21d / p95 60d."
     },
     {
       "id": "AUTO-AU-01",
