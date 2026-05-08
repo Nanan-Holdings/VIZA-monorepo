@@ -3413,7 +3413,7 @@
         "Typecheck passes"
       ],
       "priority": 240,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
