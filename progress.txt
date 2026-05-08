@@ -1877,3 +1877,11 @@ acknowledgment).
 - AUTO-UK-04: docs/runbooks/uk.md with two-step lifecycle table, Worldpay quirks, biometrics handoff.
 - typecheck clean.
 ---
+
+## 2026-05-08 - AUTO-AU-01..04
+- AUTO-AU-01: src/au/runner.ts runAuPrefill drives ImmiAccount login → Subclass 600 → personal → review, halts before declaration/signature.
+- AUTO-AU-02: src/au/errors.ts au.* codes + auth.invalid_credentials + auth.account_locked. 5/5 unit tests green.
+- AUTO-AU-03: src/au/payment.ts (TRN regex) + src/au/finalize.ts persistAuSubmitted (status='submitted_to_government', trn column, grant_pending queue).
+- AUTO-AU-04: docs/runbooks/au.md two-step lifecycle, ImmiAccount vault credentials, au.auth.* error rows.
+- typecheck clean.
+---
