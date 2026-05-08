@@ -1663,3 +1663,12 @@ acknowledgment).
 - Notes: AcroForm field-fill (MOFA Form A) is a sibling renderer with the same contract — pdf-lib already in scripts/_inspect-mofa-pdf.mjs but kept out of the runtime image until the form actually ships.
 - Staff portal links: existing /admin/jobs/<id> page already lists artefacts under the job prefix; no FE change needed for download.
 ---
+
+## 2026-05-08 - DOC-005
+- drizzle/0063_signature_event.sql: signature_event(applicant_id, application_id, doc_kind, doc_hash, signed_storage_path, ip, ua, ts) with owner-SELECT RLS + indexes on (applicant_id, ts) and (application_id, ts).
+- viza-fe/internal-website/app/actions/signatures.ts: captureSignature({ applicationId, docKind, docBody, signaturePngBase64 }) — PNG magic + 200 KB cap; SHA-256 of docBody bound at sign-time; uploads PNG under signatures/<applicantId>/<applicationId>/<kind>-<ts>.png; inserts audit row through withAdmin('system'); returns { signatureId, docHash, storagePath }. Captures cf-connecting-ip / x-forwarded-for / x-real-ip + UA.
+- listSignatureEvents(applicationId) — admin-only history readout (ts, doc_kind, doc_hash, signed_storage_path, ip, ua).
+- Existing /client/signing/[applicationId] AU flow continues to use submitSignature; new action layers in for any other agency form (authorisation, POA, consulate attestation).
+- Typecheck: internal-website ✅
+- Notes: doc-hash is computed server-side from the body the action receives — caller must echo back exactly what the applicant saw. SignaturePad component reuse is documented in /client/signing.
+---
