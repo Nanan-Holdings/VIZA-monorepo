@@ -732,3 +732,40 @@ export const proxyPool = pgTable("proxy_pool", {
 export type ProxyPool = typeof proxyPool.$inferSelect;
 export type NewProxyPool = typeof proxyPool.$inferInsert;
 
+// =============================================================================
+// PACKAGE PRICING (FEES-001 / FEES-002)
+// =============================================================================
+
+export const packagePricing = pgTable("package_pricing", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  governmentFeeCents: integer("government_fee_cents").notNull().default(0),
+  agencyFeeCents: integer("agency_fee_cents").notNull().default(0),
+  overrideUntil: timestamp("override_until", { withTimezone: true }),
+  overrideReason: text("override_reason"),
+  overrideBy: uuid("override_by"),
+  source: text("source").notNull().default("seed"),
+  scrapedAt: timestamp("scraped_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PackagePricing = typeof packagePricing.$inferSelect;
+export type NewPackagePricing = typeof packagePricing.$inferInsert;
+
+export const packagePricingHistory = pgTable("package_pricing_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  currency: text("currency").notNull(),
+  governmentFeeCents: integer("government_fee_cents").notNull(),
+  agencyFeeCents: integer("agency_fee_cents").notNull(),
+  source: text("source").notNull(),
+  changedBy: uuid("changed_by"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PackagePricingHistory = typeof packagePricingHistory.$inferSelect;
+export type NewPackagePricingHistory = typeof packagePricingHistory.$inferInsert;
+

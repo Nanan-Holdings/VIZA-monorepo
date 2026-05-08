@@ -2073,3 +2073,12 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: capping fingerprint rotation at 3-per-7d is critical — unlimited rotation looks more bot-like than a stable identity getting occasionally challenged.
 ---
+
+## 2026-05-08 - FEES-001 + FEES-002
+- Migration 0078_package_pricing: package_pricing (visa_package_id, currency, government_fee_cents, agency_fee_cents, override_until, override_reason, override_by, source, scraped_at) + package_pricing_history audit table. Drizzle packagePricing + packagePricingHistory.
+- viza-be/agent-backend/src/jobs/fee-scraper.ts COUNTRY_SCRAPERS for KH/LA/LK each with url + headline-fee regex; runFeeScraper compares prior vs scraped, skips active staff overrides, persists + history-row + Slack digest via FEE_SCRAPER_SLACK_WEBHOOK. Sunday 03:00 UTC handled by the existing pg_cron infrastructure (caller wires the cron).
+- /admin/pricing PricingClient lets staff edit gov+agency fees, set 1–90 day override duration + reason; persists via setPricingOverride server action which writes the override AND a package_pricing_history row.
+- Public pricing page reads package_pricing directly (open RLS SELECT).
+- Both typechecks clean.
+- Learning: scoping override_until in days (rather than indefinite) forces fees back to scraper truth automatically — prevents stale staff overrides from outliving the underlying gov-fee change.
+---
