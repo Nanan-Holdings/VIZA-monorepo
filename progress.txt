@@ -1772,3 +1772,9 @@ acknowledgment).
 - src/la/__tests__/errors.spec.ts: 5 node:test cases (cloudflare / 429 / passport / payment-declined / healthy). All green.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-LA-03
+- src/la/payment.ts: payLaWithEscrowCard mirrors KH — fills card form via vault-loaded escrow card, scrapes receipt regex, recordPortalReceipt on success or recordPortalDecline on decline.
+- src/la/finalize.ts: persistLaDelivered uploads jobs/<jobId>/la-evisa.pdf, inserts application_documents kind='evisa_pdf', flips applications.status='delivered', queues doc_ready notification.
+- Typecheck: submission-service ✅
+---
