@@ -1741,3 +1741,12 @@ acknowledgment).
 - scripts/la-smoke.ts: 90s synthetic-answer smoke; exits 0 on stopped_before_pay.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-KH-02
+- viza-be/submission-service/src/kh/errors.ts: KhRunnerError catalog with stable codes — kh.anti_bot.cloudflare (human), kh.anti_bot.ratelimit (retry), kh.validation.passport_invalid (fail), kh.validation.nationality_unsupported (fail), kh.validation.payment_declined (human), kh.session.expired (retry), kh.portal.unreachable (retry), kh.portal.maintenance (retry), kh.unknown_state (human). classifyPage({title, bodyText, httpStatus?}) → KhRunnerError | null.
+- src/kh/runner.ts: imports classifyPage; new probe() helper sniffs page title + body text; dispatchError() folds the disposition into KhRunResult.status (anti_bot_gate / blocked / needs_human / stopped_before_pay) and surfaces the structured error. Probes after landing + after the Next click.
+- src/kh/runner.ts: exported waitForKhConfirmationEmail(applicantId, timeoutMs?) — pulls KH portal mail via inbox.waitForMessage and runs extractAuto for the reference code.
+- KhRunResult.status extended with 'needs_human'; downstream queue worker can route to operator takeover (CS-003) when error.disposition === 'human'.
+- src/kh/__tests__/errors.spec.ts: 6 node:test cases — Cloudflare / 429 / invalid passport / maintenance / 5xx / healthy. All green.
+- Typecheck: submission-service ✅
+---

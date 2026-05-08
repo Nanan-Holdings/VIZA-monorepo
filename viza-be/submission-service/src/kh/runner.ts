@@ -3,9 +3,12 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { classifyPage, type KhRunnerError } from "./errors.js";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
+import { extractAuto } from "../inbox/extractors/index.js";
 
 /**
- * Cambodia e-Visa prefill runner (AUTO-KH-01).
+ * Cambodia e-Visa prefill runner (AUTO-KH-01 + AUTO-KH-02).
  *
  * Drives the public evisa.gov.kh form from the canonical answer set
  * for KH_TOURIST_E_VISA and **stops before payment**. The runner
@@ -48,12 +51,37 @@ export interface KhRunInput {
 }
 
 export interface KhRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate";
+  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   /** Last step the runner reached. */
   reachedStep: string;
   /** Artefact paths recorded. */
   artefacts: string[];
+  /** When status='needs_human', the structured error code that triggered escalation. */
+  error?: KhRunnerError;
+}
+
+/**
+ * Pull a KH portal confirmation email from the applicant inbox
+ * (AUTO-KH-02). KH sends an account-less confirmation referencing
+ * an Application ID — we wait up to 60 s by default.
+ */
+export async function waitForKhConfirmationEmail(
+  applicantId: string,
+  timeoutMs: number = 60_000,
+): Promise<{ message: InboundMessage; reference: string | null }> {
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (m) => /evisa\.gov\.kh|cambodia/i.test(m.from_addr),
+    timeoutMs,
+  );
+  const parsed = extractAuto({
+    from: message.from_addr,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  return { message, reference: parsed.reference ?? null };
 }
 
 interface StepCtx {
@@ -127,17 +155,33 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
   };
 
   try {
+    // Helper: classify the current page and bail if anything's off.
+    const probe = async (): Promise<KhRunnerError | null> => {
+      const title = (await page.title()).slice(0, 200);
+      const bodyText = (
+        await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "")
+      ).slice(0, 1024);
+      return classifyPage({ title, bodyText });
+    };
+    const dispatchError = (err: KhRunnerError): KhRunResult => {
+      result.error = err;
+      result.reason = `${err.code}: ${err.message}`;
+      if (err.disposition === "human") {
+        result.status = "needs_human";
+      } else if (err.code === "kh.anti_bot.cloudflare") {
+        result.status = "anti_bot_gate";
+      } else {
+        result.status = "blocked";
+      }
+      return result;
+    };
+
     // 01 — landing.
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
-
-    // Anti-bot heuristic: cloudflare challenge on the landing page.
-    if ((await page.title()).toLowerCase().includes("just a moment")) {
-      result.status = "anti_bot_gate";
-      result.reason = "cloudflare challenge on landing";
-      return result;
-    }
+    const landingErr = await probe();
+    if (landingErr) return dispatchError(landingErr);
 
     // 02 — open New Application route.
     await page.goto(`${BASE_URL}/application_new`, {
@@ -173,6 +217,8 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");
       result.reachedStep = "review";
+      const reviewErr = await probe();
+      if (reviewErr) return dispatchError(reviewErr);
     }
 
     // 05 — STOP before final submit / pay. We deliberately do NOT
