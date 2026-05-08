@@ -2345,8 +2345,8 @@
         "Typecheck passes"
       ],
       "priority": 171,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Provider = Anthropic Claude vision (already in stack via agent-backend); MRZ TD3 parser + check digits live deterministically alongside OCR fallback."
     },
     {
       "id": "DOC-003",
