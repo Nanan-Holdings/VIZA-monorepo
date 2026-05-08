@@ -2586,7 +2586,7 @@
       "description": "Phase-3 runner for eta.gov.lk driving the public form and halting before payment.",
       "acceptanceCriteria": ["`lk/` extends recon to prefill", "Halts before pay", "Smoke green", "Artefacts saved", "Typecheck passes"],
       "priority": 189,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
