@@ -1,0 +1,78 @@
+{
+  "country": "KH",
+  "visa_type": "tourist_evisa",
+  "version": "v1",
+  "derived_from": "runner:src/kh/runner.ts + recon-out/<latest>/kh",
+  "fields": [
+    {
+      "field_name": "surname",
+      "label": "Surname",
+      "widget_type": "text",
+      "required": true,
+      "ordinal": 0
+    },
+    {
+      "field_name": "given_names",
+      "label": "Given Names",
+      "widget_type": "text",
+      "required": true,
+      "ordinal": 1
+    },
+    {
+      "field_name": "date_of_birth",
+      "label": "Date Of Birth",
+      "widget_type": "date",
+      "required": true,
+      "ordinal": 2
+    },
+    {
+      "field_name": "nationality",
+      "label": "Nationality",
+      "widget_type": "select",
+      "required": true,
+      "ordinal": 3
+    },
+    {
+      "field_name": "passport_number",
+      "label": "Passport Number",
+      "widget_type": "text",
+      "required": true,
+      "ordinal": 4
+    },
+    {
+      "field_name": "passport_expiry_date",
+      "label": "Passport Expiry Date",
+      "widget_type": "date",
+      "required": true,
+      "ordinal": 5
+    },
+    {
+      "field_name": "passport_issuing_country",
+      "label": "Passport Issuing Country",
+      "widget_type": "select",
+      "required": true,
+      "ordinal": 6
+    },
+    {
+      "field_name": "email",
+      "label": "Email",
+      "widget_type": "email",
+      "required": true,
+      "ordinal": 7
+    },
+    {
+      "field_name": "phone",
+      "label": "Phone",
+      "widget_type": "tel",
+      "required": true,
+      "ordinal": 8
+    },
+    {
+      "field_name": "visa_purpose",
+      "label": "Visa Purpose",
+      "widget_type": "select",
+      "required": true,
+      "ordinal": 9
+    }
+  ]
+}

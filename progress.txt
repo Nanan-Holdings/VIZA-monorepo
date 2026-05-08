@@ -1942,3 +1942,14 @@ acknowledgment).
 - typecheck clean.
 - Learning: Playwright in CI needs `npx playwright install --with-deps chromium` step explicitly (not bundled with @playwright/test install).
 ---
+
+## 2026-05-08 - PROD-001
+- Question-set derivation from canonical answers + recon walker output.
+- Migration 0069_question_set.sql adds question_set + question_field with RLS open SELECT (read-only public).
+- Drizzle schema: questionSet + questionField pgTable exports in viza-be/agent-backend/src/db/schema.ts.
+- viza-be/submission-service/scripts/derive-question-sets.ts hand-curated ROSTER per country (kh/la/lk/za/in) merging widget hints with recon-out FieldCapture[] (label/required fall through). Branching captured via JSONB branch column (IN medical→hospital_name, IN conference→conference_name).
+- 5 JSON snapshots committed under db/seeds/question-sets/<country>.json (10–13 fields per country).
+- Upsert path uses @supabase/supabase-js service-role key (deletes + reinserts question_field rows per set to keep ordinal in sync). QSET_DRY=1 skips upsert.
+- Both typechecks clean.
+- Learning: storing branch rules as JSONB beats per-field foreign-key columns — UI can keep all conditional logic client-side without joining.
+---
