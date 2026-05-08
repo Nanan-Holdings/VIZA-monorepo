@@ -110,6 +110,7 @@ export const applicationDocuments = pgTable("application_documents", {
 	filename: text("filename"),
 	status: text("status").default("uploaded").notNull(),
 	rejectionReason: text("rejection_reason"),
+	metadata: jsonb("metadata"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
