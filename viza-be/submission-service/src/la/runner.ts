@@ -4,6 +4,7 @@ import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { classifyPage, type LaRunnerError } from "./errors.js";
+import { LA_SELECTORS } from "./selectors.js";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 
@@ -168,28 +169,28 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
 
     // Personal-info section. The Laos portal uses generic name attrs;
     // the recon walker captured the live set — keep selectors loose.
-    await safeFill(page, 'input[name="first_name"]', input.answers.given_names, "given_names");
-    await safeFill(page, 'input[name="last_name"]', input.answers.surname, "surname");
-    await safeFill(page, 'input[name="email"]', input.answers.email, "email");
-    await safeFill(page, 'input[name="phone"]', input.answers.phone, "phone");
-    await safeFill(page, 'input[name="date_of_birth"]', input.answers.date_of_birth, "dob");
-    await safeFill(page, 'select[name="nationality"]', input.answers.nationality, "nationality");
-    await safeFill(page, 'input[name="passport_number"]', input.answers.passport_number, "passport_number");
-    await safeFill(page, 'input[name="passport_expiry"]', input.answers.passport_expiry_date, "passport_expiry");
+    await safeFill(page, LA_SELECTORS.first_name, input.answers.given_names, "given_names");
+    await safeFill(page, LA_SELECTORS.last_name, input.answers.surname, "surname");
+    await safeFill(page, LA_SELECTORS.email, input.answers.email, "email");
+    await safeFill(page, LA_SELECTORS.phone, input.answers.phone, "phone");
+    await safeFill(page, LA_SELECTORS.date_of_birth, input.answers.date_of_birth, "dob");
+    await safeFill(page, LA_SELECTORS.nationality, input.answers.nationality, "nationality");
+    await safeFill(page, LA_SELECTORS.passport_number, input.answers.passport_number, "passport_number");
+    await safeFill(page, LA_SELECTORS.passport_expiry, input.answers.passport_expiry_date, "passport_expiry");
     await safeFill(
       page,
       'select[name="passport_issuing_country"]',
       input.answers.passport_issuing_country,
       "passport_issuing_country",
     );
-    await safeFill(page, 'input[name="arrival_date"]', input.answers.intended_arrival_date, "arrival_date");
-    await safeFill(page, 'select[name="port_of_entry"]', input.answers.port_of_entry, "port_of_entry");
-    await safeFill(page, 'input[name="occupation"]', input.answers.occupation, "occupation");
+    await safeFill(page, LA_SELECTORS.arrival_date, input.answers.intended_arrival_date, "arrival_date");
+    await safeFill(page, LA_SELECTORS.port_of_entry, input.answers.port_of_entry, "port_of_entry");
+    await safeFill(page, LA_SELECTORS.occupation, input.answers.occupation, "occupation");
     await captureStep(stepCtx, "personal_filled");
     result.reachedStep = "personal_filled";
 
     // Advance to review.
-    const advanced = await safeClick(page, 'button:has-text("Next"), button:has-text("Continue")', "next-personal");
+    const advanced = await safeClick(page, LA_SELECTORS.next_button, "next-personal");
     if (advanced) {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { classifyPage, type InRunnerError } from "./errors.js";
+import { IN_SELECTORS } from "./selectors.js";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 
@@ -197,20 +198,20 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
     result.reachedStep = "apply";
 
     // Personal info
-    await safeFill(page, 'input[name="given_names"]', input.answers.given_names, "given_names");
-    await safeFill(page, 'input[name="surname"]', input.answers.surname, "surname");
-    await safeFill(page, 'input[name="email"]', input.answers.email, "email");
-    await safeFill(page, 'input[name="phone"]', input.answers.phone, "phone");
-    await safeFill(page, 'input[name="date_of_birth"]', input.answers.date_of_birth, "dob");
-    await safeFill(page, 'select[name="nationality"]', input.answers.nationality, "nationality");
+    await safeFill(page, IN_SELECTORS.given_names, input.answers.given_names, "given_names");
+    await safeFill(page, IN_SELECTORS.surname, input.answers.surname, "surname");
+    await safeFill(page, IN_SELECTORS.email, input.answers.email, "email");
+    await safeFill(page, IN_SELECTORS.phone, input.answers.phone, "phone");
+    await safeFill(page, IN_SELECTORS.date_of_birth, input.answers.date_of_birth, "dob");
+    await safeFill(page, IN_SELECTORS.nationality, input.answers.nationality, "nationality");
     await captureStep(stepCtx, "personal");
     result.reachedStep = "personal_filled";
 
     // Advance to passport page
-    if (await safeClick(page, 'button:has-text("Continue"), button:has-text("Next")', "next-personal")) {
+    if (await safeClick(page, IN_SELECTORS.next_button, "next-personal")) {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await safeFill(page, 'input[name="passport_number"]', input.answers.passport_number, "passport_number");
-      await safeFill(page, 'input[name="passport_expiry"]', input.answers.passport_expiry_date, "passport_expiry");
+      await safeFill(page, IN_SELECTORS.passport_number, input.answers.passport_number, "passport_number");
+      await safeFill(page, IN_SELECTORS.passport_expiry, input.answers.passport_expiry_date, "passport_expiry");
       await safeFill(
         page,
         'select[name="passport_issuing_country"]',
@@ -222,13 +223,13 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
     }
 
     // Visa details (purpose + arrival)
-    if (await safeClick(page, 'button:has-text("Continue"), button:has-text("Next")', "next-passport")) {
+    if (await safeClick(page, IN_SELECTORS.next_button, "next-passport")) {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await safeFill(page, 'select[name="visa_purpose"]', input.answers.visa_purpose, "visa_purpose");
-      await safeFill(page, 'input[name="arrival_date"]', input.answers.intended_arrival_date, "arrival_date");
-      await safeFill(page, 'select[name="port_of_arrival"]', input.answers.port_of_arrival, "port_of_arrival");
-      await safeFill(page, 'input[name="hospital_name"]', input.answers.hospital_name, "hospital_name");
-      await safeFill(page, 'input[name="conference_name"]', input.answers.conference_name, "conference_name");
+      await safeFill(page, IN_SELECTORS.visa_purpose, input.answers.visa_purpose, "visa_purpose");
+      await safeFill(page, IN_SELECTORS.arrival_date, input.answers.intended_arrival_date, "arrival_date");
+      await safeFill(page, IN_SELECTORS.port_of_arrival, input.answers.port_of_arrival, "port_of_arrival");
+      await safeFill(page, IN_SELECTORS.hospital_name, input.answers.hospital_name, "hospital_name");
+      await safeFill(page, IN_SELECTORS.conference_name, input.answers.conference_name, "conference_name");
       await captureStep(stepCtx, "visa_details");
       result.reachedStep = "visa_details_filled";
     }
