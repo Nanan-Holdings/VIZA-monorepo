@@ -2631,8 +2631,8 @@
       "description": "ZA error catalog + anti-bot fallback + inbox.",
       "acceptanceCriteria": ["ZA error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
       "priority": 194,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/za/errors.ts za.* codes + classifyPage; src/za/runner.ts probe()+dispatchError() wired after landing + post-Next; waitForZaConfirmationEmail via inbox.waitForMessage filtered on vfsglobal/dha. 5/5 unit tests green."
     },
     {
       "id": "AUTO-ZA-03",

@@ -3,17 +3,17 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { classifyPage, type ZaRunnerError } from "./errors.js";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
+import { extractAuto } from "../inbox/extractors/index.js";
 
 /**
- * South Africa eVisa prefill runner (AUTO-ZA-01).
+ * South Africa eVisa prefill runner (AUTO-ZA-01 + AUTO-ZA-02).
  *
  * Drives the public ZA eVisa portal from the canonical answer set
  * for ZA_TOURIST_E_VISA and **stops before payment / signature**.
  * Per-step screenshot + a network HAR are uploaded via INFRA-006
  * artifact.put under `jobs/<jobId>/za-step-NN-<name>.{png,har}`.
- *
- * NOTE: AUTO-ZA-02 will graft on the error catalog + needs-human
- * dispatch path (mirrors la/runner.ts shape).
  */
 
 const BASE_URL = process.env.ZA_PORTAL_URL ?? "https://visa.vfsglobal.com/zaf/en/dha";
@@ -42,10 +42,31 @@ export interface ZaRunInput {
 }
 
 export interface ZaRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate";
+  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
+  /** Structured error code when status='needs_human' or 'blocked' from a portal-side condition. */
+  error?: ZaRunnerError;
+}
+
+/** Pull a ZA portal confirmation email — when the portal sends one. */
+export async function waitForZaConfirmationEmail(
+  applicantId: string,
+  timeoutMs: number = 60_000,
+): Promise<{ message: InboundMessage; reference: string | null }> {
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (m) => /vfsglobal\.com|home-affairs|dha\.gov\.za|south africa/i.test(m.from_addr),
+    timeoutMs,
+  );
+  const parsed = extractAuto({
+    from: message.from_addr,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  return { message, reference: parsed.reference ?? null };
 }
 
 interface StepCtx {
@@ -123,10 +144,28 @@ export async function runZaPrefill(input: ZaRunInput): Promise<ZaRunResult> {
     artefacts: [],
   };
 
+  const probe = async (): Promise<ZaRunnerError | null> => {
+    const title = (await page.title()).slice(0, 200);
+    const bodyText = (
+      await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "")
+    ).slice(0, 1024);
+    return classifyPage({ title, bodyText });
+  };
+  const dispatchError = (err: ZaRunnerError): ZaRunResult => {
+    result.error = err;
+    result.reason = `${err.code}: ${err.message}`;
+    if (err.disposition === "human") result.status = "needs_human";
+    else if (err.code === "za.anti_bot.cloudflare") result.status = "anti_bot_gate";
+    else result.status = "blocked";
+    return result;
+  };
+
   try {
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
+    const landingErr = await probe();
+    if (landingErr) return dispatchError(landingErr);
     if (await detectAntiBotGate(page)) {
       result.status = "anti_bot_gate";
       result.reason = "VFS Global anti-bot interstitial blocked the runner";
@@ -174,6 +213,8 @@ export async function runZaPrefill(input: ZaRunInput): Promise<ZaRunResult> {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");
       result.reachedStep = "review";
+      const reviewErr = await probe();
+      if (reviewErr) return dispatchError(reviewErr);
     }
 
     result.status = "stopped_before_pay";
