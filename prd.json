@@ -2520,8 +2520,8 @@
         "Typecheck passes"
       ],
       "priority": 183,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Mechanism = runner_escrow_card (PAY-003); selectors derived from form-recon walker; receipt scraped via stable text patterns; doc_ready notification queued via notification_event_log."
     },
     {
       "id": "AUTO-KH-04",
