@@ -532,7 +532,7 @@
       ],
       "priority": 37,
       "passes": true,
-      "notes": "Follow JP-002 + ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — Visa2Egypt requires applicant card payment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+      "notes": "Follow JP-002 + ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 Visa2Egypt requires applicant card payment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
     },
     {
       "id": "EG-003",
@@ -560,7 +560,7 @@
       ],
       "priority": 39,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real Visa2Egypt account and document upload wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live-portal QA pass with a real Visa2Egypt account and document upload wiring as the top open items."
     },
     {
       "id": "EG-005",
@@ -579,7 +579,7 @@
     {
       "id": "IT-001",
       "title": "Pin the Italy Schengen Type C extraction scope and corridor (Italy via VFS Global China)",
-      "description": "As a maintainer, I need the Italy Schengen Type C visa scoped to a concrete submission corridor — VFS Global Italy China — so Ralph builds against a reviewable target instead of a vague 'Italy visa' concept. Italy reuses the harmonized EU_SCHENGEN_C_SHORT_STAY schema; this story pins the corridor adapter target, not a new schema.",
+      "description": "As a maintainer, I need the Italy Schengen Type C visa scoped to a concrete submission corridor \u2014 VFS Global Italy China \u2014 so Ralph builds against a reviewable target instead of a vague 'Italy visa' concept. Italy reuses the harmonized EU_SCHENGEN_C_SHORT_STAY schema; this story pins the corridor adapter target, not a new schema.",
       "acceptanceCriteria": [
         "prd.json contains IT-001 through IT-005 for this run",
         "docs/italy-visa-scope.md exists documenting the canonical journey (VFS Global China-Italy at https://visa.vfsglobal.com/chn/en/ita/), schema reuse from EU_SCHENGEN_C_SHORT_STAY, and the stop-at-appointment-eligibility boundary",
@@ -589,7 +589,7 @@
       ],
       "priority": 41,
       "passes": true,
-      "notes": "Schema reuse only — no new seed, no new visa_packages row. Italy is a corridor of EU_SCHENGEN_C_SHORT_STAY, not a separate visa type."
+      "notes": "Schema reuse only \u2014 no new seed, no new visa_packages row. Italy is a corridor of EU_SCHENGEN_C_SHORT_STAY, not a separate visa type."
     },
     {
       "id": "IT-002",
@@ -609,7 +609,7 @@
     {
       "id": "IT-003",
       "title": "Build the Italy-VFS-CN corridor adapter skeleton (errors, pages, selectors, normalize)",
-      "description": "As a developer, I need the corridor adapter directory scaffolded with errors, pages, selectors, normalize, and a public index barrel — parallel to france-visas/ and au-visitor/ — so the live-walk follow-up can land fill-steps and run.ts without churning the structural layer.",
+      "description": "As a developer, I need the corridor adapter directory scaffolded with errors, pages, selectors, normalize, and a public index barrel \u2014 parallel to france-visas/ and au-visitor/ \u2014 so the live-walk follow-up can land fill-steps and run.ts without churning the structural layer.",
       "acceptanceCriteria": [
         "viza-be/submission-service/src/italy-vfs-cn/ exists with errors.ts, pages.ts, selectors.ts, normalize.ts, index.ts",
         "ItVfsError taxonomy mirrors FvError (UNEXPECTED_PAGE / SESSION_EXPIRED / NAVIGATION_FAILED / VALIDATION_FAILED / SESSION_BOOTSTRAP_FAILED / GATE_DETECTED / LOGIN_FAILED / CORRIDOR_INELIGIBLE)",
@@ -620,12 +620,12 @@
       ],
       "priority": 43,
       "passes": true,
-      "notes": "fill-steps.ts and run.ts are intentionally deferred until the live walk runs — DOM mappings can't be authored without live VFS-CN access. Selectors, page URL regexes, and normalize enum mappings are TODO(walk) until then."
+      "notes": "fill-steps.ts and run.ts are intentionally deferred until the live walk runs \u2014 DOM mappings can't be authored without live VFS-CN access. Selectors, page URL regexes, and normalize enum mappings are TODO(walk) until then."
     },
     {
       "id": "IT-004",
       "title": "Publish the Italy-VFS-CN gap report",
-      "description": "As a maintainer, I need Italy-corridor gaps surfaced explicitly — schema reuse vs new fields, live walk pending, Turnstile risk, document-upload boundary, appointment/payment stop boundary — so we don't silently ship an incomplete autofiller while pretending parity is done.",
+      "description": "As a maintainer, I need Italy-corridor gaps surfaced explicitly \u2014 schema reuse vs new fields, live walk pending, Turnstile risk, document-upload boundary, appointment/payment stop boundary \u2014 so we don't silently ship an incomplete autofiller while pretending parity is done.",
       "acceptanceCriteria": [
         "docs/italy-visa-gap-report.md exists with coverage summary, corridor adapter status (errors/pages/selectors/normalize complete; fill-steps/run pending), known limitations, conditional-logic carry-over from EU_SCHENGEN_C_SHORT_STAY, reviewer checklist, and open questions for the live walk",
         "Live-portal QA is flagged as the top open item",
@@ -634,14 +634,14 @@
       ],
       "priority": 44,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live walk + Turnstile handling + queue-worker dispatcher wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live walk + Turnstile handling + queue-worker dispatcher wiring as the top open items."
     },
     {
       "id": "IT-005",
       "title": "Document the Italy-VFS-CN corridor workflow and next expansion path",
       "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining how the Italy corridor adapter was scaffolded, how to rerun the recon walk, and what the next Italy-corridor / Italy-Type-D expansion should be (Italy-from-India / Italy-from-MENA / Italy-Type-D-long-stay).",
       "acceptanceCriteria": [
-        "docs/italy-visa-scope.md §8 lists immediate (live walk + fill-steps + queue worker wiring), short-term (stealth-profile hoist, Turnstile, resume-by-reference), and medium-term (other Italy corridors, Italy Type D, per-consulate routing matrix) actions",
+        "docs/italy-visa-scope.md \u00a78 lists immediate (live walk + fill-steps + queue worker wiring), short-term (stealth-profile hoist, Turnstile, resume-by-reference), and medium-term (other Italy corridors, Italy Type D, per-consulate routing matrix) actions",
         "progress.txt is updated with IT-001..IT-005 entries, learnings, and the corridor pattern that future Schengen-state corridors should follow",
         "Recommended next actions are stated clearly",
         "Typecheck passes"
@@ -679,7 +679,7 @@
       ],
       "priority": 47,
       "passes": true,
-      "notes": "Follow JP-002 / ID-002 / EG-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — thaievisa.go.th requires applicant card payment + optional biometric appointment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+      "notes": "Follow JP-002 / ID-002 / EG-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 thaievisa.go.th requires applicant card payment + optional biometric appointment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
     },
     {
       "id": "TH-003",
@@ -707,7 +707,7 @@
       ],
       "priority": 49,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real thaievisa.go.th account and document upload wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live-portal QA pass with a real thaievisa.go.th account and document upload wiring as the top open items."
     },
     {
       "id": "TH-005",
@@ -799,7 +799,7 @@
     {
       "id": "SG-001",
       "title": "Pin the Singapore Visit Visa extraction scope and canonical source journey",
-      "description": "As a maintainer, I need the repo scoped to the Singapore Visit Visa (Tourist / Social — single + multi-entry variants) submitted via the ICA SAVE e-Service, so Ralph builds against a concrete reviewable target.",
+      "description": "As a maintainer, I need the repo scoped to the Singapore Visit Visa (Tourist / Social \u2014 single + multi-entry variants) submitted via the ICA SAVE e-Service, so Ralph builds against a concrete reviewable target.",
       "acceptanceCriteria": [
         "prd.json contains SG-001 through SG-005 for this run",
         "The implementation names ICA SAVE (eservices.ica.gov.sg/esvclandingpage/save) as the canonical source",
@@ -809,7 +809,7 @@
       ],
       "priority": 56,
       "passes": true,
-      "notes": "ICA SAVE is identity-gated — local sponsor (Singpass) submits on applicant's behalf. Live-portal QA deferred. Schema reconstruction posture: same as TH/EG/JP/ID."
+      "notes": "ICA SAVE is identity-gated \u2014 local sponsor (Singpass) submits on applicant's behalf. Live-portal QA deferred. Schema reconstruction posture: same as TH/EG/JP/ID."
     },
     {
       "id": "SG-002",
@@ -825,7 +825,7 @@
       ],
       "priority": 57,
       "passes": true,
-      "notes": "Local-sponsor sub-journey is the SG-specific feature — extends the standard 8-step Asia-tourist template by 1 step."
+      "notes": "Local-sponsor sub-journey is the SG-specific feature \u2014 extends the standard 8-step Asia-tourist template by 1 step."
     },
     {
       "id": "SG-003",
@@ -1101,7 +1101,7 @@
       ],
       "priority": 76,
       "passes": true,
-      "notes": "Eligibility list excludes Western nationals — VIZA intake should filter on nationality before assigning this package."
+      "notes": "Eligibility list excludes Western nationals \u2014 VIZA intake should filter on nationality before assigning this package."
     },
     {
       "id": "RU-002",
@@ -1163,7 +1163,7 @@
     },
     {
       "id": "TR-001",
-      "title": "Pin the Türkiye Tourist e-Visa extraction scope and canonical source journey",
+      "title": "Pin the T\u00fcrkiye Tourist e-Visa extraction scope and canonical source journey",
       "description": "TR Tourist e-Visa scoped to MFA evisa.gov.tr flow.",
       "acceptanceCriteria": [
         "prd.json contains TR-001 through TR-005",
@@ -1174,16 +1174,16 @@
       ],
       "priority": 81,
       "passes": true,
-      "notes": "evisa.gov.tr is publicly accessible without account — easiest live-portal QA candidate of all VIZA-modeled e-Visa flows."
+      "notes": "evisa.gov.tr is publicly accessible without account \u2014 easiest live-portal QA candidate of all VIZA-modeled e-Visa flows."
     },
     {
       "id": "TR-002",
-      "title": "Model the Türkiye Tourist e-Visa field inventory",
+      "title": "Model the T\u00fcrkiye Tourist e-Visa field inventory",
       "description": "TR e-Visa journey as machine-readable schema matching the MFA e-Visa form.",
       "acceptanceCriteria": [
         "scripts/seed-tr-e-visa-form-fields.ts exists with visa_type = TR_E_VISA",
         "8 sections covering all MFA-collected fields",
-        "TR-specific: dual-language country naming (Türkiye / Turkey), 8 airports + 4 land borders + 3 cruise ports in port-of-entry list",
+        "TR-specific: dual-language country naming (T\u00fcrkiye / Turkey), 8 airports + 4 land borders + 3 cruise ports in port-of-entry list",
         "Typecheck passes for agent-backend"
       ],
       "priority": 82,
@@ -1192,7 +1192,7 @@
     },
     {
       "id": "TR-003",
-      "title": "Wire the Türkiye Tourist e-Visa package into VIZA's dynamic form path",
+      "title": "Wire the T\u00fcrkiye Tourist e-Visa package into VIZA's dynamic form path",
       "description": "TR e-Visa form renders through dynamic form infrastructure.",
       "acceptanceCriteria": [
         "Drizzle migration registers TR_E_VISA in visa_packages (country = turkey)",
@@ -1206,7 +1206,7 @@
     },
     {
       "id": "TR-004",
-      "title": "Publish the Türkiye Tourist e-Visa gap report",
+      "title": "Publish the T\u00fcrkiye Tourist e-Visa gap report",
       "description": "TR e-Visa gaps surfaced explicitly.",
       "acceptanceCriteria": [
         "docs/turkiye-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
@@ -1216,11 +1216,11 @@
       ],
       "priority": 84,
       "passes": true,
-      "notes": "TR is a strong automation candidate — flag as priority for first auto-runner expansion."
+      "notes": "TR is a strong automation candidate \u2014 flag as priority for first auto-runner expansion."
     },
     {
       "id": "TR-005",
-      "title": "Document the Türkiye Tourist e-Visa workflow and next expansion path",
+      "title": "Document the T\u00fcrkiye Tourist e-Visa workflow and next expansion path",
       "description": "Scope + gap docs and progress entry for TR_E_VISA.",
       "acceptanceCriteria": [
         "docs/turkiye-visa-scope.md documents the MFA source",
@@ -1525,7 +1525,12 @@
       "id": "KH-001",
       "title": "Pin Cambodia Tourist e-Visa scope",
       "description": "KH Tourist e-Visa scoped to MFA evisa.gov.kh.",
-      "acceptanceCriteria": ["prd.json contains KH-001..KH-005", "Single-entry variant on visa_type_requested", "Out-of-scope (Business e-Visa, E-Class/K-Class, VOA) documented", "docs/cambodia-visa-scope.md exists"],
+      "acceptanceCriteria": [
+        "prd.json contains KH-001..KH-005",
+        "Single-entry variant on visa_type_requested",
+        "Out-of-scope (Business e-Visa, E-Class/K-Class, VOA) documented",
+        "docs/cambodia-visa-scope.md exists"
+      ],
       "priority": 106,
       "passes": true,
       "notes": "Public portal, no auth. Strong automation candidate."
@@ -1534,7 +1539,12 @@
       "id": "KH-002",
       "title": "Model Cambodia Tourist e-Visa field inventory",
       "description": "KH e-Visa as machine-readable schema.",
-      "acceptanceCriteria": ["scripts/seed-kh-e-visa-form-fields.ts exists with visa_type = KH_TOURIST_E_VISA", "8 sections", "KH port-of-entry list (3 airports + 5 land borders + cruise)", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "scripts/seed-kh-e-visa-form-fields.ts exists with visa_type = KH_TOURIST_E_VISA",
+        "8 sections",
+        "KH port-of-entry list (3 airports + 5 land borders + cruise)",
+        "Typecheck passes"
+      ],
       "priority": 107,
       "passes": true,
       "notes": "Same Asia-tourist template."
@@ -1543,7 +1553,12 @@
       "id": "KH-003",
       "title": "Wire Cambodia e-Visa package into VIZA dynamic form",
       "description": "KH e-Visa renders through dynamic form.",
-      "acceptanceCriteria": ["Drizzle migration registers KH_TOURIST_E_VISA (country = cambodia)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Drizzle migration registers KH_TOURIST_E_VISA (country = cambodia)",
+        "Migration idempotent",
+        "No FE changes",
+        "Typecheck passes"
+      ],
       "priority": 108,
       "passes": true,
       "notes": "Migration: 0038_kh_tourist_e_visa_package.sql."
@@ -1552,7 +1567,11 @@
       "id": "KH-004",
       "title": "Publish Cambodia e-Visa gap report",
       "description": "KH gaps surfaced.",
-      "acceptanceCriteria": ["docs/cambodia-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/cambodia-visa-gap-report.md exists",
+        "Strong Playwright candidate flagged",
+        "Typecheck passes"
+      ],
       "priority": 109,
       "passes": true,
       "notes": ""
@@ -1561,7 +1580,12 @@
       "id": "KH-005",
       "title": "Document Cambodia e-Visa workflow",
       "description": "Scope + gap docs + progress entry.",
-      "acceptanceCriteria": ["docs/cambodia-visa-scope.md docs MFA source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/cambodia-visa-scope.md docs MFA source",
+        "progress.txt updated",
+        "Next actions stated",
+        "Typecheck passes"
+      ],
       "priority": 110,
       "passes": true,
       "notes": ""
@@ -1570,7 +1594,12 @@
       "id": "LA-001",
       "title": "Pin Laos Tourist e-Visa scope",
       "description": "LA Tourist e-Visa scoped to MFA laoevisa.gov.la + VOA pre-clearance.",
-      "acceptanceCriteria": ["prd.json contains LA-001..LA-005", "Two variants (e-Visa, VOA) on visa_type_requested", "Out-of-scope (NA-B / NA-LS / Investment) documented", "docs/laos-visa-scope.md exists"],
+      "acceptanceCriteria": [
+        "prd.json contains LA-001..LA-005",
+        "Two variants (e-Visa, VOA) on visa_type_requested",
+        "Out-of-scope (NA-B / NA-LS / Investment) documented",
+        "docs/laos-visa-scope.md exists"
+      ],
       "priority": 111,
       "passes": true,
       "notes": "Public portal; strong automation candidate."
@@ -1579,7 +1608,12 @@
       "id": "LA-002",
       "title": "Model Laos e-Visa field inventory",
       "description": "LA e-Visa as machine-readable schema.",
-      "acceptanceCriteria": ["scripts/seed-la-e-visa-form-fields.ts exists with visa_type = LA_TOURIST_E_VISA", "8 sections", "LA port-of-entry list (4 airports + 4 Mekong Friendship Bridges + 4 land borders)", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "scripts/seed-la-e-visa-form-fields.ts exists with visa_type = LA_TOURIST_E_VISA",
+        "8 sections",
+        "LA port-of-entry list (4 airports + 4 Mekong Friendship Bridges + 4 land borders)",
+        "Typecheck passes"
+      ],
       "priority": 112,
       "passes": true,
       "notes": "Same Asia-tourist template + 4 Friendship Bridges from TH."
@@ -1588,7 +1622,12 @@
       "id": "LA-003",
       "title": "Wire Laos e-Visa package into VIZA",
       "description": "LA e-Visa renders through dynamic form.",
-      "acceptanceCriteria": ["Drizzle migration registers LA_TOURIST_E_VISA (country = laos)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Drizzle migration registers LA_TOURIST_E_VISA (country = laos)",
+        "Migration idempotent",
+        "No FE changes",
+        "Typecheck passes"
+      ],
       "priority": 113,
       "passes": true,
       "notes": "Migration: 0039_la_tourist_e_visa_package.sql."
@@ -1597,7 +1636,12 @@
       "id": "LA-004",
       "title": "Publish Laos e-Visa gap report",
       "description": "LA gaps surfaced.",
-      "acceptanceCriteria": ["docs/laos-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Nationality-based fee variation flagged", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/laos-visa-gap-report.md exists",
+        "Strong Playwright candidate flagged",
+        "Nationality-based fee variation flagged",
+        "Typecheck passes"
+      ],
       "priority": 114,
       "passes": true,
       "notes": ""
@@ -1606,7 +1650,12 @@
       "id": "LA-005",
       "title": "Document Laos e-Visa workflow",
       "description": "Scope + gap docs + progress entry.",
-      "acceptanceCriteria": ["docs/laos-visa-scope.md docs MFA source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/laos-visa-scope.md docs MFA source",
+        "progress.txt updated",
+        "Next actions stated",
+        "Typecheck passes"
+      ],
       "priority": 115,
       "passes": true,
       "notes": ""
@@ -1615,7 +1664,12 @@
       "id": "LK-001",
       "title": "Pin Sri Lanka ETA scope",
       "description": "LK ETA scoped to Department of Immigration eta.gov.lk.",
-      "acceptanceCriteria": ["prd.json contains LK-001..LK-005", "Four variants (Tourist single/double/multi, Business single) on visa_type_requested", "Out-of-scope (Resident/Work/Student/Investor/Dependent) documented", "docs/sri-lanka-visa-scope.md exists"],
+      "acceptanceCriteria": [
+        "prd.json contains LK-001..LK-005",
+        "Four variants (Tourist single/double/multi, Business single) on visa_type_requested",
+        "Out-of-scope (Resident/Work/Student/Investor/Dependent) documented",
+        "docs/sri-lanka-visa-scope.md exists"
+      ],
       "priority": 116,
       "passes": true,
       "notes": "Public portal, strong automation candidate."
@@ -1624,7 +1678,12 @@
       "id": "LK-002",
       "title": "Model Sri Lanka ETA field inventory",
       "description": "LK ETA as machine-readable schema.",
-      "acceptanceCriteria": ["scripts/seed-lk-eta-form-fields.ts exists with visa_type = LK_ETA", "8 sections", "LK port-of-entry list (3 airports + 4 seaports)", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "scripts/seed-lk-eta-form-fields.ts exists with visa_type = LK_ETA",
+        "8 sections",
+        "LK port-of-entry list (3 airports + 4 seaports)",
+        "Typecheck passes"
+      ],
       "priority": 117,
       "passes": true,
       "notes": ""
@@ -1633,7 +1692,12 @@
       "id": "LK-003",
       "title": "Wire Sri Lanka ETA package into VIZA",
       "description": "LK ETA renders through dynamic form.",
-      "acceptanceCriteria": ["Drizzle migration registers LK_ETA (country = sri_lanka)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Drizzle migration registers LK_ETA (country = sri_lanka)",
+        "Migration idempotent",
+        "No FE changes",
+        "Typecheck passes"
+      ],
       "priority": 118,
       "passes": true,
       "notes": "Migration: 0040_lk_eta_package.sql."
@@ -1642,7 +1706,11 @@
       "id": "LK-004",
       "title": "Publish Sri Lanka ETA gap report",
       "description": "LK gaps surfaced.",
-      "acceptanceCriteria": ["docs/sri-lanka-visa-gap-report.md exists", "Strong Playwright candidate flagged", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/sri-lanka-visa-gap-report.md exists",
+        "Strong Playwright candidate flagged",
+        "Typecheck passes"
+      ],
       "priority": 119,
       "passes": true,
       "notes": ""
@@ -1651,7 +1719,12 @@
       "id": "LK-005",
       "title": "Document Sri Lanka ETA workflow",
       "description": "Scope + gap docs + progress entry.",
-      "acceptanceCriteria": ["docs/sri-lanka-visa-scope.md docs Department of Immigration source", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/sri-lanka-visa-scope.md docs Department of Immigration source",
+        "progress.txt updated",
+        "Next actions stated",
+        "Typecheck passes"
+      ],
       "priority": 120,
       "passes": true,
       "notes": ""
@@ -1660,7 +1733,14 @@
       "id": "ZA-001",
       "title": "Pin South Africa Visitor's Visa + eVisa scope",
       "description": "ZA Visitor's Visa scoped to DHA via VFS Global + eVisa pilot.",
-      "acceptanceCriteria": ["prd.json contains ZA-001..ZA-005", "Three variants (eVisa, Visitor Single, Visitor Multi) on visa_type_requested", "Life-partner status modeled distinctly via `||` showIf", "Yellow-fever screening gated on endemic-country travel", "Out-of-scope (Work / Study / Relative / Retired / Treaty / PR / Asylum) documented", "docs/south-africa-visa-scope.md exists"],
+      "acceptanceCriteria": [
+        "prd.json contains ZA-001..ZA-005",
+        "Three variants (eVisa, Visitor Single, Visitor Multi) on visa_type_requested",
+        "Life-partner status modeled distinctly via `||` showIf",
+        "Yellow-fever screening gated on endemic-country travel",
+        "Out-of-scope (Work / Study / Relative / Retired / Treaty / PR / Asylum) documented",
+        "docs/south-africa-visa-scope.md exists"
+      ],
       "priority": 121,
       "passes": true,
       "notes": "Third VIZA schema using `||` in sub-journey (joins NZ + CA)."
@@ -1669,7 +1749,14 @@
       "id": "ZA-002",
       "title": "Model South Africa Visitor's Visa field inventory",
       "description": "ZA Visitor's Visa as machine-readable schema matching DHA-1738 + VFS Global + eVisa.",
-      "acceptanceCriteria": ["scripts/seed-za-visitor-visa-form-fields.ts exists with visa_type = ZA_VISITOR_VISA", "8 sections incl. yellow-fever screening", "Life-partner marital status; spouse block via `||`", "Available funds ZAR field", "ZA port-of-entry list (6 airports + 6 SADC borders + 2 cruise)", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "scripts/seed-za-visitor-visa-form-fields.ts exists with visa_type = ZA_VISITOR_VISA",
+        "8 sections incl. yellow-fever screening",
+        "Life-partner marital status; spouse block via `||`",
+        "Available funds ZAR field",
+        "ZA port-of-entry list (6 airports + 6 SADC borders + 2 cruise)",
+        "Typecheck passes"
+      ],
       "priority": 122,
       "passes": true,
       "notes": "Yellow-fever screening is jurisdiction-specific public-health rule."
@@ -1678,7 +1765,12 @@
       "id": "ZA-003",
       "title": "Wire South Africa Visitor's Visa package into VIZA",
       "description": "ZA Visitor's Visa renders through dynamic form.",
-      "acceptanceCriteria": ["Drizzle migration registers ZA_VISITOR_VISA (country = south_africa)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Drizzle migration registers ZA_VISITOR_VISA (country = south_africa)",
+        "Migration idempotent",
+        "No FE changes",
+        "Typecheck passes"
+      ],
       "priority": 123,
       "passes": true,
       "notes": "Migration: 0041_za_visitor_visa_package.sql."
@@ -1687,7 +1779,13 @@
       "id": "ZA-004",
       "title": "Publish South Africa Visitor's Visa gap report",
       "description": "ZA gaps surfaced.",
-      "acceptanceCriteria": ["docs/south-africa-visa-gap-report.md exists", "eVisa flagged as easier QA + auto-runner candidate", "VFS Global flagged as account-gated", "Yellow-fever certificate gating documented", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/south-africa-visa-gap-report.md exists",
+        "eVisa flagged as easier QA + auto-runner candidate",
+        "VFS Global flagged as account-gated",
+        "Yellow-fever certificate gating documented",
+        "Typecheck passes"
+      ],
       "priority": 124,
       "passes": true,
       "notes": ""
@@ -1696,7 +1794,12 @@
       "id": "ZA-005",
       "title": "Document South Africa Visitor's Visa workflow",
       "description": "Scope + gap docs + progress entry.",
-      "acceptanceCriteria": ["docs/south-africa-visa-scope.md docs DHA + VFS + eVisa sources", "progress.txt updated", "Next actions stated", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/south-africa-visa-scope.md docs DHA + VFS + eVisa sources",
+        "progress.txt updated",
+        "Next actions stated",
+        "Typecheck passes"
+      ],
       "priority": 125,
       "passes": true,
       "notes": ""
@@ -1705,7 +1808,14 @@
       "id": "IN-001",
       "title": "Pin India e-Visa scope",
       "description": "IN e-Visa scoped to Bureau of Immigration indianvisaonline.gov.in/evisa across Tourist / Business / Medical / Conference categories.",
-      "acceptanceCriteria": ["prd.json contains IN-001..IN-005", "Seven variants (e-Tourist 30d/1y/5y, e-Business 1y, e-Medical 60d, e-Medical-Attendant 60d, e-Conference 30d) on visa_type_requested", "SAARC nationality declaration captured", "Purpose-specific sub-journeys for business / medical / conference", "Out-of-scope (Regular Tourist paper, Employment, Student, Research, Journalist, OCI) documented", "docs/india-visa-scope.md exists"],
+      "acceptanceCriteria": [
+        "prd.json contains IN-001..IN-005",
+        "Seven variants (e-Tourist 30d/1y/5y, e-Business 1y, e-Medical 60d, e-Medical-Attendant 60d, e-Conference 30d) on visa_type_requested",
+        "SAARC nationality declaration captured",
+        "Purpose-specific sub-journeys for business / medical / conference",
+        "Out-of-scope (Regular Tourist paper, Employment, Student, Research, Journalist, OCI) documented",
+        "docs/india-visa-scope.md exists"
+      ],
       "priority": 126,
       "passes": true,
       "notes": "Largest non-DS-160 schema. SAARC declaration is jurisdiction-specific intelligence."
@@ -1714,7 +1824,16 @@
       "id": "IN-002",
       "title": "Model India e-Visa field inventory",
       "description": "IN e-Visa as machine-readable schema matching Bureau of Immigration form across 4 categories.",
-      "acceptanceCriteria": ["scripts/seed-in-e-visa-form-fields.ts exists with visa_type = IN_E_VISA", "9 sections incl. Purpose-Specific Details", "IN-specific: SAARC nationality + religion + parents' nationality + parents' birthplace", "Transgender option in sex select", "MEA clearance number for e-Conference (gated)", "Cities-to-visit textarea + countries-visited-last-10-years", "Sub-journey gating for business/medical/conference via purpose_of_visit", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "scripts/seed-in-e-visa-form-fields.ts exists with visa_type = IN_E_VISA",
+        "9 sections incl. Purpose-Specific Details",
+        "IN-specific: SAARC nationality + religion + parents' nationality + parents' birthplace",
+        "Transgender option in sex select",
+        "MEA clearance number for e-Conference (gated)",
+        "Cities-to-visit textarea + countries-visited-last-10-years",
+        "Sub-journey gating for business/medical/conference via purpose_of_visit",
+        "Typecheck passes"
+      ],
       "priority": 127,
       "passes": true,
       "notes": "Multi-purpose sub-journey pattern joins UK Standard Visitor as the only multi-purpose-with-sub-journey schemas."
@@ -1723,7 +1842,12 @@
       "id": "IN-003",
       "title": "Wire India e-Visa package into VIZA",
       "description": "IN e-Visa renders through dynamic form.",
-      "acceptanceCriteria": ["Drizzle migration registers IN_E_VISA (country = india)", "Migration idempotent", "No FE changes", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Drizzle migration registers IN_E_VISA (country = india)",
+        "Migration idempotent",
+        "No FE changes",
+        "Typecheck passes"
+      ],
       "priority": 128,
       "passes": true,
       "notes": "Migration: 0042_in_e_visa_package.sql."
@@ -1732,7 +1856,13 @@
       "id": "IN-004",
       "title": "Publish India e-Visa gap report",
       "description": "IN gaps surfaced.",
-      "acceptanceCriteria": ["docs/india-visa-gap-report.md exists", "Strong Playwright candidate flagged (no auth)", "Stay-length nationality cap variation flagged (90 vs 180 days)", "Multi-purpose sub-journey complexity documented", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/india-visa-gap-report.md exists",
+        "Strong Playwright candidate flagged (no auth)",
+        "Stay-length nationality cap variation flagged (90 vs 180 days)",
+        "Multi-purpose sub-journey complexity documented",
+        "Typecheck passes"
+      ],
       "priority": 129,
       "passes": true,
       "notes": "Multi-page state machine + biometric-on-arrival are the auto-runner challenges."
@@ -1741,7 +1871,12 @@
       "id": "IN-005",
       "title": "Document India e-Visa workflow",
       "description": "Scope + gap docs + progress entry.",
-      "acceptanceCriteria": ["docs/india-visa-scope.md docs Bureau of Immigration source", "progress.txt updated", "Next actions stated (live-QA, IN e-Visa runner, IN_OCI, IN_EMPLOYMENT_VISA, IN_STUDENT_VISA)", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "docs/india-visa-scope.md docs Bureau of Immigration source",
+        "progress.txt updated",
+        "Next actions stated (live-QA, IN e-Visa runner, IN_OCI, IN_EMPLOYMENT_VISA, IN_STUDENT_VISA)",
+        "Typecheck passes"
+      ],
       "priority": 130,
       "passes": true,
       "notes": ""
@@ -1908,7 +2043,7 @@
       ],
       "priority": 141,
       "passes": true,
-      "notes": "Staff route ships at /admin/users/[id]/inbox — repo has /admin/* (no /staff/* yet). Same RLS-driven data path as /client/inbox; will rehome under /staff if/when staff portal lands."
+      "notes": "Staff route ships at /admin/users/[id]/inbox \u2014 repo has /admin/* (no /staff/* yet). Same RLS-driven data path as /client/inbox; will rehome under /staff if/when staff portal lands."
     },
     {
       "id": "INBOX-007",
@@ -1934,7 +2069,7 @@
         "`docs/legal/terms-of-service.md` covers scope of service, fees, refund stance, liability cap, jurisdiction",
         "`docs/legal/privacy-policy.md` enumerates PII categories collected, retention, third-party processors (Supabase, Cloudflare, 2captcha, Stripe, government portals)",
         "`docs/legal/dpa.md` for B2B clients (corporate immigration)",
-        "Each doc flagged `STATUS: draft — pending counsel review`",
+        "Each doc flagged `STATUS: draft \u2014 pending counsel review`",
         "All third-party processors listed in a single `subprocessors.md`"
       ],
       "priority": 143,
@@ -2331,7 +2466,7 @@
       ],
       "priority": 170,
       "passes": true,
-      "notes": "ML-based ICAO checks (background, head height, expression) deferred — current validator handles deterministic rules (format, size, dimensions)."
+      "notes": "ML-based ICAO checks (background, head height, expression) deferred \u2014 current validator handles deterministic rules (format, size, dimensions)."
     },
     {
       "id": "DOC-002",
@@ -2493,7 +2628,7 @@
       ],
       "priority": 181,
       "passes": true,
-      "notes": "KH portal is public — no auth gate. Smoke runs via `npx tsx scripts/kh-smoke.ts` against synthetic answers."
+      "notes": "KH portal is public \u2014 no auth gate. Smoke runs via `npx tsx scripts/kh-smoke.ts` against synthetic answers."
     },
     {
       "id": "AUTO-KH-02",
@@ -2557,7 +2692,12 @@
       "id": "AUTO-LA-02",
       "title": "Laos e-Visa: error + halt-page handling",
       "description": "Same as AUTO-KH-02 for Laos.",
-      "acceptanceCriteria": ["LA-specific error catalog", "Anti-bot fallback", "Inbox helper integration", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "LA-specific error catalog",
+        "Anti-bot fallback",
+        "Inbox helper integration",
+        "Typecheck passes"
+      ],
       "priority": 186,
       "passes": true,
       "notes": ""
@@ -2566,7 +2706,12 @@
       "id": "AUTO-LA-03",
       "title": "Laos e-Visa: payment relay + reference return",
       "description": "Same as AUTO-KH-03 for Laos.",
-      "acceptanceCriteria": ["Payment mechanism implemented", "Issued PDF captured", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment mechanism implemented",
+        "Issued PDF captured",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 187,
       "passes": true,
       "notes": ""
@@ -2575,7 +2720,13 @@
       "id": "AUTO-LA-04",
       "title": "Laos e-Visa: production handoff",
       "description": "Same as AUTO-KH-04 for Laos.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 188,
       "passes": true,
       "notes": "Auto-enqueue + canary + concurrency cap inherited; 10-staging-app gate documented."
@@ -2584,7 +2735,13 @@
       "id": "AUTO-LK-01",
       "title": "Sri Lanka ETA: prefill runner to checkpoint",
       "description": "Phase-3 runner for eta.gov.lk driving the public form and halting before payment.",
-      "acceptanceCriteria": ["`lk/` extends recon to prefill", "Halts before pay", "Smoke green", "Artefacts saved", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`lk/` extends recon to prefill",
+        "Halts before pay",
+        "Smoke green",
+        "Artefacts saved",
+        "Typecheck passes"
+      ],
       "priority": 189,
       "passes": true,
       "notes": ""
@@ -2593,7 +2750,12 @@
       "id": "AUTO-LK-02",
       "title": "Sri Lanka ETA: error + halt-page handling",
       "description": "LK error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["LK error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "LK error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 190,
       "passes": true,
       "notes": ""
@@ -2602,7 +2764,12 @@
       "id": "AUTO-LK-03",
       "title": "Sri Lanka ETA: payment relay + reference return",
       "description": "LK payment + ETA capture.",
-      "acceptanceCriteria": ["Payment implemented", "Issued ETA captured", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment implemented",
+        "Issued ETA captured",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 191,
       "passes": true,
       "notes": "src/lk/payment.ts payLkWithEscrowCard via shared loadEscrowCard; src/lk/finalize.ts persistLkDelivered uploads jobs/<jobId>/lk-eta.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. typecheck clean."
@@ -2611,7 +2778,13 @@
       "id": "AUTO-LK-04",
       "title": "Sri Lanka ETA: production handoff",
       "description": "LK prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 192,
       "passes": true,
       "notes": "docs/runbooks/lk.md mirrors KH/LA. Queue wiring auto-inherited via INFRA-002 producer (country='sri_lanka'). Canary uses OPS-004 against eta.gov.lk. SLA seeded median 24h / p95 96h. 10-staging-app gate cross-references kh.md."
@@ -2620,16 +2793,27 @@
       "id": "AUTO-ZA-01",
       "title": "South Africa eVisa: prefill runner to checkpoint",
       "description": "Phase-3 runner for the SA eVisa pilot portal (selected nationalities) driving the form to the checkpoint.",
-      "acceptanceCriteria": ["`za/` extends recon to prefill", "Halts before pay/sign", "Smoke green", "Artefacts saved", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`za/` extends recon to prefill",
+        "Halts before pay/sign",
+        "Smoke green",
+        "Artefacts saved",
+        "Typecheck passes"
+      ],
       "priority": 193,
       "passes": true,
-      "notes": "src/za/runner.ts runZaPrefill drives BASE_URL→apply→personal-info→review and halts before pay/signature. captureStep uploads PNG + HAR via artifact.put. detectAntiBotGate handles Cloudflare interstitial. scripts/za-smoke.ts exits 0 on stopped_before_pay (90s cap). typecheck clean."
+      "notes": "src/za/runner.ts runZaPrefill drives BASE_URL\u2192apply\u2192personal-info\u2192review and halts before pay/signature. captureStep uploads PNG + HAR via artifact.put. detectAntiBotGate handles Cloudflare interstitial. scripts/za-smoke.ts exits 0 on stopped_before_pay (90s cap). typecheck clean."
     },
     {
       "id": "AUTO-ZA-02",
       "title": "South Africa eVisa: error + halt-page handling",
       "description": "ZA error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["ZA error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "ZA error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 194,
       "passes": true,
       "notes": "src/za/errors.ts za.* codes + classifyPage; src/za/runner.ts probe()+dispatchError() wired after landing + post-Next; waitForZaConfirmationEmail via inbox.waitForMessage filtered on vfsglobal/dha. 5/5 unit tests green."
@@ -2638,7 +2822,12 @@
       "id": "AUTO-ZA-03",
       "title": "South Africa eVisa: payment relay + reference return",
       "description": "ZA payment + reference capture.",
-      "acceptanceCriteria": ["Payment implemented", "Issued eVisa captured", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment implemented",
+        "Issued eVisa captured",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 195,
       "passes": true,
       "notes": "src/za/payment.ts payZaWithEscrowCard via shared loadEscrowCard; src/za/finalize.ts persistZaDelivered uploads jobs/<jobId>/za-evisa.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. typecheck clean."
@@ -2647,7 +2836,13 @@
       "id": "AUTO-ZA-04",
       "title": "South Africa eVisa: production handoff",
       "description": "ZA prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 196,
       "passes": true,
       "notes": "docs/runbooks/za.md mirrors KH/LA/LK. Queue wiring auto-inherited via INFRA-002 producer (country='south_africa'). Canary uses OPS-004 against visa.vfsglobal.com/zaf/en/dha. SLA seeded median 120h / p95 240h. Concurrency cap=1 (VFS rate-limits per IP). 10-staging-app gate cross-references kh.md."
@@ -2656,16 +2851,27 @@
       "id": "AUTO-IN-01",
       "title": "India e-Visa: prefill runner to checkpoint",
       "description": "Phase-3 runner for indianvisaonline.gov.in/evisa driving the multi-page state machine.",
-      "acceptanceCriteria": ["`in/` extends recon to prefill", "Multi-purpose sub-journey gating wired", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`in/` extends recon to prefill",
+        "Multi-purpose sub-journey gating wired",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 197,
-      "passes": false,
-      "notes": "Largest non-DS-160 schema; expect more selector volume."
+      "passes": true,
+      "notes": "src/in/runner.ts runInPrefill drives indianvisaonline.gov.in/evisa landing\u2192apply\u2192personal\u2192passport\u2192visa-details\u2192review, halts before pay. Sub-journey gating per visa_purpose surfaces hospital_name (medical/medical_attendant) + conference_name (conference). scripts/in-smoke.ts 90s smoke. typecheck clean."
     },
     {
       "id": "AUTO-IN-02",
       "title": "India e-Visa: error + halt-page handling",
       "description": "IN error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["IN error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "IN error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 198,
       "passes": false,
       "notes": ""
@@ -2674,7 +2880,12 @@
       "id": "AUTO-IN-03",
       "title": "India e-Visa: payment relay + reference return",
       "description": "IN payment + e-Visa PDF capture.",
-      "acceptanceCriteria": ["Payment implemented", "Issued e-Visa captured", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment implemented",
+        "Issued e-Visa captured",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 199,
       "passes": false,
       "notes": ""
@@ -2683,7 +2894,13 @@
       "id": "AUTO-IN-04",
       "title": "India e-Visa: production handoff",
       "description": "IN prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 200,
       "passes": false,
       "notes": ""
@@ -2692,7 +2909,13 @@
       "id": "AUTO-UK-01",
       "title": "UK Standard Visitor: complete backend prefill runner",
       "description": "Complete the UK Phase-2 runner from frontend wizard parity to a full Playwright prefill that halts before payment.",
-      "acceptanceCriteria": ["`uk/` runner reaches the checkpoint", "Multi-purpose sub-journey gating wired", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`uk/` runner reaches the checkpoint",
+        "Multi-purpose sub-journey gating wired",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 201,
       "passes": false,
       "notes": ""
@@ -2701,7 +2924,12 @@
       "id": "AUTO-UK-02",
       "title": "UK Standard Visitor: error + halt-page handling",
       "description": "UK error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["UK error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "UK error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 202,
       "passes": false,
       "notes": ""
@@ -2710,7 +2938,12 @@
       "id": "AUTO-UK-03",
       "title": "UK Standard Visitor: payment relay + reference return",
       "description": "UK payment + visa decision tracking.",
-      "acceptanceCriteria": ["Payment implemented", "Decision letter captured", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment implemented",
+        "Decision letter captured",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 203,
       "passes": false,
       "notes": ""
@@ -2719,7 +2952,13 @@
       "id": "AUTO-UK-04",
       "title": "UK Standard Visitor: production handoff",
       "description": "UK prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 204,
       "passes": false,
       "notes": ""
@@ -2728,7 +2967,13 @@
       "id": "AUTO-AU-01",
       "title": "Australia Subclass 600: complete prefill + sign handoff",
       "description": "Take the existing Phase-3 AU runner past Review and sign in ImmiAccount, including PDF upload after sign.",
-      "acceptanceCriteria": ["`au-visitor/` runner completes Review", "Sign step + PDF upload implemented", "Halts only on payment if applicable", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`au-visitor/` runner completes Review",
+        "Sign step + PDF upload implemented",
+        "Halts only on payment if applicable",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 205,
       "passes": false,
       "notes": ""
@@ -2737,7 +2982,12 @@
       "id": "AUTO-AU-02",
       "title": "Australia Subclass 600: error + halt-page handling",
       "description": "AU error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["AU error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "AU error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 206,
       "passes": false,
       "notes": ""
@@ -2746,7 +2996,12 @@
       "id": "AUTO-AU-03",
       "title": "Australia Subclass 600: payment relay + grant capture",
       "description": "AU government fee + grant letter capture.",
-      "acceptanceCriteria": ["Payment implemented", "Grant letter captured + emailed", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Payment implemented",
+        "Grant letter captured + emailed",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 207,
       "passes": false,
       "notes": ""
@@ -2755,7 +3010,13 @@
       "id": "AUTO-AU-04",
       "title": "Australia Subclass 600: production handoff",
       "description": "AU prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 208,
       "passes": false,
       "notes": ""
@@ -2764,7 +3025,13 @@
       "id": "AUTO-VN-01",
       "title": "Vietnam e-Visa: complete prefill + payment handoff",
       "description": "Take the existing Phase-3 VN runner past pre-pay into payment relay and reference return.",
-      "acceptanceCriteria": ["`vietnam/` runner reaches pay step from canonical answers", "Payment relay implemented per PAY-003", "Halts only on submit confirmation", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`vietnam/` runner reaches pay step from canonical answers",
+        "Payment relay implemented per PAY-003",
+        "Halts only on submit confirmation",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 209,
       "passes": false,
       "notes": ""
@@ -2773,7 +3040,12 @@
       "id": "AUTO-VN-02",
       "title": "Vietnam e-Visa: error + halt-page handling",
       "description": "VN error catalog + anti-bot fallback + inbox.",
-      "acceptanceCriteria": ["VN error catalog", "needs-human fallback", "Inbox helper", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "VN error catalog",
+        "needs-human fallback",
+        "Inbox helper",
+        "Typecheck passes"
+      ],
       "priority": 210,
       "passes": false,
       "notes": ""
@@ -2782,7 +3054,13 @@
       "id": "AUTO-VN-03",
       "title": "Vietnam e-Visa: PDF reference return",
       "description": "Capture the issued e-Visa PDF and write back to applicant.",
-      "acceptanceCriteria": ["PDF download implemented", "Stored to artefact storage", "Emailed to applicant", "Status -> delivered", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "PDF download implemented",
+        "Stored to artefact storage",
+        "Emailed to applicant",
+        "Status -> delivered",
+        "Typecheck passes"
+      ],
       "priority": 211,
       "passes": false,
       "notes": ""
@@ -2791,7 +3069,13 @@
       "id": "AUTO-VN-04",
       "title": "Vietnam e-Visa: production handoff",
       "description": "VN prod handoff.",
-      "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "Queue wiring",
+        "Canary",
+        "Runbook",
+        "10 staging submissions",
+        "Typecheck passes"
+      ],
       "priority": 212,
       "passes": false,
       "notes": ""
@@ -2800,7 +3084,12 @@
       "id": "AUTO-T3-JP",
       "title": "Japan Tourist Visa: paper-channel pipeline",
       "description": "Wire JP_TOURIST through the DOC-004 PDF assembly path (consular paper submission) plus document checklist for staff hand-delivery.",
-      "acceptanceCriteria": ["DOC-004 PDF template registered", "Staff hand-delivery checklist generated", "Status -> staff-action-required after generation", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "DOC-004 PDF template registered",
+        "Staff hand-delivery checklist generated",
+        "Status -> staff-action-required after generation",
+        "Typecheck passes"
+      ],
       "priority": 213,
       "passes": false,
       "notes": ""
@@ -2809,7 +3098,11 @@
       "id": "AUTO-T3-KR",
       "title": "Korea C-3-9: paper-channel pipeline",
       "description": "Wire KR_C39 through DOC-004 paper assembly path.",
-      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "DOC-004 PDF template registered",
+        "Status -> staff-action-required",
+        "Typecheck passes"
+      ],
       "priority": 214,
       "passes": false,
       "notes": ""
@@ -2818,7 +3111,12 @@
       "id": "AUTO-T3-ID",
       "title": "Indonesia C1 Tourist: prefill runner",
       "description": "Build a Phase-3 prefill runner for Indonesia evisa.imigrasi.go.id.",
-      "acceptanceCriteria": ["`egypt/`-style runner for ID", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`egypt/`-style runner for ID",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 215,
       "passes": false,
       "notes": ""
@@ -2827,7 +3125,12 @@
       "id": "AUTO-T3-EG",
       "title": "Egypt e-Visa: prefill runner",
       "description": "Promote the existing `egypt/` scaffold to a full Phase-3 prefill runner.",
-      "acceptanceCriteria": ["`egypt/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`egypt/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 216,
       "passes": false,
       "notes": ""
@@ -2836,7 +3139,12 @@
       "id": "AUTO-T3-IT",
       "title": "Italy via VFS Global China: corridor runner",
       "description": "Promote the `italy-vfs-cn/` adapter skeleton to a working Phase-3 runner for the China corridor.",
-      "acceptanceCriteria": ["`italy-vfs-cn/` runner books appointment + prefills", "Halts at submit / pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`italy-vfs-cn/` runner books appointment + prefills",
+        "Halts at submit / pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 217,
       "passes": false,
       "notes": "VFS account-gated; needs SECRETS-001."
@@ -2845,7 +3153,12 @@
       "id": "AUTO-T3-TH",
       "title": "Thailand e-Visa: prefill runner",
       "description": "Phase-3 runner for thaievisa.go.th.",
-      "acceptanceCriteria": ["`th/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`th/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 218,
       "passes": false,
       "notes": ""
@@ -2854,7 +3167,12 @@
       "id": "AUTO-T3-MY",
       "title": "Malaysia eVISA: prefill runner",
       "description": "Phase-3 runner for windowmalaysia.my (or current canonical portal).",
-      "acceptanceCriteria": ["`my/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`my/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 219,
       "passes": false,
       "notes": ""
@@ -2863,7 +3181,11 @@
       "id": "AUTO-T3-SG",
       "title": "Singapore Visit Visa: paper-channel pipeline",
       "description": "Wire SG_VISITOR_VISA through DOC-004 (sponsor-required paper path).",
-      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "DOC-004 PDF template registered",
+        "Status -> staff-action-required",
+        "Typecheck passes"
+      ],
       "priority": 220,
       "passes": false,
       "notes": ""
@@ -2872,7 +3194,11 @@
       "id": "AUTO-T3-HK",
       "title": "Hong Kong Visit Visa: paper-channel pipeline",
       "description": "Wire HK_VISIT_VISA through DOC-004.",
-      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "DOC-004 PDF template registered",
+        "Status -> staff-action-required",
+        "Typecheck passes"
+      ],
       "priority": 221,
       "passes": false,
       "notes": ""
@@ -2881,7 +3207,11 @@
       "id": "AUTO-T3-MO",
       "title": "Macau Visit Visa: paper-channel pipeline",
       "description": "Wire MO_VISIT_VISA through DOC-004.",
-      "acceptanceCriteria": ["DOC-004 PDF template registered", "Status -> staff-action-required", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "DOC-004 PDF template registered",
+        "Status -> staff-action-required",
+        "Typecheck passes"
+      ],
       "priority": 222,
       "passes": false,
       "notes": ""
@@ -2890,7 +3220,12 @@
       "id": "AUTO-T3-NZ",
       "title": "New Zealand Visitor Visa: prefill runner",
       "description": "Phase-3 runner for the INZ online portal.",
-      "acceptanceCriteria": ["`nz/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`nz/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 223,
       "passes": false,
       "notes": ""
@@ -2899,16 +3234,26 @@
       "id": "AUTO-T3-RU",
       "title": "Russia Unified e-Visa: prefill runner",
       "description": "Phase-3 runner for evisa.kdmid.ru.",
-      "acceptanceCriteria": ["`ru/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`ru/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 224,
       "passes": false,
       "notes": ""
     },
     {
       "id": "AUTO-T3-TR",
-      "title": "Türkiye e-Visa: prefill runner",
+      "title": "T\u00fcrkiye e-Visa: prefill runner",
       "description": "Phase-3 runner for evisa.gov.tr.",
-      "acceptanceCriteria": ["`tr/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`tr/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 225,
       "passes": false,
       "notes": ""
@@ -2917,7 +3262,12 @@
       "id": "AUTO-T3-AE",
       "title": "UAE Tourist Visa: prefill runner",
       "description": "Phase-3 runner for the chosen UAE channel (smartservices.icp.gov.ae or partner).",
-      "acceptanceCriteria": ["`ae/` runner reaches checkpoint", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`ae/` runner reaches checkpoint",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 226,
       "passes": false,
       "notes": ""
@@ -2926,7 +3276,13 @@
       "id": "AUTO-T3-CA",
       "title": "Canada eTA + TRV: prefill runner",
       "description": "Phase-3 runner for IRCC eTA (public) plus TRV via GCKey/Sign-In Partner.",
-      "acceptanceCriteria": ["`ca/` eTA runner reaches checkpoint (public, easier)", "TRV runner stubbed pending GCKey live-QA", "Halts before pay", "Smoke green for eTA", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`ca/` eTA runner reaches checkpoint (public, easier)",
+        "TRV runner stubbed pending GCKey live-QA",
+        "Halts before pay",
+        "Smoke green for eTA",
+        "Typecheck passes"
+      ],
       "priority": 227,
       "passes": false,
       "notes": "eTA first; TRV gated on GCKey credential strategy."
@@ -2935,7 +3291,12 @@
       "id": "AUTO-T3-MV",
       "title": "Maldives IMUGA: prefill runner",
       "description": "Phase-3 runner for imuga.immigration.gov.mv (free arrival declaration; no fee).",
-      "acceptanceCriteria": ["`mv/` runner reaches checkpoint", "No payment step (free)", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`mv/` runner reaches checkpoint",
+        "No payment step (free)",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 228,
       "passes": false,
       "notes": "Easiest of the remaining set."
@@ -2944,7 +3305,13 @@
       "id": "AUTO-T3-PH",
       "title": "Philippines eTravel + 9(a): mixed pipeline",
       "description": "Phase-3 runner for eTravel (public) + DOC-004 paper path for 9(a).",
-      "acceptanceCriteria": ["`ph/` eTravel runner reaches checkpoint", "9(a) PDF template registered", "Halts before pay", "Smoke green", "Typecheck passes"],
+      "acceptanceCriteria": [
+        "`ph/` eTravel runner reaches checkpoint",
+        "9(a) PDF template registered",
+        "Halts before pay",
+        "Smoke green",
+        "Typecheck passes"
+      ],
       "priority": 229,
       "passes": false,
       "notes": ""
