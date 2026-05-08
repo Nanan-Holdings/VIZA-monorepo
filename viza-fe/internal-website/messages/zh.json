@@ -467,6 +467,9 @@
       "estimatedProcessing": "预计处理时间",
       "businessDays": "个工作日",
       "message": "您的申请已提交至印度尼西亚电子签证门户。签证获批后您将收到电子邮件确认。请保存您的确认号以供参考。",
+      "travelPlannerTitle": "下一步：规划你的行程",
+      "travelPlannerHint": "现在表格已经完成，你可以启动 travel chatbot 来生成行程、选择航班酒店并导出 Word/PDF。",
+      "openTravelPlanner": "打开 Travel Chatbot",
       "viewReceipt": "查看收据",
       "done": "完成"
     },

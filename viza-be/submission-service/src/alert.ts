@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 const OPERATOR_EMAIL = "edward.zehua.zhang@gmail.com";
 
@@ -8,6 +9,13 @@ export async function sendFailureAlert(
   applicationId: string,
   lastError: string
 ): Promise<void> {
+  if (!resend) {
+    console.warn(
+      `[alert] RESEND_API_KEY is missing. Skipping failure email for application ${applicationId}.`
+    );
+    return;
+  }
+
   const { error } = await resend.emails.send({
     from: "VIZA Submission Service <noreply@viza.app>",
     to: OPERATOR_EMAIL,

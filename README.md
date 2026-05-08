@@ -25,6 +25,8 @@ viza-fe/                  Client portal frontend
 
 viza-be/                  Backend services
   agent-backend/          AI chat server — Express, Socket.io, Claude, pgvector RAG
+  submission-service/     Queue worker — polls submission_queue and runs DS-160 automation
+  travel-service/         FastAPI travel planner backend for travel chatbot
 
 knowledge-base/           Visa knowledge ingestion scripts (Node.js, pgvector embeddings)
 
@@ -67,6 +69,11 @@ scripts/                  Build automation
 ## Local development
 
 ```bash
+# 0) Prerequisites
+# - Node.js 20+
+# - Python 3.11+ (or any version supported by travel-service dependencies)
+# - A reachable Supabase project URL + service role key
+
 # Frontend
 cd viza-fe/internal-website
 cp .env.template .env.local
@@ -75,7 +82,36 @@ npm install && npm run dev        # http://localhost:3000
 # Backend
 cd viza-be/agent-backend
 cp .env.template .env
-npm install && npm run dev        # http://localhost:3001
+npm install && npm run dev        # http://localhost:3002
+
+# Submission service (DS-160 queue worker)
+cd viza-be/submission-service
+cp .env.example .env
+# IMPORTANT: replace placeholder values in .env before running
+npm install && npm run dev
+
+# Travel service (for travel chatbot after application submission)
+cd viza-be/travel-service
+cp .env.example .env
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+### Travel chatbot integration flow
+
+- The travel chatbot UI lives at `/client/travel-chat`.
+- It is unlocked only after the visa application form flow is complete (submitted/approved).
+- Frontend `app/api/travel/*` routes proxy to `viza-be/travel-service` (`TRAVEL_BACKEND_URL`, default `http://127.0.0.1:8000`).
+
+### Common startup issues
+
+- `submission-service` keeps printing `Failed to fetch submission_queue: TypeError: fetch failed`
+  - Usually `.env` still has placeholders (`https://your-project.supabase.co`, `your-service-role-key`).
+  - Fill real `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- `agent-backend` shows `supabase_connection_test_failed` / `TypeError: fetch failed`
+  - Check DNS/network can resolve your full Supabase subdomain, e.g. `xxxx.supabase.co`.
+  - If `Resolve-DnsName <your-project>.supabase.co` fails, fix DNS/network first.
 
 Never commit `.env` or `.env.local`. See `.env.template` in each service for required variables.
