@@ -1735,3 +1735,9 @@ acknowledgment).
 - Typecheck: submission-service ✅
 - Notes: AUTO-KH-01 acceptance "smoke test reaches checkpoint without manual intervention" depends on the live portal staying up; stub run halts cleanly with a `blocked` result if the page surface drifts.
 ---
+
+## 2026-05-08 - AUTO-LA-01
+- viza-be/submission-service/src/la/runner.ts: runLaPrefill against laoevisa.gov.la — landing → apply → personal-info-filled (incl. arrival date / port-of-entry / occupation) → review. Stops before pay. Cloudflare-challenge heuristic on landing returns anti_bot_gate. Per-step PNG + network HAR via artifact.put under jobs/<jobId>/la-step-NN-<name>.png + la-network.har.
+- scripts/la-smoke.ts: 90s synthetic-answer smoke; exits 0 on stopped_before_pay.
+- Typecheck: submission-service ✅
+---
