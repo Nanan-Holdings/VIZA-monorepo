@@ -2038,3 +2038,11 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: requiring the staff console to assert each identity-check explicitly (rather than a single boolean) gives the audit row enough forensic detail to defend against social-engineering attempts after the fact.
 ---
+
+## 2026-05-08 - NOTIFY-001..003
+- NOTIFY-001 worker (viza-be/agent-backend/src/notify/worker.ts): processOnce() polls notification_event_log outcome='queued' WHERE next_attempt_at<=now AND retry_count<5; per-event template lookup via template_key; dispatches by channel. defaultSendEmail uses Resend (lazy-loaded), defaultSendSms uses Twilio (lazy-loaded) — both via dynamicRequire so tsc/install graph stays minimal. Backoff schedule 1m→5m→15m→30m→1h. startWorker() loops every 30s.
+- NOTIFY-002 templates: src/notify/templates/{doc-ready,grant-pending,biometrics-pending,payment-received,application-submitted,application-decision,password-reset,signup-verify}.ts each export NotificationTemplate with subject/emailHtml/emailText/smsText + schema map for validatePayload() — 8 templates total.
+- NOTIFY-003: migration 0074 extends notification_event_log (template_key, payload, recipient, retry_count, next_attempt_at) + notification_dlq table; Drizzle notificationDlq schema; /admin/notifications/dlq server-component page lists rows + DlqClient replay button (calls replayDlqRow which re-inserts as queued and stamps replayed_at).
+- Both typechecks clean.
+- Learning: backend uses ESM nodenext resolution — every relative import needs explicit .js suffix. Linter auto-typed callbacks once `(p) =>` had no signature; safer to write `(p: Record<string, unknown>) =>` from the start.
+---
