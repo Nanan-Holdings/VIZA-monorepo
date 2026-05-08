@@ -19,7 +19,8 @@
     "recon:la": "ts-node src/la/form-recon.ts",
     "recon:lk": "ts-node src/lk/form-recon.ts",
     "recon:za": "ts-node src/za/form-recon.ts",
-    "recon:in": "ts-node src/in/form-recon.ts"
+    "recon:in": "ts-node src/in/form-recon.ts",
+    "recon:parallel": "ts-node scripts/parallel-recon.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
