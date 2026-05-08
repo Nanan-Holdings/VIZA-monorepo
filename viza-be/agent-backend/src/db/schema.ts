@@ -545,3 +545,38 @@ export const applicationTranslations = pgTable("application_translations", {
 export type ApplicationTranslation = typeof applicationTranslations.$inferSelect;
 export type NewApplicationTranslation = typeof applicationTranslations.$inferInsert;
 
+// =============================================================================
+// QUESTION SETS (PROD-001)
+// Per (country, visa_type) version. Drives the answer-collection UI.
+// Derived from each country's CanonicalAnswers + form-recon walker.
+// =============================================================================
+
+export const questionSet = pgTable("question_set", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  version: text("version").notNull().default("v1"),
+  derivedFrom: text("derived_from"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type QuestionSet = typeof questionSet.$inferSelect;
+export type NewQuestionSet = typeof questionSet.$inferInsert;
+
+export const questionField = pgTable("question_field", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  questionSetId: uuid("question_set_id").notNull(),
+  fieldName: text("field_name").notNull(),
+  label: text("label").notNull(),
+  widgetType: text("widget_type").notNull(),
+  required: boolean("required").notNull().default(false),
+  options: jsonb("options"),
+  branch: jsonb("branch"),
+  ordinal: integer("ordinal").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type QuestionField = typeof questionField.$inferSelect;
+export type NewQuestionField = typeof questionField.$inferInsert;
+
