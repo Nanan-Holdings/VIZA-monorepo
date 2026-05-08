@@ -1141,11 +1141,13 @@ export function TravelPlannerForm({
 
   return (
     <div
-      className="w-full max-w-[1000px] rounded-xl border border-border/40 bg-card/40 p-4"
+      className="w-full max-w-[1000px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
       data-testid="travel-planner-form"
     >
-      <div className="mb-2 text-sm font-medium text-foreground">旅行信息向导</div>
-      <div className="mb-3 text-xs text-muted-foreground">{FIELD_QUESTIONS[missingField]}</div>
+      <div className="mb-3 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50 to-cyan-50/70 px-3 py-2.5">
+        <div className="text-sm font-semibold text-slate-900">旅行信息向导</div>
+        <div className="mt-0.5 text-xs text-slate-600">{FIELD_QUESTIONS[missingField]}</div>
+      </div>
 
       {missingField === "country" && (
         <div className="space-y-2">

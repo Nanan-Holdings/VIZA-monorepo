@@ -29,16 +29,11 @@ export default async function TravelChatPage() {
   const adminClient = createAdminClient();
   const { data: application } = await adminClient
     .from("applications")
-    .select("id, status")
+    .select("id")
     .eq("applicant_id", applicantId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const isCompleted = application?.status === "submitted" || application?.status === "approved";
-  if (!isCompleted || !application?.id) {
-    redirect("/client/application");
-  }
-
-  return <TravelChatClient applicationId={application.id} />;
+  return <TravelChatClient applicationId={application?.id ?? null} />;
 }

@@ -1,13 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { Loader2, PlaneTakeoff } from "lucide-react";
+import { Loader2, PlaneTakeoff, Sparkles, Target } from "lucide-react";
 import { TravelItineraryPanel } from "@/components/client/travel/travel-itinerary-panel";
 import { TravelPlannerForm } from "@/components/client/travel/travel-planner-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   FIELD_QUESTIONS,
   buildTravelStateFromMessages,
@@ -25,12 +26,33 @@ import type {
 } from "@/lib/travel/chat-types";
 
 type TravelChatClientProps = {
-  applicationId: string;
+  applicationId?: string | null;
 };
 
 const INITIAL_ASSISTANT_TEXT =
   "旅行顾问已就绪。请按下方引导逐步填写，我会在信息完整后生成行程。\n\n" +
   FIELD_QUESTIONS.country;
+
+const TRAVEL_STAGE_ORDER = [
+  "country",
+  "cities",
+  "city_days",
+  "travelers",
+  "budget",
+  "origin",
+  "return",
+  "travel_order",
+  "flight_selection",
+  "hotel_selection",
+  "final_note",
+] as const;
+
+const HERO_IMAGES = [
+  "/globe/singapore.jpg",
+  "/globe/tokyo.jpg",
+  "/globe/sydney.jpg",
+  "/globe/pisa.jpg",
+] as const;
 
 function createMessageId(): string {
   return `travel-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -132,6 +154,22 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
   );
   const missingField = useMemo(() => nextMissingField(travelState), [travelState]);
 
+  const stageIndex = useMemo(() => {
+    if (!missingField) return TRAVEL_STAGE_ORDER.length;
+    const index = TRAVEL_STAGE_ORDER.indexOf(missingField);
+    return index < 0 ? 0 : index;
+  }, [missingField]);
+
+  const progressPercent = useMemo(
+    () => Math.round((stageIndex / TRAVEL_STAGE_ORDER.length) * 100),
+    [stageIndex]
+  );
+
+  const selectedCityChips = useMemo(
+    () => travelState.cities.filter(Boolean).slice(0, 6),
+    [travelState.cities]
+  );
+
   const respondToConversation = useCallback(async (nextMessages: TravelChatMessage[]) => {
     setStatus("submitted");
 
@@ -224,61 +262,118 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-10 pt-6">
-      <div className="mb-5 flex items-center justify-between">
+    <div className="relative mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.25),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(14,116,144,0.22),transparent_45%)]" />
+
+      <section className="relative mb-6 overflow-hidden rounded-3xl border border-sky-100/70 bg-gradient-to-br from-[#04244a] via-[#0a3e7a] to-[#0f5ca9] p-5 text-white shadow-[0_18px_55px_rgba(2,20,50,0.35)] md:p-6">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-20 left-20 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+
+        <div className="relative grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium">
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Travel Studio
+            </div>
+
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Build a fun trip, not just a form
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-blue-100/95 md:text-base">
+              Share your style, budget, route, and preferences. We will turn it into a visual travel plan with flight, hotel, map, and export-ready files.
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Badge className="rounded-full bg-white/20 text-white hover:bg-white/25">
+                Application: {applicationId ?? "Not linked"}
+              </Badge>
+              <Badge className="rounded-full bg-cyan-300/20 text-cyan-50 hover:bg-cyan-300/30">
+                Progress {progressPercent}%
+              </Badge>
+              {selectedCityChips.map((city) => (
+                <span
+                  className="rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-xs"
+                  key={city}
+                >
+                  {city}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 md:gap-3">
+            {HERO_IMAGES.map((src, index) => (
+              <div
+                className="relative overflow-hidden rounded-2xl border border-white/20"
+                key={`${src}-${index}`}
+              >
+                <Image
+                  alt="Travel inspiration"
+                  className="h-full w-full object-cover"
+                  height={280}
+                  src={src}
+                  width={420}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-[#03346E]/10 p-2 text-[#03346E]">
             <PlaneTakeoff className="h-4 w-4" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Travel Chatbot</h1>
+            <h2 className="text-xl font-semibold text-gray-900">Travel Chatbot</h2>
             <p className="text-sm text-gray-500">
-              Application: {applicationId} · 仅在申请提交后可用
+              Plan smarter with interactive choices and visual itinerary cards.
             </p>
           </div>
         </div>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/client/application">Back to Application</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">
+            {status === "submitted" || status === "streaming" ? "Working" : "Ready"}
+          </Badge>
+          <Badge className="gap-1" variant="outline">
+            <Target className="h-3 w-3" />
+            {missingField ? `Next: ${FIELD_QUESTIONS[missingField]}` : "Itinerary ready"}
+          </Badge>
+          {(status === "submitted" || status === "streaming") && (
+            <Loader2 className="h-4 w-4 animate-spin text-[#03346E]" />
+          )}
+          <Button asChild size="sm" variant="outline">
+            <Link href="/client/application">Back to Application</Link>
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Conversation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {messages.map((message) => {
-            const text = message.parts
-              .filter((part) => part.type === "text")
-              .map((part) => part.text)
-              .join("\n")
-              .trim();
-            if (!text) return null;
+      <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+        <CardContent className="space-y-4 p-4 md:p-6">
+          <div className="space-y-3">
+            {messages.map((message) => {
+              const text = message.parts
+                .filter((part) => part.type === "text")
+                .map((part) => part.text)
+                .join("\n")
+                .trim();
+              if (!text) return null;
 
-            return (
-              <div
-                className={
-                  message.role === "user"
-                    ? "ml-auto w-fit max-w-[85%] rounded-xl rounded-br-sm bg-[#03346E] px-4 py-2 text-sm text-white"
-                    : "mr-auto w-fit max-w-[90%] rounded-xl rounded-bl-sm bg-gray-100 px-4 py-2 text-sm text-gray-900"
-                }
-                key={message.id}
-              >
-                <pre className="whitespace-pre-wrap break-words font-sans">{text}</pre>
-              </div>
-            );
-          })}
-
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Badge variant="secondary">
-              {status === "submitted" || status === "streaming"
-                ? "Working"
-                : "Ready"}
-            </Badge>
-            {missingField ? `Next: ${FIELD_QUESTIONS[missingField]}` : "Itinerary ready"}
-            {(status === "submitted" || status === "streaming") && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            )}
+              return (
+                <div
+                  className={
+                    message.role === "user"
+                      ? "ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-md bg-[#03346E] px-4 py-2.5 text-sm text-white shadow-sm"
+                      : "mr-auto w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800"
+                  }
+                  key={message.id}
+                >
+                  <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed">{text}</pre>
+                </div>
+              );
+            })}
           </div>
 
           <TravelPlannerForm messages={messages} sendMessage={sendMessage} status={status} />
