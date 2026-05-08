@@ -2613,8 +2613,8 @@
       "description": "LK prod handoff.",
       "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
       "priority": 192,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/lk.md mirrors KH/LA. Queue wiring auto-inherited via INFRA-002 producer (country='sri_lanka'). Canary uses OPS-004 against eta.gov.lk. SLA seeded median 24h / p95 96h. 10-staging-app gate cross-references kh.md."
     },
     {
       "id": "AUTO-ZA-01",
