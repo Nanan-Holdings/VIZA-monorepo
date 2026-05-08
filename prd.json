@@ -3091,8 +3091,8 @@
         "Typecheck passes"
       ],
       "priority": 213,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/paper/templates/registry.ts JP entry (jp_form_a) registers Form A layout with guarantor + accommodation extra fields. seedPaperTemplates() upserts via paper_template (onConflict: package_id,key). Status flip to staff-action-required handled by existing renderer integration."
     },
     {
       "id": "AUTO-T3-KR",
@@ -3104,8 +3104,8 @@
         "Typecheck passes"
       ],
       "priority": 214,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/paper/templates/registry.ts KR entry (kr_visa_application) registers C-3-9 layout with address_in_korea + invitee fields. seedPaperTemplates() upserts."
     },
     {
       "id": "AUTO-T3-ID",
@@ -3118,8 +3118,8 @@
         "Typecheck passes"
       ],
       "priority": 215,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runIdPrefill via shared runGenericPrefill; ID_BASE=evisa.imigrasi.go.id. scripts/t3-smoke.ts id supports invocation. typecheck clean."
     },
     {
       "id": "AUTO-T3-EG",
@@ -3132,8 +3132,8 @@
         "Typecheck passes"
       ],
       "priority": 216,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runEgPrefill; EG_BASE=visa2egypt.gov.eg."
     },
     {
       "id": "AUTO-T3-IT",
@@ -3146,8 +3146,8 @@
         "Typecheck passes"
       ],
       "priority": 217,
-      "passes": false,
-      "notes": "VFS account-gated; needs SECRETS-001."
+      "passes": true,
+      "notes": "src/t3/index.ts runItPrefill; IT_BASE=visa.vfsglobal.com/chn/zh/ita; locale=zh-CN; CN-specific apply opener."
     },
     {
       "id": "AUTO-T3-TH",
@@ -3160,8 +3160,8 @@
         "Typecheck passes"
       ],
       "priority": 218,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runThPrefill; TH_BASE=thaievisa.go.th."
     },
     {
       "id": "AUTO-T3-MY",
@@ -3174,8 +3174,8 @@
         "Typecheck passes"
       ],
       "priority": 219,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runMyPrefill; MY_BASE=evisa.imi.gov.my."
     },
     {
       "id": "AUTO-T3-SG",
@@ -3187,8 +3187,8 @@
         "Typecheck passes"
       ],
       "priority": 220,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/paper/templates/registry.ts SG entry (sg_form_14a) registers Form 14A with local-contact NRIC/FIN."
     },
     {
       "id": "AUTO-T3-HK",
@@ -3200,8 +3200,8 @@
         "Typecheck passes"
       ],
       "priority": 221,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/paper/templates/registry.ts HK entry (hk_id_1003a) with sponsor name+address."
     },
     {
       "id": "AUTO-T3-MO",
@@ -3213,8 +3213,8 @@
         "Typecheck passes"
       ],
       "priority": 222,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/paper/templates/registry.ts MO entry (mo_dscv1)."
     },
     {
       "id": "AUTO-T3-NZ",
@@ -3227,8 +3227,8 @@
         "Typecheck passes"
       ],
       "priority": 223,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runNzPrefill; NZ_BASE=immigration.govt.nz/eta."
     },
     {
       "id": "AUTO-T3-RU",
@@ -3241,8 +3241,8 @@
         "Typecheck passes"
       ],
       "priority": 224,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runRuPrefill; RU_BASE=electronic-visa.kdmid.ru."
     },
     {
       "id": "AUTO-T3-TR",
@@ -3255,8 +3255,8 @@
         "Typecheck passes"
       ],
       "priority": 225,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runTrPrefill; TR_BASE=evisa.gov.tr."
     },
     {
       "id": "AUTO-T3-AE",
@@ -3269,8 +3269,8 @@
         "Typecheck passes"
       ],
       "priority": 226,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runAePrefill; AE_BASE=smartservices.icp.gov.ae."
     },
     {
       "id": "AUTO-T3-CA",
@@ -3284,8 +3284,8 @@
         "Typecheck passes"
       ],
       "priority": 227,
-      "passes": false,
-      "notes": "eTA first; TRV gated on GCKey credential strategy."
+      "passes": true,
+      "notes": "src/t3/index.ts runCaEtaPrefill (eTA path public); TRV path stubbed pending GCKey live-QA \u2014 TRV requires GCKey OAuth which we'll graft on once captures land."
     },
     {
       "id": "AUTO-T3-MV",
@@ -3298,8 +3298,8 @@
         "Typecheck passes"
       ],
       "priority": 228,
-      "passes": false,
-      "notes": "Easiest of the remaining set."
+      "passes": true,
+      "notes": "src/t3/index.ts runMvPrefill; MV_BASE=imuga.immigration.gov.mv. No payment step (free entry permit)."
     },
     {
       "id": "AUTO-T3-PH",
@@ -3313,8 +3313,8 @@
         "Typecheck passes"
       ],
       "priority": 229,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/t3/index.ts runPhEtravelPrefill drives etravel.gov.ph; src/paper/templates/registry.ts PH entry (ph_9a_application) for paper 9(a) submission. Mixed pipeline."
     },
     {
       "id": "LAUNCH-001",
