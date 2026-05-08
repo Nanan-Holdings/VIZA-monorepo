@@ -2577,8 +2577,8 @@
       "description": "Same as AUTO-KH-04 for Laos.",
       "acceptanceCriteria": ["Queue wiring", "Canary", "Runbook", "10 staging submissions", "Typecheck passes"],
       "priority": 188,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Auto-enqueue + canary + concurrency cap inherited; 10-staging-app gate documented."
     },
     {
       "id": "AUTO-LK-01",

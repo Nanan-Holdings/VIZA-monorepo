@@ -1778,3 +1778,10 @@ acknowledgment).
 - src/la/finalize.ts: persistLaDelivered uploads jobs/<jobId>/la-evisa.pdf, inserts application_documents kind='evisa_pdf', flips applications.status='delivered', queues doc_ready notification.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-LA-04
+- docs/runbooks/la.md: production handoff for LA_TOURIST_E_VISA. Twin of kh.md — pointers to la/runner.ts, la/errors.ts, la/payment.ts, la/finalize.ts, la-smoke.ts. Auto-enqueue / canary / SLA inherited from INFRA-002/003/004 + OPS-004/005. 10-staging-app gate cross-referenced from KH runbook.
+- docs/runbooks/README.md: indexed la.md.
+- AUTO-LA suite (01–04) complete.
+- No code changes — typecheck not applicable.
+---

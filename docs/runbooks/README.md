@@ -22,6 +22,7 @@ Indexed by alert class so OPS-003 dispatcher can append a one-liner
 | `runner.proxy.exhausted` | [proxy-pool-exhausted.md](./proxy-pool-exhausted.md) |
 | `payments.reconcile.delta` | [payment-reconcile-delta.md](./payment-reconcile-delta.md) |
 | KH country runner | [kh.md](./kh.md) |
+| LA country runner | [la.md](./la.md) |
 
 ## On-call
 
