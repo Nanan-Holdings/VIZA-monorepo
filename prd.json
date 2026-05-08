@@ -2873,8 +2873,8 @@
         "Typecheck passes"
       ],
       "priority": 198,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/in/errors.ts in.* codes + classifyPage; src/in/runner.ts probe()+dispatchError() wired after landing; waitForInConfirmationEmail via inbox.waitForMessage filtered on indianvisaonline/gov.in. 5/5 unit tests green."
     },
     {
       "id": "AUTO-IN-03",
@@ -2887,8 +2887,8 @@
         "Typecheck passes"
       ],
       "priority": 199,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/in/payment.ts payInWithEscrowCard via shared loadEscrowCard; src/in/finalize.ts persistInDelivered uploads jobs/<jobId>/in-evisa.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. typecheck clean."
     },
     {
       "id": "AUTO-IN-04",
@@ -2902,8 +2902,8 @@
         "Typecheck passes"
       ],
       "priority": 200,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/in.md mirrors KH/LA/LK/ZA. Queue wiring auto-inherited via INFRA-002 producer (country='india'). Canary uses OPS-004 against indianvisaonline.gov.in/evisa. SLA seeded median 72h / p95 168h. Sub-journey gating table for medical/conference. 10-staging-app gate cross-references kh.md."
     },
     {
       "id": "AUTO-UK-01",

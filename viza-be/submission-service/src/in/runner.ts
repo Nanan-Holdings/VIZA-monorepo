@@ -3,9 +3,12 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { classifyPage, type InRunnerError } from "./errors.js";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
+import { extractAuto } from "../inbox/extractors/index.js";
 
 /**
- * India e-Visa prefill runner (AUTO-IN-01).
+ * India e-Visa prefill runner (AUTO-IN-01 + AUTO-IN-02).
  *
  * Drives indianvisaonline.gov.in/evisa from the canonical answer set
  * for IN_TOURIST_E_VISA. Multi-page state machine — Personal →
@@ -13,9 +16,26 @@ import { artifact } from "../artifact.js";
  * before payment.
  *
  * Per-step PNG + post-run HAR uploaded under jobs/<jobId>/in-step-NN-*.{png,har}.
- *
- * NOTE: AUTO-IN-02 will graft on the error catalog + needs-human dispatch.
  */
+
+/** Pull an IN portal confirmation email — when the portal sends one. */
+export async function waitForInConfirmationEmail(
+  applicantId: string,
+  timeoutMs: number = 60_000,
+): Promise<{ message: InboundMessage; reference: string | null }> {
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (m) => /indianvisaonline|gov\.in/i.test(m.from_addr),
+    timeoutMs,
+  );
+  const parsed = extractAuto({
+    from: message.from_addr,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  return { message, reference: parsed.reference ?? null };
+}
 
 const BASE_URL = process.env.IN_PORTAL_URL ?? "https://indianvisaonline.gov.in/evisa";
 
@@ -54,10 +74,11 @@ export interface InRunInput {
 }
 
 export interface InRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate";
+  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
+  error?: InRunnerError;
 }
 
 interface StepCtx {
@@ -142,10 +163,28 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
     return result;
   }
 
+  const probe = async (): Promise<InRunnerError | null> => {
+    const title = (await page.title()).slice(0, 200);
+    const bodyText = (
+      await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "")
+    ).slice(0, 1024);
+    return classifyPage({ title, bodyText });
+  };
+  const dispatchError = (err: InRunnerError): InRunResult => {
+    result.error = err;
+    result.reason = `${err.code}: ${err.message}`;
+    if (err.disposition === "human") result.status = "needs_human";
+    else if (err.code === "in.anti_bot.cloudflare") result.status = "anti_bot_gate";
+    else result.status = "blocked";
+    return result;
+  };
+
   try {
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
+    const landingErr = await probe();
+    if (landingErr) return dispatchError(landingErr);
 
     const opened =
       (await safeClick(page, 'a:has-text("Apply")', "apply-link")) ||
