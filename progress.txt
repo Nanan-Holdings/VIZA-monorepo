@@ -1750,3 +1750,10 @@ acknowledgment).
 - src/kh/__tests__/errors.spec.ts: 6 node:test cases — Cloudflare / 429 / invalid passport / maintenance / 5xx / healthy. All green.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-KH-03
+- viza-be/submission-service/src/kh/payment.ts: payKhWithEscrowCard({jobId, applicantId, applicationId, orderId, amountCents, currency, page}) — fills the KH portal card form using applicantVault-loaded escrow card (re-used loadEscrowCard from src/vietnam/govt-payment.ts since both flows are PAY-003 runner_escrow_card). Detects decline copy → recordPortalDecline; scrapes a stable receipt regex (receipt/transaction/reference followed by alnum) → recordPortalReceipt + status='paid'. Returns 'needs_human' when receipt or submit button missing.
+- viza-be/submission-service/src/kh/finalize.ts: persistKhDelivered({applicationId, applicantId, jobId, reference, pdfBytes}) — uploads e-Visa PDF under jobs/<jobId>/kh-evisa.pdf, inserts application_documents kind='evisa_pdf', flips applications.status='delivered', queues a notification_event_log doc_ready row for the CS-002 dispatcher.
+- Typecheck: submission-service ✅
+- Notes: portal selectors will drift; payment.ts uses generic name + autocomplete fallbacks. PDF retrieval (download URL surfaced by the portal) is country-runner-specific and stays in the orchestrator that calls these helpers.
+---
