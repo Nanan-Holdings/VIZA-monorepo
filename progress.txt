@@ -1806,3 +1806,10 @@ acknowledgment).
 - typecheck clean.
 - Mirrors AUTO-KH-03 / AUTO-LA-03 shape.
 ---
+
+## 2026-05-08 - AUTO-LK-04
+- LK production handoff runbook.
+- docs/runbooks/lk.md mirrors KH/LA architecture pointers + auto-enqueue + canary + SLA + 10-staging gate.
+- Common LK-specific issues table covers anti_bot.cloudflare, passport_invalid, nationality_unsupported, payment_declined, post-pay needs_human.
+- No code modified; doc-only.
+---
