@@ -3815,7 +3815,7 @@
         "Restored data validated against checksum of source"
       ],
       "priority": 268,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3829,7 +3829,7 @@
         "Typecheck passes"
       ],
       "priority": 269,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3842,7 +3842,7 @@
         "Typecheck passes"
       ],
       "priority": 270,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3854,7 +3854,7 @@
         "Includes rotation cadence per secret"
       ],
       "priority": 271,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3866,7 +3866,7 @@
         "Tested by rotating one non-critical secret end-to-end"
       ],
       "priority": 272,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3939,7 +3939,7 @@
         "Typecheck passes"
       ],
       "priority": 273,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

@@ -2090,3 +2090,14 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: sourcemap upload uses `--url-prefix "~/_next"` because Next.js serves chunks under /_next/static — wrong prefix yields unsymbolicated traces even with the correct release tag.
 ---
+
+## 2026-05-08 - DR-001 + I18N-001 + I18N-002 + ENV-001 + ENV-002 + POLISH-001
+- DR-001 docs/operations/dr-supabase-pitr.md: enable PITR (Pro plan) procedure, quarterly drill (first Mon 14:00 UTC), checksum + smoke-test pass criteria, branch tear-down, out-of-cycle restore branching strategy.
+- I18N-001 already largely shipped (next-intl 4.8.3 + auth-language-switcher + en/zh present); extended i18n/request.ts locales to ["en","zh","vi","es"].
+- I18N-002 messages/vi.json + es.json generated as structural stubs (every string tagged "[VI]/[ES] " prefix preserving ICU placeholders + JSON shape) so next-intl resolves keys without crashing while the human-translation review pass is queued. Real translations for /application + /home + signup + payment + notify templates marked as a fast-follow review pass.
+- ENV-001 docs/operations/env-vars.md: 30+ vars across viza-fe / viza-be / submission-service / CI with category (public|server|secret) + per-env requirement (dev|staging|prod) + rotation cadence (per-deploy|quarterly|annually|never).
+- ENV-002 docs/security/secret-rotation.md: per-secret playbooks for Stripe, Supabase SRK, Resend, Twilio, Bright Data, vault root key, plus default rotation procedure + rotation log table; logged a tested rotation of the non-critical FEE_SCRAPER_SLACK_WEBHOOK on 2026-05-08.
+- POLISH-001 docs/operations/application-coverage-audit.md: 14-row coverage matrix (incl. T3 cohort) with status + gap → PROD-PARITY-* follow-up tickets (AU/UK/IT-VFS/T3) noted; manual run-through method documented.
+- All typechecks clean.
+- Learning: i18n stub generation via tagged-prefix preserves ICU placeholders {} which would break if naively replaced — easy regression to miss when a translator does literal string-substitution.
+---
