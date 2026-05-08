@@ -3,9 +3,12 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { classifyPage, type LaRunnerError } from "./errors.js";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
+import { extractAuto } from "../inbox/extractors/index.js";
 
 /**
- * Laos Tourist e-Visa prefill runner (AUTO-LA-01).
+ * Laos Tourist e-Visa prefill runner (AUTO-LA-01 + AUTO-LA-02).
  *
  * Drives the public laoevisa.gov.la form from the canonical answer
  * set for LA_TOURIST_E_VISA and **stops before payment**. Per-step
@@ -38,10 +41,31 @@ export interface LaRunInput {
 }
 
 export interface LaRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate";
+  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
+  /** Structured error code when status='needs_human' or 'blocked' from a portal-side condition. */
+  error?: LaRunnerError;
+}
+
+/** Pull a LA portal confirmation email — when the portal sends one. */
+export async function waitForLaConfirmationEmail(
+  applicantId: string,
+  timeoutMs: number = 60_000,
+): Promise<{ message: InboundMessage; reference: string | null }> {
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (m) => /laoevisa\.gov\.la|laos/i.test(m.from_addr),
+    timeoutMs,
+  );
+  const parsed = extractAuto({
+    from: message.from_addr,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+  return { message, reference: parsed.reference ?? null };
 }
 
 interface StepCtx {
@@ -108,16 +132,28 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
     artefacts: [],
   };
 
+  const probe = async (): Promise<LaRunnerError | null> => {
+    const title = (await page.title()).slice(0, 200);
+    const bodyText = (
+      await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "")
+    ).slice(0, 1024);
+    return classifyPage({ title, bodyText });
+  };
+  const dispatchError = (err: LaRunnerError): LaRunResult => {
+    result.error = err;
+    result.reason = `${err.code}: ${err.message}`;
+    if (err.disposition === "human") result.status = "needs_human";
+    else if (err.code === "la.anti_bot.cloudflare") result.status = "anti_bot_gate";
+    else result.status = "blocked";
+    return result;
+  };
+
   try {
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
-
-    if ((await page.title()).toLowerCase().includes("just a moment")) {
-      result.status = "anti_bot_gate";
-      result.reason = "cloudflare challenge on landing";
-      return result;
-    }
+    const landingErr = await probe();
+    if (landingErr) return dispatchError(landingErr);
 
     // Click into the apply path (button or link by text/href).
     const opened =
@@ -158,6 +194,8 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
       await captureStep(stepCtx, "review");
       result.reachedStep = "review";
+      const reviewErr = await probe();
+      if (reviewErr) return dispatchError(reviewErr);
     }
 
     result.status = "stopped_before_pay";

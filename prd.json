@@ -2559,7 +2559,7 @@
       "description": "Same as AUTO-KH-02 for Laos.",
       "acceptanceCriteria": ["LA-specific error catalog", "Anti-bot fallback", "Inbox helper integration", "Typecheck passes"],
       "priority": 186,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

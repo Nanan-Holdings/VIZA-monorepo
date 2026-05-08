@@ -1765,3 +1765,10 @@ acknowledgment).
 - AUTO-KH suite (01–04) complete.
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-08 - AUTO-LA-02
+- viza-be/submission-service/src/la/errors.ts: LaRunnerError catalog mirroring the KH shape with la.* codes + identical disposition (retry/human/fail). classifyPage() catches Cloudflare, 429, session expired, invalid passport, ineligible nationality, payment declined, maintenance, 5xx.
+- src/la/runner.ts: probe()/dispatchError() folded into LaRunResult.status (anti_bot_gate / blocked / needs_human / stopped_before_pay). Probes after landing + after Next click. waitForLaConfirmationEmail(applicantId) helper exported for downstream LA-03.
+- src/la/__tests__/errors.spec.ts: 5 node:test cases (cloudflare / 429 / passport / payment-declined / healthy). All green.
+- Typecheck: submission-service ✅
+---
