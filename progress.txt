@@ -1893,3 +1893,12 @@ acknowledgment).
 - AUTO-VN-04: docs/runbooks/vn.md three-step lifecycle, applicant_direct_link mechanism reasoning.
 - typecheck clean.
 ---
+
+## 2026-05-08 - AUTO-T3 cohort (17 stories)
+- Built shared scaffold: src/generic/prefill.ts runGenericPrefill harness (anti-bot, captureStep, HAR, gFill/gClick helpers).
+- src/t3/index.ts: 12 country runners (ID, EG, IT, TH, MY, NZ, RU, TR, AE, CA-eTA, MV, PH-eTravel) over the harness with country-specific BASE_URL + locale + apply-opener.
+- scripts/t3-smoke.ts: per-country smoke driver (90s cap, exits 0 on stopped_before_pay).
+- src/paper/templates/registry.ts: 6 paper-template entries (JP, KR, SG, HK, MO, PH-9a) with seedPaperTemplates() upsert.
+- typecheck clean.
+- CA-TRV path stubbed pending GCKey live-QA (needs OAuth captures).
+---
