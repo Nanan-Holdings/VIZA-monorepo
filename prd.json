@@ -2640,8 +2640,8 @@
       "description": "ZA payment + reference capture.",
       "acceptanceCriteria": ["Payment implemented", "Issued eVisa captured", "Status -> delivered", "Typecheck passes"],
       "priority": 195,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/za/payment.ts payZaWithEscrowCard via shared loadEscrowCard; src/za/finalize.ts persistZaDelivered uploads jobs/<jobId>/za-evisa.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. typecheck clean."
     },
     {
       "id": "AUTO-ZA-04",
