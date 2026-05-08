@@ -1717,3 +1717,14 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: existing /client/help is the static landing page (Getting started / Privacy / Credits); FAQ content lives at /client/help/articles. MDX-with-JSX requires a compiler dep — held off until JSX components actually appear in the source.
 ---
+
+## 2026-05-08 - CS-005
+- drizzle/0068_package_sla.sql: package_sla(country, visa_type, median_hours, p95_hours, sample_size, source, last_updated_at) with PK on (country, visa_type) and open SELECT RLS. 27-package seed with realistic estimates per portal corridor.
+- viza-fe/internal-website/app/actions/sla.ts: listPackageSla / getPackageSla.
+- viza-fe app/pricing/page.tsx: public pricing table joining lib/pricing.ts (agency + government + currency) with package_sla (median + p95 in d/h units) + sample-size badge ("X samples" vs "estimate").
+- viza-be/agent-backend/scripts/backfill-package-sla.ts: weekly job — pulls runner_metric for the trailing 90 days, groups by (country, visa_type), computes median + p95 of time_to_submit_s for buckets ≥5 samples, upserts package_sla with source='measured'.
+- viza-be/agent-backend/scripts/sla-breach-sweep.ts: hourly sweeper — for every active runner_job, compares (now - enqueued_at) against package_sla.p95_hours; fires Resend OPS alert (class sla.breach.<country>) and queues a notification_event_log 'sla_breach_courtesy' row gated by metadata.sla_courtesy_sent_at so each job emits one courtesy update per breach.
+- CS-002 wires the actual applicant comms; CS-005 only inserts the queued row + ops alert.
+- CS suite (001–005) complete.
+- Typecheck: internal-website ✅, agent-backend ✅
+---

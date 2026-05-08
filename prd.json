@@ -2476,8 +2476,8 @@
         "Typecheck passes"
       ],
       "priority": 180,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "27 packages seeded. Backfill cron flips source='measured' once 5+ samples exist; breach sweeper fires sla.breach.<country> per active job past p95."
     },
     {
       "id": "AUTO-KH-01",
