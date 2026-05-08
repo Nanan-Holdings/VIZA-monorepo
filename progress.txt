@@ -1654,3 +1654,12 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: AV scan = ClamAV-equivalent sidecar on Storage uploads; tracked as a follow-on. Per-package slot seed rows are ops-provisioned (no migration data — slots vary materially per portal).
 ---
+
+## 2026-05-08 - DOC-004
+- drizzle/0062_paper_template.sql: paper_template(package_id, key, title, layout JSONB) + UNIQUE (package_id, key). Layout shape mirrors PaperLayout in the renderer (fields[].answerKey/label/format + optional footer).
+- viza-be/submission-service/src/paper/simple-pdf.ts: mirror of viza-fe simple-pdf for runner-side PDF assembly (no pdf-lib).
+- viza-be/submission-service/src/paper/renderer.ts: renderPaperPdf({jobId, applicationId, templateKey}) — resolves package + template, pulls visa_application_answers, renders printable declaration-style PDF (label + value rows, optional footer), uploads via artifact.put under jobs/<jobId>/paper-<key>.pdf, returns { path, signedUrl, bytes }. Format helpers for yesno + uppercase.
+- Typecheck: submission-service ✅
+- Notes: AcroForm field-fill (MOFA Form A) is a sibling renderer with the same contract — pdf-lib already in scripts/_inspect-mofa-pdf.mjs but kept out of the runtime image until the form actually ships.
+- Staff portal links: existing /admin/jobs/<id> page already lists artefacts under the job prefix; no FE change needed for download.
+---
