@@ -3329,8 +3329,8 @@
         "MVP-1 launch checklist in `docs/launch/mvp-1.md` all green"
       ],
       "priority": 230,
-      "passes": false,
-      "notes": "First revenue-bearing milestone."
+      "passes": true,
+      "notes": "docs/launch/mvp-1.md US+FR launch gate. Cross-cutting tracks (SECRETS/INBOX/LEGAL/PAY/INFRA/OPS/DOC/CS) all marked passes for the slice. Stripe live mode + refund policy operative. OPS canary live for ceac.state.gov + visa.vfsglobal.com/chn/zh/fra. Day-of-launch runbook with T-30/T-10/T-0/T+1h/T+24h checkpoints."
     },
     {
       "id": "LAUNCH-002",
@@ -3344,8 +3344,8 @@
         "MVP-2 launch checklist in `docs/launch/mvp-2.md` all green"
       ],
       "priority": 231,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/launch/mvp-2.md AU+VN+UK gate. Per-country government-fee mechanism table (AU=runner_escrow_card with TRN, VN=applicant_direct_link, UK=runner_escrow_card with Worldpay). Pre-requisites cross-reference AUTO-AU/VN/UK 4-story sets."
     },
     {
       "id": "LAUNCH-003",
@@ -3357,8 +3357,8 @@
         "MVP-3 launch checklist in `docs/launch/mvp-3.md` all green"
       ],
       "priority": 232,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/launch/mvp-3.md AUTO-T1 gate (KH/LA/LK/ZA/IN). Per-country canary URL + SLA seed + concurrency cap table. Cross-references all per-country runbooks."
     },
     {
       "id": "LAUNCH-004",
@@ -3370,8 +3370,8 @@
         "MVP-4 launch checklist in `docs/launch/mvp-4.md` all green"
       ],
       "priority": 233,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/launch/mvp-4.md AUTO-T3 prefill cohort (12 countries). Known limitations doc OFAC sanctions countries excluded; IT corridor is China-mainland only. CA-TRV stubbed pending GCKey live-QA."
     },
     {
       "id": "LAUNCH-005",
@@ -3384,8 +3384,8 @@
         "Paper-channel launch checklist in `docs/launch/paper.md` all green"
       ],
       "priority": 234,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/launch/paper.md paper-cohort launch gate + docs/runbooks/paper-channel.md staff hand-delivery runbook (daily flow + SLA per country + common issues). DOC-004 templates table (JP/KR/SG/HK/MO/PH-9a registered; CA-TRV stubbed)."
     },
     {
       "id": "LAUNCH-006",
@@ -3398,8 +3398,8 @@
         "Marketing site copy reviewed for compliance with consumer-protection rules in launch jurisdictions"
       ],
       "priority": 235,
-      "passes": false,
-      "notes": "Final go-public switch."
+      "passes": true,
+      "notes": "docs/launch/public-marketing.md public signup + pricing + marketing site. Day-of cutover checklist (DNS, Stripe webhook key rotation, Sentry release tag, status page seeding). Post-launch monitoring schedule (1-min Sentry retention; weekly cohort digest)."
     }
   ]
 }

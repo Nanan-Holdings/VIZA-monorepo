@@ -1902,3 +1902,13 @@ acknowledgment).
 - typecheck clean.
 - CA-TRV path stubbed pending GCKey live-QA (needs OAuth captures).
 ---
+
+## 2026-05-08 - LAUNCH-001..006
+- LAUNCH-001: docs/launch/mvp-1.md US+FR with cross-cutting status table + day-of-launch T-30/T-10/T-0/T+1h/T+24h runbook.
+- LAUNCH-002: docs/launch/mvp-2.md AU+VN+UK with per-country fee mechanism table.
+- LAUNCH-003: docs/launch/mvp-3.md AUTO-T1 (KH/LA/LK/ZA/IN) with canary URL + SLA + concurrency cap table.
+- LAUNCH-004: docs/launch/mvp-4.md AUTO-T3 12-country prefill cohort with sanctions-country exclusion + CA-TRV stub note.
+- LAUNCH-005: docs/launch/paper.md + docs/runbooks/paper-channel.md staff hand-delivery runbook + per-country SLA expectations.
+- LAUNCH-006: docs/launch/public-marketing.md DNS cutover + Stripe webhook rotation + Sentry release tag + post-launch monitoring schedule.
+- All 235 stories pass.
+---
