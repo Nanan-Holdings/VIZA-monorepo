@@ -1698,3 +1698,12 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: callers (Stripe webhook, runner queue worker) wire sendTransitionNotification at the existing transition write-paths in a follow-on touch — the dispatcher contract is final.
 ---
+
+## 2026-05-08 - CS-003
+- drizzle/0067_takeover_session.sql: takeover_session(job_id, application_id, applicant_id, status, reason, remote_debug_url, vnc_url, claimed_by, claimed_at, closed_at, operator_notes) + takeover_action_log(takeover_id, action, actor_user_id, detail JSONB, ts). Service-role only.
+- viza-be/submission-service/src/queue/takeover.ts: requestHumanTakeover() flips runner_job → 'needs_human', writes takeover row, fires OPS-003 alert (class 'runner.needs_human'), and writes a takeover_action_log 'open' entry.
+- viza-fe/internal-website/app/actions/takeover.ts: listOpenTakeovers / claimTakeover / completeTakeover / abandonTakeover / getTakeoverRemoteDebugUrl. require2fa() inspects Supabase user.factors for a verified TOTP — refuses to expose the remote-debug URL otherwise. completeTakeover upserts the operator's captured answers into visa_application_answers and flips runner_job → succeeded; abandonTakeover marks runner_job failed. Every action lands a takeover_action_log row with the actor user id.
+- /admin/takeovers queue page (admin role gate) lists open takeovers with reason + linked job + application; click-through to /admin/takeovers/[id] is the operator workspace (page deferred to next pass).
+- Typecheck: submission-service ✅, internal-website ✅
+- Notes: detailed operator workspace UI (CDP-attached browser embed) is a follow-on. The contract — 2FA-gated URL reveal, action log, answer write-back — is final.
+---
