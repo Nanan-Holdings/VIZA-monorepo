@@ -581,3 +581,26 @@ export const questionField = pgTable("question_field", {
 export type QuestionField = typeof questionField.$inferSelect;
 export type NewQuestionField = typeof questionField.$inferInsert;
 
+// =============================================================================
+// PHOTO SPEC (DOCUP-003)
+// Per (country, visa_type) photo dimensions consumed by lib/photo/crop.ts.
+// =============================================================================
+
+export const photoSpec = pgTable("photo_spec", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  widthMm: text("width_mm").notNull(),
+  heightMm: text("height_mm").notNull(),
+  dpi: integer("dpi").notNull().default(300),
+  eyelineFromTop: text("eyeline_from_top"),
+  headHeightPct: text("head_height_pct"),
+  backgroundHex: text("background_hex"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PhotoSpec = typeof photoSpec.$inferSelect;
+export type NewPhotoSpec = typeof photoSpec.$inferInsert;
+
