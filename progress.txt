@@ -1785,3 +1785,9 @@ acknowledgment).
 - AUTO-LA suite (01–04) complete.
 - No code changes — typecheck not applicable.
 ---
+
+## 2026-05-08 - AUTO-LK-01
+- viza-be/submission-service/src/lk/runner.ts: runLkPrefill against eta.gov.lk — landing → apply → personal-info-filled (incl. arrival date / port-of-arrival / occupation / address-in-sri-lanka / visa-variant) → review. Stops before pay. Per-step screenshot + network HAR via artifact.put under jobs/<jobId>/lk-step-NN-<name>.png + lk-network.har.
+- scripts/lk-smoke.ts: 90s synthetic-answer smoke; exits 0 on stopped_before_pay.
+- Typecheck: submission-service ✅
+---
