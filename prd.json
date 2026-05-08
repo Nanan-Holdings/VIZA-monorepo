@@ -2388,8 +2388,8 @@
         "Typecheck passes"
       ],
       "priority": 174,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Audit row binds doc-hash + IP/UA at sign-time; signature PNG stored in submission-artifacts; existing /client/signing flow remains the AU entrypoint."
     },
     {
       "id": "DOC-006",
