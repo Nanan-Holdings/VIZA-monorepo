@@ -1933,3 +1933,12 @@ acknowledgment).
 - typecheck clean.
 - Learning: keep generated and hand-curated selectors in separate files so promote-selectors can clobber the .generated.ts file freely without overwriting baseline fallbacks.
 ---
+
+## 2026-05-08 - BOT-003
+- Runner stress test: 10 staging applicants per country in CI.
+- viza-be/submission-service/scripts/runner-stress.ts drives N synthetic applicants through kh/la/lk/za/in runners with 120s per-attempt timeout, configurable STRESS_PARALLEL, writes stress-out/<country>/<runId>/summary.json. Pass=stopped_before_pay|pay_success|submitted_to_government|delivered. Threshold=95%.
+- scripts/runner-stress-digest.ts aggregates latest run per country and posts to STRESS_SLACK_WEBHOOK.
+- .github/workflows/runner-matrix.yml nightly cron 02:00 UTC, matrix=[kh,la,lk,za,in], uploads runner-failures-* + runner-summary-* artefacts (14d retention), digest job downloads, flattens, emits.
+- typecheck clean.
+- Learning: Playwright in CI needs `npx playwright install --with-deps chromium` step explicitly (not bundled with @playwright/test install).
+---

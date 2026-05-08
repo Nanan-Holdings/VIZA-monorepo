@@ -3443,7 +3443,7 @@
         "Typecheck passes"
       ],
       "priority": 242,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
