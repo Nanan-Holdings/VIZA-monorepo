@@ -3033,8 +3033,8 @@
         "Typecheck passes"
       ],
       "priority": 209,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Existing src/vietnam/run.ts drives evisa.gov.vn from landing \u2192 post-modal Vue SPA \u2192 all VN_FIELD_MAPPINGS, halts before Pay/Submit. Exposes registrationCode for applicant-direct payment (PAY-003 = applicant_direct_link)."
     },
     {
       "id": "AUTO-VN-02",
@@ -3047,8 +3047,8 @@
         "Typecheck passes"
       ],
       "priority": 210,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/vietnam/errors.ts vn.* codes including vn.validation.captcha_required (VN-specific). 5/5 unit tests green via node:test. Existing src/vietnam/inbox.ts handles applicant-side email helpers."
     },
     {
       "id": "AUTO-VN-03",
@@ -3062,8 +3062,8 @@
         "Typecheck passes"
       ],
       "priority": 211,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/vietnam/finalize.ts waitForVietnamEvisa polls inbox until evisa.gov.vn email arrives (5d default timeout); persistVnDelivered uploads jobs/<jobId>/vn-evisa.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. Attachment extraction handed off to downstream RFC822 extractor."
     },
     {
       "id": "AUTO-VN-04",
@@ -3077,8 +3077,8 @@
         "Typecheck passes"
       ],
       "priority": 212,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "docs/runbooks/vn.md covers three-step lifecycle (awaiting_government_payment \u2192 submitted_to_government \u2192 delivered), applicant_direct_link payment mechanism (NOT escrow card per 2026-Q1 chargeback risk), captcha + reminder cron mitigations."
     },
     {
       "id": "AUTO-T3-JP",
