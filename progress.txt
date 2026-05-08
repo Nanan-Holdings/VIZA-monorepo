@@ -1953,3 +1953,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: storing branch rules as JSONB beats per-field foreign-key columns — UI can keep all conditional logic client-side without joining.
 ---
+
+## 2026-05-08 - PROD-002
+- Answer-collection driver UI: per-package multi-step form with save-resume.
+- viza-fe/internal-website/app/application/[id]/answer/page.tsx (server component) loads applications.country+visa_type → question_set + question_field via supabase admin client; falls back to db/seeds/question-sets/<country>.json when DB rows absent.
+- _components/AnswerForm.tsx (client) splits fields into 4-per-step, blur=>saveDynamicAnswers upsert, conditional render via field.branch.when, required-field validation on Next.
+- Brand-* tokens (bg-[#fafafa] shell, bg-brand-500 progress + CTA, border-input) per frontend.md feedback memory.
+- app/actions/question-sets.ts wraps the lookup with ownership check (auth.user.id ↔ applicant_profiles.auth_user_id).
+- FE typecheck clean.
+- Learning: server actions are the cleanest channel for save-on-blur — no separate /api/answer route needed.
+---
