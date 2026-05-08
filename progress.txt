@@ -1846,3 +1846,11 @@ acknowledgment).
 - Common ZA-specific issues table covers anti_bot.cloudflare, passport_invalid, nationality_unsupported (eVisa pilot eligibility), payment_declined, post-pay needs_human.
 - No code modified; doc-only.
 ---
+
+## 2026-05-08 - AUTO-IN-01
+- India e-Visa prefill runner.
+- src/in/runner.ts runInPrefill drives indianvisaonline.gov.in/evisa multi-page state machine (landing→apply→personal→passport→visa-details→review), halts before pay.
+- gateExtraFields() enforces medical/conference sub-journey requirements (hospital_name, conference_name).
+- scripts/in-smoke.ts 90s synthetic-answer smoke.
+- typecheck clean.
+---
