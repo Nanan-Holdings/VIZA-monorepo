@@ -2082,3 +2082,11 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: scoping override_until in days (rather than indefinite) forces fees back to scraper truth automatically — prevents stale staff overrides from outliving the underlying gov-fee change.
 ---
+
+## 2026-05-08 - ALERT-001..003
+- ALERT-001 .github/workflows/sentry-release.yml: build sets SENTRY_RELEASE+NEXT_PUBLIC_SENTRY_RELEASE=$GITHUB_SHA; @sentry/cli releases new + set-commits --auto + upload-sourcemaps .next + finalize. Guarded behind vars.SENTRY_PROJECT + secrets.SENTRY_AUTH_TOKEN so the workflow no-ops in repos that haven't connected Sentry. lib/observability/sentry.ts buildSentryInitOptions injects SENTRY_RELEASE into Sentry.init() with tracesSampleRate=0.1.
+- ALERT-002 docs/operations/pagerduty-routes.md documents 4 PD services (viza-prod-fe/be/runner/data) + escalation policy (primary→backup@5m→CTO@15m). src/jobs/canary-pager.ts reads portal_health rows, posts PD Events API v2 trigger when downtime>10m, resolve when status='ok'; dedup_key=`viza-runner-<country>`; runbook link in payload.
+- ALERT-003 docs/operations/oncall.md: ack flow, common-alerts table mapping each alert source → first action, escalation rules (CTO/CEO/Legal), command snippets, post-incident retro template path. PD payload `runbook` field points here per PD setup doc.
+- Both typechecks clean.
+- Learning: sourcemap upload uses `--url-prefix "~/_next"` because Next.js serves chunks under /_next/static — wrong prefix yields unsymbolicated traces even with the correct release tag.
+---
