@@ -641,3 +641,25 @@ export const accountRecoveryAudit = pgTable("account_recovery_audit", {
 export type AccountRecoveryAudit = typeof accountRecoveryAudit.$inferSelect;
 export type NewAccountRecoveryAudit = typeof accountRecoveryAudit.$inferInsert;
 
+// =============================================================================
+// NOTIFICATION DLQ (NOTIFY-003)
+// =============================================================================
+
+export const notificationDlq = pgTable("notification_dlq", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceEventId: integer("source_event_id"),
+  applicantId: uuid("applicant_id"),
+  applicationId: uuid("application_id"),
+  templateKey: text("template_key").notNull(),
+  channel: text("channel").notNull(),
+  recipient: text("recipient"),
+  payload: jsonb("payload"),
+  error: text("error").notNull(),
+  retryCount: integer("retry_count").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  replayedAt: timestamp("replayed_at", { withTimezone: true }),
+});
+
+export type NotificationDlq = typeof notificationDlq.$inferSelect;
+export type NewNotificationDlq = typeof notificationDlq.$inferInsert;
+
