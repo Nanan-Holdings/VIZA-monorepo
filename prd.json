@@ -2492,8 +2492,8 @@
         "Typecheck passes"
       ],
       "priority": 181,
-      "passes": false,
-      "notes": "KH portal is public — no auth gate."
+      "passes": true,
+      "notes": "KH portal is public — no auth gate. Smoke runs via `npx tsx scripts/kh-smoke.ts` against synthetic answers."
     },
     {
       "id": "AUTO-KH-02",
