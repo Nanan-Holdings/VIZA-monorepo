@@ -1830,3 +1830,11 @@ acknowledgment).
 - src/za/__tests__/errors.spec.ts 5/5 node:test cases green.
 - typecheck clean.
 ---
+
+## 2026-05-08 - AUTO-ZA-03
+- South Africa eVisa payment + finalize.
+- src/za/payment.ts payZaWithEscrowCard (shared loadEscrowCard, receipt regex, decline detection).
+- src/za/finalize.ts persistZaDelivered (za-evisa.pdf upload, application_documents insert, status='delivered', doc_ready queue).
+- typecheck clean.
+- Mirrors AUTO-LK-03 / AUTO-LA-03 shape.
+---
