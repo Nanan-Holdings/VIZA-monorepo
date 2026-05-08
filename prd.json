@@ -3774,7 +3774,7 @@
         "Typecheck passes"
       ],
       "priority": 265,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3789,7 +3789,7 @@
         "Typecheck passes"
       ],
       "priority": 266,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -3802,7 +3802,7 @@
         "First-response < 5 min from page"
       ],
       "priority": 267,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
