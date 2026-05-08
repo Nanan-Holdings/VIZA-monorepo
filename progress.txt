@@ -1885,3 +1885,11 @@ acknowledgment).
 - AUTO-AU-04: docs/runbooks/au.md two-step lifecycle, ImmiAccount vault credentials, au.auth.* error rows.
 - typecheck clean.
 ---
+
+## 2026-05-08 - AUTO-VN-01..04
+- AUTO-VN-01: existing src/vietnam/run.ts satisfies "complete prefill + payment handoff".
+- AUTO-VN-02: src/vietnam/errors.ts vn.* codes incl. vn.validation.captcha_required. 5/5 tests green.
+- AUTO-VN-03: src/vietnam/finalize.ts waitForVietnamEvisa + persistVnDelivered (vn-evisa.pdf, status='delivered', doc_ready queue).
+- AUTO-VN-04: docs/runbooks/vn.md three-step lifecycle, applicant_direct_link mechanism reasoning.
+- typecheck clean.
+---
