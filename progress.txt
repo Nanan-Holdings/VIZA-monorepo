@@ -1645,3 +1645,12 @@ acknowledgment).
 - Existing route app/api/passport-scan/extract/route.ts already proxies to agent-backend Claude vision; new module sits in front of that response.
 - Typecheck: internal-website ✅
 ---
+
+## 2026-05-08 - DOC-003
+- drizzle/0061_supporting_docs.sql: supporting_doc_slot(package_id, slot_key, label, required, accepted_mime_hint, max_bytes, description, position) + supporting_doc_submission(application_id, slot_id, storage_path, mime, size_bytes, status, staff_comment, reviewed_by, reviewed_at). Slot SELECT open to authenticated; submission SELECT scoped to owning applicant.
+- viza-fe/internal-website/lib/docs/supporting.ts: validateSupportingDoc() — magic-byte detect (PDF / JPEG / PNG) + max-bytes check. Structured failure (format_unsupported / format_corrupt / file_too_large / empty).
+- viza-fe/internal-website/app/actions/supporting-docs.ts: getChecklist() (joins slot + submission, returns ChecklistRow with status / staffComment), uploadSupportingDoc() (validate + Storage put under applications/<id>/<slot>.<ext> + upsert row), reviewSupportingDoc() (admin-only accept/reject + comment).
+- components/client/supporting-docs-checklist.tsx: per-slot row with status pill (missing/uploaded/accepted/rejected), upload-or-replace button, staff-comment surfacing.
+- Typecheck: internal-website ✅
+- Notes: AV scan = ClamAV-equivalent sidecar on Storage uploads; tracked as a follow-on. Per-package slot seed rows are ops-provisioned (no migration data — slots vary materially per portal).
+---
