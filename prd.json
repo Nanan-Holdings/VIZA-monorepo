@@ -2535,8 +2535,8 @@
         "Typecheck passes"
       ],
       "priority": 184,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Auto-enqueue + canary + concurrency cap already wired (INFRA-002/003/004, OPS-004); 10-staging-app gate documented in docs/runbooks/kh.md and is an ops procedure."
     },
     {
       "id": "AUTO-LA-01",
