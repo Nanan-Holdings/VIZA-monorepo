@@ -1798,3 +1798,11 @@ acknowledgment).
 - src/lk/__tests__/errors.spec.ts: 5 node:test cases, all green.
 - Typecheck: submission-service ✅
 ---
+
+## 2026-05-08 - AUTO-LK-03
+- Sri Lanka ETA payment + finalize.
+- src/lk/payment.ts payLkWithEscrowCard (shared loadEscrowCard, receipt regex, decline detection).
+- src/lk/finalize.ts persistLkDelivered (lk-eta.pdf upload, application_documents insert, status='delivered', doc_ready queue).
+- typecheck clean.
+- Mirrors AUTO-KH-03 / AUTO-LA-03 shape.
+---

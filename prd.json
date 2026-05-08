@@ -2604,8 +2604,8 @@
       "description": "LK payment + ETA capture.",
       "acceptanceCriteria": ["Payment implemented", "Issued ETA captured", "Status -> delivered", "Typecheck passes"],
       "priority": 191,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "src/lk/payment.ts payLkWithEscrowCard via shared loadEscrowCard; src/lk/finalize.ts persistLkDelivered uploads jobs/<jobId>/lk-eta.pdf, inserts application_documents kind=evisa_pdf, flips status='delivered', queues doc_ready. typecheck clean."
     },
     {
       "id": "AUTO-LK-04",
