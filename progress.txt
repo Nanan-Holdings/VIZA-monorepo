@@ -1993,3 +1993,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: lazy-loading native deps via dynamic import + cast keeps tsc green even when the runtime dep is provisioned only on the deploy target — useful for sharp-style native modules.
 ---
+
+## 2026-05-08 - DOCUP-004
+- Face-match liveness check (basic).
+- Migration 0072_face_match_audit.sql + Drizzle faceMatchAudit table (applicant_id, application_id, provider, score, threshold, decision, paths).
+- viza-fe/internal-website/lib/face/match.ts compareFaces(passportImg, applicantImg) facade with FACE_MATCH_PROVIDER=aws-rekognition|face-api|mock; mock returns deterministic 0.92 for staging; AWS path uses CompareFacesCommand normalized to [0..1]; `dynamicRequire` Function-eval indirection hides specifiers from tsc so optional native deps don't need to be installed.
+- decideFromScore: ≥threshold→auto_approve, ≥0.7×threshold→staff_review, else reject. Default threshold=0.85.
+- app/actions/face-match.ts runFaceMatch: ownership check, downloads passport_scan + applicant_photo from storage, runs compareFaces, inserts face_match_audit row, on staff_review/reject sets applications.status='staff_action_required'.
+- Both typechecks clean.
+- Learning: `new Function("s","return import(s)")(s)` is the cleanest TS escape hatch for optional deps — keeps `npm i` graph small and unblocks deploy targets that don't need every provider.
+---
