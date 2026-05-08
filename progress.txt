@@ -1672,3 +1672,11 @@ acknowledgment).
 - Typecheck: internal-website ✅
 - Notes: doc-hash is computed server-side from the body the action receives — caller must echo back exactly what the applicant saw. SignaturePad component reuse is documented in /client/signing.
 ---
+
+## 2026-05-08 - DOC-006
+- drizzle/0064_post_delivery_purge.sql: purge_post_delivery_documents(passport_days=30, supporting_days=90, artefacts_days=180) — fires only on applications already at status IN ('delivered','cancelled') older than the per-class window. Deletes application_documents (passport+photo), supporting_doc_submission rows, and nulls out submission_queue.*_result_payload columns. One summary row written to retention_purge_log per run. Re-raises on error after logging the SQLERRM row.
+- docs/legal/retention.md: appended Post-delivery document purge section with default windows + pg_cron schedule (`docs-post-delivery-purge` daily at 03:49) + R2 cleanup-worker hand-off note.
+- docs/legal/privacy-policy.md §7: passport/photo retention reworded to "30 days post-delivery / cancellation, capped at 12 months" so the user-facing copy matches the SQL behaviour.
+- No code changes — typecheck not applicable.
+- DOC suite (001–006) complete.
+---

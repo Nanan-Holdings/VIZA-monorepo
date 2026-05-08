@@ -2403,8 +2403,8 @@
         "Typecheck passes"
       ],
       "priority": 175,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Defaults: passport/photo 30d post-delivery; supporting 90d; artefacts 180d. Audited via retention_purge_log."
     },
     {
       "id": "CS-001",
