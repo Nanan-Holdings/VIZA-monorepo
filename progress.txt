@@ -2046,3 +2046,11 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: backend uses ESM nodenext resolution — every relative import needs explicit .js suffix. Linter auto-typed callbacks once `(p) =>` had no signature; safer to write `(p: Record<string, unknown>) =>` from the start.
 ---
+
+## 2026-05-08 - STATUS-001 + STATUS-002
+- STATUS-002: migration 0075_application_status_history + Drizzle applicationStatusHistory; RLS dual-policy (applicants see own via applicant_profiles join, staff/admin see all via users.role).
+- updateApplicationStatus(applicationId, newStatus, actorKind, reason, metadata) server action — single transactional path: reads current status, updates applications.status, inserts ASH row with from→to + actor_id from auth.uid(). Idempotent when from==to. loadStatusTimeline(applicationId) returns ordered entries.
+- STATUS-001: components/application-stage-card.tsx renders status-aware card (draft→Continue answers, payment_pending→Pay now, biometrics_pending→Book bio, delivered→Download, staff_action_required→staff-review banner). /home and /application[id] consume via the existing data layer.
+- Both typechecks clean.
+- Learning: routing every status mutation through updateApplicationStatus is the only way to keep ASH the source of truth — silent updates in legacy code paths will desync the timeline.
+---

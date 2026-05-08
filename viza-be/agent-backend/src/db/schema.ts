@@ -663,3 +663,22 @@ export const notificationDlq = pgTable("notification_dlq", {
 export type NotificationDlq = typeof notificationDlq.$inferSelect;
 export type NewNotificationDlq = typeof notificationDlq.$inferInsert;
 
+// =============================================================================
+// APPLICATION STATUS HISTORY (STATUS-002)
+// =============================================================================
+
+export const applicationStatusHistory = pgTable("application_status_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status").notNull(),
+  actorId: uuid("actor_id"),
+  actorKind: text("actor_kind").notNull().default("system"),
+  reason: text("reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ApplicationStatusHistory = typeof applicationStatusHistory.$inferSelect;
+export type NewApplicationStatusHistory = typeof applicationStatusHistory.$inferInsert;
+
