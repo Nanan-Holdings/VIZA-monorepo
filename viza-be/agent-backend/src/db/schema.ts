@@ -604,3 +604,23 @@ export const photoSpec = pgTable("photo_spec", {
 export type PhotoSpec = typeof photoSpec.$inferSelect;
 export type NewPhotoSpec = typeof photoSpec.$inferInsert;
 
+// =============================================================================
+// FACE MATCH AUDIT (DOCUP-004)
+// =============================================================================
+
+export const faceMatchAudit = pgTable("face_match_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id"),
+  provider: text("provider").notNull(),
+  score: text("score").notNull(),
+  threshold: text("threshold").notNull(),
+  decision: text("decision").notNull(),
+  passportStoragePath: text("passport_storage_path"),
+  applicantStoragePath: text("applicant_storage_path"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type FaceMatchAudit = typeof faceMatchAudit.$inferSelect;
+export type NewFaceMatchAudit = typeof faceMatchAudit.$inferInsert;
+
