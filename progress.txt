@@ -1923,3 +1923,13 @@ acknowledgment).
 - typecheck clean.
 - Learning: existing form-recon.ts modules each own their OUT_DIR, so subprocess fan-out + post-hoc copy was simpler than refactoring 8 files to export PAGES.
 ---
+
+## 2026-05-08 - BOT-002
+- Selector promotion pipeline: recon-out → per-country runner config.
+- viza-be/submission-service/scripts/promote-selectors.ts reads recon-out/<latest>/<cc>/selectors.json (FieldCapture[] from BOT-001), normalizes to {key→css selector}, regenerates per-country selectors.generated.ts, prints +/~/- diff per country.
+- Per-country src/<cc>/selectors.ts (kh/la/lk/za/in) hand-curated FALLBACK + GENERATED merge so runners never crash on empty recon.
+- Runner refactor: kh/la/lk/za/in runners replace 50+ hard-coded `input[name="X"]` literals with KH_SELECTORS / LA_SELECTORS / LK_SELECTORS / ZA_SELECTORS / IN_SELECTORS imports.
+- npm run promote:selectors. PROMOTE_DRY=1 supported.
+- typecheck clean.
+- Learning: keep generated and hand-curated selectors in separate files so promote-selectors can clobber the .generated.ts file freely without overwriting baseline fallbacks.
+---
