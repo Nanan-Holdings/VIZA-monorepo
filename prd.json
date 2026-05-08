@@ -2447,8 +2447,8 @@
         "Typecheck passes"
       ],
       "priority": 178,
-      "passes": false,
-      "notes": "High-leverage capability for new-portal incidents."
+      "passes": true,
+      "notes": "High-leverage capability for new-portal incidents. 2FA gate enforced via Supabase TOTP factor; remote-debug URL revoked on takeover close."
     },
     {
       "id": "CS-004",
