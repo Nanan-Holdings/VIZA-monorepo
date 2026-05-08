@@ -107,7 +107,9 @@ by the SQL purge functions in
 `viza-be/agent-backend/drizzle/0049_retention_purge.sql` (run on a
 daily schedule via Supabase pg_cron). At a glance:
 
-- Passport scans + photos: 12 months from submission completion.
+- Passport scans + photos: 30 days post-delivery / cancellation,
+  capped at 12 months from submission completion (whichever is
+  earlier).
 - Submission artefacts (screenshots, run logs): 12 months.
 - Application answers: 36 months unless deletion is requested earlier.
 - Walker / recon captures: 90 days.
