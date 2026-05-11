@@ -2122,3 +2122,11 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: lazy-require pattern via `new Function("s","return import(s)")(s)` keeps tsc happy when a runtime-only dep isn't yet installed — recurring pattern in this repo for AWS/Sentry/Twilio/Resend.
 ---
+
+## 2026-05-11 - PROV-005
+- Bright Data zone code surface complete (zone account is human-provisioning).
+- viza-be/submission-service/scripts/seed-proxy-pool.ts: reads bright-data CSV (ip,region), validates IPv4 regex, derives sticky_session_id=${BRIGHTDATA_ZONE}-${ip}, upserts proxy_pool with on_conflict=sticky_session_id, PROXY_SEED_DRY=1 preview.
+- docs/integrations/bright-data.md captures handoff: buy zone → export CSV → set envs → seed → verify; cooldown semantics (30m → 4h escalation); region balance (10+ per US/EU/SEA); rotation pointer.
+- typecheck clean.
+- Human handoff documented; story-level pass marks the code-side ready. DATA-008 (actual seed run) remains onHold.
+---
