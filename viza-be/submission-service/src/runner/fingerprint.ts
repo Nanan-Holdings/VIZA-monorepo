@@ -13,6 +13,9 @@
  *     fingerprint, so a re-replay reproduces history exactly.
  *   - The function refuses to mint a new variant once 3 distinct
  *     fingerprints have already been used in the previous 7 days.
+ *   - Cap is *applicant-scoped*: distinct fingerprints are counted across
+ *     every application the applicant has open, not just the current one
+ *     (a multi-app family would otherwise blow the cap silently).
  */
 
 import { createHash } from "node:crypto";
@@ -72,11 +75,21 @@ function applyRotation(base: BrowserFingerprint, rotationKey: string): BrowserFi
 }
 
 async function readRecentHistory(applicantId: string): Promise<HistoryEntry[]> {
+  // Applicant-scoped: an applicant may have multiple applications running in
+  // parallel; the 7d cap counts distinct fingerprints across ALL of them.
+  // Join runner_job → applications (applicant_id) so we don't undercount.
   const cutoff = new Date(Date.now() - SEVEN_DAYS_MS).toISOString();
+  const { data: apps } = await supabase
+    .from("applications")
+    .select("id")
+    .eq("applicant_id", applicantId);
+  const appIds = ((apps ?? []) as Array<{ id: string }>).map((r) => r.id);
+  if (appIds.length === 0) return [];
+
   const { data } = await supabase
     .from("runner_job")
     .select("fingerprint_history, updated_at")
-    .eq("application_id", applicantId) // attempts indexed by application_id; OK to broaden
+    .in("application_id", appIds)
     .gte("updated_at", cutoff);
   const entries: HistoryEntry[] = [];
   for (const row of (data ?? []) as Array<{ fingerprint_history: HistoryEntry[] | null }>) {

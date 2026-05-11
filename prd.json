@@ -4217,7 +4217,7 @@
         "src/runner/fingerprint.ts header comment updated to reflect applicant scope"
       ],
       "priority": 292,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
