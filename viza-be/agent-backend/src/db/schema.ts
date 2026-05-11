@@ -696,9 +696,38 @@ export const supportTicket = pgTable("support_ticket", {
   subject: text("subject").notNull(),
   body: text("body").notNull(),
   status: text("status").notNull().default("open"),
+  assignedTo: uuid("assigned_to"),
+  firstResponseAt: timestamp("first_response_at", { withTimezone: true }),
+  slaDueAt: timestamp("sla_due_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+export const supportMacro = pgTable("support_macro", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  locale: text("locale").notNull().default("en"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportMacro = typeof supportMacro.$inferSelect;
+export type NewSupportMacro = typeof supportMacro.$inferInsert;
+
+export const supportInternalNote = pgTable("support_internal_note", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull(),
+  authorId: uuid("author_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportInternalNote = typeof supportInternalNote.$inferSelect;
+export type NewSupportInternalNote = typeof supportInternalNote.$inferInsert;
 
 export type SupportTicket = typeof supportTicket.$inferSelect;
 export type NewSupportTicket = typeof supportTicket.$inferInsert;

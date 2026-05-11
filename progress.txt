@@ -2205,3 +2205,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: dependants get an applicant_profiles row WITHOUT auth_user_id — payer manages via dependant_of_user_id pointer, keeps existing RLS intact while extending coverage.
 ---
+
+## 2026-05-11 - PRODUCT-003..006 (admin CS console bundle)
+- Migration 0083_admin_cs: extends support_ticket (assigned_to, first_response_at, sla_due_at) + new tables support_macro (country/title/body/locale/is_active) + support_internal_note (ticket_id/author_id/body, staff-only RLS).
+- Drizzle: supportTicket extended + supportMacro + supportInternalNote schemas.
+- app/actions/admin-cs.ts: listAdminTickets(tab) with 4 server-side filters (open/mine/unassigned/breaching), assignTicket, markFirstResponse (idempotent), listMacros (country-or-ANY filter), saveMacro (insert/update), listInternalNotes, postInternalNote, loadKpis (windowDays=7 default, computes median first-response / resolution rate / SLA breach / WoW delta).
+- /admin/cs page: server-rendered queue with tabs + table; /admin/cs/_components/CsQueueClient.tsx for client-side tab switching via router.replace. /admin/cs/kpis renders 5 metric cards.
+- app/admin/cs/README.md captures: file layout + tab semantics + macros seed source + internal notes RLS + KPI placeholder for future Postgres RPC migration.
+- All typechecks clean.
+- Learning: keeping KPI aggregation in TS is fine until volume hits PostgREST's 1k-row cap — README marks the swap-to-RPC trigger so it doesn't sneak up.
+---
