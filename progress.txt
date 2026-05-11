@@ -2137,3 +2137,12 @@ acknowledgment).
 - typecheck unchanged.
 - Human handoff: IAM user + install + env flip.
 ---
+
+## 2026-05-11 - PROV-009
+- Migration 0079_pg_cron_schedules.sql: pg_cron + pg_net wiring for 4 jobs (viza_fee_scraper Sun 03:00 UTC, viza_canary_pager every 5min, viza_sla_breach_sweep hourly :15, viza_retention_purge daily 02:00 UTC).
+- Each cron row POSTs to app.edge_url || '/jobs/<name>' with x-cron-secret header from app.edge_secret — keeps the migration generic so URLs/secrets live in Supabase Project Settings, not the SQL file.
+- Migration includes unschedule preamble so re-runs are idempotent.
+- docs/operations/scheduled-jobs.md captures: schedule table + TS source pointers + pause commands + required extensions/settings + verification queries + "adding a new job" recipe.
+- Human handoff: enable pg_cron + pg_net, set app.edge_url + app.edge_secret, deploy Edge Functions matching each /jobs/<name>.
+- typecheck unchanged (SQL only).
+---

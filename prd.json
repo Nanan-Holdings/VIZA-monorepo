@@ -4074,7 +4074,7 @@
         "docs/operations/scheduled-jobs.md lists every cron entry, its schedule, its source-code pointer, and how to pause it"
       ],
       "priority": 282,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
