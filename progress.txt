@@ -2112,3 +2112,13 @@ acknowledgment).
 - OBS-001..004 (4): /admin/analytics + /admin/status + /admin/costs + /admin/storage-backups — observability surfaces live INSIDE /admin per user direction, not external dashboards only.
 - Each story's acceptanceCriteria includes a docs/README update line so the loop driver doesn't drop modules in silently. Captured in memory as feedback_documentation_architecture.md.
 ---
+
+## 2026-05-11 - PROV-003 + FIX-006
+- Sentry instrumentation wired across FE+BE; covers both stories in one pass since FIX-006 is the call-site for PROV-003.
+- viza-fe/internal-website/instrumentation.ts (Next.js server+edge register hook) + sentry.client.config.ts (browser) — both lazy-load @sentry/nextjs via dynamicRequire so tsc passes without the SDK installed.
+- viza-be/agent-backend/src/observability/sentry-init.ts initSentry() lazy-loads @sentry/node; called from src/index.ts before HTTP listen.
+- buildSentryInitOptions reused from ALERT-001 (lib/observability/sentry.ts).
+- docs/operations/sentry.md captures layout + human handoff (create projects, install SDKs, set DSN, GH secrets for sourcemap upload, synthetic-error verification checklist).
+- Both typechecks clean.
+- Learning: lazy-require pattern via `new Function("s","return import(s)")(s)` keeps tsc happy when a runtime-only dep isn't yet installed — recurring pattern in this repo for AWS/Sentry/Twilio/Resend.
+---

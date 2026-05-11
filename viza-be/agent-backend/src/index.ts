@@ -9,6 +9,9 @@ import app from './app.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
 import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
+import { initSentry } from './observability/sentry-init.js';
+
+await initSentry();
 
 const logger = new Logger({ serviceName: 'ServerStartup' });
 
