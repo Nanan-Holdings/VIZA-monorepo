@@ -770,3 +770,28 @@ export const packagePricingHistory = pgTable("package_pricing_history", {
 export type PackagePricingHistory = typeof packagePricingHistory.$inferSelect;
 export type NewPackagePricingHistory = typeof packagePricingHistory.$inferInsert;
 
+// =============================================================================
+// REFUND REQUESTS (PRODUCT-001)
+// =============================================================================
+
+export const refundRequest = pgTable("refund_request", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("requested"),
+  staffNote: text("staff_note"),
+  decidedBy: uuid("decided_by"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  stripeRefundId: text("stripe_refund_id"),
+  stripeDisputeId: text("stripe_dispute_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type RefundRequest = typeof refundRequest.$inferSelect;
+export type NewRefundRequest = typeof refundRequest.$inferInsert;
+

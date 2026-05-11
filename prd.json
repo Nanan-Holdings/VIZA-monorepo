@@ -4381,7 +4381,7 @@
         "viza-fe/internal-website/app/actions/refunds.ts + docs/operations/refunds.md"
       ],
       "priority": 304,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

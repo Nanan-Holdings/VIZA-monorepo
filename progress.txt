@@ -2184,3 +2184,14 @@ acknowledgment).
 - typecheck clean.
 - Learning: a single Playwright config with named projects beats four separate workflows because runners can be filtered with `--project=<name>` and CI cache hits across them.
 ---
+
+## 2026-05-11 - PRODUCT-001
+- Refund self-service + staff approve/deny + Stripe webhook integration.
+- Migration 0081_refunds.sql: refund_request table (applicant_id, application_id, stripe_payment_intent_id, amount_cents, status, staff_note, decided_by, stripe_refund_id, stripe_dispute_id) with RLS dual-policy (applicants own row, staff/admin all). Drizzle refundRequest schema added.
+- app/actions/refund-request.ts: requestRefund (applicant ≥10-char reason + positive amount), decideRefund (staff approve/deny + note), recordStripeRefund + recordStripeDispute (webhook handlers).
+- Status lifecycle: requested → approved → refunded (via Stripe webhook) | requested → denied | requested → disputed (charge.dispute.created bypass).
+- Reuses existing PAY-004 refundOrderLines for the actual Stripe call — refund-request.ts only owns the lifecycle/audit, not the money mechanic.
+- docs/operations/refunds.md captures: status diagram, file layout, webhook wiring snippet for app/api/stripe/webhooks/route.ts (PAY-001 surface), UI placement.
+- Both typechecks clean.
+- Learning: splitting "request lifecycle" from "money mechanic" avoids duplicating the existing refundability-rules logic and lets the audit table stay applicant-scoped while the financial primitive stays order-scoped.
+---
