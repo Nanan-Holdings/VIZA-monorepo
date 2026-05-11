@@ -3941,6 +3941,589 @@
       "priority": 273,
       "passes": true,
       "notes": ""
+    },
+    {
+      "id": "PROV-001",
+      "title": "Stripe live keys + webhook endpoint + tax rates",
+      "description": "Promote Stripe from test to live. Create live restricted key, register live webhook endpoint, wire STRIPE_WEBHOOK_SECRET, configure tax rates per supported country + US sales tax registration.",
+      "acceptanceCriteria": [
+        "Live STRIPE_SECRET_KEY in Vercel prod env",
+        "Live webhook endpoint registered + signing secret in env",
+        "Tax rates configured for US + EU jurisdictions where applicable",
+        "Successful test charge on live + refund issued",
+        "docs/integrations/stripe.md captures keys location + webhook endpoint URL + rotation pointer to secret-rotation.md"
+      ],
+      "priority": 274,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-002",
+      "title": "Resend domain DKIM/DMARC + RESEND_FROM verified",
+      "description": "Provision viza.app sender domain in Resend, add DKIM + DMARC + SPF records, set RESEND_FROM=noreply@viza.app across envs, verify deliverability via mail-tester.com.",
+      "acceptanceCriteria": [
+        "DKIM + SPF + DMARC records published on viza.app",
+        "Resend dashboard shows domain verified",
+        "RESEND_FROM env set in dev/staging/prod",
+        "mail-tester.com score >= 9/10 from staging",
+        "docs/integrations/resend.md captures DNS setup + score baseline + rotation pointer"
+      ],
+      "priority": 275,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-003",
+      "title": "Sentry project + DSN + SDK init wired into FE+BE boot",
+      "description": "Create separate viza-fe-internal-website and viza-agent-backend Sentry projects. Inject DSN env. Call buildSentryInitOptions() from each app entry. Trigger a synthetic error to confirm symbolicated stack lands on release tag.",
+      "acceptanceCriteria": [
+        "Two Sentry projects exist; DSNs in env",
+        "Sentry SDK initialised in viza-fe/internal-website/app/layout.tsx (or instrumentation.ts)",
+        "Sentry SDK initialised in viza-be/agent-backend/src/index.ts",
+        "Synthetic error captured with release tag + symbolicated source map",
+        "docs/operations/sentry.md describes the wiring + first-error verification"
+      ],
+      "priority": 276,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-004",
+      "title": "PagerDuty services + routing keys + escalation policy live",
+      "description": "Create four PD services (viza-prod-fe/be/runner/data) per docs/operations/pagerduty-routes.md. Set viza-primary-escalation policy. Wire Sentry alert rules + canary-pager VIZA_RUNNER_PD_KEY.",
+      "acceptanceCriteria": [
+        "Four services + escalation policy in PagerDuty",
+        "Sentry alert rules route to viza-prod-fe and viza-prod-be",
+        "Canary-pager test page lands on viza-runner",
+        "Runbook URL https://www.viza.app/docs/operations/oncall.md present on every payload",
+        "docs/integrations/pagerduty.md captures dashboard URL + how to edit the rotation"
+      ],
+      "priority": 277,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-005",
+      "title": "Bright Data zone provisioned + sticky sessions seeded",
+      "description": "Buy Bright Data residential zone, set BRIGHTDATA_USER/PASSWORD/ZONE envs, seed proxy_pool table with 10\u201330 sticky sessions per region (US/EU/SEA).",
+      "acceptanceCriteria": [
+        "Bright Data zone active with billing in place",
+        "Env vars set in submission-service deploy target",
+        "proxy_pool seeded via scripts/seed-proxy-pool.ts (new script)",
+        "pickStickySession returns a real IP from staging",
+        "docs/integrations/bright-data.md notes zone, region split, seeding script, rotation pointer"
+      ],
+      "priority": 278,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-006",
+      "title": "AWS Rekognition IAM + FACE_MATCH_PROVIDER=aws-rekognition",
+      "description": "Create dedicated IAM user with rekognition:CompareFaces only. Wire AWS_REGION + access keys + flip FACE_MATCH_PROVIDER=aws-rekognition in staging/prod.",
+      "acceptanceCriteria": [
+        "IAM user + access keys provisioned (least privilege)",
+        "Envs set in viza-fe/internal-website + viza-be/agent-backend",
+        "runFaceMatch on a staging applicant returns score from Rekognition (not mock)",
+        "@aws-sdk/client-rekognition added to viza-fe/internal-website dependencies",
+        "docs/integrations/aws-rekognition.md notes IAM policy + region + cost dashboard link"
+      ],
+      "priority": 279,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-007",
+      "title": "Twilio number + A2P 10DLC + TWILIO_FROM",
+      "description": "Provision Twilio US long code, register A2P 10DLC campaign for transactional SMS, wire TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM in staging/prod.",
+      "acceptanceCriteria": [
+        "Twilio number purchased + A2P 10DLC campaign approved",
+        "Envs set in viza-be/agent-backend deploy target",
+        "Worker delivers a test SMS in staging",
+        "docs/integrations/twilio.md captures number, campaign use-case, rotation pointer"
+      ],
+      "priority": 280,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-008",
+      "title": "Supabase PITR enabled + first base backup confirmed",
+      "description": "Upgrade Supabase project to Pro, enable PITR with 7-day retention, confirm base backup via supabase backups list.",
+      "acceptanceCriteria": [
+        "supabase backups list shows pitr_enabled=true",
+        "Retention window set to 7 days",
+        "docs/operations/dr-supabase-pitr.md cross-linked from project README"
+      ],
+      "priority": 281,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-009",
+      "title": "pg_cron schedules for fee-scraper / canary-pager / sla-breach / retention-purge",
+      "description": "Schedule the four background jobs via pg_cron \u2014 fee-scraper Sun 03:00 UTC, canary-pager every 5 min, sla-breach-sweep hourly, retention-purge daily 02:00 UTC. Each cron entry calls a Supabase Edge Function or pgmq trigger.",
+      "acceptanceCriteria": [
+        "pg_cron rows created (or Edge Function timers) for all four",
+        "Each job's first scheduled run completes successfully (verify via logs)",
+        "docs/operations/scheduled-jobs.md lists every cron entry, its schedule, its source-code pointer, and how to pause it"
+      ],
+      "priority": 282,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PROV-010",
+      "title": "sharp installed + photo_spec migration applied",
+      "description": "Install `sharp` in viza-fe/internal-website + apply migration 0071_photo_spec.sql to staging + prod so DOCUP-003 actually crops.",
+      "acceptanceCriteria": [
+        "sharp added to viza-fe/internal-website/package.json",
+        "Build succeeds with native dep on Vercel runtime",
+        "Migration 0071 applied; photo_spec rows present in staging + prod",
+        "processApplicantPhoto succeeds end-to-end against a real applicant",
+        "viza-fe/internal-website/lib/photo/README.md notes sharp dependency + runtime expectation"
+      ],
+      "priority": 283,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-001",
+      "title": "Run parallel recon harvest across 8 countries + commit snapshot",
+      "description": "Execute `npm run recon:parallel` against staging Bright Data zone, commit the harvest under recon-out/<date>/ (sanitised \u2014 no PII).",
+      "acceptanceCriteria": [
+        "Harvest completes for kh/la/lk/za/in/egypt/vietnam with <5% blocked rate",
+        "recon-out/<date>/<country>/ trees committed",
+        "Per-country anti_bot_gate flags captured in summary.json",
+        "docs/operations/recon-harvest-log.md updated with the run date + observations"
+      ],
+      "priority": 284,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-002",
+      "title": "Run promote-selectors + commit selectors.generated.ts diffs",
+      "description": "After DATA-001 lands, run `npm run promote:selectors`; review the +/~/- diff; commit the regenerated .generated.ts files.",
+      "acceptanceCriteria": [
+        "selectors.generated.ts populated for kh/la/lk/za/in",
+        "Diff posted in commit message for traceability",
+        "Stress-test still passes 95% after promotion"
+      ],
+      "priority": 285,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-003",
+      "title": "Run derive-question-sets + upsert question_set/question_field rows",
+      "description": "Run `npm run derive:question-sets` against staging + prod Supabase service-role credentials so the answer-collection UI reads from DB not the JSON snapshot fallback.",
+      "acceptanceCriteria": [
+        "question_set + question_field rows present for kh/la/lk/za/in (v1)",
+        "loadQuestionSetForApplication returns the DB row, not the snapshot fallback",
+        "docs/operations/question-sets.md notes the upsert procedure + how to bump version"
+      ],
+      "priority": 286,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-004",
+      "title": "Seed photo_spec across staging + prod",
+      "description": "Apply the photo_spec seed rows from migration 0071 to staging and prod Supabase; verify processApplicantPhoto looks up specs correctly.",
+      "acceptanceCriteria": [
+        "11 country/visa rows present in photo_spec",
+        "processApplicantPhoto resolves a spec for every shipped country",
+        "docs/operations/photo-spec.md notes seed source + how to add a country"
+      ],
+      "priority": 287,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-005",
+      "title": "ZH translation review pass for /application + /home + signup + payment + notify",
+      "description": "Existing zh.json is auto-generated; replace machine output with a human-reviewed pass for the critical surfaces. Track in commit.",
+      "acceptanceCriteria": [
+        "messages/zh.json reviewed by a fluent Mandarin speaker for the five surfaces",
+        "Reviewer name + date logged in commit message",
+        "docs/operations/i18n.md notes review cadence + glossary"
+      ],
+      "priority": 288,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-006",
+      "title": "VI translation pass replacing [VI] stub prefixes",
+      "description": "Replace messages/vi.json [VI]-prefixed placeholders with real translations for the same critical surfaces.",
+      "acceptanceCriteria": [
+        "No [VI] tokens remain in messages/vi.json for critical surfaces",
+        "Reviewer name + date logged",
+        "ICU placeholders preserved verbatim"
+      ],
+      "priority": 289,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-007",
+      "title": "ES translation pass replacing [ES] stub prefixes",
+      "description": "Replace messages/es.json [ES]-prefixed placeholders with real translations for the same critical surfaces.",
+      "acceptanceCriteria": [
+        "No [ES] tokens remain in messages/es.json for critical surfaces",
+        "Reviewer name + date logged",
+        "ICU placeholders preserved verbatim"
+      ],
+      "priority": 290,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "DATA-008",
+      "title": "Seed proxy_pool from Bright Data zone CSV",
+      "description": "Write scripts/seed-proxy-pool.ts that reads Bright Data IP list and upserts proxy_pool rows.",
+      "acceptanceCriteria": [
+        "scripts/seed-proxy-pool.ts implemented in submission-service",
+        ">= 30 active rows in proxy_pool with non-overlapping regions",
+        "Runner's pickStickySession returns a row in staging",
+        "docs/operations/proxy-pool.md notes seed source + refresh cadence"
+      ],
+      "priority": 291,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-001",
+      "title": "Fix fingerprint history applicant scope (ANTIBOT-002 bug)",
+      "description": "readRecentHistory queries runner_job by application_id=applicantId \u2014 wrong key. Correct to applicant-scoped via applications.applicant_id join.",
+      "acceptanceCriteria": [
+        "readRecentHistory returns runner_job rows for all applications belonging to the applicant within 7d",
+        "Unit test covers the join (applicant with 2 applications, 4 jobs, 5 fingerprints)",
+        "Cap of 3 distinct fingerprints per applicant per 7d window still enforced",
+        "src/runner/fingerprint.ts header comment updated to reflect applicant scope"
+      ],
+      "priority": 292,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-002",
+      "title": "Extend MFA forced-enrol gate to /staff/* paths (AUTH-003)",
+      "description": "middleware currently checks isProtectedPath which only covers /admin/*; staff routes /staff/* should also force MFA enrol on first login.",
+      "acceptanceCriteria": [
+        "/staff/* path triggers redirect to /account/security?required=1 when no verified TOTP factor",
+        "/admin-v2/* (admin-as-staff) also covered",
+        "Documented in viza-fe/internal-website/CLAUDE.md security section"
+      ],
+      "priority": 293,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-003",
+      "title": "NOTIFY worker graceful shutdown on SIGTERM",
+      "description": "startWorker() runs an infinite loop; production deploy target sends SIGTERM during rollouts. Add signal handler that finishes the current processOnce() then exits.",
+      "acceptanceCriteria": [
+        "Worker exits within 5s of SIGTERM without dropping an in-flight notification",
+        "Container health check reflects shutdown state",
+        "viza-be/agent-backend/src/notify/README.md notes shutdown contract"
+      ],
+      "priority": 294,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-004",
+      "title": "DOCUP face-match staff_review pauses submission_queue",
+      "description": "runFaceMatch sets applications.status='staff_action_required' but the submission_queue entry keeps running. Pause the queue row when status flips.",
+      "acceptanceCriteria": [
+        "submission_queue row for the application set to status='paused' when face-match decision != auto_approve",
+        "/admin shows the pause + reason in the queue view",
+        "Resume path requires staff acknowledgement",
+        "viza-be/submission-service/docs/queue-states.md updated"
+      ],
+      "priority": 295,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-005",
+      "title": "FEES scraper history rows include changed_by",
+      "description": "package_pricing_history rows written by the scraper have changed_by=NULL; record a system actor ID for audit clarity.",
+      "acceptanceCriteria": [
+        "fee-scraper.ts inserts changed_by='00000000-0000-0000-0000-000000000001' (system actor)",
+        "Same applies to canary-pager and any other automated writer",
+        "Migration documents the well-known system UUID"
+      ],
+      "priority": 296,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FIX-006",
+      "title": "Wire Sentry.init() into FE + BE app boot",
+      "description": "ALERT-001 created lib/observability/sentry.ts but never called Sentry.init() anywhere. Add to viza-fe instrumentation.ts and viza-be src/index.ts.",
+      "acceptanceCriteria": [
+        "Sentry.init() called from viza-fe/internal-website/instrumentation.ts (server) + sentry.client.config.ts (client)",
+        "Sentry.init() called from viza-be/agent-backend/src/index.ts before Express listens",
+        "@sentry/nextjs + @sentry/node added to respective package.json files",
+        "Synthetic error captured in both projects"
+      ],
+      "priority": 297,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-001",
+      "title": "E2E Playwright suite covering /signup \u2192 /application \u2192 /payment \u2192 /home",
+      "description": "End-to-end Playwright suite running against staging. Blocks prod deploys when red.",
+      "acceptanceCriteria": [
+        "tests/e2e/applicant-happy-path.spec.ts covers signup, answer set fill, doc upload, payment intent, /home landing",
+        "tests/e2e/applicant-edge-cases.spec.ts covers OCR mismatch, face-match staff_review, resume-after-blur",
+        "CI workflow tests-e2e.yml blocks prod deploy on red",
+        "docs/operations/e2e.md documents how to run locally + how to read the trace viewer"
+      ],
+      "priority": 298,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-002",
+      "title": "Accessibility WCAG AA axe-core CI gate on /home /application /signup",
+      "description": "axe-core/playwright sweep these surfaces; any new violation blocks prod.",
+      "acceptanceCriteria": [
+        "tests/a11y/* spec files for the three surfaces",
+        "CI gate tests-a11y.yml fails the build on new violations",
+        "Baseline snapshot of allowed legacy violations committed (with owners + ETA)"
+      ],
+      "priority": 299,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-003",
+      "title": "Mobile-responsive Playwright matrix (iPhone 14, Pixel 7)",
+      "description": "Snapshot key screens at iPhone 14 + Pixel 7 viewports; diff against baseline.",
+      "acceptanceCriteria": [
+        "tests/mobile/* covers /home /application/[id]/answer /signup",
+        "Snapshot diffs gated in CI",
+        "docs/operations/mobile-qa.md notes adding a new device"
+      ],
+      "priority": 300,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-004",
+      "title": "Lighthouse perf baseline (non-blocking)",
+      "description": "Track LCP/INP/CLS budgets per route; report in PR, don't block.",
+      "acceptanceCriteria": [
+        ".lighthouserc.js committed with budgets",
+        "CI uploads lighthouse runs to a dashboard or PR comment",
+        "Initial baseline numbers committed under docs/operations/perf-baseline.md"
+      ],
+      "priority": 301,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-005",
+      "title": "Execute first KH live stress test + archive results",
+      "description": "Run scripts/load-test-kh.ts against staging for the full 6h window; commit the load-test-results/<date>/kh.json snapshot.",
+      "acceptanceCriteria": [
+        "50 attempts complete with <5% anti-bot trip rate",
+        "Result JSON committed",
+        "docs/operations/load-test-history.md logs the run with anti_bot_rate + avg duration"
+      ],
+      "priority": 302,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "QA-006",
+      "title": "Execute first DR drill + branch restore checksum",
+      "description": "Run the DR-001 procedure end-to-end; capture the drill report under docs/operations/dr-drills/2026-Q2.md.",
+      "acceptanceCriteria": [
+        "Drill branch created via supabase branches create",
+        "Checksum table for applications + applicant_profiles match",
+        "Smoke test passes within 10 min of branch creation",
+        "Drill report committed"
+      ],
+      "priority": 303,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-001",
+      "title": "Refund self-service + staff approve/deny + Stripe refund/dispute webhook",
+      "description": "Applicant requests refund via /application[id]; staff approves/denies in /admin/cs; Stripe refunds API called on approve; Stripe disputes webhook routes to /admin/cs.",
+      "acceptanceCriteria": [
+        "refund_request table + RLS",
+        "/application[id] refund-request form (single-step)",
+        "/admin/cs refund-queue view with approve/deny + reason",
+        "Stripe webhooks: charge.refunded + charge.dispute.created handled idempotently",
+        "viza-fe/internal-website/app/actions/refunds.ts + docs/operations/refunds.md"
+      ],
+      "priority": 304,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-002",
+      "title": "Family / multi-applicant: N linked applications under one Stripe checkout",
+      "description": "Allow one payer to open N parallel applications (e.g. parents + kids) sharing a single payment. Independent doc upload + answer set per applicant.",
+      "acceptanceCriteria": [
+        "application_group table (group_id, payer_user_id, package_id, created_at)",
+        "/application/new accepts a multi-applicant intent + spawns N applications.applicant_id rows",
+        "Stripe checkout charges total_price * N",
+        "All N applications visible on /home with group label",
+        "Per-applicant face-match + OCR run independently",
+        "Schema additions documented in viza-be/agent-backend/CLAUDE.md"
+      ],
+      "priority": 305,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-003",
+      "title": "/admin/cs ticket queue + assign + per-ticket SLA timer",
+      "description": "Staff inbox at /admin/cs lists open + staff_replied + escalated tickets; assign to a staff member; per-ticket countdown to SLA breach.",
+      "acceptanceCriteria": [
+        "/admin/cs page with tab filters (open / mine / unassigned / breaching)",
+        "Ticket assign action writes support_ticket.assigned_to (new column via migration)",
+        "SLA timer per package_sla; breach triggers PagerDuty viza-data",
+        "viza-fe/internal-website/app/admin/cs/README.md captures architecture"
+      ],
+      "priority": 306,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-004",
+      "title": "/admin/cs macros / canned replies",
+      "description": "Per-country FAQ template library that staff can insert into a reply with one click.",
+      "acceptanceCriteria": [
+        "support_macro table (id, country, title, body, locale)",
+        "/admin/cs ticket view shows macro insert dropdown filtered by ticket.application country",
+        "Macros editable by staff role; create + edit + soft-delete",
+        "Seed of 5 macros per shipped country in db/seeds/support-macros/<country>.json"
+      ],
+      "priority": 307,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-005",
+      "title": "/admin/cs internal-notes thread (staff-only)",
+      "description": "Separate staff-only thread on a ticket so notes don't reach the applicant.",
+      "acceptanceCriteria": [
+        "support_internal_note table with RLS (staff-only)",
+        "/admin/cs ticket view shows two threads side-by-side",
+        "Internal notes never returned by loadTicketThread for applicants"
+      ],
+      "priority": 308,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-006",
+      "title": "/admin/cs KPIs dashboard",
+      "description": "Response time, resolution rate, SLA-breach count, ticket volume WoW.",
+      "acceptanceCriteria": [
+        "/admin/cs/kpis page",
+        "RPC functions for aggregations (avoid 1k-row PostgREST cap)",
+        "Charts via recharts (already a dep)"
+      ],
+      "priority": 309,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-007",
+      "title": "Stripe Identity wired in front of face-match for high-risk countries",
+      "description": "For applicants from high-risk nationalities (configurable per package), require Stripe Identity (document + selfie + liveness) before face-match runs.",
+      "acceptanceCriteria": [
+        "stripe_identity_session table tracking Stripe verification session per applicant",
+        "Required-list seeded per package (visa_packages.requires_stripe_identity boolean)",
+        "Hard block on submission_queue enqueue when Identity status != 'verified'",
+        "docs/operations/identity-verification.md notes the gate + cost-per-check"
+      ],
+      "priority": 310,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "PRODUCT-008",
+      "title": "ToS + Privacy + EU cookie consent banner",
+      "description": "Counsel-reviewed ToS + Privacy pages mounted at /legal/terms + /legal/privacy. EU cookie-consent banner blocks non-essential scripts until consent.",
+      "acceptanceCriteria": [
+        "app/legal/terms/page.tsx + app/legal/privacy/page.tsx (MDX-friendly)",
+        "Cookie consent banner (e.g. cookie-store + script gating) with reject/accept/configure",
+        "Consent state persisted in cookie + respected by analytics + Sentry session-replay opt-in",
+        "Counsel review log under docs/legal/review-log.md"
+      ],
+      "priority": 311,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OBS-001",
+      "title": "/admin/analytics product event dashboard",
+      "description": "Embed PostHog (or self-hosted) events; build /admin/analytics page with signup funnel, application-step drop-off, payment success rate, doc-upload latency.",
+      "acceptanceCriteria": [
+        "Client + server PostHog wire-up (or alternative)",
+        "Standard events fired: signup_started, signup_verified, application_step_completed, payment_intent_created, payment_succeeded, doc_uploaded, application_submitted",
+        "/admin/analytics page with 4 funnel charts using brand-* tokens",
+        "External PostHog dashboard linked from the page for deep-dive",
+        "viza-fe/internal-website/lib/analytics/README.md captures event taxonomy"
+      ],
+      "priority": 312,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OBS-002",
+      "title": "/admin/status uptime view + public status.viza.app",
+      "description": "Server-render uptime per portal (KH/LA/LK/ZA/IN/UK/AU/VN/US/FR) from portal_health + canary history; expose a public mirror under status.viza.app.",
+      "acceptanceCriteria": [
+        "/admin/status shows current status + 30d uptime per portal",
+        "public status.viza.app is a CDN-cached snapshot regenerated every 60s",
+        "Incident banner manually editable from /admin/status",
+        "docs/operations/status-page.md notes the architecture"
+      ],
+      "priority": 313,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OBS-003",
+      "title": "/admin/costs cost-monitoring with WoW alerts",
+      "description": "Pull cost totals from Bright Data, Anthropic, AWS, Twilio, Resend, Stripe Identity APIs; render WoW change + alert when above budget.",
+      "acceptanceCriteria": [
+        "Per-vendor adapter pulls daily spend (or scrapes vendor invoice)",
+        "/admin/costs page with weekly stacked bar + WoW deltas",
+        "PagerDuty alert when total WoW > +20% sustained 7d",
+        "viza-fe/internal-website/lib/costs/README.md describes adapter contract"
+      ],
+      "priority": 314,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "OBS-004",
+      "title": "/admin/storage-backups off-site backup of application-documents",
+      "description": "Nightly job copies application-documents bucket to a second region; /admin/storage-backups shows recency + size + last successful restore drill.",
+      "acceptanceCriteria": [
+        "Cron job copies bucket nightly (rclone or supabase-storage-cli)",
+        "Backup target in a different region than primary",
+        "/admin/storage-backups shows last_success_at + size + age alert when > 36h",
+        "Quarterly restore drill into a scratch bucket logged here",
+        "docs/operations/storage-backups.md captures procedure"
+      ],
+      "priority": 315,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
