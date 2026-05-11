@@ -2101,3 +2101,14 @@ acknowledgment).
 - All typechecks clean.
 - Learning: i18n stub generation via tagged-prefix preserves ICU placeholders {} which would break if naively replaced — easy regression to miss when a translator does literal string-substitution.
 ---
+
+## 2026-05-11 - PRD extension: 42 new stories from gap audit
+- Added 6 epics (PROV/DATA/FIX/QA/PRODUCT/OBS) totalling 42 stories addressing real-product gaps beyond the original 273.
+- PROV-001..010 (10): Stripe live + Resend domain + Sentry/PD/BrightData/AWS/Twilio/Supabase PITR + pg_cron + sharp install. Order: Stripe + Resend first per user direction.
+- DATA-001..008 (8): execute the harvest/promote/derive pipelines that the previous loop only built scripts for; replace vi/es stub translations; seed proxy_pool.
+- FIX-001..006 (6): one story per code-shortcut bug — fingerprint applicant-scope, /staff/* MFA gate, NOTIFY graceful shutdown, face-match→queue pause, scraper changed_by, Sentry.init() wiring.
+- QA-001..006 (6): E2E Playwright + WCAG a11y + mobile responsive = blocking gates; Lighthouse non-blocking; first live KH stress run; first DR drill.
+- PRODUCT-001..008 (8): refunds + family multi-applicant + /admin/cs (queue/macros/notes/KPIs) + Stripe Identity + ToS/Privacy/cookie consent. Marketing pages explicitly deferred (user handles).
+- OBS-001..004 (4): /admin/analytics + /admin/status + /admin/costs + /admin/storage-backups — observability surfaces live INSIDE /admin per user direction, not external dashboards only.
+- Each story's acceptanceCriteria includes a docs/README update line so the loop driver doesn't drop modules in silently. Captured in memory as feedback_documentation_architecture.md.
+---
