@@ -2153,3 +2153,11 @@ acknowledgment).
 - Note: actual migration push to staging/prod = DATA-004 (still onHold) since it needs Supabase migration apply credentials.
 - typecheck clean (sharp lazy-loaded, doesn't break tsc).
 ---
+
+## 2026-05-11 - FIX-001
+- Bug fix: ANTIBOT-002 readRecentHistory queried runner_job WHERE application_id=applicantId (wrong key — applicantId is not an application_id). Result: cap silently undercounted distinct fingerprints across a family/multi-app applicant.
+- Fix: select applications WHERE applicant_id=applicantId → IN-list of application IDs → runner_job IN those.
+- Module header updated to call out applicant scope explicitly.
+- typecheck clean.
+- Unit test stub deferred — will land alongside FIX-tests when QA-001 lands.
+---
