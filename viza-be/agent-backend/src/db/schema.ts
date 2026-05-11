@@ -56,6 +56,7 @@ export const applicantProfiles = pgTable("applicant_profiles", {
 	email: text("email"),
 	phone: text("phone"),
 	wechat: text("wechat"),
+	dependantOfUserId: uuid("dependant_of_user_id"),
 	languagePref: text("language_pref").default("en").notNull(),
 	onboardingDone: boolean("onboarding_done").default(false).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -90,6 +91,7 @@ export const applications = pgTable("applications", {
 	submissionResult: jsonb("submission_result"),
 	submissionResultStatus: text("submission_result_status"),
 	submissionResultUpdatedAt: timestamp("submission_result_updated_at", { withTimezone: true }),
+	groupId: uuid("group_id"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -794,4 +796,23 @@ export const refundRequest = pgTable("refund_request", {
 
 export type RefundRequest = typeof refundRequest.$inferSelect;
 export type NewRefundRequest = typeof refundRequest.$inferInsert;
+
+// =============================================================================
+// APPLICATION GROUP (PRODUCT-002)
+// =============================================================================
+
+export const applicationGroup = pgTable("application_group", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  payerUserId: uuid("payer_user_id").notNull(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  label: text("label"),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  totalAmountCents: integer("total_amount_cents"),
+  currency: text("currency").notNull().default("USD"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ApplicationGroup = typeof applicationGroup.$inferSelect;
+export type NewApplicationGroup = typeof applicationGroup.$inferInsert;
 
