@@ -2215,3 +2215,12 @@ acknowledgment).
 - All typechecks clean.
 - Learning: keeping KPI aggregation in TS is fine until volume hits PostgREST's 1k-row cap — README marks the swap-to-RPC trigger so it doesn't sneak up.
 ---
+
+## 2026-05-11 - PRODUCT-007
+- Migration 0084_stripe_identity: stripe_identity_session table (per applicant + application + session_id + status + last_error_code + last_report_id) with applicant-own + staff-all RLS. visa_packages.requires_stripe_identity boolean default false.
+- Drizzle: stripeIdentitySession schema; visaPackages.requiresStripeIdentity column reference deferred to next schema edit if needed (column exists via ALTER TABLE).
+- app/actions/stripe-identity.ts: startStripeIdentitySession (lazy-loads stripe SDK, creates verificationSession with require_live_capture + require_matching_selfie), recordStripeIdentityEvent (webhook handler), isApplicationIdentityVerified (gate predicate for enqueue check).
+- docs/operations/identity-verification.md captures: gate semantics, per-package flag SQL, flow diagram, webhook snippet for app/api/stripe/webhooks/route.ts (identity.verification_session.* events), cost guidance pointing at OBS-003, failure-mode triage, "what this is NOT" clarification vs DOCUP-004 face-match.
+- All typechecks clean.
+- Learning: keeping Stripe Identity separate from face-match preserves defense-in-depth — Stripe proves document genuine + selfie matches doc, face-match proves selfie matches our-stored-photo. Both fail safely.
+---
