@@ -4017,7 +4017,7 @@
         "docs/integrations/bright-data.md notes zone, region split, seeding script, rotation pointer"
       ],
       "priority": 278,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
