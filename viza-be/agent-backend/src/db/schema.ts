@@ -729,6 +729,25 @@ export const supportInternalNote = pgTable("support_internal_note", {
 export type SupportInternalNote = typeof supportInternalNote.$inferSelect;
 export type NewSupportInternalNote = typeof supportInternalNote.$inferInsert;
 
+// =============================================================================
+// STRIPE IDENTITY (PRODUCT-007)
+// =============================================================================
+
+export const stripeIdentitySession = pgTable("stripe_identity_session", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id").notNull(),
+  sessionId: text("session_id").notNull().unique(),
+  status: text("status").notNull().default("requires_input"),
+  lastErrorCode: text("last_error_code"),
+  lastReportId: text("last_report_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type StripeIdentitySession = typeof stripeIdentitySession.$inferSelect;
+export type NewStripeIdentitySession = typeof stripeIdentitySession.$inferInsert;
+
 export type SupportTicket = typeof supportTicket.$inferSelect;
 export type NewSupportTicket = typeof supportTicket.$inferInsert;
 
