@@ -16,6 +16,13 @@
 
 import { getSupabaseClient } from "../db/supabase-client.js";
 
+/**
+ * Well-known UUID for the "system" actor — used in audit rows produced by
+ * automated jobs (no human auth.user.id available). Keep in sync with
+ * `docs/operations/system-actor.md`.
+ */
+export const SYSTEM_ACTOR_UUID = "00000000-0000-0000-0000-000000000001";
+
 interface ScrapeResult {
   visaPackageId: string;
   country: string;
@@ -189,6 +196,9 @@ async function persistResult(r: ScrapeResult): Promise<void> {
     government_fee_cents: r.governmentFeeCents ?? 0,
     agency_fee_cents: r.agencyFeeCents,
     source: r.source,
+    // Well-known system-actor UUID so audit queries can distinguish
+    // automated writes from staff overrides without joining auth.users.
+    changed_by: SYSTEM_ACTOR_UUID,
     reason: "weekly fee scraper",
   });
 }

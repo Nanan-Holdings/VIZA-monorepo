@@ -45,6 +45,10 @@ export async function updateSession(request: NextRequest) {
   // All paths that require an admin role in the `users` table
   const isAdminLogin = pathname === "/admin/login";
   const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin;
+  const isStaffPath = pathname.startsWith("/staff") || pathname.startsWith("/admin-v2");
+  // Both /admin/* (system admin) and /staff/* + /admin-v2/* (operations staff)
+  // must enroll MFA before they touch the console.
+  const isMfaRequiredPath = isProtectedPath || isStaffPath;
 
   // Protect authenticated routes - redirect to login if not authenticated
   if (!user && isProtectedPath) {
@@ -92,7 +96,7 @@ export async function updateSession(request: NextRequest) {
     // we don't trap users in a redirect loop.
     if (
       (userRole === "admin" || userRole === "staff") &&
-      isProtectedPath &&
+      isMfaRequiredPath &&
       !pathname.startsWith("/account/security")
     ) {
       const factorListResponse = await supabase.auth.mfa.listFactors();
