@@ -2146,3 +2146,10 @@ acknowledgment).
 - Human handoff: enable pg_cron + pg_net, set app.edge_url + app.edge_secret, deploy Edge Functions matching each /jobs/<name>.
 - typecheck unchanged (SQL only).
 ---
+
+## 2026-05-11 - PROV-010
+- viza-fe/internal-website/package.json: added "sharp": "^0.34.0" dependency. Lock file regen + Vercel build verification deferred to deploy-side install (script defers to npm install at deploy target).
+- viza-fe/internal-website/lib/photo/README.md captures: server-only runtime contract, sharp hard dependency note, Vercel Node runtime requirement (no Edge), spec sourcing from photo_spec table, "Adding a country" recipe, crop-region resolution order.
+- Note: actual migration push to staging/prod = DATA-004 (still onHold) since it needs Supabase migration apply credentials.
+- typecheck clean (sharp lazy-loaded, doesn't break tsc).
+---
