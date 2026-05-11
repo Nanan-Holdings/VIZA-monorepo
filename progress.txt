@@ -2224,3 +2224,11 @@ acknowledgment).
 - All typechecks clean.
 - Learning: keeping Stripe Identity separate from face-match preserves defense-in-depth — Stripe proves document genuine + selfie matches doc, face-match proves selfie matches our-stored-photo. Both fail safely.
 ---
+
+## 2026-05-11 - PRODUCT-008
+- /legal/terms + /legal/privacy server-rendered MDX-shaped pages with placeholder counsel-pending text and explicit yellow-callout marker so staging shows the placeholder.
+- components/cookie-consent.tsx EU consent banner: first-party cookie viza_cookie_consent={accept|reject|configure} (365d max-age, SameSite=Lax), getConsent() helper exported for analytics + Sentry session-replay gating. Banner renders only when no choice set, hydrates client-side to avoid SSR flash.
+- docs/legal/review-log.md captures the 5 legal surfaces + counsel-review tracking table + process + launch-gate criterion (every surface must show reviewed before public marketing site goes live).
+- typecheck clean.
+- Learning: defer reading getConsent() until analytics init so non-essential scripts never fire before consent — easy GDPR landmine if a third-party SDK auto-inits on import.
+---
