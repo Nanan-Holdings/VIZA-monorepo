@@ -4298,7 +4298,7 @@
         "docs/operations/e2e.md documents how to run locally + how to read the trace viewer"
       ],
       "priority": 298,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4311,7 +4311,7 @@
         "Baseline snapshot of allowed legacy violations committed (with owners + ETA)"
       ],
       "priority": 299,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4324,7 +4324,7 @@
         "docs/operations/mobile-qa.md notes adding a new device"
       ],
       "priority": 300,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4337,7 +4337,7 @@
         "Initial baseline numbers committed under docs/operations/perf-baseline.md"
       ],
       "priority": 301,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

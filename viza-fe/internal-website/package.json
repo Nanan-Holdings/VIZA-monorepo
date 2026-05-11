@@ -11,7 +11,10 @@
     "sync:check": "npx tsx scripts/check-sync.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test --project=e2e-desktop",
+    "test:a11y": "playwright test --project=a11y",
+    "test:mobile": "playwright test --project=mobile-iphone-14 --project=mobile-pixel-7"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

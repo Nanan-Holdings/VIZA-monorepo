@@ -2170,3 +2170,17 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: scoping MFA gate to a single path family was the symptom of treating /staff/* and /admin/* as separate concerns; consolidated under one isMfaRequiredPath flag.
 ---
+
+## 2026-05-11 - QA-001..004 (batch)
+- viza-fe/internal-website/playwright.config.ts: 4 projects (e2e-desktop, a11y, mobile-iphone-14, mobile-pixel-7) sharing baseURL from PLAYWRIGHT_BASE_URL.
+- tests/e2e/applicant-{happy-path,edge-cases}.spec.ts: signup → login → answer-step persist → payment intent; resume-after-blur + OCR-mismatch edge cases. Tests skip cleanly without STAGING_TEST_EMAIL so they don't fail on local dev.
+- tests/a11y/critical-surfaces.spec.ts: axe-core WCAG2A/AA/21AA sweep on /home /signup; baseline.json (currently empty) for tolerated legacy violations.
+- tests/mobile/critical-surfaces.spec.ts: snapshot test for /home + /signup on iPhone 14 + Pixel 7 viewports.
+- .lighthouserc.js: LCP<2.5s, CLS<0.1, INP<200ms warn-only thresholds (non-blocking).
+- .github/workflows/qa-gates.yml: e2e + a11y + mobile gate the deploy, lighthouse runs on main with continue-on-error.
+- tsconfig.json excludes tests/ + playwright.config.ts since @playwright/test is a deploy-target dep (CI installs via package.json devDeps that the user will add when running `npm i -D`).
+- npm scripts test:e2e / test:a11y / test:mobile.
+- docs/operations/qa-gates.md captures: pipeline overview + local commands + env requirements + adding-new-test recipe + snapshot update workflow + baseline a11y allowance policy.
+- typecheck clean.
+- Learning: a single Playwright config with named projects beats four separate workflows because runners can be filtered with `--project=<name>` and CI cache hits across them.
+---
