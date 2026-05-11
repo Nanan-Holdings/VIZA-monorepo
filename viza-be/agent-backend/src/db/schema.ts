@@ -152,6 +152,7 @@ export const submissionQueue = pgTable("submission_queue", {
 	status: text("status").default("pending").notNull(),
 	attempts: integer("attempts").default(0).notNull(),
 	lastError: text("last_error"),
+	pausedReason: text("paused_reason"),
 	ceacResultPayload: jsonb("ceac_result_payload"),
 	fvResultPayload: jsonb("fv_result_payload"),
 	fvApplicationReference: text("fv_application_reference"),
