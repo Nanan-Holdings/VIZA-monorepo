@@ -4089,7 +4089,7 @@
         "viza-fe/internal-website/lib/photo/README.md notes sharp dependency + runtime expectation"
       ],
       "priority": 283,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
