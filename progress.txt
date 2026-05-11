@@ -2232,3 +2232,12 @@ acknowledgment).
 - typecheck clean.
 - Learning: defer reading getConsent() until analytics init so non-essential scripts never fire before consent — easy GDPR landmine if a third-party SDK auto-inits on import.
 ---
+
+## 2026-05-11 - OBS-001..004 (observability bundle, all inside /admin)
+- OBS-001 /admin/analytics: lib/analytics/events.ts EVENT enum (13 events) + track() helper gated by viza_cookie_consent=accept cookie (PRODUCT-008 gate); lazy-loads posthog-js (NEXT_PUBLIC_POSTHOG_KEY env-driven). Page renders 5-stage funnel placeholder (signed up → email verified → application created → payment succeeded → submitted) + external PostHog deep-dive link. lib/analytics/README.md captures taxonomy table per fire-site.
+- OBS-002 /admin/status: reads portal_health, renders per-country status pill + last-ok/last-fail timestamps + 30d uptime stub; STATUS_INCIDENT_BANNER env for manual override; public mirror at status.viza.app linked.
+- OBS-003 /admin/costs: lib/costs/adapters.ts CostAdapter interface with 6 stub adapters (Bright Data, Anthropic, AWS, Twilio, Resend, Stripe Identity); aggregateLastWeeks() returns per-vendor 7d spend + WoW delta + 14-day series for inline sparkline. Total card with delta-toned color. lib/costs/README.md documents real-adapter wiring contract + per-vendor source API.
+- OBS-004 /admin/storage-backups: migration 0085_storage_backup_log + Drizzle storageBackupLog. Page shows latest successful backup + size + last drill date; > 36h age alert. docs/operations/storage-backups.md captures cron entry SQL (extension of 0079), restore-drill procedure, cost guidance into OBS-003.
+- All typechecks clean (FE + BE).
+- Learning: cost adapters as a pluggable interface (vs hard-wiring one vendor) keeps /admin/costs from breaking when any single vendor adds/removes/renames their billing API — failure in one stays scoped.
+---

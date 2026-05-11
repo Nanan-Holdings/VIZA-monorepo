@@ -748,6 +748,26 @@ export const stripeIdentitySession = pgTable("stripe_identity_session", {
 export type StripeIdentitySession = typeof stripeIdentitySession.$inferSelect;
 export type NewStripeIdentitySession = typeof stripeIdentitySession.$inferInsert;
 
+// =============================================================================
+// STORAGE BACKUP LOG (OBS-004)
+// =============================================================================
+
+export const storageBackupLog = pgTable("storage_backup_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bucket: text("bucket").notNull(),
+  target: text("target").notNull(),
+  status: text("status").notNull(),
+  bytes: integer("bytes"),
+  objectCount: integer("object_count"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  error: text("error"),
+  isDrill: boolean("is_drill").notNull().default(false),
+});
+
+export type StorageBackupLog = typeof storageBackupLog.$inferSelect;
+export type NewStorageBackupLog = typeof storageBackupLog.$inferInsert;
+
 export type SupportTicket = typeof supportTicket.$inferSelect;
 export type NewSupportTicket = typeof supportTicket.$inferInsert;
 
