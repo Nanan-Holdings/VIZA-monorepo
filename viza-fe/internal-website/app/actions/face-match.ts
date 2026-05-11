@@ -78,6 +78,26 @@ export async function runFaceMatch(applicationId: string): Promise<FaceMatchActi
       .from("applications")
       .update({ status: "staff_action_required", updated_at: new Date().toISOString() })
       .eq("id", app.id);
+
+    // Pause every active submission_queue entry for this application so the
+    // runner doesn't continue to the government portal while staff reviews.
+    // Staff resumes via /admin/cs or by approving on the application page.
+    await adminClient
+      .from("submission_queue")
+      .update({
+        status: "paused",
+        paused_reason: `face_match_${decision}:${result.score.toFixed(2)}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("application_id", app.id)
+      .in("status", ["queued", "processing"]);
+
+    // Same for runner_job (INFRA-002 backing table).
+    await adminClient
+      .from("runner_job")
+      .update({ status: "paused" })
+      .eq("application_id", app.id)
+      .in("status", ["queued", "running"]);
   }
 
   return { ok: true, score: result.score, decision };

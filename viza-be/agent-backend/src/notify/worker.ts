@@ -204,10 +204,22 @@ export async function processOnce(deps: NotifyDeps = {}): Promise<{ processed: n
   return { processed: rows?.length ?? 0, sent, dlq };
 }
 
+let shutdownRequested = false;
+
+export function requestShutdown(): void {
+  shutdownRequested = true;
+}
+
 export async function startWorker(): Promise<void> {
   console.log(`[notify-worker] starting — poll every ${POLL_INTERVAL_MS}ms, max ${MAX_ATTEMPTS} attempts`);
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  const onSignal = (sig: NodeJS.Signals): void => {
+    console.log(`[notify-worker] received ${sig} — draining current tick then exiting`);
+    requestShutdown();
+  };
+  process.once("SIGTERM", onSignal);
+  process.once("SIGINT", onSignal);
+
+  while (!shutdownRequested) {
     try {
       const result = await processOnce();
       if (result.processed > 0) {
@@ -218,6 +230,8 @@ export async function startWorker(): Promise<void> {
     } catch (err) {
       console.error("[notify-worker] tick failed:", err instanceof Error ? err.message : String(err));
     }
+    if (shutdownRequested) break;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
+  console.log("[notify-worker] drained — bye");
 }

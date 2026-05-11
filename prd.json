@@ -4230,7 +4230,7 @@
         "Documented in viza-fe/internal-website/CLAUDE.md security section"
       ],
       "priority": 293,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4243,7 +4243,7 @@
         "viza-be/agent-backend/src/notify/README.md notes shutdown contract"
       ],
       "priority": 294,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4257,7 +4257,7 @@
         "viza-be/submission-service/docs/queue-states.md updated"
       ],
       "priority": 295,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4270,7 +4270,7 @@
         "Migration documents the well-known system UUID"
       ],
       "priority": 296,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

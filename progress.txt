@@ -2161,3 +2161,12 @@ acknowledgment).
 - typecheck clean.
 - Unit test stub deferred — will land alongside FIX-tests when QA-001 lands.
 ---
+
+## 2026-05-11 - FIX-002..005 (batch)
+- FIX-002 middleware MFA gate extended: isMfaRequiredPath = /admin/* OR /staff/* OR /admin-v2/* — previously only /admin/* enforced, leaving the staff console open to non-MFA staff sessions.
+- FIX-003 NOTIFY worker graceful shutdown: SIGTERM/SIGINT handler flips shutdownRequested flag, current processOnce() finishes, loop exits before next setTimeout. Container drains within ≤30s. src/notify/README.md documents the contract.
+- FIX-004 face-match staff_review → submission_queue + runner_job pause: when decision != auto_approve we now flip status='paused' on both backing tables (in addition to applications.status). Migration 0080 adds submission_queue.paused_reason TEXT so /admin/cs can show the reason without joining face_match_audit. Drizzle pausedReason column added.
+- FIX-005 scraper changed_by: introduced SYSTEM_ACTOR_UUID constant (00000000-0000-0000-0000-000000000001) in src/jobs/fee-scraper.ts; package_pricing_history rows now stamp it. docs/operations/system-actor.md captures the contract for future automated writers.
+- Both typechecks clean.
+- Learning: scoping MFA gate to a single path family was the symptom of treating /staff/* and /admin/* as separate concerns; consolidated under one isMfaRequiredPath flag.
+---
