@@ -2195,3 +2195,13 @@ acknowledgment).
 - Both typechecks clean.
 - Learning: splitting "request lifecycle" from "money mechanic" avoids duplicating the existing refundability-rules logic and lets the audit table stay applicant-scoped while the financial primitive stays order-scoped.
 ---
+
+## 2026-05-11 - PRODUCT-002
+- Family / multi-applicant: N linked applications under one Stripe checkout.
+- Migration 0082_application_group: application_group (payer_user_id, visa_package_id, label, stripe_checkout_session_id, total_amount_cents, currency) + applications.group_id FK + applicant_profiles.dependant_of_user_id (nullable; ties dependant profiles back to payer's auth.users.id without giving them a login).
+- Drizzle: applicationGroup table + applications.groupId + applicantProfiles.dependantOfUserId.
+- app/actions/application-group.ts createApplicationGroup: validates 1-10 members + exactly-one payer, inserts group + per-member applicant_profiles (payer reuses existing) + per-member applications rows with group_id linkage. listMyGroups joins applications for /home.
+- docs/operations/family-applications.md captures: data model, flow, RLS extension policy snippet (separate migration when /home group view ships), limits (max 10 / same package / MVP), audit pointers.
+- Both typechecks clean.
+- Learning: dependants get an applicant_profiles row WITHOUT auth_user_id — payer manages via dependant_of_user_id pointer, keeps existing RLS intact while extending coverage.
+---
