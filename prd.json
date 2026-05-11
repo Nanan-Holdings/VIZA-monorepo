@@ -4494,7 +4494,7 @@
         "viza-fe/internal-website/lib/analytics/README.md captures event taxonomy"
       ],
       "priority": 312,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4508,7 +4508,7 @@
         "docs/operations/status-page.md notes the architecture"
       ],
       "priority": 313,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4522,7 +4522,7 @@
         "viza-fe/internal-website/lib/costs/README.md describes adapter contract"
       ],
       "priority": 314,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4537,7 +4537,7 @@
         "docs/operations/storage-backups.md captures procedure"
       ],
       "priority": 315,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
