@@ -3955,7 +3955,8 @@
       ],
       "priority": 274,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Stripe live account + dashboard access",
+      "onHold": true
     },
     {
       "id": "PROV-002",
@@ -3970,7 +3971,8 @@
       ],
       "priority": 275,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Resend account + viza.app DNS access",
+      "onHold": true
     },
     {
       "id": "PROV-003",
@@ -3984,7 +3986,7 @@
         "docs/operations/sentry.md describes the wiring + first-error verification"
       ],
       "priority": 276,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4000,7 +4002,8 @@
       ],
       "priority": 277,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires PagerDuty account + rotation owners",
+      "onHold": true
     },
     {
       "id": "PROV-005",
@@ -4044,7 +4047,8 @@
       ],
       "priority": 280,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Twilio account + A2P 10DLC registration",
+      "onHold": true
     },
     {
       "id": "PROV-008",
@@ -4057,7 +4061,8 @@
       ],
       "priority": 281,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Supabase Pro plan billing + dashboard toggle",
+      "onHold": true
     },
     {
       "id": "PROV-009",
@@ -4099,7 +4104,8 @@
       ],
       "priority": 284,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Bright Data zone + real chromium recon execution",
+      "onHold": true
     },
     {
       "id": "DATA-002",
@@ -4112,7 +4118,8 @@
       ],
       "priority": 285,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: depends on DATA-001",
+      "onHold": true
     },
     {
       "id": "DATA-003",
@@ -4125,7 +4132,8 @@
       ],
       "priority": 286,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires SUPABASE_SERVICE_ROLE_KEY for real upsert",
+      "onHold": true
     },
     {
       "id": "DATA-004",
@@ -4138,7 +4146,8 @@
       ],
       "priority": 287,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Supabase prod migration apply",
+      "onHold": true
     },
     {
       "id": "DATA-005",
@@ -4151,7 +4160,8 @@
       ],
       "priority": 288,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires human ZH reviewer",
+      "onHold": true
     },
     {
       "id": "DATA-006",
@@ -4164,7 +4174,8 @@
       ],
       "priority": 289,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires human VI reviewer",
+      "onHold": true
     },
     {
       "id": "DATA-007",
@@ -4177,7 +4188,8 @@
       ],
       "priority": 290,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires human ES reviewer",
+      "onHold": true
     },
     {
       "id": "DATA-008",
@@ -4191,7 +4203,8 @@
       ],
       "priority": 291,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Bright Data zone CSV from PROV-005",
+      "onHold": true
     },
     {
       "id": "FIX-001",
@@ -4271,7 +4284,7 @@
         "Synthetic error captured in both projects"
       ],
       "priority": 297,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4338,7 +4351,8 @@
       ],
       "priority": 302,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires real Bright Data + 6h wall-clock run",
+      "onHold": true
     },
     {
       "id": "QA-006",
@@ -4352,7 +4366,8 @@
       ],
       "priority": 303,
       "passes": false,
-      "notes": ""
+      "notes": "Blocked: requires Supabase Pro + PITR enabled (PROV-008)",
+      "onHold": true
     },
     {
       "id": "PRODUCT-001",
