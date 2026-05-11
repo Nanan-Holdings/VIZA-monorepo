@@ -4032,7 +4032,7 @@
         "docs/integrations/aws-rekognition.md notes IAM policy + region + cost dashboard link"
       ],
       "priority": 279,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

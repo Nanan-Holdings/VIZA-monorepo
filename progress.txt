@@ -2130,3 +2130,10 @@ acknowledgment).
 - typecheck clean.
 - Human handoff documented; story-level pass marks the code-side ready. DATA-008 (actual seed run) remains onHold.
 ---
+
+## 2026-05-11 - PROV-006
+- AWS Rekognition handoff doc: docs/integrations/aws-rekognition.md captures IAM least-privilege policy (CompareFaces only), region choice for GDPR data residency (us-east-1 default, eu-west-1 EU), env block, npm install step, smoke-test recipe, cost guidance ($0.001/call → /admin/costs OBS-003 wiring), rotation pointer.
+- Code already in place from DOCUP-004 (lib/face/match.ts lazy-loads SDK); story is now provisioning-doc-only.
+- typecheck unchanged.
+- Human handoff: IAM user + install + env flip.
+---
