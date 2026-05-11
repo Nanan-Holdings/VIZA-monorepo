@@ -4465,7 +4465,7 @@
         "docs/operations/identity-verification.md notes the gate + cost-per-check"
       ],
       "priority": 310,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
