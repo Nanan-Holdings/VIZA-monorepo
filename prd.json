@@ -4411,7 +4411,7 @@
         "viza-fe/internal-website/app/admin/cs/README.md captures architecture"
       ],
       "priority": 306,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4425,7 +4425,7 @@
         "Seed of 5 macros per shipped country in db/seeds/support-macros/<country>.json"
       ],
       "priority": 307,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4438,7 +4438,7 @@
         "Internal notes never returned by loadTicketThread for applicants"
       ],
       "priority": 308,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -4451,7 +4451,7 @@
         "Charts via recharts (already a dep)"
       ],
       "priority": 309,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
