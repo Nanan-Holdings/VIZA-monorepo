@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   buildTravelStateFromMessages,
   createTravelFormMessage,
-  FIELD_QUESTIONS,
+  getFieldQuestionForState,
   nextMissingField,
   toTravelPlanningPayload,
   type ChatLikeMessage,
@@ -68,6 +68,10 @@ const OTHER_CITY_VALUE = "__city_other__";
 
 function normalizeToken(value: string): string {
   return value.trim();
+}
+
+function normalizeLookupKey(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function splitCustomValues(input: string): string[] {
@@ -728,6 +732,10 @@ export function TravelPlannerForm({
   );
 
   const busy = status === "submitted" || status === "streaming";
+  const fieldQuestion = useMemo(
+    () => getFieldQuestionForState(travelState, missingField ?? "country"),
+    [missingField, travelState]
+  );
 
   const [countries, setCountries] = useState<string[]>(travelState.countries);
   const [cities, setCities] = useState<string[]>(travelState.cities);
@@ -819,8 +827,21 @@ export function TravelPlannerForm({
   }, []);
 
   useEffect(() => {
-    setCountries(travelState.countries);
-    setCities(travelState.cities);
+    const nextCountries =
+      travelState.countries.length > 0
+        ? travelState.countries
+        : travelState.seed_country
+          ? [travelState.seed_country]
+          : [];
+    const nextCities =
+      travelState.cities.length > 0
+        ? travelState.cities
+        : travelState.seed_city
+          ? [travelState.seed_city]
+          : [];
+
+    setCountries(nextCountries);
+    setCities(nextCities);
     setTravelers(travelState.travelers?.toString() ?? "");
     setBudget(travelState.budget?.toString() ?? "");
     setOriginCountry(travelState.origin_country ?? "");
@@ -830,7 +851,11 @@ export function TravelPlannerForm({
     setTravelOrder(
       travelState.travel_order.length === travelState.cities.length
         ? travelState.travel_order
-        : travelState.cities
+        : travelState.cities.length > 0
+          ? travelState.cities
+          : nextCities.length === 1
+            ? nextCities
+            : []
     );
 
     const nextDraft: Record<string, string> = {};
@@ -1033,6 +1058,19 @@ export function TravelPlannerForm({
     () => withOtherOption(cityOptions, OTHER_CITY_VALUE, "其他（自定义城市）"),
     [cityOptions]
   );
+  const cityOptionsForStep = useMemo(() => {
+    if (missingField !== "cities") return cityOptionsWithOther;
+    if (!travelState.seed_city || travelState.cities.length > 0) {
+      return cityOptionsWithOther;
+    }
+
+    const seedKey = normalizeLookupKey(travelState.seed_city);
+    return cityOptionsWithOther.filter(
+      (option) =>
+        option.value === OTHER_CITY_VALUE ||
+        normalizeLookupKey(option.value) !== seedKey
+    );
+  }, [cityOptionsWithOther, missingField, travelState.cities.length, travelState.seed_city]);
   const citySet = useMemo(() => new Set(cities), [cities]);
 
   const resolvedCountries = useMemo(() => {
@@ -1135,6 +1173,28 @@ export function TravelPlannerForm({
     });
   };
 
+  const submitCountries = useCallback(() => {
+    if (!resolvedCountries.length) {
+      toast.error("请至少选择一个国家。");
+      return;
+    }
+    sendStructuredMessage({
+      countries: resolvedCountries,
+      country: resolvedCountries.join("、"),
+    });
+  }, [resolvedCountries, sendStructuredMessage]);
+
+  const submitCities = useCallback(() => {
+    if (!resolvedCities.length) {
+      toast.error("请至少选择一个城市。");
+      return;
+    }
+    sendStructuredMessage({
+      cities: resolvedCities,
+      travel_order: resolvedCities.length === 1 ? resolvedCities : undefined,
+    });
+  }, [resolvedCities, sendStructuredMessage]);
+
   if (!missingField) {
     return null;
   }
@@ -1146,7 +1206,7 @@ export function TravelPlannerForm({
     >
       <div className="mb-3 rounded-xl border border-sky-100/80 bg-gradient-to-r from-sky-50 to-cyan-50/70 px-3 py-2.5">
         <div className="text-sm font-semibold text-slate-900">旅行信息向导</div>
-        <div className="mt-0.5 text-xs text-slate-600">{FIELD_QUESTIONS[missingField]}</div>
+        <div className="mt-0.5 text-xs text-slate-600">{fieldQuestion}</div>
       </div>
 
       {missingField === "country" && (
@@ -1176,19 +1236,19 @@ export function TravelPlannerForm({
           <Button
             className="w-full"
             disabled={busy || isLoadingCountryOptions || countries.length === 0}
-            onClick={() => {
-              if (!resolvedCountries.length) {
-                toast.error("请至少选择一个国家。");
-                return;
-              }
-              sendStructuredMessage({
-                countries: resolvedCountries,
-                country: resolvedCountries.join("、"),
-              });
-            }}
+            onClick={submitCountries}
             size="sm"
           >
             确认国家
+          </Button>
+          <Button
+            className="w-full"
+            disabled={busy || isLoadingCountryOptions || countries.length === 0}
+            onClick={submitCountries}
+            size="sm"
+            variant="outline"
+          >
+            没有别的国家了
           </Button>
         </div>
       )}
@@ -1203,7 +1263,7 @@ export function TravelPlannerForm({
           <SearchableMultiSelect
             disabled={busy || countries.length === 0 || isLoadingCityOptions}
             onChange={setCities}
-            options={cityOptionsWithOther}
+            options={cityOptionsForStep}
             placeholder={
               !countries.length
                 ? "请先选择国家后再选城市"
@@ -1229,19 +1289,19 @@ export function TravelPlannerForm({
           <Button
             className="w-full"
             disabled={busy || isLoadingCityOptions || cities.length === 0}
-            onClick={() => {
-              if (!resolvedCities.length) {
-                toast.error("请至少选择一个城市。");
-                return;
-              }
-              sendStructuredMessage({
-                cities: resolvedCities,
-                travel_order: resolvedCities,
-              });
-            }}
+            onClick={submitCities}
             size="sm"
           >
             确认城市
+          </Button>
+          <Button
+            className="w-full"
+            disabled={busy || isLoadingCityOptions || cities.length === 0}
+            onClick={submitCities}
+            size="sm"
+            variant="outline"
+          >
+            没有别的城市了
           </Button>
         </div>
       )}

@@ -101,6 +101,8 @@ export type TravelState = {
   country: string | null;
   countries: string[];
   cities: string[];
+  seed_country: string | null;
+  seed_city: string | null;
   city_days: Record<string, number>;
   travelers: number | null;
   budget: number | null;
@@ -154,6 +156,8 @@ type TravelFormPayload = Partial<TravelPayload> & {
   country?: string;
   countries?: string[];
   cities?: string[];
+  seed_country?: string;
+  seed_city?: string;
   city_days?: Record<string, number>;
   travelers?: number;
   budget?: number;
@@ -195,6 +199,21 @@ export const FIELD_QUESTIONS: Record<TravelField, string> = {
   final_note:
     "最后一步：可填写备注并附上文件说明（可留空），然后生成最终行程。",
 };
+
+export function getFieldQuestionForState(
+  state: Pick<TravelState, "seed_country" | "seed_city">,
+  field: TravelField
+): string {
+  if (field === "country" && state.seed_country) {
+    return "还有哪些国家想去吗？请选择国家（可搜索、可多选）。如果没有别的国家，可点击“没有别的国家了”。";
+  }
+
+  if (field === "cities" && state.seed_city) {
+    return "还有哪些城市想去吗？请选择城市（可搜索、可多选）。如果没有别的城市，可点击“没有别的城市了”。";
+  }
+
+  return FIELD_QUESTIONS[field];
+}
 
 function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -404,6 +423,8 @@ export function createInitialTravelState(): TravelState {
     country: null,
     countries: [],
     cities: [],
+    seed_country: null,
+    seed_city: null,
     city_days: {},
     travelers: null,
     budget: null,
@@ -469,6 +490,18 @@ function parseTravelFormMessage(message: ChatLikeMessage): TravelFormPayload | n
 }
 
 export function describeTravelFormPayload(payload: TravelFormPayload): string {
+  const seedCountry = normalizeString(payload.seed_country);
+  const seedCity = normalizeString(payload.seed_city);
+  if (seedCity || seedCountry) {
+    if (seedCountry && seedCity) {
+      return `我想从 ${seedCountry} 的 ${seedCity} 开始规划旅行。`;
+    }
+    if (seedCity) {
+      return `我想把 ${seedCity} 加入旅行计划。`;
+    }
+    return `我想先去 ${seedCountry} 旅行。`;
+  }
+
   if (payload.countries?.length) {
     return `我选择了国家：${payload.countries.join("、")}。`;
   }
@@ -572,22 +605,35 @@ function getExpectedHotelStays(state: TravelState): ExpectedHotelStay[] {
 }
 
 function applyFormPayload(state: TravelState, payload: TravelFormPayload): void {
+  const seedCountry = normalizeString(payload.seed_country);
+  if (seedCountry) {
+    state.seed_country = seedCountry;
+  }
+
+  const seedCity = normalizeString(payload.seed_city);
+  if (seedCity) {
+    state.seed_city = seedCity;
+  }
+
   const countries = normalizeStringArray(payload.countries);
   if (countries.length > 0) {
     state.countries = countries;
     if (!state.country) {
       state.country = countries.join("、");
     }
+    state.seed_country = null;
   }
 
   const country = normalizeString(payload.country);
   if (country) {
     state.country = country;
+    state.seed_country = null;
   }
 
   const cities = normalizeStringArray(payload.cities);
   if (cities.length > 0) {
     state.cities = cities;
+    state.seed_city = null;
 
     const citySet = new Set(cities);
     state.city_days = Object.fromEntries(

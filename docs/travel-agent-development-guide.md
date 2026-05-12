@@ -252,6 +252,23 @@ cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\submission-service
 npm run dev
 ```
 
+## 一键启动脚本（已提供）
+
+脚本位置：
+
+- `scripts/start-travel-dev.ps1`
+
+使用方式：
+
+```powershell
+# 默认启动：Frontend + Agent Backend + Travel Service
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
+powershell -ExecutionPolicy Bypass -File .\scripts\start-travel-dev.ps1
+
+# 若你也要启动 submission-service
+powershell -ExecutionPolicy Bypass -File .\scripts\start-travel-dev.ps1 -WithSubmissionService
+```
+
 ---
 
 ## 6. 快速访问地址

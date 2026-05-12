@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Compass,
   Loader2,
-  MapPin,
   PlaneTakeoff,
   Route,
   Sparkles,
@@ -27,6 +26,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   FIELD_QUESTIONS,
   buildTravelStateFromMessages,
+  createTravelFormMessage,
+  getFieldQuestionForState,
   nextMissingField,
   toTravelPayload,
   type ChatLikeMessage,
@@ -56,6 +57,10 @@ type MapTarget = {
   kind: "route" | "city" | "hotel" | "hotspot";
   label: string;
   subtitle: string;
+  localName?: string;
+  intro?: string;
+  countryLabel?: string;
+  recommendedDays?: string;
   imageSrc: string;
   lat: number;
   lng: number;
@@ -63,7 +68,9 @@ type MapTarget = {
 };
 
 const INITIAL_ASSISTANT_TEXT =
-  "旅行顾问已就绪。请按下方引导逐步填写，我会在信息完整后生成行程。\n\n" +
+  "我是 VIZA Travel Buddy，看起来你已经准备好开启一段新旅程了？\n\n" +
+  "虽然我很想直接帮你打包行李，但我更擅长帮你规划一场完美旅行。你想先去哪里看看？" +
+  " 也可以告诉我你的偏好（预算、旅行风格、想看自然/城市/美食），我来给你灵感。\n\n" +
   FIELD_QUESTIONS.country;
 
 const TRAVEL_STAGE_ORDER = [
@@ -151,6 +158,104 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   hongkong: [22.3193, 114.1694],
 };
 
+const LOCAL_NAME_BY_KEY: Record<string, string> = {
+  tokyo: "东京",
+  singapore: "新加坡",
+  sydney: "悉尼",
+  newyork: "纽约",
+  nyc: "纽约",
+  beijing: "北京",
+  sanfrancisco: "旧金山",
+  sf: "旧金山",
+  pisa: "比萨",
+  rome: "罗马",
+  paris: "巴黎",
+  london: "伦敦",
+  dubai: "迪拜",
+  seoul: "首尔",
+  osaka: "大阪",
+  bangkok: "曼谷",
+  hongkong: "香港",
+  "marinabaysands": "滨海湾金沙",
+  "sydneyoperahouse": "悉尼歌剧院",
+  "shibuyacrossing": "涩谷十字路口",
+  "sensojitemple": "浅草寺",
+  "tokyoskytree": "东京晴空塔",
+  "tsukijioutermarket": "筑地场外市场",
+  "gardensbythebay": "滨海湾花园",
+  "chinatown": "牛车水",
+  "sentosa": "圣淘沙",
+  "bondibeach": "邦迪海滩",
+  "therocks": "岩石区",
+  "darlingharbour": "达令港",
+  "eiffeltower": "埃菲尔铁塔",
+  "louvremuseum": "卢浮宫",
+  "montmartre": "蒙马特",
+  "lemarais": "玛黑区",
+  "coventgarden": "科文特花园",
+  "towerbridge": "塔桥",
+  "camdentown": "卡姆登",
+  "boroughmarket": "博罗市场",
+  "colosseum": "斗兽场",
+  "trevifountain": "特莱维喷泉",
+  "trastevere": "特拉斯提弗列",
+  "vaticanmuseums": "梵蒂冈博物馆",
+  "bigben": "大本钟",
+};
+
+const CITY_CONTEXT: Record<
+  string,
+  {
+    countryEn: string;
+    countryZh: string;
+    days: string;
+    intro: string;
+  }
+> = {
+  tokyo: {
+    countryEn: "Japan",
+    countryZh: "日本",
+    days: "3-5 days",
+    intro: "东京融合了潮流街区、传统神社与深夜美食，非常适合第一次日本自由行。",
+  },
+  singapore: {
+    countryEn: "Singapore",
+    countryZh: "新加坡",
+    days: "2-4 days",
+    intro: "滨海湾夜景和多元美食非常集中，城市交通高效，适合轻松城市度假。",
+  },
+  sydney: {
+    countryEn: "Australia",
+    countryZh: "澳大利亚",
+    days: "3-6 days",
+    intro: "从歌剧院到海岸线步道，城市与自然结合紧密，适合慢节奏旅行。",
+  },
+  paris: {
+    countryEn: "France",
+    countryZh: "法国",
+    days: "3-5 days",
+    intro: "艺术馆、历史街区与咖啡文化兼具，适合文化体验与城市漫游。",
+  },
+  london: {
+    countryEn: "United Kingdom",
+    countryZh: "英国",
+    days: "3-5 days",
+    intro: "博物馆、音乐剧和经典地标密集，公共交通完善，适合城市探索。",
+  },
+  rome: {
+    countryEn: "Italy",
+    countryZh: "意大利",
+    days: "3-5 days",
+    intro: "古罗马遗迹与美食并存，步行探索体验好，适合历史文化路线。",
+  },
+  beijing: {
+    countryEn: "China",
+    countryZh: "中国",
+    days: "2-4 days",
+    intro: "历史建筑与现代城市共存，景点密度高，适合短途深度游。",
+  },
+};
+
 function createMessageId(): string {
   return `travel-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -236,6 +341,36 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
 
 function normalizeCityKey(city: string): string {
   return city.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function getLocalDisplayName(value: string): string {
+  const key = normalizeCityKey(value);
+  return LOCAL_NAME_BY_KEY[key] ?? value;
+}
+
+function getCityContext(city: string) {
+  const key = normalizeCityKey(city);
+  return CITY_CONTEXT[key] ?? null;
+}
+
+function buildMapIntro(kind: MapTarget["kind"], label: string, city?: string): string {
+  const context = city ? getCityContext(city) : null;
+  if (kind === "hotel") {
+    const cityName = city ? getLocalDisplayName(city) : "目的地";
+    return `酒店位置已加入路线。建议优先选择靠近交通枢纽或核心景区的住宿，便于压缩通勤时间。${cityName}可按预算分区筛选。`;
+  }
+
+  if (kind === "hotspot") {
+    const cityName = city ? getLocalDisplayName(city) : "当地";
+    return `${cityName}热门景点：${label}。建议错峰前往，优先安排在白天与傍晚两个黄金时段，拍照和步行体验更好。`;
+  }
+
+  if (kind === "city") {
+    if (context) return context.intro;
+    return `${label}是这条路线中的关键停靠城市，可围绕地标、街区步行和本地美食构建 1-3 天节奏。`;
+  }
+
+  return `${label}路线总览。建议把同区域景点聚在同一天，减少折返，提高游玩效率。`;
 }
 
 function hashString(value: string): number {
@@ -383,6 +518,11 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     () => Math.round((stageIndex / TRAVEL_STAGE_ORDER.length) * 100),
     [stageIndex]
   );
+  const nextQuestion = useMemo(
+    () =>
+      missingField ? getFieldQuestionForState(travelState, missingField) : null,
+    [missingField, travelState]
+  );
 
   const orderedCities = useMemo(() => {
     const order = travelState.travel_order.filter((city) => travelState.cities.includes(city));
@@ -431,6 +571,8 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
         kind: "route",
         label: "Route Overview",
         subtitle: `${originLabel} → ${returnLabel}`,
+        localName: `${getLocalDisplayName(originLabel)} → ${getLocalDisplayName(returnLabel)}`,
+        intro: buildMapIntro("route", "Route Overview", orderedCities[0]),
         imageSrc: getCityImage(originLabel, "route"),
         lat: routeStartLat,
         lng: routeStartLng,
@@ -441,11 +583,16 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     orderedCities.forEach((city, index) => {
       const days = travelState.city_days[city];
       const [lat, lng] = getCityCoordinates(city);
+      const context = getCityContext(city);
       targets.push({
         id: `city-${city}-${index}`,
         kind: "city",
         label: city,
         subtitle: days ? `${days} days stay` : "Destination selected",
+        localName: getLocalDisplayName(city),
+        intro: buildMapIntro("city", city, city),
+        countryLabel: context ? `${context.countryZh} (${context.countryEn})` : undefined,
+        recommendedDays: context?.days ?? undefined,
         imageSrc: getCityImage(city, `city-${index}`),
         lat,
         lng,
@@ -472,6 +619,16 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
         kind: "hotel",
         label: hotelName,
         subtitle: `Hotel in ${city}`,
+        localName: getLocalDisplayName(city),
+        intro: buildMapIntro("hotel", hotelName, city),
+        countryLabel: (() => {
+          const context = getCityContext(city);
+          return context ? `${context.countryZh} (${context.countryEn})` : undefined;
+        })(),
+        recommendedDays: (() => {
+          const context = getCityContext(city);
+          return context?.days;
+        })(),
         imageSrc: getCityImage(city, `hotel-${hotel.stay_index}`),
         lat: finalLat,
         lng: finalLng,
@@ -510,6 +667,16 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
           kind: "hotspot" as const,
           label: entry.spot,
           subtitle: `Hotspot in ${entry.city}`,
+          localName: getLocalDisplayName(entry.city),
+          intro: buildMapIntro("hotspot", entry.spot, entry.city),
+          countryLabel: (() => {
+            const context = getCityContext(entry.city);
+            return context ? `${context.countryZh} (${context.countryEn})` : undefined;
+          })(),
+          recommendedDays: (() => {
+            const context = getCityContext(entry.city);
+            return context?.days;
+          })(),
           imageSrc: getCityImage(entry.city, `world-hotspot-${index}`),
           lat,
           lng,
@@ -524,6 +691,16 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
       kind: "hotspot" as const,
       label: spot,
       subtitle: `Hotspot in ${activeCityForHotspots}`,
+      localName: getLocalDisplayName(activeCityForHotspots),
+      intro: buildMapIntro("hotspot", spot, activeCityForHotspots),
+      countryLabel: (() => {
+        const context = getCityContext(activeCityForHotspots);
+        return context ? `${context.countryZh} (${context.countryEn})` : undefined;
+      })(),
+      recommendedDays: (() => {
+        const context = getCityContext(activeCityForHotspots);
+        return context?.days;
+      })(),
       imageSrc: getCityImage(activeCityForHotspots, `hotspot-${index}`),
       ...(() => {
         const [lat, lng] = withOffset(
@@ -557,11 +734,6 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     [baseMapTargets]
   );
 
-  const featuredHotspotCards = useMemo(
-    () => hotspotMapTargets.slice(0, 4),
-    [hotspotMapTargets]
-  );
-
   const mapPoints = useMemo<TripMapPoint[]>(
     () =>
       allMapTargets
@@ -571,9 +743,14 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
           kind: target.kind as "city" | "hotel" | "hotspot",
           label: target.label,
           subtitle: target.subtitle,
+          localName: target.localName,
+          intro: target.intro,
+          countryLabel: target.countryLabel,
+          recommendedDays: target.recommendedDays,
           imageSrc: target.imageSrc,
           lat: target.lat,
           lng: target.lng,
+          city: target.city,
         })),
     [allMapTargets]
   );
@@ -597,7 +774,7 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
 
       if (!payload) {
         const field = nextMissingField(state) ?? "country";
-        const followUp = FIELD_QUESTIONS[field];
+        const followUp = getFieldQuestionForState(state, field);
         setMessages((prev) => [
           ...prev,
           {
@@ -679,9 +856,72 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     [messages, respondToConversation, status]
   );
 
+  const handleAddDestinationFromMap = useCallback(
+    (point: TripMapPoint) => {
+      const targetCity = (point.city ?? point.label).trim();
+      if (!targetCity) return;
+
+      const cityContext = getCityContext(targetCity);
+      const seedCountry =
+        cityContext?.countryEn ?? cityContext?.countryZh ?? null;
+
+      if (missingField === "country" || missingField === "cities") {
+        const payloadText = createTravelFormMessage({
+          seed_country: seedCountry ?? undefined,
+          seed_city: targetCity,
+        });
+
+        sendMessage({
+          role: "user",
+          parts: [{ type: "text", text: payloadText }],
+        });
+        return;
+      }
+
+      const existingCities = travelState.cities;
+      const alreadySelected = existingCities.some(
+        (city) => normalizeCityKey(city) === normalizeCityKey(targetCity)
+      );
+
+      if (alreadySelected) return;
+
+      const nextCities = [...existingCities, targetCity];
+      const nextCityDays = {
+        ...travelState.city_days,
+        [targetCity]: travelState.city_days[targetCity] ?? 2,
+      };
+      const nextOrder = travelState.travel_order.length
+        ? Array.from(new Set([...travelState.travel_order, targetCity]))
+        : [];
+
+      const payloadText = createTravelFormMessage({
+        country: travelState.country ?? undefined,
+        countries: travelState.countries,
+        cities: nextCities,
+        city_days: nextCityDays,
+        travel_order:
+          nextOrder.length === nextCities.length ? nextOrder : undefined,
+      });
+
+      sendMessage({
+        role: "user",
+        parts: [{ type: "text", text: payloadText }],
+      });
+    },
+    [
+      missingField,
+      sendMessage,
+      travelState.cities,
+      travelState.city_days,
+      travelState.countries,
+      travelState.country,
+      travelState.travel_order,
+    ]
+  );
+
   return (
-    <div className="relative mx-auto w-full max-w-[1900px] px-4 pb-10 pt-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="relative mx-auto flex h-[calc(100vh-5.5rem)] w-full max-w-[2300px] flex-col overflow-hidden px-3 pb-3 pt-2 md:px-5">
+      <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-[#03346E]/10 p-2 text-[#03346E]">
             <PlaneTakeoff className="h-4 w-4" />
@@ -699,7 +939,7 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
           </Badge>
           <Badge className="gap-1" variant="outline">
             <Target className="h-3 w-3" />
-            {missingField ? `Next: ${FIELD_QUESTIONS[missingField]}` : "Itinerary ready"}
+            {nextQuestion ? `Next: ${nextQuestion}` : "Itinerary ready"}
           </Badge>
           {(status === "submitted" || status === "streaming") && (
             <Loader2 className="h-4 w-4 animate-spin text-[#03346E]" />
@@ -710,9 +950,9 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
-          <CardContent className="space-y-4 p-4 md:p-6">
+      <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[0.7fr_1.3fr] 2xl:grid-cols-[0.66fr_1.34fr]">
+        <Card className="h-full min-h-0 overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+          <CardContent className="h-full space-y-4 overflow-y-auto overscroll-y-contain p-4 md:p-6">
             <div className="space-y-3">
               {messages.map((message) => {
                 const text = message.parts
@@ -742,9 +982,9 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
           </CardContent>
         </Card>
 
-        <aside className="xl:sticky xl:top-4 xl:self-start">
-          <Card className="overflow-hidden border-slate-200/90 bg-gradient-to-b from-white to-slate-50 shadow-[0_14px_45px_rgba(15,23,42,0.1)]">
-            <CardContent className="space-y-4 p-4">
+        <aside className="min-h-0">
+          <Card className="h-full min-h-0 overflow-hidden border-slate-200/90 bg-gradient-to-b from-white to-slate-50 shadow-[0_14px_45px_rgba(15,23,42,0.1)]">
+            <CardContent className="h-full space-y-4 overflow-y-auto overscroll-y-contain p-4">
               <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur">
                 <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                   <Sparkles className="h-3 w-3 text-[#2563eb]" />
@@ -756,6 +996,16 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
                 <p className="mt-1 text-xs text-slate-600">
                   {activeMapTarget?.subtitle ?? "Choose route, city, hotel, or hotspots"}
                 </p>
+                {activeMapTarget?.localName && (
+                  <p className="mt-1 text-xs font-medium text-blue-700">
+                    Local name: {activeMapTarget.localName}
+                  </p>
+                )}
+                {activeMapTarget?.intro && (
+                  <p className="mt-2 rounded-xl bg-blue-50 px-2.5 py-2 text-[11px] leading-relaxed text-blue-900">
+                    {activeMapTarget.intro}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <Badge className="bg-[#03346E] text-white hover:bg-[#03346E]">
                     App: {applicationId ? "Linked" : "Not linked"}
@@ -778,10 +1028,11 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
               </div>
 
               <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-[#08213b] p-1 shadow-[0_12px_34px_rgba(2,15,33,0.35)]">
-                <div className="h-[68vh] min-h-[560px] overflow-hidden rounded-xl border border-white/20 bg-slate-50">
+                <div className="h-[78vh] min-h-[700px] overflow-hidden rounded-xl border border-white/20 bg-slate-50">
                   <TripRouteMap
                     activePointId={activeMapTarget?.kind === "route" ? null : activeMapTarget?.id}
                     className="h-full w-full"
+                    onAddDestination={handleAddDestinationFromMap}
                     onPointSelect={(id) => setActiveMapTargetId(id)}
                     points={mapPoints}
                     routeCoordinates={displayRouteCoordinates}
@@ -789,44 +1040,9 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
                 </div>
 
                 <div className="absolute bottom-3 left-3 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-[11px] font-medium text-white backdrop-blur">
-                  Route + Hotspot Mode
+                  Route + Destination Mode
                 </div>
               </div>
-
-              {featuredHotspotCards.length > 0 && (
-                <div>
-                  <p className="mb-2 text-xs font-medium text-slate-500">
-                    Visual Hotspots {activeCityForHotspots ? `in ${activeCityForHotspots}` : ""}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {featuredHotspotCards.map((target) => (
-                      <button
-                        className={`group relative overflow-hidden rounded-xl border transition-all ${
-                          activeMapTargetId === target.id
-                            ? "border-blue-300 shadow-[0_8px_22px_rgba(59,130,246,0.25)]"
-                            : "border-slate-200 hover:border-slate-300 hover:shadow-[0_6px_18px_rgba(15,23,42,0.14)]"
-                        }`}
-                        key={target.id}
-                        onClick={() => setActiveMapTargetId(target.id)}
-                        type="button"
-                      >
-                        <Image
-                          alt={target.label}
-                          className="h-20 w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          height={120}
-                          src={target.imageSrc}
-                          width={200}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent" />
-                        <div className="absolute bottom-1.5 left-2 right-2 text-left text-[11px] text-white">
-                          <p className="truncate font-medium">{target.label}</p>
-                          <p className="truncate text-[10px] text-blue-100">{target.subtitle}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {routeCoordinates.length >= 2 && (
                 <button
@@ -911,34 +1127,6 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">
-                  Popular Spots {activeCityForHotspots ? `in ${activeCityForHotspots}` : ""}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {hotspotMapTargets.length === 0 && (
-                    <span className="text-xs text-slate-400">Select a city to preview hotspots.</span>
-                  )}
-                  {hotspotMapTargets.map((target) => (
-                    <button
-                      className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                        activeMapTargetId === target.id
-                          ? "border-blue-300 bg-blue-50 text-blue-700"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                      key={target.id}
-                      onClick={() => setActiveMapTargetId(target.id)}
-                      type="button"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {target.label}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               </div>
 
