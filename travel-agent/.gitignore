@@ -1,0 +1,18 @@
+# Python
+travel-agent-env/
+__pycache__/
+
+# Node
+node_modules/
+travel-ui/node_modules/
+travel-ui/.next/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
+
+venv/
+.git-backup-travel-agent-chatbot/
