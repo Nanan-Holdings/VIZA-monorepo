@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 
 type TravelItineraryPanelProps = {
   messages: TravelChatMessage[];
+  variant?: "full" | "compact";
 };
 
 const CITY_IMAGE_POOL = [
@@ -155,7 +156,10 @@ function summarizeDay(day: ItineraryDay): string {
   return `${firstActivity} · ${firstFood}`;
 }
 
-export function TravelItineraryPanel({ messages }: TravelItineraryPanelProps) {
+export function TravelItineraryPanel({
+  messages,
+  variant = "full",
+}: TravelItineraryPanelProps) {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -179,6 +183,7 @@ export function TravelItineraryPanel({ messages }: TravelItineraryPanelProps) {
   const estimatedBudget = payload?.budget
     ? `${payload.budget.toLocaleString()} RMB`
     : "Flexible";
+  const showMapPanel = variant === "full";
 
   useEffect(() => {
     setActiveDayIndex(0);
@@ -301,7 +306,7 @@ export function TravelItineraryPanel({ messages }: TravelItineraryPanelProps) {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr]">
+        <div className={showMapPanel ? "grid gap-4 xl:grid-cols-[1.25fr_0.95fr]" : "space-y-3"}>
           <div className="space-y-3">
             {itinerary.map((day, index) => {
               const active = index === activeDayIndex;
@@ -360,64 +365,66 @@ export function TravelItineraryPanel({ messages }: TravelItineraryPanelProps) {
             })}
           </div>
 
-          <aside className="space-y-3 xl:sticky xl:top-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">Map Reference</p>
-                <span className="text-xs text-slate-500">{activeDay?.city ?? "-"}</span>
+          {showMapPanel && (
+            <aside className="space-y-3 xl:sticky xl:top-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-900">Map Reference</p>
+                  <span className="text-xs text-slate-500">{activeDay?.city ?? "-"}</span>
+                </div>
+
+                <div className="h-80 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  {activeDay ? (
+                    <iframe
+                      className="h-full w-full"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.google.com/maps?q=${encodeURIComponent(activeDay.city)}&output=embed`}
+                      title={`map-${activeDay.city}`}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                      Map unavailable
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {uniqueCities.map((city) => {
+                    const isActive = activeDay?.city === city;
+                    return (
+                      <button
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                          isActive
+                            ? "border-blue-300 bg-blue-50 text-blue-700"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                        key={city}
+                        onClick={() =>
+                          setActiveDayIndex(findFirstDayIndexByCity(itinerary, city))
+                        }
+                        type="button"
+                      >
+                        <MapPinIcon className="size-3.5" />
+                        {city}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="h-80 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                {activeDay ? (
-                  <iframe
-                    className="h-full w-full"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(activeDay.city)}&output=embed`}
-                    title={`map-${activeDay.city}`}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    Map unavailable
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {uniqueCities.map((city) => {
-                  const isActive = activeDay?.city === city;
-                  return (
-                    <button
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                        isActive
-                          ? "border-blue-300 bg-blue-50 text-blue-700"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                      key={city}
-                      onClick={() =>
-                        setActiveDayIndex(findFirstDayIndexByCity(itinerary, city))
-                      }
-                      type="button"
-                    >
-                      <MapPinIcon className="size-3.5" />
-                      {city}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {activeDay && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                <p className="text-sm font-semibold text-slate-900">Today Highlights</p>
-                <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
-                  {activeDay.activities.slice(0, 4).map((activity) => (
-                    <li key={`highlight-${activeDay.city}-${activity}`}>• {activity}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </aside>
+              {activeDay && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <p className="text-sm font-semibold text-slate-900">Today Highlights</p>
+                  <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
+                    {activeDay.activities.slice(0, 4).map((activity) => (
+                      <li key={`highlight-${activeDay.city}-${activity}`}>• {activity}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       </div>
     </section>
