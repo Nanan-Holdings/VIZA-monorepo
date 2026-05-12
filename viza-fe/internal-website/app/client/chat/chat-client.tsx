@@ -1186,10 +1186,23 @@ export function ChatClient({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-0 pb-4 h-full min-h-0 overflow-hidden"
+              className={cn(
+                "flex-1 flex flex-col items-center px-4 sm:px-6 pt-0 pb-4 h-full min-h-0 overflow-hidden",
+                chatMode === "travel" ? "px-2 sm:px-3" : ""
+              )}
             >
-              <div className="w-full max-w-[980px] flex flex-col flex-1 relative overflow-hidden min-h-0 mx-auto">
-                <div className="mx-auto mb-2 mt-3 flex w-full max-w-[900px] items-center gap-2">
+              <div
+                className={cn(
+                  "w-full flex flex-col flex-1 relative overflow-hidden min-h-0 mx-auto",
+                  chatMode === "travel" ? "max-w-[2100px]" : "max-w-[980px]"
+                )}
+              >
+                <div
+                  className={cn(
+                    "mx-auto mb-2 mt-3 flex w-full items-center gap-2",
+                    chatMode === "travel" ? "max-w-[2060px]" : "max-w-[900px]"
+                  )}
+                >
                   <button
                     className={cn(
                       "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
