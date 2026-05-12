@@ -58,6 +58,7 @@ type GoogleMapInstance = {
   fitBounds: (bounds: GoogleLatLngBoundsInstance, padding?: number) => void;
   setCenter: (center: GoogleLatLngLiteral) => void;
   setZoom: (zoom: number) => void;
+  getZoom: () => number | undefined;
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
 };
 
@@ -152,6 +153,9 @@ declare global {
 const DEFAULT_CENTER: GoogleLatLngLiteral = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
+const ICON_MIN_SIZE = 44;
+const ICON_MAX_SIZE = 84;
+const LABEL_MIN_ZOOM = 3;
 const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -177,27 +181,218 @@ function resolveMarkerImageUrl(imageSrc: string): string {
   return imageSrc;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function toWorldPixel(lat: number, lng: number, zoom: number): { x: number; y: number } {
+  const safeLat = clamp(lat, -85, 85);
+  const sinLat = Math.sin((safeLat * Math.PI) / 180);
+  const scale = 256 * Math.pow(2, zoom);
+  const x = ((lng + 180) / 360) * scale;
+  const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+  return { x, y };
+}
+
+function fromWorldPixel(x: number, y: number, zoom: number): GoogleLatLngLiteral {
+  const scale = 256 * Math.pow(2, zoom);
+  const lng = (x / scale) * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / scale)));
+  const lat = (latRad * 180) / Math.PI;
+  return { lat: clamp(lat, -85, 85), lng: clamp(lng, -180, 180) };
+}
+
+type MarkerLayoutRect = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+function hasRectOverlap(a: MarkerLayoutRect, b: MarkerLayoutRect, gap: number): boolean {
+  return !(
+    a.right + gap < b.left ||
+    b.right + gap < a.left ||
+    a.bottom + gap < b.top ||
+    b.bottom + gap < a.top
+  );
+}
+
+function buildOffsetCandidates(stepX: number, stepY: number): Array<{ dx: number; dy: number }> {
+  const candidates: Array<{ dx: number; dy: number }> = [{ dx: 0, dy: 0 }];
+  const maxRing = 4;
+
+  for (let ring = 1; ring <= maxRing; ring += 1) {
+    for (let x = -ring; x <= ring; x += 1) {
+      for (let y = -ring; y <= ring; y += 1) {
+        if (Math.max(Math.abs(x), Math.abs(y)) !== ring) continue;
+        candidates.push({
+          dx: Math.round(x * stepX),
+          dy: Math.round(y * stepY),
+        });
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function getAdaptiveIconSize(
+  pointCount: number,
+  mapWidth: number,
+  mapHeight: number,
+  zoom: number
+): number {
+  const minDim = Math.max(320, Math.min(mapWidth, mapHeight));
+  const base = minDim / 11;
+  const densityFactor = clamp(1 - Math.max(0, pointCount - 4) * 0.06, 0.56, 1);
+  const zoomFactor = zoom >= 8 ? 1.18 : zoom >= 6 ? 1.08 : zoom >= 4 ? 0.98 : 0.88;
+  return clamp(Math.round(base * densityFactor * zoomFactor), ICON_MIN_SIZE, ICON_MAX_SIZE);
+}
+
+type MarkerLayoutPoint = {
+  point: TripMapPoint;
+  lat: number;
+  lng: number;
+};
+
+function layoutPointsWithoutOverlap(
+  points: TripMapPoint[],
+  zoom: number,
+  mapWidth: number,
+  mapHeight: number,
+  iconSize: number,
+  showLabel: boolean
+): MarkerLayoutPoint[] {
+  if (points.length === 0) return [];
+
+  const usedRects: MarkerLayoutRect[] = [];
+  const layout: MarkerLayoutPoint[] = [];
+  const tailHeight = Math.round(iconSize * 0.26);
+  const iconWidth = iconSize + 10;
+  const iconHeight = iconSize + tailHeight + 10;
+  const labelHeight = showLabel ? 18 : 0;
+  const stepX = Math.max(24, Math.round(iconWidth * 0.74));
+  const stepY = Math.max(20, Math.round(iconHeight * 0.62));
+  const candidates = buildOffsetCandidates(stepX, stepY);
+  const edgePadding = 8;
+  const overlapGap = 6;
+
+  for (const point of points) {
+    const world = toWorldPixel(point.lat, point.lng, zoom);
+
+    let best: {
+      x: number;
+      y: number;
+      score: number;
+      rect: MarkerLayoutRect;
+    } | null = null;
+
+    for (const candidate of candidates) {
+      const px = world.x + candidate.dx;
+      const py = world.y + candidate.dy;
+      const rect: MarkerLayoutRect = {
+        left: px - iconWidth / 2,
+        right: px + iconWidth / 2,
+        top: py - iconHeight,
+        bottom: py + labelHeight,
+      };
+
+      const overlapCount = usedRects.reduce(
+        (sum, other) => (hasRectOverlap(rect, other, overlapGap) ? sum + 1 : sum),
+        0
+      );
+
+      const overflowX =
+        Math.max(0, edgePadding - rect.left) + Math.max(0, rect.right - (mapWidth - edgePadding));
+      const overflowY =
+        Math.max(0, edgePadding - rect.top) + Math.max(0, rect.bottom - (mapHeight - edgePadding));
+      const overflowPenalty = overflowX + overflowY;
+      const movementPenalty = Math.abs(candidate.dx) * 0.06 + Math.abs(candidate.dy) * 0.08;
+      const score = overlapCount * 1000 + overflowPenalty * 100 + movementPenalty;
+
+      if (!best || score < best.score) {
+        best = { x: px, y: py, score, rect };
+      }
+      if (score === 0) break;
+    }
+
+    if (!best) {
+      best = {
+        x: world.x,
+        y: world.y,
+        score: 0,
+        rect: {
+          left: world.x - iconWidth / 2,
+          right: world.x + iconWidth / 2,
+          top: world.y - iconHeight,
+          bottom: world.y + labelHeight,
+        },
+      };
+    }
+
+    usedRects.push(best.rect);
+    const latLng = fromWorldPixel(best.x, best.y, zoom);
+    layout.push({
+      point,
+      lat: latLng.lat,
+      lng: latLng.lng,
+    });
+  }
+
+  return layout;
+}
+
 function buildMarkerIcon(
   maps: GoogleMapsNamespace,
   point: TripMapPoint,
-  isActive: boolean
+  isActive: boolean,
+  iconSize: number
 ): GoogleMapMarkerIcon {
-  const size = isActive ? 60 : 52;
   const imageUrl = resolveMarkerImageUrl(point.imageSrc);
+  const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
+  const tailHeight = Math.round(bodySize * 0.26);
+  const svgWidth = bodySize + 10;
+  const svgHeight = bodySize + tailHeight + 10;
+  const strokeColor = isActive ? "#1d4ed8" : "#dbeafe";
+  const strokeWidth = isActive ? 3 : 2;
+  const radius = Math.round(bodySize * 0.24);
+  const clipId = `clip_${sanitizeDomId(point.id)}_${isActive ? "a" : "n"}`;
+  const bubbleBottom = bodySize + 6;
+  const tailHalf = Math.max(6, Math.round(bodySize * 0.11));
+
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
+  <defs>
+    <clipPath id="${clipId}">
+      <rect x="5" y="5" width="${bodySize}" height="${bodySize}" rx="${radius}" ry="${radius}" />
+    </clipPath>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.26" />
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="3" y="3" width="${bodySize + 4}" height="${bodySize + 4}" rx="${radius + 3}" fill="#ffffff" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+    <image href="${escapeHtml(imageUrl)}" x="5" y="5" width="${bodySize}" height="${bodySize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})" />
+    <path d="M ${Math.round(svgWidth / 2) - tailHalf} ${bubbleBottom} L ${Math.round(svgWidth / 2) + tailHalf} ${bubbleBottom} L ${Math.round(svgWidth / 2)} ${bubbleBottom + tailHeight}" fill="#ffffff" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round" />
+  </g>
+</svg>`;
+
+  const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
   return {
-    url: imageUrl,
-    scaledSize: new maps.Size(size, size),
-    anchor: new maps.Point(Math.round(size / 2), Math.round(size / 2)),
-    labelOrigin: new maps.Point(Math.round(size / 2), size + 14),
+    url,
+    scaledSize: new maps.Size(svgWidth, svgHeight),
+    anchor: new maps.Point(Math.round(svgWidth / 2), svgHeight - 2),
+    labelOrigin: new maps.Point(Math.round(svgWidth / 2), svgHeight + 11),
   };
 }
 
-function buildMarkerLabel(point: TripMapPoint): GoogleMarkerLabel {
+function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLabel {
   return {
     text: point.localName ?? point.label,
-    color: "#12254c",
-    fontSize: "12px",
+    color: "#0f2a56",
+    fontSize: `${clamp(Math.round(iconSize * 0.22), 10, 14)}px`,
     fontWeight: "700",
   };
 }
@@ -316,7 +511,11 @@ export function TripRouteMap({
       id: string;
     }>
   >([]);
+  const layoutRerenderListenersRef = useRef<GoogleMarkerListener[]>([]);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [layoutVersion, setLayoutVersion] = useState(0);
   const fittedOnceRef = useRef(false);
+  const fitKeyRef = useRef<string>("");
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -377,6 +576,23 @@ export function TripRouteMap({
         map.addListener("click", () => {
           hoverInfoRef.current?.close();
         });
+
+        const requestLayoutRefresh = () => {
+          setLayoutVersion((value) => value + 1);
+        };
+
+        layoutRerenderListenersRef.current = [
+          map.addListener("zoom_changed", requestLayoutRefresh),
+        ];
+
+        if (containerRef.current && typeof ResizeObserver !== "undefined") {
+          const observer = new ResizeObserver(() => {
+            requestLayoutRefresh();
+          });
+          observer.observe(containerRef.current);
+          resizeObserverRef.current = observer;
+        }
+
         window.setTimeout(() => {
           maps.event.trigger(map, "resize");
         }, 0);
@@ -397,6 +613,10 @@ export function TripRouteMap({
         marker.setMap(null);
       });
       markersRef.current = [];
+      layoutRerenderListenersRef.current.forEach((listener) => listener.remove());
+      layoutRerenderListenersRef.current = [];
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
 
       if (routeRef.current) {
         routeRef.current.setMap(null);
@@ -427,14 +647,28 @@ export function TripRouteMap({
     });
     markersRef.current = [];
 
-    points.forEach((point) => {
+    const zoom = map.getZoom() ?? DEFAULT_ZOOM;
+    const mapWidth = containerRef.current?.clientWidth ?? 1200;
+    const mapHeight = containerRef.current?.clientHeight ?? 800;
+    const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight, zoom);
+    const showLabel = zoom >= LABEL_MIN_ZOOM;
+    const laidOutPoints = layoutPointsWithoutOverlap(
+      points,
+      zoom,
+      mapWidth,
+      mapHeight,
+      iconSize,
+      showLabel
+    );
+
+    laidOutPoints.forEach(({ point, lat, lng }) => {
       const isActive = point.id === activePointId;
       const marker = new maps.Marker({
         map,
-        position: { lat: point.lat, lng: point.lng },
+        position: { lat, lng },
         title: `${point.label} · ${point.subtitle}`,
-        icon: buildMarkerIcon(maps, point, isActive),
-        label: buildMarkerLabel(point),
+        icon: buildMarkerIcon(maps, point, isActive, iconSize),
+        label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
         optimized: false,
         zIndex: isActive ? 1000 : 100,
       });
@@ -505,18 +739,32 @@ export function TripRouteMap({
       coordinateCount += 1;
     });
 
-    if (coordinateCount >= 2) {
+    const fitKey = `${pointKey}__${routeKey}`;
+    const shouldFit = fitKey !== fitKeyRef.current;
+
+    if (coordinateCount >= 2 && shouldFit) {
       map.fitBounds(bounds, 72);
       fittedOnceRef.current = true;
-    } else if (coordinateCount === 1 && points.length > 0) {
+      fitKeyRef.current = fitKey;
+    } else if (coordinateCount === 1 && points.length > 0 && shouldFit) {
       map.setCenter({ lat: points[0].lat, lng: points[0].lng });
       map.setZoom(6);
       fittedOnceRef.current = true;
+      fitKeyRef.current = fitKey;
     } else if (!fittedOnceRef.current) {
       map.setCenter(DEFAULT_CENTER);
       map.setZoom(DEFAULT_ZOOM);
     }
-  }, [activePointId, isReady, onPointSelect, pointKey, points, routeCoordinates, routeKey]);
+  }, [
+    activePointId,
+    isReady,
+    layoutVersion,
+    onPointSelect,
+    pointKey,
+    points,
+    routeCoordinates,
+    routeKey,
+  ]);
 
   return (
     <div className={`relative ${className ?? ""}`} data-testid="trip-route-map">
