@@ -6,11 +6,62 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    raise ValueError("❌ OPENAI_API_KEY 未配置")
+api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+client = OpenAI(api_key=api_key) if api_key else None
 
-client = OpenAI(api_key=api_key)
+
+def _safe_positive_int(value, default=1):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _fallback_itinerary(state):
+    cities = state.get("travel_order") or state.get("cities") or []
+    if not isinstance(cities, list):
+        cities = []
+    cities = [str(city).strip() for city in cities if str(city).strip()]
+    if not cities:
+        cities = ["目的地"]
+
+    city_days = state.get("city_days") if isinstance(state.get("city_days"), dict) else {}
+    budget = _safe_positive_int(state.get("budget"), default=0)
+
+    total_days = 0
+    daily_plan = []
+    for city in cities:
+        days_in_city = _safe_positive_int(city_days.get(city), default=1)
+        for _ in range(days_in_city):
+            daily_plan.append(city)
+        total_days += days_in_city
+
+    if not daily_plan:
+        daily_plan = [cities[0]]
+        total_days = 1
+
+    per_day_budget = max(150, budget // total_days) if budget > 0 else 800
+
+    fallback = []
+    for day_index, city in enumerate(daily_plan, start=1):
+        fallback.append(
+            {
+                "day": day_index,
+                "city": city,
+                "activities": [
+                    f"{city} 城市地标打卡",
+                    f"{city} 本地文化体验",
+                ],
+                "food": [
+                    "本地特色餐厅",
+                    "夜市小吃",
+                ],
+                "cost": f"¥{per_day_budget}",
+            }
+        )
+
+    return fallback
 
 
 def _extract_json_array(raw: str) -> str:
@@ -120,6 +171,10 @@ def _format_attached_files(state):
 
 
 def generate_itinerary(state):
+    if client is None:
+        print("OPENAI_API_KEY 未配置，使用 fallback itinerary。")
+        return _fallback_itinerary(state)
+
     selected_flights = _format_selected_flights(state)
     selected_hotels = _format_selected_hotels(state)
     attached_files = _format_attached_files(state)
@@ -168,15 +223,18 @@ def generate_itinerary(state):
 ]
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    text = response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.choices[0].message.content
+    except Exception as exc:
+        print("OpenAI itinerary generation failed, using fallback:", exc)
+        return _fallback_itinerary(state)
 
     if not text:
-        return []
+        return _fallback_itinerary(state)
 
     text = text.strip()
 
@@ -185,4 +243,4 @@ def generate_itinerary(state):
         return parsed
 
     print("JSON解析失败:", text)
-    return []
+    return _fallback_itinerary(state)
