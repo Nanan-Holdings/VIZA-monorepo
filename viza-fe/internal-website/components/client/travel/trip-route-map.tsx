@@ -7,9 +7,14 @@ export type TripMapPoint = {
   kind: "city" | "hotel" | "hotspot";
   label: string;
   subtitle: string;
+  localName?: string;
+  intro?: string;
+  countryLabel?: string;
+  recommendedDays?: string;
   imageSrc: string;
   lat: number;
   lng: number;
+  city?: string;
 };
 
 type TripRouteMapProps = {
@@ -17,6 +22,7 @@ type TripRouteMapProps = {
   routeCoordinates: Array<[number, number]>;
   activePointId?: string | null;
   onPointSelect?: (id: string) => void;
+  onAddDestination?: (point: TripMapPoint) => void;
   className?: string;
 };
 
@@ -33,6 +39,14 @@ type GoogleMapMarkerIcon = {
   url: string;
   scaledSize?: unknown;
   anchor?: unknown;
+  labelOrigin?: unknown;
+};
+
+type GoogleMarkerLabel = {
+  text: string;
+  color?: string;
+  fontSize?: string;
+  fontWeight?: string;
 };
 
 type GoogleMarkerInstance = {
@@ -44,11 +58,22 @@ type GoogleMapInstance = {
   fitBounds: (bounds: GoogleLatLngBoundsInstance, padding?: number) => void;
   setCenter: (center: GoogleLatLngLiteral) => void;
   setZoom: (zoom: number) => void;
+  addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
 };
 
 type GooglePolylineInstance = {
   setMap: (map: GoogleMapInstance | null) => void;
   setPath: (path: GoogleLatLngLiteral[]) => void;
+};
+
+type GoogleInfoWindowInstance = {
+  setContent: (content: string) => void;
+  open: (options: {
+    map: GoogleMapInstance;
+    anchor?: GoogleMarkerInstance;
+    shouldFocus?: boolean;
+  }) => void;
+  close: () => void;
 };
 
 type GoogleLatLngBoundsInstance = {
@@ -84,6 +109,8 @@ type GoogleMapsNamespace = {
     map?: GoogleMapInstance | null;
     title?: string;
     icon?: GoogleMapMarkerIcon;
+    label?: GoogleMarkerLabel;
+    optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
   Polyline: new (options: {
@@ -94,12 +121,23 @@ type GoogleMapsNamespace = {
     strokeWeight?: number;
     map?: GoogleMapInstance | null;
   }) => GooglePolylineInstance;
+  InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
   Size: new (width: number, height: number) => unknown;
   Point: new (x: number, y: number) => unknown;
   event: {
     clearInstanceListeners: (instance: unknown) => void;
     trigger: (instance: unknown, eventName: string) => void;
+    addListener: (
+      instance: unknown,
+      eventName: string,
+      handler: () => void
+    ) => GoogleMarkerListener;
+    addListenerOnce: (
+      instance: unknown,
+      eventName: string,
+      handler: () => void
+    ) => GoogleMarkerListener;
   };
 };
 
@@ -119,6 +157,15 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 let mapsLoaderPromise: Promise<GoogleMapsNamespace> | null = null;
 
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function resolveMarkerImageUrl(imageSrc: string): string {
   if (!imageSrc) return "";
   if (/^https?:\/\//i.test(imageSrc) || imageSrc.startsWith("data:")) {
@@ -135,14 +182,67 @@ function buildMarkerIcon(
   point: TripMapPoint,
   isActive: boolean
 ): GoogleMapMarkerIcon {
-  const size = isActive ? 52 : 44;
+  const size = isActive ? 60 : 52;
   const imageUrl = resolveMarkerImageUrl(point.imageSrc);
 
   return {
     url: imageUrl,
     scaledSize: new maps.Size(size, size),
     anchor: new maps.Point(Math.round(size / 2), Math.round(size / 2)),
+    labelOrigin: new maps.Point(Math.round(size / 2), size + 14),
   };
+}
+
+function buildMarkerLabel(point: TripMapPoint): GoogleMarkerLabel {
+  return {
+    text: point.localName ?? point.label,
+    color: "#12254c",
+    fontSize: "12px",
+    fontWeight: "700",
+  };
+}
+
+function buildHoverCardHtml(
+  point: TripMapPoint,
+  addButtonId: string | null,
+  buttonLabel: string
+): string {
+  const cityOrCountry = point.countryLabel ?? point.subtitle;
+  const intro =
+    point.intro ??
+    `${point.subtitle}。推荐先锁定核心景点，再按地理位置安排同一天路线，减少来回折返。`;
+  const duration = point.recommendedDays ?? "2-4 days";
+  const imageUrl = resolveMarkerImageUrl(point.imageSrc);
+
+  return `
+<div style="width:300px;max-width:300px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+  <div style="border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.16);background:#fff;">
+    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:170px;object-fit:cover;" />
+    <div style="padding:12px 14px 14px;">
+      <div style="font-size:20px;font-weight:700;line-height:1.15;">${escapeHtml(point.label)}</div>
+      <div style="margin-top:4px;font-size:13px;color:#475569;">${escapeHtml(point.localName ?? point.subtitle)}</div>
+      <div style="margin-top:10px;border-radius:10px;background:#eff6ff;padding:8px 10px;font-size:13px;line-height:1.4;color:#1e3a8a;">
+        ${escapeHtml(intro)}
+      </div>
+      <div style="margin-top:10px;font-size:13px;color:#334155;">
+        <span style="font-weight:600;">${escapeHtml(cityOrCountry)}</span> · ${escapeHtml(duration)}
+      </div>
+      ${
+        addButtonId
+          ? `<div style="margin-top:12px;">
+        <button id="${addButtonId}" type="button" style="width:100%;border:0;border-radius:10px;padding:10px 12px;background:#2563eb;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+          ${escapeHtml(buttonLabel)}
+        </button>
+      </div>`
+          : ""
+      }
+    </div>
+  </div>
+</div>`;
+}
+
+function sanitizeDomId(input: string): string {
+  return input.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
 async function loadGoogleMaps(apiKey: string): Promise<GoogleMapsNamespace> {
@@ -201,16 +301,18 @@ export function TripRouteMap({
   routeCoordinates,
   activePointId,
   onPointSelect,
+  onAddDestination,
   className,
 }: TripRouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
   const mapsRef = useRef<GoogleMapsNamespace | null>(null);
   const routeRef = useRef<GooglePolylineInstance | null>(null);
+  const hoverInfoRef = useRef<GoogleInfoWindowInstance | null>(null);
   const markersRef = useRef<
     Array<{
       marker: GoogleMarkerInstance;
-      listener: GoogleMarkerListener;
+      listeners: GoogleMarkerListener[];
       id: string;
     }>
   >([]);
@@ -247,7 +349,7 @@ export function TripRouteMap({
           streetViewControl: false,
           fullscreenControl: false,
           zoomControl: true,
-          gestureHandling: "cooperative",
+          gestureHandling: "greedy",
           restriction: {
             latLngBounds: {
               north: 85,
@@ -267,8 +369,14 @@ export function TripRouteMap({
           strokeWeight: 4,
           map,
         });
+        hoverInfoRef.current = new maps.InfoWindow({
+          disableAutoPan: true,
+        });
 
         mapRef.current = map;
+        map.addListener("click", () => {
+          hoverInfoRef.current?.close();
+        });
         window.setTimeout(() => {
           maps.event.trigger(map, "resize");
         }, 0);
@@ -284,8 +392,8 @@ export function TripRouteMap({
       disposed = true;
       setIsReady(false);
 
-      markersRef.current.forEach(({ marker, listener }) => {
-        listener.remove();
+      markersRef.current.forEach(({ marker, listeners }) => {
+        listeners.forEach((listener) => listener.remove());
         marker.setMap(null);
       });
       markersRef.current = [];
@@ -293,6 +401,11 @@ export function TripRouteMap({
       if (routeRef.current) {
         routeRef.current.setMap(null);
         routeRef.current = null;
+      }
+
+      if (hoverInfoRef.current) {
+        hoverInfoRef.current.close();
+        hoverInfoRef.current = null;
       }
 
       mapRef.current = null;
@@ -305,10 +418,11 @@ export function TripRouteMap({
     const map = mapRef.current;
     const maps = mapsRef.current;
     const route = routeRef.current;
-    if (!map || !maps || !route) return;
+    const hoverInfo = hoverInfoRef.current;
+    if (!map || !maps || !route || !hoverInfo) return;
 
-    markersRef.current.forEach(({ marker, listener }) => {
-      listener.remove();
+    markersRef.current.forEach(({ marker, listeners }) => {
+      listeners.forEach((listener) => listener.remove());
       marker.setMap(null);
     });
     markersRef.current = [];
@@ -320,11 +434,54 @@ export function TripRouteMap({
         position: { lat: point.lat, lng: point.lng },
         title: `${point.label} · ${point.subtitle}`,
         icon: buildMarkerIcon(maps, point, isActive),
+        label: buildMarkerLabel(point),
+        optimized: false,
         zIndex: isActive ? 1000 : 100,
       });
 
-      const listener = marker.addListener("click", () => onPointSelect?.(point.id));
-      markersRef.current.push({ marker, listener, id: point.id });
+      const openPreview = () => {
+        const buttonId = `trip-map-add-${sanitizeDomId(point.id)}`;
+        const cityForPlan = point.localName ?? point.label;
+        hoverInfo.setContent(
+          buildHoverCardHtml(
+            point,
+            onAddDestination ? buttonId : null,
+            `加入我的计划：${cityForPlan}`
+          )
+        );
+        hoverInfo.open({
+          map,
+          anchor: marker,
+          shouldFocus: false,
+        });
+
+        if (onAddDestination) {
+          maps.event.addListenerOnce(hoverInfo as unknown, "domready", () => {
+            const button = document.getElementById(buttonId);
+            if (!button) return;
+            button.addEventListener(
+              "click",
+              (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAddDestination(point);
+                hoverInfo.close();
+              },
+              { once: true }
+            );
+          });
+        }
+      };
+
+      const listeners = [
+        marker.addListener("click", () => {
+          onPointSelect?.(point.id);
+          openPreview();
+        }),
+        marker.addListener("mouseover", openPreview),
+      ];
+
+      markersRef.current.push({ marker, listeners, id: point.id });
     });
 
     const routePath = routeCoordinates.map(([lat, lng]) => ({ lat, lng }));
