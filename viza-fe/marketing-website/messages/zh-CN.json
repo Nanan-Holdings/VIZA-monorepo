@@ -1,0 +1,88 @@
+{
+  "nav": {
+    "home": "首页",
+    "apply": "立即申请",
+    "visas": "签证服务",
+    "explore": "浏览",
+    "events": "活动",
+    "careers": "加入我们",
+    "contact": "联系我们",
+    "signIn": "登录",
+    "getStarted": "开始申请",
+    "yourPassport": "您的护照",
+    "searchPlaceholder": "搜索国家或签证…"
+  },
+  "footer": {
+    "product": "产品",
+    "company": "公司",
+    "legal": "法律",
+    "offices": "办公室",
+    "askAi": "向 AI 询问 VIZA",
+    "security": "安全",
+    "status": "系统状态",
+    "refunds": "退款政策",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "pricing": "价格方案",
+    "rights": "版权所有。",
+    "tagline": "VIZA 助您在全球范围内无缝规划、申请并跟踪签证。"
+  },
+  "pages": {
+    "home": {
+      "title": "VIZA — 签证申请，由我们处理。",
+      "description": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程，您只管订机票。",
+      "heroTitle": "下一站去哪？",
+      "heroLede": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程 — 您只管订机票。"
+    },
+    "apply": {
+      "title": "立即申请 — VIZA",
+      "description": "上传您的护照。我们自动提取信息。确认、结算，签证将发送至您的邮箱。",
+      "saveBadge": "已保存 · 随时继续"
+    },
+    "careers": {
+      "title": "加入 VIZA",
+      "description": "和我们一起，让边境消失。新加坡、旧金山、迪拜、伦敦招聘工程、设计、运营、咨询岗位。",
+      "rightCta": "查看职位"
+    },
+    "contact": {
+      "title": "联系 VIZA",
+      "description": "WhatsApp、微信、电话、邮箱。四个渠道，四个客服台，5 分钟内真人响应。",
+      "rightCta": "发送留言"
+    },
+    "refunds": {
+      "title": "退款政策 — VIZA",
+      "description": "若我们失约，您无需付费。服务费退款政策、退款矩阵与申请流程。",
+      "rightCta": "提交退款申请"
+    },
+    "security": {
+      "title": "VIZA 安全",
+      "description": "私密、透明、默认安全。我们如何保护客户数据、漏洞披露计划与安全港条款。",
+      "rightCta": "上报漏洞"
+    },
+    "status": {
+      "title": "系统状态 — VIZA",
+      "description": "VIZA 及我们对接的各国政府签证门户实时状态。",
+      "navPill": "所有系统运行正常"
+    },
+    "visa": {
+      "applyCta": "立即申请",
+      "applicationProcess": "申请流程",
+      "documents": "所需材料",
+      "rejectionReasons": "拒签原因",
+      "entryExit": "入境与离境",
+      "extension": "签证延期",
+      "reviews": "用户评价",
+      "nearby": "邻近国家",
+      "faq": "常见问题",
+      "sources": "官方资料"
+    }
+  },
+  "common": {
+    "comingSoon": "即将上线",
+    "learnMore": "了解更多",
+    "readMore": "查看详情",
+    "applyNow": "立即申请",
+    "talkToHuman": "联系顾问",
+    "viewAll": "查看全部"
+  }
+}
