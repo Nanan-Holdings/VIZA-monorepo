@@ -6,13 +6,12 @@ VIZA is an AI-powered visa operations platform. This repository contains the cor
 
 This monorepo currently includes:
 
-- Client, staff, and admin web portals (single Next.js app with role-based surfaces)
+- Client, staff, and admin web portals (Next.js app with role-based surfaces) — `viza-fe/internal-website`
+- Public marketing website — `viza-fe/marketing-website` (Next.js, SEO-first, deploys to `viza.com`)
 - Agent backend (chat, data APIs, form schema services)
 - Submission service (Playwright automation and runtime validation tooling)
 - Knowledge-base ingestion and research artifacts
 - Country visa schema playbooks, scope docs, and gap reports
-
-The external marketing website is managed outside this repo.
 
 ## Current highlights
 
@@ -28,7 +27,8 @@ The external marketing website is managed outside this repo.
 
 ```
 viza-fe/
-  internal-website/           Next.js 16 app (client + staff + admin surfaces)
+  internal-website/           Next.js 16 app (client + staff + admin surfaces) — deploys to app.viza.com
+  marketing-website/          Next.js 16 marketing site (public, SEO-first)     — deploys to viza.com
 
 viza-be/
   agent-backend/              Express + Socket.IO + Drizzle + Supabase
@@ -61,11 +61,20 @@ vietnam-visa-helper-v1/       Vietnam form helper extension research artifact
 - npm
 - Supabase project credentials (service and client envs)
 
-### 1) Frontend
+### 1) Frontend — internal portal
 
 ```bash
 cd viza-fe/internal-website
 cp .env.template .env.local
+npm install
+npm run dev
+```
+
+### 1b) Frontend — public marketing site
+
+```bash
+cd viza-fe/marketing-website
+cp .env.example .env.local
 npm install
 npm run dev
 ```
