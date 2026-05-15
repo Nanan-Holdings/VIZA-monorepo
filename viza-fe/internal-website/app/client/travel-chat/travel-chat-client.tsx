@@ -897,15 +897,15 @@ export function TravelChatClient({
     [applicationId]
   );
   const [messages, setMessages] = useState<TravelChatMessage[]>(() =>
-    readArchivedTravelMessages(archiveKey)
+    createInitialTravelMessages()
   );
+  const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
   const scrollDragOffsetRef = useRef(0);
-  const archiveKeyRef = useRef(archiveKey);
   const [scrollThumb, setScrollThumb] = useState<ScrollThumbState>({
     top: 0,
     height: 0,
@@ -1158,11 +1158,16 @@ export function TravelChatClient({
     const maxScroll = scrollElement.scrollHeight - scrollElement.clientHeight;
     const railHeight = railElement.clientHeight;
     if (maxScroll <= 1 || railHeight <= 0) {
+      setShowScrollToBottom(false);
       setScrollThumb((previous) =>
         previous.visible ? { top: 0, height: 0, visible: false } : previous
       );
       return;
     }
+
+    const distanceFromBottom =
+      scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
+    setShowScrollToBottom(distanceFromBottom > 220);
 
     const thumbHeight = clampNumber(
       (scrollElement.clientHeight / scrollElement.scrollHeight) * railHeight,
@@ -1237,6 +1242,16 @@ export function TravelChatClient({
     [scrollConversationToThumbTop, scrollThumb.visible]
   );
 
+  const scrollConversationToBottom = useCallback(() => {
+    const scrollElement = messageScrollRef.current;
+    if (!scrollElement) return;
+
+    scrollElement.scrollTo({
+      top: scrollElement.scrollHeight,
+      behavior: "smooth",
+    });
+  }, []);
+
   const mapPoints = useMemo<TripMapPoint[]>(
     () =>
       allMapTargets
@@ -1257,6 +1272,18 @@ export function TravelChatClient({
         })),
     [allMapTargets]
   );
+
+  useEffect(() => {
+    setMessages(readArchivedTravelMessages(archiveKey));
+    setActiveMapTargetId("");
+    setArchiveLoadedKey(archiveKey);
+  }, [archiveKey]);
+
+  useEffect(() => {
+    if (archiveLoadedKey !== archiveKey) return;
+
+    writeArchivedTravelMessages(archiveKey, messages);
+  }, [archiveKey, archiveLoadedKey, messages]);
 
   useEffect(() => {
     const scrollElement = messageScrollRef.current;
@@ -1431,7 +1458,6 @@ export function TravelChatClient({
         role: "user",
         parts: [{ type: "text", text: normalized }],
       });
-      setDraftMessage("");
     },
     [sendMessage]
   );
@@ -1658,9 +1684,9 @@ export function TravelChatClient({
                   className="h-full space-y-4 overflow-y-auto overscroll-y-contain py-4 pl-10 pr-4 [scrollbar-width:none] md:py-6 md:pl-12 md:pr-6 [&::-webkit-scrollbar]:hidden"
                   data-testid="travel-message-scroll"
                 >
-                <div className="space-y-3">
+                <div className="space-y-8">
                   {messages.map((message) => {
-                const text = getMessageText(message);
+                const visibleText = getVisibleMessageText(message);
                 const destinationCards = message.parts
                   .filter((part) => part.type === "destination_cards")
                   .flatMap((part) => part.cards);
@@ -1672,7 +1698,7 @@ export function TravelChatClient({
                   message.parts.some((part) => part.type === "planner_form") &&
                   Boolean(missingField);
                 if (
-                  !text &&
+                  !visibleText &&
                   destinationCards.length === 0 &&
                   quickReplies.length === 0 &&
                   !showPlannerForm
@@ -1682,121 +1708,130 @@ export function TravelChatClient({
 
                 return (
                   <div
-                    className={
-                      message.role === "user"
-                        ? "ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-md bg-[#03346E] px-4 py-2.5 text-sm text-white shadow-sm"
-                        : "mr-auto w-fit max-w-[96%] rounded-2xl rounded-bl-md border border-sky-100 bg-gradient-to-br from-white via-sky-50/50 to-violet-50/40 px-4 py-2.5 text-sm text-slate-800 shadow-sm"
-                    }
+                    className="w-full"
                     key={message.id}
                   >
-                    {text && (
-                      <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed">
-                        {getVisibleMessageText(message)}
-                      </pre>
+                    {visibleText && (
+                      <ChatMessage
+                        content={visibleText}
+                        role={message.role === "user" ? "user" : "agent"}
+                      />
                     )}
 
-                    {destinationCards.length > 0 && (
+                    {(destinationCards.length > 0 ||
+                      quickReplies.length > 0 ||
+                      showPlannerForm) && (
                       <div
-                        className="mt-3 grid gap-3 sm:grid-cols-2"
-                        data-testid="travel-destination-cards"
+                        className={
+                          message.role === "user"
+                            ? "ml-auto mt-3 max-w-[85%]"
+                            : "mt-4 w-full"
+                        }
                       >
-                        {destinationCards.map((card) => {
-                          const rawDisplayCity = card.city ?? card.country;
-                          const displayCity = getLocalDisplayName(rawDisplayCity);
-                          const suggestedDays = localizeSuggestedDays(
-                            card.suggested_days
-                          );
-                          const actionLabel =
-                            card.action_label && card.action_label !== "加入计划"
-                              ? localizeTravelText(card.action_label)
-                              : `加入计划：${displayCity}`;
-                          const imageSrc = getCityImage(
-                            card.image_key ?? rawDisplayCity,
-                            card.title
-                          );
-                          return (
-                            <div
-                              className="group overflow-hidden rounded-xl border border-white/80 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
-                              data-testid="travel-destination-card"
-                              key={`${card.country}-${displayCity}-${card.title}`}
-                            >
-                              <div className="relative">
-                                <Image
-                                  alt={card.title}
-                                  className="h-36 w-full object-cover"
-                                  height={144}
-                                  src={imageSrc}
-                                  width={320}
-                                />
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8 text-white">
-                                  <p className="text-sm font-semibold leading-tight">
-                                    {card.title}
-                                  </p>
-                                  <p className="mt-1 flex items-center gap-1 text-[11px] text-white/85">
-                                    <MapPin className="h-3 w-3" />
-                                    {displayCity} · {suggestedDays}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="space-y-2 p-3">
-                                <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">
-                                  {card.subtitle}
-                                </p>
-                                {card.highlights.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {card.highlights.slice(0, 3).map((highlight) => (
-                                      <span
-                                        className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-800"
-                                        key={highlight}
-                                      >
-                                        {highlight}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                <Button
-                                  className="w-full bg-[#03346E] text-white hover:bg-[#022b5d]"
-                                  disabled={status !== "ready"}
-                                  onClick={() => handleDestinationCardAction(card)}
-                                  size="sm"
-                                  type="button"
-                                >
-                                  {actionLabel}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {quickReplies.length > 0 && message.role === "assistant" && (
-                      <div
-                        className="mt-3 flex flex-wrap gap-2"
-                        data-testid="travel-quick-replies"
-                      >
-                        {quickReplies.map((reply) => (
-                          <Button
-                            disabled={status !== "ready"}
-                            key={`${message.id}-${reply.label}`}
-                            onClick={() => handleQuickReply(reply)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
+                        {destinationCards.length > 0 && (
+                          <div
+                            className="grid gap-3 sm:grid-cols-2"
+                            data-testid="travel-destination-cards"
                           >
-                            {reply.label}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+                            {destinationCards.map((card) => {
+                              const rawDisplayCity = card.city ?? card.country;
+                              const displayCity = getLocalDisplayName(rawDisplayCity);
+                              const suggestedDays = localizeSuggestedDays(
+                                card.suggested_days
+                              );
+                              const actionLabel =
+                                card.action_label && card.action_label !== "加入计划"
+                                  ? localizeTravelText(card.action_label)
+                                  : `加入计划：${displayCity}`;
+                              const imageSrc = getCityImage(
+                                card.image_key ?? rawDisplayCity,
+                                card.title
+                              );
+                              return (
+                                <div
+                                  className="group overflow-hidden rounded-xl border border-white/80 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
+                                  data-testid="travel-destination-card"
+                                  key={`${card.country}-${displayCity}-${card.title}`}
+                                >
+                                  <div className="relative">
+                                    <Image
+                                      alt={card.title}
+                                      className="h-36 w-full object-cover"
+                                      height={144}
+                                      src={imageSrc}
+                                      width={320}
+                                    />
+                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8 text-white">
+                                      <p className="text-sm font-semibold leading-tight">
+                                        {card.title}
+                                      </p>
+                                      <p className="mt-1 flex items-center gap-1 text-[11px] text-white/85">
+                                        <MapPin className="h-3 w-3" />
+                                        {displayCity} · {suggestedDays}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2 p-3">
+                                    <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">
+                                      {card.subtitle}
+                                    </p>
+                                    {card.highlights.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {card.highlights.slice(0, 3).map((highlight) => (
+                                          <span
+                                            className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-800"
+                                            key={highlight}
+                                          >
+                                            {highlight}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <Button
+                                      className="w-full bg-[#03346E] text-white hover:bg-[#022b5d]"
+                                      disabled={status !== "ready"}
+                                      onClick={() => handleDestinationCardAction(card)}
+                                      size="sm"
+                                      type="button"
+                                    >
+                                      {actionLabel}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                    {showPlannerForm && (
-                      <div className="mt-3" data-testid="travel-inline-planner-form">
-                        <TravelPlannerForm
-                          messages={messages}
-                          sendMessage={sendMessage}
-                          status={status}
-                        />
+                        {quickReplies.length > 0 && message.role === "assistant" && (
+                          <div
+                            className="mt-3 flex flex-wrap gap-2"
+                            data-testid="travel-quick-replies"
+                          >
+                            {quickReplies.map((reply) => (
+                              <Button
+                                disabled={status !== "ready"}
+                                key={`${message.id}-${reply.label}`}
+                                onClick={() => handleQuickReply(reply)}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                {reply.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+
+                        {showPlannerForm && (
+                          <div className="mt-3" data-testid="travel-inline-planner-form">
+                            <TravelPlannerForm
+                              messages={messages}
+                              sendMessage={sendMessage}
+                              status={status}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1807,38 +1842,22 @@ export function TravelChatClient({
                 <TravelItineraryPanel messages={messages} variant="compact" />
               </div>
               </div>
-                <form
-                  className="shrink-0 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
+                <div
+                  className="relative shrink-0 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
                   data-testid="travel-free-chat-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    sendFreeTextMessage(draftMessage);
-                  }}
                 >
-                  <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <Textarea
-                      className="min-h-11 resize-none border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
-                      disabled={status !== "ready"}
-                      onChange={(event) => setDraftMessage(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          sendFreeTextMessage(draftMessage);
-                        }
-                      }}
-                      placeholder="像和旅行顾问聊天一样输入：我不知道去哪、想去日本、预算8000想轻松一点..."
-                      value={draftMessage}
-                    />
-                    <Button
-                      className="h-11 px-3"
-                      disabled={status !== "ready" || !draftMessage.trim()}
-                      size="icon"
-                      type="submit"
-                    >
-                      <SendHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </form>
+                  <ScrollToBottomFab
+                    className="-top-20 right-2"
+                    hasNewMessage={false}
+                    onClick={scrollConversationToBottom}
+                    show={showScrollToBottom}
+                  />
+                  <ChatInput
+                    disabled={status !== "ready"}
+                    isConnecting={status === "submitted" || status === "streaming"}
+                    onSend={sendFreeTextMessage}
+                  />
+                </div>
               </div>
           </CardContent>
         </Card>
