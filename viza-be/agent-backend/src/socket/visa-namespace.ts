@@ -16,6 +16,62 @@ import {
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
+function resolveKnowledgeCountry(message: string, applicationCountry?: string | null): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('美国') ||
+    normalized.includes('美签') ||
+    normalized.includes('united states') ||
+    normalized.includes('u.s.') ||
+    normalized.includes('usa') ||
+    normalized.includes('us visa')
+  ) {
+    return 'us';
+  }
+
+  if (
+    normalized.includes('印尼') ||
+    normalized.includes('印度尼西亚') ||
+    normalized.includes('indonesia') ||
+    normalized.includes('bali')
+  ) {
+    return 'indonesia';
+  }
+
+  return applicationCountry ?? 'indonesia';
+}
+
+function resolveKnowledgeVisaType(
+  country: string,
+  message: string,
+  applicationVisaType?: string | null
+): string | null {
+  const normalized = message.toLowerCase();
+
+  if (country === 'us') {
+    if (
+      normalized.includes('b1') ||
+      normalized.includes('b-1') ||
+      normalized.includes('b2') ||
+      normalized.includes('b-2') ||
+      normalized.includes('b1/b2') ||
+      normalized.includes('b-1/b-2') ||
+      normalized.includes('旅游') ||
+      normalized.includes('商务') ||
+      normalized.includes('visitor') ||
+      normalized.includes('tourist') ||
+      normalized.includes('business') ||
+      normalized.includes('ds-160') ||
+      normalized.includes('ds160')
+    ) {
+      return 'b1_b2';
+    }
+  }
+
+  return applicationVisaType ?? null;
+}
+
 /**
  * Payload the client sends on the "visa_chat_message" event.
  */
@@ -99,10 +155,19 @@ export function registerVisaNamespace(nsp: Namespace): void {
         // 3. Build dynamic system prompt with user application context (US-036)
         //    and retrieved visa knowledge from visa_chunks.
         const appContext = await buildApplicationContext(user_id);
+        const knowledgeCountry = resolveKnowledgeCountry(
+          message,
+          appContext.application?.country
+        );
+        const knowledgeVisaType = resolveKnowledgeVisaType(
+          knowledgeCountry,
+          message,
+          appContext.application?.visa_type
+        );
         const knowledgeResult = await retrieveVisaKnowledge({
           query: message,
-          country: appContext.application?.country ?? 'indonesia',
-          visaType: appContext.application?.visa_type,
+          country: knowledgeCountry,
+          visaType: knowledgeVisaType,
           matchCount: 5,
         });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
@@ -117,6 +182,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
           name: 'visa_knowledge',
           result: {
             chunkCount: knowledgeResult.chunks.length,
+            country: knowledgeCountry,
+            visaType: knowledgeVisaType,
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
             topSources: knowledgeResult.chunks.slice(0, 3).map((chunk) => ({
