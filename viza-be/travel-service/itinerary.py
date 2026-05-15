@@ -182,6 +182,7 @@ def generate_itinerary(state):
     departure_date = (state.get("departure_date") or "").strip() or "未指定"
     date_flexibility = state.get("date_flexibility") or "flexible"
     date_mode_label = "灵活出行" if date_flexibility == "flexible" else "指定日期"
+    travel_days = _safe_positive_int(state.get("travel_days"), default=0)
 
     prompt = f"""
 你是一位专业旅行规划师，请根据用户需求生成详细行程。
@@ -202,6 +203,7 @@ def generate_itinerary(state):
 城市：{state.get("cities")}
 出行日期：{departure_date}
 日期类型：{date_mode_label}
+总出行天数：{travel_days if travel_days > 0 else "未指定"}
 城市停留节奏：{state.get("city_days")}
 人数：{state.get("travelers")}
 预算：{state.get("budget")}

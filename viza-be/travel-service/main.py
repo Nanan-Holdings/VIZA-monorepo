@@ -33,6 +33,7 @@ class TravelRequest(BaseModel):
     city_days: dict[str, int] = Field(default_factory=dict)
     travelers: int = Field(default=1, ge=1)
     budget: int = Field(default=1000, ge=1)
+    travel_days: Optional[int] = None
     travel_order: list[str] = Field(default_factory=list)
     origin_country: Optional[str] = None
     origin_city: Optional[str] = None
@@ -83,6 +84,15 @@ def _normalized_cities(data: TravelRequest) -> list[str]:
 
 
 def _normalized_city_days(data: TravelRequest, cities: list[str]) -> dict[str, int]:
+    if cities and not data.city_days and data.travel_days:
+        total_days = max(len(cities), int(data.travel_days))
+        base_days = total_days // len(cities)
+        extra_days = total_days % len(cities)
+        return {
+            city: base_days + (1 if index < extra_days else 0)
+            for index, city in enumerate(cities)
+        }
+
     result = {}
     for city in cities:
         raw_days = data.city_days.get(city, 1)
@@ -128,6 +138,7 @@ def _travel_payload(data: TravelRequest):
         "country": normalized_country,
         "cities": cities,
         "city_days": city_days,
+        "travel_days": data.travel_days or sum(city_days.values()),
         "departure_date": start_date.isoformat(),
         "date_flexibility": data.date_flexibility or "flexible",
     }
