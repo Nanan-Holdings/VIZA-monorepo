@@ -173,9 +173,7 @@ export async function getCountryOptions(): Promise<CountryOption[]> {
         const meta = toCountryMeta(item);
         if (!meta) continue;
 
-        const label = meta.nameZh
-          ? `${meta.nameZh} (${meta.nameEn})`
-          : meta.nameEn;
+        const label = meta.nameZh || meta.nameEn;
         const search = buildSearchText([
           meta.nameEn,
           meta.nameZh,
@@ -270,7 +268,7 @@ function resolveCountryCodeFromLookup(
 function toCityOption(city: CuratedCity): CityOption {
   const labelEn = city.en.trim();
   const labelZh = city.zh?.trim();
-  const label = labelZh ? `${labelZh} (${labelEn})` : labelEn;
+  const label = labelZh || labelEn;
   const search = buildSearchText([labelEn, labelZh, ...(city.aliases ?? [])]);
 
   return {

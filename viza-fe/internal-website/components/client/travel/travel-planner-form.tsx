@@ -26,7 +26,6 @@ import {
   type SelectedHotelOption,
   type TravelFormPayload,
   type TravelPlanningPayload,
-  type TravelPayload,
 } from "@/lib/travel/planner";
 import type {
   TravelChatInputMessage,
@@ -1286,12 +1285,15 @@ export function TravelPlannerForm({
   const hotelStaysForSelection =
     hotelStays.length > 0 ? hotelStays : fallbackHotelStays;
 
-  const sendStructuredMessage = (payload: TravelFormPayload) => {
-    sendMessage({
-      role: "user",
-      parts: [{ type: "text", text: createTravelFormMessage(payload) }],
-    });
-  };
+  const sendStructuredMessage = useCallback(
+    (payload: TravelFormPayload) => {
+      sendMessage({
+        role: "user",
+        parts: [{ type: "text", text: createTravelFormMessage(payload) }],
+      });
+    },
+    [sendMessage]
+  );
 
   const submitCountries = useCallback(() => {
     if (!resolvedCountries.length) {
