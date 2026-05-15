@@ -108,6 +108,12 @@ async function run() {
       if (outsideTop || outsideLeft || outsideRight || outsideBottom) {
         throw new Error("Hover card overflowed map viewport.");
       }
+
+      const closePreview = await page.$("[id^='trip-map-close-']");
+      if (closePreview) {
+        await closePreview.click();
+        await page.waitForTimeout(400);
+      }
     }
 
     const mapBox = await page.locator("[data-testid='trip-route-map']").boundingBox();
