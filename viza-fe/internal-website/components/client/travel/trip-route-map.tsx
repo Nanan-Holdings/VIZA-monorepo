@@ -52,12 +52,16 @@ type GoogleMarkerLabel = {
 type GoogleMarkerInstance = {
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
   setMap: (map: GoogleMapInstance | null) => void;
+  setIcon: (icon?: GoogleMapMarkerIcon) => void;
+  setLabel: (label?: GoogleMarkerLabel) => void;
+  setZIndex: (zIndex: number) => void;
 };
 
 type GoogleMapInstance = {
   fitBounds: (bounds: GoogleLatLngBoundsInstance, padding?: number) => void;
   setCenter: (center: GoogleLatLngLiteral) => void;
   setZoom: (zoom: number) => void;
+  getCenter: () => { lat: () => number; lng: () => number } | null;
   getZoom: () => number | undefined;
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
 };
@@ -160,6 +164,7 @@ const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 let mapsLoaderPromise: Promise<GoogleMapsNamespace> | null = null;
+const markerIconCache = new Map<string, Promise<string>>();
 
 function escapeHtml(input: string): string {
   return input
@@ -258,6 +263,7 @@ type MarkerLayoutPoint = {
 
 function layoutPointsWithoutOverlap(
   points: TripMapPoint[],
+  center: GoogleLatLngLiteral,
   zoom: number,
   mapWidth: number,
   mapHeight: number,
@@ -268,6 +274,7 @@ function layoutPointsWithoutOverlap(
 
   const usedRects: MarkerLayoutRect[] = [];
   const layout: MarkerLayoutPoint[] = [];
+  const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
   const tailHeight = Math.round(iconSize * 0.26);
   const iconWidth = iconSize + 10;
   const iconHeight = iconSize + tailHeight + 10;
@@ -280,6 +287,8 @@ function layoutPointsWithoutOverlap(
 
   for (const point of points) {
     const world = toWorldPixel(point.lat, point.lng, zoom);
+    const screenX = mapWidth / 2 + (world.x - centerWorld.x);
+    const screenY = mapHeight / 2 + (world.y - centerWorld.y);
 
     let best: {
       x: number;
@@ -289,8 +298,8 @@ function layoutPointsWithoutOverlap(
     } | null = null;
 
     for (const candidate of candidates) {
-      const px = world.x + candidate.dx;
-      const py = world.y + candidate.dy;
+      const px = screenX + candidate.dx;
+      const py = screenY + candidate.dy;
       const rect: MarkerLayoutRect = {
         left: px - iconWidth / 2,
         right: px + iconWidth / 2,
@@ -319,20 +328,22 @@ function layoutPointsWithoutOverlap(
 
     if (!best) {
       best = {
-        x: world.x,
-        y: world.y,
+        x: screenX,
+        y: screenY,
         score: 0,
         rect: {
-          left: world.x - iconWidth / 2,
-          right: world.x + iconWidth / 2,
-          top: world.y - iconHeight,
-          bottom: world.y + labelHeight,
+          left: screenX - iconWidth / 2,
+          right: screenX + iconWidth / 2,
+          top: screenY - iconHeight,
+          bottom: screenY + labelHeight,
         },
       };
     }
 
     usedRects.push(best.rect);
-    const latLng = fromWorldPixel(best.x, best.y, zoom);
+    const worldX = centerWorld.x + (best.x - mapWidth / 2);
+    const worldY = centerWorld.y + (best.y - mapHeight / 2);
+    const latLng = fromWorldPixel(worldX, worldY, zoom);
     layout.push({
       point,
       lat: latLng.lat,
@@ -343,48 +354,203 @@ function layoutPointsWithoutOverlap(
   return layout;
 }
 
+function drawRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
+  const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
+  const tailHeight = Math.round(bodySize * 0.26);
+  const width = bodySize + 10;
+  const height = bodySize + tailHeight + 10;
+  const strokeColor = isActive ? "#1d4ed8" : "#dbeafe";
+  const strokeWidth = isActive ? 3 : 2;
+  const borderRadius = Math.round(bodySize * 0.24);
+  const tailHalf = Math.max(6, Math.round(bodySize * 0.11));
+  const bubbleBottom = bodySize + 6;
+
+  return {
+    bodySize,
+    tailHeight,
+    width,
+    height,
+    strokeColor,
+    strokeWidth,
+    borderRadius,
+    tailHalf,
+    bubbleBottom,
+  };
+}
+
+function createBubblePath(
+  ctx: CanvasRenderingContext2D,
+  dims: ReturnType<typeof createBubbleMarkerDimensions>
+): void {
+  drawRoundedRectPath(ctx, 3, 3, dims.bodySize + 4, dims.bodySize + 4, dims.borderRadius + 3);
+  ctx.moveTo(Math.round(dims.width / 2) - dims.tailHalf, dims.bubbleBottom);
+  ctx.lineTo(Math.round(dims.width / 2) + dims.tailHalf, dims.bubbleBottom);
+  ctx.lineTo(Math.round(dims.width / 2), dims.bubbleBottom + dims.tailHeight);
+  ctx.closePath();
+}
+
+function createSolidBubbleMarkerDataUrl(
+  point: TripMapPoint,
+  iconSize: number,
+  isActive: boolean
+): string {
+  if (typeof document === "undefined") {
+    return resolveMarkerImageUrl(point.imageSrc);
+  }
+
+  const dims = createBubbleMarkerDimensions(iconSize, isActive);
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(dims.width * dpr);
+  canvas.height = Math.ceil(dims.height * dpr);
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    return resolveMarkerImageUrl(point.imageSrc);
+  }
+
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = isActive ? "#3b82f6" : "#60a5fa";
+  createBubblePath(ctx, dims);
+  ctx.fill();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 14px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const fallbackText = (point.localName ?? point.label ?? "?").trim().slice(0, 1) || "?";
+  ctx.fillText(fallbackText, Math.round(dims.width / 2), Math.round((dims.bodySize + 8) / 2));
+
+  return canvas.toDataURL("image/png");
+}
+
+function loadImageForCanvas(imageUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.referrerPolicy = "no-referrer";
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`marker image load failed: ${imageUrl}`));
+    image.src = imageUrl;
+  });
+}
+
+async function createBubbleMarkerDataUrl(
+  point: TripMapPoint,
+  iconSize: number,
+  isActive: boolean
+): Promise<string> {
+  if (typeof document === "undefined") {
+    return resolveMarkerImageUrl(point.imageSrc);
+  }
+
+  const imageUrl = resolveMarkerImageUrl(point.imageSrc);
+  if (!imageUrl) {
+    return createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
+  }
+
+  try {
+    const image = await loadImageForCanvas(imageUrl);
+    const dims = createBubbleMarkerDimensions(iconSize, isActive);
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(dims.width * dpr);
+    canvas.height = Math.ceil(dims.height * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return imageUrl;
+    }
+
+    ctx.scale(dpr, dpr);
+
+    ctx.save();
+    ctx.shadowColor = "rgba(15,23,42,0.26)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 5;
+    createBubblePath(ctx, dims);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, 3, 3, dims.bodySize + 4, dims.bodySize + 4, dims.borderRadius + 3);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = dims.strokeWidth;
+    ctx.strokeStyle = dims.strokeColor;
+    ctx.stroke();
+
+    const imageInset = 5;
+    const imageSize = dims.bodySize;
+    ctx.save();
+    drawRoundedRectPath(ctx, imageInset, imageInset, imageSize, imageSize, dims.borderRadius);
+    ctx.clip();
+    ctx.drawImage(image, imageInset, imageInset, imageSize, imageSize);
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.moveTo(Math.round(dims.width / 2) - dims.tailHalf, dims.bubbleBottom);
+    ctx.lineTo(Math.round(dims.width / 2) + dims.tailHalf, dims.bubbleBottom);
+    ctx.lineTo(Math.round(dims.width / 2), dims.bubbleBottom + dims.tailHeight);
+    ctx.closePath();
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = dims.strokeWidth;
+    ctx.strokeStyle = dims.strokeColor;
+    ctx.stroke();
+
+    return canvas.toDataURL("image/png");
+  } catch {
+    return createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
+  }
+}
+
+function getBubbleMarkerDataUrl(
+  point: TripMapPoint,
+  iconSize: number,
+  isActive: boolean
+): Promise<string> {
+  const cacheKey = `${resolveMarkerImageUrl(point.imageSrc)}::${iconSize}::${isActive ? "1" : "0"}`;
+  const cached = markerIconCache.get(cacheKey);
+  if (cached) return cached;
+
+  const promise = createBubbleMarkerDataUrl(point, iconSize, isActive);
+  markerIconCache.set(cacheKey, promise);
+  return promise;
+}
+
 function buildMarkerIcon(
   maps: GoogleMapsNamespace,
   point: TripMapPoint,
   isActive: boolean,
-  iconSize: number
+  iconSize: number,
+  markerDataUrl: string
 ): GoogleMapMarkerIcon {
-  const imageUrl = resolveMarkerImageUrl(point.imageSrc);
-  const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
-  const tailHeight = Math.round(bodySize * 0.26);
-  const svgWidth = bodySize + 10;
-  const svgHeight = bodySize + tailHeight + 10;
-  const strokeColor = isActive ? "#1d4ed8" : "#dbeafe";
-  const strokeWidth = isActive ? 3 : 2;
-  const radius = Math.round(bodySize * 0.24);
-  const clipId = `clip_${sanitizeDomId(point.id)}_${isActive ? "a" : "n"}`;
-  const bubbleBottom = bodySize + 6;
-  const tailHalf = Math.max(6, Math.round(bodySize * 0.11));
-
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
-  <defs>
-    <clipPath id="${clipId}">
-      <rect x="5" y="5" width="${bodySize}" height="${bodySize}" rx="${radius}" ry="${radius}" />
-    </clipPath>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
-      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.26" />
-    </filter>
-  </defs>
-  <g filter="url(#shadow)">
-    <rect x="3" y="3" width="${bodySize + 4}" height="${bodySize + 4}" rx="${radius + 3}" fill="#ffffff" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
-    <image href="${escapeHtml(imageUrl)}" x="5" y="5" width="${bodySize}" height="${bodySize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})" />
-    <path d="M ${Math.round(svgWidth / 2) - tailHalf} ${bubbleBottom} L ${Math.round(svgWidth / 2) + tailHalf} ${bubbleBottom} L ${Math.round(svgWidth / 2)} ${bubbleBottom + tailHeight}" fill="#ffffff" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round" />
-  </g>
-</svg>`;
-
-  const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  const dims = createBubbleMarkerDimensions(iconSize, isActive);
 
   return {
-    url,
-    scaledSize: new maps.Size(svgWidth, svgHeight),
-    anchor: new maps.Point(Math.round(svgWidth / 2), svgHeight - 2),
-    labelOrigin: new maps.Point(Math.round(svgWidth / 2), svgHeight + 11),
+    url: markerDataUrl,
+    scaledSize: new maps.Size(dims.width, dims.height),
+    anchor: new maps.Point(Math.round(dims.width / 2), dims.height - 2),
+    labelOrigin: new maps.Point(Math.round(dims.width / 2), dims.height + 11),
   };
 }
 
@@ -578,11 +744,15 @@ export function TripRouteMap({
         });
 
         const requestLayoutRefresh = () => {
+          hoverInfoRef.current?.close();
           setLayoutVersion((value) => value + 1);
         };
 
         layoutRerenderListenersRef.current = [
           map.addListener("zoom_changed", requestLayoutRefresh),
+          map.addListener("dragstart", () => {
+            hoverInfoRef.current?.close();
+          }),
         ];
 
         if (containerRef.current && typeof ResizeObserver !== "undefined") {
@@ -650,10 +820,15 @@ export function TripRouteMap({
     const zoom = map.getZoom() ?? DEFAULT_ZOOM;
     const mapWidth = containerRef.current?.clientWidth ?? 1200;
     const mapHeight = containerRef.current?.clientHeight ?? 800;
+    const centerValue = map.getCenter();
+    const center = centerValue
+      ? { lat: centerValue.lat(), lng: centerValue.lng() }
+      : DEFAULT_CENTER;
     const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight, zoom);
     const showLabel = zoom >= LABEL_MIN_ZOOM;
     const laidOutPoints = layoutPointsWithoutOverlap(
       points,
+      center,
       zoom,
       mapWidth,
       mapHeight,
@@ -661,16 +836,24 @@ export function TripRouteMap({
       showLabel
     );
 
+    let effectDisposed = false;
+
     laidOutPoints.forEach(({ point, lat, lng }) => {
       const isActive = point.id === activePointId;
+      const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
       const marker = new maps.Marker({
         map,
         position: { lat, lng },
         title: `${point.label} · ${point.subtitle}`,
-        icon: buildMarkerIcon(maps, point, isActive, iconSize),
+        icon: buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl),
         label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
         optimized: false,
         zIndex: isActive ? 1000 : 100,
+      });
+
+      void getBubbleMarkerDataUrl(point, iconSize, isActive).then((markerDataUrl) => {
+        if (effectDisposed) return;
+        marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl));
       });
 
       const openPreview = () => {
@@ -755,6 +938,10 @@ export function TripRouteMap({
       map.setCenter(DEFAULT_CENTER);
       map.setZoom(DEFAULT_ZOOM);
     }
+
+    return () => {
+      effectDisposed = true;
+    };
   }, [
     activePointId,
     isReady,
