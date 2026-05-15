@@ -1059,7 +1059,7 @@ export function TravelItineraryExperience({
 
     setIsSharingLink(true);
     try {
-      const url = new URL(window.location.href);
+      const url = new URL("/travel-itinerary", window.location.origin);
       url.searchParams.set(
         TRAVEL_ITINERARY_SHARE_PARAM,
         encodeTravelItinerarySharePayload(sharePayload)
