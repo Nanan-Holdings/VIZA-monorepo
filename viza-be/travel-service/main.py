@@ -45,6 +45,7 @@ class TravelRequest(BaseModel):
     selected_hotels: list[dict] = Field(default_factory=list)
     final_note: Optional[str] = None
     attached_files: list[str] = Field(default_factory=list)
+    itinerary: list[dict] = Field(default_factory=list)
 
 
 def _payload(data: TravelRequest):
@@ -234,8 +235,9 @@ def chat(data: TravelChatRequest):
 
 @app.post("/download-word")
 def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
-    itinerary = generate_itinerary(_travel_payload(data))
-    file_path = export_to_word(itinerary)
+    payload = _travel_payload(data)
+    itinerary = data.itinerary or generate_itinerary(payload)
+    file_path = export_to_word(itinerary, payload)
     background_tasks.add_task(_cleanup_file, file_path)
 
     return FileResponse(
@@ -247,8 +249,9 @@ def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
 
 @app.post("/download-pdf")
 def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
-    itinerary = generate_itinerary(_travel_payload(data))
-    file_path = export_to_pdf(itinerary)
+    payload = _travel_payload(data)
+    itinerary = data.itinerary or generate_itinerary(payload)
+    file_path = export_to_pdf(itinerary, payload)
     background_tasks.add_task(_cleanup_file, file_path)
 
     return FileResponse(

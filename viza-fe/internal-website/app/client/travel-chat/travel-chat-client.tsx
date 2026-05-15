@@ -26,7 +26,13 @@ import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { TravelItineraryExperience } from "@/components/client/travel/travel-itinerary-experience";
 import { TravelItineraryPanel } from "@/components/client/travel/travel-itinerary-panel";
-import { getTravelItineraryFromMessages } from "@/components/client/travel/travel-itinerary-data";
+import {
+  TRAVEL_ITINERARY_SHARE_PARAM,
+  createTravelShareMessages,
+  decodeTravelItinerarySharePayload,
+  getTravelItineraryFromMessages,
+  type TravelItinerarySharePayload,
+} from "@/components/client/travel/travel-itinerary-data";
 import { TravelPlannerForm } from "@/components/client/travel/travel-planner-form";
 import {
   TripRouteMap,
@@ -127,6 +133,7 @@ const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
 const EMPTY_TRAVEL_MESSAGES: TravelChatMessage[] = [];
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
+const TRAVEL_JSON_CODE_BLOCK_PATTERN = /```json[^\S\r\n]*(?:\r?\n)?[\s\S]*?```/gi;
 
 const TRAVEL_STAGE_ORDER = [
   "country",
@@ -489,6 +496,20 @@ function isTravelQuickReply(value: unknown): value is TravelQuickReply {
   );
 }
 
+function isTravelToolItineraryDay(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+
+  return (
+    (value.day === undefined ||
+      typeof value.day === "number" ||
+      typeof value.day === "string") &&
+    (value.city === undefined || typeof value.city === "string") &&
+    (value.activities === undefined || isStringArray(value.activities)) &&
+    (value.food === undefined || isStringArray(value.food)) &&
+    (value.cost === undefined || typeof value.cost === "string")
+  );
+}
+
 function isTravelChatMessagePart(value: unknown): value is TravelChatMessagePart {
   if (!isRecord(value) || typeof value.type !== "string") return false;
 
@@ -507,6 +528,13 @@ function isTravelChatMessagePart(value: unknown): value is TravelChatMessagePart
     return (
       Array.isArray(value.quick_replies) &&
       value.quick_replies.every((reply) => isTravelQuickReply(reply))
+    );
+  }
+
+  if (value.type === "tool-itinerary") {
+    return (
+      Array.isArray(value.output) &&
+      value.output.every((item) => isTravelToolItineraryDay(item))
     );
   }
 
@@ -553,6 +581,18 @@ function normalizeTravelChatSession(session: TravelChatSession): TravelChatSessi
     customTitle: Boolean(manualTitle),
     updatedAt: session.updatedAt || new Date().toISOString(),
   };
+}
+
+function createTravelShareSession(
+  payload: TravelItinerarySharePayload
+): TravelChatSession {
+  return normalizeTravelChatSession({
+    id: createSessionId(),
+    title: payload.title || "分享行程",
+    customTitle: true,
+    messages: createTravelShareMessages(payload),
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 function readArchivedTravelSessions(storageKey: string): TravelChatSession[] {
@@ -628,6 +668,8 @@ function getMessageText(message: TravelChatMessage): string {
 function getVisibleMessageText(message: TravelChatMessage): string {
   return getMessageText(message)
     .replace(/<!--__TRAVEL_FORM__:[\s\S]*?-->/g, "")
+    .replace(TRAVEL_JSON_CODE_BLOCK_PATTERN, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -1524,9 +1566,27 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    const nextSessions = readArchivedTravelSessions(archiveKey);
+    const archivedSessions = readArchivedTravelSessions(archiveKey);
+    let nextSessions = archivedSessions;
+    let nextActiveSessionId = archivedSessions[0].id;
+
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const sharePayload = decodeTravelItinerarySharePayload(
+        url.searchParams.get(TRAVEL_ITINERARY_SHARE_PARAM)
+      );
+
+      if (sharePayload) {
+        const sharedSession = createTravelShareSession(sharePayload);
+        nextSessions = [sharedSession, ...archivedSessions];
+        nextActiveSessionId = sharedSession.id;
+        url.searchParams.delete(TRAVEL_ITINERARY_SHARE_PARAM);
+        window.history.replaceState(null, "", url.toString());
+      }
+    }
+
     setSessions(nextSessions);
-    setActiveSessionId(nextSessions[0].id);
+    setActiveSessionId(nextActiveSessionId);
     setActiveMapTargetId("");
     setRenamingSessionId(null);
     setRenamingSessionTitle("");
@@ -1636,14 +1696,20 @@ export function TravelChatClient({
   ]);
 
   useEffect(() => {
-    if (allMapTargets.length === 0) {
+    if (!activeMapTargetId && baseMapTargets.length > 0) {
+      setActiveMapTargetId(baseMapTargets[0].id);
+      return;
+    }
+
+    if (!activeMapTargetId) {
+      return;
+    }
+
+    if (!allMapTargets.some((target) => target.id === activeMapTargetId)) {
       setActiveMapTargetId("");
       return;
     }
-    if (!allMapTargets.some((target) => target.id === activeMapTargetId)) {
-      setActiveMapTargetId(allMapTargets[0].id);
-    }
-  }, [activeMapTargetId, allMapTargets]);
+  }, [activeMapTargetId, allMapTargets, baseMapTargets]);
 
   const respondToConversation = useCallback(async (
     nextMessages: TravelChatMessage[],
@@ -1722,7 +1788,7 @@ export function TravelChatClient({
       }
 
       const content =
-        `\`\`\`json\n${JSON.stringify(itinerary, null, 2)}\n\`\`\`\n\n` +
+        "行程已经生成，我已经把每天安排整理到行程卡片里。\n\n" +
         `### 路线节点\n${formatSelectedFlights(payload.selected_flights)}\n\n` +
         `### 已选酒店\n${formatSelectedHotels(payload.selected_hotels)}`;
 
@@ -1731,7 +1797,10 @@ export function TravelChatClient({
         {
           id: createMessageId(),
           role: "assistant",
-          parts: [{ type: "text", text: content }],
+          parts: [
+            { type: "text", text: content },
+            { type: "tool-itinerary", output: itinerary },
+          ],
         },
       ]);
     } catch (error) {

@@ -1,6 +1,9 @@
 ﻿import { redirect } from "next/navigation";
 import { ChatClient } from "./chat-client";
-import { getOrCreateUserSession } from "@/app/actions/companion-sessions";
+import {
+  getSessionMessages,
+  getUserSessions,
+} from "@/app/actions/companion-sessions";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,7 +31,11 @@ export default async function ChatPage() {
     redirect("/client/login");
   }
 
-  const sessionResult = await getOrCreateUserSession(userId);
+  const sessions = await getUserSessions(userId);
+  const activeSession = sessions[0] ?? null;
+  const initialMessages = activeSession
+    ? await getSessionMessages(activeSession.id, userId)
+    : [];
   const adminClient = createAdminClient();
   const { data: latestApplication } = await adminClient
     .from("applications")
@@ -41,8 +48,9 @@ export default async function ChatPage() {
   return (
     <ChatClient
       userId={userId}
-      initialSessionId={sessionResult?.session.id ?? null}
-      initialMessages={sessionResult?.messages ?? []}
+      initialSessions={sessions}
+      initialSessionId={activeSession?.id ?? null}
+      initialMessages={initialMessages}
       travelApplicationId={latestApplication?.id ?? null}
       travelApplicationStatus={latestApplication?.status ?? null}
     />

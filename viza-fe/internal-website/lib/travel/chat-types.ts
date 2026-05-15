@@ -35,11 +35,25 @@ export type TravelChatPlannerFormPart = {
   type: "planner_form";
 };
 
+export type TravelChatToolItineraryDay = {
+  day?: number | string;
+  city?: string;
+  activities?: string[];
+  food?: string[];
+  cost?: string;
+};
+
+export type TravelChatToolItineraryPart = {
+  type: "tool-itinerary";
+  output: TravelChatToolItineraryDay[];
+};
+
 export type TravelChatMessagePart =
   | TravelChatTextPart
   | TravelChatDestinationCardsPart
   | TravelChatQuickRepliesPart
-  | TravelChatPlannerFormPart;
+  | TravelChatPlannerFormPart
+  | TravelChatToolItineraryPart;
 
 export type TravelChatMessage = {
   id: string;

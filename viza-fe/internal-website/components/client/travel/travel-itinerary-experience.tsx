@@ -9,11 +9,14 @@ import {
   ChevronRight,
   Clock3,
   Compass,
+  Download,
+  FileText,
   MapPin,
   MapPinned,
   Plane,
   Play,
   Route,
+  Share2,
   Sparkles,
   Star,
   TrainFront,
@@ -21,6 +24,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
   ItineraryDay,
+  SelectedFlightOption,
   SelectedHotelOption,
   TravelState,
 } from "@/lib/travel/planner";
@@ -39,6 +44,11 @@ import {
   TripRouteMap,
   type TripMapPoint,
 } from "@/components/client/travel/trip-route-map";
+import {
+  TRAVEL_ITINERARY_SHARE_PARAM,
+  buildTravelItinerarySharePayload,
+  encodeTravelItinerarySharePayload,
+} from "@/components/client/travel/travel-itinerary-data";
 
 type TravelItineraryExperienceProps = {
   itinerary: ItineraryDay[];
@@ -65,6 +75,41 @@ type RouteNode = {
   caption: string;
   kind: "origin" | "city" | "return";
   city?: string;
+};
+
+type TravelDownloadEndpoint =
+  | "/api/travel/download-word"
+  | "/api/travel/download-pdf";
+
+type TravelExportPayload = {
+  country: string;
+  countries: string[];
+  cities: string[];
+  city_days: Record<string, number>;
+  departure_date?: string;
+  date_flexibility?: string;
+  travel_days: number;
+  travelers: number;
+  budget: number;
+  travel_order: string[];
+  origin_country?: string;
+  origin_city?: string;
+  return_country?: string;
+  return_city?: string;
+  selected_flights: SelectedFlightOption[];
+  selected_hotels: SelectedHotelOption[];
+  final_note: string;
+  attached_files: string[];
+  itinerary: ItineraryDay[];
+};
+
+type ItineryTableRow = {
+  type: string;
+  date: string;
+  route: string;
+  name: string;
+  details: string;
+  contact: string;
 };
 
 const CITY_IMAGE_POOL = [
@@ -426,6 +471,131 @@ function getHotelDisplayPrice(hotel: SelectedHotelOption): string {
   return `${currencyLabel}${priceText}`;
 }
 
+function joinList(items: string[]): string {
+  return items.filter(Boolean).join("、") || "-";
+}
+
+function buildItineryTableRows(
+  itinerary: ItineraryDay[],
+  travelState: TravelState
+): ItineryTableRow[] {
+  const attractionRows = itinerary.flatMap((day) =>
+    day.activities.map((activity) => ({
+      type: "景点",
+      date: formatDayTab(day),
+      route: getLocalCityLabel(day.city),
+      name: activity,
+      details: day.food.length ? `餐饮：${joinList(day.food)}` : "-",
+      contact: "-",
+    }))
+  );
+
+  const hotelRows = travelState.selected_hotels.map((hotel) => ({
+    type: "酒店",
+    date: `${formatMonthDay(hotel.check_in)} - ${formatMonthDay(hotel.check_out)}`,
+    route: getLocalCityLabel(hotel.city),
+    name: hotel.option.name ?? `${getLocalCityLabel(hotel.city)}酒店`,
+    details: `${hotel.nights}晚；${hotel.option.address ?? "-"}；${getHotelDisplayPrice(
+      hotel
+    )}`,
+    contact: hotel.option.contact_phone ?? "-",
+  }));
+
+  const flightRows = travelState.selected_flights
+    .filter((flight) => !flight.skip)
+    .map((flight) => {
+      const option = flight.option;
+      const airline = option?.airline ?? option?.provider ?? "已选航班";
+      const airports = [option?.from_id ?? option?.from, option?.to_id ?? option?.to]
+        .filter(Boolean)
+        .join(" → ");
+      const stops =
+        option?.stops === 0
+          ? "直飞"
+          : typeof option?.stops === "number"
+            ? `${option.stops}次中转`
+            : "-";
+
+      return {
+        type: "航班",
+        date: flight.departure_date,
+        route: `${flight.from} → ${flight.to}`,
+        name: airline,
+        details: [airports, option?.duration, stops].filter(Boolean).join("；") || "-",
+        contact: option?.flight_number ?? "-",
+      };
+    });
+
+  return [...attractionRows, ...hotelRows, ...flightRows];
+}
+
+function buildTravelExportPayload(
+  itinerary: ItineraryDay[],
+  travelState: TravelState,
+  orderedCities: string[]
+): TravelExportPayload {
+  const cities =
+    travelState.cities.length > 0
+      ? travelState.cities
+      : orderedCities.length > 0
+        ? orderedCities
+        : getUniqueCities(itinerary, orderedCities);
+  const travelOrder =
+    travelState.travel_order.length > 0 ? travelState.travel_order : cities;
+
+  return {
+    country: travelState.country ?? travelState.countries[0] ?? "",
+    countries: travelState.countries,
+    cities,
+    city_days: travelState.city_days,
+    departure_date: travelState.departure_date ?? undefined,
+    date_flexibility: travelState.date_flexibility ?? undefined,
+    travel_days: travelState.travel_days ?? Math.max(1, itinerary.length),
+    travelers: travelState.travelers ?? 1,
+    budget: travelState.budget ?? 1,
+    travel_order: travelOrder,
+    origin_country: travelState.origin_country ?? undefined,
+    origin_city: travelState.origin_city ?? undefined,
+    return_country: travelState.return_country ?? undefined,
+    return_city: travelState.return_city ?? undefined,
+    selected_flights: travelState.selected_flights,
+    selected_hotels: travelState.selected_hotels,
+    final_note: travelState.final_note ?? "",
+    attached_files: travelState.attached_files,
+    itinerary,
+  };
+}
+
+async function downloadBlob(
+  endpoint: TravelDownloadEndpoint,
+  payload: TravelExportPayload,
+  fallbackFilename: string
+): Promise<void> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Failed to download ${fallbackFilename}.`);
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition");
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/i);
+  const filename = filenameMatch?.[1] ?? fallbackFilename;
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
 export function TravelItineraryExperience({
   itinerary,
   travelState,
@@ -439,6 +609,9 @@ export function TravelItineraryExperience({
   const [fullMapOpen, setFullMapOpen] = useState(false);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [activeCityKey, setActiveCityKey] = useState("");
+  const [isDownloadingWord, setIsDownloadingWord] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isSharingLink, setIsSharingLink] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -485,6 +658,18 @@ export function TravelItineraryExperience({
   const focusedPointId = activeDay
     ? getPointIdForCity(resolvedMapPoints, activeDay.city) ?? activePointId ?? null
     : activePointId ?? null;
+  const exportPayload = useMemo(
+    () => buildTravelExportPayload(itinerary, travelState, orderedCities),
+    [itinerary, orderedCities, travelState]
+  );
+  const sharePayload = useMemo(
+    () => buildTravelItinerarySharePayload(title, itinerary, travelState),
+    [itinerary, title, travelState]
+  );
+  const itineryRows = useMemo(
+    () => buildItineryTableRows(itinerary, travelState),
+    [itinerary, travelState]
+  );
 
   useEffect(() => {
     setActiveDayIndex(0);
@@ -540,6 +725,49 @@ export function TravelItineraryExperience({
   const openDetailAtDay = (index: number) => {
     setActiveDayIndex(index);
     setDetailOpen(true);
+  };
+
+  const handleShareLink = async () => {
+    if (typeof window === "undefined") return;
+
+    setIsSharingLink(true);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set(
+        TRAVEL_ITINERARY_SHARE_PARAM,
+        encodeTravelItinerarySharePayload(sharePayload)
+      );
+      url.hash = "";
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url.toString());
+        toast.success("分享链接已复制。");
+      } else {
+        window.prompt("复制分享链接", url.toString());
+      }
+    } catch {
+      toast.error("分享链接生成失败，请稍后再试。");
+    } finally {
+      setIsSharingLink(false);
+    }
+  };
+
+  const handleDownload = async (
+    endpoint: TravelDownloadEndpoint,
+    fallbackFilename: string,
+    setBusy: (busy: boolean) => void
+  ) => {
+    setBusy(true);
+    try {
+      await downloadBlob(endpoint, exportPayload, fallbackFilename);
+      toast.success(`${fallbackFilename} 已开始下载。`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `${fallbackFilename} 下载失败。`;
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const renderCityTabs = (placement: "map" | "sticky") => (
@@ -657,6 +885,54 @@ export function TravelItineraryExperience({
               </div>
             </button>
 
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-share-link-button"
+                disabled={isSharingLink}
+                onClick={handleShareLink}
+                type="button"
+                variant="outline"
+              >
+                <Share2 className="h-4 w-4" />
+                分享链接
+              </Button>
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-download-word-button"
+                disabled={isDownloadingWord}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-word",
+                    "travel-itinerary.docx",
+                    setIsDownloadingWord
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                <FileText className="h-4 w-4" />
+                Word
+              </Button>
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-download-pdf-button"
+                disabled={isDownloadingPdf}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-pdf",
+                    "travel-itinerary.pdf",
+                    setIsDownloadingPdf
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                <Download className="h-4 w-4" />
+                PDF
+              </Button>
+            </div>
+
             <div className="mt-8 flex items-center gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {routeNodes.map((node, index) => {
                 const cityIndex = node.city
@@ -721,6 +997,60 @@ export function TravelItineraryExperience({
                   </div>
                 );
               })}
+            </div>
+          </section>
+
+          <section
+            className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-6"
+            data-testid="travel-itinerary-itinery-table"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-2xl font-bold text-[#2d1635]">itinery</h3>
+              <span className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                {itineryRows.length} 项
+              </span>
+            </div>
+            <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#e6dff0] [scrollbar-width:thin]">
+              <table className="min-w-[900px] w-full border-collapse text-left text-sm">
+                <thead className="sticky top-0 bg-[#efe5ff] text-[#2d1635]">
+                  <tr>
+                    {[
+                      "类型",
+                      "日期/天数",
+                      "城市/路线",
+                      "名称",
+                      "详情",
+                      "联系电话/航班号",
+                    ].map((header) => (
+                      <th className="px-4 py-3 font-bold" key={header}>
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#eee7f5]">
+                  {itineryRows.length ? (
+                    itineryRows.map((row, index) => (
+                      <tr className="align-top text-[#3a273f]" key={`${row.type}-${index}`}>
+                        <td className="whitespace-nowrap px-4 py-3 font-bold">
+                          {row.type}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">{row.date}</td>
+                        <td className="px-4 py-3">{row.route}</td>
+                        <td className="px-4 py-3 font-semibold">{row.name}</td>
+                        <td className="px-4 py-3 text-[#5f5166]">{row.details}</td>
+                        <td className="px-4 py-3 font-semibold">{row.contact}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-4 py-4 text-[#5f5166]" colSpan={6}>
+                        暂无可导出的行程项目
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
 

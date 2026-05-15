@@ -15,6 +15,7 @@ import type { ChatMessage as SocketChatMessage } from "@/types/agent-test";
 
 interface UseContinuousChatOptions {
   userId: string;
+  sessionId?: string | null;
   initialMessages?: Message[];
   initialCheckpoints?: MessagePreview[];
   isFirstTimeUser?: boolean;
@@ -50,6 +51,7 @@ interface UseContinuousChatReturn {
   addSocketMessage: (message: SocketChatMessage) => void;
   refreshCheckpoints: () => Promise<void>;
   prependHistoricalMessages: (messages: Message[]) => void;
+  resetHistoryState: (hasMore?: boolean) => void;
   setMessages: React.Dispatch<React.SetStateAction<SocketChatMessage[]>>;
 
   // State
@@ -73,6 +75,7 @@ interface UseContinuousChatReturn {
  */
 export function useContinuousChat({
   userId,
+  sessionId,
   initialMessages = [],
   initialCheckpoints = [],
   isFirstTimeUser: initialIsFirstTimeUser = false,
@@ -131,7 +134,8 @@ export function useContinuousChat({
       const result = await loadMoreHistory(
         userId,
         new Date(oldestMessage.timestamp).toISOString(),
-        20
+        20,
+        sessionId
       );
 
       if (result.messages.length > 0) {
@@ -159,7 +163,7 @@ export function useContinuousChat({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMoreHistory, reachedHistoryBoundary, messages, userId]);
+  }, [isLoadingMore, hasMoreHistory, reachedHistoryBoundary, messages, userId, sessionId]);
 
   // Load more checkpoints (infinite scroll in sidebar)
   const handleLoadMoreCheckpoints = useCallback(async () => {
@@ -345,6 +349,13 @@ export function useContinuousChat({
     });
   }, []);
 
+  const handleResetHistoryState = useCallback((hasMore: boolean = true) => {
+    setHasMoreHistory(hasMore);
+    setReachedHistoryBoundary(false);
+    setShowScrollToBottom(false);
+    setShowNewMessageButton(false);
+  }, []);
+
   // Clear jump target
   const clearJumpTarget = useCallback(() => {
     setJumpTargetId(null);
@@ -380,6 +391,7 @@ export function useContinuousChat({
     addSocketMessage: handleAddSocketMessage,
     refreshCheckpoints: handleRefreshCheckpoints,
     prependHistoricalMessages: handlePrependHistoricalMessages,
+    resetHistoryState: handleResetHistoryState,
     setMessages,
 
     // State
