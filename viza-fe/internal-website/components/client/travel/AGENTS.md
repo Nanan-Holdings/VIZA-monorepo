@@ -1,0 +1,52 @@
+# Travel Agent Integration Rules (VIZA Monorepo)
+
+Scope: this file applies to `viza-fe/internal-website/components/client/travel/**`.
+
+## Goal
+
+Keep Travel AI UI deterministic and production-safe while preserving current business flow:
+
+1. Multi-step structured collection (country -> cities -> city days -> travelers -> budget -> origin/return -> order -> flights -> hotels -> final note)
+2. Map-assisted selection is only a prefill helper, never a logic bypass
+3. All backend calls go through `app/api/travel/*` proxy routes
+
+## Source Of Truth
+
+Before changing Travel behavior, read:
+
+1. `docs/travel-agent-development-guide.md`
+2. `viza-fe/internal-website/lib/travel/planner.ts`
+3. `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
+
+If guidance conflicts, prefer deterministic flow in `planner.ts`.
+
+## Key Files
+
+- `travel-planner-form.tsx`: step form UI and structured payload emission
+- `travel-itinerary-panel.tsx`: itinerary render/export
+- `trip-route-map.tsx`: map route, markers, hover preview, map-to-form handoff
+
+## Guardrails
+
+1. Do not skip required steps by directly mutating later-stage fields.
+2. Do not add hidden AI inference for form fields.
+3. Keep map interactions reversible and idempotent.
+4. Keep markers readable under zoom/responsive changes.
+5. Avoid introducing dependencies unless strictly necessary.
+
+## Validation Checklist (for every travel UI change)
+
+1. `cd viza-fe/internal-website && npm run type-check`
+2. Manually verify `/client/travel-chat`:
+   - map renders
+   - marker image loads
+   - zoom/pan behavior is stable
+   - step question order remains correct
+3. If map behavior changes, run Playwright visual self-test script and keep screenshots in `test-results/`.
+
+## UX Rules
+
+1. Chinese copy should be friendly and actionable.
+2. Keep top-level status visible and non-overlapping with map interaction.
+3. Do not let map marker overlays block core form operations.
+
