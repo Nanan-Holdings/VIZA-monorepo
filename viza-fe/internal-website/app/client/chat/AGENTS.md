@@ -39,16 +39,18 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 2. Keep the Socket.IO namespace as `/visa` and event names aligned with `types/agent-test.ts`.
 3. Do not hardcode AI answers in the frontend; assistant text should come from persisted history or streamed backend output.
 4. Keep Travel AI changes inside the Travel module unless the chat tab integration itself changes.
-5. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
-6. Preserve queued-message behavior while an assistant response is streaming.
-7. Keep inline application blocks type-safe and compatible with `send_application_block`.
-8. Avoid new dependencies unless the existing Next.js, Socket.IO, Tailwind, and shadcn/ui stack cannot reasonably cover the change.
-9. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
-10. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
+5. Keep `/client/chat` on the light visual palette. Do not move the `VIZA AI / Travel AI` tab controls when changing the process/session panel.
+6. The VIZA process/session panel may be collapsed on desktop and opens as a drawer on mobile.
+7. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
+8. Preserve queued-message behavior while an assistant response is streaming.
+9. Keep inline application blocks type-safe and compatible with `send_application_block`.
+10. Avoid new dependencies unless the existing Next.js, Socket.IO, Tailwind, and shadcn/ui stack cannot reasonably cover the change.
+11. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
+12. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
 
 ## Session Model
 
-`/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
+`/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. One applicant may have multiple VIZA conversation processes. The page loads recent sessions with `getUserSessions()`, switches messages with `getSessionMessages()`, and creates a new `visa_chat_sessions` row with `createSession()` when the user sends the first message in a new chat. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
 
 ## Validation Checklist
 
@@ -59,6 +61,7 @@ For frontend-only changes:
    - unauthenticated users redirect to login
    - `VIZA AI` tab connects and sends a message
    - streamed tokens become one finalized assistant message
+   - the VIZA session panel can start a new chat and switch back to an older chat
    - the input disables while disconnected
    - `Travel AI` tab still renders the embedded planner
 
@@ -69,6 +72,10 @@ For backend Socket.IO or agent changes:
 3. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
 4. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
 
+## Current RAG Routing Scope
+
+The `/visa` namespace routes explicit destination mentions to RAG countries: `indonesia`, `us`, `vietnam`, `uk`, `france`, `italy`, and `switzerland`. Do not reintroduce a default-to-Indonesia fallback. If a user mentions multiple supported countries, or asks a generic Schengen question, let retrieval search across the relevant Schengen knowledge instead of using a stale application country unless that context is itself France/Italy/Switzerland.
+
 ## Important Files Added During Iterations
 
 - `docs/viza-ai-chat-development-guide.md`: complete DG for the `/client/chat` page, frontend state, backend Socket.IO flow, and current completion status.
@@ -78,3 +85,5 @@ For backend Socket.IO or agent changes:
 - `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`: ingestion script that writes the Indonesia visa knowledge source to `visa_documents` and `visa_chunks`; existing docs are replaced by exact country / visa type / document type / source URL / title match.
 - `knowledge-base/us-visa-rag.json`: curated official-source U.S. B-1/B-2 visitor visa, DS-160, VWP/ESTA, wait time, and EVUS chunks for RAG ingestion.
 - `viza-be/agent-backend/scripts/ingest-us-visa-rag.ts`: ingestion script that writes the U.S. visitor visa knowledge source to `visa_documents` and `visa_chunks`; exact-title replacement avoids deleting sibling docs from the same official page.
+- `knowledge-base/supported-visa-rag.json`: curated official-source short-stay/visitor visa chunks for Vietnam, UK, France, Italy, and Switzerland. Current scope is visitor/tourism guidance, including Schengen common requirements for France/Italy/Switzerland.
+- `viza-be/agent-backend/scripts/ingest-supported-visa-rag.ts`: ingestion script that writes the supported multi-country knowledge source to `visa_documents` and `visa_chunks`; run with `npm run ingest:supported-visa-rag` from `viza-be/agent-backend`.

@@ -11,9 +11,10 @@ import {
   MoveUpIcon,
   PhoneIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  DEFAULT_CITY_DAYS,
   buildTravelStateFromMessages,
   createTravelFormMessage,
   getFieldQuestionForState,
@@ -194,7 +195,9 @@ function SearchableSingleSelect({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? "";
+  const selectedLabel =
+    options.find((option) => option.value === value)?.label ??
+    (value ? getLocalLocationDisplayName(value) : "");
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -571,7 +574,7 @@ function optionLabelFromMap(
   value: string,
   labelMap: ReadonlyMap<string, string>
 ): string {
-  return labelMap.get(value) ?? value;
+  return labelMap.get(value) ?? getLocalLocationDisplayName(value);
 }
 
 function optionLabelsFromValues(
@@ -906,6 +909,7 @@ export function TravelPlannerForm({
   );
   const [attachedFilesDraft, setAttachedFilesDraft] = useState<File[]>([]);
   const [attachmentInputKey, setAttachmentInputKey] = useState(0);
+  const ipEndpointDefaultAppliedRef = useRef(false);
 
   const loadCitiesForCountries = useCallback(async (targetCountries: string[]) => {
     const normalizedCountries = targetCountries
@@ -981,6 +985,14 @@ export function TravelPlannerForm({
     setOriginCity(travelState.origin_city ?? "");
     setReturnCountry(travelState.return_country ?? "");
     setReturnCity(travelState.return_city ?? "");
+    if (
+      travelState.origin_country ||
+      travelState.origin_city ||
+      travelState.return_country ||
+      travelState.return_city
+    ) {
+      ipEndpointDefaultAppliedRef.current = true;
+    }
     setManualEndpointMode(
       Boolean(
         travelState.origin_country ||
@@ -1042,6 +1054,34 @@ export function TravelPlannerForm({
     isPrefetchingIpLocation,
     prefetchedIpLocation,
     prefetchedIpLocationError,
+  ]);
+
+  useEffect(() => {
+    if (missingField !== "origin") return;
+    if (!ipLocation || ipEndpointDefaultAppliedRef.current) return;
+    if (
+      travelState.origin_country ||
+      travelState.origin_city ||
+      travelState.return_country ||
+      travelState.return_city
+    ) {
+      ipEndpointDefaultAppliedRef.current = true;
+      return;
+    }
+
+    setOriginCountry(ipLocation.country);
+    setOriginCity(ipLocation.city);
+    setReturnCountry(ipLocation.country);
+    setReturnCity(ipLocation.city);
+    setManualEndpointMode(true);
+    ipEndpointDefaultAppliedRef.current = true;
+  }, [
+    ipLocation,
+    missingField,
+    travelState.origin_city,
+    travelState.origin_country,
+    travelState.return_city,
+    travelState.return_country,
   ]);
 
   useEffect(() => {
@@ -1449,6 +1489,17 @@ export function TravelPlannerForm({
     flightLegs.length > 0 ? flightLegs : fallbackFlightLegs;
   const hotelStaysForSelection =
     hotelStays.length > 0 ? hotelStays : fallbackHotelStays;
+  const flexibleTravelDays = Math.max(
+    Math.max(1, travelState.cities.length) * DEFAULT_CITY_DAYS,
+    Math.max(1, travelState.cities.length)
+  );
+  const flexibleTravelers = travelState.travelers ?? 2;
+  const flexibleBudget = Math.max(
+    3000,
+    (travelState.travel_days ?? flexibleTravelDays) *
+      flexibleTravelers *
+      1200
+  );
   const ipCountryDisplay = ipLocation
     ? getLocalLocationDisplayName(ipLocation.country)
     : "";
@@ -1754,6 +1805,25 @@ export function TravelPlannerForm({
           >
             确认出行天数
           </Button>
+          <Button
+            className="w-full"
+            disabled={busy}
+            onClick={() => {
+              setLoadedFlightsKey(null);
+              setLoadedHotelsKey(null);
+              sendStructuredMessage({
+                travel_days: flexibleTravelDays,
+                display: {
+                  travel_days_label: `天数先灵活，暂按 ${flexibleTravelDays} 天规划。`,
+                },
+              });
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            天数灵活，先按 {flexibleTravelDays} 天规划
+          </Button>
         </div>
       )}
 
@@ -1780,6 +1850,23 @@ export function TravelPlannerForm({
             size="sm"
           >
             确认人数
+          </Button>
+          <Button
+            className="w-full"
+            disabled={busy}
+            onClick={() => {
+              sendStructuredMessage({
+                travelers: flexibleTravelers,
+                display: {
+                  travelers_label: `人数先灵活，暂按 ${flexibleTravelers} 人规划。`,
+                },
+              });
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            人数灵活，先按 {flexibleTravelers} 人规划
           </Button>
         </div>
       )}
@@ -1808,6 +1895,23 @@ export function TravelPlannerForm({
           >
             确认预算
           </Button>
+          <Button
+            className="w-full"
+            disabled={busy}
+            onClick={() => {
+              sendStructuredMessage({
+                budget: flexibleBudget,
+                display: {
+                  budget_label: `预算先灵活，暂按 ${flexibleBudget} RMB 规划。`,
+                },
+              });
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            预算灵活，先按 {flexibleBudget} RMB 规划
+          </Button>
         </div>
       )}
 
@@ -1819,68 +1923,44 @@ export function TravelPlannerForm({
             </div>
           )}
 
-          {!manualEndpointMode && (
-            <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3">
-              {isLoadingIpLocation && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2Icon className="size-3.5 animate-spin" />
-                  正在根据 IP 推断出发和返程城市...
-                </div>
-              )}
-
-              {ipLocation && (
-                <>
-                  <div className="text-sm font-medium text-foreground">
-                    是否将出发和返程城市都设为{" "}
-                    {ipCountryDisplay} {ipCityDisplay}？
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    这是根据当前 IP 粗略推断的城市，后续仍可修改。
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      disabled={busy}
-                      onClick={() => {
-                        sendStructuredMessage({
-                          origin_country: ipLocation.country,
-                          origin_city: ipLocation.city,
-                          return_country: ipLocation.country,
-                          return_city: ipLocation.city,
-                          display: {
-                            origin_country: ipCountryDisplay,
-                            origin_city: ipCityDisplay,
-                            return_country: ipCountryDisplay,
-                            return_city: ipCityDisplay,
-                          },
-                        });
-                      }}
-                      size="sm"
-                      type="button"
-                    >
-                      使用 {ipCityDisplay}
-                    </Button>
-                    <Button
-                      disabled={busy}
-                      onClick={() => setManualEndpointMode(true)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      手动选择
-                    </Button>
-                  </div>
-                </>
-              )}
-
-              {ipLocationError && (
-                <div className="text-xs text-muted-foreground">
-                  {ipLocationError} 请手动选择出发和返程城市。
-                </div>
-              )}
+          {isLoadingIpLocation && !ipLocation && (
+            <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/20 p-3 text-xs text-muted-foreground">
+              <Loader2Icon className="size-3.5 animate-spin" />
+              正在根据 IP 默认填入出发和返程城市...
             </div>
           )}
 
-          {manualEndpointMode && (
+          {ipLocation && (
+            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-xs text-sky-800">
+              已根据当前 IP 默认填入 {ipCountryDisplay} {ipCityDisplay}，你可以直接确认，也可以修改下面的出发和返程城市。
+            </div>
+          )}
+
+          {ipLocationError && (
+            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              {ipLocationError} 请手动选择出发和返程城市。
+            </div>
+          )}
+
+          {!manualEndpointMode && !ipLocation && !ipLocationError && (
+            <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3">
+              <div className="text-xs text-muted-foreground">
+                如果没有识别到当前位置，请手动选择出发和返程城市。
+              </div>
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={() => setManualEndpointMode(true)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                手动选择
+              </Button>
+            </div>
+          )}
+
+          {(manualEndpointMode || ipLocation || ipLocationError) && (
             <div className="space-y-3">
               <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
                 <div className="text-xs font-medium text-muted-foreground">

@@ -7,7 +7,7 @@
 核心文件：
 
 - `viza-fe/internal-website/app/client/chat/page.tsx`  
-  Next.js server route entry。负责拿当前登录用户、创建或读取聊天 session、查询用户最新 application，然后把数据传给 client component。
+  Next.js server route entry。负责拿当前登录用户、读取最近的 `visa_chat_sessions` 列表、加载默认 active session 的消息、查询用户最新 application，然后把数据传给 client component。
 
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`  
   截图中真正的页面 UI。这里包含 `VIZA AI / Travel AI` 切换、聊天消息列表、底部输入框、Socket.IO 连接、流式输出处理，以及嵌入式 Travel AI。
@@ -38,6 +38,7 @@
 
 截图里的元素来源：
 
+- 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；桌面侧栏可折叠。
 - 顶部 `VIZA AI / Travel AI` pills：`chat-client.tsx` 的 chat view tab controls。
 - 右侧深蓝色 `hi` 气泡：`ChatMessage` 渲染 user message。
 - 左侧大段 `Hi there...`：不是前端固定文案，而是从聊天历史或后端 AI streaming response 进入 `ChatMessage`。
@@ -49,9 +50,10 @@
 ```mermaid
 flowchart TD
   A["User opens /client/chat"] --> B["page.tsx resolves user"]
-  B --> C["getOrCreateUserSession(userId)"]
+  B --> C["getUserSessions(userId)"]
+  C --> C2["getSessionMessages(activeSession.id)"]
   B --> D["query latest applications row"]
-  C --> E["ChatClient props"]
+  C2 --> E["ChatClient props"]
   D --> E
   E --> F["connect Socket.IO to NEXT_PUBLIC_AGENT_BACKEND_URL/visa"]
   F --> G["join_room user:{userId}"]
@@ -78,9 +80,10 @@ flowchart TD
 
 1. 通过 impersonation session 或 Supabase session 获取 `userId`。
 2. 没有登录用户就 redirect 到 `/client/login`。
-3. 调用 `getOrCreateUserSession(userId)`，拿到初始 session 和历史消息。
-4. 用 `createAdminClient()` 查当前用户最新 application 的 `id/status`。
-5. 渲染 `ChatClient`。
+3. 调用 `getUserSessions(userId)` 读取最近会话列表，默认使用最新一条作为 active session。
+4. 如果有 active session，调用 `getSessionMessages(activeSession.id, userId)` 加载该 process 的历史消息。
+5. 用 `createAdminClient()` 查当前用户最新 application 的 `id/status`。
+6. 渲染 `ChatClient`。
 
 ### 4.2 Client route: `chat-client.tsx`
 
@@ -89,6 +92,7 @@ flowchart TD
 主要状态：
 
 - `sessionId`：来自 `page.tsx` 的初始 session。
+- `sessions`：当前用户最近的 `visa_chat_sessions`，用于桌面左侧栏和移动端抽屉。
 - `showChat`：入口页或聊天页。
 - `chatMode`：`viza` 或 `travel`。
 - `status`：Socket 连接状态，控制输入框是否 disabled。
@@ -105,6 +109,13 @@ flowchart TD
 3. 后端 `token` event 到达时先进入 buffer，每 500ms flush 到当前 assistant message。
 4. `response_complete` 到达时，用 `fullResponse` 覆盖并结束 streaming。
 5. `useEffect` 监听 `socketMessages`，再把变化同步进 `useContinuousChat` 的 `chatMessages`。
+
+多 conversation process：
+
+1. `page.tsx` 不再自动创建空 session；它只读取已有 session 列表。
+2. 用户点击 `New chat` 时，前端先把 active `sessionId` 设为 `null` 并清空当前消息。
+3. 用户在新 process 里发送第一条消息时，`createSession(userId, applicationId)` 才写入新的 `visa_chat_sessions`。
+4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。
 
 ## 5. 后端逻辑关系
 
@@ -141,6 +152,7 @@ RAG 检索服务：
   - `retrieveVisaKnowledge()` 负责把用户问题转成 embedding，并查询 `visa_chunks`。
   - 优先调用 Supabase RPC `match_visa_chunks` 做 pgvector 相似度检索。
   - RPC/embedding 不可用时，会 fallback 到按 country / visa type / document type 过滤 `visa_chunks`。
+  - 默认 `minSimilarity` 是 `0.03`；原因是当前 Supabase RPC 返回的多语种相似度分数整体偏低，country/visaType 过滤负责控制噪音。
   - `formatKnowledgeContext()` 把检索结果整理成可注入 system prompt 的上下文块。
 
 RAG migration：
@@ -170,19 +182,28 @@ RAG 知识源与写入：
   - 删除同 country / visa type / document type / source URL / title 的旧 U.S. RAG 文档后重新写入，避免多个知识文档共用同一个官方页面时互相覆盖。
   - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
 
+- `knowledge-base/supported-visa-rag.json`
+  - 官方来源整理后的 Vietnam / UK / France / Italy / Switzerland 短期访问签证 chunks。
+  - 当前覆盖越南 e-visa、英国 Standard Visitor、法国 tourism/private stay、意大利 Uniform Schengen Visa、瑞士 90 天内 Schengen route，以及 France/Italy/Switzerland 共用的 Schengen 申请规则。
+
+- `viza-be/agent-backend/scripts/ingest-supported-visa-rag.ts`
+  - 读取上面的 JSON。
+  - 删除同 country / visa type / document type / source URL / title 的旧 supported-country RAG 文档后重新写入。
+  - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
+
 ## 6. 数据与持久化
 
 相关表：
 
 - `visa_chat_sessions`  
-  当前 `/client/chat` 的 session source of truth。`getOrCreateUserSession()` 会按 `applicant_profiles.id` 找到或创建一条持久聊天 session。
+  当前 `/client/chat` 的 session source of truth。一个 applicant 可以有多条 VIZA conversation processes；`ChatClient` 通过 `getUserSessions()` 展示最近会话，通过 `createSession()` 创建新会话。
 
 - `visa_chat_messages`  
   保存用户、assistant，以及 `role='block'` 的 inline application block 记录。`session_id` 指向 `visa_chat_sessions.id`。
 
 当前约定：
 
-前端传给 Socket.IO 的 `user_id` 是 `applicant_profiles.id`。后端 `buildApplicationContext()` 优先按 `applicant_profiles.id` 查 profile，并保留 `auth_user_id` fallback 兼容旧调用。`user_chat_sessions` 仍存在于旧 migration 中，但本页面不再使用它作为 message parent。
+前端传给 Socket.IO 的 `user_id` 是 `applicant_profiles.id`，`session_id` 是当前 active `visa_chat_sessions.id`。后端 `buildApplicationContext()` 优先按 `applicant_profiles.id` 查 profile，并保留 `auth_user_id` fallback 兼容旧调用。`user_chat_sessions` 仍存在于旧 migration 中，但本页面不再使用它作为 message parent。
 
 ## 7. Application block 保存链路
 
@@ -243,9 +264,13 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 - `/client/chat` 路由存在，并接入客户端登录态/impersonation。
 - 聊天 session 已统一到 `visa_chat_sessions.id`，避免 `visa_chat_messages.session_id` 指向错误的 session 表。
+- VIZA AI 已支持多个 conversation processes：页面加载最近 session 列表，左侧/移动端抽屉可以新建和切换；新 session 在第一条消息发送时创建。
+- `/client/chat` 保持浅色背景和原有 `VIZA AI / Travel AI` tab 位置；processes 侧栏可折叠。
 - RAG 检索 helper 已新增，能读取 `visa_chunks` 并格式化知识上下文。
 - `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
 - `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
+- VIZA AI 的 system prompt 已改成多目的地签证助手，不再把自己定义为 Indonesia-only，也不会在用户没说目的地时默认查 Indonesia。
+- `/visa` 的 knowledge routing 已支持 Vietnam、UK、France、Italy、Switzerland、U.S.、Indonesia；多个国家或泛 Schengen 问题不会被旧 application country 拉回 Indonesia。
 - Indonesia visa 官方知识源与 ingestion 脚本已新增。RAG 内容覆盖中国游客 7 天赴印尼应优先考虑 VoA/e-VOA，而不是美国 B-2/DS-160。
 - Indonesia RAG 已写入 Supabase：`visa_documents` 6 条，`visa_chunks` 12 条，均为 `country=indonesia`、`visa_type=tourist_b211a`。
 - 页面 UI 已经有入口选择页和截图里的聊天页。
@@ -304,5 +329,8 @@ npm run type-check
 - Step 8 vector retrieval verification：对“中国护照，去印尼旅游7天，应该申请什么签证？”的 retrieval smoke 返回 `usedEmbedding=true`，命中 Indonesia chunks；英文同类问题相似度更高并命中 e-VOA/VoA chunks。前后端 type-check 通过；Playwright smoke screenshot: `test-results/playwright-rag-vector-chat.png`。
 - Step 9 U.S. RAG source：新增 U.S. B-1/B-2/DS-160/VWP/EVUS 官方知识源与 ingestion 脚本；`/visa` knowledge routing 会在用户明确提到美国/美签/US/United States 时检索 `country=us`。
 - Step 10 U.S. RAG ingestion verification：`npm run ingest:us-visa-rag` 成功写入 7 documents / 20 chunks / 20 embeddings。对“中国护照，去美国旅游7天，应该申请什么签证？”的 retrieval smoke 返回 `usedEmbedding=true`、`fallbackReason=null`、`country=us`、`visaType=b1_b2`，Top 1 命中中文桥接 chunk，相似度约 0.708。前后端 type-check 通过；Playwright smoke screenshot: `test-results/playwright-us-rag-final-smoke.png`。
+- Step 11 VIZA multi-session processes：参考 Travel AI 的多 conversation 模型，`/client/chat` 改为读取多个 `visa_chat_sessions`，支持左侧/移动端 session panel、新建 VIZA chat、切换历史 VIZA chat；新 process 在第一条消息时创建。切换 session 时会重置 runtime/历史加载状态，避免不同 process 的消息混在一起。`viza-fe/internal-website npm run type-check` 通过；Playwright smoke screenshot: `test-results/playwright-multi-session-history-reset.png`。
+- Step 12 light layout rollback：按用户要求回退深色背景和深色颜色，恢复浅色 sidebar/cards/composer/message colors；保留 `VIZA AI / Travel AI` tab 原位置；桌面 VIZA processes 侧栏增加 collapse/expand 控制。`viza-fe/internal-website npm run type-check` 通过；Playwright route smoke screenshot: `test-results/playwright-layout-light-rollback-final.png`。
+- Step 13 multi-country VIZA identity and RAG source：VIZA system prompt 和 `/visa` RAG routing 已改为多目的地，不再默认 Indonesia；新增 `knowledge-base/supported-visa-rag.json` 和 `npm run ingest:supported-visa-rag`，覆盖 Vietnam / UK / France / Italy / Switzerland 的官方短期访问签证知识。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：Vietnam 1 docs / 3 chunks，UK 2 docs / 6 chunks，France 2 docs / 5 chunks，Italy 3 docs / 6 chunks，Switzerland 2 docs / 5 chunks，全部 25 chunks 均有 `text-embedding-3-small` embedding。Retrieval smoke 对五个国家和多国 Schengen query 均返回 `usedEmbedding=true`、`fallbackReason=null`；前后端 type-check 通过；Playwright route smoke screenshot: `test-results/playwright-supported-rag-ingestion-step3.png`。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

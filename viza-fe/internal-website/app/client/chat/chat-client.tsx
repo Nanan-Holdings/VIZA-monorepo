@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  PanelLeft,
+  Plus,
+  X,
+} from "lucide-react";
 import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -22,7 +27,12 @@ import { DateDivider, isDifferentDay } from "@/components/client/companion/date-
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { HistoryBoundaryMessage } from "@/components/client/companion/history-boundary-message";
 import { TravelChatClient } from "../travel-chat/travel-chat-client";
-import type { Message } from "@/app/actions/companion-sessions";
+import {
+  createSession,
+  getSessionMessages,
+  type Message,
+  type Session,
+} from "@/app/actions/companion-sessions";
 import type {
   ChatMessage as SocketChatMessage,
   ConnectionStatus,
@@ -99,6 +109,7 @@ const DebugPanel = dynamic(
 
 interface ChatClientProps {
   userId: string;
+  initialSessions: Session[];
   initialSessionId: string | null;
   initialMessages: Message[];
   travelApplicationId: string | null;
@@ -110,6 +121,127 @@ const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
 const TOKEN_BATCH_INTERVAL = 500;
+
+function getSessionDisplayTitle(session: Session): string {
+  return session.firstMessagePreview || "New conversation";
+}
+
+function formatSessionDate(value: string | null): string {
+  if (!value) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function formatStoredMessages(messages: Message[]): SocketChatMessage[] {
+  return messages.map((msg) => ({
+    id: msg.id,
+    role: msg.senderType === "user" ? "user" : "agent",
+    content: msg.content,
+    timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+    isStreaming: false,
+    sessionId: msg.sessionId,
+  }));
+}
+
+function ChatSessionPanel({
+  sessions,
+  activeSessionId,
+  disabled,
+  onNewSession,
+  onSelectSession,
+  onClose,
+}: {
+  sessions: Session[];
+  activeSessionId: string | null;
+  disabled: boolean;
+  onNewSession: () => void;
+  onSelectSession: (sessionId: string) => void;
+  onClose?: () => void;
+}) {
+  return (
+    <div className="flex h-full flex-col bg-white text-gray-900">
+      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
+        <div>
+          <p className="text-[13px] font-semibold text-[#3d3d3d]">
+            VIZA chats
+          </p>
+          <p className="mt-0.5 text-[11px] text-[rgba(0,0,0,0.45)]">
+            Separate visa conversations
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label="New VIZA chat"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={disabled}
+            onClick={onNewSession}
+            type="button"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          {onClose && (
+            <button
+              aria-label="Close chat list"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
+              onClick={onClose}
+              type="button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        <button
+          className="mb-3 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={disabled}
+          onClick={onNewSession}
+          type="button"
+        >
+          <Plus className="h-4 w-4" />
+          <span>New chat</span>
+        </button>
+
+        {sessions.length === 0 ? (
+          <p className="px-3 py-8 text-center text-[13px] text-gray-400">
+            No conversations yet
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {sessions.map((session) => {
+              const active = session.id === activeSessionId;
+              return (
+                <button
+                  aria-pressed={active}
+                  className={cn(
+                    "w-full rounded-md px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                    active
+                      ? "bg-[#03346E]/8 text-[#03346E]"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  )}
+                  disabled={disabled}
+                  key={session.id}
+                  onClick={() => onSelectSession(session.id)}
+                  type="button"
+                >
+                  <span className="block truncate text-[13px] font-medium">
+                    {getSessionDisplayTitle(session)}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-gray-400">
+                    {formatSessionDate(session.createdAt)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // =============================================================================
 // Inline Component Renderer
@@ -254,6 +386,7 @@ function InlineComponent({
 
 export function ChatClient({
   userId,
+  initialSessions,
   initialSessionId,
   initialMessages,
   travelApplicationId,
@@ -265,7 +398,8 @@ export function ChatClient({
   // Session & UI State
   // ==========================================================================
 
-  const [sessionId] = useState<string | null>(initialSessionId);
+  const [sessions, setSessions] = useState<Session[]>(initialSessions);
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
   const [showChat, setShowChat] = useState(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem("viza_chat_active") === "true") {
       return true;
@@ -274,8 +408,10 @@ export function ChatClient({
   });
   const [chatMode, setChatMode] = useState<"viza" | "travel">("viza");
   const [showDebug] = useState(false);
+  const [sessionPanelOpen, setSessionPanelOpen] = useState(false);
+  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [isLoadingMessages] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<string[]>([]);
   const [_isNearBottom, setIsNearBottom] = useState(true);
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
@@ -285,6 +421,7 @@ export function ChatClient({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
+  const hasScrolledToBottomRef = useRef(false);
   const queuedMessageRef = useRef<{ message: string; tempId: string } | null>(null);
 
   // ==========================================================================
@@ -595,6 +732,7 @@ export function ChatClient({
 
   const continuousChat = useContinuousChat({
     userId,
+    sessionId,
     initialMessages,
     initialCheckpoints: [],
     isFirstTimeUser: initialMessages.length === 0,
@@ -608,6 +746,7 @@ export function ChatClient({
     jumpToMessage,
     jumpTargetId,
     addSocketMessage,
+    resetHistoryState,
     setMessages: setChatMessages,
     setShowNewMessageButton,
     setShowScrollToBottom,
@@ -618,6 +757,25 @@ export function ChatClient({
   // ==========================================================================
 
   const prevSocketMessagesRef = useRef<typeof socketMessages>([]);
+
+  const resetRuntimeMessages = useCallback(() => {
+    flushTokenBuffer();
+    tokenBufferRef.current = "";
+    if (tokenFlushTimeoutRef.current) {
+      clearTimeout(tokenFlushTimeoutRef.current);
+      tokenFlushTimeoutRef.current = null;
+    }
+    currentMessageIdRef.current = null;
+    queuedMessageRef.current = null;
+    prevSocketMessagesRef.current = [];
+    hasScrolledToBottomRef.current = false;
+    setSocketMessages([]);
+    setPendingMessages([]);
+    setPendingComponents([]);
+    setBlockMessages([]);
+    setShowNewMessageButton(false);
+    setShowScrollToBottom(false);
+  }, [flushTokenBuffer, setShowNewMessageButton, setShowScrollToBottom]);
 
   useEffect(() => {
     const prev = prevSocketMessagesRef.current;
@@ -698,7 +856,6 @@ export function ChatClient({
     }
   }, [chatMessages, isLoadingMore]);
 
-  const hasScrolledToBottomRef = useRef(false);
   useEffect(() => {
     if (chatMessages.length > 0 && !hasScrolledToBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
@@ -797,13 +954,102 @@ export function ChatClient({
   // Handlers
   // ==========================================================================
 
+  const markSessionUsed = useCallback((activeSessionId: string, message: string) => {
+    const preview = message.slice(0, 30);
+    setSessions((prev) => {
+      const existing = prev.find((session) => session.id === activeSessionId);
+      if (!existing) return prev;
+
+      const updated: Session = {
+        ...existing,
+        firstMessagePreview: existing.firstMessagePreview || preview,
+        endedAt: new Date().toISOString(),
+      };
+
+      return [
+        updated,
+        ...prev.filter((session) => session.id !== activeSessionId),
+      ];
+    });
+  }, []);
+
+  const handleNewVizaSession = useCallback(() => {
+    if (isStreaming) {
+      toast.info("Please wait for the current response to finish.");
+      return;
+    }
+
+    setSessionId(null);
+    setChatMessages([]);
+    resetHistoryState(false);
+    resetRuntimeMessages();
+    setShowChat(true);
+    setChatMode("viza");
+    setSessionPanelOpen(false);
+    sessionStorage.setItem("viza_chat_active", "true");
+  }, [isStreaming, resetHistoryState, resetRuntimeMessages, setChatMessages]);
+
+  const handleSessionSelect = useCallback(
+    async (nextSessionId: string) => {
+      if (nextSessionId === sessionId) {
+        setSessionPanelOpen(false);
+        setShowChat(true);
+        setChatMode("viza");
+        return;
+      }
+
+      if (isStreaming) {
+        toast.info("Please wait for the current response to finish.");
+        return;
+      }
+
+      setIsLoadingMessages(true);
+      setSessionId(nextSessionId);
+      setShowChat(true);
+      setChatMode("viza");
+      setSessionPanelOpen(false);
+      sessionStorage.setItem("viza_chat_active", "true");
+      resetRuntimeMessages();
+
+      try {
+        const messages = await getSessionMessages(nextSessionId, userId);
+        setChatMessages(formatStoredMessages(messages));
+        resetHistoryState(messages.length >= 50);
+      } catch (error) {
+        console.error("Error loading VIZA session:", error);
+        toast.error("Failed to load conversation");
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    },
+    [
+      isStreaming,
+      resetHistoryState,
+      resetRuntimeMessages,
+      sessionId,
+      setChatMessages,
+      userId,
+    ]
+  );
+
   const handleSendMessage = useCallback(
     async (message: string) => {
       sessionStorage.setItem("viza_chat_active", "true");
 
-      if (!sessionId) {
-        toast.error(t("failedToStart"));
-        return;
+      let effectiveSessionId = sessionId;
+      if (!effectiveSessionId) {
+        const newSession = await createSession(userId, travelApplicationId);
+        if (!newSession) {
+          toast.error(t("failedToStart"));
+          return;
+        }
+
+        effectiveSessionId = newSession.id;
+        setSessionId(effectiveSessionId);
+        setSessions((prev) => [
+          newSession,
+          ...prev.filter((session) => session.id !== newSession.id),
+        ]);
       }
 
       if (status !== "connected") {
@@ -823,7 +1069,7 @@ export function ChatClient({
           content: message,
           timestamp: Date.now(),
           isStreaming: false,
-          sessionId: sessionId,
+          sessionId: effectiveSessionId,
         } as SocketChatMessage);
         queuedMessageRef.current = { message, tempId };
         if (messagesContainerRef.current) {
@@ -833,13 +1079,24 @@ export function ChatClient({
         return;
       }
 
-      socketSendMessage(message, sessionId);
+      socketSendMessage(message, effectiveSessionId);
+      markSessionUsed(effectiveSessionId, message);
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight;
       }
     },
-    [sessionId, status, socketSendMessage, isStreaming, addSocketMessage]
+    [
+      sessionId,
+      status,
+      socketSendMessage,
+      isStreaming,
+      addSocketMessage,
+      markSessionUsed,
+      t,
+      travelApplicationId,
+      userId,
+    ]
   );
 
   const handleVizaAiClick = useCallback(() => {
@@ -914,8 +1171,90 @@ export function ChatClient({
 
   return (
     <div className="chat-page fixed top-[104px] bottom-0 left-0 right-0 bg-[#fafafa] z-10 border-t border-[#e5e5e5]">
-      {/* Full-width main content 鈥?no sidebar */}
-      <main className="h-full flex flex-col min-h-0">
+      {chatMode === "viza" && !sessionPanelCollapsed && (
+        <>
+          <aside
+            className="absolute bottom-0 left-0 top-0 z-20 hidden w-[280px] border-r border-[#e5e5e5] lg:block"
+            data-testid="viza-session-sidebar"
+          >
+            <button
+              aria-label="Collapse VIZA chat list"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
+              onClick={() => setSessionPanelCollapsed(true)}
+              type="button"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <ChatSessionPanel
+              activeSessionId={sessionId}
+              disabled={isStreaming || isLoadingMessages}
+              onNewSession={handleNewVizaSession}
+              onSelectSession={handleSessionSelect}
+              sessions={sessions}
+            />
+          </aside>
+
+          {sessionPanelOpen && (
+            <div className="fixed inset-0 z-40 lg:hidden">
+              <button
+                aria-label="Close chat list"
+                className="absolute inset-0 bg-black/20"
+                onClick={() => setSessionPanelOpen(false)}
+                type="button"
+              />
+              <aside className="absolute bottom-0 left-0 top-0 w-[min(84vw,320px)] border-r border-[#e5e5e5] shadow-xl">
+                <ChatSessionPanel
+                  activeSessionId={sessionId}
+                  disabled={isStreaming || isLoadingMessages}
+                  onClose={() => setSessionPanelOpen(false)}
+                  onNewSession={handleNewVizaSession}
+                  onSelectSession={handleSessionSelect}
+                  sessions={sessions}
+                />
+              </aside>
+            </div>
+          )}
+        </>
+      )}
+
+      {chatMode === "viza" && sessionPanelCollapsed && (
+        <button
+          aria-label="Expand VIZA chat list"
+          className="absolute left-4 top-4 z-30 hidden h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:flex"
+          onClick={() => setSessionPanelCollapsed(false)}
+          type="button"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </button>
+      )}
+
+      {chatMode === "viza" && sessionPanelCollapsed && sessionPanelOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            aria-label="Close chat list"
+            className="absolute inset-0 bg-black/20"
+            onClick={() => setSessionPanelOpen(false)}
+            type="button"
+          />
+          <aside className="absolute bottom-0 left-0 top-0 w-[min(84vw,320px)] border-r border-[#e5e5e5] shadow-xl">
+            <ChatSessionPanel
+              activeSessionId={sessionId}
+              disabled={isStreaming || isLoadingMessages}
+              onClose={() => setSessionPanelOpen(false)}
+              onNewSession={handleNewVizaSession}
+              onSelectSession={handleSessionSelect}
+              sessions={sessions}
+            />
+          </aside>
+        </div>
+      )}
+
+      <main
+        className={cn(
+          "h-full flex flex-col min-h-0",
+          chatMode === "viza" && !sessionPanelCollapsed && "lg:pl-[280px]"
+        )}
+      >
         <AnimatePresence mode="wait">
           {!showChat ? (
             /* Selection View */
@@ -927,11 +1266,19 @@ export function ChatClient({
               transition={{ duration: 0.25 }}
               className="flex-1 flex flex-col overflow-y-auto pt-6 pb-12 md:pb-4 md:pt-8 lg:py-10 h-full min-h-0"
             >
+              <button
+                aria-label="Open VIZA chat list"
+                className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm lg:hidden"
+                onClick={() => setSessionPanelOpen(true)}
+                type="button"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
               <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-0">
                 <div className="max-w-4xl w-full mx-auto flex flex-col flex-1 justify-between">
                   <div className="w-full flex flex-col gap-3 md:gap-6">
                     <h1 className="font-heading font-medium text-[18px] md:text-[24px] lg:text-[28px] leading-[1.3] text-[#3d3d3d] text-center tracking-[-0.54px] md:tracking-[-0.72px] lg:tracking-[-0.84px]">
-                      Hi there, how can we help with your visa?
+                      Hi there, which visa can we help you with today?
                     </h1>
 
                     {/* Mobile cards */}
@@ -1203,6 +1550,16 @@ export function ChatClient({
                     chatMode === "travel" ? "max-w-[2060px]" : "max-w-[900px]"
                   )}
                 >
+                  {chatMode === "viza" && (
+                    <button
+                      aria-label="Open VIZA chat list"
+                      className="absolute left-4 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:hidden"
+                      onClick={() => setSessionPanelOpen(true)}
+                      type="button"
+                    >
+                      <PanelLeft className="h-4 w-4" />
+                    </button>
+                  )}
                   <button
                     className={cn(
                       "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
@@ -1227,6 +1584,17 @@ export function ChatClient({
                   >
                     Travel AI
                   </button>
+                  {chatMode === "viza" && (
+                    <button
+                      aria-label="New VIZA chat"
+                      className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#03346E]/20 bg-white text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+                      disabled={isStreaming || isLoadingMessages}
+                      onClick={handleNewVizaSession}
+                      type="button"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 {chatMode === "travel" ? (

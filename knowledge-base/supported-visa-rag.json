@@ -1,0 +1,256 @@
+{
+  "version": "2026-05-15",
+  "notes": "Official-source RAG seed data for currently supported non-Indonesia destinations. Scope is short-stay tourism/visitor routes unless a chunk explicitly says otherwise.",
+  "documents": [
+    {
+      "slug": "vietnam-official-evisa",
+      "country": "vietnam",
+      "visaType": "evisa_tourism",
+      "documentType": "requirements",
+      "title": "Vietnam Official E-Visa",
+      "sourceUrl": "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt",
+      "chunks": [
+        {
+          "id": "vnm_evisa_basic_route_zh",
+          "title": "中国护照越南短期旅游签证建议",
+          "tags": ["vietnam", "china", "chinese-passport", "tourism", "e-visa", "电子签"],
+          "content": "中国护照持有人计划去越南短期旅游时，VIZA AI 应优先考虑越南官方 E-visa 电子签证路线，而不是美国 DS-160、英国 Standard Visitor 或申根签证。越南移民局官方页面说明，电子签证由 Vietnam Immigration Department 通过电子系统签发；境外外国人可通过 evisa.gov.vn 官方入口自行申请。回答时先确认目的地是越南、国籍、旅行目的、停留天数、入境口岸和是否需要多次入境。"
+        },
+        {
+          "id": "vnm_evisa_validity_conditions",
+          "title": "Vietnam e-visa validity and basic conditions",
+          "tags": ["vietnam", "e-visa", "validity", "90-days", "passport", "entry"],
+          "content": "Vietnam E-visa is valid for a maximum of 90 days and can be single or multiple entry. The official Immigration Department page lists basic conditions: the applicant is outside Vietnam, holds a valid passport, and is not in a category suspended from entry under Vietnamese law. The fee is paid through the official electronic payment gateway and is not refunded if the application is refused. Travellers should check the official list of ports that allow entry and exit with an E-visa."
+        },
+        {
+          "id": "vnm_evisa_portal_transition",
+          "title": "Vietnam official e-visa portal domains",
+          "tags": ["vietnam", "official", "portal", "evisa.gov.vn", "anti-scam"],
+          "content": "The legacy Vietnam Immigration Department portal states that, from 08:00 on 11 November 2024 GMT+7, the Vietnam Electronic Visa Portal operates on the new domains thithucdientu.gov.vn and evisa.gov.vn. For VIZA AI: direct users to official .gov.vn portals and warn them to avoid unofficial paid lookalike sites when possible."
+        }
+      ]
+    },
+    {
+      "slug": "uk-standard-visitor-overview",
+      "country": "uk",
+      "visaType": "standard_visitor",
+      "documentType": "requirements",
+      "title": "UK Standard Visitor Visa Overview",
+      "sourceUrl": "https://www.gov.uk/standard-visitor",
+      "chunks": [
+        {
+          "id": "uk_standard_visitor_scope",
+          "title": "Standard Visitor scope and permitted activities",
+          "tags": ["uk", "standard-visitor", "tourism", "business", "visit", "study"],
+          "content": "The UK Standard Visitor route can cover tourism, visiting family or friends, certain business activities such as meetings or interviews, short study or exams, transit, medical reasons, and other permitted activities. A visitor can usually stay in the UK for up to 6 months, with limited exceptions. Depending on nationality, the traveller may need a Standard Visitor visa, an ETA, or neither, so VIZA AI should tell users to use the GOV.UK visa checker before applying."
+        },
+        {
+          "id": "uk_standard_visitor_limits",
+          "title": "Standard Visitor limits",
+          "tags": ["uk", "standard-visitor", "not-permitted", "work", "public-funds"],
+          "content": "A UK Standard Visitor cannot do paid or unpaid work for a UK company or as a self-employed person unless the activity is specifically permitted, cannot claim public funds, cannot live in the UK for long periods through frequent or successive visits, and cannot marry or give notice of marriage or civil partnership on this route. If the user's purpose is work, long-term study, settlement, or marriage, do not recommend Standard Visitor as the final answer; ask clarifying questions and route them to the appropriate category."
+        },
+        {
+          "id": "uk_standard_visitor_eligibility",
+          "title": "Standard Visitor eligibility basics",
+          "tags": ["uk", "standard-visitor", "eligibility", "funds", "return"],
+          "content": "Standard Visitor eligibility includes having a passport or travel document valid for the whole UK stay, showing that the traveller will leave the UK at the end of the visit, can support themselves and dependants during the trip, can pay for return or onward travel, and will not make the UK their main home through frequent or successive visits. Additional requirements can apply for study, academic visits, paid engagements, or medical visits."
+        }
+      ]
+    },
+    {
+      "slug": "uk-standard-visitor-application",
+      "country": "uk",
+      "visaType": "standard_visitor",
+      "documentType": "process",
+      "title": "UK Standard Visitor Application Process",
+      "sourceUrl": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",
+      "chunks": [
+        {
+          "id": "uk_standard_visitor_apply_online",
+          "title": "Apply online and appointment",
+          "tags": ["uk", "standard-visitor", "apply-online", "appointment", "biometrics"],
+          "content": "If a traveller needs a UK Standard Visitor visa, they must apply online before travelling to the UK and attend an appointment at a visa application centre. The earliest application time is 3 months before travel. At the appointment, the applicant proves identity with the passport or travel document, gives fingerprints and a photo, and provides documents showing eligibility. Each family member needs their own application and fee."
+        },
+        {
+          "id": "uk_standard_visitor_fee_timing",
+          "title": "Standard Visitor fee and timing",
+          "tags": ["uk", "standard-visitor", "fee", "processing-time", "6-months"],
+          "content": "GOV.UK lists the Standard Visitor visa fee as GBP 135 for a maximum stay of 6 months as of the reviewed page. Long-term Standard Visitor visas may be available for regular visitors, but each visit is still limited to a maximum of 6 months. After applying online, proving identity, and providing documents, applicants usually get a decision within 3 weeks; users should still check GOV.UK for the current fee and processing options."
+        },
+        {
+          "id": "uk_standard_visitor_application_info",
+          "title": "Information needed for online application",
+          "tags": ["uk", "standard-visitor", "documents", "application-info", "translation"],
+          "content": "The UK Standard Visitor online application asks for information such as planned travel dates, UK accommodation, estimated trip cost, current home address and residence history, parents' names and dates of birth if known, annual income if applicable, and any criminal, civil, or immigration offences. Depending on circumstances, applicants may also need travel history for the past 10 years, employer details, partner details, sponsor payer details, family in the UK details, or TB test evidence for visits over 6 months. Documents not in English or Welsh need certified translation."
+        }
+      ]
+    },
+    {
+      "slug": "france-tourism-private-stay",
+      "country": "france",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "France Tourism and Private Stay",
+      "sourceUrl": "https://www.france-visas.gouv.fr/en/tourisme-et-sejour-prive",
+      "chunks": [
+        {
+          "id": "fra_tourism_private_stay_scope",
+          "title": "France tourism/private stay scope",
+          "tags": ["france", "tourism", "private-stay", "schengen", "short-stay"],
+          "content": "France-Visas separates tourism and private stay from professional, study/training, and family-purpose routes. Stays for private reasons or tourism do not allow the traveller to exercise an activity related to a professional reason, except for specific working holiday eligibility. For VIZA AI: if the user wants tourism in France for under 3 months, use the France short-stay tourism/private stay route; if they mention work, study, family migration, volunteering, or medical care, ask follow-up questions and avoid forcing the tourism route."
+        },
+        {
+          "id": "fra_application_wizard_online",
+          "title": "France visa wizard and online application",
+          "tags": ["france", "france-visas", "visa-wizard", "online-application"],
+          "content": "France-Visas tells applicants to assess their situation with the France-Visas online support/wizard to identify the required supporting documents, then start the visa process online after checking whether a visa is needed. Supporting documents depend on nationality, residence country, destination territory, and purpose."
+        },
+        {
+          "id": "fra_chinese_tourist_basic_route_zh",
+          "title": "中国护照法国短期旅游签证建议",
+          "tags": ["france", "china", "chinese-passport", "法国旅游", "申根签证", "short-stay"],
+          "content": "中国护照持有人如果去法国短期旅游、探亲访友或私人访问，且法国是唯一目的地或主要停留国家，通常应按法国短期 Schengen 旅游/私人访问路线准备，而不是越南 e-visa、英国 Standard Visitor 或美国 DS-160。VIZA AI 应先确认国籍、居住地、法国是否为主目的地、停留天数、是否同时去其他申根国家；常见材料方向包括护照、申请表、照片、旅行医疗保险、行程/住宿、资金证明、回国约束力和指纹采集。"
+        }
+      ]
+    },
+    {
+      "slug": "italy-entry-visa-type-c",
+      "country": "italy",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Italy Entry Visa and Uniform Schengen Visa",
+      "sourceUrl": "https://www.esteri.it/en/servizi-opportunita/ingressosoggiornoinitalia/visto_ingresso/",
+      "chunks": [
+        {
+          "id": "ita_entry_visa_scope",
+          "title": "Italy entry visa scope",
+          "tags": ["italy", "entry-visa", "schengen", "short-stay", "uniform-schengen-visa"],
+          "content": "The Italian Ministry of Foreign Affairs describes an entry visa as an authorization placed in the applicant's passport or travel document for entry into the Schengen Area and the Italian Republic. A visa issued by Italian representations abroad allows transit or a short stay up to 90 days in Italy and other Schengen Convention countries as a Uniform Schengen Visa. A long stay over 90 days is a National Visa, not the short-stay tourism route."
+        },
+        {
+          "id": "ita_visa_for_italy_portal",
+          "title": "Visa for Italy portal",
+          "tags": ["italy", "visa-for-italy", "official-portal", "schengen"],
+          "content": "The Italian Ministry points applicants to the official Visa for Italy portal for further entry visa information. For VIZA AI: if Italy is the sole or main destination for a short tourism trip, use Italy/Schengen Type C short-stay guidance and direct users to the official Italian visa portal or the competent Italian representation/VAC for residence-specific instructions."
+        },
+        {
+          "id": "ita_chinese_tourist_basic_route_zh",
+          "title": "中国护照意大利短期旅游签证建议",
+          "tags": ["italy", "china", "chinese-passport", "意大利旅游", "申根签证", "type-c"],
+          "content": "中国护照持有人如果去意大利短期旅游，且意大利是唯一目的地或主要停留国家，通常应准备 Italy/Schengen Type C 短期签证材料，而不是美国 B-2、英国 Standard Visitor 或越南电子签。VIZA AI 应先确认国籍、居住地、意大利是否为主目的地、停留天数和是否多国申根行程；常见材料方向包括护照、申根申请表、照片、旅行医疗保险、行程/住宿、资金证明、回程或续程安排、回国约束力和指纹采集。"
+        }
+      ]
+    },
+    {
+      "slug": "italy-visa-types-duration",
+      "country": "italy",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "process",
+      "title": "Italy Visa Types and Duration",
+      "sourceUrl": "https://www.esteri.it/en/servizi-opportunita/ingressosoggiornoinitalia/visto_ingresso/tipologie_visto_durata/",
+      "chunks": [
+        {
+          "id": "ita_type_c_duration",
+          "title": "Italy Type C short-stay duration",
+          "tags": ["italy", "type-c", "short-stay", "90-180", "schengen"],
+          "content": "Italy's visa type page explains that Uniform Schengen Visa type C is for short stays in the Schengen Area. The maximum duration is 90 days in any 180-day period, calculated from the date of first entry, and a visa may allow one, two, or multiple entries. If the user plans to stay over 90 days in Italy, ask about the purpose and use a long-stay National Visa category instead of Type C tourism."
+        }
+      ]
+    },
+    {
+      "slug": "switzerland-schengen-visa-china",
+      "country": "switzerland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Switzerland Schengen Visa for a Stay of up to 90 Days",
+      "sourceUrl": "https://www.eda.admin.ch/countries/china/en/home/visa/entry-ch/up-90-days.html",
+      "chunks": [
+        {
+          "id": "che_schengen_visa_up_to_90",
+          "title": "Switzerland short-stay Schengen route",
+          "tags": ["switzerland", "china", "schengen", "tourism", "90-days"],
+          "content": "The Swiss FDFA China page has a dedicated Schengen visa route for a stay of up to 90 days and links to nationality-based visa provisions, where to apply, application procedure, documentation, fees, and data information. For a China-resident applicant going to Switzerland for short tourism, VIZA AI should use the Switzerland Schengen short-stay route and tell the user to confirm requirements by nationality/residence and submit through the competent authority or visa application centre."
+        },
+        {
+          "id": "che_vfs_and_residence_district",
+          "title": "Switzerland application channel in China",
+          "tags": ["switzerland", "china", "vfs", "where-to-apply", "consular-district"],
+          "content": "The Swiss FDFA China page points users to VFS Global for visa services and lists Swiss representations/consular districts in China. Where to apply can depend on place of residence, so VIZA AI should ask where the applicant legally resides before giving appointment instructions."
+        },
+        {
+          "id": "che_chinese_tourist_basic_route_zh",
+          "title": "中国护照瑞士短期旅游签证建议",
+          "tags": ["switzerland", "china", "chinese-passport", "瑞士旅游", "申根签证", "90-days"],
+          "content": "中国护照持有人如果去瑞士短期旅游，且瑞士是唯一目的地或主要停留国家，通常应按 Switzerland/Schengen 90 天以内短期签证路线准备，而不是美国、英国或越南签证。VIZA AI 应先确认国籍、居住地、瑞士是否为主目的地、停留天数、是否同时去法国/意大利等其他申根国家；常见材料方向包括护照、申请表、照片、旅行医疗保险、行程/住宿、资金证明、回国约束力、指纹采集，并按居住地选择对应瑞士签证申请渠道。"
+        }
+      ]
+    },
+    {
+      "slug": "france-schengen-common-requirements",
+      "country": "france",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for France",
+      "sourceUrl": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
+      "chunks": [
+        {
+          "id": "fra_schengen_where_when",
+          "title": "Where and when to apply for France/Schengen",
+          "tags": ["france", "schengen", "where-to-apply", "timing", "90-180"],
+          "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
+        },
+        {
+          "id": "fra_schengen_documents_fees_timing",
+          "title": "France/Schengen documents, fees, and processing",
+          "tags": ["france", "schengen", "documents", "fee", "processing"],
+          "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
+        }
+      ]
+    },
+    {
+      "slug": "italy-schengen-common-requirements",
+      "country": "italy",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Italy",
+      "sourceUrl": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
+      "chunks": [
+        {
+          "id": "ita_schengen_where_when",
+          "title": "Where and when to apply for Italy/Schengen",
+          "tags": ["italy", "schengen", "where-to-apply", "timing", "90-180"],
+          "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
+        },
+        {
+          "id": "ita_schengen_documents_fees_timing",
+          "title": "Italy/Schengen documents, fees, and processing",
+          "tags": ["italy", "schengen", "documents", "fee", "processing"],
+          "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
+        }
+      ]
+    },
+    {
+      "slug": "switzerland-schengen-common-requirements",
+      "country": "switzerland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Switzerland",
+      "sourceUrl": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
+      "chunks": [
+        {
+          "id": "che_schengen_where_when",
+          "title": "Where and when to apply for Switzerland/Schengen",
+          "tags": ["switzerland", "schengen", "where-to-apply", "timing", "90-180"],
+          "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
+        },
+        {
+          "id": "che_schengen_documents_fees_timing",
+          "title": "Switzerland/Schengen documents, fees, and processing",
+          "tags": ["switzerland", "schengen", "documents", "fee", "processing"],
+          "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
+        }
+      ]
+    }
+  ]
+}

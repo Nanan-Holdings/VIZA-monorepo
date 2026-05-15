@@ -1,12 +1,16 @@
 from tempfile import NamedTemporaryFile
 from pathlib import Path
+from html import escape
 
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.utils import simpleSplit
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from export_summary import build_itinery_rows
 
 PDF_FONT = "TravelCJKFont"
 CID_FALLBACK_FONT = "STSong-Light"
@@ -15,7 +19,8 @@ LEFT_MARGIN = 50
 RIGHT_MARGIN = 50
 TOP_MARGIN = 50
 BOTTOM_MARGIN = 50
-BODY_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN
+TABLE_HEADERS = ["类型", "日期/天数", "城市/路线", "名称", "详情", "联系电话/航班号"]
+TABLE_KEYS = ["type", "date", "route", "name", "details", "contact"]
 
 
 def _register_font():
@@ -60,80 +65,92 @@ def _register_font():
     return CID_FALLBACK_FONT
 
 
-def _draw_wrapped_text(c, text, x, y, font_name, font_size, line_height):
-    lines = simpleSplit(str(text), font_name, font_size, BODY_WIDTH - (x - LEFT_MARGIN))
-    for line in lines:
-        c.drawString(x, y, line)
-        y -= line_height
-    return y
+def _paragraph(text, style):
+    return Paragraph(escape(str(text)), style)
 
 
-def _new_page(c, font_name):
-    c.showPage()
-    c.setFont(font_name, 12)
-    return PAGE_HEIGHT - TOP_MARGIN
-
-
-def export_to_pdf(itinerary):
+def export_to_pdf(itinerary, state=None):
     active_font = _register_font()
 
     with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         file_path = tmp.name
 
-    c = canvas.Canvas(file_path, pagesize=letter)
-    c.setFont(active_font, 12)
+    doc = SimpleDocTemplate(
+        file_path,
+        pagesize=letter,
+        leftMargin=LEFT_MARGIN,
+        rightMargin=RIGHT_MARGIN,
+        topMargin=TOP_MARGIN,
+        bottomMargin=BOTTOM_MARGIN,
+    )
+    title_style = ParagraphStyle(
+        "TravelTitle",
+        fontName=active_font,
+        fontSize=22,
+        leading=28,
+        spaceAfter=14,
+    )
+    cell_style = ParagraphStyle(
+        "TravelTableCell",
+        fontName=active_font,
+        fontSize=8.5,
+        leading=11,
+    )
+    day_style = ParagraphStyle(
+        "TravelDay",
+        fontName=active_font,
+        fontSize=11,
+        leading=15,
+        spaceBefore=8,
+    )
 
-    y = PAGE_HEIGHT - TOP_MARGIN
-
-    if not itinerary:
-        _draw_wrapped_text(c, "No itinerary generated.", LEFT_MARGIN, y, active_font, 12, 16)
+    rows = build_itinery_rows(itinerary, state or {})
+    table_data = [[_paragraph(header, cell_style) for header in TABLE_HEADERS]]
+    if rows:
+        for row in rows:
+            table_data.append([
+                _paragraph(row.get(key, "-"), cell_style) for key in TABLE_KEYS
+            ])
     else:
+        table_data.append(
+            [
+                _paragraph("暂无行程" if index == 0 else "-", cell_style)
+                for index in range(len(TABLE_HEADERS))
+            ]
+        )
+
+    story = [_paragraph("itinery", title_style)]
+    story.append(
+        Table(
+            table_data,
+            colWidths=[42, 66, 78, 94, 160, 86],
+            repeatRows=1,
+            style=TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eadcff")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#2d1635")),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8c5ff")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("FONTNAME", (0, 0), (-1, -1), active_font),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]
+            ),
+        )
+    )
+
+    if itinerary:
+        story.append(Spacer(1, 14))
         for day in itinerary:
-            if y < BOTTOM_MARGIN + 120:
-                y = _new_page(c, active_font)
-
-            c.setFont(active_font, 16)
-            y = _draw_wrapped_text(
-                c,
-                f"Day {day.get('day', '-')} - {day.get('city', 'Unknown')}",
-                LEFT_MARGIN,
-                y,
-                active_font,
-                16,
-                22,
-            )
-
-            c.setFont(active_font, 13)
-            y = _draw_wrapped_text(
-                c, "Activities:", LEFT_MARGIN + 10, y - 2, active_font, 13, 18
-            )
-            c.setFont(active_font, 12)
-            for activity in day.get("activities", []):
-                if y < BOTTOM_MARGIN + 40:
-                    y = _new_page(c, active_font)
-                y = _draw_wrapped_text(
-                    c, f"- {activity}", LEFT_MARGIN + 20, y, active_font, 12, 16
+            story.append(
+                _paragraph(
+                    f"Day {day.get('day', '-')} - {day.get('city', 'Unknown')}："
+                    f"{'、'.join(day.get('activities', [])) or '-'}",
+                    day_style,
                 )
-
-            c.setFont(active_font, 13)
-            y = _draw_wrapped_text(c, "Food:", LEFT_MARGIN + 10, y - 2, active_font, 13, 18)
-            c.setFont(active_font, 12)
-            for food in day.get("food", []):
-                if y < BOTTOM_MARGIN + 40:
-                    y = _new_page(c, active_font)
-                y = _draw_wrapped_text(c, f"- {food}", LEFT_MARGIN + 20, y, active_font, 12, 16)
-
-            c.setFont(active_font, 13)
-            y = _draw_wrapped_text(
-                c,
-                f"Cost: {day.get('cost', 'N/A')}",
-                LEFT_MARGIN + 10,
-                y - 2,
-                active_font,
-                13,
-                18,
             )
-            y -= 12
 
-    c.save()
+    doc.build(story)
     return file_path

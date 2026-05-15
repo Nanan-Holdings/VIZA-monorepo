@@ -819,6 +819,7 @@ function buildHoverCardHtml(
     cardWidth?: number;
     imageHeight?: number;
     compact?: boolean;
+    previousPhotoButtonId?: string;
     photoButtonId?: string;
     summaryButtonId?: string;
     imageElementId?: string;
@@ -841,12 +842,15 @@ function buildHoverCardHtml(
   const titleSize = compact ? 17 : 19;
   const bodySize = compact ? 12 : 13;
   const padding = compact ? 13 : 16;
+  const previousPhotoButtonId = options?.previousPhotoButtonId;
   const photoButtonId = options?.photoButtonId;
   const summaryButtonId = options?.summaryButtonId;
   const imageElementId = options?.imageElementId;
   const dotIdPrefix = options?.dotIdPrefix;
   const introLineHeight = compact ? 19 : 21;
   const introHeight = introLineHeight * 2;
+  const galleryButtonSize = compact ? 34 : 38;
+  const galleryButtonStyle = `pointer-events:auto;position:absolute;top:50%;height:${galleryButtonSize}px;width:${galleryButtonSize}px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:${compact ? 27 : 30}px;font-weight:400;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(15,23,42,.18);`;
 
   return `
 <div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:auto;">
@@ -855,8 +859,13 @@ function buildHoverCardHtml(
       <img ${imageElementId ? `id="${imageElementId}"` : ""} src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" style="display:block;width:100%;height:100%;object-fit:cover;" />
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
       ${
+        previousPhotoButtonId
+          ? `<button id="${previousPhotoButtonId}" type="button" aria-label="上一张照片" style="${galleryButtonStyle}left:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">‹</span></button>`
+          : ""
+      }
+      ${
         photoButtonId
-          ? `<button id="${photoButtonId}" type="button" aria-label="切换照片" style="pointer-events:auto;position:absolute;right:12px;top:50%;height:34px;width:34px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:28px;line-height:26px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.18);">›</button>`
+          ? `<button id="${photoButtonId}" type="button" aria-label="下一张照片" style="${galleryButtonStyle}right:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">›</span></button>`
           : ""
       }
       <div style="position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:5px;">
@@ -1264,6 +1273,7 @@ export function TripRouteMap({
         clearPreviewCloseTimer();
         const safePointId = sanitizeDomId(point.id);
         const buttonId = `trip-map-add-${safePointId}`;
+        const previousPhotoButtonId = `trip-map-photo-prev-${safePointId}`;
         const photoButtonId = `trip-map-photo-${safePointId}`;
         const summaryButtonId = `trip-map-summary-${safePointId}`;
         const imageElementId = `trip-map-image-${safePointId}`;
@@ -1339,6 +1349,7 @@ export function TripRouteMap({
               cardWidth,
               imageHeight,
               compact,
+              previousPhotoButtonId,
               photoButtonId,
               summaryButtonId,
               imageElementId,
@@ -1463,6 +1474,15 @@ export function TripRouteMap({
               }
             });
           };
+          document
+            .getElementById(previousPhotoButtonId)
+            ?.addEventListener("click", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const imageCount = Math.max(galleryImages.length, 1);
+              imageIndex = (imageIndex - 1 + imageCount) % imageCount;
+              updatePreviewImage();
+            });
           document
             .getElementById(photoButtonId)
             ?.addEventListener("click", (event) => {

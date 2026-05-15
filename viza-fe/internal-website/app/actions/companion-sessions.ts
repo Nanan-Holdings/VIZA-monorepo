@@ -256,7 +256,10 @@ export async function getLatestActiveSession(
 /**
  * Create new session (called on first message send if no session exists)
  */
-export async function createSession(userId: string): Promise<Session | null> {
+export async function createSession(
+  userId: string,
+  applicationId?: string | null
+): Promise<Session | null> {
   const authenticatedUserId = await getAuthenticatedUserId();
 
   // Security check
@@ -271,6 +274,7 @@ export async function createSession(userId: string): Promise<Session | null> {
     .from("visa_chat_sessions")
     .insert({
       applicant_id: userId,
+      application_id: applicationId ?? null,
     })
     .select()
     .single();
@@ -481,7 +485,8 @@ export async function getMessagesAroundCheckpoint(
 export async function loadMoreHistory(
   userId: string,
   beforeTimestamp: string,
-  limit: number = 20
+  limit: number = 20,
+  sessionId?: string | null
 ): Promise<{
   messages: Message[];
   hasMore: boolean;
@@ -500,7 +505,7 @@ export async function loadMoreHistory(
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data: messages, error } = await adminClient
+  let query = adminClient
     .from("visa_chat_messages")
     .select(`
       id,
@@ -512,7 +517,13 @@ export async function loadMoreHistory(
     `)
     .eq("visa_chat_sessions.applicant_id", userId)
     .gte("created_at", thirtyDaysAgo.toISOString())
-    .lt("created_at", beforeTimestamp)
+    .lt("created_at", beforeTimestamp);
+
+  if (sessionId) {
+    query = query.eq("session_id", sessionId);
+  }
+
+  const { data: messages, error } = await query
     .order("created_at", { ascending: false })
     .limit(limit + 1);
 
@@ -694,7 +705,7 @@ export async function getRecentMessages(
 }
 
 // =============================================================================
-// US-034: Single Persistent Visa Chat Session Per Applicant
+// Legacy bootstrap helper: latest Visa chat session per applicant
 // =============================================================================
 
 export interface UserChatSessionResult {
@@ -709,9 +720,10 @@ export interface UserChatSessionResult {
 }
 
 /**
- * Get or create the single persistent visa_chat_sessions row for an applicant.
- * The frontend userId is applicant_profiles.id, and visa_chat_messages.session_id
- * must reference visa_chat_sessions.id.
+ * Get or create the latest visa_chat_sessions row for an applicant.
+ * /client/chat now supports multiple conversation processes through
+ * getUserSessions(), getSessionMessages(), and createSession(); keep this
+ * helper for older callers that still expect an immediate active session.
  */
 export async function getOrCreateUserSession(
   userId: string

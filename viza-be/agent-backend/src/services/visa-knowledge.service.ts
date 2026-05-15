@@ -6,7 +6,7 @@ const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_MATCH_COUNT = 5;
-const DEFAULT_MIN_SIMILARITY = 0.1;
+const DEFAULT_MIN_SIMILARITY = 0.03;
 
 export interface VisaKnowledgeQuery {
   query: string;
