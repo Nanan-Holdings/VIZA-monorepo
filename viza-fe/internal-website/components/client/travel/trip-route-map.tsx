@@ -569,8 +569,9 @@ function estimateCoordinateZoom(
   const paddedLngSpan = lngSpan * 1.45;
   const lngZoom = Math.log2((mapWidth * 360) / (256 * paddedLngSpan));
   const latZoom = Math.log2((mapHeight * 170) / (256 * paddedLatSpan));
+  const minimumFitZoom = latSpan > 100 || lngSpan > 120 ? MIN_ZOOM : 3;
 
-  return Math.floor(clamp(Math.min(latZoom, lngZoom), MIN_ZOOM, 11));
+  return Math.floor(clamp(Math.min(latZoom, lngZoom), minimumFitZoom, 11));
 }
 
 function getPointDisplayLocation(point: TripMapPoint): string {
@@ -762,15 +763,18 @@ export function TripRouteMap({
       marker: GoogleMarkerInstance;
       listeners: GoogleMarkerListener[];
       id: string;
+      point: TripMapPoint;
     }>
   >([]);
   const layoutRerenderListenersRef = useRef<GoogleMarkerListener[]>([]);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const [layoutVersion, setLayoutVersion] = useState(0);
   const fittedOnceRef = useRef(false);
   const fitKeyRef = useRef<string>("");
   const onAddDestinationRef = useRef(onAddDestination);
   const onPointSelectRef = useRef(onPointSelect);
+  const activePointIdRef = useRef(activePointId ?? null);
+  const markerVisualVersionRef = useRef(0);
+  const refreshMarkerVisualsRef = useRef<() => void>(() => {});
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detailPointId, setDetailPointId] = useState<string | null>(null);
@@ -818,6 +822,51 @@ export function TripRouteMap({
   }, [onPointSelect]);
 
   useEffect(() => {
+    activePointIdRef.current = activePointId ?? null;
+  }, [activePointId]);
+
+  const refreshMarkerVisuals = useCallback(() => {
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+    if (!maps || !map) return;
+
+    const visualVersion = markerVisualVersionRef.current + 1;
+    markerVisualVersionRef.current = visualVersion;
+    const zoom = map.getZoom() ?? DEFAULT_ZOOM;
+    const mapWidth = containerRef.current?.clientWidth ?? 1200;
+    const mapHeight = containerRef.current?.clientHeight ?? 800;
+    const iconSize = getAdaptiveIconSize(markersRef.current.length, mapWidth, mapHeight);
+    const showLabel = zoom >= LABEL_MIN_ZOOM;
+
+    markersRef.current.forEach(({ marker, point }) => {
+      const isActive = point.id === activePointIdRef.current;
+      const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(
+        point,
+        iconSize,
+        isActive
+      );
+      marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl));
+      marker.setLabel(showLabel ? buildMarkerLabel(point, iconSize) : undefined);
+      marker.setZIndex(isActive ? 1000 : 100);
+
+      void getBubbleMarkerDataUrl(point, iconSize, isActive).then((markerDataUrl) => {
+        const markerStillMounted = markersRef.current.some(
+          (entry) => entry.marker === marker && entry.id === point.id
+        );
+        if (!markerStillMounted || markerVisualVersionRef.current !== visualVersion) {
+          return;
+        }
+
+        marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl));
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshMarkerVisualsRef.current = refreshMarkerVisuals;
+  }, [refreshMarkerVisuals]);
+
+  useEffect(() => {
     if (!detailPointId) return;
     if (!points.some((point) => point.id === detailPointId)) {
       setDetailPointId(null);
@@ -826,6 +875,7 @@ export function TripRouteMap({
 
   useEffect(() => {
     let disposed = false;
+    let markerRefreshFrameId: number | null = null;
 
     void (async () => {
       if (!containerRef.current || mapRef.current) return;
@@ -864,13 +914,28 @@ export function TripRouteMap({
           hoverInfoRef.current?.close();
         });
 
-        const requestLayoutRefresh = () => {
+        const scheduleMarkerVisualRefresh = () => {
           hoverInfoRef.current?.close();
-          setLayoutVersion((value) => value + 1);
+          if (markerRefreshFrameId !== null) return;
+
+          markerRefreshFrameId = window.requestAnimationFrame(() => {
+            markerRefreshFrameId = null;
+            refreshMarkerVisualsRef.current();
+          });
+        };
+        const scheduleMapResize = () => {
+          hoverInfoRef.current?.close();
+          if (markerRefreshFrameId !== null) return;
+
+          markerRefreshFrameId = window.requestAnimationFrame(() => {
+            markerRefreshFrameId = null;
+            maps.event.trigger(map, "resize");
+            refreshMarkerVisualsRef.current();
+          });
         };
 
         layoutRerenderListenersRef.current = [
-          map.addListener("zoom_changed", requestLayoutRefresh),
+          map.addListener("zoom_changed", scheduleMarkerVisualRefresh),
           map.addListener("dragstart", () => {
             hoverInfoRef.current?.close();
           }),
@@ -878,7 +943,7 @@ export function TripRouteMap({
 
         if (containerRef.current && typeof ResizeObserver !== "undefined") {
           const observer = new ResizeObserver(() => {
-            requestLayoutRefresh();
+            scheduleMapResize();
           });
           observer.observe(containerRef.current);
           resizeObserverRef.current = observer;
@@ -887,7 +952,7 @@ export function TripRouteMap({
         [0, 240].forEach((delay) => {
           window.setTimeout(() => {
             maps.event.trigger(map, "resize");
-            setLayoutVersion((value) => value + 1);
+            refreshMarkerVisualsRef.current();
           }, delay);
         });
         setLoadError(null);
@@ -911,6 +976,10 @@ export function TripRouteMap({
       layoutRerenderListenersRef.current = [];
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
+      if (markerRefreshFrameId !== null) {
+        window.cancelAnimationFrame(markerRefreshFrameId);
+        markerRefreshFrameId = null;
+      }
 
       if (hoverInfoRef.current) {
         hoverInfoRef.current.close();
@@ -944,8 +1013,10 @@ export function TripRouteMap({
     let fitRetryTimeoutId: number | null = null;
     const fitFallbackTimeoutIds: number[] = [];
 
+    const currentActivePointId = activePointIdRef.current;
+
     points.forEach((point) => {
-      const isActive = point.id === activePointId;
+      const isActive = point.id === currentActivePointId;
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
       const marker = new maps.Marker({
         map,
@@ -955,11 +1026,6 @@ export function TripRouteMap({
         label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
         optimized: false,
         zIndex: isActive ? 1000 : 100,
-      });
-
-      void getBubbleMarkerDataUrl(point, iconSize, isActive).then((markerDataUrl) => {
-        if (effectDisposed) return;
-        marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl));
       });
 
       let closePreviewTimer: number | null = null;
@@ -1218,8 +1284,10 @@ export function TripRouteMap({
         marker.addListener("mouseout", () => schedulePreviewClose(220)),
       ];
 
-      markersRef.current.push({ marker, listeners, id: point.id });
+      markersRef.current.push({ marker, listeners, id: point.id, point });
     });
+
+    refreshMarkerVisualsRef.current();
 
     const routePath = routeCoordinates.map(([lat, lng]) => ({ lat, lng }));
     const bounds = new maps.LatLngBounds();
@@ -1282,14 +1350,17 @@ export function TripRouteMap({
       fitFallbackTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
   }, [
-    activePointId,
     isReady,
-    layoutVersion,
     pointKey,
     points,
     routeCoordinates,
     routeKey,
   ]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    refreshMarkerVisuals();
+  }, [activePointId, isReady, pointKey, refreshMarkerVisuals]);
 
   const activeFocusKeyRef = useRef("");
 

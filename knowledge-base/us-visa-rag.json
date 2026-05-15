@@ -1,0 +1,190 @@
+{
+  "version": "2026-05-15",
+  "notes": "Official U.S. visitor visa RAG seed data. Sources were reviewed from U.S. Department of State Travel.State.Gov pages.",
+  "documents": [
+    {
+      "slug": "us-visitor-visa-overview",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "requirements",
+      "title": "U.S. Visitor Visa B-1/B-2 Overview",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
+      "chunks": [
+        {
+          "id": "us_b1_b2_overview_allowed_purposes",
+          "title": "B-1/B-2 visitor visa purposes",
+          "tags": ["us", "visitor-visa", "b1", "b2", "tourism", "business"],
+          "content": "A U.S. visitor visa is a nonimmigrant visa for temporary travel. B-1 is for temporary business activities such as consulting with business associates, attending a scientific, educational, professional, or business convention or conference, settling an estate, or negotiating a contract. B-2 is for tourism and visit purposes such as vacation, visiting friends or relatives, medical treatment, social events, amateur events without payment, or a short recreational course of study that is not for credit toward a degree. A combined B-1/B-2 visa may cover both business and tourism purposes."
+        },
+        {
+          "id": "us_b1_b2_not_permitted",
+          "title": "Activities not permitted on a visitor visa",
+          "tags": ["us", "visitor-visa", "not-permitted", "employment", "study"],
+          "content": "A U.S. B-1/B-2 visitor visa does not permit study for credit, employment, paid performances, professional performances before a paying audience, arrival as a crewmember, work as foreign press or media, or permanent residence in the United States. Birth tourism, meaning travel for the primary purpose of giving birth in the United States to obtain U.S. citizenship for the child, is not permissible on a visitor visa."
+        },
+        {
+          "id": "us_b1_b2_chinese_tourist_basic_route",
+          "title": "Chinese tourist basic U.S. visitor visa route",
+          "tags": ["us", "china", "chinese-passport", "tourism", "b2", "b1-b2"],
+          "content": "For a citizen of China travelling to the United States for ordinary tourism or visiting family/friends, the usual route is a U.S. B-2 visitor visa or combined B-1/B-2 visitor visa, not ESTA under the Visa Waiver Program. The applicant generally completes Form DS-160, pays the non-refundable MRV application fee, schedules a visa interview or interview-waiver appointment if eligible, gathers required documents, and attends the visa interview if required."
+        }
+      ]
+    },
+    {
+      "slug": "us-visitor-visa-application-process",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "process",
+      "title": "U.S. Visitor Visa Application Process",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
+      "chunks": [
+        {
+          "id": "us_b1_b2_application_steps",
+          "title": "B-1/B-2 application steps",
+          "tags": ["us", "visitor-visa", "process", "ds-160", "interview"],
+          "content": "U.S. visitor visa application steps may vary by U.S. Embassy or Consulate, so applicants must consult the local post instructions. The common process is: complete the Online Nonimmigrant Visa Application Form DS-160, upload a photo while completing DS-160, print the DS-160 confirmation page, schedule a visa interview appointment if required, pay the non-refundable visa application fee according to local instructions, gather required documents, and attend the visa interview. The U.S. Embassy or Consulate does not schedule the appointment for the applicant."
+        },
+        {
+          "id": "us_b1_b2_fee_and_issuance_fee",
+          "title": "B-1/B-2 application fee and issuance fee",
+          "tags": ["us", "visitor-visa", "fee", "mrv", "issuance-fee"],
+          "content": "The U.S. Department of State visitor visa page lists the visitor visa application fee as USD 185. The fee is non-refundable. Depending on nationality, an applicant may also need to pay a visa issuance fee after approval. Fee payment rules and whether the fee must be paid before interview depend on the U.S. Embassy or Consulate where the applicant applies."
+        },
+        {
+          "id": "us_b1_b2_interview_and_fingerprints",
+          "title": "Visa interview and fingerprinting",
+          "tags": ["us", "visitor-visa", "interview", "fingerprints", "administrative-processing"],
+          "content": "A consular officer interviews a U.S. visitor visa applicant to determine whether the applicant qualifies under U.S. law. Interviews are generally required, subject to limited exceptions and interview-waiver procedures. Ink-free digital fingerprint scans are taken as part of the process, usually during the interview but depending on location. After the interview, a consular officer may determine that administrative processing is required and will inform the applicant if so."
+        }
+      ]
+    },
+    {
+      "slug": "us-visitor-visa-documents",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "requirements",
+      "title": "U.S. Visitor Visa Required and Supporting Documents",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
+      "chunks": [
+        {
+          "id": "us_b1_b2_required_documents",
+          "title": "Required documents before interview",
+          "tags": ["us", "visitor-visa", "documents", "passport", "ds-160", "photo"],
+          "content": "Required documents for a U.S. visitor visa interview include a passport valid for travel to the United States, generally valid at least six months beyond the intended stay unless exempt by country-specific agreements; the DS-160 confirmation page; the application fee payment receipt if required before interview; and a photo if the DS-160 photo upload fails. Each individual who needs a visa must submit a separate application, including family members listed in a passport."
+        },
+        {
+          "id": "us_b1_b2_supporting_documents",
+          "title": "Supporting documents and ties abroad",
+          "tags": ["us", "visitor-visa", "supporting-documents", "ties", "funds"],
+          "content": "A U.S. Embassy or Consulate may request additional documents to establish whether the applicant qualifies. Examples include evidence of the purpose of the trip, intent to depart the United States after the trip, and ability to pay all trip costs. Evidence of employment and family ties may help show trip purpose and intent to return. If the applicant cannot cover all costs, evidence that another person will pay some or all costs may be shown. A letter of invitation or Affidavit of Support is not required and is not one of the factors used to decide issuance or denial."
+        },
+        {
+          "id": "us_b1_b2_no_guarantee_and_entry",
+          "title": "Visa issuance and entry are not guaranteed",
+          "tags": ["us", "visitor-visa", "entry", "cbp", "no-guarantee"],
+          "content": "There is no guarantee that a U.S. visitor visa will be issued. Applicants should not make final travel plans or buy tickets until they have a visa. A visa allows a foreign citizen to travel to a U.S. port of entry and request permission to enter, but it does not guarantee entry. U.S. Customs and Border Protection officials at the port of entry decide whether to permit or deny admission and may issue an admission stamp or Form I-94."
+        }
+      ]
+    },
+    {
+      "slug": "us-ds160",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "form_fields",
+      "title": "DS-160 Online Nonimmigrant Visa Application",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application.html",
+      "chunks": [
+        {
+          "id": "us_ds160_purpose_and_scope",
+          "title": "DS-160 purpose and scope",
+          "tags": ["us", "ds-160", "nonimmigrant", "application"],
+          "content": "Form DS-160 is the Online Nonimmigrant Visa Application for temporary travel to the United States and for K fiancé(e) visas. It is submitted electronically through the Department of State Consular Electronic Application Center. Consular officers use DS-160 information together with the personal interview to determine eligibility for a nonimmigrant visa. Applicants for all nonimmigrant visa categories must submit a completed DS-160, with limited exceptions."
+        },
+        {
+          "id": "us_ds160_after_submission_steps",
+          "title": "After completing DS-160",
+          "tags": ["us", "ds-160", "barcode", "appointment", "fee"],
+          "content": "After completing DS-160, the applicant must print and keep the DS-160 barcode confirmation page; the full application does not need to be printed. The applicant must schedule a visa interview appointment; the U.S. Embassy or Consulate does not schedule the appointment for the applicant. The applicant must also pay the visa application processing fee according to the country-specific instructions on the relevant U.S. Embassy or Consulate website."
+        },
+        {
+          "id": "us_ds160_browser_and_ceac",
+          "title": "DS-160 official access and browser guidance",
+          "tags": ["us", "ds-160", "ceac", "browser"],
+          "content": "The DS-160 is accessed through the official Consular Electronic Application Center at ceac.state.gov. The Department of State DS-160 page states that applicants should use supported browsers such as Internet Explorer 11 or higher, Firefox, or Google Chrome 58 when completing the application. Applicants should follow DS-160 FAQ instructions for technical details and local embassy instructions for appointment and payment procedures."
+        }
+      ]
+    },
+    {
+      "slug": "us-vwp-esta",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "faq",
+      "title": "Visa Waiver Program and ESTA",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visa-waiver-program.html",
+      "chunks": [
+        {
+          "id": "us_vwp_esta_overview",
+          "title": "VWP/ESTA overview",
+          "tags": ["us", "vwp", "esta", "90-days", "tourism", "business"],
+          "content": "The Visa Waiver Program allows most citizens or nationals of participating countries to travel to the United States for tourism or business for stays of 90 days or less without obtaining a visa, if they have valid ESTA approval before travel and meet all VWP requirements. Travellers who prefer to have a visa in their passport, who are not eligible for VWP, who travel on non-approved private aircraft or carriers, or who intend to stay longer than 90 days should apply for a visitor B visa."
+        },
+        {
+          "id": "us_vwp_allowed_and_not_allowed",
+          "title": "VWP permitted and prohibited purposes",
+          "tags": ["us", "vwp", "allowed", "not-allowed", "business", "tourism"],
+          "content": "Travel purposes permitted under the Visa Waiver Program mirror visitor B visa activities. Business examples include consulting with business associates, attending professional or business conferences, short-term training without U.S. source payment except incidental expenses, and negotiating a contract. Tourism examples include vacation, visiting friends or relatives, medical treatment, social events, unpaid amateur events, and short recreational study not for credit. VWP is not permitted for study for credit, employment, foreign press work, or permanent residence."
+        },
+        {
+          "id": "us_vwp_no_extension_change_status",
+          "title": "VWP admission limits",
+          "tags": ["us", "vwp", "extension", "change-status", "admission"],
+          "content": "An approved ESTA allows a traveller to board a carrier and request admission at a U.S. port of entry, but it does not guarantee entry. CBP officials decide admission. Travellers admitted under the Visa Waiver Program are generally not permitted to extend their stay beyond the initial admission period and are not permitted to change status in the United States. The total stay, including certain short trips to Canada, Mexico, or nearby islands, must generally remain within the original 90-day period."
+        }
+      ]
+    },
+    {
+      "slug": "us-visa-wait-times",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "process",
+      "title": "U.S. Visa Appointment Wait Times",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html",
+      "chunks": [
+        {
+          "id": "us_wait_times_estimates",
+          "title": "Visa appointment wait time estimates",
+          "tags": ["us", "wait-times", "appointment", "interview", "b1-b2"],
+          "content": "The Department of State advises advance travel planning and early visa application. Estimated nonimmigrant visa interview wait times vary by embassy or consulate, workload, staffing, season, and visa category. Wait time estimates do not guarantee appointment availability and do not include administrative processing or passport return time. Applicants should review the website of the U.S. Embassy or Consulate where they will apply for local procedures."
+        },
+        {
+          "id": "us_expedited_appointment_rules",
+          "title": "Expedited appointment rules",
+          "tags": ["us", "expedite", "appointment", "emergency", "ds-160"],
+          "content": "A U.S. consular section may expedite a nonimmigrant visa interview for urgent, unforeseen situations such as a funeral, medical emergency, or school start date. The process varies by location and proof of need is required. The applicant must first submit DS-160, pay the application fee, and schedule the first available interview appointment before a consular section will consider an expedite request. Travel for weddings, graduations, assisting pregnant relatives, annual conferences, or last-minute tourism generally does not qualify for expedited appointments."
+        },
+        {
+          "id": "us_administrative_processing_wait",
+          "title": "Administrative processing can add time",
+          "tags": ["us", "administrative-processing", "wait-times", "refusal"],
+          "content": "U.S. visa wait time estimates do not include time required for administrative processing. If administrative processing is required, timing varies by individual circumstances and the consular officer informs the applicant at the end of the interview. A visa application has only two possible outcomes: issued or refused. Some refusals may later be overcome after administrative processing, but applicants are advised to apply well before intended travel."
+        }
+      ]
+    },
+    {
+      "slug": "us-china-evus",
+      "country": "us",
+      "visaType": "b1_b2",
+      "documentType": "faq",
+      "title": "EVUS for Chinese Citizens with 10-Year B Visas",
+      "sourceUrl": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html",
+      "chunks": [
+        {
+          "id": "us_china_evus_requirement",
+          "title": "EVUS requirement for Chinese citizens",
+          "tags": ["us", "china", "evus", "10-year", "b1", "b2", "b1-b2"],
+          "content": "Chinese citizens with 10-year B-1, B-2, or B-1/B-2 visas in People's Republic of China passports must update biographical and other information from their visa application through EVUS every two years, or when obtaining a new passport or new B-1, B-2, or B-1/B-2 visa, whichever occurs first. The Department of State visitor visa page states that the EVUS website is EVUS.gov and that, as of September 30, 2025, a USD 30 fee is charged for each new enrollment."
+        }
+      ]
+    }
+  ]
+}
