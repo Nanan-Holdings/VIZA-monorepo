@@ -109,7 +109,7 @@ type TravelChatSession = {
 };
 
 const INITIAL_ASSISTANT_TEXT =
-  "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、出行日期、预算和偏好，也可以先让我给你一些目的地灵感。";
+  "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、出行日期、天数、预算和偏好，也可以先让我给你一些目的地灵感。";
 
 const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "我不知道去哪", value: "我不知道去哪" },
@@ -125,27 +125,14 @@ const TRAVEL_STAGE_ORDER = [
   "country",
   "cities",
   "departure_date",
+  "travel_days",
   "travelers",
   "budget",
   "origin",
-  "return",
   "travel_order",
   "flight_selection",
   "hotel_selection",
   "final_note",
-] as const;
-
-const DESTINATION_IMAGE_POOL = [
-  "/globe/tokyo.jpg",
-  "/globe/singapore.jpg",
-  "/globe/sydney.jpg",
-  "/globe/nyc.jpg",
-  "/globe/beijing.jpg",
-  "/globe/london.jpg",
-  "/globe/paris.jpg",
-  "/globe/sf.jpg",
-  "/globe/pisa.jpg",
-  "/globe/egypt.jpg",
 ] as const;
 
 const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
@@ -161,7 +148,14 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   sf: "/globe/sf.jpg",
   pisa: "/globe/pisa.jpg",
   egypt: "/globe/egypt.jpg",
-  rome: "/globe/pisa.jpg",
+  japan: "/globe/tokyo.jpg",
+  singaporecountry: "/globe/singapore.jpg",
+  australia: "/globe/sydney.jpg",
+  france: "/globe/paris.jpg",
+  unitedkingdom: "/globe/london.jpg",
+  unitedstates: "/globe/nyc.jpg",
+  china: "/globe/beijing.jpg",
+  italy: "/globe/pisa.jpg",
 };
 
 const HOTSPOTS_BY_CITY: Record<string, string[]> = {
@@ -181,14 +175,17 @@ const FALLBACK_HOTSPOTS = [
   "Local Food Street",
 ];
 
-const WORLD_HOTSPOTS: Array<{ city: string; spot: string }> = [
-  { city: "London", spot: "Big Ben" },
-  { city: "Paris", spot: "Eiffel Tower" },
-  { city: "Rome", spot: "Colosseum" },
-  { city: "Tokyo", spot: "Shibuya Crossing" },
-  { city: "Singapore", spot: "Marina Bay Sands" },
-  { city: "Sydney", spot: "Opera House" },
-];
+const WORLD_CITY_SUGGESTIONS = [
+  "Tokyo",
+  "Singapore",
+  "Sydney",
+  "London",
+  "Paris",
+  "New York",
+  "Beijing",
+  "San Francisco",
+  "Pisa",
+] as const;
 
 const CITY_COORDINATES: Record<string, [number, number]> = {
   tokyo: [35.6762, 139.6503],
@@ -391,6 +388,24 @@ const CITY_CONTEXT: Record<
     countryZh: "中国",
     days: "2-4 days",
     intro: "历史建筑与现代城市共存，景点密度高，适合短途深度游。",
+  },
+  newyork: {
+    countryEn: "United States",
+    countryZh: "美国",
+    days: "3-5 days",
+    intro: "纽约节奏鲜明，博物馆、城市街区和经典天际线密集，适合城市探索。",
+  },
+  sanfrancisco: {
+    countryEn: "United States",
+    countryZh: "美国",
+    days: "2-4 days",
+    intro: "旧金山海湾景观、坡道街区与文化社区集中，适合轻松步行和短途延伸。",
+  },
+  pisa: {
+    countryEn: "Italy",
+    countryZh: "意大利",
+    days: "1-2 days",
+    intro: "比萨适合安排轻量文化停留，经典地标集中，便于衔接托斯卡纳路线。",
   },
 };
 
@@ -903,13 +918,21 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
+function getRemoteCityImage(city: string): string {
+  const query = encodeURIComponent(`${city} city landmark travel`);
+  return `https://source.unsplash.com/640x420/?${query}`;
+}
+
 function getCityImage(city: string, seed: string = "default"): string {
   const key = normalizeCityKey(city);
   const direct = DESTINATION_IMAGE_BY_KEY[key];
   if (direct) return direct;
 
-  const index = hashString(`${key}-${seed}`) % DESTINATION_IMAGE_POOL.length;
-  return DESTINATION_IMAGE_POOL[index];
+  const seedKey = normalizeCityKey(seed);
+  const seedDirect = DESTINATION_IMAGE_BY_KEY[seedKey];
+  if (seedDirect) return seedDirect;
+
+  return getRemoteCityImage(city);
 }
 
 function getCityCoordinates(city: string): [number, number] {
@@ -983,10 +1006,10 @@ function buildProgressItems(
     },
     {
       id: "dates",
-      label: "出行日期",
-      done: Boolean(state.departure_date),
-      detail: state.departure_date
-        ? `${state.date_flexibility === "flexible" ? "灵活出行" : "指定日期"} · ${state.departure_date}`
+      label: "日期天数",
+      done: Boolean(state.departure_date && state.travel_days),
+      detail: state.departure_date && state.travel_days
+        ? `${state.date_flexibility === "flexible" ? "灵活出行" : "指定日期"} · ${state.departure_date} · ${state.travel_days} 天`
         : "等待中",
     },
     {
@@ -1150,6 +1173,36 @@ export function TravelChatClient({
     [routeCoordinates, shouldShowRouteLine]
   );
 
+  const selectedCityKeys = useMemo(
+    () => new Set(orderedCities.map((city) => normalizeCityKey(city))),
+    [orderedCities]
+  );
+
+  const citySuggestionTargets = useMemo<MapTarget[]>(
+    () =>
+      WORLD_CITY_SUGGESTIONS.filter(
+        (city) => !selectedCityKeys.has(normalizeCityKey(city))
+      ).map((city, index) => {
+        const [lat, lng] = getCityCoordinates(city);
+        const context = getCityContext(city);
+        return {
+          id: `city-suggestion-${normalizeCityKey(city)}`,
+          kind: "city",
+          label: city,
+          subtitle: "城市候选",
+          localName: getLocalDisplayName(city),
+          intro: buildMapIntro("city", city, city),
+          countryLabel: context ? `${context.countryZh} (${context.countryEn})` : undefined,
+          recommendedDays: context?.days,
+          imageSrc: getCityImage(city, `city-suggestion-${index}`),
+          lat,
+          lng,
+          city,
+        };
+      }),
+    [selectedCityKeys]
+  );
+
   const baseMapTargets = useMemo(() => {
     const targets: MapTarget[] = [];
 
@@ -1249,32 +1302,7 @@ export function TravelChatClient({
   }, [activeBaseTarget?.city, orderedCities, travelState.selected_hotels]);
 
   const hotspotMapTargets = useMemo(() => {
-    if (!activeCityForHotspots) {
-      return WORLD_HOTSPOTS.map((entry, index) => {
-        const cityCenter = getCityCoordinates(entry.city);
-        const [lat, lng] = withOffset(cityCenter, `world-hotspot-${index}`, 0.18);
-        return {
-          id: `world-hotspot-${index}`,
-          kind: "hotspot" as const,
-          label: entry.spot,
-          subtitle: `Hotspot in ${entry.city}`,
-          localName: getLocalDisplayName(entry.city),
-          intro: buildMapIntro("hotspot", entry.spot, entry.city),
-          countryLabel: (() => {
-            const context = getCityContext(entry.city);
-            return context ? `${context.countryZh} (${context.countryEn})` : undefined;
-          })(),
-          recommendedDays: (() => {
-            const context = getCityContext(entry.city);
-            return context?.days;
-          })(),
-          imageSrc: getCityImage(entry.city, `world-hotspot-${index}`),
-          lat,
-          lng,
-          city: entry.city,
-        };
-      });
-    }
+    if (!destinationSelectionLocked || !activeCityForHotspots) return [];
 
     const cityCenter = getCityCoordinates(activeCityForHotspots);
     return getHotspotsForCity(activeCityForHotspots).map((spot, index) => ({
@@ -1303,11 +1331,11 @@ export function TravelChatClient({
       })(),
       city: activeCityForHotspots,
     }));
-  }, [activeCityForHotspots]);
+  }, [activeCityForHotspots, destinationSelectionLocked]);
 
   const allMapTargets = useMemo(
-    () => [...baseMapTargets, ...hotspotMapTargets],
-    [baseMapTargets, hotspotMapTargets]
+    () => [...baseMapTargets, ...citySuggestionTargets, ...hotspotMapTargets],
+    [baseMapTargets, citySuggestionTargets, hotspotMapTargets]
   );
 
   const activeMapTarget = useMemo(
@@ -2228,8 +2256,8 @@ export function TravelChatClient({
                                   ? localizeTravelText(card.action_label)
                                   : `加入计划：${displayCity}`;
                               const imageSrc = getCityImage(
-                                card.image_key ?? rawDisplayCity,
-                                card.title
+                                rawDisplayCity,
+                                card.image_key ?? card.title
                               );
                               return (
                                 <div
@@ -2239,15 +2267,16 @@ export function TravelChatClient({
                                 >
                                   <div className="relative">
                                     <Image
-                                      alt={card.title}
+                                      alt={displayCity}
                                       className="h-28 w-full object-cover sm:h-36"
                                       height={144}
                                       src={imageSrc}
+                                      unoptimized={imageSrc.startsWith("http")}
                                       width={320}
                                     />
                                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8 text-white">
                                       <p className="text-sm font-semibold leading-tight">
-                                        {card.title}
+                                        {displayCity}
                                       </p>
                                       <p className="mt-1 flex items-center gap-1 text-[11px] text-white/85">
                                         <MapPin className="h-3 w-3" />
@@ -2369,7 +2398,9 @@ export function TravelChatClient({
               <TripRouteMap
                 activePointId={activeMapTarget?.kind === "route" ? null : activeMapTarget?.id}
                 className="h-full w-full"
-                onAddDestination={handleAddDestinationFromMap}
+                onAddDestination={
+                  canAddDestinationFromMap ? handleAddDestinationFromMap : undefined
+                }
                 onPointSelect={handleMapPointSelect}
                 points={mapPoints}
                 routeCoordinates={displayRouteCoordinates}

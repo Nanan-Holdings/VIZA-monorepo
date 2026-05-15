@@ -152,38 +152,25 @@ const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
-const GALLERY_IMAGE_POOL = [
-  "/globe/tokyo.jpg",
-  "/globe/singapore.jpg",
-  "/globe/sydney.jpg",
-  "/globe/nyc.jpg",
-  "/globe/beijing.jpg",
-  "/globe/london.jpg",
-  "/globe/paris.jpg",
-  "/globe/sf.jpg",
-  "/globe/pisa.jpg",
-  "/globe/egypt.jpg",
-] as const;
 const GALLERY_MAX_IMAGES = 6;
 const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
-  tokyo: ["/globe/tokyo.jpg", "/globe/beijing.jpg", "/globe/singapore.jpg"],
-  singapore: ["/globe/singapore.jpg", "/globe/tokyo.jpg", "/globe/sydney.jpg"],
-  sydney: ["/globe/sydney.jpg", "/globe/singapore.jpg", "/globe/sf.jpg"],
-  london: ["/globe/london.jpg", "/globe/paris.jpg", "/globe/pisa.jpg"],
-  paris: ["/globe/paris.jpg", "/globe/london.jpg", "/globe/pisa.jpg"],
-  newyork: ["/globe/nyc.jpg", "/globe/sf.jpg", "/globe/london.jpg"],
-  nyc: ["/globe/nyc.jpg", "/globe/sf.jpg", "/globe/london.jpg"],
-  beijing: ["/globe/beijing.jpg", "/globe/tokyo.jpg", "/globe/singapore.jpg"],
-  pisa: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
-  rome: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
-  kyoto: ["/globe/tokyo.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
-  osaka: ["/globe/tokyo.jpg", "/globe/singapore.jpg", "/globe/sydney.jpg"],
-  dubai: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/egypt.jpg"],
-  bali: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/sydney.jpg"],
-  egypt: ["/globe/egypt.jpg", "/globe/pisa.jpg", "/globe/sf.jpg"],
-  marinabaysands: ["/globe/singapore.jpg", "/globe/tokyo.jpg", "/globe/sydney.jpg"],
-  eiffeltower: ["/globe/paris.jpg", "/globe/london.jpg", "/globe/pisa.jpg"],
-  bigben: ["/globe/london.jpg", "/globe/paris.jpg", "/globe/pisa.jpg"],
+  tokyo: ["/globe/tokyo.jpg"],
+  singapore: ["/globe/singapore.jpg"],
+  sydney: ["/globe/sydney.jpg"],
+  london: ["/globe/london.jpg"],
+  paris: ["/globe/paris.jpg"],
+  newyork: ["/globe/nyc.jpg"],
+  nyc: ["/globe/nyc.jpg"],
+  beijing: ["/globe/beijing.jpg"],
+  sanfrancisco: ["/globe/sf.jpg"],
+  sf: ["/globe/sf.jpg"],
+  pisa: ["/globe/pisa.jpg"],
+  egypt: ["/globe/egypt.jpg"],
+  marinabaysands: ["/globe/singapore.jpg"],
+  operahouse: ["/globe/sydney.jpg"],
+  sydneyoperahouse: ["/globe/sydney.jpg"],
+  eiffeltower: ["/globe/paris.jpg"],
+  bigben: ["/globe/london.jpg"],
 };
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   tokyo: "东京",
@@ -194,6 +181,8 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   newyork: "纽约",
   nyc: "纽约",
   beijing: "北京",
+  sanfrancisco: "旧金山",
+  sf: "旧金山",
   pisa: "比萨",
   rome: "罗马",
   kyoto: "京都",
@@ -267,6 +256,9 @@ function getLocalNameFromValue(value: string | undefined): string | null {
 }
 
 function getPointDisplayName(point: TripMapPoint): string {
+  const cityLocalName = getLocalNameFromValue(point.city);
+  if (cityLocalName) return cityLocalName;
+  if (point.city) return point.localName ?? point.city;
   const labelLocalName = getLocalNameFromValue(point.label);
   if (labelLocalName) return labelLocalName;
   if (point.kind === "city" && point.localName) return point.localName;
@@ -290,7 +282,6 @@ function getPointGalleryImages(point: TripMapPoint): string[] {
   getPointLookupKeys(point).forEach((key) => {
     orderedImages.push(...(GALLERY_IMAGES_BY_KEY[key] ?? []));
   });
-  orderedImages.push(...GALLERY_IMAGE_POOL);
 
   return Array.from(new Set(orderedImages.filter(Boolean))).slice(0, GALLERY_MAX_IMAGES);
 }
@@ -598,12 +589,12 @@ function getPointDisplayLocation(point: TripMapPoint): string {
 }
 
 function getPointAttractions(point: TripMapPoint): string {
-  const name = getPointDisplayName(point);
-  const city = getLocalNameFromValue(point.city) ?? point.localName ?? name;
+  const city = getPointDisplayName(point);
+  const attractionName = getLocalNameFromValue(point.label) ?? point.label;
   const base =
     point.kind === "city"
-      ? [`${name}经典地标`, `${name}热门街区`, "观景点", "夜市"]
-      : [name, `${city}步行路线`, "当地美食", "观景点", "夜景"];
+      ? [`${city}经典地标`, `${city}热门街区`, "观景点", "夜市"]
+      : [attractionName, `${city}步行路线`, "当地美食", "观景点", "夜景"];
   return Array.from(new Set(base)).join("、");
 }
 
@@ -796,6 +787,7 @@ export function TripRouteMap({
 
   const activeFocusKey = useMemo(() => {
     if (!activePointId) return "";
+    if (routeCoordinates.length >= 2) return "";
 
     const hasSelectedDestination = points.some(
       (point) => point.kind === "city" || point.kind === "hotel"
@@ -806,7 +798,7 @@ export function TripRouteMap({
     if (!activePoint) return "";
 
     return `${activePoint.id}:${activePoint.lat}:${activePoint.lng}:${activePoint.kind}`;
-  }, [activePointId, points]);
+  }, [activePointId, points, routeCoordinates.length]);
 
   const detailPoint = useMemo(
     () => points.find((point) => point.id === detailPointId) ?? null,
@@ -949,6 +941,8 @@ export function TripRouteMap({
     const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight);
     const showLabel = zoom >= LABEL_MIN_ZOOM;
     let effectDisposed = false;
+    let fitRetryTimeoutId: number | null = null;
+    const fitFallbackTimeoutIds: number[] = [];
 
     points.forEach((point) => {
       const isActive = point.id === activePointId;
@@ -1253,16 +1247,23 @@ export function TripRouteMap({
       const fitVisibleRoute = () => {
         if (effectDisposed) return;
         map.fitBounds(bounds, 72);
-        window.setTimeout(() => {
+        const fallbackTimeoutId = window.setTimeout(() => {
           if (effectDisposed) return;
           map.setCenter(fallbackCenter);
           map.setZoom(fallbackZoom);
         }, 80);
+        fitFallbackTimeoutIds.push(fallbackTimeoutId);
+      };
+      const markFitComplete = () => {
+        if (effectDisposed) return;
+        fittedOnceRef.current = true;
+        fitKeyRef.current = fitKey;
       };
       fitVisibleRoute();
-      window.setTimeout(fitVisibleRoute, 260);
-      fittedOnceRef.current = true;
-      fitKeyRef.current = fitKey;
+      fitRetryTimeoutId = window.setTimeout(() => {
+        fitVisibleRoute();
+        markFitComplete();
+      }, 260);
     } else if (coordinateCount === 1 && points.length > 0 && shouldFit) {
       map.setCenter({ lat: points[0].lat, lng: points[0].lng });
       map.setZoom(6);
@@ -1275,6 +1276,10 @@ export function TripRouteMap({
 
     return () => {
       effectDisposed = true;
+      if (fitRetryTimeoutId !== null) {
+        window.clearTimeout(fitRetryTimeoutId);
+      }
+      fitFallbackTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
   }, [
     activePointId,

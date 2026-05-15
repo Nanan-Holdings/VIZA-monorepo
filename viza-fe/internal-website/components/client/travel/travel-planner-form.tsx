@@ -64,6 +64,12 @@ type CityApiOption = {
   labelZh?: string;
   search?: string;
 };
+type IpLocation = {
+  country: string;
+  city: string;
+  countryCode?: string;
+  source?: string;
+};
 
 const OTHER_COUNTRY_VALUE = "__country_other__";
 const OTHER_CITY_VALUE = "__city_other__";
@@ -379,6 +385,24 @@ function parseApiErrorText(rawText: string, fallback: string): string {
   }
 
   return text || fallback;
+}
+
+function coerceIpLocation(raw: unknown): IpLocation | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const city = typeof record.city === "string" ? record.city.trim() : "";
+  const country = typeof record.country === "string" ? record.country.trim() : "";
+  if (!city || !country) return null;
+
+  return {
+    city,
+    country,
+    countryCode:
+      typeof record.countryCode === "string"
+        ? record.countryCode.trim()
+        : undefined,
+    source: typeof record.source === "string" ? record.source.trim() : undefined,
+  };
 }
 
 function coerceCountryOptions(raw: unknown): Option[] {
@@ -794,6 +818,9 @@ export function TravelPlannerForm({
   const [departureDate, setDepartureDate] = useState<string>(
     travelState.departure_date ?? getDefaultFlexibleDepartureDate()
   );
+  const [travelDays, setTravelDays] = useState<string>(
+    travelState.travel_days?.toString() ?? ""
+  );
   const [travelers, setTravelers] = useState<string>(travelState.travelers?.toString() ?? "");
   const [budget, setBudget] = useState<string>(travelState.budget?.toString() ?? "");
   const [originCountry, setOriginCountry] = useState<string>(travelState.origin_country ?? "");
@@ -821,6 +848,10 @@ export function TravelPlannerForm({
   const [isLoadingCityOptions, setIsLoadingCityOptions] = useState(false);
   const [countryLoadError, setCountryLoadError] = useState<string | null>(null);
   const [cityLoadError, setCityLoadError] = useState<string | null>(null);
+  const [ipLocation, setIpLocation] = useState<IpLocation | null>(null);
+  const [isLoadingIpLocation, setIsLoadingIpLocation] = useState(false);
+  const [ipLocationError, setIpLocationError] = useState<string | null>(null);
+  const [manualEndpointMode, setManualEndpointMode] = useState(false);
   const [customCountriesInput, setCustomCountriesInput] = useState("");
   const [customCitiesInput, setCustomCitiesInput] = useState("");
   const [customOriginCountry, setCustomOriginCountry] = useState("");
@@ -900,12 +931,21 @@ export function TravelPlannerForm({
     setDepartureDate(
       travelState.departure_date ?? getDefaultFlexibleDepartureDate()
     );
+    setTravelDays(travelState.travel_days?.toString() ?? "");
     setTravelers(travelState.travelers?.toString() ?? "");
     setBudget(travelState.budget?.toString() ?? "");
     setOriginCountry(travelState.origin_country ?? "");
     setOriginCity(travelState.origin_city ?? "");
     setReturnCountry(travelState.return_country ?? "");
     setReturnCity(travelState.return_city ?? "");
+    setManualEndpointMode(
+      Boolean(
+        travelState.origin_country ||
+          travelState.origin_city ||
+          travelState.return_country ||
+          travelState.return_city
+      )
+    );
     setTravelOrder(
       travelState.travel_order.length === travelState.cities.length
         ? travelState.travel_order
@@ -997,6 +1037,50 @@ export function TravelPlannerForm({
     if (!neededCountries.length) return;
     loadCitiesForCountries(neededCountries);
   }, [originCountry, returnCountry, citiesByCountry, loadCitiesForCountries]);
+
+  useEffect(() => {
+    if (missingField !== "origin") return;
+    if (ipLocation || ipLocationError || isLoadingIpLocation) return;
+
+    let disposed = false;
+    setIsLoadingIpLocation(true);
+
+    fetch("/api/travel/ip-location", { method: "GET" })
+      .then(async (response) => {
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(parseApiErrorText(text, "无法根据 IP 推断城市。"));
+        }
+        try {
+          return JSON.parse(text) as unknown;
+        } catch {
+          return {} as unknown;
+        }
+      })
+      .then((payload) => {
+        if (disposed) return;
+        const location = coerceIpLocation(payload);
+        if (!location) {
+          throw new Error("无法根据 IP 推断城市。");
+        }
+        setIpLocation(location);
+      })
+      .catch((error) => {
+        if (disposed) return;
+        const message =
+          error instanceof Error ? error.message : "无法根据 IP 推断城市。";
+        setIpLocationError(message);
+        setManualEndpointMode(true);
+      })
+      .finally(() => {
+        if (disposed) return;
+        setIsLoadingIpLocation(false);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [ipLocation, ipLocationError, isLoadingIpLocation, missingField]);
 
   useEffect(() => {
     if (missingField !== "flight_selection") return;
@@ -1349,6 +1433,41 @@ export function TravelPlannerForm({
     sendStructuredMessage,
   ]);
 
+  const submitEndpoints = useCallback(() => {
+    if (
+      !resolvedOriginCountry ||
+      !resolvedOriginCity ||
+      !resolvedReturnCountry ||
+      !resolvedReturnCity
+    ) {
+      toast.error("请完整确认出发和返程国家、城市。");
+      return;
+    }
+
+    sendStructuredMessage({
+      origin_country: resolvedOriginCountry,
+      origin_city: resolvedOriginCity,
+      return_country: resolvedReturnCountry,
+      return_city: resolvedReturnCity,
+      display: {
+        origin_country: resolvedOriginCountryDisplay,
+        origin_city: resolvedOriginCityDisplay,
+        return_country: resolvedReturnCountryDisplay,
+        return_city: resolvedReturnCityDisplay,
+      },
+    });
+  }, [
+    resolvedOriginCountry,
+    resolvedOriginCity,
+    resolvedOriginCountryDisplay,
+    resolvedOriginCityDisplay,
+    resolvedReturnCountry,
+    resolvedReturnCity,
+    resolvedReturnCountryDisplay,
+    resolvedReturnCityDisplay,
+    sendStructuredMessage,
+  ]);
+
   if (!missingField) {
     return null;
   }
@@ -1530,6 +1649,42 @@ export function TravelPlannerForm({
         </div>
       )}
 
+      {missingField === "travel_days" && (
+        <div className="space-y-2">
+          <Input
+            inputMode="numeric"
+            onChange={(event) =>
+              setTravelDays(event.target.value.replace(/[^\d]/g, ""))
+            }
+            placeholder="请输入总出行天数（正整数）"
+            type="text"
+            value={travelDays}
+          />
+          <div className="text-[11px] text-muted-foreground">
+            已选 {travelState.cities.length} 个城市，出行天数至少为{" "}
+            {Math.max(1, travelState.cities.length)} 天。
+          </div>
+          <Button
+            className="w-full"
+            disabled={busy}
+            onClick={() => {
+              const value = parsePositiveIntText(travelDays);
+              const minimumDays = Math.max(1, travelState.cities.length);
+              if (!value || value < minimumDays) {
+                toast.error(`出行天数必须不少于 ${minimumDays} 天。`);
+                return;
+              }
+              setLoadedFlightsKey(null);
+              setLoadedHotelsKey(null);
+              sendStructuredMessage({ travel_days: value });
+            }}
+            size="sm"
+          >
+            确认出行天数
+          </Button>
+        </div>
+      )}
+
       {missingField === "travelers" && (
         <div className="space-y-2">
           <Input
@@ -1585,160 +1740,198 @@ export function TravelPlannerForm({
       )}
 
       {missingField === "origin" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {cityLoadError && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
               {cityLoadError}
             </div>
           )}
-          <SearchableSingleSelect
-            disabled={busy || isLoadingCountryOptions}
-            onChange={(value) => {
-              setOriginCountry(value);
-              setOriginCity("");
-            }}
-            options={countryOptionsWithOther}
-            placeholder={isLoadingCountryOptions ? "正在加载国家..." : "选择出发国家"}
-            value={originCountry || null}
-          />
-          {originCountry === OTHER_COUNTRY_VALUE && (
-            <Input
-              onChange={(event) => setCustomOriginCountry(event.target.value)}
-              placeholder="输入出发国家"
-              type="text"
-              value={customOriginCountry}
-            />
-          )}
-          <SearchableSingleSelect
-            disabled={busy || !originCountry || isLoadingCityOptions}
-            onChange={setOriginCity}
-            options={originCityOptions}
-            placeholder={
-              !originCountry
-                ? "请先选择出发国家"
-                : originCountry === OTHER_COUNTRY_VALUE
-                ? "可选“其他”后输入出发城市"
-                : isLoadingCityOptions
-                ? "正在加载城市..."
-                : "选择出发城市"
-            }
-            value={originCity || null}
-          />
-          {originCountryForCityLookup &&
-            typeof cityCountByCountry[originCountryForCityLookup] === "number" && (
-            <div className="text-[11px] text-muted-foreground">
-              {getCountryDisplayName(originCountryForCityLookup)} 已加载{" "}
-              {cityCountByCountry[originCountryForCityLookup]} 个城市
-            </div>
-          )}
-          {originCity === OTHER_CITY_VALUE && (
-            <Input
-              onChange={(event) => setCustomOriginCity(event.target.value)}
-              placeholder="输入出发城市"
-              type="text"
-              value={customOriginCity}
-            />
-          )}
-          <Button
-            className="w-full"
-            disabled={busy}
-            onClick={() => {
-              if (!resolvedOriginCountry || !resolvedOriginCity) {
-                toast.error("请完整选择出发国家和城市。");
-                return;
-              }
-              sendStructuredMessage({
-                origin_country: resolvedOriginCountry,
-                origin_city: resolvedOriginCity,
-                display: {
-                  origin_country: resolvedOriginCountryDisplay,
-                  origin_city: resolvedOriginCityDisplay,
-                },
-              });
-            }}
-            size="sm"
-          >
-            确认出发地
-          </Button>
-        </div>
-      )}
 
-      {missingField === "return" && (
-        <div className="space-y-2">
-          {cityLoadError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-              {cityLoadError}
+          {!manualEndpointMode && (
+            <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3">
+              {isLoadingIpLocation && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                  正在根据 IP 推断出发和返程城市...
+                </div>
+              )}
+
+              {ipLocation && (
+                <>
+                  <div className="text-sm font-medium text-foreground">
+                    是否将出发和返程城市都设为{" "}
+                    {ipLocation.country} {ipLocation.city}？
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    这是根据当前 IP 粗略推断的城市，后续仍可修改。
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      disabled={busy}
+                      onClick={() => {
+                        sendStructuredMessage({
+                          origin_country: ipLocation.country,
+                          origin_city: ipLocation.city,
+                          return_country: ipLocation.country,
+                          return_city: ipLocation.city,
+                          display: {
+                            origin_country: ipLocation.country,
+                            origin_city: ipLocation.city,
+                            return_country: ipLocation.country,
+                            return_city: ipLocation.city,
+                          },
+                        });
+                      }}
+                      size="sm"
+                      type="button"
+                    >
+                      使用 {ipLocation.city}
+                    </Button>
+                    <Button
+                      disabled={busy}
+                      onClick={() => setManualEndpointMode(true)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      手动选择
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {ipLocationError && (
+                <div className="text-xs text-muted-foreground">
+                  {ipLocationError} 请手动选择出发和返程城市。
+                </div>
+              )}
             </div>
           )}
-          <SearchableSingleSelect
-            disabled={busy || isLoadingCountryOptions}
-            onChange={(value) => {
-              setReturnCountry(value);
-              setReturnCity("");
-            }}
-            options={countryOptionsWithOther}
-            placeholder={isLoadingCountryOptions ? "正在加载国家..." : "选择返程国家"}
-            value={returnCountry || null}
-          />
-          {returnCountry === OTHER_COUNTRY_VALUE && (
-            <Input
-              onChange={(event) => setCustomReturnCountry(event.target.value)}
-              placeholder="输入返程国家"
-              type="text"
-              value={customReturnCountry}
-            />
-          )}
-          <SearchableSingleSelect
-            disabled={busy || !returnCountry || isLoadingCityOptions}
-            onChange={setReturnCity}
-            options={returnCityOptions}
-            placeholder={
-              !returnCountry
-                ? "请先选择返程国家"
-                : returnCountry === OTHER_COUNTRY_VALUE
-                ? "可选“其他”后输入返程城市"
-                : isLoadingCityOptions
-                ? "正在加载城市..."
-                : "选择返程城市"
-            }
-            value={returnCity || null}
-          />
-          {returnCountryForCityLookup &&
-            typeof cityCountByCountry[returnCountryForCityLookup] === "number" && (
-            <div className="text-[11px] text-muted-foreground">
-              {getCountryDisplayName(returnCountryForCityLookup)} 已加载{" "}
-              {cityCountByCountry[returnCountryForCityLookup]} 个城市
+
+          {manualEndpointMode && (
+            <div className="space-y-3">
+              <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  出发城市
+                </div>
+                <SearchableSingleSelect
+                  disabled={busy || isLoadingCountryOptions}
+                  onChange={(value) => {
+                    setOriginCountry(value);
+                    setOriginCity("");
+                  }}
+                  options={countryOptionsWithOther}
+                  placeholder={
+                    isLoadingCountryOptions ? "正在加载国家..." : "选择出发国家"
+                  }
+                  value={originCountry || null}
+                />
+                {originCountry === OTHER_COUNTRY_VALUE && (
+                  <Input
+                    onChange={(event) => setCustomOriginCountry(event.target.value)}
+                    placeholder="输入出发国家"
+                    type="text"
+                    value={customOriginCountry}
+                  />
+                )}
+                <SearchableSingleSelect
+                  disabled={busy || !originCountry || isLoadingCityOptions}
+                  onChange={setOriginCity}
+                  options={originCityOptions}
+                  placeholder={
+                    !originCountry
+                      ? "请先选择出发国家"
+                      : originCountry === OTHER_COUNTRY_VALUE
+                        ? "可选“其他”后输入出发城市"
+                        : isLoadingCityOptions
+                          ? "正在加载城市..."
+                          : "选择出发城市"
+                  }
+                  value={originCity || null}
+                />
+                {originCountryForCityLookup &&
+                  typeof cityCountByCountry[originCountryForCityLookup] === "number" && (
+                    <div className="text-[11px] text-muted-foreground">
+                      {getCountryDisplayName(originCountryForCityLookup)} 已加载{" "}
+                      {cityCountByCountry[originCountryForCityLookup]} 个城市
+                    </div>
+                  )}
+                {originCity === OTHER_CITY_VALUE && (
+                  <Input
+                    onChange={(event) => setCustomOriginCity(event.target.value)}
+                    placeholder="输入出发城市"
+                    type="text"
+                    value={customOriginCity}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  返程城市
+                </div>
+                <SearchableSingleSelect
+                  disabled={busy || isLoadingCountryOptions}
+                  onChange={(value) => {
+                    setReturnCountry(value);
+                    setReturnCity("");
+                  }}
+                  options={countryOptionsWithOther}
+                  placeholder={
+                    isLoadingCountryOptions ? "正在加载国家..." : "选择返程国家"
+                  }
+                  value={returnCountry || null}
+                />
+                {returnCountry === OTHER_COUNTRY_VALUE && (
+                  <Input
+                    onChange={(event) => setCustomReturnCountry(event.target.value)}
+                    placeholder="输入返程国家"
+                    type="text"
+                    value={customReturnCountry}
+                  />
+                )}
+                <SearchableSingleSelect
+                  disabled={busy || !returnCountry || isLoadingCityOptions}
+                  onChange={setReturnCity}
+                  options={returnCityOptions}
+                  placeholder={
+                    !returnCountry
+                      ? "请先选择返程国家"
+                      : returnCountry === OTHER_COUNTRY_VALUE
+                        ? "可选“其他”后输入返程城市"
+                        : isLoadingCityOptions
+                          ? "正在加载城市..."
+                          : "选择返程城市"
+                  }
+                  value={returnCity || null}
+                />
+                {returnCountryForCityLookup &&
+                  typeof cityCountByCountry[returnCountryForCityLookup] === "number" && (
+                    <div className="text-[11px] text-muted-foreground">
+                      {getCountryDisplayName(returnCountryForCityLookup)} 已加载{" "}
+                      {cityCountByCountry[returnCountryForCityLookup]} 个城市
+                    </div>
+                  )}
+                {returnCity === OTHER_CITY_VALUE && (
+                  <Input
+                    onChange={(event) => setCustomReturnCity(event.target.value)}
+                    placeholder="输入返程城市"
+                    type="text"
+                    value={customReturnCity}
+                  />
+                )}
+              </div>
+
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={submitEndpoints}
+                size="sm"
+              >
+                确认出发和返程城市
+              </Button>
             </div>
           )}
-          {returnCity === OTHER_CITY_VALUE && (
-            <Input
-              onChange={(event) => setCustomReturnCity(event.target.value)}
-              placeholder="输入返程城市"
-              type="text"
-              value={customReturnCity}
-            />
-          )}
-          <Button
-            className="w-full"
-            disabled={busy}
-            onClick={() => {
-              if (!resolvedReturnCountry || !resolvedReturnCity) {
-                toast.error("请完整选择返程国家和城市。");
-                return;
-              }
-              sendStructuredMessage({
-                return_country: resolvedReturnCountry,
-                return_city: resolvedReturnCity,
-                display: {
-                  return_country: resolvedReturnCountryDisplay,
-                  return_city: resolvedReturnCityDisplay,
-                },
-              });
-            }}
-            size="sm"
-          >
-            确认返程地
-          </Button>
         </div>
       )}
 

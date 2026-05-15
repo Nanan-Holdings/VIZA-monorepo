@@ -249,8 +249,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 还需要重点确认/补齐的部分：
 
 - 需要实际应用 `0012_match_visa_chunks.sql` migration，并确保 `visa_chunks.embedding` 已回填，否则会走 filtered fallback。
-- `OPENAI_API_KEY` 已从 `viza-be/travel-service/.env` 复制到 `viza-be/agent-backend/.env`，但该 OpenAI project 对 `text-embedding-3-small`、`text-embedding-3-large`、`text-embedding-ada-002` 均返回 403 无权限；`visa_chunks.embedding` 仍为 0 条。RAG service 会使用 filtered fallback，但 pgvector 相似度检索需要换一个有 embedding 模型权限的 key 或为当前 project 开通权限后重跑 ingestion。
-- 本机直连 Postgres 执行 `0012_match_visa_chunks.sql` 时 DNS 无法解析 Supabase DB host；需要在 Supabase SQL Editor 或可访问 DB host 的环境中应用 migration。
+- `OPENAI_API_KEY` 已更新为可调用 `text-embedding-3-small` 的 key；Indonesia RAG 已重跑 ingestion，`visa_chunks.embedding` 已回填 12 条。
+- 本机直连 Postgres 执行 `0012_match_visa_chunks.sql` 时无法连接 Supabase IPv6 direct host；需要在 Supabase SQL Editor 或可访问 DB host 的环境中应用 migration。应用前 RAG service 会先尝试 RPC，然后 fallback 到 country/visa type filtered query。
 - `chat-client.tsx` 文件很大，后续如果继续加功能，建议拆出 Socket hook 和 message list 子组件。
 - `travelApplicationStatus` 已传入 `ChatClient`，但当前 VIZA/Travel tab 渲染里基本没有使用。
 - Debug panel 状态现在固定为 `false`，实际排查 streaming 时需要临时打开或改成受控入口。
@@ -289,6 +289,6 @@ npm run type-check
 - Step 3 SQL migration：`viza-be/agent-backend npm run type-check` 通过；`git diff --check` 通过；Playwright smoke screenshot: `test-results/playwright-step3-chat.png`。
 - Step 4 `/visa` RAG integration：前后端 type-check 均通过；Playwright 验证 frontend `/client/chat` 未登录 redirect 和 backend `/health`，screenshot: `test-results/playwright-step4-chat.png`。
 - Step 5 Indonesia RAG content ingestion：`npm run ingest:indonesia-visa-rag` 成功写入 6 documents / 12 chunks；retrieval smoke test 对“中国护照，印尼旅游7天”返回 5 个 Indonesia chunks；由于 embedding 不可用，结果使用 `embedding_unavailable` fallback。
-- Step 6 OpenAI key copy/retest：已把 `viza-be/travel-service/.env` 的 `OPENAI_API_KEY` 复制到 `viza-be/agent-backend/.env` 并重跑 ingestion；OpenAI embedding 请求返回 403 model access error，所以 chunks 仍未 embedded。后端 type-check 通过；Playwright smoke screenshot: `test-results/playwright-openai-key-rag-chat.png`。前端 type-check 当前被既有 Travel AI 类型错误阻塞：`app/client/travel-chat/travel-chat-client.tsx(1101,46)` 与 `components/client/travel/travel-planner-form.tsx(1448,8)`。
+- Step 6 OpenAI key retest：新 key 调用 `text-embedding-3-small` 成功，返回 1536 维；`npm run ingest:indonesia-visa-rag` 成功写入 12/12 embeddings。Supabase count: 6 Indonesia documents, 12 Indonesia chunks, 12 embedded chunks. Retrieval smoke 目前仍走 `vector_search_failed` fallback，因为 `match_visa_chunks` RPC 尚未应用到 Supabase。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。
