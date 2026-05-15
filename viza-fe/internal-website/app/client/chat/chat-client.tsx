@@ -1230,8 +1230,8 @@ export function ChatClient({
                 </div>
 
                 {chatMode === "travel" ? (
-                  <div className="w-full flex-1 overflow-y-auto">
-                    <TravelChatClient applicationId={travelApplicationId} />
+                  <div className="w-full min-h-0 flex-1 overflow-hidden">
+                    <TravelChatClient applicationId={travelApplicationId} embedded />
                   </div>
                 ) : (
                   <>

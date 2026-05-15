@@ -152,7 +152,21 @@ export type ChatLikeMessage = {
   parts?: Array<{ type?: string; text?: string }>;
 };
 
-type TravelFormPayload = Partial<TravelPayload> & {
+export type TravelFormDisplayPayload = {
+  seed_country?: string;
+  seed_city?: string;
+  country?: string;
+  countries?: string[];
+  cities?: string[];
+  city_labels?: Record<string, string>;
+  origin_country?: string;
+  origin_city?: string;
+  return_country?: string;
+  return_city?: string;
+  travel_order?: string[];
+};
+
+export type TravelFormPayload = Partial<TravelPayload> & {
   country?: string;
   countries?: string[];
   cities?: string[];
@@ -170,6 +184,7 @@ type TravelFormPayload = Partial<TravelPayload> & {
   selected_hotels?: SelectedHotelOption[];
   final_note?: string;
   attached_files?: string[];
+  display?: TravelFormDisplayPayload;
 };
 
 type ExpectedFlightLeg = {
@@ -490,27 +505,34 @@ function parseTravelFormMessage(message: ChatLikeMessage): TravelFormPayload | n
 }
 
 export function describeTravelFormPayload(payload: TravelFormPayload): string {
+  const display = payload.display;
   const seedCountry = normalizeString(payload.seed_country);
   const seedCity = normalizeString(payload.seed_city);
+  const seedCountryLabel = display?.seed_country ?? seedCountry;
+  const seedCityLabel = display?.seed_city ?? seedCity;
   if (seedCity || seedCountry) {
-    if (seedCountry && seedCity) {
-      return `我想从 ${seedCountry} 的 ${seedCity} 开始规划旅行。`;
+    if (seedCountryLabel && seedCityLabel) {
+      return `我想从 ${seedCountryLabel} 的 ${seedCityLabel} 开始规划旅行。`;
     }
-    if (seedCity) {
-      return `我想把 ${seedCity} 加入旅行计划。`;
+    if (seedCityLabel) {
+      return `我想把 ${seedCityLabel} 加入旅行计划。`;
     }
-    return `我想先去 ${seedCountry} 旅行。`;
+    return `我想先去 ${seedCountryLabel} 旅行。`;
   }
 
   if (payload.countries?.length) {
-    return `我选择了国家：${payload.countries.join("、")}。`;
+    const countries = display?.countries?.length
+      ? display.countries
+      : payload.countries;
+    return `我选择了国家：${countries.join("、")}。`;
   }
   if (payload.cities?.length) {
-    return `我选择了城市：${payload.cities.join("、")}。`;
+    const cities = display?.cities?.length ? display.cities : payload.cities;
+    return `我选择了城市：${cities.join("、")}。`;
   }
   if (payload.city_days && Object.keys(payload.city_days).length > 0) {
     const summary = Object.entries(payload.city_days)
-      .map(([city, days]) => `${city}${days}天`)
+      .map(([city, days]) => `${display?.city_labels?.[city] ?? city}${days}天`)
       .join("，");
     return `我设置了停留天数：${summary}。`;
   }
@@ -521,13 +543,20 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     return `预算是 ${payload.budget} RMB。`;
   }
   if (payload.origin_country || payload.origin_city) {
-    return `出发地：${payload.origin_country ?? "-"} ${payload.origin_city ?? "-"}`.trim();
+    const originCountry = display?.origin_country ?? payload.origin_country ?? "-";
+    const originCity = display?.origin_city ?? payload.origin_city ?? "-";
+    return `出发地：${originCountry} ${originCity}`.trim();
   }
   if (payload.return_country || payload.return_city) {
-    return `返程地：${payload.return_country ?? "-"} ${payload.return_city ?? "-"}`.trim();
+    const returnCountry = display?.return_country ?? payload.return_country ?? "-";
+    const returnCity = display?.return_city ?? payload.return_city ?? "-";
+    return `返程地：${returnCountry} ${returnCity}`.trim();
   }
   if (payload.travel_order?.length) {
-    return `游玩顺序：${payload.travel_order.join(" -> ")}。`;
+    const travelOrder = display?.travel_order?.length
+      ? display.travel_order
+      : payload.travel_order;
+    return `游玩顺序：${travelOrder.join(" → ")}。`;
   }
   if (payload.selected_flights?.length) {
     return "我已确认航班选择。";
