@@ -6,7 +6,7 @@ Scope: this file applies to `viza-fe/internal-website/components/client/travel/*
 
 Keep Travel AI UI deterministic and production-safe while preserving current business flow:
 
-1. Multi-step structured collection (country -> cities -> departure date -> travelers -> budget -> origin/return -> order -> flights -> hotels -> final note)
+1. Multi-step structured collection (country -> cities -> departure date -> travel days -> travelers -> budget -> origin/return confirmation -> order -> flights -> hotels -> final note)
 2. Map-assisted selection is only a prefill helper, never a logic bypass
 3. All backend calls go through `app/api/travel/*` proxy routes
 
@@ -40,6 +40,7 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
 - `travel-itinerary-data.ts`: shared itinerary extraction/export payload helpers for final itinerary views.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
+- `app/api/travel/ip-location/route.ts`: resolves the user's approximate IP city for the origin/return confirmation step.
 
 ## Validation Checklist (for every travel UI change)
 
