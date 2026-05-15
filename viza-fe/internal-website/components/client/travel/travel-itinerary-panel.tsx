@@ -10,15 +10,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  buildTravelStateFromMessages,
-  parseItineraryText,
-  toTravelPayload,
-  type ChatLikeMessage,
-  type ItineraryDay,
-} from "@/lib/travel/planner";
+import { type ItineraryDay } from "@/lib/travel/planner";
 import type { TravelChatMessage } from "@/lib/travel/chat-types";
 import { Button } from "@/components/ui/button";
+import {
+  buildTravelPayloadFromChat,
+  getTravelItineraryFromMessages,
+} from "@/components/client/travel/travel-itinerary-data";
 
 type TravelItineraryPanelProps = {
   messages: TravelChatMessage[];
@@ -49,69 +47,6 @@ function getCityImage(city: string, index: number): string {
   const key = `${city}-${index}`;
   const imageIndex = hashString(key) % CITY_IMAGE_POOL.length;
   return CITY_IMAGE_POOL[imageIndex];
-}
-
-function extractAssistantText(messages: TravelChatMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
-    if (message.role !== "assistant") continue;
-    const text = message.parts
-      .filter((part) => part.type === "text")
-      .map((part) => part.text ?? "")
-      .join("\n")
-      .trim();
-    if (text) return text;
-  }
-
-  return "";
-}
-
-function extractToolItinerary(messages: TravelChatMessage[]): ItineraryDay[] {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
-    if (message.role !== "assistant") continue;
-
-    const rawToolPart = message.parts.find(
-      (part) => (part as { type?: string }).type === "tool-itinerary"
-    ) as unknown;
-    if (!rawToolPart || typeof rawToolPart !== "object") continue;
-
-    const toolPart = rawToolPart as {
-      output?: Array<{
-        day?: number | string;
-        city?: string;
-        activities?: string[];
-        food?: string[];
-        cost?: string;
-      }>;
-    };
-
-    if (!Array.isArray(toolPart.output) || toolPart.output.length === 0) continue;
-
-    return toolPart.output
-      .map((item) => ({
-        day: item.day ?? "-",
-        city: item.city ?? "",
-        activities: Array.isArray(item.activities) ? item.activities : [],
-        food: Array.isArray(item.food) ? item.food : [],
-        cost: item.cost ?? "N/A",
-      }))
-      .filter((day) => Boolean(day.city));
-  }
-
-  return [];
-}
-
-function buildTravelPayloadFromChat(messages: TravelChatMessage[]) {
-  const chatLikeMessages: ChatLikeMessage[] = messages.map((message) => ({
-    role: message.role,
-    parts: message.parts
-      .filter((part) => part.type === "text")
-      .map((part) => ({ type: "text", text: part.text ?? "" })),
-  }));
-
-  const state = buildTravelStateFromMessages(chatLikeMessages);
-  return toTravelPayload(state);
 }
 
 async function downloadBlob(
@@ -165,11 +100,7 @@ export function TravelItineraryPanel({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const itinerary = useMemo(() => {
-    const toolItinerary = extractToolItinerary(messages);
-    if (toolItinerary.length) return toolItinerary;
-
-    const assistantText = extractAssistantText(messages);
-    return parseItineraryText(assistantText);
+    return getTravelItineraryFromMessages(messages);
   }, [messages]);
 
   const payload = useMemo(() => buildTravelPayloadFromChat(messages), [messages]);
