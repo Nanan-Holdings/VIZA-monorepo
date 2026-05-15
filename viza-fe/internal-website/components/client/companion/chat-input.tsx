@@ -9,6 +9,9 @@ interface ChatInputProps {
   disabled?: boolean;
   isConnecting?: boolean;
   placeholder?: string;
+  className?: string;
+  textareaClassName?: string;
+  buttonClassName?: string;
 }
 
 const MAX_ROWS = 10;
@@ -19,6 +22,9 @@ export function ChatInput({
   disabled = false,
   isConnecting = false,
   placeholder = "Ask anything...",
+  className,
+  textareaClassName,
+  buttonClassName,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -77,7 +83,8 @@ export function ChatInput({
         "flex flex-col gap-3 rounded-2xl border bg-white px-5 sm:px-6 pb-5 pt-2 shadow-sm transition-all duration-200",
         disabled
           ? "border-gray-100 opacity-60"
-          : "border-gray-200 hover:border-gray-300 focus-within:border-brand-500"
+          : "border-gray-200 hover:border-gray-300 focus-within:border-brand-500",
+        className
       )}
     >
       <textarea
@@ -90,7 +97,8 @@ export function ChatInput({
         rows={1}
         className={cn(
           "w-full bg-transparent text-xl outline-none placeholder:text-gray-400 min-w-0 resize-none overflow-y-auto pr-2 pt-4 pb-2",
-          "leading-7" // Matches LINE_HEIGHT
+          "leading-7", // Matches LINE_HEIGHT
+          textareaClassName
         )}
         style={{ height: "40px", maxHeight: `${LINE_HEIGHT * MAX_ROWS}px` }}
         aria-label="Message input"
@@ -104,7 +112,8 @@ export function ChatInput({
             "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200",
             canSend
               ? "bg-brand-500 text-white hover:bg-brand-600 cursor-pointer"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed",
+            buttonClassName
           )}
           aria-label={isConnecting ? "Connecting..." : "Send message"}
         >
