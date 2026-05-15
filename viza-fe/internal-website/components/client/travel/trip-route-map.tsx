@@ -1322,7 +1322,7 @@ export function TripRouteMap({
                   {getPointIntro(detailPoint)}
                 </p>
 
-                <div className="flex gap-3 overflow-x-auto py-2">
+                <div className="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {detailGalleryImages.map((imageSrc, index) => (
                     <div
                       aria-label={`${getPointDisplayName(detailPoint)}照片 ${index + 1}`}

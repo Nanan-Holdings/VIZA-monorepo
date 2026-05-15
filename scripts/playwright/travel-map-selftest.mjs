@@ -16,6 +16,35 @@ function averagePosition(items) {
   return { x: sumX / count, y: sumY / count };
 }
 
+function pointOverlapsRect(point, rect, margin = 28) {
+  return (
+    point.x >= rect.x - margin &&
+    point.x <= rect.x + rect.width + margin &&
+    point.y >= rect.y - margin &&
+    point.y <= rect.y + rect.height + margin
+  );
+}
+
+function pickDragStart(mapBox, markerRects) {
+  const candidates = [
+    { x: 0.64, y: 0.48 },
+    { x: 0.72, y: 0.52 },
+    { x: 0.5, y: 0.5 },
+    { x: 0.35, y: 0.55 },
+    { x: 0.82, y: 0.34 },
+    { x: 0.18, y: 0.72 },
+  ];
+
+  const start = candidates
+    .map((candidate) => ({
+      x: mapBox.x + mapBox.width * candidate.x,
+      y: mapBox.y + mapBox.height * candidate.y,
+    }))
+    .find((point) => !markerRects.some((rect) => pointOverlapsRect(point, rect)));
+
+  return start ?? { x: mapBox.x + mapBox.width * 0.5, y: mapBox.y + mapBox.height * 0.5 };
+}
+
 async function collectMarkerRects(page, selector) {
   return page.$$eval(selector, (nodes) =>
     nodes
@@ -121,8 +150,9 @@ async function run() {
       throw new Error("Map bounding box not found.");
     }
 
-    const dragStartX = mapBox.x + mapBox.width * 0.72;
-    const dragStartY = mapBox.y + mapBox.height * 0.52;
+    const dragStart = pickDragStart(mapBox, first);
+    const dragStartX = dragStart.x;
+    const dragStartY = dragStart.y;
     await page.mouse.move(dragStartX, dragStartY);
     await page.mouse.down();
     await page.mouse.move(dragStartX - 320, dragStartY + 60, { steps: 20 });
