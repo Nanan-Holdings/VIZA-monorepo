@@ -694,14 +694,14 @@ export async function getRecentMessages(
 }
 
 // =============================================================================
-// US-034: Single Persistent Session Per User
+// US-034: Single Persistent Visa Chat Session Per Applicant
 // =============================================================================
 
 export interface UserChatSessionResult {
   session: {
     id: string;
-    authUserId: string;
-    visaPackageId: string | null;
+    applicantId: string;
+    applicationId: string | null;
     createdAt: string | null;
     updatedAt: string | null;
   };
@@ -709,8 +709,9 @@ export interface UserChatSessionResult {
 }
 
 /**
- * Get or create the single persistent chat session for a user.
- * Upserts user_chat_sessions by auth_user_id, returns session + last 100 messages.
+ * Get or create the single persistent visa_chat_sessions row for an applicant.
+ * The frontend userId is applicant_profiles.id, and visa_chat_messages.session_id
+ * must reference visa_chat_sessions.id.
  */
 export async function getOrCreateUserSession(
   userId: string
@@ -724,23 +725,56 @@ export async function getOrCreateUserSession(
   try {
     const adminClient = createAdminClient();
 
-    // Upsert the single session row for this user
-    const { data: session, error: sessionError } = await adminClient
-      .from("user_chat_sessions")
-      .upsert(
-        { auth_user_id: userId, updated_at: new Date().toISOString() },
-        { onConflict: "auth_user_id" }
-      )
-      .select()
-      .single();
+    const { data: latestApplication } = await adminClient
+      .from("applications")
+      .select("id")
+      .eq("applicant_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (sessionError || !session) {
-      console.error("Error upserting user_chat_sessions:", sessionError);
+    const { data: existingSession, error: existingSessionError } =
+      await adminClient
+        .from("visa_chat_sessions")
+        .select("*")
+        .eq("applicant_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (existingSessionError) {
+      console.error("Error fetching visa_chat_sessions:", existingSessionError);
       return null;
     }
 
-    // Fetch last 100 messages across all visa_chat_sessions for this user
-    // (The session id in user_chat_sessions is used as the socket session_id)
+    const applicationId =
+      latestApplication?.id ?? existingSession?.application_id ?? null;
+
+    const { data: session, error: sessionError } = existingSession
+      ? await adminClient
+          .from("visa_chat_sessions")
+          .update({
+            application_id: applicationId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingSession.id)
+          .select()
+          .single()
+      : await adminClient
+          .from("visa_chat_sessions")
+          .insert({
+            applicant_id: userId,
+            application_id: applicationId,
+          })
+          .select()
+          .single();
+
+    if (sessionError || !session) {
+      console.error("Error upserting visa_chat_sessions:", sessionError);
+      return null;
+    }
+
+    // Fetch the last 100 messages for the persistent visa chat session.
     const { data: messages, error: messagesError } = await adminClient
       .from("visa_chat_messages")
       .select(`
@@ -748,10 +782,9 @@ export async function getOrCreateUserSession(
         session_id,
         role,
         content,
-        created_at,
-        visa_chat_sessions!inner(applicant_id)
+        created_at
       `)
-      .eq("visa_chat_sessions.applicant_id", userId)
+      .eq("session_id", session.id)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -772,8 +805,8 @@ export async function getOrCreateUserSession(
     return {
       session: {
         id: session.id,
-        authUserId: session.auth_user_id,
-        visaPackageId: session.visa_package_id ?? null,
+        applicantId: session.applicant_id,
+        applicationId: session.application_id ?? null,
         createdAt: session.created_at,
         updatedAt: session.updated_at,
       },

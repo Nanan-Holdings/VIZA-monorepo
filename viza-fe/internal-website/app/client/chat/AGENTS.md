@@ -21,6 +21,7 @@ Before changing this route, read:
 4. `viza-fe/internal-website/app/actions/companion-sessions.ts`
 5. `viza-be/agent-backend/src/socket/visa-namespace.ts`
 6. `viza-be/agent-backend/src/agent/index.ts`
+7. `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 
 If behavior conflicts, prefer the authenticated route and Socket.IO contract documented in the DG.
 
@@ -43,10 +44,11 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 7. Keep inline application blocks type-safe and compatible with `send_application_block`.
 8. Avoid new dependencies unless the existing Next.js, Socket.IO, Tailwind, and shadcn/ui stack cannot reasonably cover the change.
 9. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
+10. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
 
-## Known Integration Risk
+## Session Model
 
-The current code mixes `user_chat_sessions` for the persistent per-user session and `visa_chat_sessions` for historical message joins. Before changing persistence, verify whether `visa_chat_messages.session_id` is intended to reference `user_chat_sessions.id` or `visa_chat_sessions.id`.
+`/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
 
 ## Validation Checklist
 
@@ -65,7 +67,12 @@ For backend Socket.IO or agent changes:
 1. `cd viza-be/agent-backend && npm run type-check`
 2. Verify the frontend still connects to `NEXT_PUBLIC_AGENT_BACKEND_URL/visa`.
 3. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
+4. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
 
 ## Important Files Added During Iterations
 
 - `docs/viza-ai-chat-development-guide.md`: complete DG for the `/client/chat` page, frontend state, backend Socket.IO flow, and current completion status.
+- `viza-be/agent-backend/src/services/visa-knowledge.service.ts`: RAG retrieval helper for `visa_chunks`, including OpenAI embeddings, Supabase RPC vector lookup, filtered fallback, and context formatting.
+- `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`: Supabase RPC for pgvector similarity search over `visa_chunks`, used by the RAG retrieval service.
+- `knowledge-base/indonesia-visa-rag.json`: curated official-source Indonesia visa knowledge chunks for RAG ingestion.
+- `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`: ingestion script that writes the Indonesia visa knowledge source to `visa_documents` and `visa_chunks`.

@@ -9,6 +9,10 @@ import {
   buildSystemPrompt,
   type ApplicationBlockPayload,
 } from '../agent/index.js';
+import {
+  retrieveVisaKnowledge,
+  formatKnowledgeContext,
+} from '../services/visa-knowledge.service.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
@@ -93,10 +97,40 @@ export function registerVisaNamespace(nsp: Namespace): void {
         }
 
         // 3. Build dynamic system prompt with user application context (US-036)
+        //    and retrieved visa knowledge from visa_chunks.
         const appContext = await buildApplicationContext(user_id);
-        const dynamicSystemPrompt = buildSystemPrompt(appContext);
+        const knowledgeResult = await retrieveVisaKnowledge({
+          query: message,
+          country: appContext.application?.country ?? 'indonesia',
+          visaType: appContext.application?.visa_type,
+          matchCount: 5,
+        });
+        const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
+        const dynamicSystemPrompt = buildSystemPrompt(
+          appContext,
+          knowledgeContext
+        );
 
-        // 4. Stream response from Claude with dynamic system prompt + tool support
+        socket.emit('app_log', {
+          type: 'rag_retrieval',
+          category: 'rag',
+          name: 'visa_knowledge',
+          result: {
+            chunkCount: knowledgeResult.chunks.length,
+            usedEmbedding: knowledgeResult.usedEmbedding,
+            fallbackReason: knowledgeResult.fallbackReason,
+            topSources: knowledgeResult.chunks.slice(0, 3).map((chunk) => ({
+              title: chunk.title,
+              country: chunk.country,
+              visaType: chunk.visaType,
+              documentType: chunk.documentType,
+              similarity: chunk.similarity,
+            })),
+          },
+          timestamp: Date.now(),
+        });
+
+        // 4. Stream response from Claude with dynamic prompt + tool support
         let fullResponse = '';
 
         await streamChat(

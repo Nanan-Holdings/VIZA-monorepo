@@ -1764,11 +1764,13 @@ export function TravelChatClient({
 
   return (
     <div
-      className={`relative mx-auto flex w-full max-w-[2300px] flex-col overflow-hidden px-3 pb-3 pt-2 md:px-5 ${
-        embedded ? "h-full min-h-0" : "h-[calc(100dvh-9rem)] min-h-0"
+      className={`relative mx-auto flex w-full max-w-[2300px] flex-col overflow-hidden px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-5 ${
+        embedded
+          ? "h-full min-h-0"
+          : "h-[calc(100dvh-8.75rem)] min-h-0 sm:h-[calc(100dvh-9rem)] lg:h-[calc(100dvh-9.5rem)]"
       }`}
     >
-      <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[0.7fr_1.3fr] 2xl:grid-cols-[0.66fr_1.34fr]">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(180px,30dvh,320px)] gap-3 sm:gap-4 lg:grid-cols-[minmax(360px,0.78fr)_minmax(500px,1.22fr)] lg:grid-rows-none xl:grid-cols-[minmax(390px,0.7fr)_minmax(640px,1.3fr)] 2xl:grid-cols-[minmax(430px,0.66fr)_minmax(760px,1.34fr)]">
         <div className="relative h-full min-h-0">
           <Button
             className="absolute left-3 top-3 z-30 h-8 w-8 bg-white/95 shadow-sm"
@@ -1875,11 +1877,11 @@ export function TravelChatClient({
             </>
           )}
 
-          <Card className="h-full min-h-0 overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+          <Card className="h-full min-h-0 overflow-hidden rounded-xl border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-2xl">
           <CardContent className="h-full p-0">
             <div className="flex h-full min-h-0 flex-col bg-white">
               <div
-                className="shrink-0 border-b border-slate-200 bg-white/95 px-4 py-3 pl-10 shadow-sm md:px-6 md:pl-12"
+                className="shrink-0 border-b border-slate-200 bg-white/95 px-3 py-2 pl-11 shadow-sm sm:px-4 sm:py-3 md:px-6 md:pl-12"
                 data-testid="travel-map-summary"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -1952,7 +1954,7 @@ export function TravelChatClient({
               <div className="relative min-h-0 flex-1">
                 <div
                   ref={scrollRailRef}
-                  className="absolute bottom-5 left-3 top-5 z-20 w-5"
+                  className="absolute bottom-5 left-3 top-5 z-20 hidden w-5 sm:block"
                   data-testid="travel-scroll-rail"
                   onPointerDown={(event) => {
                     scrollDragOffsetRef.current = scrollThumb.height / 2;
@@ -1981,10 +1983,10 @@ export function TravelChatClient({
                 </div>
                 <div
                   ref={messageScrollRef}
-                  className="h-full space-y-4 overflow-y-auto overscroll-y-contain py-4 pl-10 pr-4 [scrollbar-width:none] md:py-6 md:pl-12 md:pr-6 [&::-webkit-scrollbar]:hidden"
+                  className="h-full space-y-4 overflow-y-auto overscroll-y-contain px-3 py-4 [scrollbar-width:none] sm:pl-10 sm:pr-4 md:py-6 md:pl-12 md:pr-6 [&::-webkit-scrollbar]:hidden"
                   data-testid="travel-message-scroll"
                 >
-                <div className="space-y-8">
+                <div className="space-y-6 sm:space-y-8">
                   {messages.map((message) => {
                 const visibleText = getVisibleMessageText(message);
                 const destinationCards = message.parts
@@ -2056,7 +2058,7 @@ export function TravelChatClient({
                                   <div className="relative">
                                     <Image
                                       alt={card.title}
-                                      className="h-36 w-full object-cover"
+                                      className="h-28 w-full object-cover sm:h-36"
                                       height={144}
                                       src={imageSrc}
                                       width={320}
@@ -2143,7 +2145,7 @@ export function TravelChatClient({
               </div>
               </div>
                 <div
-                  className="relative shrink-0 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
+                  className="relative shrink-0 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur sm:px-3"
                   data-testid="travel-free-chat-form"
                 >
                   <ScrollToBottomFab
@@ -2154,12 +2156,12 @@ export function TravelChatClient({
                   />
                   <ChatInput
                     buttonClassName="h-9 w-9"
-                    className="mx-auto w-full max-w-[620px] gap-2 rounded-2xl px-4 pb-3 pt-1"
+                    className="mx-auto w-full max-w-[620px] gap-2 rounded-xl px-3 pb-2 pt-1 sm:rounded-2xl sm:px-4 sm:pb-3"
                     disabled={status !== "ready"}
                     isConnecting={status === "submitted" || status === "streaming"}
                     onSend={sendFreeTextMessage}
                     placeholder="问问旅行计划..."
-                    textareaClassName="pb-1 pt-2 text-base leading-6"
+                    textareaClassName="pb-1 pt-2 text-sm leading-6 sm:text-base"
                   />
                 </div>
               </div>
@@ -2167,7 +2169,7 @@ export function TravelChatClient({
           </Card>
         </div>
 
-        <aside className="h-full min-h-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-[#08213b] shadow-[0_14px_45px_rgba(15,23,42,0.12)]">
+        <aside className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-[0_14px_45px_rgba(15,23,42,0.12)] sm:rounded-2xl">
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-50">
             {hasFinalItinerary ? (
               <TravelItineraryExperience

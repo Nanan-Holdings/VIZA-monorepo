@@ -126,8 +126,8 @@ export interface ErrorEvent {
  * Backend sends tool_call/tool_result/db_query events via app_log channel
  */
 export interface AppLogEvent {
-  type: "tool_call" | "tool_result" | "db_query";
-  category: "tool" | "database";
+  type: "tool_call" | "tool_result" | "db_query" | "rag_retrieval";
+  category: "tool" | "database" | "rag";
   name: string;
   args?: Record<string, unknown>;
   result?: unknown;
