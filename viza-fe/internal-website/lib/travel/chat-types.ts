@@ -31,10 +31,15 @@ export type TravelChatQuickRepliesPart = {
   quick_replies: TravelQuickReply[];
 };
 
+export type TravelChatPlannerFormPart = {
+  type: "planner_form";
+};
+
 export type TravelChatMessagePart =
   | TravelChatTextPart
   | TravelChatDestinationCardsPart
-  | TravelChatQuickRepliesPart;
+  | TravelChatQuickRepliesPart
+  | TravelChatPlannerFormPart;
 
 export type TravelChatMessage = {
   id: string;

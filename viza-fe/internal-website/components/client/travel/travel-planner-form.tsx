@@ -24,6 +24,7 @@ import {
   type HotelStayResult,
   type SelectedFlightOption,
   type SelectedHotelOption,
+  type TravelFormPayload,
   type TravelPlanningPayload,
   type TravelPayload,
 } from "@/lib/travel/planner";
@@ -109,6 +110,26 @@ function dedupeValues(values: string[]): string[] {
 
 function removeSpecialValue(values: string[], specialValue: string): string[] {
   return values.filter((value) => value !== specialValue);
+}
+
+function getOptionDisplayLabel(
+  option: Pick<Option, "value" | "label"> | CountryApiOption | CityApiOption
+): string {
+  if ("labelZh" in option && typeof option.labelZh === "string") {
+    const labelZh = option.labelZh.trim();
+    if (labelZh) return labelZh;
+  }
+
+  if ("label" in option && typeof option.label === "string") {
+    const label = option.label.trim();
+    if (label) return label;
+  }
+
+  if ("value" in option && typeof option.value === "string") {
+    return option.value.trim();
+  }
+
+  return "";
 }
 
 function withOtherOption(
@@ -376,11 +397,12 @@ function coerceCountryOptions(raw: unknown): Option[] {
       typeof option.labelZh === "string" ? option.labelZh.trim() : "";
     const code = typeof option.code === "string" ? option.code.trim() : "";
     const search = typeof option.search === "string" ? option.search.trim() : "";
-    if (!value || !label) continue;
+    const displayLabel = getOptionDisplayLabel(option);
+    if (!value || !displayLabel) continue;
 
     options.push({
       value,
-      label,
+      label: displayLabel,
       keywords: buildOptionKeywords(search, label, value, labelEn, labelZh, code),
     });
   }
@@ -427,11 +449,12 @@ function coerceCitiesByCountry(raw: unknown): Record<string, Option[]> {
         typeof cityOption.labelZh === "string" ? cityOption.labelZh.trim() : "";
       const search =
         typeof cityOption.search === "string" ? cityOption.search.trim() : "";
-      if (!value || !label) continue;
+      const displayLabel = getOptionDisplayLabel(cityOption);
+      if (!value || !displayLabel) continue;
 
       options.push({
         value,
-        label,
+        label: displayLabel,
         keywords: buildOptionKeywords(search, label, value, labelEn, labelZh),
       });
     }
@@ -486,6 +509,20 @@ function cityOptionsFromCountries(
   }
 
   return options;
+}
+
+function optionLabelFromMap(
+  value: string,
+  labelMap: ReadonlyMap<string, string>
+): string {
+  return labelMap.get(value) ?? value;
+}
+
+function optionLabelsFromValues(
+  values: string[],
+  labelMap: ReadonlyMap<string, string>
+): string[] {
+  return values.map((value) => optionLabelFromMap(value, labelMap));
 }
 
 function coerceFlightLegs(raw: unknown): FlightLegResult[] {
@@ -1139,6 +1176,89 @@ export function TravelPlannerForm({
     return withOtherOption(baseOptions, OTHER_CITY_VALUE, "其他（自定义城市）");
   }, [returnCountryForCityLookup, cityOptions, citiesByCountry]);
 
+  const countryLabelMap = useMemo(
+    () => new Map(countryOptionsWithOther.map((option) => [option.value, option.label])),
+    [countryOptionsWithOther]
+  );
+  const cityLabelMap = useMemo(
+    () =>
+      new Map(
+        [...cityOptionsWithOther, ...originCityOptions, ...returnCityOptions].map(
+          (option) => [option.value, option.label]
+        )
+      ),
+    [cityOptionsWithOther, originCityOptions, returnCityOptions]
+  );
+  const getCountryDisplayName = useCallback(
+    (value: string) => optionLabelFromMap(value, countryLabelMap),
+    [countryLabelMap]
+  );
+  const getCityDisplayName = useCallback(
+    (value: string) => optionLabelFromMap(value, cityLabelMap),
+    [cityLabelMap]
+  );
+  const resolvedCountryDisplayNames = useMemo(() => {
+    const selected = removeSpecialValue(countries, OTHER_COUNTRY_VALUE);
+    const custom = splitCustomValues(customCountriesInput);
+    return dedupeValues([
+      ...optionLabelsFromValues(selected, countryLabelMap),
+      ...custom,
+    ]);
+  }, [countries, countryLabelMap, customCountriesInput]);
+  const resolvedCityDisplayNames = useMemo(() => {
+    const selected = removeSpecialValue(cities, OTHER_CITY_VALUE);
+    const custom = splitCustomValues(customCitiesInput);
+    return dedupeValues([
+      ...optionLabelsFromValues(selected, cityLabelMap),
+      ...custom,
+    ]);
+  }, [cities, cityLabelMap, customCitiesInput]);
+  const selectedCityLabelMap = useMemo(
+    () =>
+      Object.fromEntries(
+        resolvedCities.map((city) => [city, getCityDisplayName(city)])
+      ),
+    [getCityDisplayName, resolvedCities]
+  );
+  const resolvedOriginCountryDisplay = useMemo(() => {
+    if (originCountry === OTHER_COUNTRY_VALUE) {
+      return normalizeToken(customOriginCountry);
+    }
+    return resolvedOriginCountry
+      ? getCountryDisplayName(resolvedOriginCountry)
+      : "";
+  }, [
+    customOriginCountry,
+    getCountryDisplayName,
+    originCountry,
+    resolvedOriginCountry,
+  ]);
+  const resolvedOriginCityDisplay = useMemo(() => {
+    if (originCity === OTHER_CITY_VALUE) {
+      return normalizeToken(customOriginCity);
+    }
+    return resolvedOriginCity ? getCityDisplayName(resolvedOriginCity) : "";
+  }, [customOriginCity, getCityDisplayName, originCity, resolvedOriginCity]);
+  const resolvedReturnCountryDisplay = useMemo(() => {
+    if (returnCountry === OTHER_COUNTRY_VALUE) {
+      return normalizeToken(customReturnCountry);
+    }
+    return resolvedReturnCountry
+      ? getCountryDisplayName(resolvedReturnCountry)
+      : "";
+  }, [
+    customReturnCountry,
+    getCountryDisplayName,
+    resolvedReturnCountry,
+    returnCountry,
+  ]);
+  const resolvedReturnCityDisplay = useMemo(() => {
+    if (returnCity === OTHER_CITY_VALUE) {
+      return normalizeToken(customReturnCity);
+    }
+    return resolvedReturnCity ? getCityDisplayName(resolvedReturnCity) : "";
+  }, [customReturnCity, getCityDisplayName, resolvedReturnCity, returnCity]);
+
   const cityLoadSummary = useMemo(() => {
     const summaryCountries = removeSpecialValue(countries, OTHER_COUNTRY_VALUE);
     if (!summaryCountries.length) return "";
@@ -1146,12 +1266,12 @@ export function TravelPlannerForm({
       .map((country) => {
         const count = cityCountByCountry[country];
         if (typeof count !== "number") return null;
-        return `${country}: ${count}`;
+        return `${getCountryDisplayName(country)}：${count}`;
       })
       .filter((item): item is string => Boolean(item));
 
     return items.join(" | ");
-  }, [countries, cityCountByCountry]);
+  }, [countries, cityCountByCountry, getCountryDisplayName]);
 
   const fallbackFlightLegs = useMemo(
     () => (planningPayload ? buildFallbackFlightLegs(planningPayload) : []),
@@ -1166,7 +1286,7 @@ export function TravelPlannerForm({
   const hotelStaysForSelection =
     hotelStays.length > 0 ? hotelStays : fallbackHotelStays;
 
-  const sendStructuredMessage = (payload: Partial<TravelPayload>) => {
+  const sendStructuredMessage = (payload: TravelFormPayload) => {
     sendMessage({
       role: "user",
       parts: [{ type: "text", text: createTravelFormMessage(payload) }],
@@ -1181,8 +1301,12 @@ export function TravelPlannerForm({
     sendStructuredMessage({
       countries: resolvedCountries,
       country: resolvedCountries.join("、"),
+      display: {
+        countries: resolvedCountryDisplayNames,
+        country: resolvedCountryDisplayNames.join("、"),
+      },
     });
-  }, [resolvedCountries, sendStructuredMessage]);
+  }, [resolvedCountries, resolvedCountryDisplayNames, sendStructuredMessage]);
 
   const submitCities = useCallback(() => {
     if (!resolvedCities.length) {
@@ -1192,8 +1316,21 @@ export function TravelPlannerForm({
     sendStructuredMessage({
       cities: resolvedCities,
       travel_order: resolvedCities.length === 1 ? resolvedCities : undefined,
+      display: {
+        cities: resolvedCityDisplayNames,
+        city_labels: selectedCityLabelMap,
+        travel_order:
+          resolvedCityDisplayNames.length === 1
+            ? resolvedCityDisplayNames
+            : undefined,
+      },
     });
-  }, [resolvedCities, sendStructuredMessage]);
+  }, [
+    resolvedCities,
+    resolvedCityDisplayNames,
+    selectedCityLabelMap,
+    sendStructuredMessage,
+  ]);
 
   if (!missingField) {
     return null;
@@ -1310,7 +1447,9 @@ export function TravelPlannerForm({
         <div className="space-y-2">
           {cities.map((city) => (
             <div className="flex items-center gap-2" key={city}>
-              <div className="w-28 shrink-0 text-xs text-muted-foreground">{city}</div>
+              <div className="w-28 shrink-0 text-xs text-muted-foreground">
+                {getCityDisplayName(city)}
+              </div>
               <Input
                 inputMode="numeric"
                 min={1}
@@ -1332,12 +1471,17 @@ export function TravelPlannerForm({
               for (const city of cities) {
                 const parsed = parsePositiveIntText(cityDaysDraft[city] ?? "");
                 if (!parsed) {
-                  toast.error(`${city} 的停留天数必须是正整数。`);
+                  toast.error(`${getCityDisplayName(city)} 的停留天数必须是正整数。`);
                   return;
                 }
                 city_days[city] = parsed;
               }
-              sendStructuredMessage({ city_days });
+              sendStructuredMessage({
+                city_days,
+                display: {
+                  city_labels: selectedCityLabelMap,
+                },
+              });
             }}
             size="sm"
           >
@@ -1443,7 +1587,7 @@ export function TravelPlannerForm({
           {originCountryForCityLookup &&
             typeof cityCountByCountry[originCountryForCityLookup] === "number" && (
             <div className="text-[11px] text-muted-foreground">
-              {originCountryForCityLookup} 已加载{" "}
+              {getCountryDisplayName(originCountryForCityLookup)} 已加载{" "}
               {cityCountByCountry[originCountryForCityLookup]} 个城市
             </div>
           )}
@@ -1466,6 +1610,10 @@ export function TravelPlannerForm({
               sendStructuredMessage({
                 origin_country: resolvedOriginCountry,
                 origin_city: resolvedOriginCity,
+                display: {
+                  origin_country: resolvedOriginCountryDisplay,
+                  origin_city: resolvedOriginCityDisplay,
+                },
               });
             }}
             size="sm"
@@ -1518,7 +1666,7 @@ export function TravelPlannerForm({
           {returnCountryForCityLookup &&
             typeof cityCountByCountry[returnCountryForCityLookup] === "number" && (
             <div className="text-[11px] text-muted-foreground">
-              {returnCountryForCityLookup} 已加载{" "}
+              {getCountryDisplayName(returnCountryForCityLookup)} 已加载{" "}
               {cityCountByCountry[returnCountryForCityLookup]} 个城市
             </div>
           )}
@@ -1541,6 +1689,10 @@ export function TravelPlannerForm({
               sendStructuredMessage({
                 return_country: resolvedReturnCountry,
                 return_city: resolvedReturnCity,
+                display: {
+                  return_country: resolvedReturnCountryDisplay,
+                  return_city: resolvedReturnCityDisplay,
+                },
               });
             }}
             size="sm"
@@ -1557,7 +1709,7 @@ export function TravelPlannerForm({
               className="flex items-center justify-between rounded-lg border border-border/40 px-2.5 py-1.5"
               key={`${city}-${index}`}
             >
-              <div className="text-sm">{city}</div>
+              <div className="text-sm">{getCityDisplayName(city)}</div>
               <div className="flex items-center gap-1">
                 <Button
                   disabled={busy || index === 0}
@@ -1617,6 +1769,11 @@ export function TravelPlannerForm({
               setLoadedHotelsKey(null);
               sendStructuredMessage({
                 travel_order: travelOrder,
+                display: {
+                  travel_order: travelOrder.map((city) =>
+                    getCityDisplayName(city)
+                  ),
+                },
               });
             }}
             size="sm"
@@ -1668,7 +1825,8 @@ export function TravelPlannerForm({
                 key={`${leg.from}-${leg.to}-${leg.departure_date}-${legIndex}`}
               >
                 <div className="text-xs text-muted-foreground">
-                  航段 {legIndex}: {leg.from} → {leg.to}（{leg.departure_date}）
+                  航段 {legIndex}: {getCityDisplayName(leg.from)} →{" "}
+                  {getCityDisplayName(leg.to)}（{leg.departure_date}）
                 </div>
                 <SearchableSingleSelect
                   disabled={busy}
@@ -1837,7 +1995,8 @@ export function TravelPlannerForm({
                 key={`${stay.city}-${stay.check_in}-${stay.check_out}-${stayIndex}`}
               >
                 <div className="text-xs text-muted-foreground">
-                  城市 {stayIndex}: {stay.city}（{stay.check_in} ~ {stay.check_out}，{stay.nights} 晚）
+                  城市 {stayIndex}: {getCityDisplayName(stay.city)}（
+                  {stay.check_in} ~ {stay.check_out}，{stay.nights} 晚）
                 </div>
                 <SearchableSingleSelect
                   disabled={busy}
@@ -1979,13 +2138,13 @@ export function TravelPlannerForm({
 
                 const optionIndex = Number(selectedValue);
                 if (!Number.isInteger(optionIndex) || optionIndex <= 0) {
-                  toast.error(`${stay.city} 的酒店选择无效，请重新选择。`);
+                  toast.error(`${getCityDisplayName(stay.city)} 的酒店选择无效，请重新选择。`);
                   return;
                 }
 
                 const chosenOption = stay.options[optionIndex - 1];
                 if (!chosenOption) {
-                  toast.error(`${stay.city} 的酒店选项已失效，请重新选择。`);
+                  toast.error(`${getCityDisplayName(stay.city)} 的酒店选项已失效，请重新选择。`);
                   return;
                 }
 

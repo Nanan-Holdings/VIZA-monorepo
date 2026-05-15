@@ -33,6 +33,11 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 3. Keep map interactions reversible and idempotent.
 4. Keep markers readable under zoom/responsive changes.
 5. Avoid introducing dependencies unless strictly necessary.
+6. Whenever you create a new important file for the Travel AI module, update this AGENTS.md with a short note describing what file was created and why it matters.
+
+## Important Files Added During Iterations
+
+- Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
 
 ## Validation Checklist (for every travel UI change)
 
@@ -49,4 +54,3 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 1. Chinese copy should be friendly and actionable.
 2. Keep top-level status visible and non-overlapping with map interaction.
 3. Do not let map marker overlays block core form operations.
-

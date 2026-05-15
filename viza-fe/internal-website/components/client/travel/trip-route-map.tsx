@@ -440,6 +440,30 @@ function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLa
   };
 }
 
+function getPointDisplayLocation(point: TripMapPoint): string {
+  if (point.countryLabel) return point.countryLabel;
+  if (point.subtitle.includes(" in ")) {
+    return point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
+  }
+  return point.city ?? point.subtitle;
+}
+
+function getPointAttractions(point: TripMapPoint): string {
+  const city = point.city ?? point.label;
+  const base =
+    point.kind === "hotspot"
+      ? [point.label, `${city} city walks`, `${city} food streets`]
+      : [point.label, `${city} landmarks`, `${city} local districts`];
+  return Array.from(new Set([...base, "viewpoints", "night markets"])).join(", ");
+}
+
+function getPointIntro(point: TripMapPoint): string {
+  return (
+    point.intro ??
+    `${point.label} is a strong stop for first-time visitors, with compact routes, photogenic landmarks, and easy food detours.`
+  );
+}
+
 function buildHoverCardHtml(
   point: TripMapPoint,
   addButtonId: string | null,
@@ -448,38 +472,67 @@ function buildHoverCardHtml(
     cardWidth?: number;
     imageHeight?: number;
     compact?: boolean;
+    closeButtonId?: string;
+    detailButtonId?: string;
+    summaryButtonId?: string;
   }
 ): string {
-  const cityOrCountry = point.countryLabel ?? point.subtitle;
-  const intro =
-    point.intro ??
-    `${point.subtitle}。推荐先锁定核心景点，再按地理位置安排同一天路线，减少来回折返。`;
+  const cityOrCountry = getPointDisplayLocation(point);
+  const attractions = getPointAttractions(point);
   const duration = point.recommendedDays ?? "2-4 days";
   const imageUrl = resolveMarkerImageUrl(point.imageSrc);
-  const cardWidth = options?.cardWidth ?? 300;
-  const imageHeight = options?.imageHeight ?? 170;
+  const cardWidth = options?.cardWidth ?? 420;
+  const imageHeight = options?.imageHeight ?? 260;
   const compact = options?.compact ?? false;
-  const titleSize = compact ? 18 : 20;
-  const bodySize = compact ? 12 : 13;
-  const padding = compact ? 12 : 14;
+  const titleSize = compact ? 22 : 26;
+  const bodySize = compact ? 15 : 17;
+  const padding = compact ? 18 : 24;
+  const closeButtonId = options?.closeButtonId;
+  const detailButtonId = options?.detailButtonId;
+  const summaryButtonId = options?.summaryButtonId;
+  const introLineHeight = compact ? 24 : 28;
+  const introHeight = introLineHeight * 2;
 
   return `
-<div style="width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
-  <div style="border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.16);background:#fff;">
-    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:${imageHeight}px;object-fit:cover;" />
-    <div style="padding:${Math.round(padding * 0.85)}px ${padding}px ${padding}px;">
-      <div style="font-size:${titleSize}px;font-weight:700;line-height:1.15;">${escapeHtml(point.label)}</div>
-      <div style="margin-top:4px;font-size:${bodySize}px;color:#475569;">${escapeHtml(point.localName ?? point.subtitle)}</div>
-      <div style="margin-top:10px;border-radius:10px;background:#eff6ff;padding:8px 10px;font-size:${bodySize}px;line-height:1.4;color:#1e3a8a;">
-        ${escapeHtml(intro)}
+<div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:none;">
+  <div style="box-sizing:border-box;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 14px 34px rgba(15,23,42,.2);background:#fff;pointer-events:none;">
+    <div style="position:relative;height:${imageHeight}px;background:#e2e8f0;">
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:100%;object-fit:cover;" />
+      <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
+      ${
+        closeButtonId
+          ? `<button id="${closeButtonId}" type="button" aria-label="Close preview" style="pointer-events:auto;position:absolute;right:14px;top:14px;height:36px;width:36px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#0f172a;font-size:24px;line-height:28px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.16);">×</button>`
+          : ""
+      }
+      ${
+        detailButtonId
+          ? `<button id="${detailButtonId}" type="button" aria-label="Open details" style="pointer-events:auto;position:absolute;right:18px;top:50%;height:44px;width:44px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:36px;line-height:32px;cursor:pointer;padding:0;box-shadow:0 10px 24px rgba(15,23,42,.2);">›</button>`
+          : ""
+      }
+      <div style="position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:center;gap:7px;">
+        ${Array.from({ length: 9 })
+          .map((_, index) => `<span style="height:7px;width:7px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`)
+          .join("")}
       </div>
-      <div style="margin-top:10px;font-size:${bodySize}px;color:#334155;">
-        <span style="font-weight:600;">${escapeHtml(cityOrCountry)}</span> · ${escapeHtml(duration)}
+    </div>
+    <div style="box-sizing:border-box;margin-top:-18px;position:relative;border-radius:16px 16px 0 0;background:#fff;padding:${padding}px ${padding}px ${padding + 2}px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:${titleSize}px;font-weight:800;line-height:1.1;color:#020617;">
+        <span>${escapeHtml(point.label)}</span>
+        <span style="border-radius:7px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 17 : 20}px;font-weight:800;padding:2px 6px;">🔥 10</span>
+      </div>
+      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:14px;width:100%;border:0;border-radius:8px;background:#f1f0ff;padding:8px 10px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 16}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+        <span style="color:#0f3bae;">Popular Attractions:</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
+      </button>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        <span style="font-size:${compact ? 18 : 21}px;color:#475569;">⌖</span>
+        <span>${escapeHtml(cityOrCountry)}</span>
+        <span style="height:18px;width:1px;background:#cbd5e1;"></span>
+        <span>${escapeHtml(duration)} recommended</span>
       </div>
       ${
         addButtonId
-          ? `<div style="margin-top:12px;">
-        <button id="${addButtonId}" type="button" style="width:100%;border:0;border-radius:10px;padding:${compact ? 9 : 10}px 12px;background:#2563eb;color:#fff;font-size:${compact ? 13 : 14}px;font-weight:700;cursor:pointer;">
+          ? `<div style="margin-top:22px;">
+        <button id="${addButtonId}" type="button" style="pointer-events:auto;width:100%;border:0;border-radius:8px;padding:${compact ? 13 : 16}px 12px;background:#3464f4;color:#fff;font-size:${compact ? 18 : 21}px;font-weight:500;cursor:pointer;">
           ${escapeHtml(buttonLabel)}
         </button>
       </div>`
@@ -570,8 +623,11 @@ export function TripRouteMap({
   const [layoutVersion, setLayoutVersion] = useState(0);
   const fittedOnceRef = useRef(false);
   const fitKeyRef = useRef<string>("");
+  const onAddDestinationRef = useRef(onAddDestination);
+  const onPointSelectRef = useRef(onPointSelect);
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [detailPointId, setDetailPointId] = useState<string | null>(null);
 
   const pointKey = useMemo(
     () => points.map((point) => `${point.id}:${point.lat}:${point.lng}`).join("|"),
@@ -582,6 +638,26 @@ export function TripRouteMap({
     () => routeCoordinates.map(([lat, lng]) => `${lat},${lng}`).join("|"),
     [routeCoordinates]
   );
+
+  const detailPoint = useMemo(
+    () => points.find((point) => point.id === detailPointId) ?? null,
+    [detailPointId, points]
+  );
+
+  useEffect(() => {
+    onAddDestinationRef.current = onAddDestination;
+  }, [onAddDestination]);
+
+  useEffect(() => {
+    onPointSelectRef.current = onPointSelect;
+  }, [onPointSelect]);
+
+  useEffect(() => {
+    if (!detailPointId) return;
+    if (!points.some((point) => point.id === detailPointId)) {
+      setDetailPointId(null);
+    }
+  }, [detailPointId, points]);
 
   useEffect(() => {
     let disposed = false;
@@ -732,6 +808,9 @@ export function TripRouteMap({
 
       const openPreview = () => {
         const buttonId = `trip-map-add-${sanitizeDomId(point.id)}`;
+        const closeButtonId = `trip-map-close-${sanitizeDomId(point.id)}`;
+        const detailButtonId = `trip-map-detail-${sanitizeDomId(point.id)}`;
+        const summaryButtonId = `trip-map-summary-${sanitizeDomId(point.id)}`;
         const cityForPlan = point.localName ?? point.label;
         const currentWidth = containerRef.current?.clientWidth ?? mapWidth;
         const currentHeight = containerRef.current?.clientHeight ?? mapHeight;
@@ -749,9 +828,14 @@ export function TripRouteMap({
           currentHeight
         );
         const compact = currentWidth < 980 || currentHeight < 680;
-        const cardWidth = clamp(compact ? 308 : 344, 260, Math.max(260, currentWidth - 56));
-        const imageHeight = compact ? 164 : 188;
-        const estimatedCardHeight = imageHeight + (compact ? 220 : 244);
+        const cardWidth = clamp(
+          compact ? 340 : 420,
+          320,
+          Math.max(320, currentWidth - 56)
+        );
+        const previewWidth = cardWidth;
+        const imageHeight = compact ? 240 : 310;
+        const estimatedCardHeight = imageHeight + (compact ? 260 : 300);
 
         let offsetX = 0;
         if (pixelPoint.x < currentWidth * 0.45) {
@@ -760,11 +844,14 @@ export function TripRouteMap({
           offsetX = -Math.round(cardWidth * 0.2);
         }
 
-        let offsetY = pixelPoint.y < estimatedCardHeight + 28 ? Math.round(estimatedCardHeight * 0.54) : -12;
+        let offsetY =
+          pixelPoint.y < estimatedCardHeight + 28
+            ? Math.round(estimatedCardHeight * 0.72)
+            : -12;
 
         const safeMargin = 12;
-        const predictedLeft = pixelPoint.x - cardWidth / 2 + offsetX;
-        const predictedRight = predictedLeft + cardWidth;
+        const predictedLeft = pixelPoint.x - previewWidth / 2 + offsetX;
+        const predictedRight = predictedLeft + previewWidth;
         const predictedTop = pixelPoint.y - estimatedCardHeight + offsetY;
         const predictedBottom = predictedTop + estimatedCardHeight;
 
@@ -781,19 +868,22 @@ export function TripRouteMap({
         }
 
         hoverInfo.setOptions({
-          disableAutoPan: false,
-          maxWidth: cardWidth,
+          disableAutoPan: true,
+          maxWidth: previewWidth,
           pixelOffset: new maps.Size(offsetX, offsetY),
         });
         hoverInfo.setContent(
           buildHoverCardHtml(
             point,
-            onAddDestination ? buttonId : null,
+            onAddDestinationRef.current ? buttonId : null,
             `加入我的计划：${cityForPlan}`,
             {
               cardWidth,
               imageHeight,
               compact,
+              closeButtonId,
+              detailButtonId,
+              summaryButtonId,
             }
           )
         );
@@ -803,8 +893,113 @@ export function TripRouteMap({
           shouldFocus: false,
         });
 
-        if (onAddDestination) {
-          maps.event.addListenerOnce(hoverInfo as unknown, "domready", () => {
+        maps.event.addListenerOnce(hoverInfo as unknown, "domready", () => {
+          const polishPreviewChrome = () => {
+            const mapElement = containerRef.current;
+            const infoElement = mapElement?.querySelector<HTMLElement>(
+              ".gm-style-iw.gm-style-iw-c"
+            );
+            if (!infoElement) return;
+
+            infoElement.style.background = "transparent";
+            infoElement.style.boxShadow = "none";
+            infoElement.style.borderRadius = "12px";
+            infoElement.style.overflow = "visible";
+            infoElement.style.padding = "0";
+            infoElement.style.maxWidth = `${previewWidth}px`;
+            infoElement.style.pointerEvents = "none";
+            let chromeParent = infoElement.parentElement;
+            for (let level = 0; chromeParent && level < 3; level += 1) {
+              chromeParent.style.pointerEvents = "none";
+              chromeParent = chromeParent.parentElement;
+            }
+
+            const contentElement =
+              infoElement.querySelector<HTMLElement>(".gm-style-iw-d");
+            if (contentElement) {
+              contentElement.style.overflow = "visible";
+              contentElement.style.maxHeight = "none";
+              contentElement.style.width = `${cardWidth}px`;
+              contentElement.style.pointerEvents = "none";
+            }
+
+            const defaultCloseButton =
+              infoElement.querySelector<HTMLElement>(".gm-ui-hover-effect");
+            if (defaultCloseButton) {
+              defaultCloseButton.style.display = "none";
+            }
+          };
+
+          const keepPreviewInsideMap = () => {
+            polishPreviewChrome();
+
+            const mapElement = containerRef.current;
+            const infoElement = mapElement?.querySelector<HTMLElement>(
+              ".gm-style-iw.gm-style-iw-c"
+            );
+            if (!mapElement || !infoElement) return;
+
+            const mapRect = mapElement.getBoundingClientRect();
+            const infoRect = infoElement.getBoundingClientRect();
+            const margin = 8;
+            let nextOffsetX = offsetX;
+            let nextOffsetY = offsetY;
+
+            if (infoRect.left < mapRect.left + margin) {
+              nextOffsetX += Math.round(mapRect.left + margin - infoRect.left);
+            } else if (infoRect.right > mapRect.right - margin) {
+              nextOffsetX -= Math.round(infoRect.right - (mapRect.right - margin));
+            }
+
+            if (infoRect.top < mapRect.top + margin) {
+              nextOffsetY += Math.round(mapRect.top + margin - infoRect.top);
+            } else if (infoRect.bottom > mapRect.bottom - margin) {
+              nextOffsetY -= Math.round(infoRect.bottom - (mapRect.bottom - margin));
+            }
+
+            if (nextOffsetX !== offsetX || nextOffsetY !== offsetY) {
+              offsetX = nextOffsetX;
+              offsetY = nextOffsetY;
+              hoverInfo.setOptions({
+                disableAutoPan: true,
+                maxWidth: previewWidth,
+                pixelOffset: new maps.Size(offsetX, offsetY),
+              });
+              window.requestAnimationFrame(polishPreviewChrome);
+            }
+          };
+
+          window.requestAnimationFrame(() => {
+            keepPreviewInsideMap();
+            window.requestAnimationFrame(keepPreviewInsideMap);
+          });
+
+          const closeButton = document.getElementById(closeButtonId);
+          closeButton?.addEventListener(
+            "click",
+            (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              hoverInfo.close();
+            },
+            { once: true }
+          );
+
+          const openDetail = (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setDetailPointId(point.id);
+            hoverInfo.close();
+          };
+          document
+            .getElementById(detailButtonId)
+            ?.addEventListener("click", openDetail, { once: true });
+          document
+            .getElementById(summaryButtonId)
+            ?.addEventListener("click", openDetail, { once: true });
+
+          const addDestination = onAddDestinationRef.current;
+          if (addDestination) {
             const button = document.getElementById(buttonId);
             if (!button) return;
             button.addEventListener(
@@ -812,18 +1007,18 @@ export function TripRouteMap({
               (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onAddDestination(point);
+                addDestination(point);
                 hoverInfo.close();
               },
               { once: true }
             );
-          });
-        }
+          }
+        });
       };
 
       const listeners = [
         marker.addListener("click", () => {
-          onPointSelect?.(point.id);
+          onPointSelectRef.current?.(point.id);
           openPreview();
         }),
         marker.addListener("mouseover", openPreview),
@@ -877,16 +1072,150 @@ export function TripRouteMap({
     activePointId,
     isReady,
     layoutVersion,
-    onPointSelect,
     pointKey,
     points,
     routeCoordinates,
     routeKey,
   ]);
 
+  const detailSections = useMemo(() => {
+    if (!detailPoint) return [];
+    const city = detailPoint.city ?? detailPoint.label;
+
+    return [
+      {
+        id: "attractions",
+        title: "Popular Attractions",
+        icon: "⌁",
+        body: getPointAttractions(detailPoint),
+      },
+      {
+        id: "food",
+        title: "Must-try food",
+        icon: "♨",
+        body: `${city} signature dishes, street food lanes, local cafes`,
+      },
+      {
+        id: "stay",
+        title: "Popular Accommodation Areas",
+        icon: "▥",
+        body: `Near central stations, landmark districts, waterfront areas`,
+      },
+      {
+        id: "nightlife",
+        title: "Nightlife",
+        icon: "⌁",
+        body: `${city} night markets, skyline viewpoints, riverside walks`,
+      },
+    ];
+  }, [detailPoint]);
+
   return (
     <div className={`relative ${className ?? ""}`} data-testid="trip-route-map">
       <div className="h-full w-full" ref={containerRef} />
+      {detailPoint ? (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 z-30 flex w-full justify-end bg-transparent"
+          data-testid="trip-map-detail-panel"
+        >
+          <div className="pointer-events-auto flex h-full w-full max-w-[760px] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)]">
+            <div className="flex items-center justify-end px-5 py-5">
+              <button
+                aria-label="Close destination details"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-4xl leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                onClick={() => setDetailPointId(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 text-3xl font-bold text-slate-950">
+                    <span>{detailPoint.label}</span>
+                    <span className="text-slate-300">›</span>
+                  </div>
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-rose-50 px-2 py-1 text-base font-semibold text-[#fb4d61]">
+                    <span>🔥 10</span>
+                    <span className="h-4 w-px bg-rose-200" />
+                    <span>Ranked #1 of Cities in {getPointDisplayLocation(detailPoint)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-xl text-slate-600">
+                  <span className="text-2xl">⌖</span>
+                  <span>{getPointDisplayLocation(detailPoint)}</span>
+                  <span className="h-5 w-px bg-slate-300" />
+                  <span>{detailPoint.recommendedDays ?? "3-5 days"} recommended</span>
+                </div>
+
+                <p className="text-lg leading-relaxed text-slate-600">
+                  {getPointIntro(detailPoint)}
+                </p>
+
+                <div className="flex gap-3 overflow-hidden py-2">
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      aria-label={`${detailPoint.label} preview ${index + 1}`}
+                      className="h-36 min-w-[180px] flex-1 rounded-md bg-cover bg-center"
+                      key={`${detailPoint.id}-preview-${index}`}
+                      role="img"
+                      style={{ backgroundImage: `url(${detailPoint.imageSrc})` }}
+                    />
+                  ))}
+                  <button
+                    aria-label="Next destination image"
+                    className="mr-1 flex h-14 w-14 shrink-0 self-center rounded-full bg-white text-4xl text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
+                    type="button"
+                  >
+                    <span className="m-auto">›</span>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {detailSections.map((section) => (
+                    <button
+                      className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 px-5 py-5 text-left transition-colors hover:from-blue-50 hover:to-blue-100/70"
+                      key={section.id}
+                      type="button"
+                    >
+                      <span className="text-2xl text-slate-600">{section.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xl font-bold text-slate-950">
+                          {section.title} ›
+                        </span>
+                        <span className="mt-4 line-clamp-2 block text-lg leading-relaxed text-slate-900">
+                          {section.body}
+                        </span>
+                      </span>
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-2xl text-blue-600">
+                        ●
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {onAddDestination ? (
+              <div className="border-t border-slate-100 bg-white/95 px-8 py-6">
+                <button
+                  className="ml-auto block w-full max-w-xs rounded-lg bg-[#3464f4] px-6 py-4 text-xl font-medium text-white transition-colors hover:bg-[#2554e8]"
+                  onClick={() => {
+                    onAddDestination(detailPoint);
+                    setDetailPointId(null);
+                  }}
+                  type="button"
+                >
+                  Add to Destinations
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {loadError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-100/85 p-4 text-center text-sm text-slate-700">
           地图加载失败：{loadError}
