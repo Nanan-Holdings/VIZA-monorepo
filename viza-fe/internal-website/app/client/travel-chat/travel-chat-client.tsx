@@ -11,13 +11,19 @@ import {
 } from "react";
 import {
   MapPin,
+  MessageSquare,
+  MessageSquarePlus,
+  PanelLeft,
   Route,
   Sparkles,
+  X,
 } from "lucide-react";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
+import { TravelItineraryExperience } from "@/components/client/travel/travel-itinerary-experience";
 import { TravelItineraryPanel } from "@/components/client/travel/travel-itinerary-panel";
+import { getTravelItineraryFromMessages } from "@/components/client/travel/travel-itinerary-data";
 import { TravelPlannerForm } from "@/components/client/travel/travel-planner-form";
 import {
   TripRouteMap,
@@ -91,6 +97,13 @@ type ScrollThumbState = {
   visible: boolean;
 };
 
+type TravelChatSession = {
+  id: string;
+  title: string;
+  messages: TravelChatMessage[];
+  updatedAt: string;
+};
+
 const INITIAL_ASSISTANT_TEXT =
   "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、旅行天数、预算和偏好，也可以先让我给你一些目的地灵感。";
 
@@ -99,6 +112,8 @@ const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "想去日本", value: "我想去日本" },
   { label: "想去欧洲", value: "我想去欧洲" },
 ];
+
+const EMPTY_TRAVEL_MESSAGES: TravelChatMessage[] = [];
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 
@@ -187,6 +202,7 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   dubai: [25.2048, 55.2708],
   seoul: [37.5665, 126.978],
   osaka: [34.6937, 135.5023],
+  kyoto: [35.0116, 135.7681],
   bangkok: [13.7563, 100.5018],
   hongkong: [22.3193, 114.1694],
 };
@@ -312,6 +328,18 @@ const CITY_CONTEXT: Record<
     days: "3-5 days",
     intro: "东京融合了潮流街区、传统神社与深夜美食，非常适合第一次日本自由行。",
   },
+  kyoto: {
+    countryEn: "Japan",
+    countryZh: "日本",
+    days: "2-4 days",
+    intro: "京都适合寺社巡礼、传统街区散步和慢节奏文化体验。",
+  },
+  osaka: {
+    countryEn: "Japan",
+    countryZh: "日本",
+    days: "2-4 days",
+    intro: "大阪美食密集、交通方便，适合把购物、夜景和关西短途串联起来。",
+  },
   singapore: {
     countryEn: "Singapore",
     countryZh: "新加坡",
@@ -354,6 +382,10 @@ function createMessageId(): string {
   return `travel-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function createSessionId(): string {
+  return `travel-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createInitialTravelMessages(): TravelChatMessage[] {
   return [
     {
@@ -365,6 +397,15 @@ function createInitialTravelMessages(): TravelChatMessage[] {
       ],
     },
   ];
+}
+
+function createTravelChatSession(): TravelChatSession {
+  return {
+    id: createSessionId(),
+    title: "新的旅行对话",
+    messages: createInitialTravelMessages(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function getTravelChatArchiveKey(applicationId?: string | null): string {
@@ -444,34 +485,80 @@ function isTravelChatMessage(value: unknown): value is TravelChatMessage {
   );
 }
 
-function readArchivedTravelMessages(storageKey: string): TravelChatMessage[] {
+function isTravelChatSession(value: unknown): value is TravelChatSession {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.updatedAt === "string" &&
+    Array.isArray(value.messages) &&
+    value.messages.every((message) => isTravelChatMessage(message))
+  );
+}
+
+function createSessionTitle(messages: TravelChatMessage[]): string {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  const visibleText = firstUserMessage
+    ? getVisibleMessageText(firstUserMessage).replace(/\s+/g, " ").trim()
+    : "";
+
+  if (!visibleText) return "新的旅行对话";
+  return visibleText.length > 22 ? `${visibleText.slice(0, 22)}...` : visibleText;
+}
+
+function normalizeTravelChatSession(session: TravelChatSession): TravelChatSession {
+  return {
+    ...session,
+    title: createSessionTitle(session.messages),
+    updatedAt: session.updatedAt || new Date().toISOString(),
+  };
+}
+
+function readArchivedTravelSessions(storageKey: string): TravelChatSession[] {
   if (typeof window === "undefined") {
-    return createInitialTravelMessages();
+    return [createTravelChatSession()];
   }
 
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return createInitialTravelMessages();
+    if (!raw) return [createTravelChatSession()];
 
     const parsed = JSON.parse(raw) as unknown;
     if (!isRecord(parsed) || parsed.version !== TRAVEL_CHAT_ARCHIVE_VERSION) {
-      return createInitialTravelMessages();
+      return [createTravelChatSession()];
     }
 
-    if (!Array.isArray(parsed.messages)) {
-      return createInitialTravelMessages();
+    if (Array.isArray(parsed.sessions)) {
+      const sessions = parsed.sessions
+        .filter(isTravelChatSession)
+        .map(normalizeTravelChatSession);
+      return sessions.length > 0 ? sessions : [createTravelChatSession()];
     }
 
-    const messages = parsed.messages.filter(isTravelChatMessage);
-    return messages.length > 0 ? messages : createInitialTravelMessages();
+    if (Array.isArray(parsed.messages)) {
+      const messages = parsed.messages.filter(isTravelChatMessage);
+      return [
+        normalizeTravelChatSession({
+          id: createSessionId(),
+          title: "新的旅行对话",
+          messages: messages.length > 0 ? messages : createInitialTravelMessages(),
+          updatedAt:
+            typeof parsed.updatedAt === "string"
+              ? parsed.updatedAt
+              : new Date().toISOString(),
+        }),
+      ];
+    }
+
+    return [createTravelChatSession()];
   } catch {
-    return createInitialTravelMessages();
+    return [createTravelChatSession()];
   }
 }
 
-function writeArchivedTravelMessages(
+function writeArchivedTravelSessions(
   storageKey: string,
-  messages: TravelChatMessage[]
+  sessions: TravelChatSession[]
 ): void {
   if (typeof window === "undefined") return;
 
@@ -481,7 +568,7 @@ function writeArchivedTravelMessages(
       JSON.stringify({
         version: TRAVEL_CHAT_ARCHIVE_VERSION,
         updatedAt: new Date().toISOString(),
-        messages,
+        sessions,
       })
     );
   } catch {
@@ -501,6 +588,23 @@ function getVisibleMessageText(message: TravelChatMessage): string {
   return getMessageText(message)
     .replace(/<!--__TRAVEL_FORM__:[\s\S]*?-->/g, "")
     .trim();
+}
+
+function isDestinationEditRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return false;
+
+  const asksToChange =
+    /(改|修改|换|更换|调整|重选|重新|change|edit|switch|replace|update)/i.test(
+      normalized
+    );
+  if (!asksToChange) return false;
+
+  return (
+    /(城市|国家|目的地|行程|路线|city|cities|country|destination|destinations|route|trip)/i.test(
+      normalized
+    ) || normalized.length <= 24
+  );
 }
 
 function toChatLikeMessages(messages: TravelChatMessage[]): ChatLikeMessage[] {
@@ -896,12 +1000,14 @@ export function TravelChatClient({
     () => getTravelChatArchiveKey(applicationId),
     [applicationId]
   );
-  const [messages, setMessages] = useState<TravelChatMessage[]>(() =>
-    createInitialTravelMessages()
-  );
+  const [sessions, setSessions] = useState<TravelChatSession[]>(() => [
+    createTravelChatSession(),
+  ]);
+  const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
   const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
+  const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
@@ -912,11 +1018,70 @@ export function TravelChatClient({
     visible: false,
   });
 
+  const activeSession = useMemo(
+    () =>
+      sessions.find((session) => session.id === activeSessionId) ?? sessions[0],
+    [activeSessionId, sessions]
+  );
+  const messages = activeSession?.messages ?? EMPTY_TRAVEL_MESSAGES;
+
+  const setSessionMessages = useCallback(
+    (
+      sessionId: string,
+      next:
+        | TravelChatMessage[]
+        | ((current: TravelChatMessage[]) => TravelChatMessage[])
+    ) => {
+      setSessions((currentSessions) =>
+        currentSessions.map((session) => {
+          if (session.id !== sessionId) return session;
+          const nextMessages =
+            typeof next === "function" ? next(session.messages) : next;
+          return normalizeTravelChatSession({
+            ...session,
+            messages: nextMessages,
+            updatedAt: new Date().toISOString(),
+          });
+        })
+      );
+    },
+    []
+  );
+
   const travelState = useMemo(
     () => buildTravelStateFromMessages(toChatLikeMessages(messages)),
     [messages]
   );
+  const latestItinerary = useMemo(
+    () => getTravelItineraryFromMessages(messages),
+    [messages]
+  );
   const missingField = useMemo(() => nextMissingField(travelState), [travelState]);
+  const latestVisibleUserText = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role === "user") {
+        return getVisibleMessageText(message);
+      }
+    }
+
+    return "";
+  }, [messages]);
+  const destinationSelectionLocked = useMemo(() => {
+    const hasCountry = travelState.countries.length > 0 || Boolean(travelState.country);
+    const hasCities = travelState.cities.length > 0;
+    const choosingDestination =
+      missingField === "country" || missingField === "cities";
+
+    return hasCountry && hasCities && !choosingDestination;
+  }, [
+    missingField,
+    travelState.cities.length,
+    travelState.countries.length,
+    travelState.country,
+  ]);
+  const canAddDestinationFromMap =
+    !destinationSelectionLocked || isDestinationEditRequest(latestVisibleUserText);
 
   const stageIndex = useMemo(() => {
     if (!missingField) return TRAVEL_STAGE_ORDER.length;
@@ -1149,6 +1314,7 @@ export function TravelChatClient({
     () => baseMapTargets.filter((target) => target.kind === "hotel"),
     [baseMapTargets]
   );
+  const hasFinalItinerary = latestItinerary.length > 0;
 
   const updateConversationScrollThumb = useCallback(() => {
     const scrollElement = messageScrollRef.current;
@@ -1274,7 +1440,9 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    setMessages(readArchivedTravelMessages(archiveKey));
+    const nextSessions = readArchivedTravelSessions(archiveKey);
+    setSessions(nextSessions);
+    setActiveSessionId(nextSessions[0].id);
     setActiveMapTargetId("");
     setArchiveLoadedKey(archiveKey);
   }, [archiveKey]);
@@ -1282,8 +1450,8 @@ export function TravelChatClient({
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
 
-    writeArchivedTravelMessages(archiveKey, messages);
-  }, [archiveKey, archiveLoadedKey, messages]);
+    writeArchivedTravelSessions(archiveKey, sessions);
+  }, [archiveKey, archiveLoadedKey, sessions]);
 
   useEffect(() => {
     const scrollElement = messageScrollRef.current;
@@ -1325,7 +1493,10 @@ export function TravelChatClient({
     }
   }, [activeMapTargetId, allMapTargets]);
 
-  const respondToConversation = useCallback(async (nextMessages: TravelChatMessage[]) => {
+  const respondToConversation = useCallback(async (
+    nextMessages: TravelChatMessage[],
+    sessionId: string
+  ) => {
     setStatus("submitted");
 
     try {
@@ -1340,7 +1511,7 @@ export function TravelChatClient({
         if (isStructuredTravelFormText(latestUserText)) {
           const field = nextMissingField(state) ?? "country";
           const followUp = getFieldQuestionForState(state, field);
-          setMessages((prev) => [
+          setSessionMessages(sessionId, (prev) => [
             ...prev,
             {
               id: createMessageId(),
@@ -1372,7 +1543,7 @@ export function TravelChatClient({
         }
 
         const result = (await response.json()) as TravelAgentChatResponse;
-        setMessages((prev) => [
+        setSessionMessages(sessionId, (prev) => [
           ...prev,
           createAssistantMessageFromAgentResponse(result),
         ]);
@@ -1403,7 +1574,7 @@ export function TravelChatClient({
         `### 路线节点\n${formatSelectedFlights(payload.selected_flights)}\n\n` +
         `### 已选酒店\n${formatSelectedHotels(payload.selected_hotels)}`;
 
-      setMessages((prev) => [
+      setSessionMessages(sessionId, (prev) => [
         ...prev,
         {
           id: createMessageId(),
@@ -1413,7 +1584,7 @@ export function TravelChatClient({
       ]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "未知错误";
-      setMessages((prev) => [
+      setSessionMessages(sessionId, (prev) => [
         ...prev,
         {
           id: createMessageId(),
@@ -1431,11 +1602,12 @@ export function TravelChatClient({
     } finally {
       setStatus("ready");
     }
-  }, []);
+  }, [setSessionMessages]);
 
   const sendMessage = useCallback(
     (message: TravelChatInputMessage) => {
       if (status !== "ready") return;
+      const sessionId = activeSessionId;
       const userMessage: TravelChatMessage = {
         id: createMessageId(),
         role: message.role,
@@ -1443,10 +1615,10 @@ export function TravelChatClient({
       };
 
       const nextMessages = [...messages, userMessage];
-      setMessages(nextMessages);
-      void respondToConversation(nextMessages);
+      setSessionMessages(sessionId, nextMessages);
+      void respondToConversation(nextMessages, sessionId);
     },
-    [messages, respondToConversation, status]
+    [activeSessionId, messages, respondToConversation, setSessionMessages, status]
   );
 
   const sendFreeTextMessage = useCallback(
@@ -1491,6 +1663,8 @@ export function TravelChatClient({
 
   const handleAddDestinationFromMap = useCallback(
     (point: TripMapPoint) => {
+      if (!canAddDestinationFromMap) return;
+
       const targetCity = (point.city ?? point.label).trim();
       if (!targetCity) return;
 
@@ -1554,6 +1728,7 @@ export function TravelChatClient({
       });
     },
     [
+      canAddDestinationFromMap,
       missingField,
       sendMessage,
       travelState.cities,
@@ -1570,6 +1745,23 @@ export function TravelChatClient({
     setActiveMapTargetId(id);
   }, []);
 
+  const handleNewSession = useCallback(() => {
+    if (status !== "ready") return;
+    const nextSession = createTravelChatSession();
+    setSessions((currentSessions) => [nextSession, ...currentSessions]);
+    setActiveSessionId(nextSession.id);
+    setActiveMapTargetId("");
+  }, [status]);
+
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      if (status !== "ready" || sessionId === activeSessionId) return;
+      setActiveSessionId(sessionId);
+      setActiveMapTargetId("");
+    },
+    [activeSessionId, status]
+  );
+
   return (
     <div
       className={`relative mx-auto flex w-full max-w-[2300px] flex-col overflow-hidden px-3 pb-3 pt-2 md:px-5 ${
@@ -1577,7 +1769,113 @@ export function TravelChatClient({
       }`}
     >
       <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[0.7fr_1.3fr] 2xl:grid-cols-[0.66fr_1.34fr]">
-        <Card className="h-full min-h-0 overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="relative h-full min-h-0">
+          <Button
+            className="absolute left-3 top-3 z-30 h-8 w-8 bg-white/95 shadow-sm"
+            data-testid="travel-session-toggle"
+            onClick={() => setSessionsPanelOpen(true)}
+            size="icon"
+            title="打开对话进程"
+            type="button"
+            variant="outline"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+
+          {sessionsPanelOpen && (
+            <>
+              <button
+                aria-label="关闭对话进程"
+                className="absolute inset-0 z-30 bg-slate-950/10 backdrop-blur-[1px]"
+                data-testid="travel-session-backdrop"
+                onClick={() => setSessionsPanelOpen(false)}
+                type="button"
+              />
+              <aside
+                className="absolute inset-y-0 left-0 z-40 flex w-[320px] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_18px_60px_rgba(15,23,42,0.22)] backdrop-blur"
+                data-testid="travel-chat-session-sidebar"
+              >
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      旅行 AI
+                    </p>
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      对话进程
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      className="h-8 w-8"
+                      data-testid="travel-new-session-button"
+                      disabled={status !== "ready"}
+                      onClick={handleNewSession}
+                      size="icon"
+                      title="新建旅行对话"
+                      type="button"
+                      variant="outline"
+                    >
+                      <MessageSquarePlus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      className="h-8 w-8"
+                      data-testid="travel-session-close-button"
+                      onClick={() => setSessionsPanelOpen(false)}
+                      size="icon"
+                      title="隐藏对话进程"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+                  {sessions.map((session) => {
+                    const active = session.id === activeSessionId;
+                    const userMessageCount = session.messages.filter(
+                      (message) => message.role === "user"
+                    ).length;
+
+                    return (
+                      <button
+                        aria-current={active ? "true" : undefined}
+                        className={`flex w-full flex-col gap-1 rounded-xl border px-3 py-2 text-left transition-colors ${
+                          active
+                            ? "border-[#03346E] bg-[#03346E] text-white shadow-sm"
+                            : "border-transparent bg-slate-50 text-slate-700 hover:border-slate-200 hover:bg-white"
+                        }`}
+                        data-testid="travel-session-item"
+                        disabled={status !== "ready" && !active}
+                        key={session.id}
+                        onClick={() => handleSelectSession(session.id)}
+                        type="button"
+                      >
+                        <span className="flex items-center gap-2">
+                          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate text-sm font-semibold">
+                            {session.title}
+                          </span>
+                        </span>
+                        <span
+                          className={`text-xs ${
+                            active ? "text-white/70" : "text-slate-500"
+                          }`}
+                        >
+                          {userMessageCount > 0
+                            ? `${userMessageCount} 条用户消息`
+                            : "还没开始"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
+            </>
+          )}
+
+          <Card className="h-full min-h-0 overflow-hidden border-slate-200/80 bg-white/95 shadow-[0_14px_45px_rgba(15,23,42,0.08)] backdrop-blur">
           <CardContent className="h-full p-0">
             <div className="flex h-full min-h-0 flex-col bg-white">
               <div
@@ -1588,10 +1886,12 @@ export function TravelChatClient({
                   <div className="min-w-0">
                     <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                       <Sparkles className="h-3 w-3 text-blue-600" />
-                      地图焦点
+                      {hasFinalItinerary ? "行程焦点" : "地图焦点"}
                     </p>
                     <p className="truncate text-sm font-semibold text-slate-900">
-                      {formatMapTargetDisplayName(activeMapTarget)}
+                      {hasFinalItinerary
+                        ? `${latestItinerary.length}天${orderedCities.join("、") || "定制"}行程`
+                        : formatMapTargetDisplayName(activeMapTarget)}
                     </p>
                   </div>
                   <Badge className="shrink-0 bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
@@ -1843,7 +2143,7 @@ export function TravelChatClient({
               </div>
               </div>
                 <div
-                  className="relative shrink-0 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
+                  className="relative shrink-0 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
                   data-testid="travel-free-chat-form"
                 >
                   <ScrollToBottomFab
@@ -1853,25 +2153,44 @@ export function TravelChatClient({
                     show={showScrollToBottom}
                   />
                   <ChatInput
+                    buttonClassName="h-9 w-9"
+                    className="mx-auto w-full max-w-[620px] gap-2 rounded-2xl px-4 pb-3 pt-1"
                     disabled={status !== "ready"}
                     isConnecting={status === "submitted" || status === "streaming"}
                     onSend={sendFreeTextMessage}
+                    placeholder="问问旅行计划..."
+                    textareaClassName="pb-1 pt-2 text-base leading-6"
                   />
                 </div>
               </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
 
         <aside className="h-full min-h-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-[#08213b] shadow-[0_14px_45px_rgba(15,23,42,0.12)]">
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-50">
-            <TripRouteMap
-              activePointId={activeMapTarget?.kind === "route" ? null : activeMapTarget?.id}
-              className="h-full w-full"
-              onAddDestination={handleAddDestinationFromMap}
-              onPointSelect={handleMapPointSelect}
-              points={mapPoints}
-              routeCoordinates={displayRouteCoordinates}
-            />
+            {hasFinalItinerary ? (
+              <TravelItineraryExperience
+                activePointId={
+                  activeMapTarget?.kind === "route" ? null : activeMapTarget?.id
+                }
+                itinerary={latestItinerary}
+                mapPoints={mapPoints}
+                onPointSelect={handleMapPointSelect}
+                orderedCities={orderedCities}
+                routeCoordinates={displayRouteCoordinates}
+                travelState={travelState}
+              />
+            ) : (
+              <TripRouteMap
+                activePointId={activeMapTarget?.kind === "route" ? null : activeMapTarget?.id}
+                className="h-full w-full"
+                onAddDestination={handleAddDestinationFromMap}
+                onPointSelect={handleMapPointSelect}
+                points={mapPoints}
+                routeCoordinates={displayRouteCoordinates}
+              />
+            )}
           </div>
         </aside>
       </div>

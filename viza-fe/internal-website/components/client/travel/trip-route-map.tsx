@@ -23,6 +23,7 @@ type TripRouteMapProps = {
   activePointId?: string | null;
   onPointSelect?: (id: string) => void;
   onAddDestination?: (point: TripMapPoint) => void;
+  animateRoute?: boolean;
   className?: string;
 };
 
@@ -64,11 +65,6 @@ type GoogleMapInstance = {
   getCenter: () => { lat: () => number; lng: () => number } | null;
   getZoom: () => number | undefined;
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
-};
-
-type GooglePolylineInstance = {
-  setMap: (map: GoogleMapInstance | null) => void;
-  setPath: (path: GoogleLatLngLiteral[]) => void;
 };
 
 type GoogleInfoWindowInstance = {
@@ -123,14 +119,6 @@ type GoogleMapsNamespace = {
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
-  Polyline: new (options: {
-    path: GoogleLatLngLiteral[];
-    geodesic?: boolean;
-    strokeColor?: string;
-    strokeOpacity?: number;
-    strokeWeight?: number;
-    map?: GoogleMapInstance | null;
-  }) => GooglePolylineInstance;
   InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
   Size: new (width: number, height: number) => unknown;
@@ -188,6 +176,8 @@ const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
   beijing: ["/globe/beijing.jpg", "/globe/tokyo.jpg", "/globe/singapore.jpg"],
   pisa: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
   rome: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
+  kyoto: ["/globe/tokyo.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
+  osaka: ["/globe/tokyo.jpg", "/globe/singapore.jpg", "/globe/sydney.jpg"],
   dubai: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/egypt.jpg"],
   bali: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/sydney.jpg"],
   egypt: ["/globe/egypt.jpg", "/globe/pisa.jpg", "/globe/sf.jpg"],
@@ -206,6 +196,8 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   beijing: "北京",
   pisa: "比萨",
   rome: "罗马",
+  kyoto: "京都",
+  osaka: "大阪",
   dubai: "迪拜",
   bali: "巴厘岛",
   egypt: "埃及",
@@ -592,7 +584,6 @@ function buildHoverCardHtml(
     cardWidth?: number;
     imageHeight?: number;
     compact?: boolean;
-    closeButtonId?: string;
     photoButtonId?: string;
     summaryButtonId?: string;
     imageElementId?: string;
@@ -612,60 +603,54 @@ function buildHoverCardHtml(
   const cardWidth = options?.cardWidth ?? 420;
   const imageHeight = options?.imageHeight ?? 260;
   const compact = options?.compact ?? false;
-  const titleSize = compact ? 22 : 26;
-  const bodySize = compact ? 15 : 17;
-  const padding = compact ? 18 : 24;
-  const closeButtonId = options?.closeButtonId;
+  const titleSize = compact ? 17 : 19;
+  const bodySize = compact ? 12 : 13;
+  const padding = compact ? 13 : 16;
   const photoButtonId = options?.photoButtonId;
   const summaryButtonId = options?.summaryButtonId;
   const imageElementId = options?.imageElementId;
   const dotIdPrefix = options?.dotIdPrefix;
-  const introLineHeight = compact ? 24 : 28;
+  const introLineHeight = compact ? 19 : 21;
   const introHeight = introLineHeight * 2;
 
   return `
-<div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:none;">
-  <div style="box-sizing:border-box;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 14px 34px rgba(15,23,42,.2);background:#fff;pointer-events:none;">
+<div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:auto;">
+  <div style="box-sizing:border-box;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 12px 28px rgba(15,23,42,.18);background:#fff;pointer-events:auto;">
     <div style="position:relative;height:${imageHeight}px;background:#e2e8f0;">
       <img ${imageElementId ? `id="${imageElementId}"` : ""} src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" style="display:block;width:100%;height:100%;object-fit:cover;" />
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
       ${
-        closeButtonId
-          ? `<button id="${closeButtonId}" type="button" aria-label="关闭预览" style="pointer-events:auto;position:absolute;right:14px;top:14px;height:36px;width:36px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#0f172a;font-size:24px;line-height:28px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.16);">×</button>`
-          : ""
-      }
-      ${
         photoButtonId
-          ? `<button id="${photoButtonId}" type="button" aria-label="切换照片" style="pointer-events:auto;position:absolute;right:18px;top:50%;height:44px;width:44px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:36px;line-height:32px;cursor:pointer;padding:0;box-shadow:0 10px 24px rgba(15,23,42,.2);">›</button>`
+          ? `<button id="${photoButtonId}" type="button" aria-label="切换照片" style="pointer-events:auto;position:absolute;right:12px;top:50%;height:34px;width:34px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:28px;line-height:26px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.18);">›</button>`
           : ""
       }
-      <div style="position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:center;gap:7px;">
+      <div style="position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:5px;">
         ${galleryImages
           .map(
             (_, index) =>
-              `<span ${dotIdPrefix ? `id="${dotIdPrefix}-${index}"` : ""} style="height:7px;width:7px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`
+              `<span ${dotIdPrefix ? `id="${dotIdPrefix}-${index}"` : ""} style="height:5px;width:5px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`
           )
           .join("")}
       </div>
     </div>
-    <div style="box-sizing:border-box;margin-top:-18px;position:relative;border-radius:16px 16px 0 0;background:#fff;padding:${padding}px ${padding}px ${padding + 2}px;">
-      <div style="display:flex;align-items:center;gap:8px;font-size:${titleSize}px;font-weight:800;line-height:1.1;color:#020617;">
+    <div style="box-sizing:border-box;margin-top:-12px;position:relative;border-radius:12px 12px 0 0;background:#fff;padding:${padding}px ${padding}px ${padding + 2}px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:${titleSize}px;font-weight:800;line-height:1.1;color:#020617;">
         <span>${escapeHtml(title)}</span>
-        <span style="border-radius:7px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 17 : 20}px;font-weight:800;padding:2px 6px;">🔥 10</span>
+        <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">🔥 10</span>
       </div>
-      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:14px;width:100%;border:0;border-radius:8px;background:#f1f0ff;padding:8px 10px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 16}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
         <span style="color:#0f3bae;">热门景点：</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
-      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        <span style="font-size:${compact ? 18 : 21}px;color:#475569;">⌖</span>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:7px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        <span style="font-size:${compact ? 14 : 16}px;color:#475569;">⌖</span>
         <span>${escapeHtml(cityOrCountry)}</span>
-        <span style="height:18px;width:1px;background:#cbd5e1;"></span>
+        <span style="height:13px;width:1px;background:#cbd5e1;"></span>
         <span>${escapeHtml(duration)} 推荐</span>
       </div>
       ${
         addButtonId
-          ? `<div style="margin-top:22px;">
-        <button id="${addButtonId}" type="button" style="pointer-events:auto;width:100%;border:0;border-radius:8px;padding:${compact ? 13 : 16}px 12px;background:#3464f4;color:#fff;font-size:${compact ? 18 : 21}px;font-weight:500;cursor:pointer;">
+          ? `<div style="margin-top:15px;">
+        <button id="${addButtonId}" type="button" style="pointer-events:auto;width:100%;border:0;border-radius:7px;padding:${compact ? 10 : 12}px 10px;background:#3464f4;color:#fff;font-size:${compact ? 14 : 16}px;font-weight:500;cursor:pointer;">
           ${escapeHtml(buttonLabel)}
         </button>
       </div>`
@@ -742,7 +727,6 @@ export function TripRouteMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
   const mapsRef = useRef<GoogleMapsNamespace | null>(null);
-  const routeRef = useRef<GooglePolylineInstance | null>(null);
   const hoverInfoRef = useRef<GoogleInfoWindowInstance | null>(null);
   const markersRef = useRef<
     Array<{
@@ -827,14 +811,6 @@ export function TripRouteMap({
           },
         });
 
-        routeRef.current = new maps.Polyline({
-          path: [],
-          geodesic: true,
-          strokeColor: "#2563eb",
-          strokeOpacity: 0.9,
-          strokeWeight: 4,
-          map,
-        });
         hoverInfoRef.current = new maps.InfoWindow({
           disableAutoPan: true,
         });
@@ -864,9 +840,12 @@ export function TripRouteMap({
           resizeObserverRef.current = observer;
         }
 
-        window.setTimeout(() => {
-          maps.event.trigger(map, "resize");
-        }, 0);
+        [0, 240].forEach((delay) => {
+          window.setTimeout(() => {
+            maps.event.trigger(map, "resize");
+            setLayoutVersion((value) => value + 1);
+          }, delay);
+        });
         setLoadError(null);
         setIsReady(true);
       } catch (error) {
@@ -889,11 +868,6 @@ export function TripRouteMap({
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
 
-      if (routeRef.current) {
-        routeRef.current.setMap(null);
-        routeRef.current = null;
-      }
-
       if (hoverInfoRef.current) {
         hoverInfoRef.current.close();
         hoverInfoRef.current = null;
@@ -908,9 +882,8 @@ export function TripRouteMap({
     if (!isReady) return;
     const map = mapRef.current;
     const maps = mapsRef.current;
-    const route = routeRef.current;
     const hoverInfo = hoverInfoRef.current;
-    if (!map || !maps || !route || !hoverInfo) return;
+    if (!map || !maps || !hoverInfo) return;
 
     markersRef.current.forEach(({ marker, listeners }) => {
       listeners.forEach((listener) => listener.remove());
@@ -943,10 +916,24 @@ export function TripRouteMap({
         marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl));
       });
 
+      let closePreviewTimer: number | null = null;
+      const clearPreviewCloseTimer = () => {
+        if (closePreviewTimer === null) return;
+        window.clearTimeout(closePreviewTimer);
+        closePreviewTimer = null;
+      };
+      const schedulePreviewClose = (delay = 140) => {
+        clearPreviewCloseTimer();
+        closePreviewTimer = window.setTimeout(() => {
+          closePreviewTimer = null;
+          hoverInfo.close();
+        }, delay);
+      };
+
       const openPreview = () => {
+        clearPreviewCloseTimer();
         const safePointId = sanitizeDomId(point.id);
         const buttonId = `trip-map-add-${safePointId}`;
-        const closeButtonId = `trip-map-close-${safePointId}`;
         const photoButtonId = `trip-map-photo-${safePointId}`;
         const summaryButtonId = `trip-map-summary-${safePointId}`;
         const imageElementId = `trip-map-image-${safePointId}`;
@@ -970,13 +957,13 @@ export function TripRouteMap({
         );
         const compact = currentWidth < 980 || currentHeight < 680;
         const cardWidth = clamp(
-          compact ? 340 : 420,
-          320,
-          Math.max(320, currentWidth - 56)
+          compact ? 238 : 294,
+          220,
+          Math.max(220, currentWidth - 56)
         );
         const previewWidth = cardWidth;
-        const imageHeight = compact ? 240 : 310;
-        const estimatedCardHeight = imageHeight + (compact ? 260 : 300);
+        const imageHeight = compact ? 168 : 217;
+        const estimatedCardHeight = imageHeight + (compact ? 190 : 220);
 
         let offsetX = 0;
         if (pixelPoint.x < currentWidth * 0.45) {
@@ -1022,7 +1009,6 @@ export function TripRouteMap({
               cardWidth,
               imageHeight,
               compact,
-              closeButtonId,
               photoButtonId,
               summaryButtonId,
               imageElementId,
@@ -1118,16 +1104,11 @@ export function TripRouteMap({
             window.requestAnimationFrame(keepPreviewInsideMap);
           });
 
-          const closeButton = document.getElementById(closeButtonId);
-          closeButton?.addEventListener(
-            "click",
-            (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              hoverInfo.close();
-            },
-            { once: true }
+          const cardElement = containerRef.current?.querySelector<HTMLElement>(
+            '[data-viza-trip-hover-card="true"]'
           );
+          cardElement?.addEventListener("mouseenter", clearPreviewCloseTimer);
+          cardElement?.addEventListener("mouseleave", () => schedulePreviewClose(80));
 
           const openDetail = (event: MouseEvent) => {
             event.preventDefault();
@@ -1188,20 +1169,13 @@ export function TripRouteMap({
           openPreview();
         }),
         marker.addListener("mouseover", openPreview),
+        marker.addListener("mouseout", () => schedulePreviewClose(220)),
       ];
 
       markersRef.current.push({ marker, listeners, id: point.id });
     });
 
     const routePath = routeCoordinates.map(([lat, lng]) => ({ lat, lng }));
-    if (routePath.length >= 2) {
-      route.setPath(routePath);
-      route.setMap(map);
-    } else {
-      route.setPath([]);
-      route.setMap(null);
-    }
-
     const bounds = new maps.LatLngBounds();
     let coordinateCount = 0;
 
@@ -1214,11 +1188,16 @@ export function TripRouteMap({
       coordinateCount += 1;
     });
 
-    const fitKey = `${pointKey}__${routeKey}`;
+    const fitKey = `${pointKey}__${routeKey}__${mapWidth}x${mapHeight}`;
     const shouldFit = fitKey !== fitKeyRef.current;
 
     if (coordinateCount >= 2 && shouldFit) {
-      map.fitBounds(bounds, 72);
+      const fitVisibleRoute = () => {
+        if (effectDisposed) return;
+        map.fitBounds(bounds, 72);
+      };
+      fitVisibleRoute();
+      window.setTimeout(fitVisibleRoute, 260);
       fittedOnceRef.current = true;
       fitKeyRef.current = fitKey;
     } else if (coordinateCount === 1 && points.length > 0 && shouldFit) {
@@ -1285,7 +1264,7 @@ export function TripRouteMap({
           className="pointer-events-none absolute inset-y-0 right-0 z-30 flex w-full justify-end bg-transparent"
           data-testid="trip-map-detail-panel"
         >
-          <div className="pointer-events-auto flex h-full w-[40%] min-w-[420px] max-w-[640px] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)] max-md:w-full max-md:min-w-0">
+          <div className="pointer-events-auto flex h-full w-1/2 max-w-[50%] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)] max-md:w-full max-md:max-w-none">
             <div className="flex items-center justify-end px-5 py-5">
               <button
                 aria-label="关闭目的地详情"
