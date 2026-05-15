@@ -152,6 +152,7 @@ function ChatSessionPanel({
   onNewSession,
   onSelectSession,
   onClose,
+  onCollapse,
 }: {
   sessions: Session[];
   activeSessionId: string | null;
@@ -159,9 +160,10 @@ function ChatSessionPanel({
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onClose?: () => void;
+  onCollapse?: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col bg-white text-gray-900">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
         <div>
           <p className="text-[13px] font-semibold text-[#3d3d3d]">
@@ -181,6 +183,16 @@ function ChatSessionPanel({
           >
             <Plus className="h-4 w-4" />
           </button>
+          {onCollapse && (
+            <button
+              aria-label="Collapse VIZA chat list"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
+              onClick={onCollapse}
+              type="button"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          )}
           {onClose && (
             <button
               aria-label="Close chat list"
@@ -1180,20 +1192,13 @@ export function ChatClient({
       {chatMode === "viza" && !sessionPanelCollapsed && (
         <>
           <aside
-            className="absolute bottom-0 left-0 top-0 z-20 hidden w-[280px] border-r border-[#e5e5e5] lg:block"
+            className="absolute bottom-4 left-4 top-4 z-20 hidden w-[280px] lg:block"
             data-testid="viza-session-sidebar"
           >
-            <button
-              aria-label="Collapse VIZA chat list"
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
-              onClick={() => setSessionPanelCollapsed(true)}
-              type="button"
-            >
-              <PanelLeft className="h-4 w-4" />
-            </button>
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
+              onCollapse={() => setSessionPanelCollapsed(true)}
               onNewSession={handleNewVizaSession}
               onSelectSession={handleSessionSelect}
               sessions={sessions}
@@ -1208,7 +1213,7 @@ export function ChatClient({
                 onClick={() => setSessionPanelOpen(false)}
                 type="button"
               />
-              <aside className="absolute bottom-0 left-0 top-0 w-[min(84vw,320px)] border-r border-[#e5e5e5] shadow-xl">
+              <aside className="absolute bottom-4 left-4 top-4 w-[min(84vw,320px)] shadow-xl">
                 <ChatSessionPanel
                   activeSessionId={sessionId}
                   disabled={isStreaming || isLoadingMessages}
@@ -1242,7 +1247,7 @@ export function ChatClient({
             onClick={() => setSessionPanelOpen(false)}
             type="button"
           />
-          <aside className="absolute bottom-0 left-0 top-0 w-[min(84vw,320px)] border-r border-[#e5e5e5] shadow-xl">
+          <aside className="absolute bottom-4 left-4 top-4 w-[min(84vw,320px)] shadow-xl">
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
@@ -1258,7 +1263,7 @@ export function ChatClient({
       <main
         className={cn(
           "h-full flex flex-col min-h-0",
-          chatMode === "viza" && !sessionPanelCollapsed && "lg:pl-[280px]"
+          chatMode === "viza" && !sessionPanelCollapsed && "lg:pl-[312px]"
         )}
       >
         <AnimatePresence mode="wait">
