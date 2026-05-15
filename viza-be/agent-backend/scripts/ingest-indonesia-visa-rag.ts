@@ -83,8 +83,9 @@ async function getEmbedding(text: string): Promise<number[] | null> {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      console.warn(`Embedding failed (${response.status}): ${body.slice(0, 160)}`);
+      console.warn(
+        `Embedding failed (${response.status}). Check whether this OpenAI project has access to ${EMBEDDING_MODEL}.`
+      );
       return null;
     }
 

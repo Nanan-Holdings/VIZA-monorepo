@@ -116,6 +116,26 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   hongkong: "香港",
 };
 
+const CITY_COORDINATES: Record<string, [number, number]> = {
+  tokyo: [35.6762, 139.6503],
+  kyoto: [35.0116, 135.7681],
+  osaka: [34.6937, 135.5023],
+  singapore: [1.3521, 103.8198],
+  sydney: [-33.8688, 151.2093],
+  london: [51.5072, -0.1276],
+  paris: [48.8566, 2.3522],
+  newyork: [40.7128, -74.006],
+  nyc: [40.7128, -74.006],
+  beijing: [39.9042, 116.4074],
+  sanfrancisco: [37.7749, -122.4194],
+  sf: [37.7749, -122.4194],
+  pisa: [43.7228, 10.4017],
+  rome: [41.9028, 12.4964],
+  seoul: [37.5665, 126.978],
+  bangkok: [13.7563, 100.5018],
+  hongkong: [22.3193, 114.1694],
+};
+
 function normalizeLookupKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
 }
@@ -141,6 +161,17 @@ function getCityImage(city: string, seed: string = "default"): string {
 
   const index = hashString(`${key}-${seed}`) % CITY_IMAGE_POOL.length;
   return CITY_IMAGE_POOL[index];
+}
+
+function getCityCoordinates(city: string): [number, number] {
+  const key = normalizeLookupKey(city);
+  const direct = CITY_COORDINATES[key];
+  if (direct) return direct;
+
+  const seed = hashString(city);
+  const lat = (seed % 110) - 45;
+  const lng = ((seed * 7) % 260) - 130;
+  return [lat, lng];
 }
 
 function getUniqueCities(itinerary: ItineraryDay[], orderedCities: string[]): string[] {
@@ -296,6 +327,44 @@ function filterEssentialMapPoints(points: TripMapPoint[]): TripMapPoint[] {
   return essential.length ? essential : points;
 }
 
+function buildFallbackMapPoints(segments: CitySegment[]): TripMapPoint[] {
+  return segments.map((segment, index) => {
+    const [lat, lng] = getCityCoordinates(segment.city);
+    return {
+      id: `itinerary-city-${normalizeLookupKey(segment.city)}-${index}`,
+      kind: "city",
+      label: segment.city,
+      subtitle: segment.rangeLabel,
+      localName: segment.label,
+      intro: `${segment.label}行程节点，建议围绕当天住宿和核心景点安排动线。`,
+      imageSrc: segment.imageSrc,
+      lat,
+      lng,
+      city: segment.city,
+    };
+  });
+}
+
+function buildFallbackRouteCoordinates(
+  travelState: TravelState,
+  segments: CitySegment[]
+): Array<[number, number]> {
+  if (!segments.length) return [];
+
+  const routeCities: string[] = [];
+  if (travelState.origin_city) routeCities.push(travelState.origin_city);
+  routeCities.push(...segments.map((segment) => segment.city));
+  if (
+    travelState.return_city &&
+    normalizeLookupKey(travelState.return_city) !==
+      normalizeLookupKey(routeCities[routeCities.length - 1] ?? "")
+  ) {
+    routeCities.push(travelState.return_city);
+  }
+
+  return routeCities.map(getCityCoordinates);
+}
+
 function formatDayTab(day: ItineraryDay): string {
   const dayNumber = typeof day.day === "number" ? day.day : String(day.day);
   return `天 ${dayNumber}`;
@@ -332,12 +401,30 @@ export function TravelItineraryExperience({
     (sum, day) => sum + day.activities.length,
     0
   );
+  const fallbackMapPoints = useMemo(
+    () => buildFallbackMapPoints(segments),
+    [segments]
+  );
+  const resolvedMapPoints = useMemo(
+    () => [
+      ...fallbackMapPoints,
+      ...mapPoints.filter((point) => point.kind === "hotel"),
+    ],
+    [fallbackMapPoints, mapPoints]
+  );
+  const resolvedRouteCoordinates = useMemo(
+    () =>
+      segments.length
+        ? buildFallbackRouteCoordinates(travelState, segments)
+        : routeCoordinates,
+    [routeCoordinates, segments, travelState]
+  );
   const essentialMapPoints = useMemo(
-    () => filterEssentialMapPoints(mapPoints),
-    [mapPoints]
+    () => filterEssentialMapPoints(resolvedMapPoints),
+    [resolvedMapPoints]
   );
   const focusedPointId = activeDay
-    ? getPointIdForCity(mapPoints, activeDay.city) ?? activePointId ?? null
+    ? getPointIdForCity(resolvedMapPoints, activeDay.city) ?? activePointId ?? null
     : activePointId ?? null;
 
   useEffect(() => {
@@ -465,7 +552,7 @@ export function TravelItineraryExperience({
               className="h-[300px] w-full md:h-[360px]"
               onPointSelect={onPointSelect}
               points={essentialMapPoints}
-              routeCoordinates={routeCoordinates}
+              routeCoordinates={resolvedRouteCoordinates}
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/8 via-transparent to-white/10" />
             <Button
@@ -647,8 +734,8 @@ export function TravelItineraryExperience({
                 activePointId={focusedPointId}
                 className="h-full w-full"
                 onPointSelect={onPointSelect}
-                points={mapPoints}
-                routeCoordinates={routeCoordinates}
+                points={resolvedMapPoints}
+                routeCoordinates={resolvedRouteCoordinates}
               />
             </aside>
           </div>
@@ -678,8 +765,8 @@ export function TravelItineraryExperience({
                 animateRoute
                 className="h-full w-full"
                 onPointSelect={onPointSelect}
-                points={mapPoints}
-                routeCoordinates={routeCoordinates}
+                points={resolvedMapPoints}
+                routeCoordinates={resolvedRouteCoordinates}
               />
               <div className="absolute bottom-5 left-5 max-w-[min(520px,calc(100%-40px))] rounded-2xl bg-white/92 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
                 <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
