@@ -55,7 +55,6 @@ type GoogleMarkerInstance = {
   setMap: (map: GoogleMapInstance | null) => void;
   setIcon: (icon?: GoogleMapMarkerIcon) => void;
   setLabel: (label?: GoogleMarkerLabel) => void;
-  setPosition: (position: GoogleLatLngLiteral) => void;
   setZIndex: (zIndex: number) => void;
 };
 
@@ -85,11 +84,6 @@ type GoogleInfoWindowInstance = {
 
 type GoogleLatLngBoundsInstance = {
   extend: (point: GoogleLatLngLiteral) => void;
-};
-
-type GooglePolylineInstance = {
-  setMap: (map: GoogleMapInstance | null) => void;
-  setPath: (path: GoogleLatLngLiteral[]) => void;
 };
 
 type GoogleMapsNamespace = {
@@ -125,14 +119,6 @@ type GoogleMapsNamespace = {
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
-  Polyline: new (options: {
-    path: GoogleLatLngLiteral[];
-    geodesic?: boolean;
-    strokeColor?: string;
-    strokeOpacity?: number;
-    strokeWeight?: number;
-    map?: GoogleMapInstance | null;
-  }) => GooglePolylineInstance;
   InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
   Size: new (width: number, height: number) => unknown;
@@ -558,31 +544,6 @@ function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLa
   };
 }
 
-function interpolateRoutePath(
-  routePath: GoogleLatLngLiteral[],
-  progress: number
-): GoogleLatLngLiteral[] {
-  if (routePath.length <= 1) return routePath;
-  if (progress >= 1) return routePath;
-
-  const clampedProgress = clamp(progress, 0, 1);
-  const segmentProgress = clampedProgress * (routePath.length - 1);
-  const completedIndex = Math.floor(segmentProgress);
-  const localProgress = segmentProgress - completedIndex;
-  const visiblePath = routePath.slice(0, completedIndex + 1);
-  const start = routePath[completedIndex];
-  const end = routePath[completedIndex + 1];
-
-  if (start && end) {
-    visiblePath.push({
-      lat: start.lat + (end.lat - start.lat) * localProgress,
-      lng: start.lng + (end.lng - start.lng) * localProgress,
-    });
-  }
-
-  return visiblePath;
-}
-
 function calculateCoordinateCenter(
   coordinates: GoogleLatLngLiteral[]
 ): GoogleLatLngLiteral {
@@ -799,7 +760,6 @@ export function TripRouteMap({
   activePointId,
   onPointSelect,
   onAddDestination,
-  animateRoute = false,
   className,
 }: TripRouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -833,6 +793,20 @@ export function TripRouteMap({
     () => routeCoordinates.map(([lat, lng]) => `${lat},${lng}`).join("|"),
     [routeCoordinates]
   );
+
+  const activeFocusKey = useMemo(() => {
+    if (!activePointId) return "";
+
+    const hasSelectedDestination = points.some(
+      (point) => point.kind === "city" || point.kind === "hotel"
+    );
+    if (!hasSelectedDestination) return "";
+
+    const activePoint = points.find((point) => point.id === activePointId);
+    if (!activePoint) return "";
+
+    return `${activePoint.id}:${activePoint.lat}:${activePoint.lng}:${activePoint.kind}`;
+  }, [activePointId, points]);
 
   const detailPoint = useMemo(
     () => points.find((point) => point.id === detailPointId) ?? null,
@@ -1311,6 +1285,42 @@ export function TripRouteMap({
     routeCoordinates,
     routeKey,
   ]);
+
+  const activeFocusKeyRef = useRef("");
+
+  useEffect(() => {
+    if (!isReady || !activeFocusKey || !activePointId) return;
+    if (activeFocusKeyRef.current === activeFocusKey) return;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    const activePoint = points.find((point) => point.id === activePointId);
+    if (!activePoint) return;
+
+    activeFocusKeyRef.current = activeFocusKey;
+
+    let disposed = false;
+    const focusZoom =
+      activePoint.kind === "hotel" ? 13 : activePoint.kind === "hotspot" ? 12 : 10;
+    const focusMap = () => {
+      if (disposed) return;
+      map.setCenter({ lat: activePoint.lat, lng: activePoint.lng });
+      const currentZoom = map.getZoom() ?? DEFAULT_ZOOM;
+      if (currentZoom < focusZoom) {
+        map.setZoom(focusZoom);
+      }
+    };
+
+    hoverInfoRef.current?.close();
+    focusMap();
+    const focusAfterFitBounds = window.setTimeout(focusMap, 340);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(focusAfterFitBounds);
+    };
+  }, [activeFocusKey, activePointId, isReady, points]);
 
   const detailSections = useMemo(() => {
     if (!detailPoint) return [];
