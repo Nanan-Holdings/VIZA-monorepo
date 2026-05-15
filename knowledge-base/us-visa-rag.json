@@ -27,6 +27,12 @@
           "title": "Chinese tourist basic U.S. visitor visa route",
           "tags": ["us", "china", "chinese-passport", "tourism", "b2", "b1-b2"],
           "content": "For a citizen of China travelling to the United States for ordinary tourism or visiting family/friends, the usual route is a U.S. B-2 visitor visa or combined B-1/B-2 visitor visa, not ESTA under the Visa Waiver Program. The applicant generally completes Form DS-160, pays the non-refundable MRV application fee, schedules a visa interview or interview-waiver appointment if eligible, gathers required documents, and attends the visa interview if required."
+        },
+        {
+          "id": "us_b1_b2_chinese_tourist_zh",
+          "title": "中国护照美国短期旅游签证建议",
+          "tags": ["us", "china", "chinese-passport", "旅游", "美国旅游", "b2", "b1-b2", "ds-160"],
+          "content": "中国护照持有人如果去美国短期旅游、度假、探亲访友，通常应申请美国 B-2 旅游/访问签证，或合并的 B-1/B-2 访问签证。中国大陆护照通常不适用 ESTA 免签证计划。常见流程是在线填写 DS-160，保存确认页，按申请地美国使领馆要求缴纳 MRV 签证申请费，预约面签或符合条件时使用免面谈流程，准备护照、DS-160 确认页、照片、缴费凭证以及能说明旅行目的、资金能力、回国约束力的支持材料。"
         }
       ]
     },

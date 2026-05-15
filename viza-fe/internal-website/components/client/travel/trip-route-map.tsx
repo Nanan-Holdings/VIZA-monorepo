@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type TripMapPoint = {
   id: string;
@@ -86,6 +86,22 @@ type GoogleLatLngBoundsInstance = {
   extend: (point: GoogleLatLngLiteral) => void;
 };
 
+type GooglePolylineIconSequence = {
+  icon: {
+    path: unknown;
+    scale?: number;
+    strokeColor?: string;
+    strokeWeight?: number;
+  };
+  offset?: string;
+  repeat?: string;
+};
+
+type GooglePolylineInstance = {
+  setMap: (map: GoogleMapInstance | null) => void;
+  setPath: (path: GoogleLatLngLiteral[]) => void;
+};
+
 type GoogleMapsNamespace = {
   Map: new (
     container: HTMLElement,
@@ -120,9 +136,22 @@ type GoogleMapsNamespace = {
     zIndex?: number;
   }) => GoogleMarkerInstance;
   InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
+  Polyline: new (options: {
+    path: GoogleLatLngLiteral[];
+    map?: GoogleMapInstance | null;
+    geodesic?: boolean;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWeight?: number;
+    zIndex?: number;
+    icons?: GooglePolylineIconSequence[];
+  }) => GooglePolylineInstance;
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
   Size: new (width: number, height: number) => unknown;
   Point: new (x: number, y: number) => unknown;
+  SymbolPath: {
+    FORWARD_CLOSED_ARROW: unknown;
+  };
   event: {
     clearInstanceListeners: (instance: unknown) => void;
     trigger: (instance: unknown, eventName: string) => void;
@@ -152,25 +181,150 @@ const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
-const GALLERY_MAX_IMAGES = 6;
+const GALLERY_MAX_IMAGES = 8;
+const NETWORK_CITY_IMAGES_BY_KEY: Record<string, string[]> = {
+  tokyo: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Minato_City%2C_Tokyo%2C_Japan.jpg/960px-Minato_City%2C_Tokyo%2C_Japan.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Minato_City%2C_Tokyo%2C_Japan_%28Night%29.jpg/960px-Minato_City%2C_Tokyo%2C_Japan_%28Night%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Tokyo_Skyline20210123.jpg/960px-Tokyo_Skyline20210123.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Tokyo_Tower%2C_Minato_City.jpg/960px-Tokyo_Tower%2C_Minato_City.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Tokyo_skyline_seen_from_Tokyo_Skytree.jpg/960px-Tokyo_skyline_seen_from_Tokyo_Skytree.jpg",
+  ],
+  singapore: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/ArtScience_Museum%2C_Marina_Bay_Sands%2C_Singapore.jpg/960px-ArtScience_Museum%2C_Marina_Bay_Sands%2C_Singapore.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Marina_Bay_Singapore-3499.jpg/960px-Marina_Bay_Singapore-3499.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Singapore_Marina_Bay_Dusk_2018-02-27.jpg/960px-Singapore_Marina_Bay_Dusk_2018-02-27.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Skylines_of_the_Central_Business_District%2C_Singapore_at_dusk.jpg/960px-Skylines_of_the_Central_Business_District%2C_Singapore_at_dusk.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Floating_Platform_and_illuminated_East_Coast_Parkway_seen_from_the_sky_observation_deck_of_Marina_Bay_Sands_Singapore.jpg/960px-Floating_Platform_and_illuminated_East_Coast_Parkway_seen_from_the_sky_observation_deck_of_Marina_Bay_Sands_Singapore.jpg",
+  ],
+  sydney: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Sydney_%28AU%29%2C_Opera_House_--_2019_--_2980.jpg/960px-Sydney_%28AU%29%2C_Opera_House_--_2019_--_2980.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Sydney_%28AU%29%2C_Opera_House_--_2019_--_2994.jpg/960px-Sydney_%28AU%29%2C_Opera_House_--_2019_--_2994.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Sydney_%28AU%29%2C_Opera_House_--_2019_--_3054.jpg/960px-Sydney_%28AU%29%2C_Opera_House_--_2019_--_3054.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Opera_House_--_2019_--_3061-4.jpg/960px-Sydney_%28AU%29%2C_Opera_House_--_2019_--_3061-4.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Sydney_Harbour_Bridge_night.jpg/960px-Sydney_Harbour_Bridge_night.jpg",
+  ],
+  london: [
+    "https://upload.wikimedia.org/wikipedia/commons/4/4e/Big-Ben-Tower-Bridge-and-Tower-London_%282%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Big_Ben_at_sunset_-_2014-10-27_17-30.jpg/960px-Big_Ben_at_sunset_-_2014-10-27_17-30.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/London_%2C_Westminster_-_Bridge_Street_%5E_Queen_Elizabeth_Tower_%28Big_Ben%29_-_geograph.org.uk_-_4068449.jpg/960px-London_%2C_Westminster_-_Bridge_Street_%5E_Queen_Elizabeth_Tower_%28Big_Ben%29_-_geograph.org.uk_-_4068449.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/London_-_Bridge_Road_-_Big_Ben_II.jpg/960px-London_-_Bridge_Road_-_Big_Ben_II.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Palace_of_Westminster%2C_London_-_Feb_2007.jpg/960px-Palace_of_Westminster%2C_London_-_Feb_2007.jpg",
+  ],
+  paris: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Eiffel_Tower_and_Pont_Alexandre_III_at_night.jpg/960px-Eiffel_Tower_and_Pont_Alexandre_III_at_night.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Eiffel_st-jacques_horz_jms.jpg/960px-Eiffel_st-jacques_horz_jms.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Lightning_striking_the_Eiffel_Tower_-_NOAA.jpg/960px-Lightning_striking_the_Eiffel_Tower_-_NOAA.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg/960px-Paris_-_The_Eiffel_Tower_in_spring_-_2307.jpg",
+  ],
+  newyork: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Battery_Park_City_New_York_January_2018_002.jpg/960px-Battery_Park_City_New_York_January_2018_002.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Long_Island_City_New_York_May_2015_panorama_3.jpg/960px-Long_Island_City_New_York_May_2015_panorama_3.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/New_York_City_at_night_HDR.jpg/960px-New_York_City_at_night_HDR.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/New_York_Midtown_Skyline_at_night_-_Jan_2006_edit1.jpg/960px-New_York_Midtown_Skyline_at_night_-_Jan_2006_edit1.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu.jpg",
+  ],
+  beijing: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Eastern_Beijing_skyline_from_Forbidden_City.jpg/960px-Eastern_Beijing_skyline_from_Forbidden_City.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Southeast_corner_tower_of_Forbidden_City_and_Beijing_eastern_skyline_%2820241127133425%29.jpg/960px-Southeast_corner_tower_of_Forbidden_City_and_Beijing_eastern_skyline_%2820241127133425%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/View_of_Beijing.jpg/960px-View_of_Beijing.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Wikivoyage_Beijing_skyline_Forbidden_City_banner.jpg/960px-Wikivoyage_Beijing_skyline_Forbidden_City_banner.jpg",
+  ],
+  sanfrancisco: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Golden_Gate_Bridge%2C_foggy%2C_San_Francisco_%28June_2013%29.jpg/960px-Golden_Gate_Bridge%2C_foggy%2C_San_Francisco_%28June_2013%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Golden_Gate_Bridge%2C_from_Fort_Point%2C_San_Francisco_%28June_2013%29.jpg/960px-Golden_Gate_Bridge%2C_from_Fort_Point%2C_San_Francisco_%28June_2013%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/San_Francisco_Bay_ESA22014515.jpeg/960px-San_Francisco_Bay_ESA22014515.jpeg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/San_Francisco_City_Hall_as_seen_from_100_Van_Ness_at_dusk_%28wide%29.jpg/960px-San_Francisco_City_Hall_as_seen_from_100_Van_Ness_at_dusk_%28wide%29.jpg",
+  ],
+  pisa: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/The_Leaning_Tower_Pisa_Italy_Travel_Photography_%28158291227%29.jpeg/960px-The_Leaning_Tower_Pisa_Italy_Travel_Photography_%28158291227%29.jpeg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg/960px-The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/The_Leaning_Tower_of_Pisa%2C_Sky%2C_Pisa%2C_Italy.jpg/960px-The_Leaning_Tower_of_Pisa%2C_Sky%2C_Pisa%2C_Italy.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Leaning_Tower_of_Pisa.jpg/960px-The_Leaning_Tower_of_Pisa.jpg",
+  ],
+  rome: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/The_majestic_Colosseum_in_Rome._%28Unsplash%29.jpg/960px-The_majestic_Colosseum_in_Rome._%28Unsplash%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/The_Colosseum%2C_Rome_MET_DT5700.jpg/960px-The_Colosseum%2C_Rome_MET_DT5700.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/67._Colosseum%2C_Rome%2C_Second_View_MET_DP312745.jpg/960px-67._Colosseum%2C_Rome%2C_Second_View_MET_DP312745.jpg",
+  ],
+  kyoto: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Kiyomizu-dera%2C_Kyoto%2C_November_2016_-01.jpg/960px-Kiyomizu-dera%2C_Kyoto%2C_November_2016_-01.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Kiyomizu-dera%2C_Kyoto%2C_November_2016_-07.jpg/960px-Kiyomizu-dera%2C_Kyoto%2C_November_2016_-07.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Kiyomizu-dera%2C_a_Buddhist_temple_in_eastern_Kyoto%2C_Kyoto_Prefecture%3B_September_2008_%2802%29.jpg/960px-Kiyomizu-dera%2C_a_Buddhist_temple_in_eastern_Kyoto%2C_Kyoto_Prefecture%3B_September_2008_%2802%29.jpg",
+  ],
+  osaka: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/City_view_from_Osaka_Castle_%286453226205%29.jpg/960px-City_view_from_Osaka_Castle_%286453226205%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Osaka_Castle_%28254929655%29.jpeg/960px-Osaka_Castle_%28254929655%29.jpeg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Dotonbori%2C_Osaka%2C_at_night%2C_November_2016.jpg/960px-Dotonbori%2C_Osaka%2C_at_night%2C_November_2016.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Osaka%2C_Japan_-_Umeda_district_-_city_view_of_Osaka%2C_Japan.jpg/960px-Osaka%2C_Japan_-_Umeda_district_-_city_view_of_Osaka%2C_Japan.jpg",
+  ],
+  dubai: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Burj_Khalifa_from_a_ferry%2C_Dubai.jpg/960px-Burj_Khalifa_from_a_ferry%2C_Dubai.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Dubai_Skyline_and_Burj_Khalifa_-_25072008.jpg/960px-Dubai_Skyline_and_Burj_Khalifa_-_25072008.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Dubai_Skyline_mit_Burj_Khalifa_%2818241030269%29.jpg/960px-Dubai_Skyline_mit_Burj_Khalifa_%2818241030269%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Dubai_Skyline_mit_Burj_Khalifa_%28cropped%29.jpg/960px-Dubai_Skyline_mit_Burj_Khalifa_%28cropped%29.jpg",
+  ],
+  bali: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Jimbaran_Bay._Bali_%2815208714849%29.jpg/960px-Jimbaran_Bay._Bali_%2815208714849%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Karma_Kandara_Resort_%28di_Mare_Restaurant%29_hillside_view.jpg/960px-Karma_Kandara_Resort_%28di_Mare_Restaurant%29_hillside_view.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Komune_Resort_and_Beach_Club_Bali%2C_Indonesia_%28Unsplash%29.jpg/960px-Komune_Resort_and_Beach_Club_Bali%2C_Indonesia_%28Unsplash%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Nusa_Dua_1998_03.jpg/960px-Nusa_Dua_1998_03.jpg",
+  ],
+  bangkok: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg/960px-Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Wat_Arun_Temple_Of_Dawn_%28121412175%29.jpeg/960px-Wat_Arun_Temple_Of_Dawn_%28121412175%29.jpeg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Bangkok_view_of_Saket_Temple_November_1964.jpg/960px-Bangkok_view_of_Saket_Temple_November_1964.jpg",
+  ],
+  seoul: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Seoul_city_skyline_at_night_from_Namsan_Mountain_%2849174548523%29.jpg/960px-Seoul_city_skyline_at_night_from_Namsan_Mountain_%2849174548523%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Seoul_city_skyline_at_night_from_Namsan_Mountain_%2849175035266%29.jpg/960px-Seoul_city_skyline_at_night_from_Namsan_Mountain_%2849175035266%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Skyline_view_from_Seoul_City_%28South_Korea%29.jpg/960px-Skyline_view_from_Seoul_City_%28South_Korea%29.jpg",
+  ],
+  hongkong: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Hong_Kong_Harbour_Night_2019-06-11.jpg/960px-Hong_Kong_Harbour_Night_2019-06-11.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Hong_Kong_Night_Skyline.jpg/960px-Hong_Kong_Night_Skyline.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Hong_Kong_Skyline_Restitch_-_Dec_2007.jpg/960px-Hong_Kong_Skyline_Restitch_-_Dec_2007.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/International_Commerce_Centre_on_Victoria_Harbour.jpg/960px-International_Commerce_Centre_on_Victoria_Harbour.jpg",
+  ],
+  cairo: [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Giza_Plateau_%2831762565191%29.jpg/960px-Giza_Plateau_%2831762565191%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Pyramids_of_Giza%2C_Egypt_-_Cairo_skyline_in_the_background_-_panoramio.jpg/960px-Pyramids_of_Giza%2C_Egypt_-_Cairo_skyline_in_the_background_-_panoramio.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/View_over_Cairo_from_Citadel.jpg/960px-View_over_Cairo_from_Citadel.jpg",
+  ],
+};
 const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
-  tokyo: ["/globe/tokyo.jpg"],
-  singapore: ["/globe/singapore.jpg"],
-  sydney: ["/globe/sydney.jpg"],
-  london: ["/globe/london.jpg"],
-  paris: ["/globe/paris.jpg"],
-  newyork: ["/globe/nyc.jpg"],
-  nyc: ["/globe/nyc.jpg"],
-  beijing: ["/globe/beijing.jpg"],
-  sanfrancisco: ["/globe/sf.jpg"],
-  sf: ["/globe/sf.jpg"],
-  pisa: ["/globe/pisa.jpg"],
-  egypt: ["/globe/egypt.jpg"],
-  marinabaysands: ["/globe/singapore.jpg"],
-  operahouse: ["/globe/sydney.jpg"],
-  sydneyoperahouse: ["/globe/sydney.jpg"],
-  eiffeltower: ["/globe/paris.jpg"],
-  bigben: ["/globe/london.jpg"],
+  tokyo: ["/globe/tokyo.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.tokyo],
+  singapore: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
+  sydney: ["/globe/sydney.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sydney],
+  london: ["/globe/london.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.london],
+  paris: ["/globe/paris.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.paris],
+  newyork: ["/globe/nyc.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.newyork],
+  nyc: ["/globe/nyc.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.newyork],
+  beijing: ["/globe/beijing.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.beijing],
+  sanfrancisco: ["/globe/sf.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sanfrancisco],
+  sf: ["/globe/sf.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sanfrancisco],
+  pisa: ["/globe/pisa.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.pisa],
+  egypt: ["/globe/egypt.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.cairo],
+  cairo: ["/globe/egypt.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.cairo],
+  rome: NETWORK_CITY_IMAGES_BY_KEY.rome,
+  kyoto: NETWORK_CITY_IMAGES_BY_KEY.kyoto,
+  osaka: NETWORK_CITY_IMAGES_BY_KEY.osaka,
+  dubai: NETWORK_CITY_IMAGES_BY_KEY.dubai,
+  bali: NETWORK_CITY_IMAGES_BY_KEY.bali,
+  bangkok: NETWORK_CITY_IMAGES_BY_KEY.bangkok,
+  seoul: NETWORK_CITY_IMAGES_BY_KEY.seoul,
+  hongkong: NETWORK_CITY_IMAGES_BY_KEY.hongkong,
+  marinabaysands: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
+  gardensbythebay: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
+  sentosa: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
+  operahouse: ["/globe/sydney.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sydney],
+  sydneyoperahouse: ["/globe/sydney.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sydney],
+  eiffeltower: ["/globe/paris.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.paris],
+  bigben: ["/globe/london.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.london],
+  towerbridge: ["/globe/london.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.london],
+  shibuyacrossing: ["/globe/tokyo.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.tokyo],
+  sensojitemple: ["/globe/tokyo.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.tokyo],
+  colosseum: NETWORK_CITY_IMAGES_BY_KEY.rome,
 };
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   tokyo: "东京",
@@ -235,6 +389,28 @@ function normalizeLookupKey(input: string | undefined): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function hashLookupString(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function buildFallbackNetworkGalleryImages(value: string | undefined): string[] {
+  const city = value?.trim();
+  if (!city) return [];
+
+  const encodedCity = encodeURIComponent(city);
+  const lockBase = (hashLookupString(city) % 7000) + 1000;
+
+  return ["city", "landmark", "skyline", "travel"].map(
+    (tag, index) =>
+      `https://loremflickr.com/960/640/${encodedCity},${tag}?lock=${lockBase + index}`
+  );
+}
+
 function getImageLookupKey(imageSrc: string | undefined): string {
   if (!imageSrc) return "";
   return normalizeLookupKey(imageSrc.split("/").pop()?.replace(/\.[^.]+$/, ""));
@@ -283,11 +459,40 @@ function getPointGalleryImages(point: TripMapPoint): string[] {
     orderedImages.push(...(GALLERY_IMAGES_BY_KEY[key] ?? []));
   });
 
-  return Array.from(new Set(orderedImages.filter(Boolean))).slice(0, GALLERY_MAX_IMAGES);
+  const uniqueImages = Array.from(new Set(orderedImages.filter(Boolean)));
+  if (uniqueImages.length < 4) {
+    uniqueImages.push(...buildFallbackNetworkGalleryImages(point.city ?? point.label));
+  }
+
+  return Array.from(new Set(uniqueImages)).slice(0, GALLERY_MAX_IMAGES);
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function interpolateRoutePath(
+  routePath: GoogleLatLngLiteral[],
+  progress: number
+): GoogleLatLngLiteral[] {
+  if (routePath.length < 2) return routePath;
+
+  const safeProgress = clamp(progress, 0, 1);
+  const segmentProgress = safeProgress * (routePath.length - 1);
+  const completedSegments = Math.floor(segmentProgress);
+  const partialProgress = segmentProgress - completedSegments;
+  const visiblePath = routePath.slice(0, Math.min(completedSegments + 1, routePath.length));
+
+  if (completedSegments < routePath.length - 1) {
+    const start = routePath[completedSegments]!;
+    const end = routePath[completedSegments + 1]!;
+    visiblePath.push({
+      lat: start.lat + (end.lat - start.lat) * partialProgress,
+      lng: start.lng + (end.lng - start.lng) * partialProgress,
+    });
+  }
+
+  return visiblePath;
 }
 
 function toWorldPixel(lat: number, lng: number, zoom: number): { x: number; y: number } {
@@ -752,6 +957,7 @@ export function TripRouteMap({
   activePointId,
   onPointSelect,
   onAddDestination,
+  animateRoute,
   className,
 }: TripRouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -767,6 +973,9 @@ export function TripRouteMap({
     }>
   >([]);
   const layoutRerenderListenersRef = useRef<GoogleMarkerListener[]>([]);
+  const routeLineRef = useRef<GooglePolylineInstance | null>(null);
+  const animatedRouteLineRef = useRef<GooglePolylineInstance | null>(null);
+  const routeAnimationFrameRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const fittedOnceRef = useRef(false);
   const fitKeyRef = useRef<string>("");
@@ -985,6 +1194,15 @@ export function TripRouteMap({
         hoverInfoRef.current.close();
         hoverInfoRef.current = null;
       }
+
+      if (routeAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(routeAnimationFrameRef.current);
+        routeAnimationFrameRef.current = null;
+      }
+      routeLineRef.current?.setMap(null);
+      routeLineRef.current = null;
+      animatedRouteLineRef.current?.setMap(null);
+      animatedRouteLineRef.current = null;
 
       mapRef.current = null;
       mapsRef.current = null;
@@ -1289,7 +1507,72 @@ export function TripRouteMap({
 
     refreshMarkerVisualsRef.current();
 
+    const clearRouteLines = () => {
+      if (routeAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(routeAnimationFrameRef.current);
+        routeAnimationFrameRef.current = null;
+      }
+      routeLineRef.current?.setMap(null);
+      routeLineRef.current = null;
+      animatedRouteLineRef.current?.setMap(null);
+      animatedRouteLineRef.current = null;
+    };
+
+    clearRouteLines();
     const routePath = routeCoordinates.map(([lat, lng]) => ({ lat, lng }));
+    if (routePath.length >= 2) {
+      const routeLineOptions = {
+        path: routePath,
+        map,
+        geodesic: true,
+        strokeColor: "#2d1635",
+        strokeOpacity: animateRoute ? 0.32 : 0.78,
+        strokeWeight: animateRoute ? 4 : 5,
+        zIndex: 1,
+      };
+      routeLineRef.current = new maps.Polyline(
+        animateRoute
+          ? {
+              ...routeLineOptions,
+              icons: [
+                {
+                  icon: {
+                    path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                    scale: 3,
+                    strokeColor: "#2d1635",
+                    strokeWeight: 2,
+                  },
+                  offset: "100%",
+                  repeat: "130px",
+                },
+              ],
+            }
+          : routeLineOptions
+      );
+
+      if (animateRoute) {
+        const animatedRouteLine = new maps.Polyline({
+          path: [routePath[0]!],
+          map,
+          geodesic: true,
+          strokeColor: "#8d5df7",
+          strokeOpacity: 0.95,
+          strokeWeight: 7,
+          zIndex: 2,
+        });
+        animatedRouteLineRef.current = animatedRouteLine;
+
+        const animationDuration = 4200;
+        const startTime = performance.now();
+        const tick = (timestamp: number) => {
+          const progress = ((timestamp - startTime) % animationDuration) / animationDuration;
+          animatedRouteLine.setPath(interpolateRoutePath(routePath, progress));
+          routeAnimationFrameRef.current = window.requestAnimationFrame(tick);
+        };
+        routeAnimationFrameRef.current = window.requestAnimationFrame(tick);
+      }
+    }
+
     const bounds = new maps.LatLngBounds();
     let coordinateCount = 0;
     const fitCoordinates: GoogleLatLngLiteral[] = [];
@@ -1348,8 +1631,10 @@ export function TripRouteMap({
         window.clearTimeout(fitRetryTimeoutId);
       }
       fitFallbackTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      clearRouteLines();
     };
   }, [
+    animateRoute,
     isReady,
     pointKey,
     points,

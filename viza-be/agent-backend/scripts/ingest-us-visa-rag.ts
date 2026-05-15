@@ -122,7 +122,8 @@ async function deleteExistingDocument(document: RagDocument): Promise<void> {
     .eq("country", document.country)
     .eq("visa_type", document.visaType)
     .eq("document_type", document.documentType)
-    .eq("source_url", document.sourceUrl);
+    .eq("source_url", document.sourceUrl)
+    .eq("title", document.title);
 
   if (error) {
     throw new Error(`Failed to query existing document: ${error.message}`);
