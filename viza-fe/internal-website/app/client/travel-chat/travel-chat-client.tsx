@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   Compass,
   Loader2,
+  MapPin,
   PlaneTakeoff,
   Route,
+  SendHorizontal,
   Sparkles,
   Star,
   Target,
@@ -23,8 +25,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FIELD_QUESTIONS,
+  FORM_PAYLOAD_PREFIX,
   buildTravelStateFromMessages,
   createTravelFormMessage,
   getFieldQuestionForState,
@@ -36,8 +40,10 @@ import {
   type SelectedHotelOption,
 } from "@/lib/travel/planner";
 import type {
+  TravelDestinationCard,
   TravelChatInputMessage,
   TravelChatMessage,
+  TravelQuickReply,
   TravelChatStatus,
 } from "@/lib/travel/chat-types";
 
@@ -67,6 +73,17 @@ type MapTarget = {
   city?: string;
 };
 
+type TravelAgentChatResponse = {
+  reply?: string;
+  mode?: string;
+  quick_replies?: TravelQuickReply[];
+  cards?: TravelDestinationCard[];
+  candidate_payload?: Record<string, unknown>;
+  sources?: Array<{ id?: string; title?: string; type?: string }>;
+};
+
+type TravelFormCandidatePayload = Parameters<typeof createTravelFormMessage>[0];
+
 const INITIAL_ASSISTANT_TEXT =
   "我是 VIZA Travel Buddy，看起来你已经准备好开启一段新旅程了？\n\n" +
   "虽然我很想直接帮你打包行李，但我更擅长帮你规划一场完美旅行。你想先去哪里看看？" +
@@ -93,6 +110,8 @@ const DESTINATION_IMAGE_POOL = [
   "/globe/sydney.jpg",
   "/globe/nyc.jpg",
   "/globe/beijing.jpg",
+  "/globe/london.jpg",
+  "/globe/paris.jpg",
   "/globe/sf.jpg",
   "/globe/pisa.jpg",
   "/globe/egypt.jpg",
@@ -102,6 +121,8 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   tokyo: "/globe/tokyo.jpg",
   singapore: "/globe/singapore.jpg",
   sydney: "/globe/sydney.jpg",
+  london: "/globe/london.jpg",
+  paris: "/globe/paris.jpg",
   newyork: "/globe/nyc.jpg",
   nyc: "/globe/nyc.jpg",
   beijing: "/globe/beijing.jpg",
@@ -260,13 +281,23 @@ function createMessageId(): string {
   return `travel-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function getMessageText(message: TravelChatMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+}
+
 function toChatLikeMessages(messages: TravelChatMessage[]): ChatLikeMessage[] {
   return messages.map((message) => ({
     role: message.role,
-    parts: message.parts.map((part) => ({
-      type: part.type,
-      text: part.text,
-    })),
+    parts: message.parts
+      .filter((part) => part.type === "text")
+      .map((part) => ({
+        type: part.type,
+        text: part.text,
+      })),
   }));
 }
 
@@ -337,6 +368,91 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
       return `- 城市 ${hotel.stay_index}：${hotel.city}（${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚）| ${name} | ${price} | ${rating}`;
     })
     .join("\n");
+}
+
+function isStructuredTravelFormText(text: string): boolean {
+  return text.includes(FORM_PAYLOAD_PREFIX);
+}
+
+function toAgentChatMessages(messages: TravelChatMessage[]) {
+  return messages
+    .map((message) => ({
+      role: message.role,
+      content: getMessageText(message),
+    }))
+    .filter((message) => message.content);
+}
+
+function createAssistantMessageFromAgentResponse(
+  response: TravelAgentChatResponse
+): TravelChatMessage {
+  const parts: TravelChatMessage["parts"] = [];
+  const reply = response.reply?.trim();
+
+  if (reply) {
+    parts.push({ type: "text", text: reply });
+  }
+
+  if (response.cards?.length) {
+    parts.push({ type: "destination_cards", cards: response.cards });
+  }
+
+  if (response.quick_replies?.length) {
+    parts.push({
+      type: "quick_replies",
+      quick_replies: response.quick_replies,
+    });
+  }
+
+  return {
+    id: createMessageId(),
+    role: "assistant",
+    parts: parts.length ? parts : [{ type: "text", text: "我在，想从哪里开始规划？" }],
+  };
+}
+
+function normalizeCandidateString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized || undefined;
+}
+
+function normalizeCandidateStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const normalized = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return normalized.length ? Array.from(new Set(normalized)) : undefined;
+}
+
+function coerceTravelFormCandidatePayload(
+  payload: Record<string, unknown>
+): TravelFormCandidatePayload {
+  const result: TravelFormCandidatePayload = {};
+  const seedCountry = normalizeCandidateString(payload.seed_country);
+  const seedCity = normalizeCandidateString(payload.seed_city);
+  const country = normalizeCandidateString(payload.country);
+  const countries = normalizeCandidateStringArray(payload.countries);
+  const cities = normalizeCandidateStringArray(payload.cities);
+
+  if (seedCountry) result.seed_country = seedCountry;
+  if (seedCity) result.seed_city = seedCity;
+  if (country) result.country = country;
+  if (countries) {
+    result.countries = countries;
+    if (!result.country) {
+      result.country = countries.join("、");
+    }
+  }
+  if (cities) {
+    result.cities = cities;
+    if (cities.length === 1) {
+      result.travel_order = cities;
+    }
+  }
+
+  return result;
 }
 
 function normalizeCityKey(city: string): string {
@@ -501,6 +617,7 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
   ]);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
+  const [draftMessage, setDraftMessage] = useState("");
 
   const travelState = useMemo(
     () => buildTravelStateFromMessages(toChatLikeMessages(messages)),
@@ -541,31 +658,30 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
 
   const routeCoordinates = useMemo(
     () =>
-      buildRouteCoordinates(
-        travelState.origin_city,
-        orderedCities,
-        travelState.return_city
-      ),
+      buildRouteCoordinates(travelState.origin_city, orderedCities, travelState.return_city),
     [orderedCities, travelState.origin_city, travelState.return_city]
   );
 
-  const showcaseRouteCoordinates = useMemo<Array<[number, number]>>(
-    () => WORLD_HOTSPOTS.slice(0, 4).map((entry) => getCityCoordinates(entry.city)),
-    []
-  );
+  const shouldShowRouteLine = useMemo(() => {
+    if (orderedCities.length <= 1) return false;
+    const confirmedOrder = travelState.travel_order.filter((city) =>
+      orderedCities.includes(city)
+    );
+    return confirmedOrder.length === orderedCities.length;
+  }, [orderedCities, travelState.travel_order]);
 
-  const displayRouteCoordinates = useMemo(
-    () => (routeCoordinates.length >= 2 ? routeCoordinates : showcaseRouteCoordinates),
-    [routeCoordinates, showcaseRouteCoordinates]
+  const displayRouteCoordinates = useMemo<Array<[number, number]>>(
+    () => (shouldShowRouteLine ? routeCoordinates : []),
+    [routeCoordinates, shouldShowRouteLine]
   );
 
   const baseMapTargets = useMemo(() => {
     const targets: MapTarget[] = [];
 
-    if (routeCoordinates.length >= 2) {
+    if (displayRouteCoordinates.length >= 2) {
       const originLabel = travelState.origin_city?.trim() || orderedCities[0] || "Origin";
       const returnLabel = travelState.return_city?.trim() || orderedCities[orderedCities.length - 1] || "Destination";
-      const [routeStartLat, routeStartLng] = routeCoordinates[0];
+      const [routeStartLat, routeStartLng] = displayRouteCoordinates[0];
       targets.push({
         id: "route-overview",
         kind: "route",
@@ -639,7 +755,7 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     return targets;
   }, [
     orderedCities,
-    routeCoordinates,
+    displayRouteCoordinates,
     travelState.city_days,
     travelState.origin_city,
     travelState.return_city,
@@ -771,17 +887,47 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
     try {
       const state = buildTravelStateFromMessages(toChatLikeMessages(nextMessages));
       const payload = toTravelPayload(state);
+      const latestUserMessage = [...nextMessages]
+        .reverse()
+        .find((message) => message.role === "user");
+      const latestUserText = latestUserMessage ? getMessageText(latestUserMessage) : "";
 
       if (!payload) {
-        const field = nextMissingField(state) ?? "country";
-        const followUp = getFieldQuestionForState(state, field);
+        if (isStructuredTravelFormText(latestUserText)) {
+          const field = nextMissingField(state) ?? "country";
+          const followUp = getFieldQuestionForState(state, field);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: createMessageId(),
+              role: "assistant",
+              parts: [{ type: "text", text: followUp }],
+            },
+          ]);
+          return;
+        }
+
+        const response = await fetch("/api/travel/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: toAgentChatMessages(nextMessages),
+            state,
+            locale: "zh-CN",
+          }),
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || "无法生成旅行对话回复。");
+        }
+
+        const result = (await response.json()) as TravelAgentChatResponse;
         setMessages((prev) => [
           ...prev,
-          {
-            id: createMessageId(),
-            role: "assistant",
-            parts: [{ type: "text", text: followUp }],
-          },
+          createAssistantMessageFromAgentResponse(result),
         ]);
         return;
       }
@@ -854,6 +1000,43 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
       void respondToConversation(nextMessages);
     },
     [messages, respondToConversation, status]
+  );
+
+  const sendFreeTextMessage = useCallback(
+    (text: string) => {
+      const normalized = text.trim();
+      if (!normalized) return;
+
+      sendMessage({
+        role: "user",
+        parts: [{ type: "text", text: normalized }],
+      });
+      setDraftMessage("");
+    },
+    [sendMessage]
+  );
+
+  const handleQuickReply = useCallback(
+    (reply: TravelQuickReply) => {
+      sendFreeTextMessage(reply.value || reply.label);
+    },
+    [sendFreeTextMessage]
+  );
+
+  const handleDestinationCardAction = useCallback(
+    (card: TravelDestinationCard) => {
+      const payload = coerceTravelFormCandidatePayload(card.payload);
+      if (Object.keys(payload).length === 0) {
+        sendFreeTextMessage(`我想了解 ${card.city ?? card.country}`);
+        return;
+      }
+
+      sendMessage({
+        role: "user",
+        parts: [{ type: "text", text: createTravelFormMessage(payload) }],
+      });
+    },
+    [sendFreeTextMessage, sendMessage]
   );
 
   const handleAddDestinationFromMap = useCallback(
@@ -955,23 +1138,115 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
           <CardContent className="h-full space-y-4 overflow-y-auto overscroll-y-contain p-4 md:p-6">
             <div className="space-y-3">
               {messages.map((message) => {
-                const text = message.parts
-                  .filter((part) => part.type === "text")
-                  .map((part) => part.text)
-                  .join("\n")
-                  .trim();
-                if (!text) return null;
+                const text = getMessageText(message);
+                const destinationCards = message.parts
+                  .filter((part) => part.type === "destination_cards")
+                  .flatMap((part) => part.cards);
+                const quickReplies = message.parts
+                  .filter((part) => part.type === "quick_replies")
+                  .flatMap((part) => part.quick_replies);
+                if (!text && destinationCards.length === 0 && quickReplies.length === 0) {
+                  return null;
+                }
 
                 return (
                   <div
                     className={
                       message.role === "user"
                         ? "ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-md bg-[#03346E] px-4 py-2.5 text-sm text-white shadow-sm"
-                        : "mr-auto w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800"
+                        : "mr-auto w-fit max-w-[96%] rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800"
                     }
                     key={message.id}
                   >
-                    <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed">{text}</pre>
+                    {text && (
+                      <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed">{text}</pre>
+                    )}
+
+                    {destinationCards.length > 0 && (
+                      <div
+                        className="mt-3 grid gap-3 sm:grid-cols-2"
+                        data-testid="travel-destination-cards"
+                      >
+                        {destinationCards.map((card) => {
+                          const displayCity = card.city ?? card.country;
+                          const imageSrc = getCityImage(
+                            card.image_key ?? displayCity,
+                            card.title
+                          );
+                          return (
+                            <div
+                              className="overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm"
+                              data-testid="travel-destination-card"
+                              key={`${card.country}-${displayCity}-${card.title}`}
+                            >
+                              <Image
+                                alt={card.title}
+                                className="h-28 w-full object-cover"
+                                height={112}
+                                src={imageSrc}
+                                width={260}
+                              />
+                              <div className="space-y-2 p-3">
+                                <div>
+                                  <p className="text-sm font-semibold leading-tight">
+                                    {card.title}
+                                  </p>
+                                  <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                                    <MapPin className="h-3 w-3" />
+                                    {displayCity} · {card.suggested_days ?? "3-5 days"}
+                                  </p>
+                                </div>
+                                <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">
+                                  {card.subtitle}
+                                </p>
+                                {card.highlights.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {card.highlights.slice(0, 3).map((highlight) => (
+                                      <span
+                                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
+                                        key={highlight}
+                                      >
+                                        {highlight}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <Button
+                                  className="w-full"
+                                  disabled={status !== "ready"}
+                                  onClick={() => handleDestinationCardAction(card)}
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  {card.action_label || `加入计划：${displayCity}`}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {quickReplies.length > 0 && message.role === "assistant" && (
+                      <div
+                        className="mt-3 flex flex-wrap gap-2"
+                        data-testid="travel-quick-replies"
+                      >
+                        {quickReplies.map((reply) => (
+                          <Button
+                            disabled={status !== "ready"}
+                            key={`${message.id}-${reply.label}`}
+                            onClick={() => handleQuickReply(reply)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            {reply.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -979,6 +1254,38 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
 
             <TravelPlannerForm messages={messages} sendMessage={sendMessage} status={status} />
             <TravelItineraryPanel messages={messages} variant="compact" />
+            <form
+              className="sticky bottom-0 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur"
+              data-testid="travel-free-chat-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                sendFreeTextMessage(draftMessage);
+              }}
+            >
+              <div className="flex items-end gap-2">
+                <Textarea
+                  className="min-h-11 resize-none text-sm"
+                  disabled={status !== "ready"}
+                  onChange={(event) => setDraftMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      sendFreeTextMessage(draftMessage);
+                    }
+                  }}
+                  placeholder="像和旅行顾问聊天一样输入：我不知道去哪、想去日本、预算8000想轻松一点..."
+                  value={draftMessage}
+                />
+                <Button
+                  className="h-11 px-3"
+                  disabled={status !== "ready" || !draftMessage.trim()}
+                  size="icon"
+                  type="submit"
+                >
+                  <SendHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
 
@@ -1044,7 +1351,7 @@ export function TravelChatClient({ applicationId }: TravelChatClientProps) {
                 </div>
               </div>
 
-              {routeCoordinates.length >= 2 && (
+              {displayRouteCoordinates.length >= 2 && (
                 <button
                   className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
                     activeMapTarget?.id === "route-overview"

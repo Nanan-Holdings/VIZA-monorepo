@@ -85,6 +85,31 @@ async function run() {
 
     await page.screenshot({ path: `${baseDir}/travel-map-selftest-initial.png` });
 
+    const topMarker = first
+      .map((item, index) => ({ ...item, index }))
+      .sort((a, b) => a.y - b.y)[0];
+    if (topMarker) {
+      await page.mouse.click(topMarker.x + topMarker.width / 2, topMarker.y + topMarker.height / 2);
+      await page.waitForTimeout(900);
+      const mapRect = await page
+        .locator("[data-testid='trip-route-map']")
+        .boundingBox();
+      const infoRect = await page.$eval(".gm-style-iw.gm-style-iw-c", (node) => {
+        const rect = node.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      });
+      if (!mapRect) {
+        throw new Error("Map rect not found when validating hover card.");
+      }
+      const outsideTop = infoRect.y < mapRect.y - 2;
+      const outsideLeft = infoRect.x < mapRect.x - 2;
+      const outsideRight = infoRect.x + infoRect.width > mapRect.x + mapRect.width + 2;
+      const outsideBottom = infoRect.y + infoRect.height > mapRect.y + mapRect.height + 2;
+      if (outsideTop || outsideLeft || outsideRight || outsideBottom) {
+        throw new Error("Hover card overflowed map viewport.");
+      }
+    }
+
     const mapBox = await page.locator("[data-testid='trip-route-map']").boundingBox();
     if (!mapBox) {
       throw new Error("Map bounding box not found.");
@@ -119,8 +144,8 @@ async function run() {
       first.reduce((sum, item) => sum + item.width, 0) / Math.max(1, first.length);
     const avgSizeAfter =
       afterZoom.reduce((sum, item) => sum + item.width, 0) / Math.max(1, afterZoom.length);
-    if (Math.abs(avgSizeAfter - avgSizeBefore) < 1.2) {
-      throw new Error("Marker size did not adapt after zoom.");
+    if (Math.abs(avgSizeAfter - avgSizeBefore) > 2.5) {
+      throw new Error("Marker size should stay stable when zooming.");
     }
 
     const zoomShift = Math.abs((afterZoom[0]?.x ?? 0) - (afterDrag[0]?.x ?? 0));

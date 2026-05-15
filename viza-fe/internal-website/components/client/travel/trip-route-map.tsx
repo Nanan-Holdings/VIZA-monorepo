@@ -73,6 +73,11 @@ type GooglePolylineInstance = {
 
 type GoogleInfoWindowInstance = {
   setContent: (content: string) => void;
+  setOptions: (options: {
+    disableAutoPan?: boolean;
+    maxWidth?: number;
+    pixelOffset?: unknown;
+  }) => void;
   open: (options: {
     map: GoogleMapInstance;
     anchor?: GoogleMarkerInstance;
@@ -199,159 +204,31 @@ function toWorldPixel(lat: number, lng: number, zoom: number): { x: number; y: n
   return { x, y };
 }
 
-function fromWorldPixel(x: number, y: number, zoom: number): GoogleLatLngLiteral {
-  const scale = 256 * Math.pow(2, zoom);
-  const lng = (x / scale) * 360 - 180;
-  const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / scale)));
-  const lat = (latRad * 180) / Math.PI;
-  return { lat: clamp(lat, -85, 85), lng: clamp(lng, -180, 180) };
-}
-
-type MarkerLayoutRect = {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-};
-
-function hasRectOverlap(a: MarkerLayoutRect, b: MarkerLayoutRect, gap: number): boolean {
-  return !(
-    a.right + gap < b.left ||
-    b.right + gap < a.left ||
-    a.bottom + gap < b.top ||
-    b.bottom + gap < a.top
-  );
-}
-
-function buildOffsetCandidates(stepX: number, stepY: number): Array<{ dx: number; dy: number }> {
-  const candidates: Array<{ dx: number; dy: number }> = [{ dx: 0, dy: 0 }];
-  const maxRing = 4;
-
-  for (let ring = 1; ring <= maxRing; ring += 1) {
-    for (let x = -ring; x <= ring; x += 1) {
-      for (let y = -ring; y <= ring; y += 1) {
-        if (Math.max(Math.abs(x), Math.abs(y)) !== ring) continue;
-        candidates.push({
-          dx: Math.round(x * stepX),
-          dy: Math.round(y * stepY),
-        });
-      }
-    }
-  }
-
-  return candidates;
+function toScreenPixel(
+  lat: number,
+  lng: number,
+  center: GoogleLatLngLiteral,
+  zoom: number,
+  mapWidth: number,
+  mapHeight: number
+): { x: number; y: number } {
+  const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
+  const world = toWorldPixel(lat, lng, zoom);
+  return {
+    x: mapWidth / 2 + (world.x - centerWorld.x),
+    y: mapHeight / 2 + (world.y - centerWorld.y),
+  };
 }
 
 function getAdaptiveIconSize(
   pointCount: number,
   mapWidth: number,
-  mapHeight: number,
-  zoom: number
+  mapHeight: number
 ): number {
   const minDim = Math.max(320, Math.min(mapWidth, mapHeight));
   const base = minDim / 11;
-  const densityFactor = clamp(1 - Math.max(0, pointCount - 4) * 0.06, 0.56, 1);
-  const zoomFactor = zoom >= 8 ? 1.18 : zoom >= 6 ? 1.08 : zoom >= 4 ? 0.98 : 0.88;
-  return clamp(Math.round(base * densityFactor * zoomFactor), ICON_MIN_SIZE, ICON_MAX_SIZE);
-}
-
-type MarkerLayoutPoint = {
-  point: TripMapPoint;
-  lat: number;
-  lng: number;
-};
-
-function layoutPointsWithoutOverlap(
-  points: TripMapPoint[],
-  center: GoogleLatLngLiteral,
-  zoom: number,
-  mapWidth: number,
-  mapHeight: number,
-  iconSize: number,
-  showLabel: boolean
-): MarkerLayoutPoint[] {
-  if (points.length === 0) return [];
-
-  const usedRects: MarkerLayoutRect[] = [];
-  const layout: MarkerLayoutPoint[] = [];
-  const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
-  const tailHeight = Math.round(iconSize * 0.26);
-  const iconWidth = iconSize + 10;
-  const iconHeight = iconSize + tailHeight + 10;
-  const labelHeight = showLabel ? 18 : 0;
-  const stepX = Math.max(24, Math.round(iconWidth * 0.74));
-  const stepY = Math.max(20, Math.round(iconHeight * 0.62));
-  const candidates = buildOffsetCandidates(stepX, stepY);
-  const edgePadding = 8;
-  const overlapGap = 6;
-
-  for (const point of points) {
-    const world = toWorldPixel(point.lat, point.lng, zoom);
-    const screenX = mapWidth / 2 + (world.x - centerWorld.x);
-    const screenY = mapHeight / 2 + (world.y - centerWorld.y);
-
-    let best: {
-      x: number;
-      y: number;
-      score: number;
-      rect: MarkerLayoutRect;
-    } | null = null;
-
-    for (const candidate of candidates) {
-      const px = screenX + candidate.dx;
-      const py = screenY + candidate.dy;
-      const rect: MarkerLayoutRect = {
-        left: px - iconWidth / 2,
-        right: px + iconWidth / 2,
-        top: py - iconHeight,
-        bottom: py + labelHeight,
-      };
-
-      const overlapCount = usedRects.reduce(
-        (sum, other) => (hasRectOverlap(rect, other, overlapGap) ? sum + 1 : sum),
-        0
-      );
-
-      const overflowX =
-        Math.max(0, edgePadding - rect.left) + Math.max(0, rect.right - (mapWidth - edgePadding));
-      const overflowY =
-        Math.max(0, edgePadding - rect.top) + Math.max(0, rect.bottom - (mapHeight - edgePadding));
-      const overflowPenalty = overflowX + overflowY;
-      const movementPenalty = Math.abs(candidate.dx) * 0.06 + Math.abs(candidate.dy) * 0.08;
-      const score = overlapCount * 1000 + overflowPenalty * 100 + movementPenalty;
-
-      if (!best || score < best.score) {
-        best = { x: px, y: py, score, rect };
-      }
-      if (score === 0) break;
-    }
-
-    if (!best) {
-      best = {
-        x: screenX,
-        y: screenY,
-        score: 0,
-        rect: {
-          left: screenX - iconWidth / 2,
-          right: screenX + iconWidth / 2,
-          top: screenY - iconHeight,
-          bottom: screenY + labelHeight,
-        },
-      };
-    }
-
-    usedRects.push(best.rect);
-    const worldX = centerWorld.x + (best.x - mapWidth / 2);
-    const worldY = centerWorld.y + (best.y - mapHeight / 2);
-    const latLng = fromWorldPixel(worldX, worldY, zoom);
-    layout.push({
-      point,
-      lat: latLng.lat,
-      lng: latLng.lng,
-    });
-  }
-
-  return layout;
+  const densityFactor = clamp(1 - Math.max(0, pointCount - 4) * 0.07, 0.52, 1);
+  return clamp(Math.round(base * densityFactor), ICON_MIN_SIZE, ICON_MAX_SIZE);
 }
 
 function drawRoundedRectPath(
@@ -566,7 +443,12 @@ function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLa
 function buildHoverCardHtml(
   point: TripMapPoint,
   addButtonId: string | null,
-  buttonLabel: string
+  buttonLabel: string,
+  options?: {
+    cardWidth?: number;
+    imageHeight?: number;
+    compact?: boolean;
+  }
 ): string {
   const cityOrCountry = point.countryLabel ?? point.subtitle;
   const intro =
@@ -574,24 +456,30 @@ function buildHoverCardHtml(
     `${point.subtitle}。推荐先锁定核心景点，再按地理位置安排同一天路线，减少来回折返。`;
   const duration = point.recommendedDays ?? "2-4 days";
   const imageUrl = resolveMarkerImageUrl(point.imageSrc);
+  const cardWidth = options?.cardWidth ?? 300;
+  const imageHeight = options?.imageHeight ?? 170;
+  const compact = options?.compact ?? false;
+  const titleSize = compact ? 18 : 20;
+  const bodySize = compact ? 12 : 13;
+  const padding = compact ? 12 : 14;
 
   return `
-<div style="width:300px;max-width:300px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
+<div style="width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;">
   <div style="border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.16);background:#fff;">
-    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:170px;object-fit:cover;" />
-    <div style="padding:12px 14px 14px;">
-      <div style="font-size:20px;font-weight:700;line-height:1.15;">${escapeHtml(point.label)}</div>
-      <div style="margin-top:4px;font-size:13px;color:#475569;">${escapeHtml(point.localName ?? point.subtitle)}</div>
-      <div style="margin-top:10px;border-radius:10px;background:#eff6ff;padding:8px 10px;font-size:13px;line-height:1.4;color:#1e3a8a;">
+    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:${imageHeight}px;object-fit:cover;" />
+    <div style="padding:${Math.round(padding * 0.85)}px ${padding}px ${padding}px;">
+      <div style="font-size:${titleSize}px;font-weight:700;line-height:1.15;">${escapeHtml(point.label)}</div>
+      <div style="margin-top:4px;font-size:${bodySize}px;color:#475569;">${escapeHtml(point.localName ?? point.subtitle)}</div>
+      <div style="margin-top:10px;border-radius:10px;background:#eff6ff;padding:8px 10px;font-size:${bodySize}px;line-height:1.4;color:#1e3a8a;">
         ${escapeHtml(intro)}
       </div>
-      <div style="margin-top:10px;font-size:13px;color:#334155;">
+      <div style="margin-top:10px;font-size:${bodySize}px;color:#334155;">
         <span style="font-weight:600;">${escapeHtml(cityOrCountry)}</span> · ${escapeHtml(duration)}
       </div>
       ${
         addButtonId
           ? `<div style="margin-top:12px;">
-        <button id="${addButtonId}" type="button" style="width:100%;border:0;border-radius:10px;padding:10px 12px;background:#2563eb;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+        <button id="${addButtonId}" type="button" style="width:100%;border:0;border-radius:10px;padding:${compact ? 9 : 10}px 12px;background:#2563eb;color:#fff;font-size:${compact ? 13 : 14}px;font-weight:700;cursor:pointer;">
           ${escapeHtml(buttonLabel)}
         </button>
       </div>`
@@ -820,30 +708,16 @@ export function TripRouteMap({
     const zoom = map.getZoom() ?? DEFAULT_ZOOM;
     const mapWidth = containerRef.current?.clientWidth ?? 1200;
     const mapHeight = containerRef.current?.clientHeight ?? 800;
-    const centerValue = map.getCenter();
-    const center = centerValue
-      ? { lat: centerValue.lat(), lng: centerValue.lng() }
-      : DEFAULT_CENTER;
-    const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight, zoom);
+    const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight);
     const showLabel = zoom >= LABEL_MIN_ZOOM;
-    const laidOutPoints = layoutPointsWithoutOverlap(
-      points,
-      center,
-      zoom,
-      mapWidth,
-      mapHeight,
-      iconSize,
-      showLabel
-    );
-
     let effectDisposed = false;
 
-    laidOutPoints.forEach(({ point, lat, lng }) => {
+    points.forEach((point) => {
       const isActive = point.id === activePointId;
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
       const marker = new maps.Marker({
         map,
-        position: { lat, lng },
+        position: { lat: point.lat, lng: point.lng },
         title: `${point.label} · ${point.subtitle}`,
         icon: buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl),
         label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
@@ -859,11 +733,68 @@ export function TripRouteMap({
       const openPreview = () => {
         const buttonId = `trip-map-add-${sanitizeDomId(point.id)}`;
         const cityForPlan = point.localName ?? point.label;
+        const currentWidth = containerRef.current?.clientWidth ?? mapWidth;
+        const currentHeight = containerRef.current?.clientHeight ?? mapHeight;
+        const currentZoom = map.getZoom() ?? zoom;
+        const currentCenterValue = map.getCenter();
+        const currentCenter = currentCenterValue
+          ? { lat: currentCenterValue.lat(), lng: currentCenterValue.lng() }
+          : DEFAULT_CENTER;
+        const pixelPoint = toScreenPixel(
+          point.lat,
+          point.lng,
+          currentCenter,
+          currentZoom,
+          currentWidth,
+          currentHeight
+        );
+        const compact = currentWidth < 980 || currentHeight < 680;
+        const cardWidth = clamp(compact ? 308 : 344, 260, Math.max(260, currentWidth - 56));
+        const imageHeight = compact ? 164 : 188;
+        const estimatedCardHeight = imageHeight + (compact ? 220 : 244);
+
+        let offsetX = 0;
+        if (pixelPoint.x < currentWidth * 0.45) {
+          offsetX = Math.round(cardWidth * 0.2);
+        } else if (pixelPoint.x > currentWidth * 0.55) {
+          offsetX = -Math.round(cardWidth * 0.2);
+        }
+
+        let offsetY = pixelPoint.y < estimatedCardHeight + 28 ? Math.round(estimatedCardHeight * 0.54) : -12;
+
+        const safeMargin = 12;
+        const predictedLeft = pixelPoint.x - cardWidth / 2 + offsetX;
+        const predictedRight = predictedLeft + cardWidth;
+        const predictedTop = pixelPoint.y - estimatedCardHeight + offsetY;
+        const predictedBottom = predictedTop + estimatedCardHeight;
+
+        if (predictedLeft < safeMargin) {
+          offsetX += Math.round(safeMargin - predictedLeft);
+        } else if (predictedRight > currentWidth - safeMargin) {
+          offsetX -= Math.round(predictedRight - (currentWidth - safeMargin));
+        }
+
+        if (predictedTop < safeMargin) {
+          offsetY += Math.round(safeMargin - predictedTop);
+        } else if (predictedBottom > currentHeight - safeMargin) {
+          offsetY -= Math.round(predictedBottom - (currentHeight - safeMargin));
+        }
+
+        hoverInfo.setOptions({
+          disableAutoPan: false,
+          maxWidth: cardWidth,
+          pixelOffset: new maps.Size(offsetX, offsetY),
+        });
         hoverInfo.setContent(
           buildHoverCardHtml(
             point,
             onAddDestination ? buttonId : null,
-            `加入我的计划：${cityForPlan}`
+            `加入我的计划：${cityForPlan}`,
+            {
+              cardWidth,
+              imageHeight,
+              compact,
+            }
           )
         );
         hoverInfo.open({

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 
 from itinerary import generate_itinerary
+from agent import TravelChatRequest, generate_chat_response
 from export_doc import export_to_word
 from export_pdf import export_to_pdf
 from tools.flights import search_flights
@@ -200,6 +201,11 @@ def _cleanup_file(file_path: str):
 def generate(data: TravelRequest):
     itinerary = generate_itinerary(_travel_payload(data))
     return {"reply": itinerary}
+
+
+@app.post("/chat")
+def chat(data: TravelChatRequest):
+    return generate_chat_response(data)
 
 
 @app.post("/download-word")
