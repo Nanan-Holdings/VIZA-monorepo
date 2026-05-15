@@ -265,7 +265,9 @@ function SearchableMultiSelect({
   const summary = useMemo(() => {
     if (!values.length) return "";
     const optionMap = new Map(options.map((option) => [option.value, option.label]));
-    const labels = values.map((value) => optionMap.get(value) ?? value);
+    const labels = values.map(
+      (value) => optionMap.get(value) ?? getLocalLocationDisplayName(value)
+    );
     return labels.join(" / ");
   }, [options, values]);
 

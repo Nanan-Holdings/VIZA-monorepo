@@ -182,6 +182,7 @@ export type TravelFormDisplayPayload = {
 };
 
 export type TravelFormPayload = Partial<TravelPayload> & {
+  reset?: boolean;
   country?: string;
   countries?: string[];
   cities?: string[];
@@ -745,6 +746,11 @@ function getExpectedHotelStays(state: TravelState): ExpectedHotelStay[] {
 }
 
 function applyFormPayload(state: TravelState, payload: TravelFormPayload): void {
+  if (payload.reset === true) {
+    Object.assign(state, createInitialTravelState());
+    return;
+  }
+
   const seedCountry = normalizeString(payload.seed_country);
   if (seedCountry) {
     state.seed_country = seedCountry;

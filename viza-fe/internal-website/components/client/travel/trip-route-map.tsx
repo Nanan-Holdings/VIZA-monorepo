@@ -50,6 +50,26 @@ type GoogleMarkerLabel = {
   fontWeight?: string;
 };
 
+type GoogleMarkerShape = {
+  coords: number[];
+  type: "circle" | "poly" | "rect";
+};
+
+type DetailSectionId = "attractions" | "food" | "stay" | "nightlife";
+
+type DetailSectionSample = {
+  items: string[];
+  tip: string;
+  tags: string[];
+};
+
+type DetailSection = DetailSectionSample & {
+  id: DetailSectionId;
+  title: string;
+  icon: string;
+  body: string;
+};
+
 type GoogleMarkerInstance = {
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
   setMap: (map: GoogleMapInstance | null) => void;
@@ -132,6 +152,7 @@ type GoogleMapsNamespace = {
     title?: string;
     icon?: GoogleMapMarkerIcon;
     label?: GoogleMarkerLabel;
+    shape?: GoogleMarkerShape;
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
@@ -352,6 +373,229 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   operahouse: "悉尼歌剧院",
   sydneyoperahouse: "悉尼歌剧院",
   colosseum: "罗马斗兽场",
+};
+const DETAIL_SECTION_META: Record<DetailSectionId, { title: string; icon: string }> = {
+  attractions: { title: "热门景点", icon: "⌁" },
+  food: { title: "必吃美食", icon: "♨" },
+  stay: { title: "热门住宿区域", icon: "▥" },
+  nightlife: { title: "夜生活", icon: "◐" },
+};
+const CITY_DETAIL_SAMPLES_BY_KEY: Record<
+  string,
+  Record<DetailSectionId, DetailSectionSample>
+> = {
+  tokyo: {
+    attractions: {
+      items: ["涩谷十字路口", "浅草寺", "东京晴空塔", "原宿表参道"],
+      tip: "白天排浅草寺和晴空塔，傍晚到涩谷看城市灯光，动线更顺。",
+      tags: ["地标", "街区", "夜景"],
+    },
+    food: {
+      items: ["寿司店", "拉面小店", "居酒屋", "抹茶甜品"],
+      tip: "热门拉面店尽量避开正餐尖峰，居酒屋适合放在夜间。",
+      tags: ["日料", "小店", "夜宵"],
+    },
+    stay: {
+      items: ["新宿", "银座", "上野浅草", "涩谷"],
+      tip: "第一次来优先新宿或银座，交通和餐饮选择最稳。",
+      tags: ["地铁便利", "购物", "夜生活"],
+    },
+    nightlife: {
+      items: ["新宿黄金街", "涩谷夜景", "东京塔夜景", "台场海滨"],
+      tip: "夜景点和餐厅预约放在同一区域，避免末班车压力。",
+      tags: ["夜景", "酒吧", "散步"],
+    },
+  },
+  singapore: {
+    attractions: {
+      items: ["滨海湾金沙", "滨海湾花园", "圣淘沙", "牛车水"],
+      tip: "滨海湾花园和金沙适合连在同一天，晚上看灯光秀。",
+      tags: ["海湾", "亲子", "夜景"],
+    },
+    food: {
+      items: ["海南鸡饭", "叻沙", "辣椒螃蟹", "咖椰吐司"],
+      tip: "小贩中心适合午餐，海鲜餐厅建议提前订位。",
+      tags: ["小贩中心", "海鲜", "早餐"],
+    },
+    stay: {
+      items: ["滨海湾", "乌节路", "牛车水", "克拉码头"],
+      tip: "想看景选滨海湾，想购物和移动方便选乌节路。",
+      tags: ["景观", "购物", "地铁"],
+    },
+    nightlife: {
+      items: ["克拉码头", "金沙灯光秀", "滨海湾步道", "屋顶酒吧"],
+      tip: "晚饭后沿滨海湾步行，照片和交通都更舒服。",
+      tags: ["酒吧", "灯光秀", "河岸"],
+    },
+  },
+  sydney: {
+    attractions: {
+      items: ["悉尼歌剧院", "海港大桥", "邦迪海滩", "岩石区"],
+      tip: "歌剧院和岩石区适合半日步行，傍晚补海港夜景。",
+      tags: ["海港", "海滩", "地标"],
+    },
+    food: {
+      items: ["海鲜拼盘", "澳式早午餐", "肉派", "精品咖啡"],
+      tip: "海港附近吃景观餐，市区咖啡店适合放在上午。",
+      tags: ["海鲜", "咖啡", "早午餐"],
+    },
+    stay: {
+      items: ["Circular Quay", "Darling Harbour", "Surry Hills", "Bondi"],
+      tip: "第一次来选 Circular Quay 或 Darling Harbour，步行可达核心景点。",
+      tags: ["海港", "市中心", "海滩"],
+    },
+    nightlife: {
+      items: ["Darling Harbour", "The Rocks 酒吧", "歌剧院夜景", "Surry Hills 小酒馆"],
+      tip: "海港夜景和晚餐可以连起来，夜间回程也方便。",
+      tags: ["海港夜景", "酒吧", "音乐"],
+    },
+  },
+  london: {
+    attractions: {
+      items: ["大本钟", "伦敦塔桥", "大英博物馆", "考文特花园"],
+      tip: "西敏寺区域适合白天走，塔桥和泰晤士河适合傍晚。",
+      tags: ["历史", "博物馆", "河岸"],
+    },
+    food: {
+      items: ["英式早餐", "炸鱼薯条", "下午茶", "Borough Market"],
+      tip: "下午茶提前预约，市集更适合安排午餐或轻食。",
+      tags: ["下午茶", "市集", "经典"],
+    },
+    stay: {
+      items: ["Westminster", "Covent Garden", "South Bank", "King's Cross"],
+      tip: "想省通勤选 Covent Garden 或 South Bank，交通和餐饮密度高。",
+      tags: ["地铁", "剧院", "河岸"],
+    },
+    nightlife: {
+      items: ["West End 音乐剧", "Soho 酒吧", "泰晤士河夜景", "Sky Garden"],
+      tip: "音乐剧和晚餐要留足入场时间，热门场次提前订。",
+      tags: ["剧院", "酒吧", "夜景"],
+    },
+  },
+  paris: {
+    attractions: {
+      items: ["埃菲尔铁塔", "卢浮宫", "蒙马特", "塞纳河游船"],
+      tip: "卢浮宫建议预约早场，傍晚留给铁塔和塞纳河。",
+      tags: ["艺术", "河岸", "浪漫"],
+    },
+    food: {
+      items: ["可颂", "法式甜点", "小酒馆", "奶酪与葡萄酒"],
+      tip: "甜品和咖啡适合穿插在步行街区，不必单独绕路。",
+      tags: ["甜品", "酒馆", "咖啡"],
+    },
+    stay: {
+      items: ["卢浮宫周边", "玛黑区", "圣日耳曼", "歌剧院区"],
+      tip: "第一次来优先 1-6 区，步行和地铁都更轻松。",
+      tags: ["中心区", "艺术", "购物"],
+    },
+    nightlife: {
+      items: ["塞纳河夜游", "蒙马特夜景", "爵士酒吧", "歌剧院周边"],
+      tip: "夜游和晚餐安排在同一岸边，减少夜间换乘。",
+      tags: ["夜游", "音乐", "观景"],
+    },
+  },
+  newyork: {
+    attractions: {
+      items: ["时代广场", "中央公园", "布鲁克林大桥", "大都会艺术博物馆"],
+      tip: "曼哈顿中城和中央公园适合一天，布鲁克林大桥留给傍晚。",
+      tags: ["地标", "博物馆", "天际线"],
+    },
+    food: {
+      items: ["纽约披萨", "贝果", "芝士蛋糕", "熟食店三明治"],
+      tip: "经典小吃可以当作步行补给，正餐再安排预约餐厅。",
+      tags: ["街头小吃", "甜品", "经典"],
+    },
+    stay: {
+      items: ["Midtown", "Chelsea", "Long Island City", "Williamsburg"],
+      tip: "想省通勤住 Midtown，想控制预算可看 Long Island City。",
+      tags: ["地铁", "市中心", "预算"],
+    },
+    nightlife: {
+      items: ["百老汇夜场", "DUMBO 夜景", "爵士俱乐部", "屋顶酒吧"],
+      tip: "百老汇和屋顶酒吧都建议提前订，避免临时排队。",
+      tags: ["演出", "酒吧", "夜景"],
+    },
+  },
+  beijing: {
+    attractions: {
+      items: ["故宫", "天坛", "颐和园", "慕田峪长城"],
+      tip: "故宫和景山适合同一天，长城单独留一整段时间。",
+      tags: ["历史", "宫殿", "长城"],
+    },
+    food: {
+      items: ["北京烤鸭", "炸酱面", "铜锅涮肉", "豆汁焦圈"],
+      tip: "烤鸭和涮肉适合正餐，胡同小吃适合边逛边试。",
+      tags: ["京味", "胡同", "正餐"],
+    },
+    stay: {
+      items: ["王府井", "前门", "三里屯", "鼓楼什刹海"],
+      tip: "看历史景点选前门或王府井，夜生活选三里屯。",
+      tags: ["地铁", "历史", "夜生活"],
+    },
+    nightlife: {
+      items: ["什刹海", "三里屯", "国贸夜景", "前门夜游"],
+      tip: "夜游尽量靠近住宿区域，冬季注意室外停留时间。",
+      tags: ["胡同", "酒吧", "城市夜景"],
+    },
+  },
+  sanfrancisco: {
+    attractions: {
+      items: ["金门大桥", "渔人码头", "九曲花街", "联合广场"],
+      tip: "金门大桥和海湾视角适合白天，联合广场可接晚餐。",
+      tags: ["海湾", "桥", "街区"],
+    },
+    food: {
+      items: ["酸面包", "海鲜浓汤", "墨西哥卷饼", "精品咖啡"],
+      tip: "渔人码头吃海鲜，Mission 区适合找卷饼和咖啡。",
+      tags: ["海鲜", "咖啡", "街区"],
+    },
+    stay: {
+      items: ["Union Square", "Fisherman's Wharf", "SoMa", "Nob Hill"],
+      tip: "第一次来住 Union Square 更好移动，海景需求看 Fisherman's Wharf。",
+      tags: ["市中心", "海湾", "交通"],
+    },
+    nightlife: {
+      items: ["北滩酒吧", "Mission 夜生活", "海湾夜景", "爵士现场"],
+      tip: "夜间跨区移动建议提前规划交通，保持路线简短。",
+      tags: ["酒吧", "音乐", "夜景"],
+    },
+  },
+  pisa: {
+    attractions: {
+      items: ["比萨斜塔", "奇迹广场", "比萨主教座堂", "阿诺河岸"],
+      tip: "核心景点集中在奇迹广场，适合半日游或顺路停留。",
+      tags: ["地标", "广场", "教堂"],
+    },
+    food: {
+      items: ["托斯卡纳面包", "意式冰淇淋", "手工意面", "当地葡萄酒"],
+      tip: "景点周边用餐偏旅游化，可以往河岸和老城里走几条街。",
+      tags: ["托斯卡纳", "甜品", "葡萄酒"],
+    },
+    stay: {
+      items: ["奇迹广场附近", "中央车站周边", "阿诺河岸", "老城区"],
+      tip: "短停选车站附近，慢游选老城或河岸。",
+      tags: ["短停", "步行", "老城"],
+    },
+    nightlife: {
+      items: ["阿诺河夜景", "老城酒吧", "大学区小馆", "广场散步"],
+      tip: "比萨夜生活轻松安静，适合安排晚餐后散步。",
+      tags: ["散步", "小酒馆", "河岸"],
+    },
+  },
+};
+const CITY_SAMPLE_ALIAS_BY_KEY: Record<string, string> = {
+  nyc: "newyork",
+  sf: "sanfrancisco",
+  marinabaysands: "singapore",
+  gardensbythebay: "singapore",
+  sentosa: "singapore",
+  operahouse: "sydney",
+  sydneyoperahouse: "sydney",
+  eiffeltower: "paris",
+  bigben: "london",
+  towerbridge: "london",
+  shibuyacrossing: "tokyo",
+  sensojitemple: "tokyo",
 };
 const LABEL_MIN_ZOOM = 3;
 const SCRIPT_ID = "viza-travel-google-maps-script";
@@ -804,6 +1048,76 @@ function getPointAttractions(point: TripMapPoint): string {
   return Array.from(new Set(base)).join("、");
 }
 
+function splitDetailItems(value: string): string[] {
+  return value
+    .split(/[、,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function getCityDetailSamples(point: TripMapPoint): Record<
+  DetailSectionId,
+  DetailSectionSample
+> | null {
+  for (const key of getPointLookupKeys(point)) {
+    const sampleKey = CITY_SAMPLE_ALIAS_BY_KEY[key] ?? key;
+    const samples = CITY_DETAIL_SAMPLES_BY_KEY[sampleKey];
+    if (samples) return samples;
+  }
+
+  return null;
+}
+
+function getFallbackDetailSample(
+  point: TripMapPoint,
+  sectionId: DetailSectionId,
+  city: string,
+  location: string
+): DetailSectionSample {
+  const attractionItems = splitDetailItems(getPointAttractions(point));
+
+  if (sectionId === "attractions") {
+    return {
+      items: attractionItems,
+      tip: `${city}景点建议按相邻区域组合，先排地标，再留时间给街区和观景点。`,
+      tags: ["地标", "街区", "拍照"],
+    };
+  }
+
+  if (sectionId === "food") {
+    return {
+      items: [`${city}当地小吃`, "招牌餐厅", "咖啡甜品", "夜市摊位"],
+      tip: "把人气餐厅放在午晚餐，轻食和甜品穿插在步行路线里。",
+      tags: ["小吃", "正餐", "甜品"],
+    };
+  }
+
+  if (sectionId === "stay") {
+    return {
+      items: [`${location}核心区`, "地标街区", "交通枢纽附近", "安静住宅区"],
+      tip: "优先选择靠近地铁或主要景点的区域，减少每天往返时间。",
+      tags: ["交通", "核心区", "省时"],
+    };
+  }
+
+  return {
+    items: [`${city}夜景`, "河岸或海湾散步", "屋顶酒吧", "夜市街区"],
+    tip: "夜间安排控制在同一区域内，晚餐、散步和回酒店会更顺。",
+    tags: ["夜景", "酒吧", "散步"],
+  };
+}
+
+function buildDetailSectionSample(
+  point: TripMapPoint,
+  sectionId: DetailSectionId,
+  city: string,
+  location: string
+): DetailSectionSample {
+  const citySamples = getCityDetailSamples(point);
+  return citySamples?.[sectionId] ?? getFallbackDetailSample(point, sectionId, city, location);
+}
+
 function getPointIntro(point: TripMapPoint): string {
   return (
     point.intro ??
@@ -996,6 +1310,8 @@ export function TripRouteMap({
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detailPointId, setDetailPointId] = useState<string | null>(null);
+  const [expandedDetailSectionId, setExpandedDetailSectionId] =
+    useState<DetailSectionId | null>(null);
 
   const pointKey = useMemo(
     () => points.map((point) => `${point.id}:${point.lat}:${point.lng}`).join("|"),
@@ -1009,7 +1325,6 @@ export function TripRouteMap({
 
   const activeFocusKey = useMemo(() => {
     if (!activePointId) return "";
-    if (routeCoordinates.length >= 2) return "";
 
     const hasSelectedDestination = points.some(
       (point) => point.kind === "city" || point.kind === "hotel"
@@ -1019,8 +1334,8 @@ export function TripRouteMap({
     const activePoint = points.find((point) => point.id === activePointId);
     if (!activePoint) return "";
 
-    return `${activePoint.id}:${activePoint.lat}:${activePoint.lng}:${activePoint.kind}`;
-  }, [activePointId, points, routeCoordinates.length]);
+    return `${activePoint.id}:${activePoint.lat}:${activePoint.lng}:${activePoint.kind}:${routeKey}`;
+  }, [activePointId, points, routeKey]);
 
   const detailPoint = useMemo(
     () => points.find((point) => point.id === detailPointId) ?? null,
@@ -1090,6 +1405,10 @@ export function TripRouteMap({
       setDetailPointId(null);
     }
   }, [detailPointId, points]);
+
+  useEffect(() => {
+    setExpandedDetailSectionId(null);
+  }, [detailPointId]);
 
   useEffect(() => {
     let disposed = false;
@@ -1244,6 +1563,7 @@ export function TripRouteMap({
 
     points.forEach((point) => {
       const isActive = point.id === currentActivePointId;
+      const markerDimensions = createBubbleMarkerDimensions(iconSize, isActive);
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
       const marker = new maps.Marker({
         map,
@@ -1251,11 +1571,17 @@ export function TripRouteMap({
         title: `${point.label} · ${point.subtitle}`,
         icon: buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl),
         label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
+        shape: {
+          coords: [0, 0, markerDimensions.width, markerDimensions.height],
+          type: "rect",
+        },
         optimized: false,
         zIndex: isActive ? 1000 : 100,
       });
 
+      let previewPinned = false;
       let closePreviewTimer: number | null = null;
+      let reopenPreviewTimer: number | null = null;
       const clearPreviewCloseTimer = () => {
         if (closePreviewTimer === null) return;
         window.clearTimeout(closePreviewTimer);
@@ -1269,7 +1595,9 @@ export function TripRouteMap({
         }, delay);
       };
 
-      const openPreview = () => {
+      const openPreview = (pinned = false) => {
+        if (effectDisposed) return;
+        previewPinned = pinned;
         clearPreviewCloseTimer();
         const safePointId = sanitizeDomId(point.id);
         const buttonId = `trip-map-add-${safePointId}`;
@@ -1449,7 +1777,9 @@ export function TripRouteMap({
             '[data-viza-trip-hover-card="true"]'
           );
           cardElement?.addEventListener("mouseenter", clearPreviewCloseTimer);
-          cardElement?.addEventListener("mouseleave", () => schedulePreviewClose(80));
+          cardElement?.addEventListener("mouseleave", () => {
+            if (!previewPinned) schedulePreviewClose(80);
+          });
 
           const openDetail = (event: MouseEvent) => {
             event.preventDefault();
@@ -1512,14 +1842,31 @@ export function TripRouteMap({
           }
         });
       };
+      const openPinnedPreview = () => {
+        if (reopenPreviewTimer !== null) {
+          window.clearTimeout(reopenPreviewTimer);
+        }
+
+        openPreview(true);
+        reopenPreviewTimer = window.setTimeout(() => {
+          reopenPreviewTimer = null;
+          openPreview(true);
+        }, 380);
+      };
 
       const listeners = [
+        marker.addListener("mousedown", () => {
+          onPointSelectRef.current?.(point.id);
+          openPinnedPreview();
+        }),
         marker.addListener("click", () => {
           onPointSelectRef.current?.(point.id);
-          openPreview();
+          openPinnedPreview();
         }),
-        marker.addListener("mouseover", openPreview),
-        marker.addListener("mouseout", () => schedulePreviewClose(220)),
+        marker.addListener("mouseover", () => openPreview(false)),
+        marker.addListener("mouseout", () => {
+          if (!previewPinned) schedulePreviewClose(220);
+        }),
       ];
 
       markersRef.current.push({ marker, listeners, id: point.id, point });
@@ -1602,7 +1949,14 @@ export function TripRouteMap({
       fitCoordinates.push(point);
       coordinateCount += 1;
     });
-    points.forEach((point) => {
+    const hasTripSpecificPoint = points.some(
+      (point) => !point.id.startsWith("city-suggestion-")
+    );
+    const fitPoints = hasTripSpecificPoint
+      ? points.filter((point) => !point.id.startsWith("city-suggestion-"))
+      : points;
+
+    fitPoints.forEach((point) => {
       const coordinate = { lat: point.lat, lng: point.lng };
       bounds.extend(coordinate);
       fitCoordinates.push(coordinate);
@@ -1703,37 +2057,22 @@ export function TripRouteMap({
     };
   }, [activeFocusKey, activePointId, isReady, points]);
 
-  const detailSections = useMemo(() => {
+  const detailSections = useMemo<DetailSection[]>(() => {
     if (!detailPoint) return [];
     const city = getLocalNameFromValue(detailPoint.city) ?? getPointDisplayName(detailPoint);
     const location = getPointDisplayLocation(detailPoint);
 
-    return [
-      {
-        id: "attractions",
-        title: "热门景点",
-        icon: "⌁",
-        body: getPointAttractions(detailPoint),
-      },
-      {
-        id: "food",
-        title: "必吃美食",
-        icon: "♨",
-        body: `${city}当地小吃、招牌餐厅、咖啡甜品、夜市`,
-      },
-      {
-        id: "stay",
-        title: "热门住宿区域",
-        icon: "▥",
-        body: `靠近${location}核心区、地标街区、交通便利区域`,
-      },
-      {
-        id: "nightlife",
-        title: "夜生活",
-        icon: "⌁",
-        body: `${city}夜景、河岸散步、屋顶酒吧、夜市`,
-      },
-    ];
+    return (["attractions", "food", "stay", "nightlife"] as const).map((sectionId) => {
+      const sample = buildDetailSectionSample(detailPoint, sectionId, city, location);
+      const meta = DETAIL_SECTION_META[sectionId];
+      return {
+        id: sectionId,
+        title: meta.title,
+        icon: meta.icon,
+        body: sample.items.join("、"),
+        ...sample,
+      };
+    });
   }, [detailPoint]);
 
   return (
@@ -1801,26 +2140,71 @@ export function TripRouteMap({
                 </div>
 
                 <div className="space-y-4">
-                  {detailSections.map((section) => (
-                    <button
-                      className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 px-4 py-4 text-left transition-colors hover:from-blue-50 hover:to-blue-100/70"
-                      key={section.id}
-                      type="button"
-                    >
-                      <span className="text-2xl text-slate-600">{section.icon}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xl font-bold text-slate-950">
-                          {section.title} ›
-                        </span>
-                        <span className="mt-3 line-clamp-2 block text-base leading-relaxed text-slate-900">
-                          {section.body}
-                        </span>
-                      </span>
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-2xl text-blue-600">
-                        ●
-                      </span>
-                    </button>
-                  ))}
+                  {detailSections.map((section) => {
+                    const isExpanded = expandedDetailSectionId === section.id;
+                    return (
+                      <div
+                        className="overflow-hidden rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 transition-colors hover:from-blue-50 hover:to-blue-100/70"
+                        key={section.id}
+                      >
+                        <button
+                          aria-expanded={isExpanded}
+                          className="flex w-full items-center gap-4 px-4 py-4 text-left"
+                          onClick={() =>
+                            setExpandedDetailSectionId(isExpanded ? null : section.id)
+                          }
+                          type="button"
+                        >
+                          <span className="text-2xl text-slate-600">{section.icon}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2 text-xl font-bold text-slate-950">
+                              {section.title}
+                              <span
+                                className={`inline-block text-slate-500 transition-transform ${
+                                  isExpanded ? "rotate-90" : ""
+                                }`}
+                              >
+                                ›
+                              </span>
+                            </span>
+                            <span className="mt-3 line-clamp-2 block text-base leading-relaxed text-slate-900">
+                              {section.body}
+                            </span>
+                          </span>
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                            {section.items.length}
+                          </span>
+                        </button>
+                        {isExpanded ? (
+                          <div className="border-t border-white/80 px-4 pb-4">
+                            <div className="grid grid-cols-2 gap-2 pt-4 max-sm:grid-cols-1">
+                              {section.items.map((item) => (
+                                <div
+                                  className="rounded-lg bg-white/75 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm shadow-blue-100/50"
+                                  key={`${section.id}-${item}`}
+                                >
+                                  {item}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm leading-relaxed text-slate-600">
+                              {section.tip}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {section.tags.map((tag) => (
+                                <span
+                                  className="rounded-full bg-blue-100/80 px-2.5 py-1 text-xs font-medium text-blue-700"
+                                  key={`${section.id}-${tag}`}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

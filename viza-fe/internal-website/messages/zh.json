@@ -820,6 +820,7 @@
     "askSupportTeam": "咨询支持团队",
     "supportDescription": "复杂问题和客户服务",
     "supportResponseTime": "工作日<24小时",
+    "newChatGreeting": "您好！我是 VIZA，您的签证助手。告诉我目的地、国籍、出行目的和计划停留时间，我会帮您判断合适的签证路线。",
     "inputPlaceholder": "询问关于您的签证申请...",
     "supportComingSoon": "支持团队聊天即将推出",
     "connectionReconnecting": "连接问题 - 正在重新连接...",

@@ -16,28 +16,35 @@ import type {
 } from "@/lib/travel/chat-types";
 
 export const TRAVEL_ITINERARY_SHARE_PARAM = "travelShare";
+const ITINERY_ROWS_PAYLOAD_PREFIX = "__TRAVEL_ITINERY_ROWS__:";
+
+export type TravelItineryShareRow = {
+  type: string;
+  date: string;
+  route: string;
+  name: string;
+  details: string;
+  contact: string;
+};
 
 export type TravelItinerarySharePayload = {
   version: 1;
   title: string;
   itinerary: ItineraryDay[];
   travelState: TravelState;
+  itineryRows?: TravelItineryShareRow[];
   createdAt: string;
 };
 
-function extractAssistantText(messages: TravelChatMessage[]): string {
+function getLatestAssistantMessage(
+  messages: TravelChatMessage[]
+): TravelChatMessage | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
-    if (message.role !== "assistant") continue;
-    const text = message.parts
-      .filter((part) => part.type === "text")
-      .map((part) => part.text ?? "")
-      .join("\n")
-      .trim();
-    if (text) return text;
+    if (message.role === "assistant") return message;
   }
 
-  return "";
+  return null;
 }
 
 function isToolItineraryPart(
@@ -46,26 +53,19 @@ function isToolItineraryPart(
   return part.type === "tool-itinerary";
 }
 
-function extractToolItinerary(messages: TravelChatMessage[]): ItineraryDay[] {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
-    if (message.role !== "assistant") continue;
+function extractToolItinerary(message: TravelChatMessage): ItineraryDay[] {
+  const rawToolPart = message.parts.find(isToolItineraryPart);
+  if (!rawToolPart) return [];
 
-    const rawToolPart = message.parts.find(isToolItineraryPart);
-    if (!rawToolPart) continue;
-
-    return rawToolPart.output
-      .map((item) => ({
-        day: item.day ?? "-",
-        city: item.city ?? "",
-        activities: Array.isArray(item.activities) ? item.activities : [],
-        food: Array.isArray(item.food) ? item.food : [],
-        cost: item.cost ?? "N/A",
-      }))
-      .filter((day) => Boolean(day.city));
-  }
-
-  return [];
+  return rawToolPart.output
+    .map((item) => ({
+      day: item.day ?? "-",
+      city: item.city ?? "",
+      activities: Array.isArray(item.activities) ? item.activities : [],
+      food: Array.isArray(item.food) ? item.food : [],
+      cost: item.cost ?? "N/A",
+    }))
+    .filter((day) => Boolean(day.city));
 }
 
 function encodeBase64Url(value: string): string {
@@ -124,6 +124,20 @@ function isTravelState(value: unknown): value is TravelState {
   );
 }
 
+function isTravelItineryShareRow(value: unknown): value is TravelItineryShareRow {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+
+  return (
+    typeof record.type === "string" &&
+    typeof record.date === "string" &&
+    typeof record.route === "string" &&
+    typeof record.name === "string" &&
+    typeof record.details === "string" &&
+    typeof record.contact === "string"
+  );
+}
+
 function toShareFormPayload(state: TravelState): TravelFormPayload {
   return {
     country: state.country ?? "",
@@ -152,11 +166,48 @@ function toShareFormPayload(state: TravelState): TravelFormPayload {
 export function getTravelItineraryFromMessages(
   messages: TravelChatMessage[]
 ): ItineraryDay[] {
-  const toolItinerary = extractToolItinerary(messages);
+  const latestAssistantMessage = getLatestAssistantMessage(messages);
+  if (!latestAssistantMessage) return [];
+
+  const toolItinerary = extractToolItinerary(latestAssistantMessage);
   if (toolItinerary.length) return toolItinerary;
 
-  const assistantText = extractAssistantText(messages);
+  const assistantText = latestAssistantMessage.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text ?? "")
+    .join("\n")
+    .trim();
   return parseItineraryText(assistantText);
+}
+
+export function getTravelItineryRowsFromMessages(
+  messages: TravelChatMessage[]
+): TravelItineryShareRow[] {
+  const latestAssistantMessage = getLatestAssistantMessage(messages);
+  if (!latestAssistantMessage) return [];
+
+  const assistantText = latestAssistantMessage.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text ?? "")
+    .join("\n")
+    .trim();
+  const prefix = `<!--${ITINERY_ROWS_PAYLOAD_PREFIX}`;
+  const startIndex = assistantText.indexOf(prefix);
+  if (startIndex < 0) return [];
+
+  const endIndex = assistantText.indexOf("-->", startIndex + prefix.length);
+  if (endIndex <= startIndex) return [];
+
+  const rawJson = assistantText.slice(startIndex + prefix.length, endIndex).trim();
+  if (!rawJson) return [];
+
+  try {
+    const parsed = JSON.parse(rawJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isTravelItineryShareRow);
+  } catch {
+    return [];
+  }
 }
 
 export function buildTravelPayloadFromChat(messages: TravelChatMessage[]) {
@@ -174,13 +225,15 @@ export function buildTravelPayloadFromChat(messages: TravelChatMessage[]) {
 export function buildTravelItinerarySharePayload(
   title: string,
   itinerary: ItineraryDay[],
-  travelState: TravelState
+  travelState: TravelState,
+  itineryRows: TravelItineryShareRow[] = []
 ): TravelItinerarySharePayload {
   return {
     version: 1,
     title,
     itinerary,
     travelState,
+    itineryRows,
     createdAt: new Date().toISOString(),
   };
 }
@@ -202,6 +255,7 @@ export function decodeTravelItinerarySharePayload(
     const record = parsed as Record<string, unknown>;
     const itinerary = record.itinerary;
     const travelState = record.travelState;
+    const itineryRows = record.itineryRows;
 
     if (
       record.version !== 1 ||
@@ -209,7 +263,10 @@ export function decodeTravelItinerarySharePayload(
       typeof record.createdAt !== "string" ||
       !Array.isArray(itinerary) ||
       !itinerary.every(isItineraryDay) ||
-      !isTravelState(travelState)
+      !isTravelState(travelState) ||
+      (itineryRows !== undefined &&
+        (!Array.isArray(itineryRows) ||
+          !itineryRows.every(isTravelItineryShareRow)))
     ) {
       return null;
     }
@@ -219,6 +276,7 @@ export function decodeTravelItinerarySharePayload(
       title: record.title,
       itinerary,
       travelState,
+      itineryRows: Array.isArray(itineryRows) ? itineryRows : undefined,
       createdAt: record.createdAt,
     };
   } catch {
@@ -230,6 +288,9 @@ export function createTravelShareMessages(
   payload: TravelItinerarySharePayload
 ): TravelChatMessage[] {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const rowComment = payload.itineryRows?.length
+    ? `\n\n<!--${ITINERY_ROWS_PAYLOAD_PREFIX}${JSON.stringify(payload.itineryRows)}-->`
+    : "";
   return [
     {
       id: `travel-share-user-${suffix}`,
@@ -247,7 +308,7 @@ export function createTravelShareMessages(
       parts: [
         {
           type: "text",
-          text: "这是分享的最终行程。我已经把每天安排整理到行程卡片里。",
+          text: `这是分享的最终行程。我已经把每天安排整理到行程卡片里。${rowComment}`,
         },
         {
           type: "tool-itinerary",
