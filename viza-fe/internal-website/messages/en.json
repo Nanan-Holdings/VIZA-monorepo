@@ -784,6 +784,7 @@
     "askSupportTeam": "Ask the Support Team",
     "supportDescription": "Complex topics and customer service",
     "supportResponseTime": "<24h on weekdays",
+    "newChatGreeting": "Hi there! I'm VIZA, your visa assistant. Tell me your destination, nationality, trip purpose, and how long you plan to stay, and I'll help you find the right visa route.",
     "inputPlaceholder": "Ask about your visa application...",
     "supportComingSoon": "Support team chat coming soon",
     "connectionReconnecting": "Connection issue - reconnecting...",

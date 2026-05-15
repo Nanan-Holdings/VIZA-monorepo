@@ -52,6 +52,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 `/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. One applicant may have multiple VIZA conversation processes. The page loads recent sessions with `getUserSessions()`, switches messages with `getSessionMessages()`, and creates a new `visa_chat_sessions` row with `createSession()` when the user sends the first message in a new chat. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
 
+New empty VIZA chats render a localized assistant greeting from `messages/*/chat.newChatGreeting`. This is display-only and must not be written to `visa_chat_messages`; the first persisted message should still be the user's first real prompt.
+
 ## Validation Checklist
 
 For frontend-only changes:
@@ -75,6 +77,8 @@ For backend Socket.IO or agent changes:
 ## Current RAG Routing Scope
 
 The `/visa` namespace routes explicit destination mentions to RAG countries: `indonesia`, `us`, `vietnam`, `uk`, `france`, `italy`, and `switzerland`. Do not reintroduce a default-to-Indonesia fallback. If a user mentions multiple supported countries, or asks a generic Schengen question, let retrieval search across the relevant Schengen knowledge instead of using a stale application country unless that context is itself France/Italy/Switzerland.
+
+RAG routing uses the latest user message plus recent user-only chat context. This is intentional: a compact follow-up like "中国，新加坡，不知道，会去别的国家" may be answering the previous numbered questions, so retrieval must still remember the earlier main destination (for example Switzerland) while treating "Singapore" as residence/apply-from, not as a destination. Application `visa_type` fallback is only valid when compatible with the resolved country.
 
 ## Important Files Added During Iterations
 

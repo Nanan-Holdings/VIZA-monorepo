@@ -116,6 +116,7 @@ flowchart TD
 2. 用户点击 `New chat` 时，前端先把 active `sessionId` 设为 `null` 并清空当前消息。
 3. 用户在新 process 里发送第一条消息时，`createSession(userId, applicationId)` 才写入新的 `visa_chat_sessions`。
 4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。
+5. 新空 VIZA chat 会渲染 `messages/*/chat.newChatGreeting` 作为 display-only assistant greeting；这个 greeting 不写入 `visa_chat_messages`，避免污染历史或重复保存。
 
 ## 5. 后端逻辑关系
 
@@ -132,7 +133,7 @@ flowchart TD
 1. 尝试把用户消息写入 `visa_chat_messages`。
 2. 从 `visa_chat_messages` 读取最近 50 条历史作为 LLM 上下文。
 3. 调用 `buildApplicationContext(user_id)` 从 Supabase 读取 applicant profile 和最新 application。
-4. 调用 `retrieveVisaKnowledge()`，按用户问题 + application country/visa type 检索 `visa_chunks`。
+4. 调用 `retrieveVisaKnowledge()`，按当前用户问题 + 最近 user-only context + 兼容的 application country/visa type 检索 `visa_chunks`。
 5. 调用 `buildSystemPrompt(context, knowledgeContext)` 拼出动态 system prompt。
 6. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
 7. 完成后保存 assistant message，并 emit `response_complete`。
@@ -154,6 +155,12 @@ RAG 检索服务：
   - RPC/embedding 不可用时，会 fallback 到按 country / visa type / document type 过滤 `visa_chunks`。
   - 默认 `minSimilarity` 是 `0.03`；原因是当前 Supabase RPC 返回的多语种相似度分数整体偏低，country/visaType 过滤负责控制噪音。
   - `formatKnowledgeContext()` 把检索结果整理成可注入 system prompt 的上下文块。
+
+RAG routing context:
+
+- `visa-namespace.ts` 解析 RAG country / visa type 时使用当前用户消息 + 最近 user-only chat context，而不是只看当前一句。
+- 这样用户按编号压缩回答时，例如 `中国，新加坡，不知道，会去别的国家`，系统仍能沿用上一轮用户提到的 main destination（如 Switzerland），同时不会把 `新加坡` 误当成目的地。
+- application `visa_type` 只能在与解析出的 country 兼容时作为 fallback，避免默认 `tourist_b211a` 污染 Schengen/UK/U.S. 问题。
 
 RAG migration：
 
@@ -332,5 +339,7 @@ npm run type-check
 - Step 11 VIZA multi-session processes：参考 Travel AI 的多 conversation 模型，`/client/chat` 改为读取多个 `visa_chat_sessions`，支持左侧/移动端 session panel、新建 VIZA chat、切换历史 VIZA chat；新 process 在第一条消息时创建。切换 session 时会重置 runtime/历史加载状态，避免不同 process 的消息混在一起。`viza-fe/internal-website npm run type-check` 通过；Playwright smoke screenshot: `test-results/playwright-multi-session-history-reset.png`。
 - Step 12 light layout rollback：按用户要求回退深色背景和深色颜色，恢复浅色 sidebar/cards/composer/message colors；保留 `VIZA AI / Travel AI` tab 原位置；桌面 VIZA processes 侧栏增加 collapse/expand 控制。`viza-fe/internal-website npm run type-check` 通过；Playwright route smoke screenshot: `test-results/playwright-layout-light-rollback-final.png`。
 - Step 13 multi-country VIZA identity and RAG source：VIZA system prompt 和 `/visa` RAG routing 已改为多目的地，不再默认 Indonesia；新增 `knowledge-base/supported-visa-rag.json` 和 `npm run ingest:supported-visa-rag`，覆盖 Vietnam / UK / France / Italy / Switzerland 的官方短期访问签证知识。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：Vietnam 1 docs / 3 chunks，UK 2 docs / 6 chunks，France 2 docs / 5 chunks，Italy 3 docs / 6 chunks，Switzerland 2 docs / 5 chunks，全部 25 chunks 均有 `text-embedding-3-small` embedding。Retrieval smoke 对五个国家和多国 Schengen query 均返回 `usedEmbedding=true`、`fallbackReason=null`；前后端 type-check 通过；Playwright route smoke screenshot: `test-results/playwright-supported-rag-ingestion-step3.png`。
+- Step 14 empty new-chat greeting：新建 VIZA chat 或空历史 session 现在会显示本地化 greeting，提醒用户提供目的地、国籍、出行目的和停留时间；该 greeting 仅前端展示，不持久化进 `visa_chat_messages`。
+- Step 15 follow-up context fix：修复 VIZA AI 在用户按编号压缩回答时混淆 `国籍 / 居住地 / 目的地 / 其他申根国家` 的问题。System prompt 新增 slot-tracking 规则；RAG country / visa type routing 改为读取最近 user-only context，并阻止 incompatible application visa type fallback。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

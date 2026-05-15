@@ -801,6 +801,12 @@ export function ChatClient({
     [chatMessages]
   );
 
+  const shouldShowNewChatGreeting =
+    !isLoadingMessages &&
+    chatMessages.length === 0 &&
+    pendingComponents.length === 0 &&
+    blockMessages.length === 0;
+
   const wasStreamingRef = useRef(false);
   useEffect(() => {
     const wasStreaming = wasStreamingRef.current;
@@ -1629,6 +1635,20 @@ export function ChatClient({
                         <Skeleton className="h-12 w-2/3 rounded-xl" />
                       </div>
                     </div>
+                  )}
+
+                  {shouldShowNewChatGreeting && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full"
+                    >
+                      <ChatMessage
+                        role="agent"
+                        content={t("newChatGreeting")}
+                      />
+                    </motion.div>
                   )}
 
                   {!isLoadingMessages && renderMessagesWithDividers()}

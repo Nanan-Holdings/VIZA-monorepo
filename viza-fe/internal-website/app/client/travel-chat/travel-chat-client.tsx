@@ -30,6 +30,7 @@ import {
   TRAVEL_ITINERARY_SHARE_PARAM,
   createTravelShareMessages,
   decodeTravelItinerarySharePayload,
+  getTravelItineryRowsFromMessages,
   getTravelItineraryFromMessages,
   type TravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
@@ -668,6 +669,7 @@ function getMessageText(message: TravelChatMessage): string {
 function getVisibleMessageText(message: TravelChatMessage): string {
   return getMessageText(message)
     .replace(/<!--__TRAVEL_FORM__:[\s\S]*?-->/g, "")
+    .replace(/<!--__TRAVEL_ITINERY_ROWS__:[\s\S]*?-->/g, "")
     .replace(TRAVEL_JSON_CODE_BLOCK_PATTERN, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -771,12 +773,106 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
     .join("\n");
 }
 
+function createItineraryAssistantMessage(options: {
+  itinerary: ItineraryDay[];
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  intro?: string;
+}): TravelChatMessage {
+  const intro =
+    options.intro?.trim() ||
+    "行程已经生成，我已经把每天安排整理到行程卡片里。";
+  const content =
+    `${intro}\n\n` +
+    `### 路线节点\n${formatSelectedFlights(options.selectedFlights)}\n\n` +
+    `### 已选酒店\n${formatSelectedHotels(options.selectedHotels)}`;
+
+  return {
+    id: createMessageId(),
+    role: "assistant",
+    parts: [
+      { type: "text", text: content },
+      { type: "tool-itinerary", output: options.itinerary },
+    ],
+  };
+}
+
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
 function isStructuredTravelFormText(text: string): boolean {
   return text.includes(FORM_PAYLOAD_PREFIX);
+}
+
+function appendHiddenTravelFormPayload(text: string, payload: Record<string, unknown>): string {
+  return `${text.trim()}\n\n<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`;
+}
+
+function withLatestUserResetPayload(
+  messages: TravelChatMessage[]
+): TravelChatMessage[] {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "user") continue;
+
+    return messages.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+
+      let resetAttached = false;
+      return {
+        ...item,
+        parts: item.parts.map((part) => {
+          if (part.type !== "text" || resetAttached) return part;
+          resetAttached = true;
+          return {
+            ...part,
+            text: appendHiddenTravelFormPayload(part.text, { reset: true }),
+          };
+        }),
+      };
+    });
+  }
+
+  return messages;
+}
+
+function isItineraryRestartRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return false;
+
+  if (
+    /(重来|重做|从头|回到地图|退回地图|重新选|重新规划|重新生成|重新开始|reset|restart|start over|from scratch|redo|replan)/i.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
+
+  const hasLocalEditScope =
+    /(第[一二三四五六七八九十\d]+天|day\s*\d+|上午|下午|晚上|酒店|航班|餐|餐厅|景点|活动|预算|价格|把|改成|换成|增加|删除|删掉|保留)/i.test(
+      normalized
+    );
+  if (hasLocalEditScope) return false;
+
+  return /(不喜欢|不满意|不要这个|不要这份|换一个方案|换一个行程|换个方案|换个行程)/i.test(
+    normalized
+  );
+}
+
+function buildItineraryEditFinalNote(
+  currentNote: string,
+  currentItinerary: ItineraryDay[],
+  editRequest: string
+): string {
+  const sections = [
+    currentNote.trim() ? `原始备注：${currentNote.trim()}` : "",
+    "请基于当前已有行程做局部修改，不要从零重写，不要改变用户没有要求修改的城市、天数、航班和酒店。",
+    `用户修改要求：${editRequest.trim()}`,
+    `当前已有行程 JSON：${JSON.stringify(currentItinerary)}`,
+  ];
+
+  return sections.filter(Boolean).join("\n\n");
 }
 
 function toAgentChatMessages(messages: TravelChatMessage[]) {
@@ -1123,6 +1219,7 @@ export function TravelChatClient({
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renamingSessionTitle, setRenamingSessionTitle] = useState("");
+  const [mapModeSessionIds, setMapModeSessionIds] = useState<string[]>([]);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [prefetchedIpLocation, setPrefetchedIpLocation] =
     useState<TravelIpLocation | null>(null);
@@ -1133,6 +1230,7 @@ export function TravelChatClient({
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
   const scrollDragOffsetRef = useRef(0);
   const lastAutoScrolledMessageIdRef = useRef<string | null>(null);
+  const selectedCityFocusKeyRef = useRef("");
   const [scrollThumb, setScrollThumb] = useState<ScrollThumbState>({
     top: 0,
     height: 0,
@@ -1177,6 +1275,10 @@ export function TravelChatClient({
     () => getTravelItineraryFromMessages(messages),
     [messages]
   );
+  const sharedItineryRows = useMemo(
+    () => getTravelItineryRowsFromMessages(messages),
+    [messages]
+  );
   const missingField = useMemo(() => nextMissingField(travelState), [travelState]);
   const latestVisibleUserText = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1218,6 +1320,10 @@ export function TravelChatClient({
     const order = travelState.travel_order.filter((city) => travelState.cities.includes(city));
     return order.length === travelState.cities.length ? order : travelState.cities;
   }, [travelState.cities, travelState.travel_order]);
+  const selectedCityFocusKey = useMemo(
+    () => travelState.cities.map((city) => normalizeCityKey(city)).join("|"),
+    [travelState.cities]
+  );
 
   const progressItems = useMemo(
     () => buildProgressItems(progressPercent, travelState),
@@ -1303,7 +1409,7 @@ export function TravelChatClient({
       const [lat, lng] = getCityCoordinates(city);
       const context = getCityContext(city);
       targets.push({
-        id: `city-${city}-${index}`,
+        id: `city-${normalizeCityKey(city)}-${index}`,
         kind: "city",
         label: city,
         subtitle: days ? `${days} days stay` : "Destination selected",
@@ -1333,7 +1439,7 @@ export function TravelChatClient({
       const finalLng = lng ?? fallbackLng;
 
       targets.push({
-        id: `hotel-${hotel.stay_index}-${city}`,
+        id: `hotel-${hotel.stay_index}-${normalizeCityKey(city)}`,
         kind: "hotel",
         label: hotelName,
         subtitle: `Hotel in ${city}`,
@@ -1441,6 +1547,21 @@ export function TravelChatClient({
     [baseMapTargets]
   );
   const hasFinalItinerary = latestItinerary.length > 0;
+  const showFinalItinerary =
+    hasFinalItinerary && !mapModeSessionIds.includes(activeSessionId);
+
+  const setSessionMapMode = useCallback((sessionId: string, enabled: boolean) => {
+    setMapModeSessionIds((currentSessionIds) => {
+      const exists = currentSessionIds.includes(sessionId);
+      if (enabled) {
+        return exists ? currentSessionIds : [...currentSessionIds, sessionId];
+      }
+
+      return exists
+        ? currentSessionIds.filter((currentSessionId) => currentSessionId !== sessionId)
+        : currentSessionIds;
+    });
+  }, []);
 
   const updateConversationScrollThumb = useCallback(() => {
     const scrollElement = messageScrollRef.current;
@@ -1711,6 +1832,32 @@ export function TravelChatClient({
     }
   }, [activeMapTargetId, allMapTargets, baseMapTargets]);
 
+  useEffect(() => {
+    if (!selectedCityFocusKey) {
+      selectedCityFocusKeyRef.current = "";
+      return;
+    }
+
+    if (selectedCityFocusKeyRef.current === selectedCityFocusKey) {
+      return;
+    }
+
+    selectedCityFocusKeyRef.current = selectedCityFocusKey;
+
+    const latestCity = travelState.cities[travelState.cities.length - 1];
+    const latestCityKey = latestCity ? normalizeCityKey(latestCity) : "";
+    const nextCityTarget =
+      baseMapTargets.find(
+        (target) =>
+          target.kind === "city" &&
+          normalizeCityKey(target.city ?? target.label) === latestCityKey
+      ) ?? baseMapTargets.find((target) => target.kind === "city");
+
+    if (nextCityTarget) {
+      setActiveMapTargetId(nextCityTarget.id);
+    }
+  }, [baseMapTargets, selectedCityFocusKey, travelState.cities]);
+
   const respondToConversation = useCallback(async (
     nextMessages: TravelChatMessage[],
     sessionId: string
@@ -1724,9 +1871,93 @@ export function TravelChatClient({
         .reverse()
         .find((message) => message.role === "user");
       const latestUserText = latestUserMessage ? getMessageText(latestUserMessage) : "";
+      const latestVisibleUserText = latestUserMessage
+        ? getVisibleMessageText(latestUserMessage)
+        : "";
+      const currentItinerary = getTravelItineraryFromMessages(nextMessages);
+      const isStructuredMessage = isStructuredTravelFormText(latestUserText);
+      const isMapModeSession = mapModeSessionIds.includes(sessionId);
+
+      if (
+        currentItinerary.length > 0 &&
+        latestVisibleUserText &&
+        !isStructuredMessage &&
+        !isMapModeSession
+      ) {
+        if (isItineraryRestartRequest(latestVisibleUserText)) {
+          setSessionMapMode(sessionId, true);
+          setActiveMapTargetId("");
+          setSessionMessages(sessionId, [
+            ...withLatestUserResetPayload(nextMessages),
+            {
+              id: createMessageId(),
+              role: "assistant",
+              parts: [
+                {
+                  type: "text",
+                  text:
+                    "没问题，我们先回到地图重新规划。你可以直接在右侧地图点新的城市加入计划，也可以告诉我新的国家、城市、天数、预算和偏好。",
+                },
+                {
+                  type: "quick_replies",
+                  quick_replies: [
+                    { label: "想去日本", value: "想去日本" },
+                    { label: "想去欧洲", value: "想去欧洲" },
+                    { label: "我不知道去哪", value: "我不知道去哪" },
+                  ],
+                },
+              ],
+            },
+          ]);
+          return;
+        }
+
+        if (!payload) {
+          throw new Error("当前行程缺少完整旅行信息，暂时无法做局部修改。");
+        }
+
+        const response = await fetch("/api/travel/itinerary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...payload,
+            itinerary: currentItinerary,
+            final_note: buildItineraryEditFinalNote(
+              payload.final_note,
+              currentItinerary,
+              latestVisibleUserText
+            ),
+          }),
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || "无法修改行程。");
+        }
+
+        const result = (await response.json()) as unknown;
+        const itinerary = parseItineraryFromResponse(result);
+        if (itinerary.length === 0) {
+          throw new Error("后端返回的修改后行程为空或格式无效。");
+        }
+
+        setSessionMapMode(sessionId, false);
+        setSessionMessages(sessionId, (prev) => [
+          ...prev,
+          createItineraryAssistantMessage({
+            itinerary,
+            selectedFlights: payload.selected_flights,
+            selectedHotels: payload.selected_hotels,
+            intro: "我已按你的要求在当前行程上做了局部修改，其他没有提到的安排尽量保持不变。",
+          }),
+        ]);
+        return;
+      }
 
       if (!payload) {
-        if (isStructuredTravelFormText(latestUserText)) {
+        if (isStructuredMessage) {
           const field = nextMissingField(state) ?? "country";
           const followUp = getFieldQuestionForState(state, field);
           setSessionMessages(sessionId, (prev) => [
@@ -1768,6 +1999,8 @@ export function TravelChatClient({
         return;
       }
 
+      setSessionMapMode(sessionId, false);
+
       const response = await fetch("/api/travel/itinerary", {
         method: "POST",
         headers: {
@@ -1787,21 +2020,15 @@ export function TravelChatClient({
         throw new Error("后端返回的行程为空或格式无效。");
       }
 
-      const content =
-        "行程已经生成，我已经把每天安排整理到行程卡片里。\n\n" +
-        `### 路线节点\n${formatSelectedFlights(payload.selected_flights)}\n\n` +
-        `### 已选酒店\n${formatSelectedHotels(payload.selected_hotels)}`;
-
       setSessionMessages(sessionId, (prev) => [
         ...prev,
-        {
-          id: createMessageId(),
-          role: "assistant",
-          parts: [
-            { type: "text", text: content },
-            { type: "tool-itinerary", output: itinerary },
-          ],
-        },
+        createItineraryAssistantMessage({
+          itinerary,
+          selectedFlights: payload.selected_flights,
+          selectedHotels: payload.selected_hotels,
+          intro:
+            "行程已经生成，我已经把每天安排整理到行程卡片里。之后如果只想小改，可以直接告诉我；如果想重新规划，也可以说“我不喜欢这个，请重来”。",
+        }),
       ]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "未知错误";
@@ -1823,7 +2050,7 @@ export function TravelChatClient({
     } finally {
       setStatus("ready");
     }
-  }, [setSessionMessages]);
+  }, [mapModeSessionIds, setSessionMapMode, setSessionMessages]);
 
   const sendMessage = useCallback(
     (message: TravelChatInputMessage) => {
@@ -2282,10 +2509,10 @@ export function TravelChatClient({
                   <div className="min-w-0">
                     <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                       <Sparkles className="h-3 w-3 text-blue-600" />
-                      {hasFinalItinerary ? "行程焦点" : "地图焦点"}
+                      {showFinalItinerary ? "行程焦点" : "地图焦点"}
                     </p>
                     <p className="truncate text-sm font-semibold text-slate-900">
-                      {hasFinalItinerary
+                      {showFinalItinerary
                         ? `${latestItinerary.length}天${orderedCities.join("、") || "定制"}行程`
                         : formatMapTargetDisplayName(activeMapTarget)}
                     </p>
@@ -2542,7 +2769,9 @@ export function TravelChatClient({
               })}
                 </div>
 
-                <TravelItineraryPanel messages={messages} variant="compact" />
+                {showFinalItinerary && (
+                  <TravelItineraryPanel messages={messages} variant="compact" />
+                )}
               </div>
               </div>
                 <div
@@ -2572,11 +2801,12 @@ export function TravelChatClient({
 
         <aside className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-200/90 bg-[#08213b] shadow-[0_14px_45px_rgba(15,23,42,0.12)] sm:rounded-2xl">
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-50">
-            {hasFinalItinerary ? (
+            {showFinalItinerary ? (
               <TravelItineraryExperience
                 activePointId={
                   activeMapTarget?.kind === "route" ? null : activeMapTarget?.id
                 }
+                initialItineryRows={sharedItineryRows}
                 itinerary={latestItinerary}
                 mapPoints={mapPoints}
                 onPointSelect={handleMapPointSelect}
