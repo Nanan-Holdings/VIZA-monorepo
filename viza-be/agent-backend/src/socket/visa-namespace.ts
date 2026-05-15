@@ -175,9 +175,10 @@ function detectKnowledgeCountries(value: string): SupportedKnowledgeCountry[] {
     .map((check) => check.country);
 }
 
-function resolveKnowledgeCountry(
+export function resolveKnowledgeCountry(
   message: string,
-  applicationCountry?: string | null
+  applicationCountry?: string | null,
+  recentUserContext?: string
 ): SupportedKnowledgeCountry | null {
   const normalized = message.toLowerCase();
   const matchedCountries = detectKnowledgeCountries(normalized);
@@ -190,6 +191,20 @@ function resolveKnowledgeCountry(
 
   if (uniqueCountries.length > 1) {
     return null;
+  }
+
+  if (recentUserContext) {
+    const contextCountries = Array.from(
+      new Set(detectKnowledgeCountries(recentUserContext.toLowerCase()))
+    );
+
+    if (contextCountries.length === 1) {
+      return contextCountries[0];
+    }
+
+    if (contextCountries.length > 1) {
+      return null;
+    }
   }
 
   const contextCountry = normalizeKnowledgeCountry(applicationCountry);
@@ -205,12 +220,23 @@ function resolveKnowledgeCountry(
   return contextCountry;
 }
 
-function resolveKnowledgeVisaType(
+export function buildRecentUserContext(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>
+): string {
+  return history
+    .filter((msg) => msg.role === 'user')
+    .slice(-6)
+    .map((msg) => msg.content)
+    .join('\n');
+}
+
+export function resolveKnowledgeVisaType(
   country: SupportedKnowledgeCountry | null,
   message: string,
-  applicationVisaType?: string | null
+  applicationVisaType?: string | null,
+  recentUserContext?: string
 ): string | null {
-  const normalized = message.toLowerCase();
+  const normalized = `${message}\n${recentUserContext ?? ''}`.toLowerCase();
   const mentionsVisitorPurpose = includesAny(normalized, [
     '旅游',
     '旅行',
@@ -280,7 +306,20 @@ function resolveKnowledgeVisaType(
     return 'schengen_short_stay_tourism';
   }
 
-  return applicationVisaType ?? null;
+  if (
+    (country === 'indonesia' && applicationVisaType === 'tourist_b211a') ||
+    (country === 'us' && applicationVisaType === 'b1_b2') ||
+    (country === 'vietnam' && applicationVisaType === 'evisa_tourism') ||
+    (country === 'uk' && applicationVisaType === 'standard_visitor') ||
+    ((country === 'france' ||
+      country === 'italy' ||
+      country === 'switzerland') &&
+      applicationVisaType === 'schengen_short_stay_tourism')
+  ) {
+    return applicationVisaType;
+  }
+
+  return null;
 }
 
 /**
@@ -366,17 +405,20 @@ export function registerVisaNamespace(nsp: Namespace): void {
         // 3. Build dynamic system prompt with user application context (US-036)
         //    and retrieved visa knowledge from visa_chunks.
         const appContext = await buildApplicationContext(user_id);
+        const recentUserContext = buildRecentUserContext(chatHistory);
         const knowledgeCountry = resolveKnowledgeCountry(
           message,
-          appContext.application?.country
+          appContext.application?.country,
+          recentUserContext
         );
         const knowledgeVisaType = resolveKnowledgeVisaType(
           knowledgeCountry,
           message,
-          appContext.application?.visa_type
+          appContext.application?.visa_type,
+          recentUserContext
         );
         const knowledgeResult = await retrieveVisaKnowledge({
-          query: message,
+          query: recentUserContext ? `${recentUserContext}\n${message}` : message,
           country: knowledgeCountry,
           visaType: knowledgeVisaType,
           matchCount: 5,

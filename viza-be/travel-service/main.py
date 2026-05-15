@@ -46,6 +46,7 @@ class TravelRequest(BaseModel):
     final_note: Optional[str] = None
     attached_files: list[str] = Field(default_factory=list)
     itinerary: list[dict] = Field(default_factory=list)
+    itinery_rows: list[dict] = Field(default_factory=list)
 
 
 def _payload(data: TravelRequest):

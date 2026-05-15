@@ -15,11 +15,13 @@ import {
   MapPinned,
   Plane,
   Play,
+  Plus,
   Route,
   Share2,
   Sparkles,
   Star,
   TrainFront,
+  Trash2,
   Utensils,
   Users,
   WalletCards,
@@ -50,6 +52,15 @@ import {
   encodeTravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
 
+type ItineryTableRow = {
+  type: string;
+  date: string;
+  route: string;
+  name: string;
+  details: string;
+  contact: string;
+};
+
 type TravelItineraryExperienceProps = {
   itinerary: ItineraryDay[];
   travelState: TravelState;
@@ -57,6 +68,7 @@ type TravelItineraryExperienceProps = {
   routeCoordinates: Array<[number, number]>;
   mapPoints: TripMapPoint[];
   activePointId?: string | null;
+  initialItineryRows?: ItineryTableRow[];
   onPointSelect?: (id: string) => void;
 };
 
@@ -101,15 +113,7 @@ type TravelExportPayload = {
   final_note: string;
   attached_files: string[];
   itinerary: ItineraryDay[];
-};
-
-type ItineryTableRow = {
-  type: string;
-  date: string;
-  route: string;
-  name: string;
-  details: string;
-  contact: string;
+  itinery_rows: ItineryTableRow[];
 };
 
 const CITY_IMAGE_POOL = [
@@ -161,6 +165,134 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   bangkok: "曼谷",
   hongkong: "香港",
 };
+
+const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
+  tokyo: [
+    "浅草寺与仲见世商店街",
+    "东京塔与芝公园",
+    "明治神宫",
+    "涩谷十字路口与忠犬八公像",
+    "筑地场外市场",
+    "上野公园与东京国立博物馆",
+    "新宿御苑",
+    "秋叶原电器街",
+  ],
+  kyoto: [
+    "清水寺与二年坂三年坂",
+    "伏见稻荷大社千本鸟居",
+    "金阁寺",
+    "岚山竹林小径与渡月桥",
+    "祇园花见小路",
+    "锦市场",
+  ],
+  osaka: [
+    "大阪城公园与天守阁",
+    "道顿堀格力高跑者看板",
+    "黑门市场",
+    "梅田蓝天大厦空中庭园",
+    "通天阁与新世界",
+    "心斋桥筋商店街",
+  ],
+  paris: [
+    "埃菲尔铁塔与战神广场",
+    "卢浮宫与玻璃金字塔",
+    "奥赛博物馆",
+    "巴黎圣母院与西岱岛",
+    "蒙马特高地与圣心大教堂",
+    "凯旋门与香榭丽舍大街",
+  ],
+  singapore: [
+    "滨海湾金沙空中花园",
+    "滨海湾花园云雾林与擎天树",
+    "鱼尾狮公园",
+    "牛车水佛牙寺",
+    "小印度实龙岗路",
+    "圣淘沙西乐索海滩",
+  ],
+  sydney: [
+    "悉尼歌剧院",
+    "海港大桥观景点",
+    "岩石区 The Rocks",
+    "邦迪海滩与 Bondi to Coogee 海岸步道",
+    "达令港",
+    "皇家植物园麦考利夫人椅",
+  ],
+  london: [
+    "大英博物馆",
+    "塔桥与伦敦塔",
+    "威斯敏斯特宫与大本钟",
+    "白金汉宫",
+    "科文特花园",
+    "博罗市场",
+  ],
+  rome: [
+    "罗马斗兽场",
+    "古罗马广场",
+    "万神殿",
+    "特莱维喷泉",
+    "梵蒂冈博物馆与西斯廷礼拜堂",
+    "特拉斯提弗列街区",
+  ],
+  seoul: [
+    "景福宫与光化门",
+    "北村韩屋村",
+    "明洞购物街",
+    "南山首尔塔",
+    "广藏市场",
+    "弘大街区",
+  ],
+  bangkok: [
+    "大皇宫与玉佛寺",
+    "卧佛寺",
+    "郑王庙",
+    "乍都乍周末市场",
+    "唐人街耀华力路",
+    "ICONSIAM",
+  ],
+  hongkong: [
+    "太平山顶凌霄阁",
+    "中环半山扶梯",
+    "尖沙咀星光大道",
+    "天星小轮",
+    "香港故宫文化博物馆",
+    "庙街夜市",
+  ],
+  beijing: [
+    "故宫博物院",
+    "天安门广场",
+    "天坛公园",
+    "颐和园",
+    "八达岭长城",
+    "什刹海与烟袋斜街",
+  ],
+  sanfrancisco: [
+    "金门大桥游客中心",
+    "渔人码头 39 号码头",
+    "恶魔岛",
+    "九曲花街",
+    "渡轮大厦市场",
+    "双子峰",
+  ],
+  sf: [
+    "金门大桥游客中心",
+    "渔人码头 39 号码头",
+    "恶魔岛",
+    "九曲花街",
+    "渡轮大厦市场",
+    "双子峰",
+  ],
+  pisa: [
+    "比萨斜塔",
+    "奇迹广场",
+    "比萨主教座堂",
+    "圣若望洗礼堂",
+    "骑士广场",
+    "阿诺河岸 Lungarni",
+  ],
+};
+
+const VAGUE_ACTIVITY_RE =
+  /(城市地标|地标打卡|本地文化|当地文化|当地特色|本地特色|文化体验|自由活动|城市漫步|city landmark|local culture|local experience)/i;
 
 const CITY_COORDINATES: Record<string, [number, number]> = {
   tokyo: [35.6762, 139.6503],
@@ -239,6 +371,20 @@ function formatMonthDay(value: string): string {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return `${parsed.getMonth() + 1}月${parsed.getDate()}日`;
+}
+
+function addDays(value: string, days: number): string {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  parsed.setDate(parsed.getDate() + days);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDepartureDate(travelState: TravelState): string {
+  return travelState.departure_date ?? new Date().toISOString().slice(0, 10);
 }
 
 function findHotelForCity(
@@ -475,22 +621,71 @@ function joinList(items: string[]): string {
   return items.filter(Boolean).join("、") || "-";
 }
 
-function buildItineryTableRows(
-  itinerary: ItineraryDay[],
+function isVagueActivityName(value: string): boolean {
+  return !value.trim() || VAGUE_ACTIVITY_RE.test(value);
+}
+
+function getSpecificAttraction(city: string, dayIndex: number, activityIndex: number): string {
+  const key = normalizeLookupKey(city);
+  const attractions = SPECIFIC_ATTRACTIONS_BY_KEY[key];
+  if (!attractions?.length) {
+    return `${getLocalCityLabel(city)} 市中心历史街区`;
+  }
+
+  return attractions[(dayIndex * 2 + activityIndex) % attractions.length];
+}
+
+function buildAttractionRows(itinerary: ItineraryDay[]): ItineryTableRow[] {
+  return itinerary.flatMap((day, dayIndex) => {
+    const activities =
+      day.activities.length > 0
+        ? day.activities
+        : [
+            getSpecificAttraction(day.city, dayIndex, 0),
+            getSpecificAttraction(day.city, dayIndex, 1),
+          ];
+
+    return activities.map((activity, activityIndex) => {
+      const name = isVagueActivityName(activity)
+        ? getSpecificAttraction(day.city, dayIndex, activityIndex)
+        : activity;
+
+      return {
+        type: "景点",
+        date: formatDayTab(day),
+        route: getLocalCityLabel(day.city),
+        name,
+        details: day.food.length ? `餐饮：${joinList(day.food)}` : "-",
+        contact: "-",
+      };
+    });
+  });
+}
+
+function buildDefaultHotelRows(
+  segments: CitySegment[],
   travelState: TravelState
 ): ItineryTableRow[] {
-  const attractionRows = itinerary.flatMap((day) =>
-    day.activities.map((activity) => ({
-      type: "景点",
-      date: formatDayTab(day),
-      route: getLocalCityLabel(day.city),
-      name: activity,
-      details: day.food.length ? `餐饮：${joinList(day.food)}` : "-",
-      contact: "-",
-    }))
-  );
+  const startDate = getDepartureDate(travelState);
 
-  const hotelRows = travelState.selected_hotels.map((hotel) => ({
+  return segments.map((segment) => {
+    const checkIn = addDays(startDate, segment.dayStart - 1);
+    const nights = Math.max(1, segment.dayEnd - segment.dayStart);
+    const checkOut = addDays(startDate, segment.dayStart - 1 + nights);
+
+    return {
+      type: "酒店",
+      date: `${formatMonthDay(checkIn)} - ${formatMonthDay(checkOut)}`,
+      route: segment.label,
+      name: "自行安排",
+      details: `${nights}晚；待选择酒店；USD0`,
+      contact: "待补充",
+    };
+  });
+}
+
+function buildSelectedHotelRows(hotels: SelectedHotelOption[]): ItineryTableRow[] {
+  return hotels.map((hotel) => ({
     type: "酒店",
     date: `${formatMonthDay(hotel.check_in)} - ${formatMonthDay(hotel.check_out)}`,
     route: getLocalCityLabel(hotel.city),
@@ -498,10 +693,65 @@ function buildItineryTableRows(
     details: `${hotel.nights}晚；${hotel.option.address ?? "-"}；${getHotelDisplayPrice(
       hotel
     )}`,
-    contact: hotel.option.contact_phone ?? "-",
+    contact: hotel.option.contact_phone ?? "待补充",
   }));
+}
 
-  const flightRows = travelState.selected_flights
+function buildDefaultFlightRows(
+  segments: CitySegment[],
+  travelState: TravelState
+): ItineryTableRow[] {
+  const firstCity = segments[0]?.city;
+  const lastCity = segments[segments.length - 1]?.city ?? firstCity;
+  if (!firstCity || !lastCity) return [];
+
+  const origin = travelState.origin_city?.trim() || firstCity;
+  const returnCity = travelState.return_city?.trim() || origin;
+  const startDate = getDepartureDate(travelState);
+  const rows: ItineryTableRow[] = [];
+
+  if (normalizeLookupKey(origin) !== normalizeLookupKey(firstCity)) {
+    rows.push({
+      type: "航班",
+      date: formatMonthDay(startDate),
+      route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
+      name: "默认航班（待选择）",
+      details: "经济舱；用户可修改时间、价格和航司",
+      contact: "TBD",
+    });
+  }
+
+  if (normalizeLookupKey(lastCity) !== normalizeLookupKey(returnCity)) {
+    const returnDate = addDays(
+      startDate,
+      Math.max(0, segments[segments.length - 1].dayEnd - 1)
+    );
+    rows.push({
+      type: "航班",
+      date: formatMonthDay(returnDate),
+      route: `${getLocalCityLabel(lastCity)} → ${getLocalCityLabel(returnCity)}`,
+      name: "默认航班（待选择）",
+      details: "经济舱；用户可修改时间、价格和航司",
+      contact: "TBD",
+    });
+  }
+
+  if (!rows.length) {
+    rows.push({
+      type: "航班",
+      date: formatMonthDay(startDate),
+      route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
+      name: "默认航班（待选择）",
+      details: "经济舱；用户可修改出发/到达城市和航班号",
+      contact: "TBD",
+    });
+  }
+
+  return rows;
+}
+
+function buildSelectedFlightRows(flights: SelectedFlightOption[]): ItineryTableRow[] {
+  return flights
     .filter((flight) => !flight.skip)
     .map((flight) => {
       const option = flight.option;
@@ -522,9 +772,24 @@ function buildItineryTableRows(
         route: `${flight.from} → ${flight.to}`,
         name: airline,
         details: [airports, option?.duration, stops].filter(Boolean).join("；") || "-",
-        contact: option?.flight_number ?? "-",
+        contact: option?.flight_number ?? "TBD",
       };
     });
+}
+
+function buildItineryTableRows(
+  itinerary: ItineraryDay[],
+  travelState: TravelState,
+  segments: CitySegment[]
+): ItineryTableRow[] {
+  const attractionRows = buildAttractionRows(itinerary);
+  const hotelRows = travelState.selected_hotels.length
+    ? buildSelectedHotelRows(travelState.selected_hotels)
+    : buildDefaultHotelRows(segments, travelState);
+  const selectedFlightRows = buildSelectedFlightRows(travelState.selected_flights);
+  const flightRows = selectedFlightRows.length
+    ? selectedFlightRows
+    : buildDefaultFlightRows(segments, travelState);
 
   return [...attractionRows, ...hotelRows, ...flightRows];
 }
@@ -532,7 +797,8 @@ function buildItineryTableRows(
 function buildTravelExportPayload(
   itinerary: ItineraryDay[],
   travelState: TravelState,
-  orderedCities: string[]
+  orderedCities: string[],
+  itineryRows: ItineryTableRow[]
 ): TravelExportPayload {
   const cities =
     travelState.cities.length > 0
@@ -563,6 +829,7 @@ function buildTravelExportPayload(
     final_note: travelState.final_note ?? "",
     attached_files: travelState.attached_files,
     itinerary,
+    itinery_rows: itineryRows,
   };
 }
 
@@ -603,12 +870,14 @@ export function TravelItineraryExperience({
   routeCoordinates,
   mapPoints,
   activePointId,
+  initialItineryRows,
   onPointSelect,
 }: TravelItineraryExperienceProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [fullMapOpen, setFullMapOpen] = useState(false);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [activeCityKey, setActiveCityKey] = useState("");
+  const [editableItineryRows, setEditableItineryRows] = useState<ItineryTableRow[]>([]);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isSharingLink, setIsSharingLink] = useState(false);
@@ -658,22 +927,41 @@ export function TravelItineraryExperience({
   const focusedPointId = activeDay
     ? getPointIdForCity(resolvedMapPoints, activeDay.city) ?? activePointId ?? null
     : activePointId ?? null;
+  const defaultItineryRows = useMemo(
+    () =>
+      initialItineryRows?.length
+        ? initialItineryRows
+        : buildItineryTableRows(itinerary, travelState, segments),
+    [initialItineryRows, itinerary, segments, travelState]
+  );
   const exportPayload = useMemo(
-    () => buildTravelExportPayload(itinerary, travelState, orderedCities),
-    [itinerary, orderedCities, travelState]
+    () =>
+      buildTravelExportPayload(
+        itinerary,
+        travelState,
+        orderedCities,
+        editableItineryRows
+      ),
+    [editableItineryRows, itinerary, orderedCities, travelState]
   );
   const sharePayload = useMemo(
-    () => buildTravelItinerarySharePayload(title, itinerary, travelState),
-    [itinerary, title, travelState]
-  );
-  const itineryRows = useMemo(
-    () => buildItineryTableRows(itinerary, travelState),
-    [itinerary, travelState]
+    () =>
+      buildTravelItinerarySharePayload(
+        title,
+        itinerary,
+        travelState,
+        editableItineryRows
+      ),
+    [editableItineryRows, itinerary, title, travelState]
   );
 
   useEffect(() => {
     setActiveDayIndex(0);
   }, [itinerary]);
+
+  useEffect(() => {
+    setEditableItineryRows(defaultItineryRows);
+  }, [defaultItineryRows]);
 
   useEffect(() => {
     const firstCityKey = segments[0] ? getCitySectionKey(segments[0].city) : "";
@@ -726,6 +1014,45 @@ export function TravelItineraryExperience({
     setActiveDayIndex(index);
     setDetailOpen(true);
   };
+
+  const updateItineryRow = useCallback(
+    (rowIndex: number, field: keyof ItineryTableRow, value: string) => {
+      setEditableItineryRows((rows) =>
+        rows.map((row, index) =>
+          index === rowIndex
+            ? {
+                ...row,
+                [field]: value,
+              }
+            : row
+        )
+      );
+    },
+    []
+  );
+
+  const removeItineryRow = useCallback((rowIndex: number) => {
+    setEditableItineryRows((rows) => rows.filter((_, index) => index !== rowIndex));
+  }, []);
+
+  const addItineryRow = useCallback(() => {
+    const city = activeDay?.city ?? segments[0]?.city ?? "";
+    setEditableItineryRows((rows) => [
+      ...rows,
+      {
+        type: "景点",
+        date: activeDay ? formatDayTab(activeDay) : "天 1",
+        route: city ? getLocalCityLabel(city) : "待填写",
+        name: "新的景点/酒店/航班",
+        details: "点击单元格修改详情",
+        contact: "-",
+      },
+    ]);
+  }, [activeDay, segments]);
+
+  const resetItineryRows = useCallback(() => {
+    setEditableItineryRows(defaultItineryRows);
+  }, [defaultItineryRows]);
 
   const handleShareLink = async () => {
     if (typeof window === "undefined") return;
@@ -1005,13 +1332,36 @@ export function TravelItineraryExperience({
             data-testid="travel-itinerary-itinery-table"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-2xl font-bold text-[#2d1635]">itinery</h3>
-              <span className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
-                {itineryRows.length} 项
-              </span>
+              <div className="min-w-0">
+                <h3 className="text-2xl font-bold text-[#2d1635]">itinery</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                  {editableItineryRows.length} 项
+                </span>
+                <Button
+                  className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                  onClick={addItineryRow}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4" />
+                  添加项目
+                </Button>
+                <Button
+                  className="rounded-full text-[#756a7b] hover:bg-slate-100"
+                  onClick={resetItineryRows}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  重置默认
+                </Button>
+              </div>
             </div>
             <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#e6dff0] [scrollbar-width:thin]">
-              <table className="min-w-[900px] w-full border-collapse text-left text-sm">
+              <table className="min-w-[1080px] w-full border-collapse text-left text-sm">
                 <thead className="sticky top-0 bg-[#efe5ff] text-[#2d1635]">
                   <tr>
                     {[
@@ -1021,6 +1371,7 @@ export function TravelItineraryExperience({
                       "名称",
                       "详情",
                       "联系电话/航班号",
+                      "操作",
                     ].map((header) => (
                       <th className="px-4 py-3 font-bold" key={header}>
                         {header}
@@ -1029,22 +1380,65 @@ export function TravelItineraryExperience({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7f5]">
-                  {itineryRows.length ? (
-                    itineryRows.map((row, index) => (
+                  {editableItineryRows.length ? (
+                    editableItineryRows.map((row, index) => (
                       <tr className="align-top text-[#3a273f]" key={`${row.type}-${index}`}>
-                        <td className="whitespace-nowrap px-4 py-3 font-bold">
-                          {row.type}
+                        {(
+                          [
+                            ["type", "类型"],
+                            ["date", "日期/天数"],
+                            ["route", "城市/路线"],
+                            ["name", "名称"],
+                            ["details", "详情"],
+                            ["contact", "联系电话/航班号"],
+                          ] as const
+                        ).map(([field, label]) => (
+                          <td className="px-3 py-2" key={`${field}-${index}`}>
+                            {field === "details" ? (
+                              <textarea
+                                aria-label={`${label}-${index + 1}`}
+                                className="min-h-16 w-full resize-none rounded-xl border border-transparent bg-transparent px-3 py-2 font-semibold text-[#5f5166] outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white"
+                                onChange={(event) =>
+                                  updateItineryRow(index, field, event.target.value)
+                                }
+                                value={row[field]}
+                              />
+                            ) : (
+                              <input
+                                aria-label={`${label}-${index + 1}`}
+                                className={cn(
+                                  "w-full rounded-xl border border-transparent bg-transparent px-3 py-2 outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white",
+                                  field === "type" ||
+                                    field === "name" ||
+                                    field === "contact"
+                                    ? "font-bold text-[#2d1635]"
+                                    : "font-semibold text-[#5f5166]"
+                                )}
+                                onChange={(event) =>
+                                  updateItineryRow(index, field, event.target.value)
+                                }
+                                value={row[field]}
+                              />
+                            )}
+                          </td>
+                        ))}
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <Button
+                            aria-label={`删除第 ${index + 1} 项`}
+                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => removeItineryRow(index)}
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3">{row.date}</td>
-                        <td className="px-4 py-3">{row.route}</td>
-                        <td className="px-4 py-3 font-semibold">{row.name}</td>
-                        <td className="px-4 py-3 text-[#5f5166]">{row.details}</td>
-                        <td className="px-4 py-3 font-semibold">{row.contact}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td className="px-4 py-4 text-[#5f5166]" colSpan={6}>
+                      <td className="px-4 py-4 text-[#5f5166]" colSpan={7}>
                         暂无可导出的行程项目
                       </td>
                     </tr>
