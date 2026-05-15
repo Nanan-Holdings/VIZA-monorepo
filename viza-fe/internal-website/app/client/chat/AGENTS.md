@@ -75,6 +75,6 @@ For backend Socket.IO or agent changes:
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`: RAG retrieval helper for `visa_chunks`, including OpenAI embeddings, Supabase RPC vector lookup, filtered fallback, and context formatting.
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`: Supabase RPC for pgvector similarity search over `visa_chunks`, used by the RAG retrieval service.
 - `knowledge-base/indonesia-visa-rag.json`: curated official-source Indonesia visa knowledge chunks for RAG ingestion.
-- `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`: ingestion script that writes the Indonesia visa knowledge source to `visa_documents` and `visa_chunks`.
+- `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`: ingestion script that writes the Indonesia visa knowledge source to `visa_documents` and `visa_chunks`; existing docs are replaced by exact country / visa type / document type / source URL / title match.
 - `knowledge-base/us-visa-rag.json`: curated official-source U.S. B-1/B-2 visitor visa, DS-160, VWP/ESTA, wait time, and EVUS chunks for RAG ingestion.
-- `viza-be/agent-backend/scripts/ingest-us-visa-rag.ts`: ingestion script that writes the U.S. visitor visa knowledge source to `visa_documents` and `visa_chunks`.
+- `viza-be/agent-backend/scripts/ingest-us-visa-rag.ts`: ingestion script that writes the U.S. visitor visa knowledge source to `visa_documents` and `visa_chunks`; exact-title replacement avoids deleting sibling docs from the same official page.

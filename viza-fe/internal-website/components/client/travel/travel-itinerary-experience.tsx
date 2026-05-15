@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BedDouble,
   CalendarDays,
@@ -64,6 +64,7 @@ type RouteNode = {
   label: string;
   caption: string;
   kind: "origin" | "city" | "return";
+  city?: string;
 };
 
 const CITY_IMAGE_POOL = [
@@ -271,10 +272,11 @@ function createRouteNodes(
 
   segments.forEach((segment) => {
     nodes.push({
-      id: `city-${segment.city}`,
+      id: `city-${normalizeLookupKey(segment.city)}`,
       label: segment.label,
       caption: segment.rangeLabel,
       kind: "city",
+      city: segment.city,
     });
   });
 
@@ -370,6 +372,60 @@ function formatDayTab(day: ItineraryDay): string {
   return `天 ${dayNumber}`;
 }
 
+function getCitySectionKey(city: string): string {
+  return normalizeLookupKey(city) || city;
+}
+
+function getSegmentDays(
+  itinerary: ItineraryDay[],
+  segment: CitySegment
+): ItineraryDay[] {
+  const cityKey = normalizeLookupKey(segment.city);
+  const daysByCity = itinerary.filter(
+    (day) => normalizeLookupKey(day.city) === cityKey
+  );
+  if (daysByCity.length) return daysByCity;
+
+  return itinerary.filter((day) => {
+    const dayNumber =
+      typeof day.day === "number" ? day.day : Number.parseInt(String(day.day), 10);
+    return dayNumber >= segment.dayStart && dayNumber <= segment.dayEnd;
+  });
+}
+
+function getCityIntro(segment: CitySegment, days: ItineraryDay[]): string {
+  const highlights = Array.from(
+    new Set(days.flatMap((day) => [...day.activities, ...day.food]).filter(Boolean))
+  ).slice(0, 4);
+  const highlightText = highlights.length
+    ? highlights.join("、")
+    : "经典景点、当地美食和顺路体验";
+
+  return `在${segment.rangeLabel}的${segment.label}行程中，你会围绕${highlightText}展开安排。点击下方每天卡片可以进入详细动线，地图会同步展示当天城市和相关节点。`;
+}
+
+function getCityGalleryImages(segment: CitySegment, days: ItineraryDay[]): string[] {
+  const images = [
+    segment.imageSrc,
+    ...days.map((day, index) => getDayImage(day, index)),
+  ];
+  return Array.from(new Set(images)).slice(0, 3);
+}
+
+function getHotelDisplayPrice(hotel: SelectedHotelOption): string {
+  const rawPrice =
+    hotel.option.total_price ??
+    hotel.option.average_price_per_night ??
+    hotel.option.price_per_night;
+  if (!rawPrice) return "已选择";
+
+  const currency = hotel.option.currency?.trim();
+  const priceText = String(rawPrice);
+  if (!currency || priceText.includes(currency)) return priceText;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${priceText}`;
+}
+
 export function TravelItineraryExperience({
   itinerary,
   travelState,
@@ -382,6 +438,9 @@ export function TravelItineraryExperience({
   const [detailOpen, setDetailOpen] = useState(false);
   const [fullMapOpen, setFullMapOpen] = useState(false);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [activeCityKey, setActiveCityKey] = useState("");
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const segments = useMemo(
     () => buildCitySegments(itinerary, orderedCities, travelState),
@@ -431,16 +490,107 @@ export function TravelItineraryExperience({
     setActiveDayIndex(0);
   }, [itinerary]);
 
+  useEffect(() => {
+    const firstCityKey = segments[0] ? getCitySectionKey(segments[0].city) : "";
+    setActiveCityKey((currentKey) =>
+      segments.some((segment) => getCitySectionKey(segment.city) === currentKey)
+        ? currentKey
+        : firstCityKey
+    );
+  }, [segments]);
+
+  useEffect(() => {
+    const root = scrollContainerRef.current;
+    if (!root || !segments.length || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((first, second) => second.intersectionRatio - first.intersectionRatio)[0];
+        const nextCityKey = visibleEntry?.target.getAttribute("data-city-key");
+        if (nextCityKey) {
+          setActiveCityKey(nextCityKey);
+        }
+      },
+      {
+        root,
+        rootMargin: "-18% 0px -60% 0px",
+        threshold: [0.2, 0.45, 0.7],
+      }
+    );
+
+    segments.forEach((segment) => {
+      const node = citySectionRefs.current[getCitySectionKey(segment.city)];
+      if (node) observer.observe(node);
+    });
+
+    return () => observer.disconnect();
+  }, [segments]);
+
+  const scrollToCity = useCallback((city: string) => {
+    const cityKey = getCitySectionKey(city);
+    const node = citySectionRefs.current[cityKey];
+    setActiveCityKey(cityKey);
+    node?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const openDetailAtDay = (index: number) => {
     setActiveDayIndex(index);
     setDetailOpen(true);
   };
+
+  const renderCityTabs = (placement: "map" | "sticky") => (
+    <div
+      className={cn(
+        "flex max-w-full items-center gap-2 overflow-x-auto rounded-full bg-white/95 p-2 shadow-[0_14px_36px_rgba(32,20,43,0.16)] backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        placement === "map"
+          ? "absolute left-1/2 top-4 z-20 -translate-x-1/2"
+          : "sticky top-4 z-30 mx-auto w-fit"
+      )}
+      data-testid={`travel-itinerary-city-tabs-${placement}`}
+    >
+      {segments.map((segment, index) => {
+        const cityKey = getCitySectionKey(segment.city);
+        const active = cityKey === activeCityKey;
+
+        return (
+          <button
+            aria-current={active ? "location" : undefined}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-[#2d1635] transition-colors",
+              active ? "bg-[#d9c2ff]" : "hover:bg-[#f5f0fb]"
+            )}
+            data-testid={`travel-itinerary-city-tab-${placement}-${cityKey}`}
+            key={`city-tab-${cityKey}-${placement}`}
+            onClick={() => scrollToCity(segment.city)}
+            type="button"
+          >
+            <span
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-full border text-xs",
+                active
+                  ? "border-white bg-white text-[#2d1635]"
+                  : "border-[#d8d2dd] bg-white text-[#5f5166]"
+              )}
+            >
+              {index + 1}
+            </span>
+            {segment.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <>
       <div
         className="h-full min-h-0 overflow-y-auto bg-[#f7f6f2] px-5 py-6 [scrollbar-width:none] md:px-8 md:py-8 [&::-webkit-scrollbar]:hidden"
         data-testid="travel-itinerary-experience"
+        ref={scrollContainerRef}
       >
         <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-6">
           <section className="rounded-[28px] bg-white px-5 py-6 shadow-[0_22px_70px_rgba(32,20,43,0.12)] md:px-8 md:py-8">
@@ -508,19 +658,28 @@ export function TravelItineraryExperience({
             </button>
 
             <div className="mt-8 flex items-center gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {routeNodes.map((node, index) => (
-                <div className="flex shrink-0 items-center gap-3" key={node.id}>
-                  <div
-                    className={cn(
-                      "flex min-w-[132px] items-center gap-3 rounded-2xl px-4 py-3 text-[#2d1635]",
-                      node.kind === "city"
-                        ? "bg-white shadow-[0_8px_28px_rgba(32,20,43,0.08)]"
-                        : "bg-transparent"
-                    )}
-                  >
+              {routeNodes.map((node, index) => {
+                const cityIndex = node.city
+                  ? segments.findIndex(
+                      (segment) =>
+                        getCitySectionKey(segment.city) === getCitySectionKey(node.city ?? "")
+                    )
+                  : -1;
+                const active =
+                  node.city !== undefined &&
+                  getCitySectionKey(node.city) === activeCityKey;
+                const nodeClasses = cn(
+                  "flex min-w-[132px] items-center gap-3 rounded-2xl px-4 py-3 text-[#2d1635]",
+                  node.kind === "city"
+                    ? "bg-white shadow-[0_8px_28px_rgba(32,20,43,0.08)] transition-colors hover:bg-[#f8f3ff]"
+                    : "bg-transparent",
+                  active && "bg-[#dcc7ff]"
+                );
+                const nodeContent = (
+                  <>
                     {node.kind === "city" ? (
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#efe5ff] text-xs font-bold text-[#6f40cc]">
-                        {segments.findIndex((segment) => segment.label === node.label) + 1}
+                        {cityIndex + 1}
                       </span>
                     ) : (
                       <MapPin className="h-5 w-5" />
@@ -529,24 +688,44 @@ export function TravelItineraryExperience({
                       <span className="block text-base font-bold">{node.label}</span>
                       <span className="block text-sm text-[#5f5166]">{node.caption}</span>
                     </span>
+                  </>
+                );
+
+                return (
+                  <div className="flex shrink-0 items-center gap-3" key={node.id}>
+                    {node.kind === "city" && node.city ? (
+                      <button
+                        className={nodeClasses}
+                        data-testid={`travel-itinerary-route-city-${getCitySectionKey(
+                          node.city
+                        )}`}
+                        onClick={() => scrollToCity(node.city ?? "")}
+                        type="button"
+                      >
+                        {nodeContent}
+                      </button>
+                    ) : (
+                      <div className={nodeClasses}>{nodeContent}</div>
+                    )}
+                    {index < routeNodes.length - 1 ? (
+                      <div className="flex items-center gap-3 text-[#bcb5c2]">
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
+                        {index === 0 || index === routeNodes.length - 2 ? (
+                          <Plane className="h-5 w-5 text-[#2d1635]" />
+                        ) : (
+                          <TrainFront className="h-5 w-5 text-[#6f40cc]" />
+                        )}
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
+                      </div>
+                    ) : null}
                   </div>
-                  {index < routeNodes.length - 1 ? (
-                    <div className="flex items-center gap-3 text-[#bcb5c2]">
-                      <span className="h-px w-9 bg-[#d8d2dd]" />
-                      {index === 0 || index === routeNodes.length - 2 ? (
-                        <Plane className="h-5 w-5 text-[#2d1635]" />
-                      ) : (
-                        <TrainFront className="h-5 w-5 text-[#6f40cc]" />
-                      )}
-                      <span className="h-px w-9 bg-[#d8d2dd]" />
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
           <section className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
+            {segments.length > 1 ? renderCityTabs("map") : null}
             <TripRouteMap
               activePointId={focusedPointId}
               className="h-[300px] w-full md:h-[360px]"
@@ -566,53 +745,234 @@ export function TravelItineraryExperience({
             </Button>
           </section>
 
-          <section className="space-y-3 pb-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-[#2d1635]">行程过程</h3>
-              <Button
-                className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                onClick={() => openDetailAtDay(activeDayIndex)}
-                type="button"
-                variant="outline"
-              >
-                展开行程
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+          <section className="space-y-7 pb-3">
+            {segments.length > 1 ? renderCityTabs("sticky") : null}
 
-            <div className="space-y-3">
-              {itinerary.map((day, index) => (
-                <button
-                  className="grid w-full gap-4 rounded-2xl bg-white p-3 text-left shadow-[0_12px_36px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 md:grid-cols-[132px_1fr_auto]"
-                  key={`${day.day}-${day.city}-${index}`}
-                  onClick={() => openDetailAtDay(index)}
-                  type="button"
-                >
-                  <div className="relative h-24 overflow-hidden rounded-xl md:h-full">
-                    <Image
-                      alt={`${getLocalCityLabel(day.city)} itinerary`}
-                      className="h-full w-full object-cover"
-                      height={160}
-                      src={getDayImage(day, index)}
-                      width={220}
-                    />
-                  </div>
-                  <div className="min-w-0 py-1">
-                    <p className="text-sm font-semibold text-[#8d5df7]">
-                      {formatDayTab(day)} · {day.activities.length} 体验 · {day.cost}
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-[#2d1635]">
-                      {getLocalCityLabel(day.city)}
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-[#5f5166]">
-                      {summarizeDay(day)}
-                    </p>
-                  </div>
-                  <span className="self-center justify-self-end text-[#918796]">
-                    <ChevronRight className="h-6 w-6" />
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-9">
+              {segments.map((segment, segmentIndex) => {
+                const cityKey = getCitySectionKey(segment.city);
+                const days = getSegmentDays(itinerary, segment);
+                const hotel = findHotelForCity(travelState.selected_hotels, segment.city);
+                const nextSegment = segments[segmentIndex + 1];
+                const galleryImages = getCityGalleryImages(segment, days);
+                const firstDayIndex = days[0]
+                  ? Math.max(0, itinerary.indexOf(days[0]))
+                  : 0;
+
+                return (
+                  <section
+                    className="grid scroll-mt-28 gap-5 md:grid-cols-[164px_minmax(0,1fr)]"
+                    data-city-key={cityKey}
+                    data-testid={`travel-itinerary-city-section-${cityKey}`}
+                    id={`travel-itinerary-city-${cityKey}`}
+                    key={`city-section-${cityKey}`}
+                    ref={(node) => {
+                      citySectionRefs.current[cityKey] = node;
+                    }}
+                  >
+                    <aside className="relative hidden md:block">
+                      {segmentIndex < segments.length - 1 ? (
+                        <span className="absolute left-[31px] top-16 h-[calc(100%+48px)] w-px bg-[#d7d1dc]" />
+                      ) : null}
+                      <div className="sticky top-24 flex items-start gap-4">
+                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#2d1635] text-white shadow-[0_12px_28px_rgba(32,20,43,0.2)]">
+                          <MapPin className="h-8 w-8" />
+                        </span>
+                        <span className="pt-2 text-[#2d1635]">
+                          <span className="block text-base font-bold">
+                            天数 {segment.dayStart}-{segment.dayEnd}
+                          </span>
+                          <span className="block text-sm font-semibold text-[#5f5166]">
+                            {segment.rangeLabel}
+                          </span>
+                        </span>
+                      </div>
+                    </aside>
+
+                    <div className="space-y-5">
+                      <div className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-7">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#8d5df7]">
+                              {segment.rangeLabel}
+                            </p>
+                            <h3 className="mt-1 text-3xl font-bold text-[#2d1635]">
+                              {segment.label}
+                            </h3>
+                          </div>
+                          <Button
+                            className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => openDetailAtDay(firstDayIndex)}
+                            type="button"
+                            variant="outline"
+                          >
+                            查看行程
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-[#3a273f]">
+                          {getCityIntro(segment, days)}
+                        </p>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(160px,0.6fr)]">
+                          <div className="relative aspect-[16/9] overflow-hidden rounded-[22px] bg-slate-200">
+                            <Image
+                              alt={`${segment.label} itinerary hero`}
+                              className="h-full w-full object-cover"
+                              height={420}
+                              src={galleryImages[0] ?? segment.imageSrc}
+                              width={760}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 md:grid-cols-1">
+                            {(galleryImages.length > 1
+                              ? galleryImages.slice(1, 3)
+                              : [segment.imageSrc, segment.imageSrc]
+                            ).map((imageSrc, imageIndex) => (
+                              <div
+                                className="relative min-h-28 overflow-hidden rounded-[20px] bg-slate-200"
+                                key={`${cityKey}-gallery-${imageSrc}-${imageIndex}`}
+                              >
+                                <Image
+                                  alt={`${segment.label} gallery ${imageIndex + 1}`}
+                                  className="h-full w-full object-cover"
+                                  height={240}
+                                  src={imageSrc}
+                                  width={320}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {hotel ? (
+                        <article className="grid gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_42px_rgba(32,20,43,0.08)] md:grid-cols-[180px_minmax(0,1fr)_auto]">
+                          <div className="relative h-36 overflow-hidden rounded-[18px] bg-slate-200 md:h-full">
+                            <Image
+                              alt={hotel.option.name ?? `${segment.label} hotel`}
+                              className="h-full w-full object-cover"
+                              height={220}
+                              src={segment.imageSrc}
+                              width={280}
+                            />
+                          </div>
+                          <div className="min-w-0 py-1">
+                            <div className="flex text-orange-500">
+                              {[0, 1, 2].map((item) => (
+                                <Star
+                                  className="h-4 w-4 fill-current"
+                                  key={`hotel-star-${cityKey}-${item}`}
+                                />
+                              ))}
+                            </div>
+                            <h4 className="mt-2 text-xl font-bold text-[#2d1635]">
+                              {hotel.option.name ?? `${segment.label}精选酒店`}
+                            </h4>
+                            <p className="mt-1 text-sm font-semibold text-[#756a7b]">
+                              {hotel.nights} 晚上 · {formatMonthDay(hotel.check_in)} -{" "}
+                              {formatMonthDay(hotel.check_out)}
+                            </p>
+                            {hotel.option.address ? (
+                              <p className="mt-2 line-clamp-1 text-sm text-[#756a7b]">
+                                {hotel.option.address}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex items-end justify-between gap-3 md:flex-col">
+                            {hotel.option.rating ? (
+                              <span className="rounded-2xl bg-[#e7d3ff] px-3 py-2 text-lg font-bold text-[#2d1635]">
+                                {hotel.option.rating}
+                              </span>
+                            ) : null}
+                            <span className="text-right">
+                              <span className="block text-xs font-semibold text-[#756a7b]">
+                                来自
+                              </span>
+                              <span className="block text-2xl font-bold text-[#2d1635]">
+                                {getHotelDisplayPrice(hotel)}
+                              </span>
+                            </span>
+                          </div>
+                        </article>
+                      ) : null}
+
+                      <div className="space-y-3">
+                        {days.map((day) => {
+                          const dayIndex = itinerary.indexOf(day);
+                          const safeDayIndex = dayIndex >= 0 ? dayIndex : 0;
+
+                          return (
+                            <button
+                              className="grid w-full gap-4 rounded-[24px] bg-white p-3 text-left shadow-[0_12px_36px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 md:grid-cols-[150px_1fr_auto]"
+                              data-testid={`travel-itinerary-day-card-${cityKey}-${day.day}`}
+                              key={`${cityKey}-day-${day.day}`}
+                              onClick={() => openDetailAtDay(safeDayIndex)}
+                              type="button"
+                            >
+                              <div className="relative h-24 overflow-hidden rounded-[18px] md:h-full">
+                                <Image
+                                  alt={`${getLocalCityLabel(day.city)} itinerary`}
+                                  className="h-full w-full object-cover"
+                                  height={160}
+                                  src={getDayImage(day, safeDayIndex)}
+                                  width={240}
+                                />
+                              </div>
+                              <div className="min-w-0 py-1">
+                                <p className="text-sm font-semibold text-[#8d5df7]">
+                                  {formatDayTab(day)} · {day.activities.length} 体验 ·{" "}
+                                  {day.cost}
+                                </p>
+                                <p className="mt-1 text-lg font-bold text-[#2d1635]">
+                                  {summarizeDay(day)}
+                                </p>
+                                <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-[#5f5166]">
+                                  {getLocalCityLabel(day.city)}
+                                </p>
+                              </div>
+                              <span className="self-center justify-self-end text-[#918796]">
+                                <ChevronRight className="h-6 w-6" />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {nextSegment ? (
+                        <div className="rounded-[24px] bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                          <div className="grid items-center gap-4 md:grid-cols-[1fr_auto_1fr_auto]">
+                            <div>
+                              <p className="text-xl font-bold text-[#2d1635]">
+                                {segment.label}
+                              </p>
+                              <p className="text-sm font-semibold text-[#756a7b]">
+                                {segment.rangeLabel}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 text-[#6f40cc]">
+                              <span className="h-1 w-20 rounded-full bg-[#eadcff]" />
+                              <TrainFront className="h-8 w-8" />
+                              <span className="h-1 w-20 rounded-full bg-[#eadcff]" />
+                            </div>
+                            <div className="md:text-right">
+                              <p className="text-xl font-bold text-[#2d1635]">
+                                {nextSegment.label}
+                              </p>
+                              <p className="text-sm font-semibold text-[#756a7b]">
+                                {nextSegment.rangeLabel}
+                              </p>
+                            </div>
+                            <span className="rounded-full border border-[#d8c5ff] px-4 py-2 text-sm font-bold text-[#6f40cc]">
+                              建议交通
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -761,7 +1121,7 @@ export function TravelItineraryExperience({
 
             <div className="relative min-h-0 flex-1">
               <TripRouteMap
-                activePointId={focusedPointId}
+                activePointId={null}
                 animateRoute
                 className="h-full w-full"
                 onPointSelect={onPointSelect}
