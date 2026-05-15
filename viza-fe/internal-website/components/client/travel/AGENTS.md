@@ -38,6 +38,8 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 ## Important Files Added During Iterations
 
 - Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
+- `travel-itinerary-data.ts`: shared itinerary extraction/export payload helpers for final itinerary views.
+- `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
 
 ## Validation Checklist (for every travel UI change)
 
