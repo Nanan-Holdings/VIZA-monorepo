@@ -55,6 +55,35 @@ class TravelChatResponse(BaseModel):
     sources: list[dict[str, str]] = Field(default_factory=list)
 
 
+PLACE_LABELS = {
+    "Japan": "日本",
+    "Tokyo": "东京",
+    "South Korea": "韩国",
+    "Seoul": "首尔",
+    "France": "法国",
+    "Paris": "巴黎",
+    "Italy": "意大利",
+    "Thailand": "泰国",
+    "Phuket": "普吉",
+    "Indonesia": "印度尼西亚",
+    "Singapore": "新加坡",
+    "Australia": "澳大利亚",
+    "Sydney": "悉尼",
+}
+
+
+def _localize_place(value: str | None) -> str:
+    if not value:
+        return ""
+    return PLACE_LABELS.get(value, value)
+
+
+def _localize_days(value: str | None) -> str:
+    if not value:
+        return "3-5 天"
+    return value.replace("days", "天").replace("day", "天")
+
+
 def _to_destination_card(match: TravelKnowledgeMatch) -> TravelDestinationCard:
     chunk = match.chunk
     return TravelDestinationCard(
@@ -126,13 +155,13 @@ def generate_chat_response(request: TravelChatRequest) -> TravelChatResponse:
 
     if cards:
         top = cards[0]
-        country_label = top.country
-        city_label = top.city or top.country
+        country_label = _localize_place(top.country)
+        city_label = _localize_place(top.city or top.country)
         highlights = "、".join(top.highlights[:3])
         return TravelChatResponse(
             reply=(
                 f"我理解你可能会喜欢 {city_label} / {country_label} 这个方向。"
-                f"它适合安排 {top.suggested_days or '3-5 days'}，亮点可以放在：{highlights}。"
+                f"它适合安排 {_localize_days(top.suggested_days)}，亮点可以放在：{highlights}。"
                 "先把它作为候选目的地，不会直接改表单；你确认后我再帮你带入规划流程。"
             ),
             mode="destination_detail",

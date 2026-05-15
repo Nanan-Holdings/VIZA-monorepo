@@ -164,6 +164,60 @@ const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
+const GALLERY_IMAGE_POOL = [
+  "/globe/tokyo.jpg",
+  "/globe/singapore.jpg",
+  "/globe/sydney.jpg",
+  "/globe/nyc.jpg",
+  "/globe/beijing.jpg",
+  "/globe/london.jpg",
+  "/globe/paris.jpg",
+  "/globe/sf.jpg",
+  "/globe/pisa.jpg",
+  "/globe/egypt.jpg",
+] as const;
+const GALLERY_MAX_IMAGES = 6;
+const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
+  tokyo: ["/globe/tokyo.jpg", "/globe/beijing.jpg", "/globe/singapore.jpg"],
+  singapore: ["/globe/singapore.jpg", "/globe/tokyo.jpg", "/globe/sydney.jpg"],
+  sydney: ["/globe/sydney.jpg", "/globe/singapore.jpg", "/globe/sf.jpg"],
+  london: ["/globe/london.jpg", "/globe/paris.jpg", "/globe/pisa.jpg"],
+  paris: ["/globe/paris.jpg", "/globe/london.jpg", "/globe/pisa.jpg"],
+  newyork: ["/globe/nyc.jpg", "/globe/sf.jpg", "/globe/london.jpg"],
+  nyc: ["/globe/nyc.jpg", "/globe/sf.jpg", "/globe/london.jpg"],
+  beijing: ["/globe/beijing.jpg", "/globe/tokyo.jpg", "/globe/singapore.jpg"],
+  pisa: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
+  rome: ["/globe/pisa.jpg", "/globe/paris.jpg", "/globe/london.jpg"],
+  dubai: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/egypt.jpg"],
+  bali: ["/globe/sf.jpg", "/globe/singapore.jpg", "/globe/sydney.jpg"],
+  egypt: ["/globe/egypt.jpg", "/globe/pisa.jpg", "/globe/sf.jpg"],
+  marinabaysands: ["/globe/singapore.jpg", "/globe/tokyo.jpg", "/globe/sydney.jpg"],
+  eiffeltower: ["/globe/paris.jpg", "/globe/london.jpg", "/globe/pisa.jpg"],
+  bigben: ["/globe/london.jpg", "/globe/paris.jpg", "/globe/pisa.jpg"],
+};
+const LOCAL_NAME_BY_KEY: Record<string, string> = {
+  tokyo: "东京",
+  singapore: "新加坡",
+  sydney: "悉尼",
+  london: "伦敦",
+  paris: "巴黎",
+  newyork: "纽约",
+  nyc: "纽约",
+  beijing: "北京",
+  pisa: "比萨",
+  rome: "罗马",
+  dubai: "迪拜",
+  bali: "巴厘岛",
+  egypt: "埃及",
+  marinabaysands: "滨海湾金沙",
+  eiffeltower: "埃菲尔铁塔",
+  bigben: "大本钟",
+  shibuyacrossing: "涩谷十字路口",
+  sensojitemple: "浅草寺",
+  operahouse: "悉尼歌剧院",
+  sydneyoperahouse: "悉尼歌剧院",
+  colosseum: "罗马斗兽场",
+};
 const LABEL_MIN_ZOOM = 3;
 const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -189,6 +243,64 @@ function resolveMarkerImageUrl(imageSrc: string): string {
     return `${window.location.origin}${imageSrc}`;
   }
   return imageSrc;
+}
+
+function normalizeLookupKey(input: string | undefined): string {
+  if (!input) return "";
+  return input
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getImageLookupKey(imageSrc: string | undefined): string {
+  if (!imageSrc) return "";
+  return normalizeLookupKey(imageSrc.split("/").pop()?.replace(/\.[^.]+$/, ""));
+}
+
+function getPointLookupKeys(point: TripMapPoint): string[] {
+  return Array.from(
+    new Set(
+      [point.label, point.city, point.localName, point.subtitle, getImageLookupKey(point.imageSrc)]
+        .map(normalizeLookupKey)
+        .filter(Boolean)
+    )
+  );
+}
+
+function getLocalNameFromValue(value: string | undefined): string | null {
+  const key = normalizeLookupKey(value);
+  return key ? LOCAL_NAME_BY_KEY[key] ?? null : null;
+}
+
+function getPointDisplayName(point: TripMapPoint): string {
+  const labelLocalName = getLocalNameFromValue(point.label);
+  if (labelLocalName) return labelLocalName;
+  if (point.kind === "city" && point.localName) return point.localName;
+  if (point.kind !== "city" && point.localName && point.localName !== point.city) {
+    return point.localName;
+  }
+  return point.label;
+}
+
+function formatChineseDuration(duration: string | undefined): string {
+  const normalized = (duration ?? "2-4 days")
+    .replace(/\brecommended\b/gi, "")
+    .replace(/\bdays?\b/gi, "天")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized || "2-4 天";
+}
+
+function getPointGalleryImages(point: TripMapPoint): string[] {
+  const orderedImages: string[] = [point.imageSrc];
+  getPointLookupKeys(point).forEach((key) => {
+    orderedImages.push(...(GALLERY_IMAGES_BY_KEY[key] ?? []));
+  });
+  orderedImages.push(...GALLERY_IMAGE_POOL);
+
+  return Array.from(new Set(orderedImages.filter(Boolean))).slice(0, GALLERY_MAX_IMAGES);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -441,26 +553,34 @@ function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLa
 }
 
 function getPointDisplayLocation(point: TripMapPoint): string {
-  if (point.countryLabel) return point.countryLabel;
+  if (point.countryLabel) return point.countryLabel.replace(/\s*\([^)]*\)/g, "").trim();
   if (point.subtitle.includes(" in ")) {
-    return point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
+    const subtitleLocation = point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
+    return getLocalNameFromValue(subtitleLocation) ?? subtitleLocation;
   }
-  return point.city ?? point.subtitle;
+  return (
+    getLocalNameFromValue(point.city) ??
+    getLocalNameFromValue(point.subtitle) ??
+    point.localName ??
+    point.city ??
+    point.subtitle
+  );
 }
 
 function getPointAttractions(point: TripMapPoint): string {
-  const city = point.city ?? point.label;
+  const name = getPointDisplayName(point);
+  const city = getLocalNameFromValue(point.city) ?? point.localName ?? name;
   const base =
-    point.kind === "hotspot"
-      ? [point.label, `${city} city walks`, `${city} food streets`]
-      : [point.label, `${city} landmarks`, `${city} local districts`];
-  return Array.from(new Set([...base, "viewpoints", "night markets"])).join(", ");
+    point.kind === "city"
+      ? [`${name}经典地标`, `${name}热门街区`, "观景点", "夜市"]
+      : [name, `${city}步行路线`, "当地美食", "观景点", "夜景"];
+  return Array.from(new Set(base)).join("、");
 }
 
 function getPointIntro(point: TripMapPoint): string {
   return (
     point.intro ??
-    `${point.label} is a strong stop for first-time visitors, with compact routes, photogenic landmarks, and easy food detours.`
+    `${getPointDisplayName(point)}适合安排紧凑半日到一日游，动线清晰，拍照点集中，也方便串联周边美食与夜景。`
   );
 }
 
@@ -473,14 +593,22 @@ function buildHoverCardHtml(
     imageHeight?: number;
     compact?: boolean;
     closeButtonId?: string;
-    detailButtonId?: string;
+    photoButtonId?: string;
     summaryButtonId?: string;
+    imageElementId?: string;
+    dotIdPrefix?: string;
+    galleryImages?: string[];
   }
 ): string {
+  const title = getPointDisplayName(point);
   const cityOrCountry = getPointDisplayLocation(point);
   const attractions = getPointAttractions(point);
-  const duration = point.recommendedDays ?? "2-4 days";
-  const imageUrl = resolveMarkerImageUrl(point.imageSrc);
+  const duration = formatChineseDuration(point.recommendedDays);
+  const galleryImages =
+    options?.galleryImages && options.galleryImages.length > 0
+      ? options.galleryImages
+      : [resolveMarkerImageUrl(point.imageSrc)];
+  const imageUrl = galleryImages[0] ?? "";
   const cardWidth = options?.cardWidth ?? 420;
   const imageHeight = options?.imageHeight ?? 260;
   const compact = options?.compact ?? false;
@@ -488,8 +616,10 @@ function buildHoverCardHtml(
   const bodySize = compact ? 15 : 17;
   const padding = compact ? 18 : 24;
   const closeButtonId = options?.closeButtonId;
-  const detailButtonId = options?.detailButtonId;
+  const photoButtonId = options?.photoButtonId;
   const summaryButtonId = options?.summaryButtonId;
+  const imageElementId = options?.imageElementId;
+  const dotIdPrefix = options?.dotIdPrefix;
   const introLineHeight = compact ? 24 : 28;
   const introHeight = introLineHeight * 2;
 
@@ -497,37 +627,40 @@ function buildHoverCardHtml(
 <div data-viza-trip-hover-card="true" style="box-sizing:border-box;width:${cardWidth}px;max-width:${cardWidth}px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;pointer-events:none;">
   <div style="box-sizing:border-box;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 14px 34px rgba(15,23,42,.2);background:#fff;pointer-events:none;">
     <div style="position:relative;height:${imageHeight}px;background:#e2e8f0;">
-      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(point.label)}" style="display:block;width:100%;height:100%;object-fit:cover;" />
+      <img ${imageElementId ? `id="${imageElementId}"` : ""} src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" style="display:block;width:100%;height:100%;object-fit:cover;" />
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
       ${
         closeButtonId
-          ? `<button id="${closeButtonId}" type="button" aria-label="Close preview" style="pointer-events:auto;position:absolute;right:14px;top:14px;height:36px;width:36px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#0f172a;font-size:24px;line-height:28px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.16);">×</button>`
+          ? `<button id="${closeButtonId}" type="button" aria-label="关闭预览" style="pointer-events:auto;position:absolute;right:14px;top:14px;height:36px;width:36px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#0f172a;font-size:24px;line-height:28px;cursor:pointer;padding:0;box-shadow:0 8px 20px rgba(15,23,42,.16);">×</button>`
           : ""
       }
       ${
-        detailButtonId
-          ? `<button id="${detailButtonId}" type="button" aria-label="Open details" style="pointer-events:auto;position:absolute;right:18px;top:50%;height:44px;width:44px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:36px;line-height:32px;cursor:pointer;padding:0;box-shadow:0 10px 24px rgba(15,23,42,.2);">›</button>`
+        photoButtonId
+          ? `<button id="${photoButtonId}" type="button" aria-label="切换照片" style="pointer-events:auto;position:absolute;right:18px;top:50%;height:44px;width:44px;transform:translateY(-50%);border:0;border-radius:999px;background:#fff;color:#0f172a;font-size:36px;line-height:32px;cursor:pointer;padding:0;box-shadow:0 10px 24px rgba(15,23,42,.2);">›</button>`
           : ""
       }
       <div style="position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:center;gap:7px;">
-        ${Array.from({ length: 9 })
-          .map((_, index) => `<span style="height:7px;width:7px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`)
+        ${galleryImages
+          .map(
+            (_, index) =>
+              `<span ${dotIdPrefix ? `id="${dotIdPrefix}-${index}"` : ""} style="height:7px;width:7px;border-radius:999px;background:rgba(255,255,255,${index === 0 ? ".96" : ".62"});"></span>`
+          )
           .join("")}
       </div>
     </div>
     <div style="box-sizing:border-box;margin-top:-18px;position:relative;border-radius:16px 16px 0 0;background:#fff;padding:${padding}px ${padding}px ${padding + 2}px;">
       <div style="display:flex;align-items:center;gap:8px;font-size:${titleSize}px;font-weight:800;line-height:1.1;color:#020617;">
-        <span>${escapeHtml(point.label)}</span>
+        <span>${escapeHtml(title)}</span>
         <span style="border-radius:7px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 17 : 20}px;font-weight:800;padding:2px 6px;">🔥 10</span>
       </div>
       <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:14px;width:100%;border:0;border-radius:8px;background:#f1f0ff;padding:8px 10px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 16}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-        <span style="color:#0f3bae;">Popular Attractions:</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
+        <span style="color:#0f3bae;">热门景点：</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
       <div style="margin-top:14px;display:flex;align-items:center;gap:10px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         <span style="font-size:${compact ? 18 : 21}px;color:#475569;">⌖</span>
         <span>${escapeHtml(cityOrCountry)}</span>
         <span style="height:18px;width:1px;background:#cbd5e1;"></span>
-        <span>${escapeHtml(duration)} recommended</span>
+        <span>${escapeHtml(duration)} 推荐</span>
       </div>
       ${
         addButtonId
@@ -642,6 +775,10 @@ export function TripRouteMap({
   const detailPoint = useMemo(
     () => points.find((point) => point.id === detailPointId) ?? null,
     [detailPointId, points]
+  );
+  const detailGalleryImages = useMemo(
+    () => (detailPoint ? getPointGalleryImages(detailPoint) : []),
+    [detailPoint]
   );
 
   useEffect(() => {
@@ -807,11 +944,15 @@ export function TripRouteMap({
       });
 
       const openPreview = () => {
-        const buttonId = `trip-map-add-${sanitizeDomId(point.id)}`;
-        const closeButtonId = `trip-map-close-${sanitizeDomId(point.id)}`;
-        const detailButtonId = `trip-map-detail-${sanitizeDomId(point.id)}`;
-        const summaryButtonId = `trip-map-summary-${sanitizeDomId(point.id)}`;
-        const cityForPlan = point.localName ?? point.label;
+        const safePointId = sanitizeDomId(point.id);
+        const buttonId = `trip-map-add-${safePointId}`;
+        const closeButtonId = `trip-map-close-${safePointId}`;
+        const photoButtonId = `trip-map-photo-${safePointId}`;
+        const summaryButtonId = `trip-map-summary-${safePointId}`;
+        const imageElementId = `trip-map-image-${safePointId}`;
+        const dotIdPrefix = `trip-map-dot-${safePointId}`;
+        const galleryImages = getPointGalleryImages(point).map(resolveMarkerImageUrl);
+        const cityForPlan = getPointDisplayName(point);
         const currentWidth = containerRef.current?.clientWidth ?? mapWidth;
         const currentHeight = containerRef.current?.clientHeight ?? mapHeight;
         const currentZoom = map.getZoom() ?? zoom;
@@ -882,8 +1023,11 @@ export function TripRouteMap({
               imageHeight,
               compact,
               closeButtonId,
-              detailButtonId,
+              photoButtonId,
               summaryButtonId,
+              imageElementId,
+              dotIdPrefix,
+              galleryImages,
             }
           )
         );
@@ -991,9 +1135,31 @@ export function TripRouteMap({
             setDetailPointId(point.id);
             hoverInfo.close();
           };
+          let imageIndex = 0;
+          const updatePreviewImage = () => {
+            const imageElement = document.getElementById(
+              imageElementId
+            ) as HTMLImageElement | null;
+            if (imageElement) {
+              imageElement.src = galleryImages[imageIndex] ?? galleryImages[0] ?? "";
+            }
+            galleryImages.forEach((_, index) => {
+              const dotElement = document.getElementById(`${dotIdPrefix}-${index}`);
+              if (dotElement) {
+                dotElement.style.background = `rgba(255,255,255,${
+                  index === imageIndex ? ".96" : ".62"
+                })`;
+              }
+            });
+          };
           document
-            .getElementById(detailButtonId)
-            ?.addEventListener("click", openDetail, { once: true });
+            .getElementById(photoButtonId)
+            ?.addEventListener("click", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              imageIndex = (imageIndex + 1) % Math.max(galleryImages.length, 1);
+              updatePreviewImage();
+            });
           document
             .getElementById(summaryButtonId)
             ?.addEventListener("click", openDetail, { once: true });
@@ -1080,32 +1246,33 @@ export function TripRouteMap({
 
   const detailSections = useMemo(() => {
     if (!detailPoint) return [];
-    const city = detailPoint.city ?? detailPoint.label;
+    const city = getLocalNameFromValue(detailPoint.city) ?? getPointDisplayName(detailPoint);
+    const location = getPointDisplayLocation(detailPoint);
 
     return [
       {
         id: "attractions",
-        title: "Popular Attractions",
+        title: "热门景点",
         icon: "⌁",
         body: getPointAttractions(detailPoint),
       },
       {
         id: "food",
-        title: "Must-try food",
+        title: "必吃美食",
         icon: "♨",
-        body: `${city} signature dishes, street food lanes, local cafes`,
+        body: `${city}当地小吃、招牌餐厅、咖啡甜品、夜市`,
       },
       {
         id: "stay",
-        title: "Popular Accommodation Areas",
+        title: "热门住宿区域",
         icon: "▥",
-        body: `Near central stations, landmark districts, waterfront areas`,
+        body: `靠近${location}核心区、地标街区、交通便利区域`,
       },
       {
         id: "nightlife",
-        title: "Nightlife",
+        title: "夜生活",
         icon: "⌁",
-        body: `${city} night markets, skyline viewpoints, riverside walks`,
+        body: `${city}夜景、河岸散步、屋顶酒吧、夜市`,
       },
     ];
   }, [detailPoint]);
@@ -1118,10 +1285,10 @@ export function TripRouteMap({
           className="pointer-events-none absolute inset-y-0 right-0 z-30 flex w-full justify-end bg-transparent"
           data-testid="trip-map-detail-panel"
         >
-          <div className="pointer-events-auto flex h-full w-full max-w-[760px] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)]">
+          <div className="pointer-events-auto flex h-full w-[40%] min-w-[420px] max-w-[640px] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)] max-md:w-full max-md:min-w-0">
             <div className="flex items-center justify-end px-5 py-5">
               <button
-                aria-label="Close destination details"
+                aria-label="关闭目的地详情"
                 className="flex h-11 w-11 items-center justify-center rounded-full text-4xl leading-none text-slate-900 transition-colors hover:bg-slate-100"
                 onClick={() => setDetailPointId(null)}
                 type="button"
@@ -1134,13 +1301,13 @@ export function TripRouteMap({
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 text-3xl font-bold text-slate-950">
-                    <span>{detailPoint.label}</span>
+                    <span>{getPointDisplayName(detailPoint)}</span>
                     <span className="text-slate-300">›</span>
                   </div>
                   <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-rose-50 px-2 py-1 text-base font-semibold text-[#fb4d61]">
                     <span>🔥 10</span>
                     <span className="h-4 w-px bg-rose-200" />
-                    <span>Ranked #1 of Cities in {getPointDisplayLocation(detailPoint)}</span>
+                    <span>第 1 名 · {getPointDisplayLocation(detailPoint)}热门城市</span>
                   </div>
                 </div>
 
@@ -1148,25 +1315,25 @@ export function TripRouteMap({
                   <span className="text-2xl">⌖</span>
                   <span>{getPointDisplayLocation(detailPoint)}</span>
                   <span className="h-5 w-px bg-slate-300" />
-                  <span>{detailPoint.recommendedDays ?? "3-5 days"} recommended</span>
+                  <span>{formatChineseDuration(detailPoint.recommendedDays)} 推荐</span>
                 </div>
 
                 <p className="text-lg leading-relaxed text-slate-600">
                   {getPointIntro(detailPoint)}
                 </p>
 
-                <div className="flex gap-3 overflow-hidden py-2">
-                  {[0, 1, 2].map((index) => (
+                <div className="flex gap-3 overflow-x-auto py-2">
+                  {detailGalleryImages.map((imageSrc, index) => (
                     <div
-                      aria-label={`${detailPoint.label} preview ${index + 1}`}
-                      className="h-36 min-w-[180px] flex-1 rounded-md bg-cover bg-center"
+                      aria-label={`${getPointDisplayName(detailPoint)}照片 ${index + 1}`}
+                      className="h-32 min-w-[150px] flex-1 rounded-md bg-cover bg-center"
                       key={`${detailPoint.id}-preview-${index}`}
                       role="img"
-                      style={{ backgroundImage: `url(${detailPoint.imageSrc})` }}
+                      style={{ backgroundImage: `url(${imageSrc})` }}
                     />
                   ))}
                   <button
-                    aria-label="Next destination image"
+                    aria-label="下一张目的地照片"
                     className="mr-1 flex h-14 w-14 shrink-0 self-center rounded-full bg-white text-4xl text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
                     type="button"
                   >
@@ -1177,7 +1344,7 @@ export function TripRouteMap({
                 <div className="space-y-4">
                   {detailSections.map((section) => (
                     <button
-                      className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 px-5 py-5 text-left transition-colors hover:from-blue-50 hover:to-blue-100/70"
+                      className="flex w-full items-center gap-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 px-4 py-4 text-left transition-colors hover:from-blue-50 hover:to-blue-100/70"
                       key={section.id}
                       type="button"
                     >
@@ -1186,7 +1353,7 @@ export function TripRouteMap({
                         <span className="block text-xl font-bold text-slate-950">
                           {section.title} ›
                         </span>
-                        <span className="mt-4 line-clamp-2 block text-lg leading-relaxed text-slate-900">
+                        <span className="mt-3 line-clamp-2 block text-base leading-relaxed text-slate-900">
                           {section.body}
                         </span>
                       </span>
@@ -1209,7 +1376,7 @@ export function TripRouteMap({
                   }}
                   type="button"
                 >
-                  Add to Destinations
+                  加入我的计划
                 </button>
               </div>
             ) : null}
