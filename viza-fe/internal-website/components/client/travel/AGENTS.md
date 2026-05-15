@@ -6,7 +6,7 @@ Scope: this file applies to `viza-fe/internal-website/components/client/travel/*
 
 Keep Travel AI UI deterministic and production-safe while preserving current business flow:
 
-1. Multi-step structured collection (country -> cities -> city days -> travelers -> budget -> origin/return -> order -> flights -> hotels -> final note)
+1. Multi-step structured collection (country -> cities -> departure date -> travelers -> budget -> origin/return -> order -> flights -> hotels -> final note)
 2. Map-assisted selection is only a prefill helper, never a logic bypass
 3. All backend calls go through `app/api/travel/*` proxy routes
 

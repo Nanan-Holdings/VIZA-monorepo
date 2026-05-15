@@ -1,3 +1,4 @@
+import calendar
 from datetime import date, timedelta
 from typing import Optional
 
@@ -38,6 +39,7 @@ class TravelRequest(BaseModel):
     return_country: Optional[str] = None
     return_city: Optional[str] = None
     departure_date: Optional[str] = None
+    date_flexibility: Optional[str] = None
     selected_flights: list[dict] = Field(default_factory=list)
     selected_hotels: list[dict] = Field(default_factory=list)
     final_note: Optional[str] = None
@@ -92,6 +94,14 @@ def _normalized_city_days(data: TravelRequest, cities: list[str]) -> dict[str, i
     return result
 
 
+def _add_months(raw_date: date, months: int) -> date:
+    month_index = raw_date.month - 1 + months
+    year = raw_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(raw_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
 def _travel_start_date(raw_date: Optional[str]) -> date:
     if raw_date:
         try:
@@ -99,7 +109,7 @@ def _travel_start_date(raw_date: Optional[str]) -> date:
         except ValueError:
             pass
 
-    return date.today() + timedelta(days=14)
+    return _add_months(date.today(), 2)
 
 
 def _departure_date_for_leg(start_date: date, city_days: dict[str, int], legs_before: list[str]) -> str:
@@ -111,12 +121,15 @@ def _travel_payload(data: TravelRequest):
     cities = _normalized_cities(data)
     city_days = _normalized_city_days(data, cities)
     normalized_country = _normalized_country(data)
+    start_date = _travel_start_date(data.departure_date)
 
     return {
         **_payload(data),
         "country": normalized_country,
         "cities": cities,
         "city_days": city_days,
+        "departure_date": start_date.isoformat(),
+        "date_flexibility": data.date_flexibility or "flexible",
     }
 
 

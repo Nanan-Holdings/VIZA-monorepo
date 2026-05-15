@@ -17,6 +17,7 @@ import {
   buildTravelStateFromMessages,
   createTravelFormMessage,
   getFieldQuestionForState,
+  getDefaultFlexibleDepartureDate,
   nextMissingField,
   toTravelPlanningPayload,
   type ChatLikeMessage,
@@ -26,6 +27,7 @@ import {
   type SelectedHotelOption,
   type TravelFormPayload,
   type TravelPlanningPayload,
+  type TravelDateFlexibility,
 } from "@/lib/travel/planner";
 import type {
   TravelChatInputMessage,
@@ -599,7 +601,18 @@ function addDays(date: Date, days: number): Date {
 }
 
 function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseIsoDate(value: string): Date {
+  const [yearText, monthText, dayText] = value.split("-");
+  const parsed = new Date(Number(yearText), Number(monthText) - 1, Number(dayText));
+  return Number.isNaN(parsed.getTime())
+    ? parseIsoDate(getDefaultFlexibleDepartureDate())
+    : parsed;
 }
 
 function buildFallbackFlightLegs(payload: TravelPlanningPayload): FlightLegResult[] {
@@ -611,7 +624,7 @@ function buildFallbackFlightLegs(payload: TravelPlanningPayload): FlightLegResul
 
   if (route.length < 2) return [];
 
-  const startDate = addDays(new Date(), 14);
+  const startDate = parseIsoDate(payload.departure_date);
   const legs: FlightLegResult[] = [];
 
   for (let index = 0; index < route.length - 1; index += 1) {
@@ -637,7 +650,7 @@ function buildFallbackFlightLegs(payload: TravelPlanningPayload): FlightLegResul
 }
 
 function buildFallbackHotelStays(payload: TravelPlanningPayload): HotelStayResult[] {
-  const startDate = addDays(new Date(), 14);
+  const startDate = parseIsoDate(payload.departure_date);
   const stays: HotelStayResult[] = [];
   let elapsed = 0;
 
@@ -775,7 +788,12 @@ export function TravelPlannerForm({
 
   const [countries, setCountries] = useState<string[]>(travelState.countries);
   const [cities, setCities] = useState<string[]>(travelState.cities);
-  const [cityDaysDraft, setCityDaysDraft] = useState<Record<string, string>>({});
+  const [dateMode, setDateMode] = useState<TravelDateFlexibility>(
+    travelState.date_flexibility ?? "flexible"
+  );
+  const [departureDate, setDepartureDate] = useState<string>(
+    travelState.departure_date ?? getDefaultFlexibleDepartureDate()
+  );
   const [travelers, setTravelers] = useState<string>(travelState.travelers?.toString() ?? "");
   const [budget, setBudget] = useState<string>(travelState.budget?.toString() ?? "");
   const [originCountry, setOriginCountry] = useState<string>(travelState.origin_country ?? "");
@@ -878,6 +896,10 @@ export function TravelPlannerForm({
 
     setCountries(nextCountries);
     setCities(nextCities);
+    setDateMode(travelState.date_flexibility ?? "flexible");
+    setDepartureDate(
+      travelState.departure_date ?? getDefaultFlexibleDepartureDate()
+    );
     setTravelers(travelState.travelers?.toString() ?? "");
     setBudget(travelState.budget?.toString() ?? "");
     setOriginCountry(travelState.origin_country ?? "");
@@ -893,13 +915,6 @@ export function TravelPlannerForm({
             ? nextCities
             : []
     );
-
-    const nextDraft: Record<string, string> = {};
-    for (const city of travelState.cities) {
-      const existing = travelState.city_days[city];
-      nextDraft[city] = existing ? String(existing) : "";
-    }
-    setCityDaysDraft(nextDraft);
 
     const nextFlightDraft: Record<number, string> = {};
     for (const selected of travelState.selected_flights) {
@@ -1445,49 +1460,72 @@ export function TravelPlannerForm({
         </div>
       )}
 
-      {missingField === "city_days" && (
-        <div className="space-y-2">
-          {cities.map((city) => (
-            <div className="flex items-center gap-2" key={city}>
-              <div className="w-28 shrink-0 text-xs text-muted-foreground">
-                {getCityDisplayName(city)}
-              </div>
-              <Input
-                inputMode="numeric"
-                min={1}
-                onChange={(event) => {
-                  const value = event.target.value.replace(/[^\d]/g, "");
-                  setCityDaysDraft((current) => ({ ...current, [city]: value }));
-                }}
-                placeholder="天数"
-                type="text"
-                value={cityDaysDraft[city] ?? ""}
-              />
+      {missingField === "departure_date" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={() => {
+                setDateMode("flexible");
+                setDepartureDate(getDefaultFlexibleDepartureDate());
+              }}
+              size="sm"
+              type="button"
+              variant={dateMode === "flexible" ? "default" : "outline"}
+            >
+              灵活出行
+            </Button>
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={() => setDateMode("fixed")}
+              size="sm"
+              type="button"
+              variant={dateMode === "fixed" ? "default" : "outline"}
+            >
+              指定日期
+            </Button>
+          </div>
+
+          {dateMode === "fixed" ? (
+            <Input
+              onChange={(event) => setDepartureDate(event.target.value)}
+              type="date"
+              value={departureDate}
+            />
+          ) : (
+            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              灵活出行会先按两个月后的日期规划：{getDefaultFlexibleDepartureDate()}。
             </div>
-          ))}
+          )}
+
           <Button
             className="w-full"
-            disabled={busy || cities.length === 0}
+            disabled={busy}
             onClick={() => {
-              const city_days: Record<string, number> = {};
-              for (const city of cities) {
-                const parsed = parsePositiveIntText(cityDaysDraft[city] ?? "");
-                if (!parsed) {
-                  toast.error(`${getCityDisplayName(city)} 的停留天数必须是正整数。`);
-                  return;
-                }
-                city_days[city] = parsed;
+              const finalDate =
+                dateMode === "flexible"
+                  ? getDefaultFlexibleDepartureDate()
+                  : departureDate;
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(finalDate)) {
+                toast.error("请选择有效的出行日期。");
+                return;
               }
+              setLoadedFlightsKey(null);
+              setLoadedHotelsKey(null);
               sendStructuredMessage({
-                city_days,
+                departure_date: finalDate,
+                date_flexibility: dateMode,
                 display: {
-                  city_labels: selectedCityLabelMap,
+                  departure_date: finalDate,
+                  date_flexibility: dateMode,
                 },
               });
             }}
             size="sm"
           >
-            确认天数
+            确认出行日期
           </Button>
         </div>
       )}

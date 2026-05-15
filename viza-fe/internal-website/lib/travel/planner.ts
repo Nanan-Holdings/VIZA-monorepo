@@ -5,10 +5,10 @@ export type TravelField =
   | "country"
   | "cities"
   | "departure_date"
+  | "travel_days"
   | "travelers"
   | "budget"
   | "origin"
-  | "return"
   | "travel_order"
   | "flight_selection"
   | "hotel_selection"
@@ -109,6 +109,7 @@ export type TravelState = {
   city_days: Record<string, number>;
   departure_date: string | null;
   date_flexibility: TravelDateFlexibility | null;
+  travel_days: number | null;
   travelers: number | null;
   budget: number | null;
   origin_country: string | null;
@@ -129,6 +130,7 @@ export type TravelPlanningPayload = {
   city_days: Record<string, number>;
   departure_date: string;
   date_flexibility: TravelDateFlexibility;
+  travel_days: number;
   travelers: number;
   budget: number;
   travel_order: string[];
@@ -172,6 +174,7 @@ export type TravelFormDisplayPayload = {
   return_city?: string;
   departure_date?: string;
   date_flexibility?: TravelDateFlexibility;
+  travel_days?: number;
   travel_order?: string[];
 };
 
@@ -181,6 +184,7 @@ export type TravelFormPayload = Partial<TravelPayload> & {
   cities?: string[];
   departure_date?: string;
   date_flexibility?: TravelDateFlexibility;
+  travel_days?: number;
   seed_country?: string;
   seed_city?: string;
   city_days?: Record<string, number>;
@@ -214,10 +218,10 @@ export const FIELD_QUESTIONS: Record<TravelField, string> = {
   country: "请选择要去的国家（可搜索、可多选）。",
   cities: "请选择要去的城市（可搜索、可多选）。",
   departure_date: "请选择出行日期：可以灵活出行，也可以指定日期。",
+  travel_days: "请输入本次旅行一共多少天。",
   travelers: "请输入旅行人数（必须是正整数）。",
   budget: "请输入总预算（RMB，必须是正整数）。",
-  origin: "请选择出发国家和出发城市。",
-  return: "请选择返程国家和返程城市。",
+  origin: "请确认出发和返程城市。",
   travel_order: "请调整你的游玩顺序。",
   flight_selection:
     "请按出发/到达和游玩顺序为每个航段选择机票（可跳过，表示使用其他交通工具）。",
@@ -281,7 +285,10 @@ function addCalendarMonths(date: Date, months: number): Date {
 }
 
 function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function getDefaultFlexibleDepartureDate(baseDate = new Date()): string {
@@ -293,9 +300,20 @@ function normalizeIsoDate(value: unknown): string | null {
   const normalized = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
 
-  const parsed = new Date(`${normalized}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return toIsoDate(parsed) === normalized ? normalized : null;
+  const [yearText, monthText, dayText] = normalized.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return normalized;
 }
 
 function normalizeDateFlexibility(value: unknown): TravelDateFlexibility | null {
@@ -577,6 +595,12 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     const cities = display?.cities?.length ? display.cities : payload.cities;
     return `我选择了城市：${cities.join("、")}。`;
   }
+  if (payload.departure_date) {
+    if (payload.date_flexibility === "flexible") {
+      return `出行日期先按灵活出行：${payload.departure_date}（默认两个月后）。`;
+    }
+    return `出行日期是 ${payload.departure_date}。`;
+  }
   if (payload.city_days && Object.keys(payload.city_days).length > 0) {
     const summary = Object.entries(payload.city_days)
       .map(([city, days]) => `${display?.city_labels?.[city] ?? city}${days}天`)
@@ -676,7 +700,7 @@ function getExpectedHotelStays(state: TravelState): ExpectedHotelStay[] {
   return orderedCities.map((city, index) => ({
     stay_index: index + 1,
     city,
-    nights: state.city_days[city] ?? 1,
+    nights: state.city_days[city] ?? DEFAULT_CITY_DAYS,
   }));
 }
 
@@ -713,7 +737,12 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
     const citySet = new Set(cities);
     state.city_days = Object.fromEntries(
-      Object.entries(state.city_days).filter(([city]) => citySet.has(city))
+      cities.map((city) => [
+        city,
+        state.city_days[city] && citySet.has(city)
+          ? state.city_days[city]
+          : DEFAULT_CITY_DAYS,
+      ])
     );
     state.travel_order = state.travel_order.filter((city) => citySet.has(city));
     state.selected_flights = [];
@@ -726,6 +755,20 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
       ...state.city_days,
       ...cityDays,
     };
+  }
+
+  const dateFlexibility = normalizeDateFlexibility(payload.date_flexibility);
+  const departureDate = normalizeIsoDate(payload.departure_date);
+  if (dateFlexibility || departureDate) {
+    state.date_flexibility =
+      dateFlexibility ?? (departureDate ? "fixed" : state.date_flexibility);
+    state.departure_date =
+      departureDate ??
+      (dateFlexibility === "flexible"
+        ? getDefaultFlexibleDepartureDate()
+        : state.departure_date);
+    state.selected_flights = [];
+    state.selected_hotels = [];
   }
 
   const travelers = normalizePositiveInt(payload.travelers);
@@ -801,9 +844,15 @@ export function buildTravelStateFromMessages(messages: ChatLikeMessage[]): Trave
 function hasCompleteCityDays(state: TravelState): boolean {
   if (!state.cities.length) return false;
   return state.cities.every((city) => {
-    const days = state.city_days[city];
+    const days = state.city_days[city] ?? DEFAULT_CITY_DAYS;
     return Number.isInteger(days) && days > 0;
   });
+}
+
+function hasCompleteDepartureDate(state: TravelState): boolean {
+  return Boolean(
+    normalizeIsoDate(state.departure_date) && state.date_flexibility
+  );
 }
 
 function hasCompleteOrigin(state: TravelState): boolean {
@@ -871,7 +920,7 @@ function hasCompleteHotelSelections(state: TravelState): boolean {
 export function nextMissingField(state: TravelState): TravelField | null {
   if (!state.countries.length && !normalizeString(state.country)) return "country";
   if (state.cities.length === 0) return "cities";
-  if (!hasCompleteCityDays(state)) return "city_days";
+  if (!hasCompleteDepartureDate(state)) return "departure_date";
   if (!state.travelers) return "travelers";
   if (!state.budget) return "budget";
   if (!hasCompleteOrigin(state)) return "origin";
@@ -888,6 +937,7 @@ export function toTravelPlanningPayload(
 ): TravelPlanningPayload | null {
   if (!state.cities.length) return null;
   if (!hasCompleteCityDays(state)) return null;
+  if (!hasCompleteDepartureDate(state)) return null;
   if (!state.travelers || !state.budget) return null;
   if (!hasCompleteOrigin(state) || !hasCompleteReturn(state)) return null;
   if (!isTravelOrderComplete(state.cities, state.travel_order)) return null;
@@ -901,7 +951,7 @@ export function toTravelPlanningPayload(
 
   const cityDays: Record<string, number> = {};
   for (const city of orderedCities) {
-    const days = state.city_days[city];
+    const days = state.city_days[city] ?? DEFAULT_CITY_DAYS;
     if (!days) return null;
     cityDays[city] = days;
   }
@@ -917,6 +967,8 @@ export function toTravelPlanningPayload(
     countries: state.countries,
     cities: orderedCities,
     city_days: cityDays,
+    departure_date: state.departure_date ?? getDefaultFlexibleDepartureDate(),
+    date_flexibility: state.date_flexibility ?? "flexible",
     travelers: state.travelers,
     budget: state.budget,
     travel_order: orderedCities,

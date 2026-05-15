@@ -179,6 +179,9 @@ def generate_itinerary(state):
     selected_hotels = _format_selected_hotels(state)
     attached_files = _format_attached_files(state)
     final_note = (state.get("final_note") or "").strip() or "无"
+    departure_date = (state.get("departure_date") or "").strip() or "未指定"
+    date_flexibility = state.get("date_flexibility") or "flexible"
+    date_mode_label = "灵活出行" if date_flexibility == "flexible" else "指定日期"
 
     prompt = f"""
 你是一位专业旅行规划师，请根据用户需求生成详细行程。
@@ -192,12 +195,14 @@ def generate_itinerary(state):
 - 行程合理
 - 必须优先参考用户已选择的航班和酒店
 - 如果航段被标记为“其他交通方式”，请按该城市顺序安排，不要强行添加航班
-- 每天活动安排要与所选城市和停留天数匹配
+- 每天活动安排要与所选城市、出行日期和停留节奏匹配
 
 用户信息：
 国家：{state.get("country")}
 城市：{state.get("cities")}
-天数：{state.get("city_days")}
+出行日期：{departure_date}
+日期类型：{date_mode_label}
+城市停留节奏：{state.get("city_days")}
 人数：{state.get("travelers")}
 预算：{state.get("budget")}
 游玩顺序：{state.get("travel_order")}
