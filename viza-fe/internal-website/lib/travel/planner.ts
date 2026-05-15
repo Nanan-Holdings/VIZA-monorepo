@@ -1,9 +1,10 @@
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
+export const DEFAULT_CITY_DAYS = 2;
 
 export type TravelField =
   | "country"
   | "cities"
-  | "city_days"
+  | "departure_date"
   | "travelers"
   | "budget"
   | "origin"
@@ -12,6 +13,8 @@ export type TravelField =
   | "flight_selection"
   | "hotel_selection"
   | "final_note";
+
+export type TravelDateFlexibility = "flexible" | "fixed";
 
 export type FlightOptionResult = {
   provider?: string;
@@ -104,6 +107,8 @@ export type TravelState = {
   seed_country: string | null;
   seed_city: string | null;
   city_days: Record<string, number>;
+  departure_date: string | null;
+  date_flexibility: TravelDateFlexibility | null;
   travelers: number | null;
   budget: number | null;
   origin_country: string | null;
@@ -122,6 +127,8 @@ export type TravelPlanningPayload = {
   countries: string[];
   cities: string[];
   city_days: Record<string, number>;
+  departure_date: string;
+  date_flexibility: TravelDateFlexibility;
   travelers: number;
   budget: number;
   travel_order: string[];
@@ -163,6 +170,8 @@ export type TravelFormDisplayPayload = {
   origin_city?: string;
   return_country?: string;
   return_city?: string;
+  departure_date?: string;
+  date_flexibility?: TravelDateFlexibility;
   travel_order?: string[];
 };
 
@@ -170,6 +179,8 @@ export type TravelFormPayload = Partial<TravelPayload> & {
   country?: string;
   countries?: string[];
   cities?: string[];
+  departure_date?: string;
+  date_flexibility?: TravelDateFlexibility;
   seed_country?: string;
   seed_city?: string;
   city_days?: Record<string, number>;
@@ -202,7 +213,7 @@ type ExpectedHotelStay = {
 export const FIELD_QUESTIONS: Record<TravelField, string> = {
   country: "请选择要去的国家（可搜索、可多选）。",
   cities: "请选择要去的城市（可搜索、可多选）。",
-  city_days: "请为每个城市填写停留天数（必须是正整数）。",
+  departure_date: "请选择出行日期：可以灵活出行，也可以指定日期。",
   travelers: "请输入旅行人数（必须是正整数）。",
   budget: "请输入总预算（RMB，必须是正整数）。",
   origin: "请选择出发国家和出发城市。",
@@ -255,6 +266,40 @@ function normalizePositiveInt(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   if (!Number.isInteger(value) || value <= 0) return null;
   return value;
+}
+
+function addCalendarMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  const originalDay = next.getDate();
+  next.setMonth(next.getMonth() + months);
+
+  if (next.getDate() !== originalDay) {
+    next.setDate(0);
+  }
+
+  return next;
+}
+
+function toIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function getDefaultFlexibleDepartureDate(baseDate = new Date()): string {
+  return toIsoDate(addCalendarMonths(baseDate, 2));
+}
+
+function normalizeIsoDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+
+  const parsed = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return toIsoDate(parsed) === normalized ? normalized : null;
+}
+
+function normalizeDateFlexibility(value: unknown): TravelDateFlexibility | null {
+  return value === "flexible" || value === "fixed" ? value : null;
 }
 
 function normalizeCityDays(
@@ -441,6 +486,8 @@ export function createInitialTravelState(): TravelState {
     seed_country: null,
     seed_city: null,
     city_days: {},
+    departure_date: null,
+    date_flexibility: null,
     travelers: null,
     budget: null,
     origin_country: null,

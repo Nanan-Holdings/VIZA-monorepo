@@ -276,6 +276,18 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   "bigben": "大本钟",
 };
 
+function normalizePlaceLookupKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+const CANONICAL_PLACE_KEY_BY_LOCAL_NAME = Object.entries(LOCAL_NAME_BY_KEY).reduce<
+  Record<string, string>
+>((lookup, [key, localName]) => {
+  const localKey = normalizePlaceLookupKey(localName);
+  lookup[localKey] ??= key;
+  return lookup;
+}, {});
+
 const PLACE_TEXT_REPLACEMENTS = [
   ["South Korea", "韩国"],
   ["United Kingdom", "英国"],
@@ -819,7 +831,8 @@ function withLocalCandidateDisplay(
 }
 
 function normalizeCityKey(city: string): string {
-  return city.trim().toLowerCase().replace(/\s+/g, "");
+  const key = normalizePlaceLookupKey(city);
+  return CANONICAL_PLACE_KEY_BY_LOCAL_NAME[key] ?? key;
 }
 
 function getLocalDisplayName(value: string): string {
