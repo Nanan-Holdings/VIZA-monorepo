@@ -1040,7 +1040,7 @@ export function TravelPlannerForm({
 
   useEffect(() => {
     if (missingField !== "origin") return;
-    if (ipLocation || ipLocationError || isLoadingIpLocation) return;
+    if (ipLocation || ipLocationError) return;
 
     let disposed = false;
     setIsLoadingIpLocation(true);
@@ -1080,7 +1080,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [ipLocation, ipLocationError, isLoadingIpLocation, missingField]);
+  }, [ipLocation, ipLocationError, missingField]);
 
   useEffect(() => {
     if (missingField !== "flight_selection") return;

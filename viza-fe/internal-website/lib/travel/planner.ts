@@ -634,15 +634,22 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
   if (typeof payload.budget === "number") {
     return `预算是 ${payload.budget} RMB。`;
   }
-  if (payload.origin_country || payload.origin_city) {
+  if (
+    payload.origin_country ||
+    payload.origin_city ||
+    payload.return_country ||
+    payload.return_city
+  ) {
     const originCountry = display?.origin_country ?? payload.origin_country ?? "-";
     const originCity = display?.origin_city ?? payload.origin_city ?? "-";
-    return `出发地：${originCountry} ${originCity}`.trim();
-  }
-  if (payload.return_country || payload.return_city) {
     const returnCountry = display?.return_country ?? payload.return_country ?? "-";
     const returnCity = display?.return_city ?? payload.return_city ?? "-";
-    return `返程地：${returnCountry} ${returnCity}`.trim();
+
+    if (originCountry === returnCountry && originCity === returnCity) {
+      return `出发和返程城市都设为 ${originCountry} ${originCity}。`.trim();
+    }
+
+    return `出发地：${originCountry} ${originCity}；返程地：${returnCountry} ${returnCity}。`.trim();
   }
   if (payload.travel_order?.length) {
     const travelOrder = display?.travel_order?.length

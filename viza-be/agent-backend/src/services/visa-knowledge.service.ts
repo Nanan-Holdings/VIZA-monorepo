@@ -6,7 +6,7 @@ const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_MATCH_COUNT = 5;
-const DEFAULT_MIN_SIMILARITY = 0.5;
+const DEFAULT_MIN_SIMILARITY = 0.1;
 
 export interface VisaKnowledgeQuery {
   query: string;
@@ -217,11 +217,13 @@ export async function retrieveVisaKnowledge(
         matchCount,
         minSimilarity
       );
-      return {
-        chunks,
-        usedEmbedding: true,
-        fallbackReason: chunks.length > 0 ? null : "no_vector_matches",
-      };
+      if (chunks.length > 0) {
+        return {
+          chunks,
+          usedEmbedding: true,
+          fallbackReason: null,
+        };
+      }
     } catch (error) {
       logger.warn("Vector knowledge retrieval failed", error as Error, {
         country: query.country,
