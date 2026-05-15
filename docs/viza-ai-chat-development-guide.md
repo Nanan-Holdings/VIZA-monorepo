@@ -121,10 +121,11 @@ flowchart TD
 1. 尝试把用户消息写入 `visa_chat_messages`。
 2. 从 `visa_chat_messages` 读取最近 50 条历史作为 LLM 上下文。
 3. 调用 `buildApplicationContext(user_id)` 从 Supabase 读取 applicant profile 和最新 application。
-4. 调用 `buildSystemPrompt(context)` 拼出动态 system prompt。
-5. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
-6. 完成后保存 assistant message，并 emit `response_complete`。
-7. 如果模型调用 `send_application_block`，后端 emit `application_block`，前端渲染 `BlockMessage`。
+4. 调用 `retrieveVisaKnowledge()`，按用户问题 + application country/visa type 检索 `visa_chunks`。
+5. 调用 `buildSystemPrompt(context, knowledgeContext)` 拼出动态 system prompt。
+6. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
+7. 完成后保存 assistant message，并 emit `response_complete`。
+8. 如果模型调用 `send_application_block`，后端 emit `application_block`，前端渲染 `BlockMessage`。
 
 Agent 核心：
 
@@ -134,22 +135,45 @@ Agent 核心：
   - `buildSystemPrompt()` 把用户上下文注入 system prompt。
   - `streamChat()` 调用 Anthropic，并注册 `send_application_block` tool。
 
+RAG 检索服务：
+
+- `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
+  - `retrieveVisaKnowledge()` 负责把用户问题转成 embedding，并查询 `visa_chunks`。
+  - 优先调用 Supabase RPC `match_visa_chunks` 做 pgvector 相似度检索。
+  - RPC/embedding 不可用时，会 fallback 到按 country / visa type / document type 过滤 `visa_chunks`。
+  - `formatKnowledgeContext()` 把检索结果整理成可注入 system prompt 的上下文块。
+
+RAG migration：
+
+- `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
+  - 创建 `match_visa_chunks()` RPC。
+  - 支持 `country`、`visa_type`、`document_type[]`、`min_similarity` 过滤。
+  - 返回 chunk 内容、source title/url 和 similarity。
+
+RAG 知识源与写入：
+
+- `knowledge-base/indonesia-visa-rag.json`
+  - 官方来源整理后的 Indonesia visa chunks。
+  - 当前覆盖 e-Visa portal、Arrival Card、VoA/e-VOA、中国游客短期旅游、C1 旅游访问签、延期规则、禁止活动与 sponsor 注意事项。
+
+- `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`
+  - 读取上面的 JSON。
+  - 删除同 source URL 的旧 Indonesia RAG 文档后重新写入。
+  - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
+
 ## 6. 数据与持久化
 
 相关表：
 
-- `user_chat_sessions`  
-  当前前端 `getOrCreateUserSession()` 用它做“每个 auth user 一个持久 session”。
-
 - `visa_chat_sessions`  
-  旧的/另一套 visa chat session 表，`visa_chat_messages` 的历史查询 join 还依赖它。
+  当前 `/client/chat` 的 session source of truth。`getOrCreateUserSession()` 会按 `applicant_profiles.id` 找到或创建一条持久聊天 session。
 
 - `visa_chat_messages`  
-  保存用户、assistant，以及 `role='block'` 的 inline application block 记录。
+  保存用户、assistant，以及 `role='block'` 的 inline application block 记录。`session_id` 指向 `visa_chat_sessions.id`。
 
-当前需要注意的一点：
+当前约定：
 
-`getOrCreateUserSession()` 返回的是 `user_chat_sessions.id`，但多处历史查询仍 join `visa_chat_sessions`，后端 Drizzle schema 里 `visa_chat_messages.session_id` 也属于 visa chat message 语义。这里存在 session 表模型不统一的风险：如果数据库 FK 仍要求 `visa_chat_messages.session_id -> visa_chat_sessions.id`，那么使用 `user_chat_sessions.id` 作为 socket `session_id` 可能导致消息无法持久化，只能短暂 streaming。
+前端传给 Socket.IO 的 `user_id` 是 `applicant_profiles.id`。后端 `buildApplicationContext()` 优先按 `applicant_profiles.id` 查 profile，并保留 `auth_user_id` fallback 兼容旧调用。`user_chat_sessions` 仍存在于旧 migration 中，但本页面不再使用它作为 message parent。
 
 ## 7. Application block 保存链路
 
@@ -208,6 +232,12 @@ SUPABASE_SERVICE_ROLE_KEY=
 已经实现的部分：
 
 - `/client/chat` 路由存在，并接入客户端登录态/impersonation。
+- 聊天 session 已统一到 `visa_chat_sessions.id`，避免 `visa_chat_messages.session_id` 指向错误的 session 表。
+- RAG 检索 helper 已新增，能读取 `visa_chunks` 并格式化知识上下文。
+- `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
+- `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
+- Indonesia visa 官方知识源与 ingestion 脚本已新增。RAG 内容覆盖中国游客 7 天赴印尼应优先考虑 VoA/e-VOA，而不是美国 B-2/DS-160。
+- Indonesia RAG 已写入 Supabase：`visa_documents` 6 条，`visa_chunks` 12 条，均为 `country=indonesia`、`visa_type=tourist_b211a`。
 - 页面 UI 已经有入口选择页和截图里的聊天页。
 - `VIZA AI / Travel AI` tab 已经接好。
 - VIZA AI 前端已经能连接 `agent-backend` 的 `/visa` namespace。
@@ -218,7 +248,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 还需要重点确认/补齐的部分：
 
-- Session 持久化模型需要统一：`user_chat_sessions` 和 `visa_chat_sessions` 目前在链路里混用。
+- 需要实际应用 `0012_match_visa_chunks.sql` migration，并确保 `visa_chunks.embedding` 已回填，否则会走 filtered fallback。
+- 当前环境的 `OPENAI_API_KEY` 未生成可用 embedding，`visa_chunks.embedding` 仍为 0 条；RAG service 会使用 filtered fallback，但 pgvector 相似度检索需要后续回填 embedding。
+- 本机直连 Postgres 执行 `0012_match_visa_chunks.sql` 时 DNS 无法解析 Supabase DB host；需要在 Supabase SQL Editor 或可访问 DB host 的环境中应用 migration。
 - `chat-client.tsx` 文件很大，后续如果继续加功能，建议拆出 Socket hook 和 message list 子组件。
 - `travelApplicationStatus` 已传入 `ChatClient`，但当前 VIZA/Travel tab 渲染里基本没有使用。
 - Debug panel 状态现在固定为 `false`，实际排查 streaming 时需要临时打开或改成受控入口。
@@ -247,3 +279,15 @@ npm run type-check
 4. 刷新后历史消息能恢复。
 5. `Travel AI` tab 能正常嵌入 Travel planner。
 6. 如果 agent 返回 application block，表单能保存到目标表。
+
+## 12. 当前验证状态
+
+本轮 RAG 接入按步骤验证：
+
+- Step 1 session persistence：`viza-fe/internal-website npm run type-check` 通过；`viza-be/agent-backend npm run type-check` 通过；Playwright smoke screenshot: `test-results/playwright-step1-chat.png`。
+- Step 2 RAG service：`viza-be/agent-backend npm run type-check` 通过；Playwright smoke screenshot: `test-results/playwright-step2-chat.png`。
+- Step 3 SQL migration：`viza-be/agent-backend npm run type-check` 通过；`git diff --check` 通过；Playwright smoke screenshot: `test-results/playwright-step3-chat.png`。
+- Step 4 `/visa` RAG integration：前后端 type-check 均通过；Playwright 验证 frontend `/client/chat` 未登录 redirect 和 backend `/health`，screenshot: `test-results/playwright-step4-chat.png`。
+- Step 5 Indonesia RAG content ingestion：`npm run ingest:indonesia-visa-rag` 成功写入 6 documents / 12 chunks；retrieval smoke test 对“中国护照，印尼旅游7天”返回 5 个 Indonesia chunks；由于 embedding 不可用，结果使用 `embedding_unavailable` fallback。
+
+当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

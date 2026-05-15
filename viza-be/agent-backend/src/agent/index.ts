@@ -36,6 +36,8 @@ interface ApplicationContext {
 
 /**
  * Fetch applicant profile and active application for a user from Supabase.
+ * The chat frontend currently sends applicant_profiles.id as userId. The
+ * auth_user_id fallback keeps older callers compatible.
  * Returns null on failure (non-fatal).
  */
 export async function buildApplicationContext(
@@ -44,13 +46,25 @@ export async function buildApplicationContext(
   try {
     const supabase = getSupabaseClient();
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from("applicant_profiles")
       .select(
         "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
       )
-      .eq("auth_user_id", userId)
+      .eq("id", userId)
       .maybeSingle();
+
+    if (!profile) {
+      const { data: profileByAuthUserId } = await supabase
+        .from("applicant_profiles")
+        .select(
+          "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
+        )
+        .eq("auth_user_id", userId)
+        .maybeSingle();
+
+      profile = profileByAuthUserId;
+    }
 
     const { data: application } = await supabase
       .from("applications")
@@ -97,7 +111,10 @@ export async function buildApplicationContext(
 /**
  * Build a dynamic system prompt that includes the user's application context.
  */
-export function buildSystemPrompt(context: ApplicationContext): string {
+export function buildSystemPrompt(
+  context: ApplicationContext,
+  knowledgeContext?: string
+): string {
   const sections: string[] = [BASE_SYSTEM_PROMPT];
 
   if (context.profile) {
@@ -132,6 +149,14 @@ export function buildSystemPrompt(context: ApplicationContext): string {
     if (appLines.length > 0) {
       sections.push(`\nCurrent application:\n${appLines.join("\n")}`);
     }
+  }
+
+  if (knowledgeContext?.trim()) {
+    sections.push(
+      "\nRetrieved visa knowledge:\n" +
+        knowledgeContext.trim() +
+        "\n\nUse the retrieved visa knowledge for factual visa requirements, process, document, fee, and timing answers. If the retrieved knowledge is missing or insufficient, say what is uncertain instead of inventing details."
+    );
   }
 
   return sections.join("\n");

@@ -1,0 +1,138 @@
+{
+  "version": "2026-05-15",
+  "notes": "Official Indonesia visa RAG seed data. Sources were reviewed from Indonesian Immigration/e-Visa and official Indonesian embassy pages.",
+  "documents": [
+    {
+      "slug": "indonesia-official-evisa-portal",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "process",
+      "title": "Official Indonesia e-Visa Portal and Application Flow",
+      "sourceUrl": "https://evisa.imigrasi.go.id/web/home",
+      "chunks": [
+        {
+          "id": "idn_evisa_portal_apply_payment_download",
+          "title": "Official e-Visa portal application steps",
+          "tags": ["indonesia", "evisa", "official", "apply", "payment", "download"],
+          "content": "The official e-Visa website for Indonesia is evisa.imigrasi.go.id. The portal describes the application guideline as: apply for a suitable visa and prepare the required documents, make the visa fee payment by SIMPONI or Mastercard/Visa/JCB credit or debit card, then download the approved visa from the email link. The portal also supports tracking application status online. For VIZA AI: when the user asks about applying online for an Indonesian visa, direct them to the official e-Visa portal and do not use US DS-160, US B-2, Schengen, or UK visitor visa processes."
+        },
+        {
+          "id": "idn_arrival_card_required",
+          "title": "All Indonesia arrival card requirement",
+          "tags": ["indonesia", "arrival-card", "entry", "pre-arrival"],
+          "content": "Indonesia's official e-Visa portal states that Arrival Card submission is required for all travellers and must be submitted within 3 days prior to arrival in Indonesia. Travellers should use the official All Indonesia arrival card service linked from the official e-Visa website. This is separate from visa eligibility: having an arrival card does not replace a visa or stay permit."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-evoa-and-voa",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "requirements",
+      "title": "Indonesia e-VOA and Visa on Arrival for Short Visits",
+      "sourceUrl": "https://indonesianembassy.de/visa/online-application/visa-on-arrival/",
+      "chunks": [
+        {
+          "id": "idn_voa_short_tourism_china",
+          "title": "Visa on Arrival suitability for Chinese tourists",
+          "tags": ["indonesia", "voa", "e-voa", "china", "tourism", "30-days"],
+          "content": "For a Chinese passport holder travelling to Indonesia for tourism for 7 days, the appropriate short-stay route is generally Indonesia Visa on Arrival (VoA) or electronic Visa on Arrival (e-VOA), not a US B-2 visa and not DS-160. The official Indonesian Embassy in Berlin lists People's Republic of China among nationalities to which Visa on Arrival is applicable. VoA/e-VOA is for short visits such as tourism, government duties, business conversation, purchase of goods, meeting visits, and transit."
+        },
+        {
+          "id": "idn_voa_duration_fee_requirements",
+          "title": "VoA duration, extension, fee, and documents",
+          "tags": ["indonesia", "voa", "duration", "extension", "fee", "requirements"],
+          "content": "Indonesia Visa on Arrival can be obtained at designated airports, seaports, or land border checkpoints. It is valid for a maximum stay of 30 days from the first day of arrival. It can be extended for another 30 days, subject to eligibility and immigration procedures. Requirements include a passport valid for at least 6 months and possession of a return or onward ticket. The official fee stated by the Indonesian Embassy in Berlin is IDR 500,000, payable by card such as Visa, Mastercard, or JCB."
+        },
+        {
+          "id": "idn_evoa_features",
+          "title": "Electronic Visa on Arrival features",
+          "tags": ["indonesia", "e-voa", "online", "autogate", "extension"],
+          "content": "Indonesia e-VOA is the electronic version of Visa on Arrival. Official immigration pages describe e-VOA as Type B213, 30-day validity, single entry, with online payment by credit card, passport bio page and photo upload, and downloadable e-VOA PDF after approval. Holders of e-VOA may be able to use Autogate facilities at major airports. e-VOA can be extended online for another 30 days through the official site."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-c1-tourist-visit-visa",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "requirements",
+      "title": "Indonesia C1 Tourist Visit Visa",
+      "sourceUrl": "https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1",
+      "chunks": [
+        {
+          "id": "idn_c1_purpose_and_stay",
+          "title": "C1 tourist visit visa purpose and stay",
+          "tags": ["indonesia", "c1", "tourist", "single-entry", "60-days"],
+          "content": "Indonesia C1 Visa Kunjungan Wisata is a single-entry visitor visa for tourism, personal development, learning about tourist attractions, cruise travel, and certain permitted visit activities. The first stay permit is a maximum of 60 days counted from arrival. The stay can be extended several times up to a maximum total stay of 180 days. For short tourism of 30 days or less by eligible nationalities such as China, VoA/e-VOA is usually the simpler option; C1 is more relevant for a planned stay longer than VoA/e-VOA or for travellers who need a visitor visa in advance."
+        },
+        {
+          "id": "idn_c1_requirements_fee_processing",
+          "title": "C1 requirements, fee, sponsor, and processing time",
+          "tags": ["indonesia", "c1", "requirements", "fee", "processing", "sponsor"],
+          "content": "C1 tourist visit visa applicants apply through evisa.imigrasi.go.id after creating an account. Required electronic documents include a valid travel document with at least 6 months validity remaining, proof of living expenses during stay such as the foreigner's or sponsor's 3-month bank statement showing at least USD 2,000 or equivalent, and a recent color photo. The official C1 fee for a 60-day stay that can be extended is Rp 1,000,000. The C1 page states that a sponsor is not required for this visa except for stateless persons, holders of non-national passport travel documents, or nationals of certain listed countries. Processing time is stated as five working days after visa payment is received."
+        },
+        {
+          "id": "idn_c1_limits_and_validity",
+          "title": "C1 visa validity and prohibited activities",
+          "tags": ["indonesia", "c1", "validity", "limits", "prohibited"],
+          "content": "For C1 tourist visit visa, visa validity is 90 days from issuance; if not used within that period, the foreign national must apply for a new visa to enter Indonesia. Visa validity is different from permitted stay length, so users must check the visa for the actual stay permit period. C1 stay holders may not sell goods or services, receive compensation, wages, or similar payment for work or business from individuals or corporations in Indonesia, and may not fill an event as a speaker."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-stay-permit-extension",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "process",
+      "title": "Indonesia Visit Stay Permit Extension Rules",
+      "sourceUrl": "https://www.imigrasi.go.id/wna/izin-tinggal-keimigrasian",
+      "chunks": [
+        {
+          "id": "idn_itk_extension_rules",
+          "title": "Visit stay permit extension by visa class",
+          "tags": ["indonesia", "extension", "itk", "voa", "c1", "stay-permit"],
+          "content": "Indonesia Visit Stay Permit (ITK) extension can apply to holders of single-entry visitor visas, multiple-entry visitor visas, and Visa on Arrival. For single-entry visitor visas in index C, the first stay is generally 60 days and can be extended in 60-day increments up to a maximum total stay of 180 days, with exceptions for some visa indexes. For Visa on Arrival index B, the first stay is 30 days and it can be extended one time for 30 days, up to a maximum total stay of 60 days. Visa on Arrival index F is 7 days and cannot be extended."
+        },
+        {
+          "id": "idn_extension_timing_documents_fees",
+          "title": "Extension timing, documents, and fees",
+          "tags": ["indonesia", "extension", "timing", "documents", "fees"],
+          "content": "For Indonesia Visit Stay Permit extension, official immigration information says the application is made through the application system with scans of a valid passport or travel document, proof of sponsorship from the same sponsor if a sponsor was used, and a statement explaining the purpose of stay. Extension should be submitted no earlier than 14 days before expiry and no later than before the stay permit expires. A foreign national is not counted as overstaying if payment for extension is made before the stay permit expires. Official extension fees listed include ITK 30 days Rp500,000, ITK 60 days Rp2,000,000, and ITK 180 days Rp6,000,000."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-voa-online-extension-news",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "faq",
+      "title": "Online Extension for VoA and Visit Visa",
+      "sourceUrl": "https://imigrasi.go.id/berita/ini-aturan-perpanjangan-visa-on-arrival-dan-visa-kunjungan-indonesia-yang-wajib-diperhatikan-wna",
+      "chunks": [
+        {
+          "id": "idn_voa_visit_visa_online_extension",
+          "title": "How online extension works for VoA and visit visa",
+          "tags": ["indonesia", "voa", "visit-visa", "online-extension"],
+          "content": "Indonesian Immigration states that Visa on Arrival extension can be submitted online through evisa.imigrasi.go.id for both electronic VoA and sticker VoA obtained at the immigration counter on arrival. After the extension request enters the system, immigration officers verify the foreign national's data before the extension is issued. For a 60-day visit visa, Indonesian Immigration notes that if the foreign national will stay more than 60 days, it is better to have a sponsor from the beginning; if staying less than 60 days, a visit visa can be applied for without a sponsor where eligible."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-tourist-visa-no-sponsor-news",
+      "country": "indonesia",
+      "visaType": "tourist_b211a",
+      "documentType": "faq",
+      "title": "Tourist Visit Visa Without Sponsor",
+      "sourceUrl": "https://www.imigrasi.go.id/berita/2023/02/08/genjot-pariwisata-indonesia-visa-kunjungan-wisata-tidak-lagi-perlu-penjamin",
+      "chunks": [
+        {
+          "id": "idn_tourist_visit_no_sponsor",
+          "title": "Tourist visit visa sponsor guidance",
+          "tags": ["indonesia", "tourist-visit", "sponsor", "60-days", "180-days"],
+          "content": "Indonesian Immigration announced that foreign tourists no longer need a sponsor to apply for an Indonesia tourist visit visa. The tourist visit visa is described as valid for a 60-day stay and extendable up to a maximum of 180 days. The same official news explains that tourists may also use Visa on Arrival, but VoA is limited to eligible nationalities and a maximum stay of 60 days after extension. The tourist visit visa can be applied for independently through the official online immigration portal."
+        }
+      ]
+    }
+  ]
+}
