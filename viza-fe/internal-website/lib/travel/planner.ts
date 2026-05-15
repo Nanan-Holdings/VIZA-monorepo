@@ -175,6 +175,9 @@ export type TravelFormDisplayPayload = {
   departure_date?: string;
   date_flexibility?: TravelDateFlexibility;
   travel_days?: number;
+  travel_days_label?: string;
+  travelers_label?: string;
+  budget_label?: string;
   travel_order?: string[];
 };
 
@@ -218,9 +221,9 @@ export const FIELD_QUESTIONS: Record<TravelField, string> = {
   country: "请选择要去的国家（可搜索、可多选）。",
   cities: "请选择要去的城市（可搜索、可多选）。",
   departure_date: "请选择出行日期：可以灵活出行，也可以指定日期。",
-  travel_days: "请输入本次旅行一共多少天。",
-  travelers: "请输入旅行人数（必须是正整数）。",
-  budget: "请输入总预算（RMB，必须是正整数）。",
+  travel_days: "请输入本次旅行一共多少天，也可以先灵活规划。",
+  travelers: "请输入旅行人数，也可以先灵活规划。",
+  budget: "请输入总预算（RMB），也可以先灵活规划。",
   origin: "请确认出发和返程城市。",
   travel_order: "请调整你的游玩顺序。",
   flight_selection:
@@ -620,6 +623,9 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     return `出行日期是 ${payload.departure_date}。`;
   }
   if (typeof payload.travel_days === "number") {
+    if (display?.travel_days_label) {
+      return display.travel_days_label;
+    }
     return `出行天数是 ${payload.travel_days} 天。`;
   }
   if (payload.city_days && Object.keys(payload.city_days).length > 0) {
@@ -629,9 +635,15 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     return `我设置了停留天数：${summary}。`;
   }
   if (typeof payload.travelers === "number") {
+    if (display?.travelers_label) {
+      return display.travelers_label;
+    }
     return `出行人数是 ${payload.travelers} 人。`;
   }
   if (typeof payload.budget === "number") {
+    if (display?.budget_label) {
+      return display.budget_label;
+    }
     return `预算是 ${payload.budget} RMB。`;
   }
   if (

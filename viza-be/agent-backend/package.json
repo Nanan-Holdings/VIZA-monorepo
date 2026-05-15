@@ -22,6 +22,7 @@
 		"db:migrate": "tsx src/db/migrate.ts",
 		"ingest:indonesia-visa-rag": "tsx scripts/ingest-indonesia-visa-rag.ts",
 		"ingest:us-visa-rag": "tsx scripts/ingest-us-visa-rag.ts",
+		"ingest:supported-visa-rag": "tsx scripts/ingest-supported-visa-rag.ts",
 		"ingest:faqs": "tsx scripts/ingest-faqs.ts",
 		"seed:ds160-form-fields": "tsx scripts/seed-ds160-form-fields.ts"
 	},
