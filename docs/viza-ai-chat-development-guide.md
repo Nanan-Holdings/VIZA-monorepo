@@ -158,7 +158,7 @@ RAG 知识源与写入：
 
 - `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`
   - 读取上面的 JSON。
-  - 删除同 source URL 的旧 Indonesia RAG 文档后重新写入。
+  - 删除同 country / visa type / document type / source URL / title 的旧 Indonesia RAG 文档后重新写入。
   - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
 
 - `knowledge-base/us-visa-rag.json`
@@ -167,7 +167,7 @@ RAG 知识源与写入：
 
 - `viza-be/agent-backend/scripts/ingest-us-visa-rag.ts`
   - 读取上面的 JSON。
-  - 删除同 source URL 的旧 U.S. RAG 文档后重新写入。
+  - 删除同 country / visa type / document type / source URL / title 的旧 U.S. RAG 文档后重新写入，避免多个知识文档共用同一个官方页面时互相覆盖。
   - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
 
 ## 6. 数据与持久化
@@ -230,11 +230,12 @@ Agent Backend:
 PORT=3002
 CORS_ORIGINS=http://localhost:3000
 ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-如果 `ANTHROPIC_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。
+如果 `ANTHROPIC_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。`OPENAI_API_KEY` 用于生成 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
 
 ## 10. 做到什么程度了
 
@@ -257,9 +258,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 还需要重点确认/补齐的部分：
 
-- 需要实际应用 `0012_match_visa_chunks.sql` migration，并确保 `visa_chunks.embedding` 已回填，否则会走 filtered fallback。
-- `OPENAI_API_KEY` 已更新为可调用 `text-embedding-3-small` 的 key；Indonesia RAG 已重跑 ingestion，`visa_chunks.embedding` 已回填 12 条。
-- 本机直连 Postgres 执行 `0012_match_visa_chunks.sql` 时无法连接 Supabase IPv6 direct host；需要在 Supabase SQL Editor 或可访问 DB host 的环境中应用 migration。应用前 RAG service 会先尝试 RPC，然后 fallback 到 country/visa type filtered query。
+- 当前 Supabase 已应用 `0012_match_visa_chunks.sql`，`match_visa_chunks` RPC 可用；新环境仍需重新应用该 SQL，否则会走 filtered fallback。
+- `OPENAI_API_KEY` 已更新为可调用 `text-embedding-3-small` 的 key；Indonesia RAG 和 U.S. RAG 都已重跑 ingestion，并写入 embeddings。
+- 本机直连 Postgres 执行 SQL 时曾遇到 Supabase IPv6 direct host 连接问题；可用 Supabase SQL Editor 或可访问 DB host 的环境应用 migration。应用前 RAG service 会先尝试 RPC，然后 fallback 到 country/visa type filtered query。
 - `chat-client.tsx` 文件很大，后续如果继续加功能，建议拆出 Socket hook 和 message list 子组件。
 - `travelApplicationStatus` 已传入 `ChatClient`，但当前 VIZA/Travel tab 渲染里基本没有使用。
 - Debug panel 状态现在固定为 `false`，实际排查 streaming 时需要临时打开或改成受控入口。
@@ -302,5 +303,6 @@ npm run type-check
 - Step 7 pgvector RPC：`match_visa_chunks` 已应用到 Supabase 并可调用。RAG service 会优先用 vector search；如果 vector 相似度没有命中，会自动回退到 Indonesia filtered chunks，避免空上下文。
 - Step 8 vector retrieval verification：对“中国护照，去印尼旅游7天，应该申请什么签证？”的 retrieval smoke 返回 `usedEmbedding=true`，命中 Indonesia chunks；英文同类问题相似度更高并命中 e-VOA/VoA chunks。前后端 type-check 通过；Playwright smoke screenshot: `test-results/playwright-rag-vector-chat.png`。
 - Step 9 U.S. RAG source：新增 U.S. B-1/B-2/DS-160/VWP/EVUS 官方知识源与 ingestion 脚本；`/visa` knowledge routing 会在用户明确提到美国/美签/US/United States 时检索 `country=us`。
+- Step 10 U.S. RAG ingestion verification：`npm run ingest:us-visa-rag` 成功写入 7 documents / 20 chunks / 20 embeddings。对“中国护照，去美国旅游7天，应该申请什么签证？”的 retrieval smoke 返回 `usedEmbedding=true`、`fallbackReason=null`、`country=us`、`visaType=b1_b2`，Top 1 命中中文桥接 chunk，相似度约 0.708。前后端 type-check 通过；Playwright smoke screenshot: `test-results/playwright-us-rag-final-smoke.png`。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

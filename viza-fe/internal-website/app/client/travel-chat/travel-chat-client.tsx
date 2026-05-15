@@ -100,6 +100,13 @@ type ScrollThumbState = {
   visible: boolean;
 };
 
+type TravelIpLocation = {
+  country: string;
+  city: string;
+  countryCode?: string;
+  source?: string;
+};
+
 type TravelChatSession = {
   id: string;
   title: string;
@@ -786,6 +793,24 @@ function normalizeCandidateStringArray(value: unknown): string[] | undefined {
   return normalized.length ? Array.from(new Set(normalized)) : undefined;
 }
 
+function coerceTravelIpLocation(raw: unknown): TravelIpLocation | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const country = typeof record.country === "string" ? record.country.trim() : "";
+  const city = typeof record.city === "string" ? record.city.trim() : "";
+  if (!country || !city) return null;
+
+  return {
+    country,
+    city,
+    countryCode:
+      typeof record.countryCode === "string"
+        ? record.countryCode.trim()
+        : undefined,
+    source: typeof record.source === "string" ? record.source.trim() : undefined,
+  };
+}
+
 function coerceTravelFormCandidatePayload(
   payload: Record<string, unknown>
 ): TravelFormCandidatePayload {
@@ -919,8 +944,9 @@ function hashString(value: string): number {
 }
 
 function getRemoteCityImage(city: string): string {
-  const query = encodeURIComponent(`${city} city landmark travel`);
-  return `https://source.unsplash.com/640x420/?${query}`;
+  const cityTag = encodeURIComponent(city.trim() || "travel");
+  const lock = (hashString(cityTag) % 7000) + 1000;
+  return `https://loremflickr.com/640/420/${cityTag},city,landmark,travel?lock=${lock}`;
 }
 
 function getCityImage(city: string, seed: string = "default"): string {
@@ -1056,9 +1082,15 @@ export function TravelChatClient({
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renamingSessionTitle, setRenamingSessionTitle] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [prefetchedIpLocation, setPrefetchedIpLocation] =
+    useState<TravelIpLocation | null>(null);
+  const [prefetchedIpLocationError, setPrefetchedIpLocationError] =
+    useState<string | null>(null);
+  const [isPrefetchingIpLocation, setIsPrefetchingIpLocation] = useState(false);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
   const scrollDragOffsetRef = useRef(0);
+  const lastAutoScrolledMessageIdRef = useRef<string | null>(null);
   const [scrollThumb, setScrollThumb] = useState<ScrollThumbState>({
     top: 0,
     height: 0,
@@ -1460,13 +1492,13 @@ export function TravelChatClient({
     [scrollConversationToThumbTop, scrollThumb.visible]
   );
 
-  const scrollConversationToBottom = useCallback(() => {
+  const scrollConversationToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const scrollElement = messageScrollRef.current;
     if (!scrollElement) return;
 
     scrollElement.scrollTo({
       top: scrollElement.scrollHeight,
-      behavior: "smooth",
+      behavior,
     });
   }, []);
 
@@ -1502,10 +1534,76 @@ export function TravelChatClient({
   }, [archiveKey]);
 
   useEffect(() => {
+    let disposed = false;
+    setIsPrefetchingIpLocation(true);
+    setPrefetchedIpLocationError(null);
+
+    fetch("/api/travel/ip-location", { method: "GET" })
+      .then(async (response) => {
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error("无法根据 IP 推断城市。");
+        }
+
+        try {
+          return JSON.parse(text) as unknown;
+        } catch {
+          return {} as unknown;
+        }
+      })
+      .then((payload) => {
+        if (disposed) return;
+        const location = coerceTravelIpLocation(payload);
+        if (!location) {
+          throw new Error("无法根据 IP 推断城市。");
+        }
+        setPrefetchedIpLocation(location);
+      })
+      .catch((error) => {
+        if (disposed) return;
+        const message =
+          error instanceof Error ? error.message : "无法根据 IP 推断城市。";
+        setPrefetchedIpLocationError(message);
+      })
+      .finally(() => {
+        if (disposed) return;
+        setIsPrefetchingIpLocation(false);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
 
     writeArchivedTravelSessions(archiveKey, sessions);
   }, [archiveKey, archiveLoadedKey, sessions]);
+
+  useEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage || latestMessage.role !== "assistant") return;
+    if (lastAutoScrolledMessageIdRef.current === latestMessage.id) return;
+
+    lastAutoScrolledMessageIdRef.current = latestMessage.id;
+
+    let timeoutId: number | undefined;
+    const frameId = window.requestAnimationFrame(() => {
+      scrollConversationToBottom("smooth");
+      timeoutId = window.setTimeout(() => {
+        scrollConversationToBottom("smooth");
+        updateConversationScrollThumb();
+      }, 140);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [messages, scrollConversationToBottom, updateConversationScrollThumb]);
 
   useEffect(() => {
     const scrollElement = messageScrollRef.current;
@@ -1774,6 +1872,23 @@ export function TravelChatClient({
         city_days: nextCityDays,
         travel_order:
           nextOrder.length === nextCities.length ? nextOrder : undefined,
+        display: {
+          country:
+            nextCountries.length > 0
+              ? nextCountries.map(getLocalDisplayName).join("、")
+              : travelState.country
+                ? getLocalDisplayName(travelState.country)
+                : undefined,
+          countries: nextCountries.map(getLocalDisplayName),
+          cities: nextCities.map(getLocalDisplayName),
+          city_labels: Object.fromEntries(
+            nextCities.map((city) => [city, getLocalDisplayName(city)])
+          ),
+          travel_order:
+            nextOrder.length === nextCities.length
+              ? nextOrder.map(getLocalDisplayName)
+              : undefined,
+        },
       });
 
       sendMessage({
@@ -2251,6 +2366,9 @@ export function TravelChatClient({
                               const suggestedDays = localizeSuggestedDays(
                                 card.suggested_days
                               );
+                              const localizedSubtitle = localizeTravelText(
+                                card.subtitle
+                              );
                               const actionLabel =
                                 card.action_label && card.action_label !== "加入计划"
                                   ? localizeTravelText(card.action_label)
@@ -2286,7 +2404,7 @@ export function TravelChatClient({
                                   </div>
                                   <div className="space-y-2 p-3">
                                     <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">
-                                      {card.subtitle}
+                                      {localizedSubtitle}
                                     </p>
                                     {card.highlights.length > 0 && (
                                       <div className="flex flex-wrap gap-1">
@@ -2295,7 +2413,7 @@ export function TravelChatClient({
                                             className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-800"
                                             key={highlight}
                                           >
-                                            {highlight}
+                                            {localizeTravelText(highlight)}
                                           </span>
                                         ))}
                                       </div>
@@ -2339,7 +2457,10 @@ export function TravelChatClient({
                         {showPlannerForm && (
                           <div className="mt-3" data-testid="travel-inline-planner-form">
                             <TravelPlannerForm
+                              isPrefetchingIpLocation={isPrefetchingIpLocation}
                               messages={messages}
+                              prefetchedIpLocation={prefetchedIpLocation}
+                              prefetchedIpLocationError={prefetchedIpLocationError}
                               sendMessage={sendMessage}
                               status={status}
                             />

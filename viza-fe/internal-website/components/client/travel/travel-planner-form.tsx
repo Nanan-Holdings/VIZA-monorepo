@@ -405,6 +405,37 @@ function coerceIpLocation(raw: unknown): IpLocation | null {
   };
 }
 
+const LOCAL_LOCATION_NAME_BY_KEY: Record<string, string> = {
+  australia: "澳大利亚",
+  beijing: "北京",
+  china: "中国",
+  france: "法国",
+  hongkong: "香港",
+  italy: "意大利",
+  japan: "日本",
+  kyoto: "京都",
+  london: "伦敦",
+  newyork: "纽约",
+  osaka: "大阪",
+  paris: "巴黎",
+  pisa: "比萨",
+  rome: "罗马",
+  sanfrancisco: "旧金山",
+  seoul: "首尔",
+  singapore: "新加坡",
+  southkorea: "韩国",
+  sydney: "悉尼",
+  thailand: "泰国",
+  tokyo: "东京",
+  unitedkingdom: "英国",
+  unitedstates: "美国",
+};
+
+function getLocalLocationDisplayName(value: string): string {
+  const key = value.trim().toLowerCase().replace(/\s+/g, "");
+  return LOCAL_LOCATION_NAME_BY_KEY[key] ?? value;
+}
+
 function coerceCountryOptions(raw: unknown): Option[] {
   if (!raw || typeof raw !== "object") return [];
   const record = raw as Record<string, unknown>;
@@ -781,11 +812,17 @@ function compactHotelOptionForMessage(
 }
 
 export function TravelPlannerForm({
+  isPrefetchingIpLocation = false,
   messages,
+  prefetchedIpLocation = null,
+  prefetchedIpLocationError = null,
   sendMessage,
   status,
 }: {
+  isPrefetchingIpLocation?: boolean;
   messages: TravelChatMessage[];
+  prefetchedIpLocation?: IpLocation | null;
+  prefetchedIpLocationError?: string | null;
   sendMessage: (message: TravelChatInputMessage) => void;
   status: TravelChatStatus;
 }) {
@@ -848,9 +885,15 @@ export function TravelPlannerForm({
   const [isLoadingCityOptions, setIsLoadingCityOptions] = useState(false);
   const [countryLoadError, setCountryLoadError] = useState<string | null>(null);
   const [cityLoadError, setCityLoadError] = useState<string | null>(null);
-  const [ipLocation, setIpLocation] = useState<IpLocation | null>(null);
-  const [isLoadingIpLocation, setIsLoadingIpLocation] = useState(false);
-  const [ipLocationError, setIpLocationError] = useState<string | null>(null);
+  const [ipLocation, setIpLocation] = useState<IpLocation | null>(
+    prefetchedIpLocation
+  );
+  const [isLoadingIpLocation, setIsLoadingIpLocation] = useState(
+    isPrefetchingIpLocation
+  );
+  const [ipLocationError, setIpLocationError] = useState<string | null>(
+    prefetchedIpLocationError
+  );
   const [manualEndpointMode, setManualEndpointMode] = useState(false);
   const [customCountriesInput, setCustomCountriesInput] = useState("");
   const [customCitiesInput, setCustomCitiesInput] = useState("");
@@ -943,7 +986,9 @@ export function TravelPlannerForm({
         travelState.origin_country ||
           travelState.origin_city ||
           travelState.return_country ||
-          travelState.return_city
+          travelState.return_city ||
+          ipLocationError ||
+          prefetchedIpLocationError
       )
     );
     setTravelOrder(
@@ -975,7 +1020,29 @@ export function TravelPlannerForm({
     }
     setHotelSelectionDraft(nextHotelDraft);
     setFinalNoteDraft(travelState.final_note ?? "");
-  }, [travelState]);
+  }, [ipLocationError, prefetchedIpLocationError, travelState]);
+
+  useEffect(() => {
+    if (prefetchedIpLocation) {
+      setIpLocation(prefetchedIpLocation);
+      setIpLocationError(null);
+      setIsLoadingIpLocation(false);
+      return;
+    }
+
+    if (prefetchedIpLocationError) {
+      setIpLocationError(prefetchedIpLocationError);
+      setIsLoadingIpLocation(false);
+      setManualEndpointMode(true);
+      return;
+    }
+
+    setIsLoadingIpLocation(isPrefetchingIpLocation);
+  }, [
+    isPrefetchingIpLocation,
+    prefetchedIpLocation,
+    prefetchedIpLocationError,
+  ]);
 
   useEffect(() => {
     let disposed = false;
@@ -1039,8 +1106,7 @@ export function TravelPlannerForm({
   }, [originCountry, returnCountry, citiesByCountry, loadCitiesForCountries]);
 
   useEffect(() => {
-    if (missingField !== "origin") return;
-    if (ipLocation || ipLocationError) return;
+    if (ipLocation || ipLocationError || isPrefetchingIpLocation) return;
 
     let disposed = false;
     setIsLoadingIpLocation(true);
@@ -1080,7 +1146,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [ipLocation, ipLocationError, missingField]);
+  }, [ipLocation, ipLocationError, isPrefetchingIpLocation]);
 
   useEffect(() => {
     if (missingField !== "flight_selection") return;
@@ -1383,6 +1449,12 @@ export function TravelPlannerForm({
     flightLegs.length > 0 ? flightLegs : fallbackFlightLegs;
   const hotelStaysForSelection =
     hotelStays.length > 0 ? hotelStays : fallbackHotelStays;
+  const ipCountryDisplay = ipLocation
+    ? getLocalLocationDisplayName(ipLocation.country)
+    : "";
+  const ipCityDisplay = ipLocation
+    ? getLocalLocationDisplayName(ipLocation.city)
+    : "";
 
   const sendStructuredMessage = useCallback(
     (payload: TravelFormPayload) => {
@@ -1760,7 +1832,7 @@ export function TravelPlannerForm({
                 <>
                   <div className="text-sm font-medium text-foreground">
                     是否将出发和返程城市都设为{" "}
-                    {ipLocation.country} {ipLocation.city}？
+                    {ipCountryDisplay} {ipCityDisplay}？
                   </div>
                   <div className="text-xs text-muted-foreground">
                     这是根据当前 IP 粗略推断的城市，后续仍可修改。
@@ -1775,17 +1847,17 @@ export function TravelPlannerForm({
                           return_country: ipLocation.country,
                           return_city: ipLocation.city,
                           display: {
-                            origin_country: ipLocation.country,
-                            origin_city: ipLocation.city,
-                            return_country: ipLocation.country,
-                            return_city: ipLocation.city,
+                            origin_country: ipCountryDisplay,
+                            origin_city: ipCityDisplay,
+                            return_country: ipCountryDisplay,
+                            return_city: ipCityDisplay,
                           },
                         });
                       }}
                       size="sm"
                       type="button"
                     >
-                      使用 {ipLocation.city}
+                      使用 {ipCityDisplay}
                     </Button>
                     <Button
                       disabled={busy}
