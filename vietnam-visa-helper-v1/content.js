@@ -3835,28 +3835,13 @@ function handleDisclaimerPage() {
   // Show guide with down arrow animation - USE FIXED POSITIONING TO ENSURE VISIBILITY
   const guide = document.createElement('div');
   guide.className = 'vh-disclaimer-guide';
-  guide.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #e3f2fd;
-    border: 2px solid #2196F3;
-    border-radius: 8px;
-    padding: 20px;
-    max-width: 450px;
-    color: #1565c0;
-    z-index: 10001;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
   guide.innerHTML = `
     <div style="margin-bottom: 15px;">
-      <strong style="font-size: 16px; display: block; margin-bottom: 10px;">📋 操作步骤:</strong>
-      <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+      <strong style="font-size: 16px; display: block; margin-bottom: 10px; color: #03346e;">📋 操作步骤:</strong>
+      <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; color: #3d3d3d;">
         <li>向下滚动阅读完整条款</li>
         <li>在下方找到两个复选框并勾选</li>
-        <li>两个都勾选后，Next按钮会自动变红</li>
+        <li>两个都勾选后，Next按钮会自动高亮</li>
         <li>点击Next继续申请</li>
       </ol>
     </div>
@@ -3864,13 +3849,13 @@ function handleDisclaimerPage() {
       <div style="
         display: inline-block;
         animation: vh-bounce 2s infinite;
-        color: #2196F3;
+        color: #03346e;
         font-size: 28px;
         font-weight: bold;
       ">
         ⬇️
       </div>
-      <div style="color: #2196F3; font-size: 12px; margin-top: 6px;">
+      <div style="color: rgba(0, 0, 0, 0.52); font-size: 12px; margin-top: 6px;">
         向下滚动继续
       </div>
     </div>
@@ -3904,8 +3889,8 @@ function handleDisclaimerPage() {
     const style = document.createElement('style');
     style.textContent = `
       @keyframes vh-pulse {
-        0%, 100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.8), inset 0 0 10px rgba(76, 175, 80, 0.3); }
-        50% { box-shadow: 0 0 30px rgba(76, 175, 80, 1), inset 0 0 15px rgba(76, 175, 80, 0.5); }
+        0%, 100% { box-shadow: 0 0 0 3px rgba(3, 52, 110, 0.12), inset 0 0 8px rgba(3, 52, 110, 0.12); }
+        50% { box-shadow: 0 0 0 6px rgba(3, 52, 110, 0.18), inset 0 0 12px rgba(3, 52, 110, 0.18); }
       }
       .vh-checkbox-highlight { animation: vh-pulse 1.5s infinite; }
     `;
@@ -3922,8 +3907,8 @@ function handleDisclaimerPage() {
         
         wrapper.dataset.vhDisclaimerStyled = 'true';
         wrapper.style.position = 'relative';
-        wrapper.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.8), inset 0 0 10px rgba(76, 175, 80, 0.3)';
-        wrapper.style.borderRadius = '4px';
+        wrapper.style.boxShadow = '0 0 0 3px rgba(3, 52, 110, 0.12), inset 0 0 8px rgba(3, 52, 110, 0.12)';
+        wrapper.style.borderRadius = '8px';
         wrapper.style.padding = '8px';
         wrapper.style.transition = 'all 0.3s ease';
         wrapper.classList.add('vh-checkbox-highlight');
@@ -4341,24 +4326,30 @@ function injectFloatingPanel() {
 
 function showUserData() {
   const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001';
+  modal.className = 'vh-modal';
   modal.innerHTML = `
-    <div style="background:white;padding:20px;border-radius:8px;max-width:500px;max-height:80vh;overflow-y:auto">
-      <h3>📋 你的信息</h3>
-      <pre style="font-size:12px;background:#f5f5f5;padding:10px;border-radius:4px">${JSON.stringify(userData, null, 2)}</pre>
-      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button id="vh-save-profile" type="button" style="background:#1f6feb;color:white;border:none;padding:10px 18px;border-radius:4px;cursor:pointer">☁️ 保存到云端</button>
-        <button id="vh-close-modal" type="button" style="background:#28a745;color:white;border:none;padding:10px 20px;border-radius:4px;cursor:pointer">关闭</button>
+    <div class="vh-modal-content">
+      <div class="vh-modal-header">
+        <h3>📋 你的信息</h3>
+        <button class="vh-modal-close" id="vh-close-modal" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="vh-modal-body">
+        <pre class="vh-modal-pre" id="vh-user-data-json"></pre>
+        <div class="vh-modal-actions">
+          <button class="vh-action-btn vh-action-btn-primary" id="vh-save-profile" type="button">☁️ 保存到云端</button>
+          <button class="vh-action-btn" id="vh-close-modal-secondary" type="button">关闭</button>
+        </div>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
+  const dataPreview = modal.querySelector('#vh-user-data-json');
+  if (dataPreview) dataPreview.textContent = JSON.stringify(userData, null, 2);
   modal.querySelector('#vh-save-profile')?.addEventListener('click', () => {
     saveUserProfileToSupabase();
   });
-  modal.querySelector('#vh-close-modal')?.addEventListener('click', () => {
-    modal.remove();
-  });
+  modal.querySelector('#vh-close-modal')?.addEventListener('click', () => modal.remove());
+  modal.querySelector('#vh-close-modal-secondary')?.addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.remove();
   });
@@ -4384,7 +4375,6 @@ function showTopGuidance(msg, options = {}) {
   if (!banner) {
     banner = document.createElement('div');
     banner.className = 'vh-top-banner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#28a745;color:white;padding:12px;text-align:center;z-index:10000;animation:slideDown .3s';
     document.body.insertBefore(banner, document.body.firstChild);
   }
 
@@ -4408,10 +4398,15 @@ function showTopGuidance(msg, options = {}) {
 
 function showNotification(msg, type = 'info') {
   const notif = document.createElement('div');
-  notif.style.cssText = `position:fixed;bottom:80px;right:20px;background:${type==='success'?'#28a745':type==='error'?'#dc3545':'#17a2b8'};color:white;padding:12px 20px;border-radius:6px;z-index:10000`;
+  const normalizedType = type === 'warn' ? 'warning' : type;
+  notif.className = `vh-notification vh-notification-${normalizedType}`;
   notif.textContent = msg;
   document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3000);
+  requestAnimationFrame(() => notif.classList.add('show'));
+  setTimeout(() => {
+    notif.classList.remove('show');
+    setTimeout(() => notif.remove(), 240);
+  }, 3000);
 }
 
 console.log(`✅ v${EXTENSION_VERSION} 加载完成`);

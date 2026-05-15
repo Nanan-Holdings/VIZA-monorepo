@@ -55,6 +55,7 @@ type GoogleMarkerInstance = {
   setMap: (map: GoogleMapInstance | null) => void;
   setIcon: (icon?: GoogleMapMarkerIcon) => void;
   setLabel: (label?: GoogleMarkerLabel) => void;
+  setPosition: (position: GoogleLatLngLiteral) => void;
   setZIndex: (zIndex: number) => void;
 };
 
@@ -84,6 +85,11 @@ type GoogleInfoWindowInstance = {
 
 type GoogleLatLngBoundsInstance = {
   extend: (point: GoogleLatLngLiteral) => void;
+};
+
+type GooglePolylineInstance = {
+  setMap: (map: GoogleMapInstance | null) => void;
+  setPath: (path: GoogleLatLngLiteral[]) => void;
 };
 
 type GoogleMapsNamespace = {
@@ -119,6 +125,14 @@ type GoogleMapsNamespace = {
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
+  Polyline: new (options: {
+    path: GoogleLatLngLiteral[];
+    geodesic?: boolean;
+    strokeColor?: string;
+    strokeOpacity?: number;
+    strokeWeight?: number;
+    map?: GoogleMapInstance | null;
+  }) => GooglePolylineInstance;
   InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
   Size: new (width: number, height: number) => unknown;
@@ -544,6 +558,69 @@ function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLa
   };
 }
 
+function interpolateRoutePath(
+  routePath: GoogleLatLngLiteral[],
+  progress: number
+): GoogleLatLngLiteral[] {
+  if (routePath.length <= 1) return routePath;
+  if (progress >= 1) return routePath;
+
+  const clampedProgress = clamp(progress, 0, 1);
+  const segmentProgress = clampedProgress * (routePath.length - 1);
+  const completedIndex = Math.floor(segmentProgress);
+  const localProgress = segmentProgress - completedIndex;
+  const visiblePath = routePath.slice(0, completedIndex + 1);
+  const start = routePath[completedIndex];
+  const end = routePath[completedIndex + 1];
+
+  if (start && end) {
+    visiblePath.push({
+      lat: start.lat + (end.lat - start.lat) * localProgress,
+      lng: start.lng + (end.lng - start.lng) * localProgress,
+    });
+  }
+
+  return visiblePath;
+}
+
+function calculateCoordinateCenter(
+  coordinates: GoogleLatLngLiteral[]
+): GoogleLatLngLiteral {
+  if (!coordinates.length) return DEFAULT_CENTER;
+
+  const totals = coordinates.reduce(
+    (sum, point) => ({
+      lat: sum.lat + point.lat,
+      lng: sum.lng + point.lng,
+    }),
+    { lat: 0, lng: 0 }
+  );
+
+  return {
+    lat: totals.lat / coordinates.length,
+    lng: totals.lng / coordinates.length,
+  };
+}
+
+function estimateCoordinateZoom(
+  coordinates: GoogleLatLngLiteral[],
+  mapWidth: number,
+  mapHeight: number
+): number {
+  if (coordinates.length <= 1) return 6;
+
+  const lats = coordinates.map((point) => point.lat);
+  const lngs = coordinates.map((point) => point.lng);
+  const latSpan = Math.max(0.7, Math.max(...lats) - Math.min(...lats));
+  const lngSpan = Math.max(0.7, Math.max(...lngs) - Math.min(...lngs));
+  const paddedLatSpan = latSpan * 1.45;
+  const paddedLngSpan = lngSpan * 1.45;
+  const lngZoom = Math.log2((mapWidth * 360) / (256 * paddedLngSpan));
+  const latZoom = Math.log2((mapHeight * 170) / (256 * paddedLatSpan));
+
+  return Math.floor(clamp(Math.min(latZoom, lngZoom), MIN_ZOOM, 11));
+}
+
 function getPointDisplayLocation(point: TripMapPoint): string {
   if (point.countryLabel) return point.countryLabel.replace(/\s*\([^)]*\)/g, "").trim();
   if (point.subtitle.includes(" in ")) {
@@ -722,6 +799,7 @@ export function TripRouteMap({
   activePointId,
   onPointSelect,
   onAddDestination,
+  animateRoute = false,
   className,
 }: TripRouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1178,13 +1256,17 @@ export function TripRouteMap({
     const routePath = routeCoordinates.map(([lat, lng]) => ({ lat, lng }));
     const bounds = new maps.LatLngBounds();
     let coordinateCount = 0;
+    const fitCoordinates: GoogleLatLngLiteral[] = [];
 
     routePath.forEach((point) => {
       bounds.extend(point);
+      fitCoordinates.push(point);
       coordinateCount += 1;
     });
     points.forEach((point) => {
-      bounds.extend({ lat: point.lat, lng: point.lng });
+      const coordinate = { lat: point.lat, lng: point.lng };
+      bounds.extend(coordinate);
+      fitCoordinates.push(coordinate);
       coordinateCount += 1;
     });
 
@@ -1192,9 +1274,16 @@ export function TripRouteMap({
     const shouldFit = fitKey !== fitKeyRef.current;
 
     if (coordinateCount >= 2 && shouldFit) {
+      const fallbackCenter = calculateCoordinateCenter(fitCoordinates);
+      const fallbackZoom = estimateCoordinateZoom(fitCoordinates, mapWidth, mapHeight);
       const fitVisibleRoute = () => {
         if (effectDisposed) return;
         map.fitBounds(bounds, 72);
+        window.setTimeout(() => {
+          if (effectDisposed) return;
+          map.setCenter(fallbackCenter);
+          map.setZoom(fallbackZoom);
+        }, 80);
       };
       fitVisibleRoute();
       window.setTimeout(fitVisibleRoute, 260);

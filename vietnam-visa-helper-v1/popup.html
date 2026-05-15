@@ -5,199 +5,193 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>越南签证助手</title>
   <style>
+    :root {
+      --vh-brand: #03346e;
+      --vh-brand-600: #022b5c;
+      --vh-brand-100: #d4e0f0;
+      --vh-brand-50: #eef3fa;
+      --vh-ink: #3d3d3d;
+      --vh-muted: rgba(0, 0, 0, 0.52);
+      --vh-soft: #fcfcfc;
+      --vh-surface: #ffffff;
+      --vh-border: #efefef;
+      --vh-input: #e8e8e8;
+      --vh-success: #15803d;
+      --vh-success-bg: #f0faf4;
+      --vh-warning: #a8644d;
+      --vh-warning-bg: #fdf5f1;
+      --vh-danger: #b42318;
+      --vh-shadow: 0 12px 32px rgba(3, 52, 110, 0.12);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
-      width: 360px;
+      width: 384px;
       padding: 0;
-      font-family: 'Segoe UI', 'Microsoft YaHei', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      color: #333;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      background: var(--vh-soft);
+      color: var(--vh-ink);
+      letter-spacing: 0;
     }
 
     body.standalone {
       width: auto;
       min-height: 100vh;
-      padding: 24px 0;
+      padding: 28px 16px;
+      background:
+        linear-gradient(180deg, rgba(3, 52, 110, 0.08), rgba(255, 255, 255, 0) 320px),
+        var(--vh-soft);
     }
-    
+
     .container {
-      padding: 20px;
-      background: white;
-      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      background: var(--vh-soft);
     }
 
     body.standalone .container {
-      max-width: 420px;
+      max-width: 480px;
       margin: 0 auto;
-      border-radius: 14px;
-      box-shadow: 0 18px 40px rgba(17, 24, 39, 0.18);
+      border: 1px solid var(--vh-border);
+      border-radius: 16px;
+      box-shadow: var(--vh-shadow);
     }
-    
+
     .header {
-      text-align: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #2a5298;
+      min-height: 118px;
+      padding: 18px;
+      color: #ffffff;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+        linear-gradient(135deg, var(--vh-brand), #3d6dad);
+      border-radius: 16px;
+      box-shadow: 0 14px 32px rgba(3, 52, 110, 0.22);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 6px;
     }
-    
+
     .header h1 {
       font-size: 20px;
-      color: #1e3c72;
-      margin-bottom: 5px;
+      line-height: 1.25;
+      font-weight: 700;
     }
-    
+
     .header p {
       font-size: 12px;
-      color: #666;
+      color: rgba(255, 255, 255, 0.72);
     }
-    
+
+    .alert,
+    .status-box,
+    .auth-box,
+    .upload-box,
+    .features {
+      background: var(--vh-surface);
+      border: 1px solid var(--vh-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.035);
+    }
+
+    .alert {
+      padding: 11px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--vh-warning);
+      background: var(--vh-warning-bg);
+      border-color: #f7c7ba;
+    }
+
     .status-box {
-      background: linear-gradient(135deg, #e8f5e9, #f1f8f4);
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      border-left: 4px solid #28a745;
+      padding: 13px;
       font-size: 13px;
       line-height: 1.6;
+      border-color: #d1e7dd;
+      background: var(--vh-success-bg);
     }
-    
+
     .status-box strong {
-      color: #1e3c72;
+      display: block;
+      color: var(--vh-success);
+      font-size: 13px;
+      margin-bottom: 5px;
     }
-    
+
     .status-box p {
-      margin: 4px 0;
-      color: #555;
+      margin: 2px 0;
+      color: rgba(0, 0, 0, 0.62);
     }
-    
-    .quick-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-    
-    .btn {
-      padding: 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.3s;
-      font-weight: 600;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #28a745, #20c997);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
-    }
-    
-    .btn-secondary {
-      background: rgba(42, 82, 152, 0.1);
-      color: #1e3c72;
-      border: 1px solid #2a5298;
-    }
-    
-    .btn-secondary:hover {
-      background: rgba(42, 82, 152, 0.2);
-    }
-    
+
+    .auth-box,
+    .upload-box,
     .features {
-      background: #f9f9f9;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-      font-size: 12px;
+      padding: 14px;
     }
-    
+
+    .auth-box h3,
+    .upload-box h3,
     .features h3 {
-      color: #1e3c72;
-      margin-bottom: 8px;
-      font-size: 13px;
-    }
-    
-    .features ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .features li {
-      padding: 4px 0;
-      color: #666;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    
-    .features li::before {
-      content: '✓';
-      color: #28a745;
-      font-weight: bold;
-    }
-    
-    .full-width {
-      width: 100%;
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      color: white;
-    }
-    
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      color: #999;
-      margin-top: 15px;
-      padding-top: 10px;
-      border-top: 1px solid #e0e0e0;
-    }
-    
-    .alert {
-      background: #fff3cd;
-      border-left: 4px solid #ffc107;
-      padding: 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      color: #856404;
-      margin-bottom: 15px;
+      color: var(--vh-brand);
+      font-size: 14px;
+      line-height: 1.35;
+      margin-bottom: 7px;
+      font-weight: 700;
     }
 
-    .upload-box {
-      background: #f7faff;
-      border: 1px solid rgba(42, 82, 152, 0.15);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 15px;
-    }
-
-    .upload-box h3 {
-      color: #1e3c72;
-      font-size: 13px;
-      margin-bottom: 6px;
-    }
-
+    .auth-box p,
     .upload-box p {
       font-size: 12px;
-      color: #5f6b7a;
-      line-height: 1.5;
+      color: var(--vh-muted);
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    .auth-grid {
+      display: grid;
+      gap: 9px;
       margin-bottom: 10px;
     }
 
+    .auth-grid label,
+    .upload-field label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.68);
+    }
+
+    .auth-grid input,
+    .upload-field input[type="file"] {
+      min-height: 40px;
+      width: 100%;
+      border: 1px solid var(--vh-input);
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: #ffffff;
+      color: var(--vh-ink);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .auth-grid input:focus {
+      border-color: var(--vh-brand);
+      box-shadow: 0 0 0 3px rgba(3, 52, 110, 0.1);
+    }
+
     .upload-field {
-      padding: 10px 0;
-      border-top: 1px dashed rgba(42, 82, 152, 0.15);
+      padding: 12px 0;
+      border-top: 1px solid var(--vh-border);
     }
 
     .upload-field:first-of-type {
@@ -205,117 +199,175 @@
       padding-top: 0;
     }
 
-    .upload-field label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #1e3c72;
-      margin-bottom: 6px;
-    }
-
     .upload-field input[type="file"] {
-      width: 100%;
-      font-size: 12px;
+      min-height: auto;
+      padding: 8px;
       margin-bottom: 8px;
+      color: var(--vh-muted);
     }
 
-    .upload-status {
+    .upload-field input[type="file"]::file-selector-button {
+      margin-right: 10px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--vh-brand-50);
+      color: var(--vh-brand);
+      padding: 7px 11px;
+      font: inherit;
       font-size: 12px;
-      color: #5f6b7a;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .upload-status,
+    .auth-status {
+      font-size: 12px;
+      color: var(--vh-muted);
       line-height: 1.5;
-      margin-bottom: 8px;
       word-break: break-word;
     }
 
+    .auth-status {
+      display: inline-flex;
+      max-width: 100%;
+      margin-top: 2px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--vh-brand-50);
+      color: var(--vh-brand);
+      border: 1px solid var(--vh-brand-100);
+      font-weight: 600;
+    }
+
+    .auth-status[data-state="ok"],
     .upload-status[data-state="saved"] {
-      color: #1f7a3d;
-      font-weight: 600;
+      color: var(--vh-success);
+      font-weight: 700;
     }
 
+    .auth-status[data-state="warn"],
     .upload-status[data-state="error"] {
-      color: #b42318;
-      font-weight: 600;
+      color: var(--vh-danger);
+      font-weight: 700;
     }
 
-    .upload-actions {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .upload-panel-link {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
-    }
-
-    .auth-box {
-      background: #fff8f1;
-      border: 1px solid rgba(234, 88, 12, 0.2);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 15px;
-    }
-
-    .auth-box h3 {
-      color: #9a3412;
-      font-size: 13px;
-      margin-bottom: 6px;
-    }
-
-    .auth-box p {
-      font-size: 12px;
-      color: #7c2d12;
-      line-height: 1.5;
-      margin-bottom: 10px;
-    }
-
-    .auth-grid {
-      display: grid;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .auth-grid label {
-      display: grid;
-      gap: 4px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #9a3412;
-    }
-
-    .auth-grid input {
-      border: 1px solid rgba(234, 88, 12, 0.3);
-      border-radius: 6px;
-      padding: 7px 9px;
-      font-size: 12px;
-      font-family: inherit;
-    }
-
+    .upload-actions,
+    .upload-panel-link,
     .auth-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
 
-    .auth-status {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #7c2d12;
+    .upload-actions,
+    .upload-panel-link {
+      justify-content: flex-end;
     }
 
-    .auth-status[data-state="ok"] {
-      color: #15803d;
-      font-weight: 600;
+    .upload-panel-link {
+      margin-top: 2px;
     }
 
-    .auth-status[data-state="warn"] {
-      color: #b42318;
-      font-weight: 600;
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn {
+      min-height: 40px;
+      padding: 9px 13px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+      font-weight: 700;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary,
+    .full-width {
+      background: var(--vh-brand);
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(3, 52, 110, 0.16);
+    }
+
+    .btn-primary:hover,
+    .full-width:hover {
+      background: var(--vh-brand-600);
+      box-shadow: 0 10px 24px rgba(3, 52, 110, 0.22);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--vh-brand);
+      border-color: var(--vh-border);
+    }
+
+    .btn-secondary:hover {
+      border-color: rgba(3, 52, 110, 0.28);
+      background: var(--vh-brand-50);
     }
 
     .btn-small {
-      padding: 7px 10px;
+      min-height: 32px;
+      padding: 7px 11px;
       font-size: 12px;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .features {
+      font-size: 12px;
+    }
+
+    .features ul {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .features li {
+      color: rgba(0, 0, 0, 0.62);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .features li::before {
+      content: "✓";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--vh-success-bg);
+      color: var(--vh-success);
+      font-size: 11px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: rgba(0, 0, 0, 0.42);
+      padding: 4px 6px 2px;
+      line-height: 1.55;
     }
   </style>
 </head>
@@ -414,7 +466,7 @@
     </div>
     
     <div class="footer">
-      <p>所有数据存储在本地，不会上传到任何服务器</p>
+      <p>未登录时数据保存在本地；登录后可同步到 Supabase</p>
       <p>仅支持 https://evisa.gov.vn 网站</p>
     </div>
   </div>

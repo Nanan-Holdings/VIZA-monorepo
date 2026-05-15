@@ -138,10 +138,12 @@ async function run() {
         throw new Error("Hover card overflowed map viewport.");
       }
 
-      const closePreview = await page.$("[id^='trip-map-close-']");
-      if (closePreview) {
-        await closePreview.click();
-        await page.waitForTimeout(400);
+      await page.mouse.move(mapRect.x + mapRect.width - 24, mapRect.y + mapRect.height - 24);
+      await page.waitForTimeout(500);
+      const lingeringPreview = await page.$(".gm-style-iw.gm-style-iw-c");
+      if (lingeringPreview) {
+        await page.mouse.click(mapRect.x + 24, mapRect.y + 24);
+        await page.waitForTimeout(300);
       }
     }
 
