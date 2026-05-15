@@ -10,12 +10,15 @@ import {
   useState,
 } from "react";
 import {
+  Check,
   MapPin,
   MessageSquare,
   MessageSquarePlus,
   PanelLeft,
+  Pencil,
   Route,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { ChatInput } from "@/components/client/companion/chat-input";
@@ -100,12 +103,13 @@ type ScrollThumbState = {
 type TravelChatSession = {
   id: string;
   title: string;
+  customTitle?: boolean;
   messages: TravelChatMessage[];
   updatedAt: string;
 };
 
 const INITIAL_ASSISTANT_TEXT =
-  "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、旅行天数、预算和偏好，也可以先让我给你一些目的地灵感。";
+  "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、出行日期、预算和偏好，也可以先让我给你一些目的地灵感。";
 
 const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "我不知道去哪", value: "我不知道去哪" },
@@ -120,7 +124,7 @@ const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 const TRAVEL_STAGE_ORDER = [
   "country",
   "cities",
-  "city_days",
+  "departure_date",
   "travelers",
   "budget",
   "origin",
@@ -502,6 +506,7 @@ function isTravelChatSession(value: unknown): value is TravelChatSession {
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.title === "string" &&
+    (value.customTitle === undefined || typeof value.customTitle === "boolean") &&
     typeof value.updatedAt === "string" &&
     Array.isArray(value.messages) &&
     value.messages.every((message) => isTravelChatMessage(message))
@@ -519,9 +524,11 @@ function createSessionTitle(messages: TravelChatMessage[]): string {
 }
 
 function normalizeTravelChatSession(session: TravelChatSession): TravelChatSession {
+  const manualTitle = session.customTitle ? session.title.trim() : "";
   return {
     ...session,
-    title: createSessionTitle(session.messages),
+    title: manualTitle || createSessionTitle(session.messages),
+    customTitle: Boolean(manualTitle),
     updatedAt: session.updatedAt || new Date().toISOString(),
   };
 }
@@ -976,9 +983,11 @@ function buildProgressItems(
     },
     {
       id: "dates",
-      label: "停留天数",
-      done: state.cities.length > 0 && state.cities.every((city) => (state.city_days[city] ?? 0) > 0),
-      detail: state.cities.length ? "已按城市安排" : "等待中",
+      label: "出行日期",
+      done: Boolean(state.departure_date),
+      detail: state.departure_date
+        ? `${state.date_flexibility === "flexible" ? "灵活出行" : "指定日期"} · ${state.departure_date}`
+        : "等待中",
     },
     {
       id: "transport",
@@ -1021,6 +1030,8 @@ export function TravelChatClient({
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renamingSessionTitle, setRenamingSessionTitle] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
@@ -1457,6 +1468,8 @@ export function TravelChatClient({
     setSessions(nextSessions);
     setActiveSessionId(nextSessions[0].id);
     setActiveMapTargetId("");
+    setRenamingSessionId(null);
+    setRenamingSessionTitle("");
     setArchiveLoadedKey(archiveKey);
   }, [archiveKey]);
 
@@ -1764,6 +1777,8 @@ export function TravelChatClient({
     setSessions((currentSessions) => [nextSession, ...currentSessions]);
     setActiveSessionId(nextSession.id);
     setActiveMapTargetId("");
+    setRenamingSessionId(null);
+    setRenamingSessionTitle("");
   }, [status]);
 
   const handleSelectSession = useCallback(
@@ -1773,6 +1788,75 @@ export function TravelChatClient({
       setActiveMapTargetId("");
     },
     [activeSessionId, status]
+  );
+
+  const handleStartRenameSession = useCallback((session: TravelChatSession) => {
+    setRenamingSessionId(session.id);
+    setRenamingSessionTitle(session.title);
+  }, []);
+
+  const handleCancelRenameSession = useCallback(() => {
+    setRenamingSessionId(null);
+    setRenamingSessionTitle("");
+  }, []);
+
+  const handleSaveRenameSession = useCallback(() => {
+    if (!renamingSessionId) return;
+    const title = renamingSessionTitle.trim();
+    if (!title) return;
+
+    setSessions((currentSessions) =>
+      currentSessions.map((session) =>
+        session.id === renamingSessionId
+          ? {
+              ...session,
+              title,
+              customTitle: true,
+              updatedAt: new Date().toISOString(),
+            }
+          : session
+      )
+    );
+    setRenamingSessionId(null);
+    setRenamingSessionTitle("");
+  }, [renamingSessionId, renamingSessionTitle]);
+
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      if (status !== "ready") return;
+
+      setSessions((currentSessions) => {
+        const targetIndex = currentSessions.findIndex(
+          (session) => session.id === sessionId
+        );
+        if (targetIndex < 0) return currentSessions;
+
+        const nextSessions = currentSessions.filter(
+          (session) => session.id !== sessionId
+        );
+        if (nextSessions.length === 0) {
+          const replacement = createTravelChatSession();
+          setActiveSessionId(replacement.id);
+          setActiveMapTargetId("");
+          return [replacement];
+        }
+
+        if (activeSessionId === sessionId) {
+          const nextActive =
+            nextSessions[Math.min(targetIndex, nextSessions.length - 1)];
+          setActiveSessionId(nextActive.id);
+          setActiveMapTargetId("");
+        }
+
+        return nextSessions;
+      });
+
+      if (renamingSessionId === sessionId) {
+        setRenamingSessionId(null);
+        setRenamingSessionTitle("");
+      }
+    },
+    [activeSessionId, renamingSessionId, status]
   );
 
   return (
@@ -1849,40 +1933,125 @@ export function TravelChatClient({
                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
                   {sessions.map((session) => {
                     const active = session.id === activeSessionId;
+                    const renaming = session.id === renamingSessionId;
                     const userMessageCount = session.messages.filter(
                       (message) => message.role === "user"
                     ).length;
 
                     return (
-                      <button
+                      <div
                         aria-current={active ? "true" : undefined}
-                        className={`flex w-full flex-col gap-1 rounded-xl border px-3 py-2 text-left transition-colors ${
+                        className={`rounded-xl border p-2 transition-colors ${
                           active
                             ? "border-[#03346E] bg-[#03346E] text-white shadow-sm"
                             : "border-transparent bg-slate-50 text-slate-700 hover:border-slate-200 hover:bg-white"
                         }`}
                         data-testid="travel-session-item"
-                        disabled={status !== "ready" && !active}
                         key={session.id}
-                        onClick={() => handleSelectSession(session.id)}
-                        type="button"
                       >
-                        <span className="flex items-center gap-2">
-                          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate text-sm font-semibold">
-                            {session.title}
-                          </span>
-                        </span>
-                        <span
-                          className={`text-xs ${
-                            active ? "text-white/70" : "text-slate-500"
-                          }`}
-                        >
-                          {userMessageCount > 0
-                            ? `${userMessageCount} 条用户消息`
-                            : "还没开始"}
-                        </span>
-                      </button>
+                        {renaming ? (
+                          <div className="space-y-2">
+                            <input
+                              autoFocus
+                              className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none focus:border-blue-400"
+                              data-testid="travel-session-rename-input"
+                              onChange={(event) =>
+                                setRenamingSessionTitle(event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  handleSaveRenameSession();
+                                }
+                                if (event.key === "Escape") {
+                                  handleCancelRenameSession();
+                                }
+                              }}
+                              value={renamingSessionTitle}
+                            />
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                className="h-7 w-7"
+                                data-testid="travel-session-save-rename"
+                                disabled={!renamingSessionTitle.trim()}
+                                onClick={handleSaveRenameSession}
+                                size="icon"
+                                title="保存名称"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                className="h-7 w-7"
+                                data-testid="travel-session-cancel-rename"
+                                onClick={handleCancelRenameSession}
+                                size="icon"
+                                title="取消重命名"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <button
+                              aria-current={active ? "true" : undefined}
+                              className="min-w-0 flex-1 text-left"
+                              disabled={status !== "ready" && !active}
+                              onClick={() => handleSelectSession(session.id)}
+                              type="button"
+                            >
+                              <span className="flex items-center gap-2">
+                                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate text-sm font-semibold">
+                                  {session.title}
+                                </span>
+                              </span>
+                              <span
+                                className={`mt-1 block text-xs ${
+                                  active ? "text-white/70" : "text-slate-500"
+                                }`}
+                              >
+                                {userMessageCount > 0
+                                  ? `${userMessageCount} 条用户消息`
+                                  : "还没开始"}
+                              </span>
+                            </button>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                className={`h-7 w-7 ${
+                                  active ? "text-white hover:text-slate-900" : ""
+                                }`}
+                                data-testid="travel-session-rename-button"
+                                disabled={status !== "ready"}
+                                onClick={() => handleStartRenameSession(session)}
+                                size="icon"
+                                title="重命名对话"
+                                type="button"
+                                variant={active ? "ghost" : "outline"}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                className={`h-7 w-7 ${
+                                  active ? "text-white hover:text-red-700" : ""
+                                }`}
+                                data-testid="travel-session-delete-button"
+                                disabled={status !== "ready"}
+                                onClick={() => handleDeleteSession(session.id)}
+                                size="icon"
+                                title="删除对话"
+                                type="button"
+                                variant={active ? "ghost" : "outline"}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
