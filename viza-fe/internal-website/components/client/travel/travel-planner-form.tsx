@@ -586,6 +586,12 @@ function optionLabelsFromValues(
   return values.map((value) => optionLabelFromMap(value, labelMap));
 }
 
+function formatCountryCityLabel(country: string, city: string): string {
+  const countryLabel = getLocalLocationDisplayName(country);
+  const cityLabel = getLocalLocationDisplayName(city);
+  return countryLabel === cityLabel ? cityLabel : `${countryLabel} ${cityLabel}`;
+}
+
 function coerceFlightLegs(raw: unknown): FlightLegResult[] {
   if (!raw || typeof raw !== "object") return [];
   const record = raw as Record<string, unknown>;
@@ -1075,7 +1081,6 @@ export function TravelPlannerForm({
     setOriginCity(ipLocation.city);
     setReturnCountry(ipLocation.country);
     setReturnCity(ipLocation.city);
-    setManualEndpointMode(true);
     ipEndpointDefaultAppliedRef.current = true;
   }, [
     ipLocation,
@@ -1502,13 +1507,6 @@ export function TravelPlannerForm({
       flexibleTravelers *
       1200
   );
-  const ipCountryDisplay = ipLocation
-    ? getLocalLocationDisplayName(ipLocation.country)
-    : "";
-  const ipCityDisplay = ipLocation
-    ? getLocalLocationDisplayName(ipLocation.city)
-    : "";
-
   const sendStructuredMessage = useCallback(
     (payload: TravelFormPayload) => {
       sendMessage({
@@ -1592,6 +1590,40 @@ export function TravelPlannerForm({
     resolvedReturnCityDisplay,
     sendStructuredMessage,
   ]);
+
+  const submitIpDefaultEndpoints = useCallback(() => {
+    if (!ipLocation) {
+      toast.error("暂时没有识别到当前城市，请选择另选。");
+      return;
+    }
+
+    const country = normalizeToken(ipLocation.country);
+    const city = normalizeToken(ipLocation.city);
+    if (!country || !city) {
+      toast.error("暂时没有识别到当前城市，请选择另选。");
+      return;
+    }
+
+    const displayLabel = formatCountryCityLabel(country, city);
+    sendStructuredMessage({
+      origin_country: country,
+      origin_city: city,
+      return_country: country,
+      return_city: city,
+      display: {
+        origin_country: getLocalLocationDisplayName(country),
+        origin_city: getLocalLocationDisplayName(city),
+        return_country: getLocalLocationDisplayName(country),
+        return_city: getLocalLocationDisplayName(city),
+      },
+    });
+    toast.success(`已确认出发和返程城市：${displayLabel}`);
+  }, [ipLocation, sendStructuredMessage]);
+
+  const showManualEndpointFields = manualEndpointMode || Boolean(ipLocationError);
+  const ipEndpointDisplay = ipLocation
+    ? formatCountryCityLabel(ipLocation.country, ipLocation.city)
+    : "";
 
   if (!missingField) {
     return null;
@@ -1932,9 +1964,40 @@ export function TravelPlannerForm({
             </div>
           )}
 
-          {ipLocation && (
-            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-xs text-sky-800">
-              已根据当前 IP 默认填入 {ipCountryDisplay} {ipCityDisplay}，你可以直接确认，也可以修改下面的出发和返程城市。
+          {ipLocation && !manualEndpointMode && !ipLocationError && (
+            <div className="space-y-3 rounded-xl border border-sky-100 bg-sky-50/80 p-3">
+              <div className="text-xs text-sky-800">
+                已根据当前 IP 识别到你在{" "}
+                <span className="font-semibold">{ipEndpointDisplay}</span>。
+                是否将出发和返程城市都设为这里？
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="w-full"
+                  disabled={busy}
+                  onClick={submitIpDefaultEndpoints}
+                  size="sm"
+                  type="button"
+                >
+                  确认
+                </Button>
+                <Button
+                  className="w-full"
+                  disabled={busy}
+                  onClick={() => {
+                    setOriginCountry("");
+                    setOriginCity("");
+                    setReturnCountry("");
+                    setReturnCity("");
+                    setManualEndpointMode(true);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  另选
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1962,7 +2025,7 @@ export function TravelPlannerForm({
             </div>
           )}
 
-          {(manualEndpointMode || ipLocation || ipLocationError) && (
+          {showManualEndpointFields && (
             <div className="space-y-3">
               <div className="space-y-2 rounded-lg border border-border/40 p-2.5">
                 <div className="text-xs font-medium text-muted-foreground">

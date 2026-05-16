@@ -405,6 +405,392 @@ def _parse_itinerary_json(raw: str):
     return parsed if isinstance(parsed, list) else []
 
 
+REVISION_QUICK_REPLIES = [
+    {"label": "便宜一点", "value": "把这次旅行便宜一点"},
+    {"label": "减少航班", "value": "把航班去掉，尽量用其他交通方式"},
+    {"label": "换4星酒店", "value": "把酒店换成4星酒店"},
+    {"label": "加本地美食", "value": "每天加更多本地美食"},
+    {"label": "重排行程", "value": "重新安排每天的顺序"},
+]
+
+
+def _extract_json_object(raw: str) -> str:
+    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw, re.IGNORECASE)
+    if fenced:
+        candidate = fenced.group(1).strip()
+        if candidate:
+            return candidate
+
+    brace = re.search(r"\{[\s\S]*\}", raw)
+    if brace:
+        return brace.group(0).strip()
+
+    return raw.strip()
+
+
+def _parse_revision_json(raw: str):
+    candidate = _extract_json_object(raw)
+    if not candidate:
+        return {}
+
+    try:
+        parsed = json.loads(candidate)
+    except Exception:
+        return {}
+
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _clean_revision_quick_replies(value, action):
+    source = value if isinstance(value, list) and value else REVISION_QUICK_REPLIES
+    replies = []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "").strip()
+        reply_value = str(item.get("value") or label).strip()
+        if label and reply_value:
+            replies.append({"label": label, "value": reply_value})
+        if len(replies) >= 5:
+            break
+
+    if action == "restart":
+        return [
+            {"label": "想去日本", "value": "想去日本"},
+            {"label": "想去欧洲", "value": "想去欧洲"},
+            {"label": "我不知道去哪", "value": "我不知道去哪"},
+        ]
+
+    return replies or REVISION_QUICK_REPLIES
+
+
+def _revision_response(
+    action,
+    reply,
+    itinerary,
+    state_patch=None,
+    module_patch=None,
+    edit_summary="",
+    quick_replies=None,
+):
+    return {
+        "action": action,
+        "reply": str(reply or "").strip(),
+        "itinerary": itinerary if isinstance(itinerary, list) else [],
+        "state_patch": state_patch if isinstance(state_patch, dict) else {},
+        "module_patch": module_patch if isinstance(module_patch, dict) else {},
+        "edit_summary": str(edit_summary or "").strip(),
+        "quick_replies": _clean_revision_quick_replies(quick_replies, action),
+    }
+
+
+def _coerce_revision_response(parsed, state, current_itinerary):
+    current = _sanitize_itinerary(current_itinerary, state)
+    if not isinstance(parsed, dict):
+        return _revision_response(
+            "clarify",
+            "我还没完全理解要怎么改这份行程。你可以告诉我是要改哪一天、预算、酒店、航班，还是想整份重来。",
+            current,
+            edit_summary="需要用户补充修改方向",
+        )
+
+    action = str(parsed.get("action") or "").strip().lower()
+    if action not in {"revise", "restart", "clarify"}:
+        action = "clarify"
+
+    reply = str(parsed.get("reply") or "").strip()
+    edit_summary = str(parsed.get("edit_summary") or "").strip()
+    state_patch = parsed.get("state_patch") if isinstance(parsed.get("state_patch"), dict) else {}
+    module_patch = parsed.get("module_patch") if isinstance(parsed.get("module_patch"), dict) else {}
+    quick_replies = parsed.get("quick_replies")
+
+    if action == "restart":
+        return _revision_response(
+            "restart",
+            reply
+            or "可以，我们保留旧版本，先回到地图重新规划。你可以重新选国家、城市、天数、预算和偏好。",
+            current,
+            state_patch={"reset": True},
+            module_patch=module_patch,
+            edit_summary=edit_summary or "用户要求重新规划",
+            quick_replies=quick_replies,
+        )
+
+    if action == "clarify":
+        return _revision_response(
+            "clarify",
+            reply
+            or "我可以继续改这份行程。你想改哪一天、哪个城市、预算、酒店，还是交通方式？",
+            current,
+            state_patch=state_patch,
+            module_patch=module_patch,
+            edit_summary=edit_summary or "需要用户确认修改范围",
+            quick_replies=quick_replies,
+        )
+
+    raw_itinerary = parsed.get("itinerary")
+    revised = _sanitize_itinerary(raw_itinerary, state) if isinstance(raw_itinerary, list) else []
+    if not revised:
+        return _revision_response(
+            "clarify",
+            "我尝试修改了，但返回的行程格式不稳定。请再说一次要修改的点，我会保留当前版本不变。",
+            current,
+            edit_summary="revision schema invalid",
+        )
+
+    return _revision_response(
+        "revise",
+        reply or "已更新行程，并尽量保留没有被你提到的城市、酒店和交通安排。",
+        revised,
+        state_patch=state_patch,
+        module_patch=module_patch,
+        edit_summary=edit_summary or "已按用户要求更新行程",
+        quick_replies=quick_replies,
+    )
+
+
+def _prompt_requests_restart(prompt):
+    return bool(
+        re.search(
+            r"(重来|重做|从头|回到地图|退回地图|重新选|重新规划|重新生成|重新开始|"
+            r"不要这个|不要这份|换一个方案|换一个行程|start over|from scratch|restart|redo|replan)",
+            prompt,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _prompt_requests_remove_flights(prompt):
+    return bool(
+        re.search(
+            r"((去掉|不要|移除|删除|删掉).*(航班|机票|flight))|((航班|机票|flight).*(去掉|不要|移除|删除|删掉))",
+            prompt,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _prompt_requests_cheaper(prompt):
+    return bool(re.search(r"(便宜|省钱|降低预算|预算低|cheaper|budget|save)", prompt, re.IGNORECASE))
+
+
+def _prompt_requests_shopping(prompt):
+    return bool(re.search(r"(购物|买东西|商场|shopping|outlet)", prompt, re.IGNORECASE))
+
+
+def _prompt_requests_food(prompt):
+    return bool(re.search(r"(美食|吃|餐厅|小吃|food|restaurant)", prompt, re.IGNORECASE))
+
+
+def _prompt_requests_four_star_hotels(prompt):
+    return bool(re.search(r"(4星|四星|four.?star|4.?star)", prompt, re.IGNORECASE))
+
+
+def _parse_day_targets(prompt):
+    targets = set()
+    chinese_numbers = {
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }
+
+    for match in re.finditer(r"第\s*(\d+)\s*天", prompt):
+        targets.add(int(match.group(1)))
+
+    for match in re.finditer(r"第\s*([一二两三四五六七八九十])\s*天", prompt):
+        targets.add(chinese_numbers.get(match.group(1), 0))
+
+    for match in re.finditer(r"day\s*(\d+)", prompt, re.IGNORECASE):
+        targets.add(int(match.group(1)))
+
+    return {target for target in targets if target > 0}
+
+
+def _with_cheaper_cost(cost):
+    text = str(cost or "").strip()
+    match = re.search(r"(\d+)", text)
+    if not match:
+        return "¥500"
+    amount = int(match.group(1))
+    cheaper = max(120, int(amount * 0.75))
+    return f"¥{cheaper}"
+
+
+def _fallback_revision(request):
+    state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    prompt = str(request.get("user_prompt") or "").strip()
+    current_itinerary = request.get("current_itinerary")
+    current = _sanitize_itinerary(current_itinerary, state)
+
+    if not prompt:
+        return _revision_response(
+            "clarify",
+            "你想怎么修改这份行程？可以说要改哪一天、降低预算、去掉航班，或重新规划。",
+            current,
+            edit_summary="等待用户说明修改方向",
+        )
+
+    if _prompt_requests_restart(prompt):
+        return _revision_response(
+            "restart",
+            "可以，我们保留当前版本，先回到地图重新规划。你可以重新选择目的地或告诉我新的旅行偏好。",
+            current,
+            state_patch={"reset": True},
+            edit_summary="用户要求重新规划",
+        )
+
+    revised = [dict(day) for day in current]
+    day_targets = _parse_day_targets(prompt)
+    target_indexes = [
+        index
+        for index, day in enumerate(revised)
+        if not day_targets or _safe_positive_int(day.get("day"), default=index + 1) in day_targets
+    ]
+
+    if _prompt_requests_shopping(prompt):
+        for index in target_indexes[: max(1, len(target_indexes))]:
+            city = revised[index].get("city") or "目的地"
+            revised[index]["activities"] = [
+                f"{city} 核心商圈与百货购物",
+                f"{city} 本地设计店与生活方式街区",
+                f"{city} 伴手礼市场",
+            ]
+
+    if _prompt_requests_food(prompt):
+        for index in target_indexes[: max(1, len(target_indexes))]:
+            city = revised[index].get("city") or "目的地"
+            revised[index]["food"] = _specific_food_for_city(city, index)
+
+    if _prompt_requests_cheaper(prompt):
+        for day in revised:
+            day["cost"] = _with_cheaper_cost(day.get("cost"))
+
+    module_patch = {}
+    if _prompt_requests_remove_flights(prompt):
+        module_patch["remove_flights"] = True
+        module_patch["flight_policy"] = "skip_all"
+
+    if _prompt_requests_four_star_hotels(prompt):
+        module_patch["hotel_note"] = "用户要求酒店调整为4星级。"
+
+    summary_parts = []
+    if _prompt_requests_shopping(prompt):
+        summary_parts.append("已把相关日期调整为购物和街区探索")
+    if _prompt_requests_food(prompt):
+        summary_parts.append("已增加本地美食安排")
+    if _prompt_requests_cheaper(prompt):
+        summary_parts.append("已降低每日预算文案")
+    if module_patch.get("remove_flights"):
+        summary_parts.append("已标记航班可移除或跳过")
+    if module_patch.get("hotel_note"):
+        summary_parts.append("已记录4星酒店偏好")
+
+    if not summary_parts:
+        summary_parts.append("已按你的要求保留原路线并轻量调整行程说明")
+
+    return _revision_response(
+        "revise",
+        "已更新行程：" + "；".join(summary_parts) + "。没有提到的城市、天数和酒店我会尽量保留。",
+        revised,
+        module_patch=module_patch,
+        edit_summary="；".join(summary_parts),
+    )
+
+
+def revise_itinerary(request):
+    state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    current_itinerary = request.get("current_itinerary")
+    prompt_text = str(request.get("user_prompt") or "").strip()
+    current = _sanitize_itinerary(current_itinerary, state)
+
+    if client is None:
+        print("OPENAI_API_KEY 未配置，使用 fallback itinerary revision。")
+        return _fallback_revision(request)
+
+    active_modules = request.get("active_modules") if isinstance(request.get("active_modules"), dict) else {}
+    prompt = f"""
+你是 VIZA Travel AI 的行程修订引擎。你需要判断用户是在局部修改当前行程、要求整份重来，还是需要澄清。
+
+必须只输出 JSON object，不要 Markdown，不要额外解释。
+
+动作规则：
+- action = "revise"：用户提出可执行的小改或中等修改。必须返回完整更新后的 itinerary。
+- action = "restart"：用户明确说不喜欢这份、重来、重新规划、从头开始、回到地图等。不要删除旧版本。
+- action = "clarify"：用户意图不足以安全修改，或是在问一个需要先确认的问题。
+
+修订要求：
+- 局部修改必须尽量保留未被用户提到的城市、天数、酒店、航班和已有安排。
+- itinerary 必须是完整 JSON 数组，每天包含 day、city、activities、food、cost。
+- activities 必须是真实、具体、可定位的景点/街区/市场/博物馆/餐饮区域，不能泛泛写“本地文化体验”。
+- 如果用户要移除航班，在 module_patch 里输出 {{"remove_flights": true, "flight_policy": "skip_all"}}。
+- 如果用户要求酒店变化但没有真实可查的新酒店，只在 module_patch.hotel_note 写明偏好，不要编造供应商结果。
+- 如果 action 是 restart 或 clarify，itinerary 原样返回当前行程。
+
+输出 schema：
+{{
+  "action": "revise | restart | clarify",
+  "reply": "给用户看的中文回复",
+  "itinerary": [],
+  "state_patch": {{}},
+  "module_patch": {{}},
+  "edit_summary": "一句话说明改了什么",
+  "quick_replies": [{{"label": "便宜一点", "value": "把这次旅行便宜一点"}}]
+}}
+
+当前 travel state:
+{json.dumps(state, ensure_ascii=False)}
+
+当前模块快照:
+{json.dumps(active_modules, ensure_ascii=False)}
+
+当前 itinerary:
+{json.dumps(current, ensure_ascii=False)}
+
+用户修改 prompt:
+{prompt_text}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
+                        "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        text = response.choices[0].message.content
+    except Exception as exc:
+        print("OpenAI itinerary revision failed, using fallback:", exc)
+        return _fallback_revision(request)
+
+    parsed = _parse_revision_json(text or "")
+    if not parsed:
+        print("Revision JSON解析失败:", text)
+        return _revision_response(
+            "clarify",
+            "我尝试理解这次修改，但返回格式不稳定。请再发一次修改要求，我会保留当前版本不变。",
+            current,
+            edit_summary="revision schema invalid",
+        )
+
+    return _coerce_revision_response(parsed, state, current)
+
+
 def _format_selected_flights(state):
     flights = state.get("selected_flights") or []
     if not isinstance(flights, list) or not flights:

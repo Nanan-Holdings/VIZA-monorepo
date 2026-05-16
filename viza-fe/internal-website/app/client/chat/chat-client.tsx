@@ -421,7 +421,7 @@ export function ChatClient({
   const [chatMode, setChatMode] = useState<"viza" | "travel">("viza");
   const [showDebug] = useState(false);
   const [sessionPanelOpen, setSessionPanelOpen] = useState(false);
-  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
+  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<string[]>([]);
@@ -1198,7 +1198,10 @@ export function ChatClient({
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
-              onCollapse={() => setSessionPanelCollapsed(true)}
+              onCollapse={() => {
+                setSessionPanelCollapsed(true);
+                setSessionPanelOpen(false);
+              }}
               onNewSession={handleNewVizaSession}
               onSelectSession={handleSessionSelect}
               sessions={sessions}
@@ -1210,14 +1213,20 @@ export function ChatClient({
               <button
                 aria-label="Close chat list"
                 className="absolute inset-0 bg-black/20"
-                onClick={() => setSessionPanelOpen(false)}
+                onClick={() => {
+                  setSessionPanelOpen(false);
+                  setSessionPanelCollapsed(true);
+                }}
                 type="button"
               />
               <aside className="absolute bottom-4 left-4 top-4 w-[min(84vw,320px)] shadow-xl">
                 <ChatSessionPanel
                   activeSessionId={sessionId}
                   disabled={isStreaming || isLoadingMessages}
-                  onClose={() => setSessionPanelOpen(false)}
+                  onClose={() => {
+                    setSessionPanelOpen(false);
+                    setSessionPanelCollapsed(true);
+                  }}
                   onNewSession={handleNewVizaSession}
                   onSelectSession={handleSessionSelect}
                   sessions={sessions}
@@ -1261,10 +1270,7 @@ export function ChatClient({
       )}
 
       <main
-        className={cn(
-          "h-full flex flex-col min-h-0",
-          chatMode === "viza" && !sessionPanelCollapsed && "lg:pl-[312px]"
-        )}
+        className="h-full flex flex-col min-h-0"
       >
         <AnimatePresence mode="wait">
           {!showChat ? (
@@ -1561,7 +1567,7 @@ export function ChatClient({
                     chatMode === "travel" ? "max-w-[2060px]" : "max-w-[900px]"
                   )}
                 >
-                  {chatMode === "viza" && (
+                  {chatMode === "viza" && sessionPanelCollapsed && (
                     <button
                       aria-label="Open VIZA chat list"
                       className="absolute left-4 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:hidden"
@@ -1703,7 +1709,7 @@ export function ChatClient({
 
                       <ChatInput
                         onSend={handleSendMessage}
-                        disabled={status !== "connected"}
+                        disabled={isLoadingMessages}
                         isConnecting={status === "connecting"}
                       />
                       <p className="mt-3 text-center text-sm text-gray-400">

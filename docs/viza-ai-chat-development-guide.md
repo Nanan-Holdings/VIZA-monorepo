@@ -38,7 +38,7 @@
 
 截图里的元素来源：
 
-- 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；桌面侧栏可折叠。
+- 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；默认折叠，桌面以浮层打开，不推动或重排中间的 AI 输出。
 - 顶部 `VIZA AI / Travel AI` pills：`chat-client.tsx` 的 chat view tab controls。
 - 右侧深蓝色 `hi` 气泡：`ChatMessage` 渲染 user message。
 - 左侧大段 `Hi there...`：不是前端固定文案，而是从聊天历史或后端 AI streaming response 进入 `ChatMessage`。
@@ -95,12 +95,19 @@ flowchart TD
 - `sessions`：当前用户最近的 `visa_chat_sessions`，用于桌面左侧栏和移动端抽屉。
 - `showChat`：入口页或聊天页。
 - `chatMode`：`viza` 或 `travel`。
-- `status`：Socket 连接状态，控制输入框是否 disabled。
+- `sessionPanelCollapsed` / `sessionPanelOpen`：VIZA process panel 默认关闭；桌面展开为左侧浮层，移动端展开为 drawer。它不改变 `VIZA AI / Travel AI` tab 或消息内容的水平位置。
+- `status`：Socket 连接状态，用于显示连接中状态和触发 pending messages flush；不要直接用它禁用输入框。
 - `socketMessages`：Socket 实时消息暂存。
 - `chatMessages`：`useContinuousChat` 维护的最终消息列表。
 - `pendingMessages`：断线时暂存，重连后发送。
 - `queuedMessageRef`：AI 正在 streaming 时，用户下一条消息排队。
 - `blockMessages`：后端工具 `send_application_block` 返回的表单块。
+
+输入框启用规则：
+
+- `ChatInput` 不能因为 Socket.IO 处于 `connecting` / `disconnected` / `error` 就 disabled。
+- 断线或未连接时，`handleSendMessage()` 会把消息放进 `pendingMessages`，等 `status === "connected"` 后自动发送。
+- 当前只应在本地 UI 正在切换/加载 session messages 时禁用输入框，避免用户把消息发到正在切换的 session。
 
 消息合并方式：
 
@@ -272,7 +279,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - `/client/chat` 路由存在，并接入客户端登录态/impersonation。
 - 聊天 session 已统一到 `visa_chat_sessions.id`，避免 `visa_chat_messages.session_id` 指向错误的 session 表。
 - VIZA AI 已支持多个 conversation processes：页面加载最近 session 列表，左侧/移动端抽屉可以新建和切换；新 session 在第一条消息发送时创建。
-- `/client/chat` 保持浅色背景和原有 `VIZA AI / Travel AI` tab 位置；processes 侧栏可折叠。
+- `/client/chat` 保持浅色背景和原有 `VIZA AI / Travel AI` tab 位置；processes 侧栏默认折叠，展开时作为浮层，不挤压中间 AI 输出。
 - RAG 检索 helper 已新增，能读取 `visa_chunks` 并格式化知识上下文。
 - `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
 - `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
@@ -341,5 +348,7 @@ npm run type-check
 - Step 13 multi-country VIZA identity and RAG source：VIZA system prompt 和 `/visa` RAG routing 已改为多目的地，不再默认 Indonesia；新增 `knowledge-base/supported-visa-rag.json` 和 `npm run ingest:supported-visa-rag`，覆盖 Vietnam / UK / France / Italy / Switzerland 的官方短期访问签证知识。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：Vietnam 1 docs / 3 chunks，UK 2 docs / 6 chunks，France 2 docs / 5 chunks，Italy 3 docs / 6 chunks，Switzerland 2 docs / 5 chunks，全部 25 chunks 均有 `text-embedding-3-small` embedding。Retrieval smoke 对五个国家和多国 Schengen query 均返回 `usedEmbedding=true`、`fallbackReason=null`；前后端 type-check 通过；Playwright route smoke screenshot: `test-results/playwright-supported-rag-ingestion-step3.png`。
 - Step 14 empty new-chat greeting：新建 VIZA chat 或空历史 session 现在会显示本地化 greeting，提醒用户提供目的地、国籍、出行目的和停留时间；该 greeting 仅前端展示，不持久化进 `visa_chat_messages`。
 - Step 15 follow-up context fix：修复 VIZA AI 在用户按编号压缩回答时混淆 `国籍 / 居住地 / 目的地 / 其他申根国家` 的问题。System prompt 新增 slot-tracking 规则；RAG country / visa type routing 改为读取最近 user-only context，并阻止 incompatible application visa type fallback。Resolver smoke 已验证：`我想去瑞士旅游` 后回答 `中国，新加坡，不知道多少天，会去别的国家` 会解析为 `country=switzerland`、`visaType=schengen_short_stay_tourism`。
+- Step 16 disconnected input fix：修复 `/client/chat` 输入框在 Socket.IO 未连接时被 disabled 导致无法点击/输入的问题。`ChatInput` 现在只在 session messages loading 时禁用；connecting/disconnected/error 状态下仍可输入，发送后走 `pendingMessages` 队列等待重连。
+- Step 17 session panel alignment：VIZA process 侧栏现在默认关闭；桌面展开为左侧浮层，不再给主聊天区加左 padding，因此 AI 输出、tab 和输入框不会因为打开侧栏而横向跳动。移动端仍使用 drawer 打开/关闭。`viza-fe/internal-website npm run type-check` 通过；Playwright route smoke 由于无登录态重定向到 `/client/login`。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。
