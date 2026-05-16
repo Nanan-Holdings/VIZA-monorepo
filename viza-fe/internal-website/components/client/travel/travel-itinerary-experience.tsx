@@ -13,6 +13,7 @@ import {
   FileText,
   MapPin,
   MapPinned,
+  Pause,
   Plane,
   Play,
   Plus,
@@ -677,8 +678,8 @@ function buildDefaultHotelRows(
       type: "酒店",
       date: `${formatMonthDay(checkIn)} - ${formatMonthDay(checkOut)}`,
       route: segment.label,
-      name: "自行安排",
-      details: `${nights}晚；待选择酒店；USD0`,
+      name: `${segment.label}默认酒店（可编辑）`,
+      details: `${nights}晚；默认住宿占位；用户可修改酒店名、地址和价格`,
       contact: "待补充",
     };
   });
@@ -715,7 +716,7 @@ function buildDefaultFlightRows(
       type: "航班",
       date: formatMonthDay(startDate),
       route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
-      name: "默认航班（待选择）",
+      name: "默认航班（可编辑）",
       details: "经济舱；用户可修改时间、价格和航司",
       contact: "TBD",
     });
@@ -730,7 +731,7 @@ function buildDefaultFlightRows(
       type: "航班",
       date: formatMonthDay(returnDate),
       route: `${getLocalCityLabel(lastCity)} → ${getLocalCityLabel(returnCity)}`,
-      name: "默认航班（待选择）",
+      name: "默认航班（可编辑）",
       details: "经济舱；用户可修改时间、价格和航司",
       contact: "TBD",
     });
@@ -741,7 +742,7 @@ function buildDefaultFlightRows(
       type: "航班",
       date: formatMonthDay(startDate),
       route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
-      name: "默认航班（待选择）",
+      name: "默认航班（可编辑）",
       details: "经济舱；用户可修改出发/到达城市和航班号",
       contact: "TBD",
     });
@@ -877,12 +878,16 @@ export function TravelItineraryExperience({
   const [fullMapOpen, setFullMapOpen] = useState(false);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [activeCityKey, setActiveCityKey] = useState("");
+  const [highlightCityKey, setHighlightCityKey] = useState("");
+  const [fullMapActiveCity, setFullMapActiveCity] = useState("");
+  const [isRoutePlaying, setIsRoutePlaying] = useState(true);
   const [editableItineryRows, setEditableItineryRows] = useState<ItineryTableRow[]>([]);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isSharingLink, setIsSharingLink] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const segments = useMemo(
     () => buildCitySegments(itinerary, orderedCities, travelState),
@@ -901,6 +906,10 @@ export function TravelItineraryExperience({
   const totalExperiences = itinerary.reduce(
     (sum, day) => sum + day.activities.length,
     0
+  );
+  const hotelDisplayCount = Math.max(
+    travelState.selected_hotels.length,
+    segments.length
   );
   const fallbackMapPoints = useMemo(
     () => buildFallbackMapPoints(segments),
@@ -927,6 +936,9 @@ export function TravelItineraryExperience({
   const focusedPointId = activeDay
     ? getPointIdForCity(resolvedMapPoints, activeDay.city) ?? activePointId ?? null
     : activePointId ?? null;
+  const fullMapActivePointId = fullMapActiveCity
+    ? getPointIdForCity(resolvedMapPoints, fullMapActiveCity)
+    : null;
   const defaultItineryRows = useMemo(
     () =>
       initialItineryRows?.length
@@ -970,7 +982,24 @@ export function TravelItineraryExperience({
         ? currentKey
         : firstCityKey
     );
+    setFullMapActiveCity((currentCity) =>
+      segments.some(
+        (segment) =>
+          getCitySectionKey(segment.city) === getCitySectionKey(currentCity)
+      )
+        ? currentCity
+        : segments[0]?.city ?? ""
+    );
   }, [segments]);
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const root = scrollContainerRef.current;
@@ -1007,6 +1036,13 @@ export function TravelItineraryExperience({
     const cityKey = getCitySectionKey(city);
     const node = citySectionRefs.current[cityKey];
     setActiveCityKey(cityKey);
+    setHighlightCityKey(cityKey);
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightCityKey((currentKey) => (currentKey === cityKey ? "" : currentKey));
+    }, 1600);
     node?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
@@ -1096,6 +1132,28 @@ export function TravelItineraryExperience({
       setBusy(false);
     }
   };
+
+  const handleFullMapOpenChange = useCallback(
+    (open: boolean) => {
+      setFullMapOpen(open);
+      if (open) {
+        setIsRoutePlaying(true);
+        setFullMapActiveCity((currentCity) => currentCity || segments[0]?.city || "");
+      }
+    },
+    [segments]
+  );
+
+  const handleFullMapPointSelect = useCallback(
+    (id: string) => {
+      onPointSelect?.(id);
+      const point = resolvedMapPoints.find((item) => item.id === id);
+      if (point) {
+        setFullMapActiveCity(point.city ?? point.label);
+      }
+    },
+    [onPointSelect, resolvedMapPoints]
+  );
 
   const renderCityTabs = (placement: "map" | "sticky") => (
     <div
@@ -1196,7 +1254,7 @@ export function TravelItineraryExperience({
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <BedDouble className="h-5 w-5" />
-                    {travelState.selected_hotels.length} 酒店
+                    {hotelDisplayCount} 酒店
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Car className="h-5 w-5" />
@@ -1461,7 +1519,7 @@ export function TravelItineraryExperience({
             <Button
               className="absolute bottom-5 right-5 h-14 rounded-full bg-white px-6 text-base font-bold text-[#2d1635] shadow-[0_12px_32px_rgba(32,20,43,0.18)] hover:bg-white"
               data-testid="travel-itinerary-full-map-button"
-              onClick={() => setFullMapOpen(true)}
+              onClick={() => handleFullMapOpenChange(true)}
               type="button"
             >
               <MapPinned className="h-5 w-5" />
@@ -1485,7 +1543,11 @@ export function TravelItineraryExperience({
 
                 return (
                   <section
-                    className="grid scroll-mt-28 gap-5 md:grid-cols-[164px_minmax(0,1fr)]"
+                    className={cn(
+                      "grid scroll-mt-28 gap-5 rounded-[30px] transition-shadow duration-500 md:grid-cols-[164px_minmax(0,1fr)]",
+                      highlightCityKey === cityKey &&
+                        "ring-4 ring-[#d9c2ff] ring-offset-4 ring-offset-[#f7f6f2]"
+                    )}
                     data-city-key={cityKey}
                     data-testid={`travel-itinerary-city-section-${cityKey}`}
                     id={`travel-itinerary-city-${cityKey}`}
@@ -1699,6 +1761,64 @@ export function TravelItineraryExperience({
               })}
             </div>
           </section>
+
+          <div
+            className="sticky bottom-4 z-40 mt-2 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/80 bg-white/95 px-4 py-3 shadow-[0_18px_50px_rgba(32,20,43,0.18)] backdrop-blur md:px-5"
+            data-testid="travel-itinerary-sticky-actions"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-[#2d1635]">{title}</p>
+              <p className="truncate text-xs font-semibold text-[#756a7b]">
+                {segments.map((segment) => segment.label).join(" → ")}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Button
+                className="h-10 rounded-full border-[#d8c5ff] bg-white px-3 text-[#2d1635] hover:bg-[#f6efff]"
+                disabled={isSharingLink}
+                onClick={handleShareLink}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Share2 className="h-4 w-4" />
+                分享
+              </Button>
+              <Button
+                className="h-10 rounded-full border-[#d8c5ff] bg-white px-3 text-[#2d1635] hover:bg-[#f6efff]"
+                disabled={isDownloadingWord}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-word",
+                    "travel-itinerary.docx",
+                    setIsDownloadingWord
+                  )
+                }
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <FileText className="h-4 w-4" />
+                Word
+              </Button>
+              <Button
+                className="h-10 rounded-full bg-[#2d1635] px-4 text-white hover:bg-[#43204d]"
+                disabled={isDownloadingPdf}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-pdf",
+                    "travel-itinerary.pdf",
+                    setIsDownloadingPdf
+                  )
+                }
+                size="sm"
+                type="button"
+              >
+                <Download className="h-4 w-4" />
+                PDF
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1826,7 +1946,7 @@ export function TravelItineraryExperience({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={fullMapOpen} onOpenChange={setFullMapOpen}>
+      <Dialog open={fullMapOpen} onOpenChange={handleFullMapOpenChange}>
         <DialogContent
           className="h-[88vh] max-w-[min(1560px,94vw)] overflow-hidden p-0"
           data-testid="travel-itinerary-dynamic-map-dialog"
@@ -1845,27 +1965,56 @@ export function TravelItineraryExperience({
 
             <div className="relative min-h-0 flex-1">
               <TripRouteMap
-                activePointId={null}
-                animateRoute
+                activePointId={fullMapActivePointId}
+                animateRoute={isRoutePlaying}
                 className="h-full w-full"
-                onPointSelect={onPointSelect}
+                onPointSelect={handleFullMapPointSelect}
                 points={resolvedMapPoints}
                 routeCoordinates={resolvedRouteCoordinates}
               />
-              <div className="absolute bottom-5 left-5 max-w-[min(520px,calc(100%-40px))] rounded-2xl bg-white/92 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
-                <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
-                  <WalletCards className="h-4 w-4 text-[#6f40cc]" />
-                  动态行程
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {segments.map((segment) => (
-                    <span
-                      className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-semibold text-[#6f40cc]"
-                      key={`full-map-${segment.city}`}
-                    >
-                      {segment.label} · {segment.rangeLabel}
-                    </span>
-                  ))}
+              <div className="absolute bottom-5 left-5 flex max-w-[calc(100%-40px)] items-end gap-3">
+                <Button
+                  aria-label={isRoutePlaying ? "暂停动态行程" : "播放动态行程"}
+                  className="h-14 w-14 shrink-0 rounded-full bg-[#d9c2ff] text-[#2d1635] shadow-[0_18px_45px_rgba(32,20,43,0.2)] hover:bg-[#cdb0ff]"
+                  data-testid="travel-itinerary-full-map-play-toggle"
+                  onClick={() => setIsRoutePlaying((playing) => !playing)}
+                  size="icon"
+                  type="button"
+                >
+                  {isRoutePlaying ? (
+                    <Pause className="h-6 w-6 fill-current" />
+                  ) : (
+                    <Play className="h-6 w-6 fill-current" />
+                  )}
+                </Button>
+                <div className="max-w-[min(620px,calc(100vw-150px))] rounded-2xl bg-white/95 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
+                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                    <WalletCards className="h-4 w-4 text-[#6f40cc]" />
+                    动态行程
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {segments.map((segment) => {
+                      const active =
+                        getCitySectionKey(segment.city) ===
+                        getCitySectionKey(fullMapActiveCity);
+
+                      return (
+                        <button
+                          className={cn(
+                            "rounded-full px-3 py-1 text-sm font-semibold transition-colors",
+                            active
+                              ? "bg-[#d9c2ff] text-[#2d1635]"
+                              : "bg-[#f6efff] text-[#6f40cc] hover:bg-[#eadcff]"
+                          )}
+                          key={`full-map-${segment.city}`}
+                          onClick={() => setFullMapActiveCity(segment.city)}
+                          type="button"
+                        >
+                          {segment.label} · {segment.rangeLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

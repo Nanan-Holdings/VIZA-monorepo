@@ -53,6 +53,8 @@ import {
   type ItineraryDay,
   type SelectedFlightOption,
   type SelectedHotelOption,
+  type TravelField,
+  type TravelState,
 } from "@/lib/travel/planner";
 import type {
   TravelDestinationCard,
@@ -119,7 +121,37 @@ type TravelChatSession = {
   title: string;
   customTitle?: boolean;
   messages: TravelChatMessage[];
+  activeVersionId?: string;
+  versions?: TravelTripVersion[];
   updatedAt: string;
+};
+
+type TravelTripVersion = {
+  id: string;
+  versionNumber: number;
+  title: string;
+  createdAt: string;
+  parentVersionId?: string;
+  sourceMessageId?: string;
+  userPrompt?: string;
+  editSummary?: string;
+  travelState: TravelState;
+  itinerary: ItineraryDay[];
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  modulePatch?: Record<string, unknown>;
+};
+
+type TravelRevisionAction = "revise" | "restart" | "clarify";
+
+type TravelRevisionResult = {
+  action: TravelRevisionAction;
+  reply: string;
+  itinerary: ItineraryDay[];
+  statePatch: Record<string, unknown>;
+  modulePatch: Record<string, unknown>;
+  editSummary: string;
+  quickReplies: TravelQuickReply[];
 };
 
 const INITIAL_ASSISTANT_TEXT =
@@ -131,12 +163,20 @@ const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "想去欧洲", value: "我想去欧洲" },
 ];
 
+const ITINERARY_REVISION_QUICK_REPLIES: TravelQuickReply[] = [
+  { label: "便宜一点", value: "把这次旅行便宜一点" },
+  { label: "减少航班", value: "把航班去掉，尽量用其他交通方式" },
+  { label: "换4星酒店", value: "把酒店换成4星酒店" },
+  { label: "加本地美食", value: "每天加更多本地美食" },
+  { label: "重排行程", value: "重新安排每天的顺序" },
+];
+
 const EMPTY_TRAVEL_MESSAGES: TravelChatMessage[] = [];
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 const TRAVEL_JSON_CODE_BLOCK_PATTERN = /```json[^\S\r\n]*(?:\r?\n)?[\s\S]*?```/gi;
 
-const TRAVEL_STAGE_ORDER = [
+const TRAVEL_STAGE_ORDER: readonly TravelField[] = [
   "country",
   "cities",
   "departure_date",
@@ -145,8 +185,6 @@ const TRAVEL_STAGE_ORDER = [
   "budget",
   "origin",
   "travel_order",
-  "flight_selection",
-  "hotel_selection",
   "final_note",
 ] as const;
 
@@ -432,6 +470,10 @@ function createSessionId(): string {
   return `travel-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function createVersionId(): string {
+  return `travel-version-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createInitialTravelMessages(): TravelChatMessage[] {
   return [
     {
@@ -450,6 +492,7 @@ function createTravelChatSession(): TravelChatSession {
     id: createSessionId(),
     title: "新的旅行对话",
     messages: createInitialTravelMessages(),
+    versions: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -511,6 +554,57 @@ function isTravelToolItineraryDay(value: unknown): boolean {
   );
 }
 
+function normalizeItineraryDays(value: unknown): ItineraryDay[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const city = typeof item.city === "string" ? item.city.trim() : "";
+      if (!city) return null;
+
+      return {
+        day:
+          typeof item.day === "number" || typeof item.day === "string"
+            ? item.day
+            : "-",
+        city,
+        activities: isStringArray(item.activities) ? item.activities : [],
+        food: isStringArray(item.food) ? item.food : [],
+        cost: typeof item.cost === "string" ? item.cost : "N/A",
+      } satisfies ItineraryDay;
+    })
+    .filter((day): day is ItineraryDay => Boolean(day));
+}
+
+function isTravelStateLike(value: unknown): value is TravelState {
+  if (!isRecord(value)) return false;
+
+  return (
+    Array.isArray(value.countries) &&
+    Array.isArray(value.cities) &&
+    isRecord(value.city_days) &&
+    Array.isArray(value.travel_order) &&
+    Array.isArray(value.selected_flights) &&
+    Array.isArray(value.selected_hotels) &&
+    Array.isArray(value.attached_files)
+  );
+}
+
+function isTravelTripVersion(value: unknown): value is TravelTripVersion {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.versionNumber === "number" &&
+    typeof value.title === "string" &&
+    typeof value.createdAt === "string" &&
+    isTravelStateLike(value.travelState) &&
+    normalizeItineraryDays(value.itinerary).length > 0 &&
+    Array.isArray(value.selectedFlights) &&
+    Array.isArray(value.selectedHotels)
+  );
+}
+
 function isTravelChatMessagePart(value: unknown): value is TravelChatMessagePart {
   if (!isRecord(value) || typeof value.type !== "string") return false;
 
@@ -558,6 +652,11 @@ function isTravelChatSession(value: unknown): value is TravelChatSession {
     typeof value.id === "string" &&
     typeof value.title === "string" &&
     (value.customTitle === undefined || typeof value.customTitle === "boolean") &&
+    (value.activeVersionId === undefined ||
+      typeof value.activeVersionId === "string") &&
+    (value.versions === undefined ||
+      (Array.isArray(value.versions) &&
+        value.versions.every((version) => isTravelTripVersion(version)))) &&
     typeof value.updatedAt === "string" &&
     Array.isArray(value.messages) &&
     value.messages.every((message) => isTravelChatMessage(message))
@@ -736,7 +835,9 @@ function parseItineraryFromResponse(raw: unknown): ItineraryDay[] {
 }
 
 function formatSelectedFlights(flights: SelectedFlightOption[]): string {
-  if (!flights.length) return "- 无";
+  if (!flights.length) {
+    return "- 将在 itinerary 表格中生成默认航班，可直接编辑航司、时间、价格和航班号";
+  }
 
   return flights
     .map((flight) => {
@@ -754,7 +855,9 @@ function formatSelectedFlights(flights: SelectedFlightOption[]): string {
 }
 
 function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
-  if (!hotels.length) return "- 无";
+  if (!hotels.length) {
+    return "- 将在 itinerary 表格中生成默认酒店，可直接编辑酒店名、地址、价格和联系方式";
+  }
 
   return hotels
     .map((hotel) => {
@@ -1179,18 +1282,23 @@ function buildProgressItems(
     {
       id: "transport",
       label: "路线顺序",
-      done: state.travel_order.length > 1,
-      detail: state.travel_order.length > 1
+      done:
+        state.cities.length > 0 &&
+        state.travel_order.length === state.cities.length,
+      detail:
+        state.cities.length > 0 &&
+        state.travel_order.length === state.cities.length
         ? `已连接 ${state.travel_order.length} 站`
         : "等待中",
     },
     {
       id: "stay",
-      label: "酒店",
-      done: state.selected_hotels.length > 0,
-      detail: state.selected_hotels.length
-        ? `已选 ${state.selected_hotels.length} 家酒店`
-        : "等待中",
+      label: "航班酒店",
+      done: Boolean(state.origin_city && state.return_city && state.cities.length),
+      detail:
+        state.origin_city && state.return_city && state.cities.length
+          ? "已生成默认项，可在 itinerary 编辑"
+          : "等待中",
     },
     {
       id: "final",
