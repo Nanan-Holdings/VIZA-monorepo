@@ -458,7 +458,16 @@
       "sectionPersonal": "个人信息",
       "sectionPassport": "护照信息",
       "sectionTravel": "旅行信息",
-      "sectionDynamic": "申请问题"
+      "sectionDynamic": "申请问题",
+      "bilingualTitle": "双语对照核对",
+      "bilingualHint": "提交前请对照检查原始答案和官方英文/格式化结果。翻译异常不会阻止提交，但姓名拼写和日期格式应与护照及官方表格一致。",
+      "sourceColumn": "原始答案",
+      "officialColumn": "官方英文 / 格式",
+      "passportSpellingWarning": "请确认这里的拼音/罗马字母拼写与护照完全一致。",
+      "dateFormatWarning": "请确认日期使用官方格式：{format}。",
+      "officialFormatBadge": "官方格式",
+      "optionLabelBadge": "官方选项",
+      "noReviewRows": "暂无可核对的已填写答案。"
     },
     "status": {
       "title": "申请已提交",
