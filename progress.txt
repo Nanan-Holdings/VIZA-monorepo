@@ -339,3 +339,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: prd.json, progress.txt, bilingual-review-panel.tsx, dynamic-review-step.tsx, translation-panel.tsx, application-steps/index.ts, messages/en.json, messages/zh.json
 - Learnings: the existing translation table and routes were enough for REV-001; the main UI work was building a canonical review row model that can combine translations, schema formats, options, and repeatable dynamic answers without changing backend storage.
 ---
+
+## 2026-05-16 - REV-001 follow-up
+- Rolled the bilingual review integration back out of the existing /client/application module per product-validation request.
+- Kept the reusable bilingual review panel and added a standalone public validation page at /bilingual-review-preview with mock data, local edit behavior, retryable failure state, date-format warnings, option-label badges, and passport-spelling warnings.
+- Updated prd.json so REV-001 is no longer marked passing until the feature is approved for production module integration.
+- Files changed: prd.json, progress.txt, app/bilingual-review-preview/page.tsx, bilingual-review-panel.tsx, dynamic-review-step.tsx, translation-panel.tsx, application-steps/index.ts
+- Learnings: the isolated preview route is safer for UI/product validation; production application flow should stay untouched until the review layout is accepted.
+---

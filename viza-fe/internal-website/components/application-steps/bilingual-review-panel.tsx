@@ -22,12 +22,13 @@ export interface ReviewRow {
 }
 
 interface BilingualReviewPanelProps {
-  applicationId: string;
+  applicationId?: string;
   rows: ReviewRow[];
   loading?: boolean;
   error?: string | null;
   retrying?: boolean;
   onRetry?: () => void;
+  onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
 }
 
@@ -47,10 +48,12 @@ function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[
 function BilingualReviewRow({
   applicationId,
   row,
+  onSaveOfficialValue,
   onUpdated,
 }: {
-  applicationId: string;
+  applicationId?: string;
   row: ReviewRow;
+  onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
 }) {
   const t = useTranslations("applicationSteps.translation");
@@ -66,16 +69,23 @@ function BilingualReviewRow({
 
     setSaving(true);
     try {
-      const res = await fetch(
-        `${BACKEND_URL}/api/applications/${applicationId}/translations/${encodeURIComponent(row.fieldName)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ translated_text: draft }),
-        },
-      );
+      if (onSaveOfficialValue) {
+        await onSaveOfficialValue(row.fieldName, draft);
+        onUpdated?.(row.fieldName, draft);
+      } else if (applicationId) {
+        const res = await fetch(
+          `${BACKEND_URL}/api/applications/${applicationId}/translations/${encodeURIComponent(row.fieldName)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ translated_text: draft }),
+          },
+        );
 
-      if (res.ok) {
+        if (res.ok) {
+          onUpdated?.(row.fieldName, draft);
+        }
+      } else {
         onUpdated?.(row.fieldName, draft);
       }
     } finally {
@@ -175,6 +185,7 @@ export function BilingualReviewPanel({
   error,
   retrying,
   onRetry,
+  onSaveOfficialValue,
   onUpdated,
 }: BilingualReviewPanelProps) {
   const t = useTranslations("applicationSteps.translation");
@@ -233,6 +244,7 @@ export function BilingualReviewPanel({
                   key={row.fieldName}
                   applicationId={applicationId}
                   row={row}
+                  onSaveOfficialValue={onSaveOfficialValue}
                   onUpdated={onUpdated}
                 />
               ))}
