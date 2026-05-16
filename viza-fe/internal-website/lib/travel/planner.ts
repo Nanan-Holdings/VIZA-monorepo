@@ -206,18 +206,6 @@ export type TravelFormPayload = Partial<TravelPayload> & {
   display?: TravelFormDisplayPayload;
 };
 
-type ExpectedFlightLeg = {
-  leg_index: number;
-  from: string;
-  to: string;
-};
-
-type ExpectedHotelStay = {
-  stay_index: number;
-  city: string;
-  nights: number;
-};
-
 export const FIELD_QUESTIONS: Record<TravelField, string> = {
   country: "请选择要去的国家（可搜索、可多选）。",
   cities: "请选择要去的城市（可搜索、可多选）。",
@@ -253,6 +241,16 @@ function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized ? normalized : null;
+}
+
+function formatEndpointDisplay(country: string, city: string): string {
+  const normalizedCountry = country.trim();
+  const normalizedCity = city.trim();
+  if (!normalizedCountry) return normalizedCity || "-";
+  if (!normalizedCity) return normalizedCountry || "-";
+  return normalizedCountry === normalizedCity
+    ? normalizedCity
+    : `${normalizedCountry} ${normalizedCity}`;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -657,12 +655,14 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     const originCity = display?.origin_city ?? payload.origin_city ?? "-";
     const returnCountry = display?.return_country ?? payload.return_country ?? "-";
     const returnCity = display?.return_city ?? payload.return_city ?? "-";
+    const originLabel = formatEndpointDisplay(originCountry, originCity);
+    const returnLabel = formatEndpointDisplay(returnCountry, returnCity);
 
-    if (originCountry === returnCountry && originCity === returnCity) {
-      return `出发和返程城市都设为 ${originCountry} ${originCity}。`.trim();
+    if (originLabel === returnLabel) {
+      return `出发和返程城市都设为 ${originLabel}。`.trim();
     }
 
-    return `出发地：${originCountry} ${originCity}；返程地：${returnCountry} ${returnCity}。`.trim();
+    return `出发地：${originLabel}；返程地：${returnLabel}。`.trim();
   }
   if (payload.travel_order?.length) {
     const travelOrder = display?.travel_order?.length
@@ -713,36 +713,6 @@ function getOrderedCities(state: TravelState): string[] {
     return state.travel_order;
   }
   return state.cities;
-}
-
-function getExpectedFlightLegs(state: TravelState): ExpectedFlightLeg[] {
-  const orderedCities = getOrderedCities(state);
-  if (!orderedCities.length) return [];
-
-  const originCity = normalizeString(state.origin_city) ?? orderedCities[0];
-  const returnCity = normalizeString(state.return_city) ?? originCity;
-  const route = [originCity, ...orderedCities, returnCity];
-  const legs: ExpectedFlightLeg[] = [];
-  let legIndex = 1;
-
-  for (let index = 0; index < route.length - 1; index += 1) {
-    const from = route[index];
-    const to = route[index + 1];
-    if (!from || !to || from === to) continue;
-    legs.push({ leg_index: legIndex, from, to });
-    legIndex += 1;
-  }
-
-  return legs;
-}
-
-function getExpectedHotelStays(state: TravelState): ExpectedHotelStay[] {
-  const orderedCities = getOrderedCities(state);
-  return orderedCities.map((city, index) => ({
-    stay_index: index + 1,
-    city,
-    nights: state.city_days[city] ?? DEFAULT_CITY_DAYS,
-  }));
 }
 
 function applyFormPayload(state: TravelState, payload: TravelFormPayload): void {
@@ -928,56 +898,6 @@ function hasCompleteReturn(state: TravelState): boolean {
   );
 }
 
-function hasCompleteFlightSelections(state: TravelState): boolean {
-  const expected = getExpectedFlightLegs(state);
-  if (expected.length === 0) return true;
-
-  const selectedByIndex = new Map(
-    state.selected_flights.map((item) => [item.leg_index, item])
-  );
-
-  for (const leg of expected) {
-    const selected = selectedByIndex.get(leg.leg_index);
-    if (!selected) return false;
-    if (selected.from !== leg.from || selected.to !== leg.to) return false;
-    if (selected.skip) continue;
-    if (
-      selected.option_index === undefined ||
-      !Number.isInteger(selected.option_index) ||
-      selected.option_index < 1
-    ) {
-      return false;
-    }
-    if (!selected.option) return false;
-  }
-
-  return true;
-}
-
-function hasCompleteHotelSelections(state: TravelState): boolean {
-  const expected = getExpectedHotelStays(state);
-  if (expected.length === 0) return true;
-
-  const selectedByIndex = new Map(
-    state.selected_hotels.map((item) => [item.stay_index, item])
-  );
-
-  for (const stay of expected) {
-    const selected = selectedByIndex.get(stay.stay_index);
-    if (!selected) return false;
-    if (selected.city !== stay.city) return false;
-    if (
-      !Number.isInteger(selected.option_index) ||
-      selected.option_index < 1 ||
-      !selected.option
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 export function nextMissingField(state: TravelState): TravelField | null {
   if (!state.countries.length && !normalizeString(state.country)) return "country";
   if (state.cities.length === 0) return "cities";
@@ -987,8 +907,6 @@ export function nextMissingField(state: TravelState): TravelField | null {
   if (!state.budget) return "budget";
   if (!hasCompleteOrigin(state) || !hasCompleteReturn(state)) return "origin";
   if (!isTravelOrderComplete(state.cities, state.travel_order)) return "travel_order";
-  if (!hasCompleteFlightSelections(state)) return "flight_selection";
-  if (!hasCompleteHotelSelections(state)) return "hotel_selection";
   if (state.final_note === null) return "final_note";
   return null;
 }
@@ -1050,34 +968,10 @@ export function toTravelPayload(state: TravelState): TravelPayload | null {
   const basePayload = toTravelPlanningPayload(state);
   if (!basePayload) return null;
 
-  const expectedLegs = getExpectedFlightLegs(state);
-  const selectedFlightMap = new Map(
-    state.selected_flights.map((item) => [item.leg_index, item])
-  );
-  const selectedFlights: SelectedFlightOption[] = [];
-
-  for (const leg of expectedLegs) {
-    const selected = selectedFlightMap.get(leg.leg_index);
-    if (!selected) return null;
-    selectedFlights.push(selected);
-  }
-
-  const expectedStays = getExpectedHotelStays(state);
-  const selectedHotelMap = new Map(
-    state.selected_hotels.map((item) => [item.stay_index, item])
-  );
-  const selectedHotels: SelectedHotelOption[] = [];
-
-  for (const stay of expectedStays) {
-    const selected = selectedHotelMap.get(stay.stay_index);
-    if (!selected) return null;
-    selectedHotels.push(selected);
-  }
-
   return {
     ...basePayload,
-    selected_flights: selectedFlights,
-    selected_hotels: selectedHotels,
+    selected_flights: state.selected_flights,
+    selected_hotels: state.selected_hotels,
     final_note: state.final_note ?? "",
     attached_files: state.attached_files,
   };

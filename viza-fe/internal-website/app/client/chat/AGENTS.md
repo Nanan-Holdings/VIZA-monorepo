@@ -40,13 +40,14 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 3. Do not hardcode AI answers in the frontend; assistant text should come from persisted history or streamed backend output.
 4. Keep Travel AI changes inside the Travel module unless the chat tab integration itself changes.
 5. Keep `/client/chat` on the light visual palette. Do not move the `VIZA AI / Travel AI` tab controls when changing the process/session panel.
-6. The VIZA process/session panel may be collapsed on desktop and opens as a drawer on mobile.
+6. The VIZA process/session panel defaults to collapsed. On desktop, opening it should render a floating left panel that does not move the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer.
 7. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
 8. Preserve queued-message behavior while an assistant response is streaming.
 9. Keep inline application blocks type-safe and compatible with `send_application_block`.
 10. Avoid new dependencies unless the existing Next.js, Socket.IO, Tailwind, and shadcn/ui stack cannot reasonably cover the change.
 11. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
 12. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
+13. Do not disable the VIZA chat input merely because Socket.IO is `connecting`, `disconnected`, or `error`; `handleSendMessage()` intentionally queues messages until the socket reconnects. Disable the input only for local UI states such as loading a different session.
 
 ## Session Model
 
@@ -64,7 +65,7 @@ For frontend-only changes:
    - `VIZA AI` tab connects and sends a message
    - streamed tokens become one finalized assistant message
    - the VIZA session panel can start a new chat and switch back to an older chat
-   - the input disables while disconnected
+   - the input remains editable while disconnected and queues messages for reconnect
    - `Travel AI` tab still renders the embedded planner
 
 For backend Socket.IO or agent changes:

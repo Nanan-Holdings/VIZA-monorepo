@@ -1,6 +1,6 @@
 import calendar
 from datetime import date, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import BackgroundTasks
 from fastapi import FastAPI
@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 
-from itinerary import generate_itinerary
+from itinerary import generate_itinerary, revise_itinerary
 from agent import TravelChatRequest, generate_chat_response
 from export_doc import export_to_word
 from export_pdf import export_to_pdf
@@ -47,6 +47,15 @@ class TravelRequest(BaseModel):
     attached_files: list[str] = Field(default_factory=list)
     itinerary: list[dict] = Field(default_factory=list)
     itinery_rows: list[dict] = Field(default_factory=list)
+
+
+class TravelRevisionRequest(BaseModel):
+    current_version_id: Optional[str] = None
+    user_prompt: str = ""
+    state: dict[str, Any] = Field(default_factory=dict)
+    current_itinerary: list[dict] = Field(default_factory=list)
+    active_modules: dict[str, Any] = Field(default_factory=dict)
+    locale: str = "zh-CN"
 
 
 def _payload(data: TravelRequest):
@@ -227,6 +236,15 @@ def _cleanup_file(file_path: str):
 def generate(data: TravelRequest):
     itinerary = generate_itinerary(_travel_payload(data))
     return {"reply": itinerary}
+
+
+@app.post("/revise-itinerary")
+def revise(data: TravelRevisionRequest):
+    if hasattr(data, "model_dump"):
+        payload = data.model_dump()
+    else:
+        payload = data.dict()
+    return revise_itinerary(payload)
 
 
 @app.post("/chat")
