@@ -1,14 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { ImageIcon } from "lucide-react";
-import { type WizardStep } from "@/types/visa-form-fields";
+import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { translateLabel, translateOptionText } from "@/lib/ds160-translations";
 import { createClient } from "@/lib/supabase/client";
-import { SectionRow, Section } from "./review-shared";
+import { Section } from "./review-shared";
 import { ValidationPanel } from "./review-step";
+import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
+const HAS_CHINESE = /[\u4E00-\u9FFF\u3400-\u4DBF]/;
+
+interface TranslationEntry {
+  source_text: string;
+  translated_text: string;
+  user_edited: boolean;
+}
+
+type TranslationMap = Record<string, TranslationEntry>;
 
 export interface DynamicReviewStepProps {
   applicationId: string;
@@ -20,12 +32,60 @@ export interface DynamicReviewStepProps {
   onComplete: () => void;
 }
 
+function getRepeatGroup(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { repeatable?: boolean; repeat_group?: string } | null;
+  return rules?.repeatable && rules.repeat_group ? rules.repeat_group : null;
+}
+
+function instanceKey(fieldName: string, instanceIndex: number): string {
+  return instanceIndex === 0 ? fieldName : `${fieldName}__${instanceIndex + 1}`;
+}
+
+function getValidationFormat(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { format?: string } | null;
+  return typeof rules?.format === "string" ? rules.format : null;
+}
+
+function getOptionText(field: VisaFormFieldRow, value: string): string | null {
+  if (!field.options) return null;
+  const match = field.options.find((option) => {
+    const optionValue = typeof option === "string" ? option : option.value;
+    return optionValue.toLowerCase() === value.toLowerCase();
+  });
+  if (!match) return null;
+  return typeof match === "string" ? match : match.text;
+}
+
+function formatDateValue(value: string, format: string | null): string {
+  if (!format) return value;
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!isoMatch) return value;
+
+  const [, year, month, day] = isoMatch;
+  return format
+    .replace(/YYYY/g, year)
+    .replace(/MM/g, month)
+    .replace(/DD/g, day);
+}
+
+function isRomanizationSensitive(field: VisaFormFieldRow): boolean {
+  const name = field.fieldName.toLowerCase();
+  return [
+    "surname",
+    "given_names",
+    "surname_at_birth",
+    "full_name_native_alphabet",
+    "city_of_birth",
+    "place_of_birth",
+    "passport_issuance_city",
+  ].some((key) => name === key || name.endsWith(`_${key}`));
+}
+
 export function DynamicReviewStep({
   applicationId,
   dynamicAnswers,
   dbSteps,
   photoPath,
-  onEdit,
   onPhotoEdit,
   onComplete,
 }: DynamicReviewStepProps) {
@@ -33,6 +93,10 @@ export function DynamicReviewStep({
   const tDyn = useTranslations("application.dynamicSteps");
   const locale = useLocale();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<TranslationMap>({});
+  const [translationLoading, setTranslationLoading] = useState(true);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const [translationRetrying, setTranslationRetrying] = useState(false);
 
   // Generate signed URL for photo preview
   useEffect(() => {
@@ -50,27 +114,164 @@ export function DynamicReviewStep({
       });
   }, [photoPath]);
 
-  /**
-   * Format a field's stored value for display.
-   * Looks up option labels for select/radio fields.
-   */
-  function formatValue(
-    fieldName: string,
+  const fetchTranslations = useCallback(async () => {
+    const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translations`);
+    if (!res.ok) throw new Error(`Failed to fetch translations (${res.status})`);
+    const data = (await res.json()) as TranslationMap;
+    setTranslations(data);
+  }, [applicationId]);
+
+  const runTranslation = useCallback(async () => {
+    setTranslationLoading(true);
+    setTranslationRetrying(true);
+    setTranslationError(null);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error(`Translation failed (${res.status})`);
+      await fetchTranslations();
+    } catch {
+      setTranslationError(t("translation.translationFailed"));
+      try {
+        await fetchTranslations();
+      } catch {
+        setTranslations({});
+      }
+    } finally {
+      setTranslationLoading(false);
+      setTranslationRetrying(false);
+    }
+  }, [applicationId, fetchTranslations, t]);
+
+  useEffect(() => {
+    void runTranslation();
+  }, [runTranslation]);
+
+  function formatSourceValue(
     value: string,
-    field?: { fieldType: string; options?: Array<{ value: string; text: string }> | null },
+    field: VisaFormFieldRow,
   ): string {
     if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
-    if (!field?.options || !Array.isArray(field.options)) return value;
 
-    // Find matching option text
-    const option = field.options.find(
-      (o) => o.value.toLowerCase() === value.toLowerCase(),
-    );
-    if (option) {
-      const translated = translateOptionText(option.text, locale);
-      return translated;
-    }
+    const optionText = getOptionText(field, value);
+    if (optionText) return translateOptionText(optionText, locale);
+
     return value;
+  }
+
+  function formatOfficialValue(
+    valueKey: string,
+    value: string,
+    field: VisaFormFieldRow,
+  ): string {
+    const translated = translations[valueKey]?.translated_text;
+    if (translated) return translated;
+
+    if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
+
+    const optionText = getOptionText(field, value);
+    if (optionText) return optionText;
+
+    if (field.fieldType === "date") return formatDateValue(value, getValidationFormat(field));
+
+    return value;
+  }
+
+  const reviewRows = useMemo<ReviewRow[]>(() => {
+    const rows: ReviewRow[] = [];
+
+    function addRow(section: string, field: VisaFormFieldRow, valueKey: string, value: string) {
+      if (!value.trim()) return;
+
+      const format = getValidationFormat(field);
+      const translation = translations[valueKey];
+      const optionText = getOptionText(field, value);
+      const badges: string[] = [];
+      const warnings: string[] = [];
+
+      if (translation) {
+        badges.push(translation.user_edited ? t("translation.userEdited") : t("translation.aiTranslated"));
+      }
+      if (field.fieldType === "date" && format) {
+        badges.push(t("translation.officialFormatBadge"));
+        warnings.push(t("translation.dateFormatWarning", { format }));
+      }
+      if (optionText) {
+        badges.push(t("translation.optionLabelBadge"));
+      }
+      if (isRomanizationSensitive(field) && (HAS_CHINESE.test(value) || translation)) {
+        warnings.push(t("translation.passportSpellingWarning"));
+      }
+
+      rows.push({
+        section,
+        fieldName: valueKey,
+        label: translateLabel(field.label, locale),
+        sourceValue: formatSourceValue(value, field),
+        officialValue: formatOfficialValue(valueKey, value, field),
+        badges,
+        warnings,
+        editable: Boolean(translation),
+      });
+    }
+
+    for (const step of dbSteps) {
+      const section = (() => {
+        const safeKey = step.stepName.replace(/\./g, "");
+        return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+      })();
+      const renderedGroups = new Set<string>();
+
+      for (const field of step.fields) {
+        if (!evaluateShowIf(field, dynamicAnswers, step.fields)) continue;
+
+        const group = getRepeatGroup(field);
+        if (!group) {
+          const value = dynamicAnswers[field.fieldName];
+          if (value?.trim()) addRow(section, field, field.fieldName, value);
+          continue;
+        }
+
+        if (renderedGroups.has(group)) continue;
+        renderedGroups.add(group);
+
+        const groupFields = step.fields.filter((groupField) => getRepeatGroup(groupField) === group);
+        const instanceIndexes = new Set<number>();
+        for (const groupField of groupFields) {
+          for (let instance = 0; instance < 20; instance++) {
+            const valueKey = instanceKey(groupField.fieldName, instance);
+            if (dynamicAnswers[valueKey]?.trim()) instanceIndexes.add(instance);
+          }
+        }
+
+        for (const instance of Array.from(instanceIndexes).sort((a, b) => a - b)) {
+          for (const groupField of groupFields) {
+            const valueKey = instanceKey(groupField.fieldName, instance);
+            const value = dynamicAnswers[valueKey];
+            if (!value?.trim()) continue;
+            const instanceLabel = instance === 0 ? section : `${section} #${instance + 1}`;
+            addRow(instanceLabel, groupField, valueKey, value);
+          }
+        }
+      }
+
+    }
+
+    return rows;
+  }, [dbSteps, dynamicAnswers, locale, t, tDyn, translations]);
+
+  function handleTranslationUpdated(fieldName: string, officialValue: string) {
+    setTranslations((prev) => ({
+      ...prev,
+      [fieldName]: {
+        source_text: prev[fieldName]?.source_text ?? dynamicAnswers[fieldName] ?? "",
+        translated_text: officialValue,
+        user_edited: true,
+      },
+    }));
   }
 
   return (
@@ -102,122 +303,15 @@ export function DynamicReviewStep({
         </div>
       </Section>
 
-      {/* Dynamic form sections */}
-      {dbSteps.map((step, stepIndex) => {
-        // Collect visible fields with answers
-        const fieldsWithAnswers = step.fields.filter((field) => {
-          // Check if field should be visible based on conditional logic
-          if (!evaluateShowIf(field, dynamicAnswers, step.fields)) return false;
-
-          // Check if there's an answer for this field (including repeat instances)
-          const baseValue = dynamicAnswers[field.fieldName];
-          if (baseValue && baseValue.trim()) return true;
-
-          // Check repeat instances (fieldName__2, fieldName__3, etc.)
-          const repeatKeys = Object.keys(dynamicAnswers).filter(
-            (k) => k.startsWith(`${field.fieldName}__`) && dynamicAnswers[k]?.trim(),
-          );
-          return repeatKeys.length > 0;
-        });
-
-        // Skip empty sections
-        if (fieldsWithAnswers.length === 0) return null;
-
-        // Track which repeat groups we've already rendered
-        const renderedGroups = new Set<string>();
-
-        return (
-          <Section
-            key={step.stepName}
-            title={(() => {
-              const safeKey = step.stepName.replace(/\./g, "");
-              return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
-            })()}
-            onEdit={() => onEdit(stepIndex)}
-            editLabel={t("edit")}
-          >
-            {fieldsWithAnswers.map((field) => {
-              const rules = field.validationRules as {
-                repeat_group?: string;
-              } | null;
-              const group = rules?.repeat_group;
-
-              // For repeat groups, render all instances once
-              if (group) {
-                if (renderedGroups.has(group)) return null;
-                renderedGroups.add(group);
-
-                // Find all instances
-                const instances: number[] = [0]; // base instance
-                for (let i = 2; i <= 20; i++) {
-                  const key = `${field.fieldName}__${i}`;
-                  if (dynamicAnswers[key] !== undefined) {
-                    instances.push(i - 1);
-                  } else {
-                    break;
-                  }
-                }
-
-                // Get all fields in this repeat group
-                const groupFields = step.fields.filter((f) => {
-                  const r = f.validationRules as { repeat_group?: string } | null;
-                  return r?.repeat_group === group;
-                });
-
-                return instances.map((instanceIdx) => {
-                  const suffix = instanceIdx === 0 ? "" : `__${instanceIdx + 1}`;
-                  return (
-                    <div key={`${group}-${instanceIdx}`}>
-                      {instances.length > 1 && (
-                        <p className="text-xs text-gray-400 mt-2 mb-1">
-                          #{instanceIdx + 1}
-                        </p>
-                      )}
-                      {groupFields.map((gf) => {
-                        const valueKey = `${gf.fieldName}${suffix}`;
-                        const value = dynamicAnswers[valueKey];
-                        if (!value?.trim()) return null;
-
-                        const label = translateLabel(gf.label, locale);
-                        const displayValue = formatValue(gf.fieldName, value, {
-                          fieldType: gf.fieldType,
-                          options: gf.options as Array<{ value: string; text: string }> | null,
-                        });
-
-                        return (
-                          <SectionRow
-                            key={valueKey}
-                            label={label}
-                            value={displayValue}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                });
-              }
-
-              // Non-repeating field
-              const value = dynamicAnswers[field.fieldName];
-              if (!value?.trim()) return null;
-
-              const label = translateLabel(field.label, locale);
-              const displayValue = formatValue(field.fieldName, value, {
-                fieldType: field.fieldType,
-                options: field.options as Array<{ value: string; text: string }> | null,
-              });
-
-              return (
-                <SectionRow
-                  key={field.fieldName}
-                  label={label}
-                  value={displayValue}
-                />
-              );
-            })}
-          </Section>
-        );
-      })}
+      <BilingualReviewPanel
+        applicationId={applicationId}
+        rows={reviewRows}
+        loading={translationLoading}
+        error={translationError}
+        retrying={translationRetrying}
+        onRetry={() => void runTranslation()}
+        onUpdated={handleTranslationUpdated}
+      />
 
       {/* Validation + Submit */}
       <ValidationPanel

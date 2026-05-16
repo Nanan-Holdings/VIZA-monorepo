@@ -24,6 +24,9 @@ export type { StatusStepProps } from "./status-step";
 export { TranslationPanel } from "./translation-panel";
 export type { TranslationPanelProps } from "./translation-panel";
 
+export { BilingualReviewPanel } from "./bilingual-review-panel";
+export type { ReviewRow } from "./bilingual-review-panel";
+
 // Primitive components
 export { FileUploadCard } from "./file-upload-card";
 export type { FileUploadCardProps, DocumentType } from "./file-upload-card";

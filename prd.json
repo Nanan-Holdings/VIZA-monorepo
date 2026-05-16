@@ -148,6 +148,38 @@
       "priority": 10,
       "passes": true,
       "notes": "Close with operator-usable documentation, not just code changes."
+    },
+    {
+      "id": "REV-001",
+      "title": "Bilingual Review Page",
+      "description": "As a user, I need to compare my original answers with the official English or formatted version before final submission, so I can confirm translations, passport-name spellings, and date formats.",
+      "acceptanceCriteria": [
+        "The Review step automatically attempts Chinese-to-English translation when the user enters review",
+        "The review UI displays original answers and official English/formatted values side by side",
+        "Chinese text translations can be edited and saved through the existing application_translations PATCH endpoint",
+        "Date fields are displayed with their official schema format and sensitive name/place fields show passport-spelling warnings",
+        "Translation failure is visible and retryable but does not block final submission",
+        "Typecheck passes for modified frontend code"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Implemented as a non-blocking bilingual review surface for DB-driven dynamic forms, reusing the existing translation routes and storage table."
+    },
+    {
+      "id": "COP-001",
+      "title": "AI Field Guidance Co-Pilot",
+      "description": "As a user, I need field-level guidance beside the application form, so I can see example answers, official warnings, and format hints when I am unsure about a question.",
+      "acceptanceCriteria": [
+        "DynamicStepForm reports the active field context when a user focuses or clicks a field",
+        "A FieldGuidancePanel displays example answers, official warning text, formatting hints, sources, and confidence",
+        "A backend POST /api/field-guidance endpoint returns structured guidance from visa_chunks plus AI generation when available",
+        "The endpoint falls back to deterministic placeholder/options/validation guidance when AI or retrieval is unavailable",
+        "Guidance responses are cached by visa_type, field_name, and locale",
+        "Typecheck passes for modified frontend and backend code"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Next iteration. v1 should be field tips only, not a full chat sidebar."
     }
   ]
 }

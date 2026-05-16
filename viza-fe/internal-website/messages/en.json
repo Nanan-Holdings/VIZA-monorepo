@@ -440,7 +440,16 @@
       "sectionPersonal": "Personal Information",
       "sectionPassport": "Passport Details",
       "sectionTravel": "Travel Information",
-      "sectionDynamic": "Application Questions"
+      "sectionDynamic": "Application Questions",
+      "bilingualTitle": "Bilingual review",
+      "bilingualHint": "Review your original answers next to the official English or formatted version before submitting. Translation issues do not block submission, but names and dates should match your passport and official form format.",
+      "sourceColumn": "Original answer",
+      "officialColumn": "Official English / format",
+      "passportSpellingWarning": "Check that this romanized spelling matches your passport exactly.",
+      "dateFormatWarning": "Confirm this date is in official format: {format}.",
+      "officialFormatBadge": "Official format",
+      "optionLabelBadge": "Official option",
+      "noReviewRows": "No completed answers are available to review yet."
     },
     "status": {
       "title": "Application Submitted",

@@ -330,3 +330,12 @@ Started: Sun Apr 19 13:51:27     2026
   4. The `in` operator pays back quickly — we used it for ATV nationality gating in v1.1 and can now use it cleanly for UK TB test gating, yellow-fever certificate lists, and any future visa-waiver checks without repeating 12+ `||` atoms.
   5. Source-verification QA pass (authoritative PDF walk) is a meaningful partial for §3.1 — it catches static drift even when live-portal QA remains blocked by identity gates. Should be a standard step in the playbook for any country with a published form PDF.
 ---
+
+## 2026-05-16 - REV-001
+- Added REV-001 and COP-001 to prd.json, then completed REV-001 while leaving COP-001 as the next highest-priority story.
+- Implemented a reusable bilingual review panel that shows original answers beside official English/formatted values, with editable saved translations via the existing application_translations PATCH route.
+- Dynamic Review now triggers the existing translation route when the Review step mounts; failures are visible and retryable but do not block final submission.
+- Date fields now surface official schema-format warnings, select/radio fields show official option labels, and romanization-sensitive fields remind users to match passport spelling.
+- Files changed: prd.json, progress.txt, bilingual-review-panel.tsx, dynamic-review-step.tsx, translation-panel.tsx, application-steps/index.ts, messages/en.json, messages/zh.json
+- Learnings: the existing translation table and routes were enough for REV-001; the main UI work was building a canonical review row model that can combine translations, schema formats, options, and repeatable dynamic answers without changing backend storage.
+---
