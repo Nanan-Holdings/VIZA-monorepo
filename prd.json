@@ -162,8 +162,8 @@
         "Typecheck passes for modified frontend code"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": "Production application-flow integration was rolled back by request. A standalone validation page exists at /bilingual-review-preview so the bilingual review UI can be checked before reconnecting it to the real module."
+      "passes": true,
+      "notes": "Integrated into the dynamic Review step after standalone validation. Review now auto-attempts translation on entry, shows side-by-side bilingual rows before final submission, and keeps translation failure retryable/non-blocking. Standalone validation remains available at /bilingual-review-preview."
     },
     {
       "id": "COP-001",

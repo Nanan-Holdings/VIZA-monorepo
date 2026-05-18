@@ -374,3 +374,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/bilingual-review-preview/page.tsx, progress.txt
 - Learnings: product validation depends on using the same control primitives as the production form, otherwise the preview can verify data behavior but still mislead on interaction fidelity.
 ---
+
+## 2026-05-18 - REV-001 production integration
+- Simplified preview date fields to a single date-picker control per side; selected dates display as Chinese dates on the source side and DD/MM/YYYY on the official side.
+- Reordered birth location to country -> province/state -> city and added cascading options: country controls region list, region controls city list.
+- Integrated the bilingual review panel back into the real dynamic Review step, before final validation/submission.
+- Dynamic Review now auto-attempts translation on mount, fetches saved translations, shows fallback official values for dates/options, and keeps retryable translation failure non-blocking.
+- Marked REV-001 passing in prd.json after frontend typecheck and browser preview verification.
+- Files changed: prd.json, progress.txt, app/bilingual-review-preview/page.tsx, dynamic-review-step.tsx
+- Learnings: the production integration can safely sit beside the existing review summary first; this preserves the original confirmation surface while adding the bilingual official-format check before submit.
+---

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  CalendarDays,
   CheckCircle2,
   Languages,
   PencilLine,
@@ -10,8 +11,14 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { DatePicker } from "@/components/ui/date-picker";
 import { CountryDropdown, type Country } from "@/components/ui/country-dropdown";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -19,13 +26,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import countryRegionData from "country-region-data/data.json";
 
 type FieldKind = "text" | "date" | "option" | "address";
 
 interface OptionPair {
   zh: string;
   en: string;
+  code?: string;
 }
+
+type CountryRegion = {
+  countryName: string;
+  countryShortCode: string;
+  regions: Array<{ name: string; shortCode: string }>;
+};
 
 interface PreviewField {
   id: string;
@@ -75,7 +90,7 @@ const INITIAL_FIELDS: PreviewField[] = [
     id: "birthDate",
     section: "个人信息",
     label: "出生日期",
-    helper: "左侧可输入 1996年3月9日 或 1996-03-09。",
+    helper: "使用日期选择器；右侧同步为官方 DD/MM/YYYY 格式。",
     kind: "date",
     chineseValue: "1996年3月9日",
     englishValue: "09/03/1996",
@@ -112,34 +127,34 @@ const INITIAL_FIELDS: PreviewField[] = [
     warnings: [],
   },
   {
-    id: "cityOfBirth",
+    id: "countryOfBirth",
     section: "出生信息",
-    label: "出生城市",
-    helper: "从城市下拉中选择，右侧同步英文写法。",
+    label: "出生国家",
+    helper: "先选择国家，省/州和城市会按国家缩小范围。",
     kind: "option",
-    chineseValue: "北京",
-    englishValue: "Beijing",
-    warnings: ["出生地也属于拼写敏感信息，请与护照或出生证明保持一致。"],
+    chineseValue: "中国",
+    englishValue: "China",
+    warnings: [],
   },
   {
     id: "stateOfBirth",
     section: "出生信息",
     label: "出生省 / 州",
-    helper: "从省/州下拉中选择；没有省州时后续可按官方要求留空。",
+    helper: "按所选国家显示对应省、州或地区。",
     kind: "option",
     chineseValue: "北京",
     englishValue: "Beijing",
     warnings: [],
   },
   {
-    id: "countryOfBirth",
+    id: "cityOfBirth",
     section: "出生信息",
-    label: "出生国家",
-    helper: "国家名称会转成英文官方写法。",
+    label: "出生城市",
+    helper: "按所选省/州继续缩小城市选项。",
     kind: "option",
-    chineseValue: "中国",
-    englishValue: "China",
-    warnings: [],
+    chineseValue: "北京",
+    englishValue: "Beijing",
+    warnings: ["出生地也属于拼写敏感信息，请与护照或出生证明保持一致。"],
   },
   {
     id: "passportNumber",
@@ -155,7 +170,7 @@ const INITIAL_FIELDS: PreviewField[] = [
     id: "passportIssueDate",
     section: "护照信息",
     label: "签发日期",
-    helper: "日期会统一成 DD/MM/YYYY。",
+    helper: "使用日期选择器；右侧同步为官方 DD/MM/YYYY 格式。",
     kind: "date",
     chineseValue: "2024-03-09",
     englishValue: "09/03/2024",
@@ -165,7 +180,7 @@ const INITIAL_FIELDS: PreviewField[] = [
     id: "passportExpiryDate",
     section: "护照信息",
     label: "有效期至",
-    helper: "日期会统一成 DD/MM/YYYY。",
+    helper: "使用日期选择器；右侧同步为官方 DD/MM/YYYY 格式。",
     kind: "date",
     chineseValue: "2034-03-08",
     englishValue: "08/03/2034",
@@ -284,33 +299,106 @@ const DIRECT_TRANSLATIONS: Record<string, string> = {
 };
 
 const COUNTRY_OPTIONS: OptionPair[] = [
-  { zh: "中国", en: "China" },
-  { zh: "美国", en: "United States" },
-  { zh: "英国", en: "United Kingdom" },
-  { zh: "法国", en: "France" },
-  { zh: "日本", en: "Japan" },
-  { zh: "新加坡", en: "Singapore" },
-  { zh: "加拿大", en: "Canada" },
-  { zh: "澳大利亚", en: "Australia" },
-  { zh: "德国", en: "Germany" },
+  { zh: "中国", en: "China", code: "CN" },
+  { zh: "美国", en: "United States", code: "US" },
+  { zh: "英国", en: "United Kingdom", code: "GB" },
+  { zh: "法国", en: "France", code: "FR" },
+  { zh: "日本", en: "Japan", code: "JP" },
+  { zh: "新加坡", en: "Singapore", code: "SG" },
+  { zh: "加拿大", en: "Canada", code: "CA" },
+  { zh: "澳大利亚", en: "Australia", code: "AU" },
+  { zh: "德国", en: "Germany", code: "DE" },
 ];
 
-const CITY_OPTIONS: OptionPair[] = [
-  { zh: "北京", en: "Beijing" },
-  { zh: "上海", en: "Shanghai" },
-  { zh: "广州", en: "Guangzhou" },
-  { zh: "深圳", en: "Shenzhen" },
-  { zh: "成都", en: "Chengdu" },
-  { zh: "杭州", en: "Hangzhou" },
-];
+const CHINA_REGION_ZH: Record<string, string> = {
+  AH: "安徽",
+  BJ: "北京",
+  CQ: "重庆",
+  FJ: "福建",
+  GS: "甘肃",
+  GD: "广东",
+  GX: "广西",
+  GZ: "贵州",
+  HI: "海南",
+  HE: "河北",
+  HL: "黑龙江",
+  HA: "河南",
+  HK: "香港",
+  HB: "湖北",
+  HN: "湖南",
+  JS: "江苏",
+  JX: "江西",
+  JL: "吉林",
+  LN: "辽宁",
+  MO: "澳门",
+  NM: "内蒙古",
+  NX: "宁夏",
+  QH: "青海",
+  SN: "陕西",
+  SD: "山东",
+  SH: "上海",
+  SX: "山西",
+  SC: "四川",
+  TJ: "天津",
+  XJ: "新疆",
+  YN: "云南",
+  ZJ: "浙江",
+  TW: "台湾",
+  XZ: "西藏",
+};
 
-const PROVINCE_OPTIONS: OptionPair[] = [
-  { zh: "北京", en: "Beijing" },
-  { zh: "上海", en: "Shanghai" },
-  { zh: "广东", en: "Guangdong" },
-  { zh: "四川", en: "Sichuan" },
-  { zh: "浙江", en: "Zhejiang" },
-];
+const CITY_OPTIONS_BY_REGION: Record<string, OptionPair[]> = {
+  "CN-AH": [
+    { zh: "合肥", en: "Hefei" },
+    { zh: "芜湖", en: "Wuhu" },
+    { zh: "蚌埠", en: "Bengbu" },
+  ],
+  "CN-BJ": [{ zh: "北京", en: "Beijing" }],
+  "CN-CQ": [{ zh: "重庆", en: "Chongqing" }],
+  "CN-FJ": [
+    { zh: "福州", en: "Fuzhou" },
+    { zh: "厦门", en: "Xiamen" },
+    { zh: "泉州", en: "Quanzhou" },
+  ],
+  "CN-GD": [
+    { zh: "广州", en: "Guangzhou" },
+    { zh: "深圳", en: "Shenzhen" },
+    { zh: "珠海", en: "Zhuhai" },
+    { zh: "佛山", en: "Foshan" },
+    { zh: "东莞", en: "Dongguan" },
+  ],
+  "CN-SC": [
+    { zh: "成都", en: "Chengdu" },
+    { zh: "绵阳", en: "Mianyang" },
+    { zh: "乐山", en: "Leshan" },
+  ],
+  "CN-SH": [{ zh: "上海", en: "Shanghai" }],
+  "CN-ZJ": [
+    { zh: "杭州", en: "Hangzhou" },
+    { zh: "宁波", en: "Ningbo" },
+    { zh: "温州", en: "Wenzhou" },
+  ],
+  "CN-JS": [
+    { zh: "南京", en: "Nanjing" },
+    { zh: "苏州", en: "Suzhou" },
+    { zh: "无锡", en: "Wuxi" },
+  ],
+  "CN-SD": [
+    { zh: "济南", en: "Jinan" },
+    { zh: "青岛", en: "Qingdao" },
+    { zh: "烟台", en: "Yantai" },
+  ],
+  "US-CA": [
+    { zh: "洛杉矶", en: "Los Angeles" },
+    { zh: "旧金山", en: "San Francisco" },
+    { zh: "圣迭戈", en: "San Diego" },
+  ],
+  "US-NY": [
+    { zh: "纽约", en: "New York" },
+    { zh: "布法罗", en: "Buffalo" },
+    { zh: "奥尔巴尼", en: "Albany" },
+  ],
+};
 
 const OPTION_SETS: Record<string, OptionPair[]> = {
   maritalStatus: [
@@ -325,8 +413,6 @@ const OPTION_SETS: Record<string, OptionPair[]> = {
     { zh: "其他", en: "Other" },
   ],
   nationality: COUNTRY_OPTIONS,
-  cityOfBirth: CITY_OPTIONS,
-  stateOfBirth: PROVINCE_OPTIONS,
   countryOfBirth: COUNTRY_OPTIONS,
   religion: [
     { zh: "无", en: "None" },
@@ -467,18 +553,86 @@ function getChineseCountryName(country: Country): string {
   }
 }
 
-function getOptions(fieldId: string): OptionPair[] {
+function getCountryCodeFromValue(value: string): string {
+  const lookup = normaliseLookup(value);
+  const direct = COUNTRY_OPTIONS.find(
+    (option) => normaliseLookup(option.zh) === lookup || normaliseLookup(option.en) === lookup,
+  );
+
+  return direct?.code ?? "CN";
+}
+
+function getCountryRegion(countryCode: string): CountryRegion | undefined {
+  return (countryRegionData as CountryRegion[]).find(
+    (entry) => entry.countryShortCode === countryCode,
+  );
+}
+
+function getRegionOptions(countryCode: string): OptionPair[] {
+  const country = getCountryRegion(countryCode);
+  if (!country) return [];
+
+  return country.regions.map((region) => ({
+    zh: countryCode === "CN" ? CHINA_REGION_ZH[region.shortCode] ?? region.name : region.name,
+    en: region.name,
+    code: region.shortCode,
+  }));
+}
+
+function getRegionCodeFromValue(countryCode: string, value: string): string {
+  const lookup = normaliseLookup(value);
+  const match = getRegionOptions(countryCode).find(
+    (option) =>
+      option.code?.toLowerCase() === lookup
+      || normaliseLookup(option.zh) === lookup
+      || normaliseLookup(option.en) === lookup,
+  );
+
+  return match?.code ?? getRegionOptions(countryCode)[0]?.code ?? "";
+}
+
+function getFieldValue(fields: PreviewField[], fieldId: string, side: "chinese" | "english"): string {
+  const field = fields.find((item) => item.id === fieldId);
+  if (!field) return "";
+  return side === "chinese" ? field.chineseValue : field.englishValue;
+}
+
+function getCityOptions(countryCode: string, regionCode: string): OptionPair[] {
+  const knownCities = CITY_OPTIONS_BY_REGION[`${countryCode}-${regionCode}`];
+  if (knownCities) return knownCities;
+
+  const region = getRegionOptions(countryCode).find((option) => option.code === regionCode);
+  if (!region) return [];
+
+  return [{ zh: region.zh, en: region.en, code: region.code }];
+}
+
+function getOptions(fieldId: string, fields?: PreviewField[]): OptionPair[] {
+  if (fieldId === "stateOfBirth") {
+    const countryCode = getCountryCodeFromValue(getFieldValue(fields ?? [], "countryOfBirth", "english"));
+    return getRegionOptions(countryCode);
+  }
+
+  if (fieldId === "cityOfBirth") {
+    const countryCode = getCountryCodeFromValue(getFieldValue(fields ?? [], "countryOfBirth", "english"));
+    const regionCode = getRegionCodeFromValue(
+      countryCode,
+      getFieldValue(fields ?? [], "stateOfBirth", "english"),
+    );
+    return getCityOptions(countryCode, regionCode);
+  }
+
   return OPTION_SETS[fieldId] ?? [];
 }
 
-function findOptionByChinese(fieldId: string, value: string): OptionPair | undefined {
+function findOptionByChinese(fieldId: string, value: string, fields?: PreviewField[]): OptionPair | undefined {
   const lookup = normaliseLookup(value);
-  return getOptions(fieldId).find((option) => normaliseLookup(option.zh) === lookup);
+  return getOptions(fieldId, fields).find((option) => normaliseLookup(option.zh) === lookup);
 }
 
-function findOptionByEnglish(fieldId: string, value: string): OptionPair | undefined {
+function findOptionByEnglish(fieldId: string, value: string, fields?: PreviewField[]): OptionPair | undefined {
   const lookup = normaliseLookup(value);
-  return getOptions(fieldId).find((option) => normaliseLookup(option.en) === lookup);
+  return getOptions(fieldId, fields).find((option) => normaliseLookup(option.en) === lookup);
 }
 
 function translateText(value: string, kind: FieldKind, fieldId?: string): string {
@@ -563,16 +717,73 @@ function getFieldBadge(field: PreviewField): string {
   return "自动生成英文";
 }
 
+function ReviewDatePicker({
+  value,
+  side,
+  label,
+  onChange,
+}: {
+  value: string;
+  side: "chinese" | "english";
+  label: string;
+  onChange: (value: string, pairedValue: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const isoValue = parseDateToIso(value) ?? "";
+  const date = isoValue ? new Date(`${isoValue}T00:00:00`) : undefined;
+  const placeholder = side === "chinese" ? "选择日期" : "Select date";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          aria-label={label}
+          className="h-12 w-full justify-start rounded-lg border-[#e8e8e8] bg-transparent text-left text-[15px] font-normal shadow-xs hover:bg-transparent focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
+        >
+          <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+          {value || <span className="text-muted-foreground">{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          defaultMonth={date}
+          onSelect={(selectedDate) => {
+            if (!selectedDate) return;
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+            const day = String(selectedDate.getDate()).padStart(2, "0");
+            const nextIsoValue = `${year}-${month}-${day}`;
+            onChange(
+              side === "chinese" ? formatChineseDateFromIso(nextIsoValue) : formatOfficialDateFromIso(nextIsoValue),
+              side === "chinese" ? formatOfficialDateFromIso(nextIsoValue) : formatChineseDateFromIso(nextIsoValue),
+            );
+            setOpen(false);
+          }}
+          captionLayout="dropdown"
+          startMonth={new Date(1920, 0)}
+          endMonth={new Date(2036, 11)}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ReviewValueControl({
   field,
+  fields,
   side,
   onChange,
 }: {
   field: PreviewField;
+  fields: PreviewField[];
   side: "chinese" | "english";
   onChange: (value: string, pairedValue?: string) => void;
 }) {
-  const options = getOptions(field.id);
+  const options = getOptions(field.id, fields);
   const isChinese = side === "chinese";
   const label = isChinese ? `${field.label}中文原文` : `${field.label}英文翻译`;
   const value = isChinese ? field.chineseValue : field.englishValue;
@@ -584,31 +795,7 @@ function ReviewValueControl({
     "min-h-[96px] w-full resize-y rounded-lg border border-[#e8e8e8] bg-transparent px-3 py-2 text-[15px] leading-6 outline-none shadow-xs transition focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]";
 
   if (field.kind === "date") {
-    const isoValue = parseDateToIso(value) ?? "";
-
-    return (
-      <div className="flex flex-col gap-2">
-        <input
-          type="text"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={isChinese ? "例如：1996年3月9日 或 1996-03-09" : "DD/MM/YYYY"}
-          aria-label={label}
-          className={inputClass}
-        />
-        <DatePicker
-          value={isoValue}
-          onChange={(nextIsoValue) => {
-            onChange(
-              isChinese ? formatChineseDateFromIso(nextIsoValue) : formatOfficialDateFromIso(nextIsoValue),
-              isChinese ? formatOfficialDateFromIso(nextIsoValue) : formatChineseDateFromIso(nextIsoValue),
-            );
-          }}
-          placeholder={isChinese ? "选择出生日期" : "Pick date"}
-          className="bg-transparent"
-        />
-      </div>
-    );
+    return <ReviewDatePicker value={value} side={side} label={label} onChange={onChange} />;
   }
 
   if (field.id === "nationality" || field.id === "countryOfBirth") {
@@ -631,8 +818,8 @@ function ReviewValueControl({
         value={value}
         onValueChange={(nextValue) => {
           const selectedOption = isChinese
-            ? findOptionByChinese(field.id, nextValue)
-            : findOptionByEnglish(field.id, nextValue);
+            ? findOptionByChinese(field.id, nextValue, fields)
+            : findOptionByEnglish(field.id, nextValue, fields);
           onChange(nextValue, isChinese ? selectedOption?.en : selectedOption?.zh);
         }}
       >
@@ -693,6 +880,49 @@ function groupFields(fields: PreviewField[]): Array<{ section: string; fields: P
   }));
 }
 
+function syncBirthLocationCascade(fields: PreviewField[], changedFieldId: string): PreviewField[] {
+  if (changedFieldId !== "countryOfBirth" && changedFieldId !== "stateOfBirth") {
+    return fields;
+  }
+
+  const countryCode = getCountryCodeFromValue(getFieldValue(fields, "countryOfBirth", "english"));
+  const currentRegionCode = getRegionCodeFromValue(
+    countryCode,
+    getFieldValue(fields, "stateOfBirth", "english"),
+  );
+  const regionOptions = getRegionOptions(countryCode);
+  const nextRegion =
+    changedFieldId === "countryOfBirth"
+      ? regionOptions[0]
+      : regionOptions.find((option) => option.code === currentRegionCode) ?? regionOptions[0];
+
+  if (!nextRegion?.code) return fields;
+
+  const nextCity = getCityOptions(countryCode, nextRegion.code)[0];
+
+  return fields.map((field) => {
+    if (field.id === "stateOfBirth") {
+      return {
+        ...field,
+        chineseValue: nextRegion.zh,
+        englishValue: nextRegion.en,
+        englishEdited: false,
+      };
+    }
+
+    if (field.id === "cityOfBirth" && nextCity) {
+      return {
+        ...field,
+        chineseValue: nextCity.zh,
+        englishValue: nextCity.en,
+        englishEdited: false,
+      };
+    }
+
+    return field;
+  });
+}
+
 export default function BilingualReviewPreviewPage() {
   const [fields, setFields] = useState<PreviewField[]>(INITIAL_FIELDS);
   const sections = useMemo(() => groupFields(fields), [fields]);
@@ -700,10 +930,11 @@ export default function BilingualReviewPreviewPage() {
 
   function updateChineseValue(fieldId: string, chineseValue: string, pairedEnglishValue?: string) {
     setFields((current) =>
-      current.map((field) =>
-        field.id === fieldId
-          ? (() => {
-              const selectedOption = findOptionByChinese(field.id, chineseValue);
+      syncBirthLocationCascade(
+        current.map((field) =>
+          field.id === fieldId
+            ? (() => {
+              const selectedOption = findOptionByChinese(field.id, chineseValue, current);
               const datePair =
                 field.kind === "date" && !pairedEnglishValue
                   ? formatOfficialDate(chineseValue)
@@ -719,17 +950,20 @@ export default function BilingualReviewPreviewPage() {
                 englishEdited: false,
               };
             })()
-          : field,
+            : field,
+        ),
+        fieldId,
       ),
     );
   }
 
   function updateEnglishValue(fieldId: string, englishValue: string, pairedChineseValue?: string) {
     setFields((current) =>
-      current.map((field) =>
-        field.id === fieldId
-          ? (() => {
-              const selectedOption = findOptionByEnglish(field.id, englishValue);
+      syncBirthLocationCascade(
+        current.map((field) =>
+          field.id === fieldId
+            ? (() => {
+              const selectedOption = findOptionByEnglish(field.id, englishValue, current);
               const datePair =
                 field.kind === "date" && !pairedChineseValue
                   ? formatChineseDate(englishValue)
@@ -745,7 +979,9 @@ export default function BilingualReviewPreviewPage() {
                 englishEdited: true,
               };
             })()
-          : field,
+            : field,
+        ),
+        fieldId,
       ),
     );
   }
@@ -753,7 +989,7 @@ export default function BilingualReviewPreviewPage() {
   function refreshAllTranslations() {
     setFields((current) =>
       current.map((field) => {
-        const selectedOption = findOptionByChinese(field.id, field.chineseValue);
+        const selectedOption = findOptionByChinese(field.id, field.chineseValue, current);
         return {
           ...field,
           englishValue: selectedOption?.en ?? translateText(field.chineseValue, field.kind, field.id),
@@ -867,6 +1103,7 @@ export default function BilingualReviewPreviewPage() {
                       </span>
                       <ReviewValueControl
                         field={field}
+                        fields={fields}
                         side="chinese"
                         onChange={(value, pairedValue) => updateChineseValue(field.id, value, pairedValue)}
                       />
@@ -878,6 +1115,7 @@ export default function BilingualReviewPreviewPage() {
                       </span>
                       <ReviewValueControl
                         field={field}
+                        fields={fields}
                         side="english"
                         onChange={(value, pairedValue) => updateEnglishValue(field.id, value, pairedValue)}
                       />
