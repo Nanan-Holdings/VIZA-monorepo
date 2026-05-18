@@ -16,6 +16,18 @@ const SCHENGEN_COUNTRIES = new Set([
   "greece",
   "portugal",
   "austria",
+  "belgium",
+  "czechia",
+  "denmark",
+  "finland",
+  "hungary",
+  "norway",
+  "sweden",
+  "poland",
+  "malta",
+  "iceland",
+  "luxembourg",
+  "slovenia",
 ]);
 
 function getSchengenCountryName(country?: string): string {
@@ -29,6 +41,18 @@ function getSchengenCountryName(country?: string): string {
     greece: "希腊",
     portugal: "葡萄牙",
     austria: "奥地利",
+    belgium: "比利时",
+    czechia: "捷克",
+    denmark: "丹麦",
+    finland: "芬兰",
+    hungary: "匈牙利",
+    norway: "挪威",
+    sweden: "瑞典",
+    poland: "波兰",
+    malta: "马耳他",
+    iceland: "冰岛",
+    luxembourg: "卢森堡",
+    slovenia: "斯洛文尼亚",
   };
   return country ? names[country] ?? "申根" : "申根";
 }

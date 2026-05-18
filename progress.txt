@@ -499,3 +499,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: user-package.ts, home/page.tsx, application/page.tsx, PopularDestinationsSection.tsx, ApplicationStatusCard.tsx, photo-upload-step.tsx, photo-guidance.ts, visa-destinations.ts, ds160-translations.ts, messages/en.json, messages/zh.json, progress.txt
 - Learnings: multi-application support needs a stable country + visa type key across package selection, dashboard progress, and application routing; otherwise “latest application” logic causes different countries to overwrite each other.
 ---
+
+## 2026-05-18 - DEST-002 universal information and destination search
+- Added a dedicated /client/universal-info page for editing reusable applicant profile fields stored in applicant_profiles.
+- Replaced the oversized home document-progress card with a compact universal-information card showing saved profile completeness and linking to the editor.
+- Added a top-right search control to the popular destination picker and expanded form-ready Schengen destinations that reuse the existing EU_SCHENGEN_C_SHORT_STAY schema.
+- Synced common dynamic form answers back into applicant_profiles on save, and used applicant_profiles as prefill for matching dynamic fields on future forms.
+- Files changed: universal-info page, UniversalInfoCard, home/page.tsx, PopularDestinationsSection.tsx, visa-application-answers.ts, application/page.tsx, visa-destinations.ts, photo-guidance.ts, messages/en.json, messages/zh.json, progress.txt
+- Learnings: new destination cards should only be startable when a normalized form schema exists; RAG-only destinations need a schema pass before they become application pages.
+---
