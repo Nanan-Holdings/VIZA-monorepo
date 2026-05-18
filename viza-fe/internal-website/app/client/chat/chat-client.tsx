@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
+  Check,
   Loader2,
   PanelLeft,
+  Pencil,
   Plus,
+  Trash2,
   X,
 } from "lucide-react";
 import { Sparkle } from "@phosphor-icons/react";
@@ -29,7 +32,9 @@ import { HistoryBoundaryMessage } from "@/components/client/companion/history-bo
 import { TravelChatClient } from "../travel-chat/travel-chat-client";
 import {
   createSession,
+  deleteSession,
   getSessionMessages,
+  renameSession,
   type Message,
   type Session,
 } from "@/app/actions/companion-sessions";
@@ -123,7 +128,7 @@ const AGENT_BACKEND_URL =
 const TOKEN_BATCH_INTERVAL = 500;
 
 function getSessionDisplayTitle(session: Session): string {
-  return session.firstMessagePreview || "New conversation";
+  return session.title || session.firstMessagePreview || "New conversation";
 }
 
 function formatSessionDate(value: string | null): string {
@@ -151,6 +156,8 @@ function ChatSessionPanel({
   disabled,
   onNewSession,
   onSelectSession,
+  onRenameSession,
+  onDeleteSession,
   onClose,
   onCollapse,
 }: {
@@ -159,9 +166,55 @@ function ChatSessionPanel({
   disabled: boolean;
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
+  onDeleteSession: (sessionId: string) => Promise<boolean>;
   onClose?: () => void;
   onCollapse?: () => void;
 }) {
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<
+    string | null
+  >(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [pendingSessionAction, setPendingSessionAction] = useState<string | null>(
+    null
+  );
+
+  const actionDisabled = disabled || pendingSessionAction !== null;
+
+  const startRename = (session: Session) => {
+    setDeleteConfirmSessionId(null);
+    setEditingSessionId(session.id);
+    setDraftTitle(getSessionDisplayTitle(session));
+  };
+
+  const cancelRename = () => {
+    setEditingSessionId(null);
+    setDraftTitle("");
+  };
+
+  const submitRename = async () => {
+    if (!editingSessionId) return;
+    setPendingSessionAction(`rename:${editingSessionId}`);
+    const saved = await onRenameSession(editingSessionId, draftTitle);
+    setPendingSessionAction(null);
+    if (saved) {
+      cancelRename();
+    }
+  };
+
+  const handleDelete = async (session: Session) => {
+    setPendingSessionAction(`delete:${session.id}`);
+    const deleted = await onDeleteSession(session.id);
+    setPendingSessionAction(null);
+    if (deleted && editingSessionId === session.id) {
+      cancelRename();
+    }
+    if (deleted) {
+      setDeleteConfirmSessionId(null);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
@@ -173,16 +226,8 @@ function ChatSessionPanel({
             Separate visa conversations
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            aria-label="New VIZA chat"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={disabled}
-            onClick={onNewSession}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+        {(onCollapse || onClose) && (
+          <div className="flex items-center gap-1">
           {onCollapse && (
             <button
               aria-label="Collapse VIZA chat list"
@@ -203,13 +248,14 @@ function ChatSessionPanel({
               <X className="h-4 w-4" />
             </button>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
         <button
           className="mb-3 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={disabled}
+          disabled={actionDisabled}
           onClick={onNewSession}
           type="button"
         >
@@ -225,27 +271,139 @@ function ChatSessionPanel({
           <div className="space-y-1">
             {sessions.map((session) => {
               const active = session.id === activeSessionId;
+              const title = getSessionDisplayTitle(session);
+              const editing = editingSessionId === session.id;
+              const confirmingDelete = deleteConfirmSessionId === session.id;
+
+              if (editing) {
+                return (
+                  <form
+                    className="flex items-center gap-1 rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-1"
+                    key={session.id}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void submitRename();
+                    }}
+                  >
+                    <input
+                      aria-label="Conversation title"
+                      autoFocus
+                      className="min-w-0 flex-1 rounded bg-white px-2 py-1.5 text-[13px] text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
+                      disabled={pendingSessionAction !== null}
+                      maxLength={80}
+                      onChange={(event) => setDraftTitle(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          cancelRename();
+                        }
+                      }}
+                      value={draftTitle}
+                    />
+                    <button
+                      aria-label="Save conversation title"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-[#03346E] transition-colors hover:bg-[#03346E]/10 disabled:opacity-40"
+                      disabled={pendingSessionAction !== null}
+                      type="submit"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      aria-label="Cancel rename"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40"
+                      disabled={pendingSessionAction !== null}
+                      onClick={cancelRename}
+                      type="button"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </form>
+                );
+              }
+
+              if (confirmingDelete) {
+                return (
+                  <div
+                    className="flex items-center gap-1 rounded-md border border-red-100 bg-red-50 p-1"
+                    key={session.id}
+                  >
+                    <div className="min-w-0 flex-1 px-2">
+                      <span className="block text-[12px] font-medium text-red-700">
+                        Delete conversation?
+                      </span>
+                      <span className="block truncate text-[11px] text-red-500">
+                        {title}
+                      </span>
+                    </div>
+                    <button
+                      aria-label={`Confirm delete ${title}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-100 disabled:opacity-40"
+                      disabled={pendingSessionAction !== null}
+                      onClick={() => {
+                        void handleDelete(session);
+                      }}
+                      type="button"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      aria-label="Cancel delete"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white disabled:opacity-40"
+                      disabled={pendingSessionAction !== null}
+                      onClick={() => setDeleteConfirmSessionId(null)}
+                      type="button"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              }
+
               return (
-                <button
-                  aria-pressed={active}
+                <div
                   className={cn(
-                    "w-full rounded-md px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                    "group flex w-full items-center rounded-md transition-colors",
                     active
                       ? "bg-[#03346E]/8 text-[#03346E]"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   )}
-                  disabled={disabled}
                   key={session.id}
-                  onClick={() => onSelectSession(session.id)}
-                  type="button"
                 >
-                  <span className="block truncate text-[13px] font-medium">
-                    {getSessionDisplayTitle(session)}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-gray-400">
-                    {formatSessionDate(session.createdAt)}
-                  </span>
-                </button>
+                  <button
+                    aria-pressed={active}
+                    className="min-w-0 flex-1 px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={actionDisabled}
+                    onClick={() => onSelectSession(session.id)}
+                    type="button"
+                  >
+                    <span className="block truncate text-[13px] font-medium">
+                      {title}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-gray-400">
+                      {formatSessionDate(session.createdAt)}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-0.5 pr-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                    <button
+                      aria-label={`Rename ${title}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white hover:text-[#03346E] disabled:opacity-40"
+                      disabled={actionDisabled}
+                      onClick={() => startRename(session)}
+                      type="button"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      aria-label={`Delete ${title}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                      disabled={actionDisabled}
+                      onClick={() => setDeleteConfirmSessionId(session.id)}
+                      type="button"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1050,6 +1208,83 @@ export function ChatClient({
     ]
   );
 
+  const handleRenameVizaSession = useCallback(
+    async (targetSessionId: string, nextTitle: string) => {
+      const result = await renameSession(userId, targetSessionId, nextTitle);
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to rename conversation");
+        return false;
+      }
+
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== targetSessionId) return session;
+          const nextSession: Session = { ...session };
+          if (result.title) {
+            nextSession.title = result.title;
+          } else {
+            delete nextSession.title;
+          }
+          return nextSession;
+        })
+      );
+      toast.success(
+        result.title ? "Conversation renamed" : "Conversation title cleared"
+      );
+      return true;
+    },
+    [userId]
+  );
+
+  const handleDeleteVizaSession = useCallback(
+    async (targetSessionId: string) => {
+      if (isStreaming) {
+        toast.info("Please wait for the current response to finish.");
+        return false;
+      }
+
+      const result = await deleteSession(userId, targetSessionId);
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to delete conversation");
+        return false;
+      }
+
+      const remainingSessions = sessions.filter(
+        (session) => session.id !== targetSessionId
+      );
+      setSessions(remainingSessions);
+
+      if (sessionId === targetSessionId) {
+        const nextSession = remainingSessions[0];
+        if (nextSession) {
+          await handleSessionSelect(nextSession.id);
+        } else {
+          setSessionId(null);
+          setChatMessages([]);
+          resetHistoryState(false);
+          resetRuntimeMessages();
+          setShowChat(true);
+          setChatMode("viza");
+        }
+      }
+
+      toast.success("Conversation deleted");
+      return true;
+    },
+    [
+      handleSessionSelect,
+      isStreaming,
+      resetHistoryState,
+      resetRuntimeMessages,
+      sessionId,
+      sessions,
+      setChatMessages,
+      userId,
+    ]
+  );
+
   const handleSendMessage = useCallback(
     async (message: string) => {
       sessionStorage.setItem("viza_chat_active", "true");
@@ -1202,7 +1437,9 @@ export function ChatClient({
                 setSessionPanelCollapsed(true);
                 setSessionPanelOpen(false);
               }}
+              onDeleteSession={handleDeleteVizaSession}
               onNewSession={handleNewVizaSession}
+              onRenameSession={handleRenameVizaSession}
               onSelectSession={handleSessionSelect}
               sessions={sessions}
             />
@@ -1227,7 +1464,9 @@ export function ChatClient({
                     setSessionPanelOpen(false);
                     setSessionPanelCollapsed(true);
                   }}
+                  onDeleteSession={handleDeleteVizaSession}
                   onNewSession={handleNewVizaSession}
+                  onRenameSession={handleRenameVizaSession}
                   onSelectSession={handleSessionSelect}
                   sessions={sessions}
                 />
@@ -1260,8 +1499,10 @@ export function ChatClient({
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
+              onDeleteSession={handleDeleteVizaSession}
               onClose={() => setSessionPanelOpen(false)}
               onNewSession={handleNewVizaSession}
+              onRenameSession={handleRenameVizaSession}
               onSelectSession={handleSessionSelect}
               sessions={sessions}
             />
@@ -1601,7 +1842,7 @@ export function ChatClient({
                   >
                     Travel AI
                   </button>
-                  {chatMode === "viza" && (
+                  {chatMode === "viza" && sessionPanelCollapsed && (
                     <button
                       aria-label="New VIZA chat"
                       className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#03346E]/20 bg-white text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"

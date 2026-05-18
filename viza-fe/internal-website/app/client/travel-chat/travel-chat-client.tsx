@@ -673,12 +673,104 @@ function createSessionTitle(messages: TravelChatMessage[]): string {
   return visibleText.length > 22 ? `${visibleText.slice(0, 22)}...` : visibleText;
 }
 
+function createTripVersionTitle(
+  itinerary: ItineraryDay[],
+  travelState: TravelState
+): string {
+  const cities =
+    travelState.travel_order.length > 0
+      ? travelState.travel_order
+      : travelState.cities.length > 0
+        ? travelState.cities
+        : Array.from(new Set(itinerary.map((day) => day.city).filter(Boolean)));
+  const prefix = itinerary.length > 0 ? `${itinerary.length}天` : "旅行";
+  return `${prefix}${cities.slice(0, 3).join("、") || "定制"}行程`;
+}
+
+function createTravelTripVersion(options: {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  versionNumber: number;
+  parentVersionId?: string;
+  sourceMessageId?: string;
+  userPrompt?: string;
+  editSummary?: string;
+  modulePatch?: Record<string, unknown>;
+  createdAt?: string;
+}): TravelTripVersion {
+  return {
+    id: createVersionId(),
+    versionNumber: options.versionNumber,
+    title: createTripVersionTitle(options.itinerary, options.travelState),
+    createdAt: options.createdAt ?? new Date().toISOString(),
+    parentVersionId: options.parentVersionId,
+    sourceMessageId: options.sourceMessageId,
+    userPrompt: options.userPrompt,
+    editSummary: options.editSummary,
+    travelState: options.travelState,
+    itinerary: options.itinerary,
+    selectedFlights: options.travelState.selected_flights,
+    selectedHotels: options.travelState.selected_hotels,
+    modulePatch: options.modulePatch,
+  };
+}
+
+function getLatestToolItineraryMessageId(
+  messages: TravelChatMessage[]
+): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (
+      message.role === "assistant" &&
+      message.parts.some((part) => part.type === "tool-itinerary")
+    ) {
+      return message.id;
+    }
+  }
+
+  return undefined;
+}
+
 function normalizeTravelChatSession(session: TravelChatSession): TravelChatSession {
   const manualTitle = session.customTitle ? session.title.trim() : "";
+  const versions = (session.versions ?? [])
+    .filter(isTravelTripVersion)
+    .map((version) => ({
+      ...version,
+      itinerary: normalizeItineraryDays(version.itinerary),
+      selectedFlights: version.travelState.selected_flights,
+      selectedHotels: version.travelState.selected_hotels,
+    }));
+  const migratedVersions =
+    versions.length > 0
+      ? versions
+      : (() => {
+          const itinerary = getTravelItineraryFromMessages(session.messages);
+          if (!itinerary.length) return [];
+          const travelState = buildTravelStateFromMessages(
+            toChatLikeMessages(session.messages)
+          );
+          return [
+            createTravelTripVersion({
+              itinerary,
+              travelState,
+              versionNumber: 1,
+              sourceMessageId: getLatestToolItineraryMessageId(session.messages),
+              editSummary: "从旧聊天记录自动迁移",
+              createdAt: session.updatedAt || new Date().toISOString(),
+            }),
+          ];
+        })();
+  const activeVersionId =
+    migratedVersions.find((version) => version.id === session.activeVersionId)?.id ??
+    migratedVersions[migratedVersions.length - 1]?.id;
+
   return {
     ...session,
     title: manualTitle || createSessionTitle(session.messages),
     customTitle: Boolean(manualTitle),
+    activeVersionId,
+    versions: migratedVersions,
     updatedAt: session.updatedAt || new Date().toISOString(),
   };
 }
@@ -834,6 +926,118 @@ function parseItineraryFromResponse(raw: unknown): ItineraryDay[] {
     .filter((day): day is ItineraryDay => Boolean(day && day.city));
 }
 
+function parseTravelRevisionResponse(
+  raw: unknown,
+  fallbackItinerary: ItineraryDay[]
+): TravelRevisionResult {
+  if (!isRecord(raw)) {
+    throw new Error("行程修改返回格式无效。");
+  }
+
+  const rawAction = typeof raw.action === "string" ? raw.action : "";
+  const action: TravelRevisionAction =
+    rawAction === "revise" || rawAction === "restart" || rawAction === "clarify"
+      ? rawAction
+      : "clarify";
+  const itinerary = normalizeItineraryDays(raw.itinerary);
+
+  if (action === "revise" && itinerary.length === 0) {
+    throw new Error("后端返回的修改后行程为空或格式无效。");
+  }
+
+  const quickReplies = Array.isArray(raw.quick_replies)
+    ? raw.quick_replies.filter(isTravelQuickReply)
+    : ITINERARY_REVISION_QUICK_REPLIES;
+
+  return {
+    action,
+    reply:
+      typeof raw.reply === "string" && raw.reply.trim()
+        ? raw.reply.trim()
+        : action === "restart"
+          ? "可以，我们保留旧版本，先回到地图重新规划。"
+          : "我已处理这次行程修改。",
+    itinerary: itinerary.length > 0 ? itinerary : fallbackItinerary,
+    statePatch: isRecord(raw.state_patch) ? raw.state_patch : {},
+    modulePatch: isRecord(raw.module_patch) ? raw.module_patch : {},
+    editSummary:
+      typeof raw.edit_summary === "string" && raw.edit_summary.trim()
+        ? raw.edit_summary.trim()
+        : action === "revise"
+          ? "已更新行程"
+          : "",
+    quickReplies: quickReplies.length > 0 ? quickReplies : ITINERARY_REVISION_QUICK_REPLIES,
+  };
+}
+
+function applyRevisionPatches(
+  baseState: TravelState,
+  statePatch: Record<string, unknown>,
+  modulePatch: Record<string, unknown>
+): TravelState {
+  const nextState: TravelState = {
+    ...baseState,
+    countries: [...baseState.countries],
+    cities: [...baseState.cities],
+    city_days: { ...baseState.city_days },
+    travel_order: [...baseState.travel_order],
+    selected_flights: baseState.selected_flights.map((flight) => ({ ...flight })),
+    selected_hotels: baseState.selected_hotels.map((hotel) => ({ ...hotel })),
+    attached_files: [...baseState.attached_files],
+  };
+
+  if (isStringArray(statePatch.countries)) {
+    nextState.countries = statePatch.countries;
+    nextState.country = statePatch.countries[0] ?? nextState.country;
+  }
+
+  if (isStringArray(statePatch.cities)) {
+    nextState.cities = statePatch.cities;
+  }
+
+  if (isStringArray(statePatch.travel_order)) {
+    nextState.travel_order = statePatch.travel_order;
+  }
+
+  if (isRecord(statePatch.city_days)) {
+    const cityDays: Record<string, number> = {};
+    Object.entries(statePatch.city_days).forEach(([city, value]) => {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        cityDays[city] = Math.round(parsed);
+      }
+    });
+    if (Object.keys(cityDays).length > 0) {
+      nextState.city_days = cityDays;
+    }
+  }
+
+  if (typeof statePatch.final_note === "string") {
+    nextState.final_note = statePatch.final_note;
+  }
+
+  if (typeof statePatch.travel_days === "number" && statePatch.travel_days > 0) {
+    nextState.travel_days = Math.round(statePatch.travel_days);
+  }
+
+  if (typeof statePatch.budget === "number" && statePatch.budget > 0) {
+    nextState.budget = Math.round(statePatch.budget);
+  }
+
+  const shouldRemoveFlights =
+    modulePatch.remove_flights === true || modulePatch.flight_policy === "skip_all";
+  if (shouldRemoveFlights) {
+    nextState.selected_flights = nextState.selected_flights.map((flight) => ({
+      ...flight,
+      skip: true,
+      option: null,
+      option_index: undefined,
+    }));
+  }
+
+  return nextState;
+}
+
 function formatSelectedFlights(flights: SelectedFlightOption[]): string {
   if (!flights.length) {
     return "- 将在 itinerary 表格中生成默认航班，可直接编辑航司、时间、价格和航班号";
@@ -881,6 +1085,7 @@ function createItineraryAssistantMessage(options: {
   selectedFlights: SelectedFlightOption[];
   selectedHotels: SelectedHotelOption[];
   intro?: string;
+  quickReplies?: TravelQuickReply[];
 }): TravelChatMessage {
   const intro =
     options.intro?.trim() ||
@@ -896,6 +1101,9 @@ function createItineraryAssistantMessage(options: {
     parts: [
       { type: "text", text: content },
       { type: "tool-itinerary", output: options.itinerary },
+      ...(options.quickReplies?.length
+        ? [{ type: "quick_replies" as const, quick_replies: options.quickReplies }]
+        : []),
     ],
   };
 }
@@ -938,44 +1146,6 @@ function withLatestUserResetPayload(
   }
 
   return messages;
-}
-
-function isItineraryRestartRequest(text: string): boolean {
-  const normalized = text.trim().toLowerCase();
-  if (!normalized) return false;
-
-  if (
-    /(重来|重做|从头|回到地图|退回地图|重新选|重新规划|重新生成|重新开始|reset|restart|start over|from scratch|redo|replan)/i.test(
-      normalized
-    )
-  ) {
-    return true;
-  }
-
-  const hasLocalEditScope =
-    /(第[一二三四五六七八九十\d]+天|day\s*\d+|上午|下午|晚上|酒店|航班|餐|餐厅|景点|活动|预算|价格|把|改成|换成|增加|删除|删掉|保留)/i.test(
-      normalized
-    );
-  if (hasLocalEditScope) return false;
-
-  return /(不喜欢|不满意|不要这个|不要这份|换一个方案|换一个行程|换个方案|换个行程)/i.test(
-    normalized
-  );
-}
-
-function buildItineraryEditFinalNote(
-  currentNote: string,
-  currentItinerary: ItineraryDay[],
-  editRequest: string
-): string {
-  const sections = [
-    currentNote.trim() ? `原始备注：${currentNote.trim()}` : "",
-    "请基于当前已有行程做局部修改，不要从零重写，不要改变用户没有要求修改的城市、天数、航班和酒店。",
-    `用户修改要求：${editRequest.trim()}`,
-    `当前已有行程 JSON：${JSON.stringify(currentItinerary)}`,
-  ];
-
-  return sections.filter(Boolean).join("\n\n");
 }
 
 function toAgentChatMessages(messages: TravelChatMessage[]) {
@@ -1352,6 +1522,21 @@ export function TravelChatClient({
   );
   const messages = activeSession?.messages ?? EMPTY_TRAVEL_MESSAGES;
 
+  const updateTravelSession = useCallback(
+    (
+      sessionId: string,
+      updater: (session: TravelChatSession) => TravelChatSession
+    ) => {
+      setSessions((currentSessions) =>
+        currentSessions.map((session) => {
+          if (session.id !== sessionId) return session;
+          return normalizeTravelChatSession(updater(session));
+        })
+      );
+    },
+    []
+  );
+
   const setSessionMessages = useCallback(
     (
       sessionId: string,
@@ -1359,20 +1544,17 @@ export function TravelChatClient({
         | TravelChatMessage[]
         | ((current: TravelChatMessage[]) => TravelChatMessage[])
     ) => {
-      setSessions((currentSessions) =>
-        currentSessions.map((session) => {
-          if (session.id !== sessionId) return session;
-          const nextMessages =
-            typeof next === "function" ? next(session.messages) : next;
-          return normalizeTravelChatSession({
-            ...session,
-            messages: nextMessages,
-            updatedAt: new Date().toISOString(),
-          });
-        })
-      );
+      updateTravelSession(sessionId, (session) => {
+        const nextMessages =
+          typeof next === "function" ? next(session.messages) : next;
+        return {
+          ...session,
+          messages: nextMessages,
+          updatedAt: new Date().toISOString(),
+        };
+      });
     },
-    []
+    [updateTravelSession]
   );
 
   const travelState = useMemo(
@@ -1387,6 +1569,16 @@ export function TravelChatClient({
     () => getTravelItineryRowsFromMessages(messages),
     [messages]
   );
+  const activeTravelVersion = useMemo(() => {
+    const versions = activeSession?.versions ?? [];
+    return (
+      versions.find((version) => version.id === activeSession?.activeVersionId) ??
+      versions[versions.length - 1] ??
+      null
+    );
+  }, [activeSession?.activeVersionId, activeSession?.versions]);
+  const displayItinerary = activeTravelVersion?.itinerary ?? latestItinerary;
+  const displayTravelState = activeTravelVersion?.travelState ?? travelState;
   const missingField = useMemo(() => nextMissingField(travelState), [travelState]);
   const latestVisibleUserText = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -1428,6 +1620,14 @@ export function TravelChatClient({
     const order = travelState.travel_order.filter((city) => travelState.cities.includes(city));
     return order.length === travelState.cities.length ? order : travelState.cities;
   }, [travelState.cities, travelState.travel_order]);
+  const displayOrderedCities = useMemo(() => {
+    const order = displayTravelState.travel_order.filter((city) =>
+      displayTravelState.cities.includes(city)
+    );
+    return order.length === displayTravelState.cities.length
+      ? order
+      : displayTravelState.cities;
+  }, [displayTravelState.cities, displayTravelState.travel_order]);
   const selectedCityFocusKey = useMemo(
     () => travelState.cities.map((city) => normalizeCityKey(city)).join("|"),
     [travelState.cities]
@@ -1459,6 +1659,19 @@ export function TravelChatClient({
   const displayRouteCoordinates = useMemo<Array<[number, number]>>(
     () => (shouldShowRouteLine ? routeCoordinates : []),
     [routeCoordinates, shouldShowRouteLine]
+  );
+  const displayItineraryRouteCoordinates = useMemo(
+    () =>
+      buildRouteCoordinates(
+        displayTravelState.origin_city,
+        displayOrderedCities,
+        displayTravelState.return_city
+      ),
+    [
+      displayOrderedCities,
+      displayTravelState.origin_city,
+      displayTravelState.return_city,
+    ]
   );
 
   const selectedCityKeys = useMemo(
@@ -1654,9 +1867,23 @@ export function TravelChatClient({
     () => baseMapTargets.filter((target) => target.kind === "hotel"),
     [baseMapTargets]
   );
-  const hasFinalItinerary = latestItinerary.length > 0;
+  const hasFinalItinerary = displayItinerary.length > 0;
   const showFinalItinerary =
     hasFinalItinerary && !mapModeSessionIds.includes(activeSessionId);
+  const itineraryVersionOptions = useMemo(
+    () => {
+      const versions = activeSession?.versions ?? [];
+      const latestVersionId = versions[versions.length - 1]?.id;
+      return versions.map((version) => ({
+        id: version.id,
+        label: `版本 ${version.versionNumber}`,
+        createdAt: version.createdAt,
+        editSummary: version.editSummary,
+        isLatest: version.id === latestVersionId,
+      }));
+    },
+    [activeSession?.versions]
+  );
 
   const setSessionMapMode = useCallback((sessionId: string, enabled: boolean) => {
     setMapModeSessionIds((currentSessionIds) => {
@@ -1670,6 +1897,24 @@ export function TravelChatClient({
         : currentSessionIds;
     });
   }, []);
+
+  const setActiveTravelVersion = useCallback(
+    (sessionId: string, versionId: string) => {
+      updateTravelSession(sessionId, (session) => {
+        if (!session.versions?.some((version) => version.id === versionId)) {
+          return session;
+        }
+
+        return {
+          ...session,
+          activeVersionId: versionId,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      setSessionMapMode(sessionId, false);
+    },
+    [setSessionMapMode, updateTravelSession]
+  );
 
   const updateConversationScrollThumb = useCallback(() => {
     const scrollElement = messageScrollRef.current;
@@ -1982,7 +2227,18 @@ export function TravelChatClient({
       const latestVisibleUserText = latestUserMessage
         ? getVisibleMessageText(latestUserMessage)
         : "";
-      const currentItinerary = getTravelItineraryFromMessages(nextMessages);
+      const sessionSnapshot =
+        sessions.find((session) => session.id === sessionId) ?? activeSession;
+      const sessionVersions = sessionSnapshot?.versions ?? [];
+      const currentVersion =
+        sessionVersions.find(
+          (version) => version.id === sessionSnapshot?.activeVersionId
+        ) ??
+        sessionVersions[sessionVersions.length - 1] ??
+        null;
+      const messageItinerary = getTravelItineraryFromMessages(nextMessages);
+      const currentItinerary = currentVersion?.itinerary ?? messageItinerary;
+      const revisionBaseState = currentVersion?.travelState ?? state;
       const isStructuredMessage = isStructuredTravelFormText(latestUserText);
       const isMapModeSession = mapModeSessionIds.includes(sessionId);
 
@@ -1992,51 +2248,21 @@ export function TravelChatClient({
         !isStructuredMessage &&
         !isMapModeSession
       ) {
-        if (isItineraryRestartRequest(latestVisibleUserText)) {
-          setSessionMapMode(sessionId, true);
-          setActiveMapTargetId("");
-          setSessionMessages(sessionId, [
-            ...withLatestUserResetPayload(nextMessages),
-            {
-              id: createMessageId(),
-              role: "assistant",
-              parts: [
-                {
-                  type: "text",
-                  text:
-                    "没问题，我们先回到地图重新规划。你可以直接在右侧地图点新的城市加入计划，也可以告诉我新的国家、城市、天数、预算和偏好。",
-                },
-                {
-                  type: "quick_replies",
-                  quick_replies: [
-                    { label: "想去日本", value: "想去日本" },
-                    { label: "想去欧洲", value: "想去欧洲" },
-                    { label: "我不知道去哪", value: "我不知道去哪" },
-                  ],
-                },
-              ],
-            },
-          ]);
-          return;
-        }
-
-        if (!payload) {
-          throw new Error("当前行程缺少完整旅行信息，暂时无法做局部修改。");
-        }
-
-        const response = await fetch("/api/travel/itinerary", {
+        const response = await fetch("/api/travel/itinerary/revise", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            ...payload,
-            itinerary: currentItinerary,
-            final_note: buildItineraryEditFinalNote(
-              payload.final_note,
-              currentItinerary,
-              latestVisibleUserText
-            ),
+            current_version_id: currentVersion?.id,
+            user_prompt: latestVisibleUserText,
+            state: revisionBaseState,
+            current_itinerary: currentItinerary,
+            active_modules: {
+              selected_flights: revisionBaseState.selected_flights,
+              selected_hotels: revisionBaseState.selected_hotels,
+            },
+            locale: "zh-CN",
           }),
         });
 
@@ -2046,21 +2272,96 @@ export function TravelChatClient({
         }
 
         const result = (await response.json()) as unknown;
-        const itinerary = parseItineraryFromResponse(result);
-        if (itinerary.length === 0) {
-          throw new Error("后端返回的修改后行程为空或格式无效。");
+        const revision = parseTravelRevisionResponse(result, currentItinerary);
+
+        if (revision.action === "restart") {
+          setSessionMapMode(sessionId, true);
+          setActiveMapTargetId("");
+          setSessionMessages(sessionId, [
+            ...withLatestUserResetPayload(nextMessages),
+            {
+              id: createMessageId(),
+              role: "assistant",
+              parts: [
+                { type: "text", text: revision.reply },
+                {
+                  type: "quick_replies",
+                  quick_replies:
+                    revision.quickReplies.length > 0
+                      ? revision.quickReplies
+                      : INITIAL_QUICK_REPLIES,
+                },
+              ],
+            },
+          ]);
+          return;
         }
 
+        if (revision.action === "clarify") {
+          setSessionMessages(sessionId, (prev) => [
+            ...prev,
+            {
+              id: createMessageId(),
+              role: "assistant",
+              parts: [
+                { type: "text", text: revision.reply },
+                ...(revision.quickReplies.length > 0
+                  ? [
+                      {
+                        type: "quick_replies" as const,
+                        quick_replies: revision.quickReplies,
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          ]);
+          return;
+        }
+
+        const revisedState = applyRevisionPatches(
+          revisionBaseState,
+          revision.statePatch,
+          revision.modulePatch
+        );
+        const editSummaryText = revision.editSummary
+          ? `\n\n修改摘要：${revision.editSummary}`
+          : "";
+        const assistantMessage = createItineraryAssistantMessage({
+          itinerary: revision.itinerary,
+          selectedFlights: revisedState.selected_flights,
+          selectedHotels: revisedState.selected_hotels,
+          intro: `${revision.reply}${editSummaryText}`,
+          quickReplies: revision.quickReplies,
+        });
+
         setSessionMapMode(sessionId, false);
-        setSessionMessages(sessionId, (prev) => [
-          ...prev,
-          createItineraryAssistantMessage({
-            itinerary,
-            selectedFlights: payload.selected_flights,
-            selectedHotels: payload.selected_hotels,
-            intro: "我已按你的要求在当前行程上做了局部修改，其他没有提到的安排尽量保持不变。",
-          }),
-        ]);
+        updateTravelSession(sessionId, (session) => {
+          const versions = session.versions ?? [];
+          const baseMessages = session.messages.some(
+            (message) => message.id === latestUserMessage?.id
+          )
+            ? session.messages
+            : nextMessages;
+          const version = createTravelTripVersion({
+            itinerary: revision.itinerary,
+            travelState: revisedState,
+            versionNumber: versions.length + 1,
+            parentVersionId:
+              session.activeVersionId ?? versions[versions.length - 1]?.id,
+            sourceMessageId: assistantMessage.id,
+            userPrompt: latestVisibleUserText,
+            editSummary: revision.editSummary,
+            modulePatch: revision.modulePatch,
+          });
+          return {
+            ...session,
+            messages: [...baseMessages, assistantMessage],
+            versions: [...versions, version],
+            activeVersionId: version.id,
+            updatedAt: new Date().toISOString(),
+          };
+        });
         return;
       }
 
@@ -2128,16 +2429,40 @@ export function TravelChatClient({
         throw new Error("后端返回的行程为空或格式无效。");
       }
 
-      setSessionMessages(sessionId, (prev) => [
-        ...prev,
-        createItineraryAssistantMessage({
+      const assistantMessage = createItineraryAssistantMessage({
+        itinerary,
+        selectedFlights: payload.selected_flights,
+        selectedHotels: payload.selected_hotels,
+        intro:
+          "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。",
+        quickReplies: ITINERARY_REVISION_QUICK_REPLIES,
+      });
+
+      updateTravelSession(sessionId, (session) => {
+        const versions = session.versions ?? [];
+        const baseMessages = session.messages.some(
+          (message) => message.id === latestUserMessage?.id
+        )
+          ? session.messages
+          : nextMessages;
+        const version = createTravelTripVersion({
           itinerary,
-          selectedFlights: payload.selected_flights,
-          selectedHotels: payload.selected_hotels,
-          intro:
-            "行程已经生成，我已经把每天安排整理到行程卡片里。之后如果只想小改，可以直接告诉我；如果想重新规划，也可以说“我不喜欢这个，请重来”。",
-        }),
-      ]);
+          travelState: state,
+          versionNumber: versions.length + 1,
+          parentVersionId:
+            session.activeVersionId ?? versions[versions.length - 1]?.id,
+          sourceMessageId: assistantMessage.id,
+          editSummary:
+            versions.length > 0 ? "重新生成了一版完整行程" : "生成初始行程",
+        });
+        return {
+          ...session,
+          messages: [...baseMessages, assistantMessage],
+          versions: [...versions, version],
+          activeVersionId: version.id,
+          updatedAt: new Date().toISOString(),
+        };
+      });
     } catch (error) {
       const detail = error instanceof Error ? error.message : "未知错误";
       setSessionMessages(sessionId, (prev) => [
@@ -2158,7 +2483,14 @@ export function TravelChatClient({
     } finally {
       setStatus("ready");
     }
-  }, [mapModeSessionIds, setSessionMapMode, setSessionMessages]);
+  }, [
+    activeSession,
+    mapModeSessionIds,
+    sessions,
+    setSessionMapMode,
+    setSessionMessages,
+    updateTravelSession,
+  ]);
 
   const sendMessage = useCallback(
     (message: TravelChatInputMessage) => {
@@ -2621,7 +2953,7 @@ export function TravelChatClient({
                     </p>
                     <p className="truncate text-sm font-semibold text-slate-900">
                       {showFinalItinerary
-                        ? `${latestItinerary.length}天${orderedCities.join("、") || "定制"}行程`
+                        ? `${displayItinerary.length}天${displayOrderedCities.join("、") || "定制"}行程`
                         : formatMapTargetDisplayName(activeMapTarget)}
                     </p>
                   </div>
@@ -2914,13 +3246,19 @@ export function TravelChatClient({
                 activePointId={
                   activeMapTarget?.kind === "route" ? null : activeMapTarget?.id
                 }
+                activeVersionId={activeTravelVersion?.id}
+                activeVersionSummary={activeTravelVersion?.editSummary}
                 initialItineryRows={sharedItineryRows}
-                itinerary={latestItinerary}
+                itinerary={displayItinerary}
                 mapPoints={mapPoints}
                 onPointSelect={handleMapPointSelect}
-                orderedCities={orderedCities}
-                routeCoordinates={displayRouteCoordinates}
-                travelState={travelState}
+                onVersionSelect={(versionId) =>
+                  setActiveTravelVersion(activeSessionId, versionId)
+                }
+                orderedCities={displayOrderedCities}
+                routeCoordinates={displayItineraryRouteCoordinates}
+                travelState={displayTravelState}
+                versionOptions={itineraryVersionOptions}
               />
             ) : (
               <TripRouteMap
