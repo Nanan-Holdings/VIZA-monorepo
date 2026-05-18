@@ -548,3 +548,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
 - Learnings: product-level subscription surfaces should use VIZA Application, while user-facing chat assistance can keep the visa consultant wording.
 ---
+
+## 2026-05-18 - US-041 status-page follow-up
+- Renamed the top navigation's former Documents entry to Status and repurposed /client/documents as a started-application status center.
+- Added a startedOnly lifecycle query mode so the Status page hides package-only and blank application rows; a saved form answer or later submission state counts as started.
+- Removed the visible "RAG 表单" destination-card label from the home page and replaced it with form-filling status pills such as 可填写, 已选择，未填写, and percent filled.
+- Kept direct form URLs such as /client/application?country=united_states&visaType=DS160 on the existing form workflow.
+- Files changed: application-lifecycle.ts, application-status-hub.tsx, app/client/documents/page.tsx, PopularDestinationsSection.tsx, visa-destinations.ts, client-sidebar.tsx, messages/en.json, messages/zh.json, progress.txt
+- Learnings: the status surface should not treat selecting a destination as a started application; home cards can show fillability/progress without exposing implementation labels like RAG.
+---
