@@ -36,13 +36,55 @@ interface FieldGuidancePanelProps {
 
 function severityClasses(severity: FieldGuidanceSeverity): string {
   if (severity === "error") return "border-red-200 bg-red-50 text-red-700";
-  if (severity === "warning") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (severity === "warning") return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E]";
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
 function SeverityIcon({ severity }: { severity: FieldGuidanceSeverity }) {
   if (severity === "ok") return <CheckCircle2 className="h-4 w-4 shrink-0" />;
   return <AlertCircle className="h-4 w-4 shrink-0" />;
+}
+
+function normalizePlainTextContent(content: string): string {
+  return content
+    .replace(/```[\s\S]*?```/g, (block) => {
+      const code = block.slice(3, -3);
+      const firstNewline = code.indexOf("\n");
+      return firstNewline > 0 ? code.slice(firstNewline + 1).trim() : code.trim();
+    })
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/(^|\s)#{1,6}\s+/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+[.)]\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, "")
+    .replace(/^\s*\|(.+)\|\s*$/gm, (_line, cells: string) =>
+      cells
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter(Boolean)
+        .join(" | "),
+    )
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/__([^_\n]+)__/g, "$1")
+    .replace(/(^|[^\w])\*([^*\n]+)\*([^\w]|$)/g, "$1$2$3")
+    .replace(/(^|[^\w])_([^_\n]+)_([^\w]|$)/g, "$1$2$3")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function renderPlainText(content: string) {
+  const plainContent = normalizePlainTextContent(content);
+
+  return plainContent.split("\n").map((line, index, lines) => (
+    <span key={index}>
+      {line}
+      {index < lines.length - 1 && <br />}
+    </span>
+  ));
 }
 
 function SectionList({
@@ -62,16 +104,19 @@ function SectionList({
         {title}
       </h4>
       <div className={compact ? "flex flex-wrap gap-2" : "flex flex-col gap-1.5"}>
-        {items.map((item) => (
-          <span
-            key={item}
-            className={compact
-              ? "rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
-              : "text-[13px] leading-5 text-[#4b5563]"}
-          >
-            {compact ? item : `• ${item}`}
-          </span>
-        ))}
+        {items.map((item, index) => {
+          const plainItem = normalizePlainTextContent(item);
+          return (
+            <span
+              key={`${item}-${index}`}
+              className={compact
+                ? "rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
+                : "text-[13px] leading-5 text-[#4b5563]"}
+            >
+              {compact ? plainItem : `• ${plainItem}`}
+            </span>
+          );
+        })}
       </div>
     </section>
   );
@@ -90,6 +135,7 @@ export function FieldGuidancePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const [questionLoading, setQuestionLoading] = useState(false);
 
   const isZh = locale.toLowerCase().startsWith("zh");
@@ -119,6 +165,7 @@ export function FieldGuidancePanel({
     async (nextQuestion?: string) => {
       if (nextQuestion) {
         setQuestionLoading(true);
+        setData((current) => current ? { ...current, reply: undefined } : current);
       } else {
         setLoading(true);
       }
@@ -160,6 +207,7 @@ export function FieldGuidancePanel({
   const handleAsk = () => {
     const trimmed = question.trim();
     if (!trimmed || questionLoading) return;
+    setLastQuestion(trimmed);
     void fetchGuidance(trimmed);
     setQuestion("");
   };
@@ -236,21 +284,52 @@ export function FieldGuidancePanel({
             </div>
           </div>
 
-          <p className="text-[13px] leading-5 text-[#3f4652]">{data.guidance.summary}</p>
+          <p className="text-[13px] leading-5 text-[#3f4652]">
+            {renderPlainText(data.guidance.summary)}
+          </p>
 
           <SectionList title={labels.examples} items={data.guidance.examples} compact />
           <SectionList title={labels.hints} items={data.guidance.hints} />
           <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
           <SectionList title={labels.format} items={data.guidance.formatHints} compact />
 
-          {data.reply && (
-            <div className="rounded-lg border border-[#d8e2ef] bg-white p-3">
-              <div className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {isZh ? "回答" : "Reply"}
+          {(lastQuestion || data.reply || questionLoading) && (
+            <section className="rounded-xl border border-[#d8e2ef] bg-white p-3">
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-[#03346E]">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </span>
+                VIZA AI
               </div>
-              <p className="text-[13px] leading-5 text-[#24272f]">{data.reply}</p>
-            </div>
+              <div className="flex flex-col gap-3">
+                {lastQuestion && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
+                      {renderPlainText(lastQuestion)}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
+                    <Bot className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="max-w-[86%] rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
+                    {questionLoading ? (
+                      <span className="inline-flex items-center gap-2 text-[#697386]">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {isZh ? "正在回答..." : "Replying..."}
+                      </span>
+                    ) : data.reply ? (
+                      renderPlainText(data.reply)
+                    ) : (
+                      <span className="text-[#697386]">
+                        {isZh ? "可以继续问我这个字段怎么填。" : "Ask me anything about this field."}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
           )}
 
           <div className="flex flex-col gap-2">
@@ -295,7 +374,7 @@ export function FieldGuidancePanel({
                     ) : (
                       <span className="font-medium text-[#3f4652]">{source.title}</span>
                     )}
-                    <p>{source.excerpt}</p>
+                    <p>{renderPlainText(source.excerpt)}</p>
                   </div>
                 ))}
               </div>

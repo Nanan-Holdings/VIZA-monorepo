@@ -235,7 +235,7 @@ function getLocalFieldIssue(
 
 function issueButtonClasses(severity: FieldIssueSeverity): string {
   if (severity === "error") return "border-red-200 bg-red-50 text-red-700 hover:bg-red-100";
-  if (severity === "warning") return "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100";
+  if (severity === "warning") return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E] hover:bg-[#e3f0ff]";
   return "border-[#dbe7f5] bg-[#f8fbff] text-[#03346E] hover:bg-[#eef6ff]";
 }
 
@@ -713,7 +713,7 @@ export function DynamicStepForm({
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const buttonLabel = panelOpen
-      ? locale.startsWith("zh") ? "AI 帮助已打开" : "AI help open"
+      ? locale.startsWith("zh") ? "收起 AI 帮助" : "Hide AI help"
       : issue.severity === "ok"
         ? locale.startsWith("zh") ? "问 AI" : "Ask AI"
         : locale.startsWith("zh") ? "查看提示" : "Review tip";
@@ -730,8 +730,6 @@ export function DynamicStepForm({
           "rounded-lg border border-transparent p-2 transition-colors",
           panelOpen ? "border-[#dbe7f5] bg-[#fbfdff]" : "hover:border-[#eef3f8]",
         )}
-        onClick={() => setActiveGuidanceKey(valueKey)}
-        onFocusCapture={() => setActiveGuidanceKey(valueKey)}
       >
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           {renderSide("zh")}
@@ -739,7 +737,7 @@ export function DynamicStepForm({
         </div>
         <div className="mt-2 flex items-center justify-end gap-2">
           {issue.severity !== "ok" && (
-            <span className={cn("text-[12px] font-medium", issue.severity === "error" ? "text-red-600" : "text-amber-700")}>
+            <span className={cn("text-[12px] font-medium", issue.severity === "error" ? "text-red-600" : "text-[#03346E]")}>
               {issue.message}
             </span>
           )}
@@ -747,7 +745,7 @@ export function DynamicStepForm({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              setActiveGuidanceKey(valueKey);
+              setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
             }}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
