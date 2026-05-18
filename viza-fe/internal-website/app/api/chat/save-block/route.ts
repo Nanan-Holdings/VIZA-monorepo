@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
@@ -81,6 +82,55 @@ export async function POST(req: NextRequest) {
       if (error) {
         console.error("[save-block] application update error:", error);
         return NextResponse.json({ message: error.message }, { status: 500 });
+      }
+    } else if (saveTarget === "visa_application_answers") {
+      if (!applicationId) {
+        return NextResponse.json(
+          { message: "applicationId is required for saveTarget=visa_application_answers" },
+          { status: 400 }
+        );
+      }
+
+      const adminClient = createAdminClient();
+      const { data: profile } = await adminClient
+        .from("applicant_profiles")
+        .select("id")
+        .eq("auth_user_id", userId)
+        .maybeSingle();
+
+      if (!profile) {
+        return NextResponse.json({ message: "Profile not found" }, { status: 404 });
+      }
+
+      const { data: application } = await adminClient
+        .from("applications")
+        .select("id, applicant_id")
+        .eq("id", applicationId)
+        .eq("applicant_id", profile.id)
+        .maybeSingle();
+
+      if (!application) {
+        return NextResponse.json({ message: "Application not found" }, { status: 404 });
+      }
+
+      const answerRows = Object.entries(data)
+        .filter(([, value]) => value.trim() !== "")
+        .map(([fieldName, value]) => ({
+          application_id: applicationId,
+          field_name: fieldName,
+          value_text: value,
+          updated_at: new Date().toISOString(),
+        }));
+
+      if (answerRows.length > 0) {
+        const { error } = await adminClient
+          .from("visa_application_answers")
+          .upsert(answerRows, { onConflict: "application_id,field_name" });
+
+        if (error) {
+          console.error("[save-block] visa_application_answers upsert error:", error);
+          return NextResponse.json({ message: error.message }, { status: 500 });
+        }
       }
     } else {
       return NextResponse.json(
