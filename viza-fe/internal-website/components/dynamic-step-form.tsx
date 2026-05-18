@@ -829,7 +829,7 @@ export function DynamicStepForm({
             return (
               <div
                 key={`block-${bg}`}
-                className="rounded-lg border border-[#e8e8e8] bg-[#fafafa] p-4 flex flex-col gap-4"
+                className="flex flex-col gap-4"
               >
                 {blockFields.map((f) => {
                   const inlineInBlock = getInlineGroup(f);
@@ -895,7 +895,7 @@ export function DynamicStepForm({
             {Array.from({ length: count }, (_, instanceIdx) => (
               <div
                 key={`${group}-${instanceIdx}`}
-                className="rounded-lg border border-[#e8e8e8] bg-[#fafafa] p-4 flex flex-col gap-4"
+                className="flex flex-col gap-4"
               >
                 {count > 1 && (
                   <div className="flex items-center justify-between">

@@ -549,6 +549,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Learnings: product-level subscription surfaces should use VIZA Application, while user-facing chat assistance can keep the visa consultant wording.
 ---
 
+## 2026-05-18 - FORM-001 flat bilingual form shell follow-up
+- Removed the inner bilingual table shell border and visible section headers from hardcoded application form steps.
+- Flattened dynamic form block/repeat containers so the outer application card acts as the only visible frame.
+- Files changed: bilingual-form-shared.tsx, personal-info-step.tsx, dynamic-step-form.tsx, progress.txt
+- Learnings: once each active step already lives inside an application card, repeated section frames make the bilingual rows feel like nested tables.
+---
+
 ## 2026-05-18 - US-041 status-page follow-up
 - Renamed the top navigation's former Documents entry to Status and repurposed /client/documents as a started-application status center.
 - Added a startedOnly lifecycle query mode so the Status page hides package-only and blank application rows; a saved form answer or later submission state counts as started.
