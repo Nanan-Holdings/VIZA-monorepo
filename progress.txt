@@ -443,3 +443,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/client/application/page.tsx, progress.txt
 - Learnings: the hardcoded application flow should end visually at its active content instead of reserving an internal app-scroll viewport for every step.
 ---
+
+## 2026-05-18 - DEST-001 popular destination picker follow-up
+- Verified the existing popular destination picker and catalog path on the client home dashboard.
+- Updated home copy so the empty application state, timeline, and activity fallback no longer imply Indonesia is the only supported entry point.
+- Kept destination selection tied to the existing user_packages / visa_packages flow; popular form-ready destinations include Indonesia, US DS-160, UK Standard Visitor, and multiple Schengen Type C destinations.
+- Cleaned related frontend lint warnings in the home page and application step ordering memoization.
+- Files changed: app/client/home/page.tsx, app/client/application/page.tsx, messages/en.json, messages/zh.json, progress.txt
+- Learnings: popular destination expansion should expose only form-ready countries as startable application cards; RAG-only countries should remain AI guidance until their field schemas are normalized.
+---
