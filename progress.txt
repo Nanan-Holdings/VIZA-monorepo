@@ -532,3 +532,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
 - Learnings: the account-level subscription surface should use the product/service name first, with billing state as supporting detail.
 ---
+
+## 2026-05-18 - DEST-003 RAG destination catalog coverage
+- Expanded the destination catalog to cover all 56 country-level RAG seed countries, including Egypt and Australia.
+- Collapsed Schengen into one homepage card and added /client/destinations/schengen for selecting the main destination country from all 29 Schengen cards.
+- Sorted homepage destination cards alphabetically and verified the selectable catalog has no missing countries against knowledge-base/visa-rag-seeds/countries.
+- Added a RAG visitor intake fallback form for countries that have form_requirements RAG but do not yet have a fully normalized country-specific visa_form_fields seed.
+- Files changed: visa-destinations.ts, PopularDestinationsSection.tsx, app/client/destinations/schengen/page.tsx, visa-form-fields.ts, rag-visitor-intake-form.ts, photo-guidance.ts, progress.txt
+- Learnings: RAG-backed countries can be safely exposed if they route to a generic visitor intake form, while fully normalized forms remain preferred for Indonesia, US, UK and Schengen.
+---
