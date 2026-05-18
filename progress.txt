@@ -392,3 +392,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/client/application/page.tsx, bilingual-question-dev-tool.tsx, messages/en.json, messages/zh.json, progress.txt
 - Learnings: the hardcoded fallback flow needs its own next-intl keys even when DB-driven dynamic forms already translate labels elsewhere; a small dev-only copy helper reduces friction while the field schema is still changing.
 ---
+
+## 2026-05-18 - REV-001 bilingual table follow-up
+- Removed the development-only bilingual question generator from /client/application.
+- Added a formal bilingual field reference table with Chinese fields beside English official field names for personal information, passport, and travel details.
+- Kept the missing personal-info translation key fix from the previous follow-up so the hardcoded B211A form continues to render real labels.
+- Files changed: app/client/application/page.tsx, bilingual-field-reference-table.tsx, bilingual-question-dev-tool.tsx, progress.txt
+- Learnings: the immediate validation surface should be a stable bilingual reference table first; editable generation behavior can come later only after product direction is clear.
+---

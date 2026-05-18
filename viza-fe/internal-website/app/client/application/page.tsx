@@ -31,7 +31,7 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { BilingualQuestionDevTool } from "@/components/application-steps/bilingual-question-dev-tool";
+import { BilingualFieldReferenceTable } from "@/components/application-steps/bilingual-field-reference-table";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -763,7 +763,6 @@ export default function ApplicationPage() {
   const t = useTranslations("application");
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
-  const showBilingualQuestionDevTool = process.env.NODE_ENV !== "production";
 
   const STEPS: StepDef[] = STEP_KEYS.map((key, id) => ({
     id,
@@ -1386,7 +1385,7 @@ export default function ApplicationPage() {
             </h1>
           </div>
 
-          {showBilingualQuestionDevTool && <BilingualQuestionDevTool />}
+          <BilingualFieldReferenceTable />
 
           {error && (
             <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm mb-6">
