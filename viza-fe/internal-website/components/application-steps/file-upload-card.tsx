@@ -19,10 +19,19 @@ export interface FileUploadCardProps {
   applicationId: string;
   documentType: DocumentType;
   label: string;
+  secondaryLabel?: string;
+  description?: string;
   onComplete?: (storagePath: string) => void;
 }
 
-export function FileUploadCard({ applicationId, documentType, label, onComplete }: FileUploadCardProps) {
+export function FileUploadCard({
+  applicationId,
+  documentType,
+  label,
+  secondaryLabel,
+  description,
+  onComplete,
+}: FileUploadCardProps) {
   const t = useTranslations("applicationSteps");
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -73,6 +82,8 @@ export function FileUploadCard({ applicationId, documentType, label, onComplete 
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground truncate">{label}</p>
+          {secondaryLabel && <p className="text-xs font-medium text-[#03346E] truncate">{secondaryLabel}</p>}
+          {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
           {fileName && <p className="text-xs text-muted-foreground truncate">{fileName}</p>}
           {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
         </div>
@@ -85,7 +96,7 @@ export function FileUploadCard({ applicationId, documentType, label, onComplete 
           disabled={status === "uploading"}
           className="shrink-0"
         >
-          {status === "done" ? t("replace") : t("upload")}
+          {status === "done" ? `${t("replace")} / Replace` : `${t("upload")} / Upload`}
         </Button>
 
         <input
