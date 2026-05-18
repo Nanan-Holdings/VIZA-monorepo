@@ -11,7 +11,7 @@ import { useState } from "react";
 
 const navigation = [
   { name: "Application", href: "/client/application", icon: FolderOpen },
-  { name: "Documents", href: "/client/documents", icon: FileText },
+  { name: "Status", href: "/client/documents", icon: FileText },
 ];
 
 export function ClientSidebar() {
