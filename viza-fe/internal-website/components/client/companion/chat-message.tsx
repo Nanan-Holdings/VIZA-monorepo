@@ -8,100 +8,44 @@ interface ChatMessageProps {
   timestamp?: number;
 }
 
-/**
- * Simple markdown-like rendering
- * Handles bold, italic, code, and line breaks
- */
-function renderContent(content: string): React.ReactNode {
-  // Split by code blocks first
-  const parts = content.split(/(```[\s\S]*?```|`[^`]+`)/g);
+function normalizePlainTextContent(content: string): string {
+  return content
+    .replace(/```[\s\S]*?```/g, (block) => {
+      const code = block.slice(3, -3);
+      const firstNewline = code.indexOf("\n");
+      return firstNewline > 0 ? code.slice(firstNewline + 1).trim() : code.trim();
+    })
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, "")
+    .replace(/^\s*\|(.+)\|\s*$/gm, (_line, cells: string) =>
+      cells
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter(Boolean)
+        .join(" | ")
+    )
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/__([^_\n]+)__/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/_([^_\n]+)_/g, "$1")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
-  return parts.map((part, index) => {
-    // Code block
-    if (part.startsWith("```") && part.endsWith("```")) {
-      const codeContent = part.slice(3, -3);
-      const firstNewline = codeContent.indexOf("\n");
-      const language = firstNewline > 0 ? codeContent.slice(0, firstNewline).trim() : "";
-      const code = firstNewline > 0 ? codeContent.slice(firstNewline + 1) : codeContent;
+function renderPlainContent(content: string): React.ReactNode {
+  const plainContent = normalizePlainTextContent(content);
 
-      return (
-        <pre
-          key={index}
-          className="my-2 rounded-md bg-gray-900 p-3 overflow-x-auto text-sm"
-        >
-          {language && (
-            <div className="text-gray-400 text-xs mb-2 font-mono">{language}</div>
-          )}
-          <code className="text-gray-100 font-mono whitespace-pre">{code}</code>
-        </pre>
-      );
-    }
-
-    // Inline code
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return (
-        <code
-          key={index}
-          className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 font-mono text-sm"
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-
-    // Regular text - handle bold, italic, line breaks
-    return (
-      <span key={index}>
-        {part.split("\n").map((line, lineIndex, lines) => (
-          <span key={lineIndex}>
-            {line
-              // Bold
-              .split(/(\*\*[^*]+\*\*)/g)
-              .map((segment, segIndex) => {
-                if (segment.startsWith("**") && segment.endsWith("**")) {
-                  return (
-                    <strong key={segIndex} className="font-semibold">
-                      {segment.slice(2, -2)}
-                    </strong>
-                  );
-                }
-                // Italic
-                return segment.split(/(\*[^*]+\*)/g).map((italicPart, italicIndex) => {
-                  if (italicPart.startsWith("*") && italicPart.endsWith("*")) {
-                    return (
-                      <em key={`${segIndex}-${italicIndex}`} className="italic">
-                        {italicPart.slice(1, -1)}
-                      </em>
-                    );
-                  }
-                  // Handle links
-                  return italicPart
-                    .split(/(\[[^\]]+\]\([^)]+\))/g)
-                    .map((linkPart, linkIndex) => {
-                      const linkMatch = linkPart.match(/\[([^\]]+)\]\(([^)]+)\)/);
-                      if (linkMatch) {
-                        return (
-                          <a
-                            key={`${segIndex}-${italicIndex}-${linkIndex}`}
-                            href={linkMatch[2]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-500 underline hover:text-brand-600"
-                          >
-                            {linkMatch[1]}
-                          </a>
-                        );
-                      }
-                      return linkPart;
-                    });
-                });
-              })}
-            {lineIndex < lines.length - 1 && <br />}
-          </span>
-        ))}
-      </span>
-    );
-  });
+  return plainContent.split("\n").map((line, index, lines) => (
+    <span key={index}>
+      {line}
+      {index < lines.length - 1 && <br />}
+    </span>
+  ));
 }
 
 export function ChatMessage({
@@ -151,7 +95,7 @@ export function ChatMessage({
     <div className="w-full">
       {/* Message content */}
       <div className="text-gray-700 text-base sm:text-lg whitespace-pre-wrap leading-relaxed">
-        {renderContent(content)}
+        {renderPlainContent(content)}
       </div>
     </div>
   );

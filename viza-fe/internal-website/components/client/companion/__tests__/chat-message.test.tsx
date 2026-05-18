@@ -22,26 +22,30 @@ describe("ChatMessage", () => {
 
   it("renders user message with brand color background", () => {
     const { container } = render(<ChatMessage role="user" content="Hello" timestamp={Date.now()} />);
-    const messageBubble = container.querySelector(".bg-\\[\\#c1785d\\]");
+    const messageBubble = container.querySelector(".bg-brand-500");
     expect(messageBubble).toBeInTheDocument();
   });
 
-  it("renders agent message with white background", () => {
+  it("renders agent message as plain text without bubble chrome", () => {
     const { container } = render(<ChatMessage role="agent" content="Hi there" timestamp={Date.now()} />);
-    const messageBubble = container.querySelector(".bg-white");
-    expect(messageBubble).toBeInTheDocument();
+    expect(container.querySelector(".text-gray-700")).toBeInTheDocument();
+    expect(container.querySelector(".bg-white")).not.toBeInTheDocument();
   });
 
-  it("renders bold text in agent messages", () => {
-    render(<ChatMessage role="agent" content="This is **bold** text" timestamp={Date.now()} />);
-    const boldElement = screen.getByText("bold");
-    expect(boldElement.tagName.toLowerCase()).toBe("strong");
+  it("renders bold markdown markers as plain text", () => {
+    const { container } = render(
+      <ChatMessage role="agent" content="This is **bold** text" timestamp={Date.now()} />
+    );
+    expect(screen.getByText("This is bold text")).toBeInTheDocument();
+    expect(container.querySelector("strong")).not.toBeInTheDocument();
   });
 
-  it("renders italic text in agent messages", () => {
-    render(<ChatMessage role="agent" content="This is *italic* text" timestamp={Date.now()} />);
-    const italicElement = screen.getByText("italic");
-    expect(italicElement.tagName.toLowerCase()).toBe("em");
+  it("renders italic markdown markers as plain text", () => {
+    const { container } = render(
+      <ChatMessage role="agent" content="This is *italic* text" timestamp={Date.now()} />
+    );
+    expect(screen.getByText("This is italic text")).toBeInTheDocument();
+    expect(container.querySelector("em")).not.toBeInTheDocument();
   });
 
   it("shows copy button on agent messages", () => {
@@ -75,44 +79,43 @@ describe("ChatMessage", () => {
       <ChatMessage role="error" content="Error occurred" timestamp={Date.now()} />
     );
     // Error messages have red styling
-    const errorBubble = container.querySelector(".bg-red-50");
-    expect(errorBubble).toBeInTheDocument();
+    expect(container.querySelector(".bg-red-100")).toBeInTheDocument();
+    expect(container.querySelector(".text-red-700")).toBeInTheDocument();
   });
 
-  it("renders links that open in new tab", () => {
+  it("renders markdown links as plain text with URL", () => {
     render(
       <ChatMessage role="agent" content="Visit [example](https://example.com)" timestamp={Date.now()} />
     );
-    const link = screen.getByRole("link", { name: "example" });
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByText("Visit example (https://example.com)")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "example" })).not.toBeInTheDocument();
   });
 
-  it("renders inline code", () => {
+  it("renders inline code markers as plain text", () => {
     const { container } = render(
       <ChatMessage role="agent" content="Use `npm install` to install" timestamp={Date.now()} />
     );
-    const codeElement = container.querySelector("code");
-    expect(codeElement).toHaveTextContent("npm install");
+    expect(screen.getByText("Use npm install to install")).toBeInTheDocument();
+    expect(container.querySelector("code")).not.toBeInTheDocument();
   });
 
-  it("renders code blocks", () => {
+  it("renders code block fences as plain text", () => {
     const { container } = render(
       <ChatMessage
         role="agent"
-        content="Here is code:\n```javascript\nconsole.log('hi');\n```"
+        content={"Here is code:\n```javascript\nconsole.log('hi');\n```"}
         timestamp={Date.now()}
       />
     );
-    const preElement = container.querySelector("pre");
-    expect(preElement).toBeInTheDocument();
+    expect(screen.getByText("Here is code:")).toBeInTheDocument();
+    expect(screen.getByText("console.log('hi');")).toBeInTheDocument();
+    expect(container.querySelector("pre")).not.toBeInTheDocument();
   });
 
-  it("renders Labs AI avatar for agent messages", () => {
-    const { container } = render(
+  it("does not render an agent avatar inside plain agent messages", () => {
+    render(
       <ChatMessage role="agent" content="Hello" timestamp={Date.now()} />
     );
-    // Avatar has the ✻ symbol
-    expect(screen.getByText("✻")).toBeInTheDocument();
+    expect(screen.queryByText("✻")).not.toBeInTheDocument();
   });
 });

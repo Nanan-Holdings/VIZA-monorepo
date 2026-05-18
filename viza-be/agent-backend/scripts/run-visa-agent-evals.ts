@@ -1,5 +1,6 @@
 import {
   createEmptyVisaConversationState,
+  parseVisaConversationStateMarker,
   summarizeVisaConversationState,
   updateVisaConversationState,
   type VisaConversationState,
@@ -9,7 +10,14 @@ import {
   getDefaultVisitorVisaType,
   type SupportedKnowledgeCountry,
 } from '../src/config/visa-destination-registry.js';
-import { inferVisaKnowledgeIntent } from '../src/socket/visa-namespace.js';
+import { documentTypesForIntent } from '../src/services/visa-knowledge.service.js';
+import {
+  buildCompactAnswerInterpretation,
+  inferVisaKnowledgeIntent,
+  resolveKnowledgeCountry,
+  resolveKnowledgeVisaType,
+} from '../src/socket/visa-namespace.js';
+import { BASE_SYSTEM_PROMPT } from '../src/agent/index.js';
 
 type EvalCategory =
   | 'schengen_route'
@@ -45,6 +53,13 @@ interface EvalCase {
 interface EvalResult {
   id: string;
   category: EvalCategory;
+  passed: boolean;
+  failures: string[];
+}
+
+interface BranchResult {
+  id: string;
+  category: string;
   passed: boolean;
   failures: string[];
 }
@@ -335,12 +350,16 @@ function shouldAskClarification(state: VisaConversationState): boolean {
   return state.missingSlots.length > 0 || !state.recommendedVisaType;
 }
 
-function evaluateCase(testCase: EvalCase): EvalResult {
+function applyMessages(messages: EvalMessage[]): {
+  state: VisaConversationState;
+  history: EvalMessage[];
+  lastUserMessage: string;
+} {
   let state = createEmptyVisaConversationState();
   const history: EvalMessage[] = [];
   let lastUserMessage = '';
 
-  for (const message of testCase.messages) {
+  for (const message of messages) {
     if (message.role === 'user') {
       lastUserMessage = message.content;
       state = updateVisaConversationState(state, [...history, message], message.content);
@@ -348,6 +367,11 @@ function evaluateCase(testCase: EvalCase): EvalResult {
     history.push(message);
   }
 
+  return { state, history, lastUserMessage };
+}
+
+function evaluateCase(testCase: EvalCase): EvalResult {
+  const { state, lastUserMessage } = applyMessages(testCase.messages);
   const summary = summarizeVisaConversationState(state);
   const intent = inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots);
   const failures: string[] = [];
@@ -417,10 +441,292 @@ function evaluateCase(testCase: EvalCase): EvalResult {
   };
 }
 
+function expectEqual<T>(label: string, actual: T, expected: T): string | null {
+  return Object.is(actual, expected)
+    ? null
+    : `${label} expected ${String(expected)}, got ${String(actual)}`;
+}
+
+function expectArrayEqual<T>(label: string, actual: T[] | undefined, expected: T[]): string | null {
+  const normalizedActual = JSON.stringify(actual ?? []);
+  const normalizedExpected = JSON.stringify(expected);
+  return normalizedActual === normalizedExpected
+    ? null
+    : `${label} expected ${normalizedExpected}, got ${normalizedActual}`;
+}
+
+function branch(
+  id: string,
+  category: string,
+  run: () => Array<string | null>
+): BranchResult {
+  const failures = run().filter((failure): failure is string => failure !== null);
+  if (failures.length > 0) {
+    console.log(JSON.stringify({ id, category, failures }, null, 2));
+  }
+  return {
+    id,
+    category,
+    passed: failures.length === 0,
+    failures,
+  };
+}
+
+function evaluateBranchTests(): BranchResult[] {
+  return [
+    branch('INTENT-001', 'intent_branch', () => [
+      expectEqual(
+        'default route recommendation intent',
+        inferVisaKnowledgeIntent('中国护照去日本旅游7天', []),
+        'route_recommendation'
+      ),
+    ]),
+    branch('INTENT-002', 'intent_branch', () => [
+      expectEqual(
+        'Chinese form intake intent',
+        inferVisaKnowledgeIntent('开始申请，中国护照去新加坡旅游5天', ['nationality']),
+        'form_intake'
+      ),
+    ]),
+    branch('INTENT-003', 'intent_branch', () => [
+      expectEqual(
+        'apply intent when no missing slots',
+        inferVisaKnowledgeIntent('apply now', []),
+        'form_intake'
+      ),
+    ]),
+    branch('INTENT-004', 'intent_branch', () => [
+      expectEqual('fees intent', inferVisaKnowledgeIntent('费用多少钱，处理时间多久', []), 'fees_timing'),
+    ]),
+    branch('INTENT-005', 'intent_branch', () => [
+      expectEqual('requirements intent', inferVisaKnowledgeIntent('需要什么材料和文件', []), 'requirements'),
+    ]),
+    branch('INTENT-006', 'intent_branch', () => [
+      expectEqual('eligibility intent', inferVisaKnowledgeIntent('我能不能申请这个签证', []), 'eligibility'),
+    ]),
+    branch('INTENT-007', 'intent_branch', () => [
+      expectEqual('source intent', inferVisaKnowledgeIntent('请给我官方来源链接', []), 'source_check'),
+    ]),
+    branch('INTENT-008', 'intent_branch', () => [
+      expectEqual(
+        'generic apply waits when slots are missing',
+        inferVisaKnowledgeIntent('I want to apply', ['destination']),
+        'route_recommendation'
+      ),
+    ]),
+
+    branch('RAGDOC-001', 'rag_document_type_branch', () => [
+      expectArrayEqual('route docs', documentTypesForIntent('route_recommendation'), ['requirements', 'process']),
+      expectArrayEqual('requirements docs', documentTypesForIntent('requirements'), ['requirements', 'form_requirements']),
+      expectArrayEqual('form docs', documentTypesForIntent('form_intake'), ['form_requirements']),
+      expectArrayEqual('fees docs', documentTypesForIntent('fees_timing'), ['requirements', 'process']),
+      expectArrayEqual('eligibility docs', documentTypesForIntent('eligibility'), ['requirements']),
+      expectArrayEqual('source docs', documentTypesForIntent('source_check'), ['requirements', 'process', 'form_requirements']),
+    ]),
+    branch('RAGDOC-002', 'rag_document_type_branch', () => [
+      expectEqual('undefined intent docs', documentTypesForIntent(undefined), undefined),
+    ]),
+
+    branch('COUNTRY-001', 'country_routing_branch', () => [
+      expectEqual('single explicit country', resolveKnowledgeCountry('中国护照去日本旅游7天'), 'japan'),
+    ]),
+    branch('COUNTRY-002', 'country_routing_branch', () => [
+      expectEqual(
+        'Mexico with valid US visa exemption keeps Mexico as destination',
+        resolveKnowledgeCountry('中国护照去墨西哥旅游，有有效美国签证能不能免签'),
+        'mexico'
+      ),
+    ]),
+    branch('COUNTRY-003', 'country_routing_branch', () => [
+      expectEqual('multi-country route unresolved', resolveKnowledgeCountry('法国和意大利旅游'), null),
+    ]),
+    branch('COUNTRY-004', 'country_routing_branch', () => [
+      expectEqual('recent context fallback', resolveKnowledgeCountry('需要什么材料', null, '我想去瑞士旅行'), 'switzerland'),
+    ]),
+    branch('COUNTRY-005', 'country_routing_branch', () => [
+      expectEqual('multi-country recent context unresolved', resolveKnowledgeCountry('需要什么材料', null, '法国 意大利'), null),
+    ]),
+    branch('COUNTRY-006', 'country_routing_branch', () => [
+      expectEqual('Schengen does not use stale non-Schengen app country', resolveKnowledgeCountry('申根签证怎么办', 'Indonesia'), null),
+    ]),
+    branch('COUNTRY-007', 'country_routing_branch', () => [
+      expectEqual('application country fallback', resolveKnowledgeCountry('需要材料', 'Japan'), 'japan'),
+    ]),
+    branch('COUNTRY-008', 'country_routing_branch', () => [
+      expectEqual('India alias avoids Indonesia collision', resolveKnowledgeCountry('中国护照去印度旅游'), 'india'),
+      expectEqual('Indonesia remains Indonesia', resolveKnowledgeCountry('中国护照去印度尼西亚旅游'), 'indonesia'),
+    ]),
+    branch('COUNTRY-009', 'country_routing_branch', () => [
+      expectEqual('UK short alias branch', resolveKnowledgeCountry('go to UK for tourism'), 'uk'),
+      expectEqual('US word-boundary branch', resolveKnowledgeCountry('US visa for tourism'), 'us'),
+    ]),
+    branch('COUNTRY-010', 'country_routing_branch', () => [
+      expectEqual('Schengen can use Schengen app country fallback', resolveKnowledgeCountry('申根签证怎么办', 'France'), 'france'),
+    ]),
+
+    branch('VISA-001', 'visa_type_branch', () => [
+      expectEqual('generic Schengen visa type', resolveKnowledgeVisaType(null, '申根旅游签证'), 'schengen_short_stay_tourism'),
+    ]),
+    branch('VISA-002', 'visa_type_branch', () => [
+      expectEqual('US DS-160 branch', resolveKnowledgeVisaType('us', '我要填 DS-160'), 'b1_b2'),
+    ]),
+    branch('VISA-003', 'visa_type_branch', () => [
+      expectEqual('Vietnam eVisa branch', resolveKnowledgeVisaType('vietnam', '电子签证怎么申请'), 'evisa_tourism'),
+    ]),
+    branch('VISA-004', 'visa_type_branch', () => [
+      expectEqual('work does not force visitor visa', resolveKnowledgeVisaType('us', '去美国工作90天'), null),
+      expectEqual('study does not force visitor visa', resolveKnowledgeVisaType('uk', '英国学习6个月'), null),
+    ]),
+    branch('VISA-005', 'visa_type_branch', () => [
+      expectEqual('valid app visa type fallback', resolveKnowledgeVisaType('canada', '需要材料', 'visitor_visa'), 'visitor_visa'),
+      expectEqual('invalid app visa type replaced by registry default', resolveKnowledgeVisaType('japan', '需要材料', 'tourist_b211a'), 'short_term_tourism_evisa'),
+    ]),
+    branch('VISA-006', 'visa_type_branch', () => [
+      expectEqual('no country and no Schengen remains unresolved', resolveKnowledgeVisaType(null, '需要材料'), null),
+    ]),
+
+    branch('STATE-001', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '我住新加坡，想去瑞士，还会去法国，中国护照，旅游7天' },
+      ]);
+      return [
+        expectEqual('residence country', state.residenceCountry, 'Singapore'),
+        expectEqual('Singapore is not destination', state.destinationCountries.includes('singapore'), false),
+        expectEqual('Switzerland destination retained', state.destinationCountries.includes('switzerland'), true),
+        expectEqual('France destination retained', state.destinationCountries.includes('france'), true),
+      ];
+    }),
+    branch('STATE-002', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照去法国和意大利旅游，总共6天' },
+        { role: 'assistant', content: '你在 France, Italy 各停留几天？' },
+        { role: 'user', content: '3，3' },
+      ]);
+      return [
+        expectEqual('tie leaves main destination unresolved', state.mainDestination, null),
+        expectEqual('tie asks for first entry', state.missingSlots.includes('firstEntryCountry'), true),
+      ];
+    }),
+    branch('STATE-003', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照去法国、意大利、西班牙旅游，总共10天' },
+        { role: 'assistant', content: '你在 France, Italy, Spain 各停留几天？' },
+        { role: 'user', content: '2，5' },
+      ]);
+      return [
+        expectEqual('mismatch asks for full day split', state.missingSlots.includes('schengenDaySplit'), true),
+      ];
+    }),
+    branch('STATE-004', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照去加拿大旅游7天' },
+        { role: 'user', content: '不对，改成美国' },
+      ]);
+      return [
+        expectEqual('corrected country', state.mainDestination, 'us'),
+        expectEqual('old country removed', state.destinationCountries.includes('canada'), false),
+      ];
+    }),
+    branch('STATE-005', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照去美国工作90天' },
+      ]);
+      return [
+        expectEqual('work purpose', state.tripPurpose, 'work'),
+        expectEqual('work has no visitor recommendation', state.recommendedVisaType, null),
+      ];
+    }),
+    branch('STATE-006', 'state_branch', () => {
+      const state = updateVisaConversationState(null, [], '中国护照去日本旅游7天');
+      const marker = `__viza_conversation_state__:${JSON.stringify(state)}`;
+      const parsed = parseVisaConversationStateMarker(marker);
+      return [
+        expectEqual('marker parses', Boolean(parsed), true),
+        expectEqual('marker country', parsed?.mainDestination ?? null, 'japan'),
+        expectEqual('non-marker ignored', parseVisaConversationStateMarker('hello'), null),
+      ];
+    }),
+    branch('STATE-007', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照去法国和意大利旅游，总共6天' },
+        { role: 'assistant', content: '你在 France, Italy 各停留几天？' },
+        { role: 'user', content: '3，3' },
+        { role: 'user', content: '首入境意大利' },
+      ]);
+      return [
+        expectEqual('first entry resolves tied Schengen country', state.mainDestination, 'italy'),
+        expectEqual('first entry missing slot cleared', state.missingSlots.includes('firstEntryCountry'), false),
+      ];
+    }),
+    branch('STATE-008', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照，旅游，去 France 和 Italy，各3天，first entry France' },
+      ]);
+      return [
+        expectEqual('direct first entry branch', state.firstEntryCountry, 'france'),
+        expectEqual('direct first entry main destination', state.mainDestination, 'france'),
+      ];
+    }),
+
+    branch('COMPACT-001', 'compact_interpretation_branch', () => [
+      expectEqual('non-compact returns null', buildCompactAnswerInterpretation([], '我想去日本旅游'), null),
+      expectEqual('no assistant returns null', buildCompactAnswerInterpretation([{ role: 'user', content: '2，5' }], '2，5'), null),
+    ]),
+    branch('COMPACT-002', 'compact_interpretation_branch', () => {
+      const note = buildCompactAnswerInterpretation(
+        [
+          { role: 'user', content: '我想去法国和意大利旅游' },
+          { role: 'assistant', content: '你在 France, Italy 各停留几天？' },
+          { role: 'user', content: '2，5' },
+        ],
+        '2，5'
+      );
+      return [
+        expectEqual('numeric split has longest stay note', Boolean(note?.includes('longest stay is Italy')), true),
+      ];
+    }),
+    branch('COMPACT-003', 'compact_interpretation_branch', () => {
+      const note = buildCompactAnswerInterpretation(
+        [
+          { role: 'user', content: '我想去法国、意大利、西班牙旅游' },
+          { role: 'assistant', content: '你在 France, Italy, Spain 各停留几天？' },
+          { role: 'user', content: '2，5' },
+        ],
+        '2，5'
+      );
+      return [
+        expectEqual('numeric mismatch has incomplete note', Boolean(note?.includes('incomplete answer')), true),
+      ];
+    }),
+
+    branch('FORMAT-001', 'formatting_branch', () => [
+      expectEqual('prompt bans Markdown formatting', BASE_SYSTEM_PROMPT.includes('Do not use Markdown formatting'), true),
+      expectEqual('prompt bans Markdown tables', BASE_SYSTEM_PROMPT.includes('tables'), true),
+      expectEqual('prompt requires plain text only', BASE_SYSTEM_PROMPT.includes('Use plain text only'), true),
+      expectEqual('prompt still cites sources', BASE_SYSTEM_PROMPT.includes('source title or URL'), true),
+    ]),
+  ];
+}
+
 const results = evalCases.map(evaluateCase);
+const branchResults = evaluateBranchTests();
 const passed = results.filter((result) => result.passed).length;
 const passRate = passed / results.length;
+const branchPassed = branchResults.filter((result) => result.passed).length;
+const branchPassRate = branchPassed / branchResults.length;
+const combinedPassed = passed + branchPassed;
+const combinedTotal = results.length + branchResults.length;
 const byCategory = results.reduce<Record<string, { passed: number; total: number }>>(
+  (acc, result) => {
+    const entry = acc[result.category] ?? { passed: 0, total: 0 };
+    entry.total += 1;
+    if (result.passed) entry.passed += 1;
+    acc[result.category] = entry;
+    return acc;
+  },
+  {}
+);
+const branchByCategory = branchResults.reduce<Record<string, { passed: number; total: number }>>(
   (acc, result) => {
     const entry = acc[result.category] ?? { passed: 0, total: 0 };
     entry.total += 1;
@@ -434,11 +740,20 @@ const byCategory = results.reduce<Record<string, { passed: number; total: number
 console.log(
   JSON.stringify(
     {
-      total: results.length,
-      passed,
-      failed: results.length - passed,
-      passRate: Number((passRate * 100).toFixed(2)),
+      promptEvalTotal: results.length,
+      promptEvalPassed: passed,
+      promptEvalFailed: results.length - passed,
+      promptEvalPassRate: Number((passRate * 100).toFixed(2)),
+      branchTotal: branchResults.length,
+      branchPassed,
+      branchFailed: branchResults.length - branchPassed,
+      branchPassRate: Number((branchPassRate * 100).toFixed(2)),
+      combinedTotal,
+      combinedPassed,
+      combinedFailed: combinedTotal - combinedPassed,
+      combinedPassRate: Number(((combinedPassed / combinedTotal) * 100).toFixed(2)),
       byCategory,
+      branchByCategory,
     },
     null,
     2
@@ -450,7 +765,17 @@ if (results.length < 60) {
   process.exit(1);
 }
 
+if (branchResults.length < 35) {
+  console.error(`Expected at least 35 branch tests, got ${branchResults.length}`);
+  process.exit(1);
+}
+
 if (passRate < 0.9) {
   console.error('Visa agent eval pass rate is below 90%');
+  process.exit(1);
+}
+
+if (branchPassRate < 1) {
+  console.error('Visa agent branch robustness tests must pass at 100%');
   process.exit(1);
 }

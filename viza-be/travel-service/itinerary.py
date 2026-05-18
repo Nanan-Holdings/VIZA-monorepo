@@ -268,6 +268,25 @@ def _specific_food_for_city(city, day_index=0):
     return _rotated_values(food, day_index, 2)
 
 
+def _reordered_activities_for_day(day, day_index):
+    city = day.get("city") or "目的地"
+    activities = [
+        item
+        for item in _clean_string_list(day.get("activities"))
+        if not _is_vague_activity(item)
+    ]
+    for fallback_activity in _specific_attractions_for_city(city, day_index + 1, 4):
+        if fallback_activity not in activities:
+            activities.append(fallback_activity)
+        if len(activities) >= 3:
+            break
+
+    if len(activities) <= 1:
+        return activities
+
+    return [activities[1], activities[0], *activities[2:]][:4]
+
+
 def _clean_string_list(value):
     if not isinstance(value, list):
         return []
@@ -563,7 +582,7 @@ def _prompt_requests_restart(prompt):
 def _prompt_requests_remove_flights(prompt):
     return bool(
         re.search(
-            r"((去掉|不要|移除|删除|删掉).*(航班|机票|flight))|((航班|机票|flight).*(去掉|不要|移除|删除|删掉))",
+            r"((去掉|不要|移除|删除|删掉|减少|少).*(航班|机票|flight))|((航班|机票|flight).*(去掉|不要|移除|删除|删掉|减少|少))",
             prompt,
             re.IGNORECASE,
         )
@@ -584,6 +603,16 @@ def _prompt_requests_food(prompt):
 
 def _prompt_requests_four_star_hotels(prompt):
     return bool(re.search(r"(4星|四星|four.?star|4.?star)", prompt, re.IGNORECASE))
+
+
+def _prompt_requests_reorder(prompt):
+    return bool(
+        re.search(
+            r"(重排|重新安排|顺序|动线|路线更顺|少走路|少折返|优化.*行程|优化.*路线|reorder|optimi[sz]e)",
+            prompt,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _parse_day_targets(prompt):
@@ -655,6 +684,10 @@ def _fallback_revision(request):
         if not day_targets or _safe_positive_int(day.get("day"), default=index + 1) in day_targets
     ]
 
+    if _prompt_requests_reorder(prompt):
+        for index in target_indexes[: max(1, len(target_indexes))]:
+            revised[index]["activities"] = _reordered_activities_for_day(revised[index], index)
+
     if _prompt_requests_shopping(prompt):
         for index in target_indexes[: max(1, len(target_indexes))]:
             city = revised[index].get("city") or "目的地"
@@ -682,6 +715,8 @@ def _fallback_revision(request):
         module_patch["hotel_note"] = "用户要求酒店调整为4星级。"
 
     summary_parts = []
+    if _prompt_requests_reorder(prompt):
+        summary_parts.append("已重排每天景点顺序，让路线更顺")
     if _prompt_requests_shopping(prompt):
         summary_parts.append("已把相关日期调整为购物和街区探索")
     if _prompt_requests_food(prompt):
