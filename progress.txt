@@ -409,3 +409,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/client/application/page.tsx, personal-info-step.tsx, bilingual-field-reference-table.tsx, progress.txt
 - Learnings: the product expectation is not a separate reference surface; the form controls themselves need to become bilingual and synchronized.
 ---
+
+## 2026-05-18 - REV-001 control parity follow-up
+- Restored the original country picker affordances inside the bilingual personal-info form: flag icons, globe placeholder, searchable country list, and selected-state checkmark.
+- Applied the restored country picker to both nationality and country of birth on the Chinese and English sides while keeping a single synchronized value.
+- Added map-pin icons back to the state/province and city dropdown controls; the existing user and calendar icons remained in place.
+- Files changed: personal-info-step.tsx, progress.txt
+- Learnings: when converting single-language controls to bilingual pairs, preserving the original control type matters as much as preserving the data mapping.
+---
