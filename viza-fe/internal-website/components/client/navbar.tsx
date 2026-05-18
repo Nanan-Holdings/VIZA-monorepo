@@ -33,16 +33,16 @@ const tabPaths: Record<string, string> = {
 
 const chatAgentOptions = [
   {
-    id: "travel",
-    label: "Travel Agent",
-    href: "/client/chat?agent=travel",
-    icon: Plane,
-  },
-  {
     id: "visa",
     label: "Visa Consultant",
     href: "/client/chat?agent=visa",
     icon: MessageCircle,
+  },
+  {
+    id: "travel",
+    label: "Travel Agent",
+    href: "/client/chat?agent=travel",
+    icon: Plane,
   },
 ] as const;
 
