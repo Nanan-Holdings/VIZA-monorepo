@@ -10,6 +10,15 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { CountryDropdown, type Country } from "@/components/ui/country-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type FieldKind = "text" | "date" | "option" | "address";
 
@@ -106,8 +115,8 @@ const INITIAL_FIELDS: PreviewField[] = [
     id: "cityOfBirth",
     section: "出生信息",
     label: "出生城市",
-    helper: "城市名建议使用常见英文写法。",
-    kind: "text",
+    helper: "从城市下拉中选择，右侧同步英文写法。",
+    kind: "option",
     chineseValue: "北京",
     englishValue: "Beijing",
     warnings: ["出生地也属于拼写敏感信息，请与护照或出生证明保持一致。"],
@@ -116,8 +125,8 @@ const INITIAL_FIELDS: PreviewField[] = [
     id: "stateOfBirth",
     section: "出生信息",
     label: "出生省 / 州",
-    helper: "没有省州时可填写城市或按官方要求留空。",
-    kind: "text",
+    helper: "从省/州下拉中选择；没有省州时后续可按官方要求留空。",
+    kind: "option",
     chineseValue: "北京",
     englishValue: "Beijing",
     warnings: [],
@@ -219,12 +228,30 @@ const INITIAL_FIELDS: PreviewField[] = [
 
 const DIRECT_TRANSLATIONS: Record<string, string> = {
   王: "WANG",
+  李: "LI",
+  张: "ZHANG",
+  刘: "LIU",
+  陈: "CHEN",
+  杨: "YANG",
+  黄: "HUANG",
+  赵: "ZHAO",
+  周: "ZHOU",
+  吴: "WU",
   小明: "XIAOMING",
+  小红: "XIAOHONG",
+  伟: "WEI",
+  芳: "FANG",
   王小明: "WANG XIAOMING",
+  李小明: "LI XIAOMING",
   北京: "Beijing",
   上海: "Shanghai",
   广州: "Guangzhou",
   深圳: "Shenzhen",
+  成都: "Chengdu",
+  杭州: "Hangzhou",
+  广东: "Guangdong",
+  四川: "Sichuan",
+  浙江: "Zhejiang",
   中国: "China",
   美国: "United States",
   法国: "France",
@@ -268,6 +295,23 @@ const COUNTRY_OPTIONS: OptionPair[] = [
   { zh: "德国", en: "Germany" },
 ];
 
+const CITY_OPTIONS: OptionPair[] = [
+  { zh: "北京", en: "Beijing" },
+  { zh: "上海", en: "Shanghai" },
+  { zh: "广州", en: "Guangzhou" },
+  { zh: "深圳", en: "Shenzhen" },
+  { zh: "成都", en: "Chengdu" },
+  { zh: "杭州", en: "Hangzhou" },
+];
+
+const PROVINCE_OPTIONS: OptionPair[] = [
+  { zh: "北京", en: "Beijing" },
+  { zh: "上海", en: "Shanghai" },
+  { zh: "广东", en: "Guangdong" },
+  { zh: "四川", en: "Sichuan" },
+  { zh: "浙江", en: "Zhejiang" },
+];
+
 const OPTION_SETS: Record<string, OptionPair[]> = {
   maritalStatus: [
     { zh: "未婚", en: "Single" },
@@ -281,6 +325,8 @@ const OPTION_SETS: Record<string, OptionPair[]> = {
     { zh: "其他", en: "Other" },
   ],
   nationality: COUNTRY_OPTIONS,
+  cityOfBirth: CITY_OPTIONS,
+  stateOfBirth: PROVINCE_OPTIONS,
   countryOfBirth: COUNTRY_OPTIONS,
   religion: [
     { zh: "无", en: "None" },
@@ -336,6 +382,44 @@ function formatOfficialDate(value: string): string | null {
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 }
 
+function parseDateToIso(value: string): string | null {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const chineseMatch = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+  const officialMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  if (chineseMatch) {
+    const [, year, month, day] = chineseMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  if (officialMatch) {
+    const [, day, month, year] = officialMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
+function formatChineseDateFromIso(value: string): string {
+  const parsed = parseDateToIso(value);
+  if (!parsed) return value;
+  const [year, month, day] = parsed.split("-");
+  return `${year}年${Number(month)}月${Number(day)}日`;
+}
+
+function formatOfficialDateFromIso(value: string): string {
+  const parsed = parseDateToIso(value);
+  if (!parsed) return value;
+  const [year, month, day] = parsed.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function formatChineseDate(value: string): string | null {
   const trimmed = value.trim();
   const officialMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -358,6 +442,31 @@ function looksLikeMostlyLatin(value: string): boolean {
   return /^[\dA-Za-z\s,.'#/-]+$/.test(value.trim());
 }
 
+function hasChineseCharacters(value: string): boolean {
+  return /[\u3400-\u9FFF]/.test(value);
+}
+
+function transliterateChineseName(value: string): string | null {
+  const normalized = value.replace(/\s+/g, "");
+  if (!normalized || !hasChineseCharacters(normalized)) return null;
+
+  const syllables = Array.from(normalized).map((character) => DIRECT_TRANSLATIONS[character]);
+  if (syllables.some((syllable) => !syllable)) {
+    return null;
+  }
+
+  return syllables.join(" ");
+}
+
+function getChineseCountryName(country: Country): string {
+  try {
+    const displayNames = new Intl.DisplayNames(["zh"], { type: "region" });
+    return displayNames.of(country.alpha2.toUpperCase()) ?? country.name;
+  } catch {
+    return country.name;
+  }
+}
+
 function getOptions(fieldId: string): OptionPair[] {
   return OPTION_SETS[fieldId] ?? [];
 }
@@ -372,7 +481,7 @@ function findOptionByEnglish(fieldId: string, value: string): OptionPair | undef
   return getOptions(fieldId).find((option) => normaliseLookup(option.en) === lookup);
 }
 
-function translateText(value: string, kind: FieldKind): string {
+function translateText(value: string, kind: FieldKind, fieldId?: string): string {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -386,6 +495,13 @@ function translateText(value: string, kind: FieldKind): string {
   const direct = DIRECT_TRANSLATIONS[trimmed];
   if (direct) {
     return direct;
+  }
+
+  if (fieldId === "surname" || fieldId === "givenNames" || fieldId === "fullNameNative") {
+    const transliteration = transliterateChineseName(trimmed);
+    if (transliteration) {
+      return transliteration;
+    }
   }
 
   if (looksLikeMostlyLatin(trimmed)) {
@@ -454,38 +570,98 @@ function ReviewValueControl({
 }: {
   field: PreviewField;
   side: "chinese" | "english";
-  onChange: (value: string) => void;
+  onChange: (value: string, pairedValue?: string) => void;
 }) {
   const options = getOptions(field.id);
   const isChinese = side === "chinese";
   const label = isChinese ? `${field.label}中文原文` : `${field.label}英文翻译`;
   const value = isChinese ? field.chineseValue : field.englishValue;
-  const selectClass =
-    "h-12 w-full rounded-md border px-3 text-sm font-medium outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15";
+  const controlClass =
+    "h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground";
+  const inputClass =
+    "h-12 w-full rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] outline-none shadow-xs transition focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]";
   const textareaClass =
-    "min-h-[76px] w-full resize-y rounded-md border px-3 py-2 text-sm leading-6 outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15";
+    "min-h-[96px] w-full resize-y rounded-lg border border-[#e8e8e8] bg-transparent px-3 py-2 text-[15px] leading-6 outline-none shadow-xs transition focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]";
+
+  if (field.kind === "date") {
+    const isoValue = parseDateToIso(value) ?? "";
+
+    return (
+      <div className="flex flex-col gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={isChinese ? "例如：1996年3月9日 或 1996-03-09" : "DD/MM/YYYY"}
+          aria-label={label}
+          className={inputClass}
+        />
+        <DatePicker
+          value={isoValue}
+          onChange={(nextIsoValue) => {
+            onChange(
+              isChinese ? formatChineseDateFromIso(nextIsoValue) : formatOfficialDateFromIso(nextIsoValue),
+              isChinese ? formatOfficialDateFromIso(nextIsoValue) : formatChineseDateFromIso(nextIsoValue),
+            );
+          }}
+          placeholder={isChinese ? "选择出生日期" : "Pick date"}
+          className="bg-transparent"
+        />
+      </div>
+    );
+  }
+
+  if (field.id === "nationality" || field.id === "countryOfBirth") {
+    return (
+      <CountryDropdown
+        defaultValue={value}
+        placeholder={isChinese ? "搜索国家..." : "Search country..."}
+        className="bg-transparent"
+        onChange={(country) => {
+          const chineseName = getChineseCountryName(country);
+          onChange(isChinese ? chineseName : country.name, isChinese ? country.name : chineseName);
+        }}
+      />
+    );
+  }
 
   if (options.length > 0) {
     return (
-      <select
+      <Select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-label={label}
-        className={
-          isChinese
-            ? `${selectClass} border-[#d6dce6] bg-white text-[#252a33]`
-            : `${selectClass} border-[#b8c9e0] bg-[#f8fbff] text-[#172033]`
-        }
+        onValueChange={(nextValue) => {
+          const selectedOption = isChinese
+            ? findOptionByChinese(field.id, nextValue)
+            : findOptionByEnglish(field.id, nextValue);
+          onChange(nextValue, isChinese ? selectedOption?.en : selectedOption?.zh);
+        }}
       >
+        <SelectTrigger aria-label={label} className={controlClass}>
+          <SelectValue placeholder={isChinese ? "请选择" : "Select"} />
+        </SelectTrigger>
+        <SelectContent>
         {options.map((option) => {
           const optionValue = isChinese ? option.zh : option.en;
           return (
-            <option key={`${field.id}-${optionValue}`} value={optionValue}>
+            <SelectItem key={`${field.id}-${optionValue}`} value={optionValue}>
               {optionValue}
-            </option>
+            </SelectItem>
           );
         })}
-      </select>
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (!field.long) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass}
+        aria-label={label}
+      />
     );
   }
 
@@ -495,9 +671,7 @@ function ReviewValueControl({
       onChange={(event) => onChange(event.target.value)}
       rows={field.long ? 4 : 2}
       className={
-        isChinese
-          ? `${textareaClass} border-[#d6dce6] bg-white text-[#252a33]`
-          : `${textareaClass} border-[#b8c9e0] bg-[#f8fbff] font-medium text-[#172033]`
+        isChinese ? `${textareaClass} text-[#252a33]` : `${textareaClass} font-medium text-[#172033]`
       }
       aria-label={label}
     />
@@ -524,16 +698,24 @@ export default function BilingualReviewPreviewPage() {
   const sections = useMemo(() => groupFields(fields), [fields]);
   const editedCount = fields.filter((field) => field.englishEdited).length;
 
-  function updateChineseValue(fieldId: string, chineseValue: string) {
+  function updateChineseValue(fieldId: string, chineseValue: string, pairedEnglishValue?: string) {
     setFields((current) =>
       current.map((field) =>
         field.id === fieldId
           ? (() => {
               const selectedOption = findOptionByChinese(field.id, chineseValue);
+              const datePair =
+                field.kind === "date" && !pairedEnglishValue
+                  ? formatOfficialDate(chineseValue)
+                  : null;
               return {
                 ...field,
                 chineseValue: selectedOption?.zh ?? chineseValue,
-                englishValue: selectedOption?.en ?? translateText(chineseValue, field.kind),
+                englishValue:
+                  pairedEnglishValue
+                  ?? selectedOption?.en
+                  ?? datePair
+                  ?? translateText(chineseValue, field.kind, field.id),
                 englishEdited: false,
               };
             })()
@@ -542,15 +724,23 @@ export default function BilingualReviewPreviewPage() {
     );
   }
 
-  function updateEnglishValue(fieldId: string, englishValue: string) {
+  function updateEnglishValue(fieldId: string, englishValue: string, pairedChineseValue?: string) {
     setFields((current) =>
       current.map((field) =>
         field.id === fieldId
           ? (() => {
               const selectedOption = findOptionByEnglish(field.id, englishValue);
+              const datePair =
+                field.kind === "date" && !pairedChineseValue
+                  ? formatChineseDate(englishValue)
+                  : null;
               return {
                 ...field,
-                chineseValue: selectedOption?.zh ?? reverseTranslateText(englishValue, field.kind),
+                chineseValue:
+                  pairedChineseValue
+                  ?? selectedOption?.zh
+                  ?? datePair
+                  ?? reverseTranslateText(englishValue, field.kind),
                 englishValue: selectedOption?.en ?? englishValue,
                 englishEdited: true,
               };
@@ -566,7 +756,7 @@ export default function BilingualReviewPreviewPage() {
         const selectedOption = findOptionByChinese(field.id, field.chineseValue);
         return {
           ...field,
-          englishValue: selectedOption?.en ?? translateText(field.chineseValue, field.kind),
+          englishValue: selectedOption?.en ?? translateText(field.chineseValue, field.kind, field.id),
           englishEdited: false,
         };
       }),
@@ -678,7 +868,7 @@ export default function BilingualReviewPreviewPage() {
                       <ReviewValueControl
                         field={field}
                         side="chinese"
-                        onChange={(value) => updateChineseValue(field.id, value)}
+                        onChange={(value, pairedValue) => updateChineseValue(field.id, value, pairedValue)}
                       />
                     </label>
 
@@ -689,7 +879,7 @@ export default function BilingualReviewPreviewPage() {
                       <ReviewValueControl
                         field={field}
                         side="english"
-                        onChange={(value) => updateEnglishValue(field.id, value)}
+                        onChange={(value, pairedValue) => updateEnglishValue(field.id, value, pairedValue)}
                       />
                     </label>
 
