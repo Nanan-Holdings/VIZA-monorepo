@@ -417,3 +417,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: personal-info-step.tsx, progress.txt
 - Learnings: when converting single-language controls to bilingual pairs, preserving the original control type matters as much as preserving the data mapping.
 ---
+
+## 2026-05-18 - REV-001 six-step bilingual follow-up
+- Extended bilingual treatment across all six hardcoded B211A tabs: Personal Info, Passport, Travel Details, Documents, Review, and Status.
+- Added shared bilingual form controls for paired Chinese/English rows, paired date display, paired select options, and searchable flag country pickers.
+- Rebuilt Passport and Travel Details as synchronized Chinese/English forms while preserving important icons and official submitted values.
+- Updated Documents, Review, and Status so visible labels, file names, section titles, and primary actions include Chinese and English side by side.
+- Filled missing hardcoded passport/travel translation keys to avoid raw i18n key leakage.
+- Files changed: bilingual-form-shared.tsx, passport-step.tsx, travel-info-step.tsx, document-upload-step.tsx, file-upload-card.tsx, review-step.tsx, status-step.tsx, messages/en.json, messages/zh.json, progress.txt
+- Learnings: for this hardcoded flow, every step needs bilingual affordances, but only data-entry steps need true bidirectional sync; upload, review, and status steps need stable bilingual labels and confirmation surfaces.
+---
