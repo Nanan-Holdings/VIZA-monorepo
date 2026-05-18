@@ -24,15 +24,17 @@ import { PhotoCropTool } from "./photo-crop-tool";
 type Screen = "upload" | "quality_check" | "confirm";
 
 export interface PhotoUploadStepProps {
-  applicationId: string;
+  applicationId: string | null;
   existingPhotoUrl?: string;
-  onComplete: (storagePath: string) => void;
+  ensureApplicationId?: () => Promise<string>;
+  onComplete: (storagePath: string, applicationId?: string) => void;
   onSkip: () => void;
 }
 
 export function PhotoUploadStep({
   applicationId,
   existingPhotoUrl,
+  ensureApplicationId,
   onComplete,
   onSkip,
 }: PhotoUploadStepProps) {
@@ -42,7 +44,6 @@ export function PhotoUploadStep({
   const [screen, setScreen] = useState<Screen>(
     existingPhotoUrl ? "confirm" : "upload",
   );
-  const [rawFile, setRawFile] = useState<File | null>(null);
   const [rawObjectUrl, setRawObjectUrl] = useState<string | null>(null);
   const [showCropTool, setShowCropTool] = useState(false);
   const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
@@ -51,6 +52,7 @@ export function PhotoUploadStep({
     useState<PhotoValidationResult | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
+  const [uploadedApplicationId, setUploadedApplicationId] = useState<string | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(
     existingPhotoUrl ?? null,
   );
@@ -67,7 +69,6 @@ export function PhotoUploadStep({
   const resetToUpload = () => {
     if (rawObjectUrl) URL.revokeObjectURL(rawObjectUrl);
     if (croppedObjectUrl) URL.revokeObjectURL(croppedObjectUrl);
-    setRawFile(null);
     setRawObjectUrl(null);
     setShowCropTool(false);
     setCroppedBlob(null);
@@ -84,7 +85,6 @@ export function PhotoUploadStep({
     if (croppedObjectUrl) URL.revokeObjectURL(croppedObjectUrl);
 
     const url = URL.createObjectURL(file);
-    setRawFile(file);
     setRawObjectUrl(url);
     setCroppedBlob(null);
     setCroppedObjectUrl(null);
@@ -110,7 +110,6 @@ export function PhotoUploadStep({
   const handleCropCancel = () => {
     setShowCropTool(false);
     if (rawObjectUrl) URL.revokeObjectURL(rawObjectUrl);
-    setRawFile(null);
     setRawObjectUrl(null);
   };
 
@@ -120,13 +119,16 @@ export function PhotoUploadStep({
     setError(null);
 
     try {
+      const resolvedApplicationId = applicationId ?? (ensureApplicationId ? await ensureApplicationId() : null);
+      if (!resolvedApplicationId) throw new Error(t("uploadError"));
+
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error(t("notAuthenticated"));
 
-      const path = `${user.id}/${applicationId}/ds160_photo/photo.jpg`;
+      const path = `${user.id}/${resolvedApplicationId}/ds160_photo/photo.jpg`;
       const { error: uploadError } = await supabase.storage
         .from("application-documents")
         .upload(path, croppedBlob, {
@@ -142,6 +144,7 @@ export function PhotoUploadStep({
         .createSignedUrl(path, 3600);
 
       setUploadedPath(path);
+      setUploadedApplicationId(resolvedApplicationId);
       setPhotoPreviewUrl(signedData?.signedUrl ?? croppedObjectUrl);
       setScreen("confirm");
     } catch (err) {
@@ -274,7 +277,6 @@ export function PhotoUploadStep({
         {croppedObjectUrl && (
           <div className="flex justify-center">
             <div className="w-[200px] h-[200px] rounded-lg overflow-hidden border border-[#e8e8e8]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={croppedObjectUrl}
                 alt="Photo preview"
@@ -384,7 +386,6 @@ export function PhotoUploadStep({
       <div className="flex justify-center">
         <div className="w-[200px] h-[200px] rounded-lg overflow-hidden border-2 border-green-400 bg-green-50">
           {photoPreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={photoPreviewUrl}
               alt="Uploaded photo"
@@ -418,7 +419,7 @@ export function PhotoUploadStep({
           className="flex-1"
           onClick={() => {
             if (uploadedPath) {
-              onComplete(uploadedPath);
+              onComplete(uploadedPath, uploadedApplicationId ?? applicationId ?? undefined);
             } else {
               // Existing photo — just continue
               onSkip();

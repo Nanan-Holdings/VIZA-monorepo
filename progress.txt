@@ -471,3 +471,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: dynamic-step-form.tsx, dynamic-form-field.tsx, dynamic-review-step.tsx, bilingual-review-panel.tsx, bilingual-form-shared.tsx, personal-info-step.tsx, date-picker.tsx, country-dropdown.tsx, ds160-translations.ts, progress.txt
 - Learnings: users expect the bilingual experience to be structural, not textual; the two languages need separate controls with shared state instead of a single control with a combined label.
 ---
+
+## 2026-05-18 - REV-001 photo upload and Chinese examples follow-up
+- Updated dynamic Chinese-side placeholders so examples are Chinese and field-aware: surname uses 张, given names use 小明, full names use 张小明, and birthplace-style fields use 北京.
+- Made the dynamic photo upload step render even when a draft application id has not been created yet.
+- Added a pre-upload draft-application creation hook so photo storage paths use the real application id, then pass that id through to photo persistence.
+- Cleaned the photo upload component so targeted ESLint passes without stale image-rule comments or unused file state.
+- Files changed: application/page.tsx, photo-upload-step.tsx, dynamic-step-form.tsx, ds160-translations.ts, progress.txt
+- Learnings: photo upload is the first step that needs storage before saving answers, so it must be able to create the draft application at upload time rather than depending on a parent render guard.
+---
