@@ -564,3 +564,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: application-lifecycle.ts, application-status-hub.tsx, app/client/documents/page.tsx, PopularDestinationsSection.tsx, visa-destinations.ts, client-sidebar.tsx, messages/en.json, messages/zh.json, progress.txt
 - Learnings: the status surface should not treat selecting a destination as a started application; home cards can show fillability/progress without exposing implementation labels like RAG.
 ---
+
+## 2026-05-18 - FORM-002 two-column bilingual field layout
+- Updated hardcoded B211A bilingual rows so each row renders as two complete fields: Chinese label/control on the left and English label/control on the right.
+- Updated the shared bilingual row helper used by passport and travel steps, including label splitting for Chinese-only and English-only headings.
+- Aligned DB-driven dynamic forms to the same two-column field layout by removing row hover frames and moving field warnings/AI help under the right-side field.
+- Files changed: bilingual-form-shared.tsx, personal-info-step.tsx, dynamic-step-form.tsx, progress.txt
+- Learnings: paired bilingual controls are easiest to scan when both languages own a full field block instead of sharing a separate field-name column.
+---

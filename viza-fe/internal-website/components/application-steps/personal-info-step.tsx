@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   BilingualFieldCopilot,
+  getBilingualRowLabels,
   toCopilotOptions,
   type BilingualFieldCopilotConfig,
 } from "./bilingual-form-shared";
@@ -370,20 +371,26 @@ function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
+  const labels = getBilingualRowLabels(label, copilot?.label);
+  const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
+
   return (
-    <div className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid min-w-0 gap-6 px-4 py-6 md:grid-cols-2">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#24272f]">{label}</p>
-      </div>
-      <label className="min-w-0">
-        <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">中文</span>
+        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+          {labels.zh}
+          {requiredMark}
+        </span>
         {zhControl}
-      </label>
-      <label className="min-w-0">
-        <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">English / Official</span>
+      </div>
+      <div className="min-w-0">
+        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+          {labels.en}
+          {requiredMark}
+        </span>
         {enControl}
-      </label>
-      {copilot && <BilingualFieldCopilot config={copilot} />}
+        {copilot && <BilingualFieldCopilot config={copilot} />}
+      </div>
     </div>
   );
 }

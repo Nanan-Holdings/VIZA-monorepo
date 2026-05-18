@@ -164,6 +164,30 @@ export function toCopilotOptions(options: BilingualOptionPair[]): Array<{ value:
   }));
 }
 
+export function getBilingualRowLabels(label: string, englishFallback?: string) {
+  const englishLabel = englishFallback?.trim();
+  if (englishLabel && label.trim().endsWith(englishLabel)) {
+    return {
+      zh: label.slice(0, -englishLabel.length).replace(/\s*\/\s*$/, "").trim(),
+      en: englishLabel,
+    };
+  }
+
+  const parts = label.split(/\s+\/\s+/);
+  const lastPart = parts.at(-1)?.trim();
+  if (parts.length > 1 && lastPart && /[A-Za-z]/.test(lastPart)) {
+    return {
+      zh: parts.slice(0, -1).join(" / ").trim(),
+      en: lastPart,
+    };
+  }
+
+  return {
+    zh: label,
+    en: englishLabel ?? label,
+  };
+}
+
 export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilotConfig }) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -184,8 +208,13 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
   };
 
   return (
-    <div className="mt-3 flex flex-col gap-3 md:col-start-2 md:col-span-2">
-      <div className="flex justify-end">
+    <div className="mt-3 flex flex-col gap-3">
+      <div className="flex items-center justify-end gap-3">
+        {config.required && (
+          <span className="text-[13px] font-medium text-[#03346E]">
+            Required field
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
@@ -226,20 +255,26 @@ export function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
+  const labels = getBilingualRowLabels(label, copilot?.label);
+  const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
+
   return (
-    <div className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid min-w-0 gap-6 px-4 py-6 md:grid-cols-2">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#24272f]">{label}</p>
-      </div>
-      <label className="min-w-0">
-        <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">中文</span>
+        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+          {labels.zh}
+          {requiredMark}
+        </span>
         {zhControl}
-      </label>
-      <label className="min-w-0">
-        <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">English / Official</span>
+      </div>
+      <div className="min-w-0">
+        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+          {labels.en}
+          {requiredMark}
+        </span>
         {enControl}
-      </label>
-      {copilot && <BilingualFieldCopilot config={copilot} />}
+        {copilot && <BilingualFieldCopilot config={copilot} />}
+      </div>
     </div>
   );
 }
