@@ -122,9 +122,9 @@ flowchart TD
 1. `page.tsx` 不再自动创建空 session；它只读取已有 session 列表。
 2. 用户点击 `New chat` 时，前端先把 active `sessionId` 设为 `null` 并清空当前消息。
 3. 用户在新 process 里发送第一条消息时，`createSession(userId, applicationId)` 才写入新的 `visa_chat_sessions`。
-4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。
+4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。当前 active process 会保存到 `sessionStorage["viza_chat_session_id"]`，刷新后客户端会自动恢复到用户上次选中的 process。
 5. 新空 VIZA chat 会渲染 `messages/*/chat.newChatGreeting` 作为 display-only assistant greeting；这个 greeting 不写入 `visa_chat_messages`，避免污染历史或重复保存。
-6. Process 侧栏只保留一个显式 `New chat` 入口；每个 process 支持 rename 和 delete。Rename 通过隐藏 system marker 持久化，delete 删除 `visa_chat_sessions` 并由数据库 cascade 删除消息。
+6. Process 侧栏只保留一个显式 `New chat` 入口；每个 process 支持 rename 和 delete。Rename 使用明确的 Save / Cancel 操作，并通过隐藏 system marker 持久化；delete 删除 `visa_chat_sessions` 并由数据库 cascade 删除消息。
 
 ## 5. 后端逻辑关系
 
@@ -365,5 +365,7 @@ npm run type-check
 - Step 25 answering agent industrial upgrade：新增 `visa-destination-registry.ts`，把 56 个国家的 aliases、Schengen membership、default visitor visa type、RAG document types 和 form intake schema key 从 namespace 收拢为配置源；新增 `visa-conversation-state.service.ts`，用 hidden system marker 持久化 `VisaConversationState`，每轮先合并 slots 再做 RAG routing；`retrieveVisaKnowledge()` 新增 intent-based document type priority；`/visa` app_log 新增 `intent`、`resolvedStateSummary`、`stateConfidence`；用户触发“开始申请/填表/下一步”时会主动发 application redirect CTA，真实字段收集由 `/client/application` 负责。新增 `npm run test:visa-agent-evals` / `npm run test:visa-agent-robustness`，当前 98 assertions / 98 passed：60 prompt evals 覆盖 20 Schengen route、15 non-Schengen visitor、10 compact answer、10 correction、5 unsupported/high-risk 场景；38 branch assertions 覆盖 intent、RAG document type mapping、country routing、visa type fallback、state merge、compact interpretation、plain-text response guard。
 - Step 26 no-Markdown response guard：`BASE_SYSTEM_PROMPT` 现在明确禁止 VIZA AI 面向用户的回答使用 Markdown headings、tables、bold/italic markers、bullet markers、horizontal rules、code fences、raw JSON 或 raw XML，除非用户明确要求。`ChatMessage` 也改为纯文本渲染，把常见 Markdown 标记转成普通文字，避免流式输出期间仍被前端渲染成富文本。`test:visa-agent-robustness` 新增 `formatting_branch`，防止后续 prompt 修改时漏掉纯文本输出规则；`chat-message.test.tsx` 覆盖 bold/italic/link/code/code-block 均不再渲染为 Markdown 元素。
 - Step 27 chat-to-form handoff：按产品要求，VIZA chat 不再收集行程、身份、护照或 route-specific 表单字段。`BASE_SYSTEM_PROMPT` 改为先解释路线、要求、处理时间/费用不确定性和官方来源 caveat；`/visa` 的 `form_intake` intent 改为发 `application_redirect` block；`BlockMessage` 只渲染 CTA；`/client/application` 支持读取 `country` / `visaType` query，避免从聊天跳转后被旧 active package 拉回其他国家。
+- Step 28 multi-application progress routing：修复从 VIZA chat 点击加拿大等国家 CTA 后，`/client/application` 仍加载用户最新 application（例如荷兰）的串线问题。现在当 URL 带 `country` + `visaType` 时，申请页按这两个字段读取对应 `applications` 记录；`ensureDraftApplication()` 也按 `applicant_id + country + visa_type` 查找/创建 draft。这样同一个用户可以并行维护多个国家/签证类型的申请进度。
+- Step 29 process switching and save UX：VIZA process 切换现在会保存 active session id 到 `sessionStorage["viza_chat_session_id"]`，页面刷新后会在 session 列表可用后恢复上次选中的 process；断线排队消息会带目标 `sessionId`，重连后不会误发到当前/其他 process；rename 编辑态从小图标保存改为明确的 Save / Cancel 按钮。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。
