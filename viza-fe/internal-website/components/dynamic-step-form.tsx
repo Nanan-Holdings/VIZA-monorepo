@@ -743,36 +743,39 @@ export function DynamicStepForm({
       <div
         key={valueKey}
         className={cn(
-          "rounded-lg border border-transparent p-2 transition-colors",
-          panelOpen ? "border-[#dbe7f5] bg-[#fbfdff]" : "hover:border-[#eef3f8]",
+          "py-4 transition-colors",
+          panelOpen ? "bg-[#fbfdff]" : "",
         )}
       >
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
           {renderSide("zh")}
           {renderSide("en")}
         </div>
-        <div className="mt-2 flex items-center justify-end gap-2">
-          {issue.severity !== "ok" && (
-            <span className={cn("text-[12px] font-medium", issue.severity === "error" ? "text-red-600" : "text-[#03346E]")}>
-              {issue.message}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-            }}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-              issueButtonClasses(issue.severity),
+        <div className="mt-3 grid min-w-0 gap-4 md:grid-cols-2">
+          <div aria-hidden="true" className="hidden md:block" />
+          <div className="flex items-center justify-end gap-3">
+            {issue.severity !== "ok" && (
+              <span className={cn("text-[13px] font-medium", issue.severity === "error" ? "text-red-600" : "text-[#03346E]")}>
+                {issue.message}
+              </span>
             )}
-            aria-expanded={panelOpen}
-            aria-label={buttonLabel}
-          >
-            {issue.severity === "ok" ? <Bot className="h-3.5 w-3.5" /> : <IssueIcon className="h-3.5 w-3.5" />}
-            {buttonLabel}
-          </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
+              }}
+              className={cn(
+                "inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-[13px] font-medium transition-colors",
+                issueButtonClasses(issue.severity),
+              )}
+              aria-expanded={panelOpen}
+              aria-label={buttonLabel}
+            >
+              {issue.severity === "ok" ? <Bot className="h-3.5 w-3.5" /> : <IssueIcon className="h-3.5 w-3.5" />}
+              {buttonLabel}
+            </button>
+          </div>
         </div>
         {panelOpen && (
           <div className="mt-3">
