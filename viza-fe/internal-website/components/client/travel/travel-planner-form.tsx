@@ -2263,7 +2263,8 @@ export function TravelPlannerForm({
                 label: formatFlightLabel(option, optionIndex + 1),
               })),
             ];
-            const selectedValue = flightSelectionDraft[legIndex] ?? "skip";
+            const selectedValue =
+              flightSelectionDraft[legIndex] ?? (leg.options.length ? "1" : "skip");
             const selectedOption =
               selectedValue && selectedValue !== "skip"
                 ? leg.options[Number(selectedValue) - 1]
@@ -2356,7 +2357,8 @@ export function TravelPlannerForm({
               for (let index = 0; index < flightLegsForSelection.length; index += 1) {
                 const leg = flightLegsForSelection[index];
                 const legIndex = index + 1;
-                const selectedValue = flightSelectionDraft[legIndex] ?? "skip";
+                const selectedValue =
+                  flightSelectionDraft[legIndex] ?? (leg.options.length ? "1" : "skip");
 
                 if (selectedValue === "skip") {
                   selected_flights.push({
@@ -2431,7 +2433,8 @@ export function TravelPlannerForm({
                 label: formatHotelLabel(option, optionIndex + 1),
               })),
             ];
-            const selectedValue = hotelSelectionDraft[stayIndex] ?? "self";
+            const selectedValue =
+              hotelSelectionDraft[stayIndex] ?? (stay.options.length ? "1" : "self");
             const selectedOption =
               selectedValue === "self"
                 ? null
@@ -2562,7 +2565,8 @@ export function TravelPlannerForm({
               for (let index = 0; index < hotelStaysForSelection.length; index += 1) {
                 const stay = hotelStaysForSelection[index];
                 const stayIndex = index + 1;
-                const selectedValue = hotelSelectionDraft[stayIndex] ?? "self";
+                const selectedValue =
+                  hotelSelectionDraft[stayIndex] ?? (stay.options.length ? "1" : "self");
 
                 if (selectedValue === "self") {
                   selected_hotels.push({

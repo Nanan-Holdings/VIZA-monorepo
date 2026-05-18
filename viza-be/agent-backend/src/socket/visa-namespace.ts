@@ -17,70 +17,211 @@ import {
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
 type SupportedKnowledgeCountry =
+  | 'austria'
   | 'australia'
+  | 'belgium'
+  | 'bulgaria'
   | 'canada'
+  | 'cambodia'
+  | 'croatia'
+  | 'czech_republic'
+  | 'denmark'
+  | 'egypt'
+  | 'estonia'
+  | 'finland'
   | 'france'
+  | 'germany'
+  | 'greece'
+  | 'hungary'
   | 'iceland'
+  | 'india'
   | 'indonesia'
   | 'italy'
   | 'japan'
+  | 'laos'
+  | 'latvia'
+  | 'liechtenstein'
+  | 'lithuania'
+  | 'luxembourg'
   | 'malaysia'
+  | 'maldives'
+  | 'malta'
+  | 'mexico'
+  | 'morocco'
+  | 'nepal'
+  | 'netherlands'
   | 'new_zealand'
   | 'norway'
+  | 'philippines'
+  | 'poland'
+  | 'portugal'
+  | 'qatar'
+  | 'romania'
+  | 'saudi_arabia'
   | 'singapore'
+  | 'slovakia'
+  | 'slovenia'
+  | 'south_africa'
   | 'south_korea'
+  | 'spain'
+  | 'sri_lanka'
   | 'switzerland'
+  | 'sweden'
   | 'thailand'
+  | 'turkey'
   | 'uk'
+  | 'united_arab_emirates'
   | 'us'
   | 'vietnam';
 
 const COUNTRY_DISPLAY_NAMES: Record<SupportedKnowledgeCountry, string> = {
+  austria: 'Austria',
   australia: 'Australia',
+  belgium: 'Belgium',
+  bulgaria: 'Bulgaria',
   canada: 'Canada',
+  cambodia: 'Cambodia',
+  croatia: 'Croatia',
+  czech_republic: 'Czech Republic',
+  denmark: 'Denmark',
+  egypt: 'Egypt',
+  estonia: 'Estonia',
+  finland: 'Finland',
   france: 'France',
+  germany: 'Germany',
+  greece: 'Greece',
+  hungary: 'Hungary',
   iceland: 'Iceland',
+  india: 'India',
   indonesia: 'Indonesia',
   italy: 'Italy',
   japan: 'Japan',
+  laos: 'Laos',
+  latvia: 'Latvia',
+  liechtenstein: 'Liechtenstein',
+  lithuania: 'Lithuania',
+  luxembourg: 'Luxembourg',
   malaysia: 'Malaysia',
+  maldives: 'Maldives',
+  malta: 'Malta',
+  mexico: 'Mexico',
+  morocco: 'Morocco',
+  nepal: 'Nepal',
+  netherlands: 'Netherlands',
   new_zealand: 'New Zealand',
   norway: 'Norway',
+  philippines: 'Philippines',
+  poland: 'Poland',
+  portugal: 'Portugal',
+  qatar: 'Qatar',
+  romania: 'Romania',
+  saudi_arabia: 'Saudi Arabia',
   singapore: 'Singapore',
+  slovakia: 'Slovakia',
+  slovenia: 'Slovenia',
+  south_africa: 'South Africa',
   south_korea: 'South Korea',
+  spain: 'Spain',
+  sri_lanka: 'Sri Lanka',
   switzerland: 'Switzerland',
+  sweden: 'Sweden',
   thailand: 'Thailand',
+  turkey: 'Turkey',
   uk: 'United Kingdom',
+  united_arab_emirates: 'United Arab Emirates',
   us: 'United States',
   vietnam: 'Vietnam',
 };
 
 const COUNTRY_ALIASES: Record<SupportedKnowledgeCountry, string[]> = {
+  austria: ['奥地利', 'austria', 'vienna', 'salzburg', '维也纳', '萨尔茨堡'],
   australia: ['澳大利亚', '澳洲', 'australia', 'sydney', 'melbourne', '悉尼', '墨尔本'],
+  belgium: ['比利时', 'belgium', 'brussels', 'bruges', '布鲁塞尔', '布鲁日'],
+  bulgaria: ['保加利亚', 'bulgaria', 'sofia', '索非亚'],
   canada: ['加拿大', 'canada', 'vancouver', 'toronto', 'montreal', '温哥华', '多伦多', '蒙特利尔'],
+  cambodia: ['柬埔寨', 'cambodia', 'phnom penh', 'siem reap', '金边', '暹粒'],
+  croatia: ['克罗地亚', 'croatia', 'zagreb', 'dubrovnik', '萨格勒布', '杜布罗夫尼克'],
+  czech_republic: ['捷克', 'czech republic', 'czechia', 'prague', '布拉格'],
+  denmark: ['丹麦', 'denmark', 'copenhagen', '哥本哈根'],
+  egypt: ['埃及', 'egypt', 'cairo', 'luxor', '开罗', '卢克索'],
+  estonia: ['爱沙尼亚', 'estonia', 'tallinn', '塔林'],
+  finland: ['芬兰', 'finland', 'helsinki', '赫尔辛基'],
   france: ['法国', 'france', 'paris', '巴黎'],
+  germany: ['德国', 'germany', 'berlin', 'munich', 'frankfurt', '柏林', '慕尼黑', '法兰克福'],
+  greece: ['希腊', 'greece', 'athens', 'santorini', '雅典', '圣托里尼'],
+  hungary: ['匈牙利', 'hungary', 'budapest', '布达佩斯'],
   iceland: ['冰岛', 'iceland', 'reykjavik', '雷克雅未克'],
+  india: ['india', 'delhi', 'mumbai', 'new delhi', '新德里', '孟买'],
   indonesia: ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'],
-  italy: ['意大利', 'italy', 'rome', 'roma', 'milan', 'venice', '罗马', '米兰', '威尼斯'],
+  italy: ['意大利', 'italy', 'rome', 'milan', 'venice', '罗马', '米兰', '威尼斯'],
   japan: ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'japan evisa'],
+  laos: ['老挝', 'laos', 'vientiane', 'luang prabang', '万象', '琅勃拉邦'],
+  latvia: ['拉脱维亚', 'latvia', 'riga', '里加'],
+  liechtenstein: ['列支敦士登', 'liechtenstein', 'vaduz', '瓦杜兹'],
+  lithuania: ['立陶宛', 'lithuania', 'vilnius', '维尔纽斯'],
+  luxembourg: ['卢森堡', 'luxembourg'],
   malaysia: ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴'],
+  maldives: ['马尔代夫', 'maldives', 'male', '马累'],
+  malta: ['马耳他', 'malta', 'valletta', '瓦莱塔'],
+  mexico: ['墨西哥', 'mexico', 'mexico city', 'cancun', '墨西哥城', '坎昆'],
+  morocco: ['摩洛哥', 'morocco', 'marrakech', 'casablanca', '马拉喀什', '卡萨布兰卡'],
+  nepal: ['尼泊尔', 'nepal', 'kathmandu', 'pokhara', '加德满都', '博卡拉'],
+  netherlands: ['荷兰', 'netherlands', 'holland', 'amsterdam', '阿姆斯特丹'],
   new_zealand: ['新西兰', 'new zealand', 'auckland', 'queenstown', '奥克兰', '皇后镇'],
   norway: ['挪威', 'norway', 'oslo', 'bergen', '奥斯陆', '卑尔根'],
+  philippines: ['菲律宾', 'philippines', 'manila', 'cebu', '马尼拉', '宿务'],
+  poland: ['波兰', 'poland', 'warsaw', 'krakow', '华沙', '克拉科夫'],
+  portugal: ['葡萄牙', 'portugal', 'lisbon', 'porto', '里斯本', '波尔图'],
+  qatar: ['卡塔尔', 'qatar', 'doha', '多哈', 'hayya'],
+  romania: ['罗马尼亚', 'romania', 'bucharest', '布加勒斯特'],
+  saudi_arabia: ['沙特', '沙特阿拉伯', 'saudi', 'saudi arabia', 'riyadh', 'jeddah', '利雅得', '吉达'],
   singapore: ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'],
+  slovakia: ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'],
+  slovenia: ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'],
+  south_africa: ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'],
   south_korea: ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'],
+  spain: ['西班牙', 'spain', 'madrid', 'barcelona', '马德里', '巴塞罗那'],
+  sri_lanka: ['斯里兰卡', 'sri lanka', 'colombo', '科伦坡'],
   switzerland: ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'],
+  sweden: ['瑞典', 'sweden', 'stockholm', '斯德哥尔摩'],
   thailand: ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈'],
+  turkey: ['土耳其', 'turkey', 'turkiye', 'istanbul', '伊斯坦布尔'],
   uk: ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'],
+  united_arab_emirates: ['阿联酋', '迪拜', '阿布扎比', 'uae', 'united arab emirates', 'dubai', 'abu dhabi'],
   us: ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'],
   vietnam: ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'],
 };
 
 const SCHENGEN_KNOWLEDGE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
+  'austria',
+  'belgium',
+  'bulgaria',
+  'croatia',
+  'czech_republic',
+  'denmark',
+  'estonia',
+  'finland',
   'france',
+  'germany',
+  'greece',
+  'hungary',
   'iceland',
   'italy',
+  'latvia',
+  'liechtenstein',
+  'lithuania',
+  'luxembourg',
+  'malta',
+  'netherlands',
   'norway',
+  'poland',
+  'portugal',
+  'romania',
+  'slovakia',
+  'slovenia',
+  'spain',
   'switzerland',
+  'sweden',
 ]);
 
 function includesAny(value: string, terms: string[]): boolean {
@@ -116,6 +257,13 @@ function matchesKnowledgeCountry(
   if (country === 'uk') {
     return (
       /\buk\b/.test(normalized) ||
+      includesAny(normalized, COUNTRY_ALIASES[country])
+    );
+  }
+
+  if (country === 'india') {
+    return (
+      (normalized.includes('印度') && !normalized.includes('印度尼西亚')) ||
       includesAny(normalized, COUNTRY_ALIASES[country])
     );
   }
@@ -165,6 +313,25 @@ export function resolveKnowledgeCountry(
 
   if (uniqueCountries.length === 1) {
     return uniqueCountries[0];
+  }
+
+  if (
+    uniqueCountries.length === 2 &&
+    uniqueCountries.includes('mexico') &&
+    uniqueCountries.includes('us') &&
+    includesAny(normalized, [
+      '美国签证',
+      '美签',
+      'us visa',
+      'u.s. visa',
+      'usa visa',
+      'valid us',
+      'visa exemption',
+      '免签',
+      '豁免',
+    ])
+  ) {
+    return 'mexico';
   }
 
   if (uniqueCountries.length > 1) {
@@ -511,6 +678,66 @@ export function resolveKnowledgeVisaType(
     return 'c3_or_keta';
   }
 
+  if (country === 'united_arab_emirates' && mentionsVisitorPurpose) {
+    return 'visa_free_or_tourist_visa';
+  }
+
+  if (country === 'egypt' && mentionsVisitorPurpose) {
+    return 'evisa_tourism';
+  }
+
+  if (country === 'turkey' && mentionsVisitorPurpose) {
+    return 'evisa_tourism_business';
+  }
+
+  if (country === 'qatar' && mentionsVisitorPurpose) {
+    return 'hayya_a1_tourist_visa';
+  }
+
+  if (country === 'saudi_arabia' && mentionsVisitorPurpose) {
+    return 'tourist_evisa';
+  }
+
+  if (country === 'morocco' && mentionsVisitorPurpose) {
+    return 'visa_free_or_evisa';
+  }
+
+  if (country === 'south_africa' && mentionsVisitorPurpose) {
+    return 'visitor_visa_tourism';
+  }
+
+  if (country === 'maldives' && mentionsVisitorPurpose) {
+    return 'tourist_visa_on_arrival';
+  }
+
+  if (country === 'sri_lanka' && mentionsVisitorPurpose) {
+    return 'eta_tourism';
+  }
+
+  if (country === 'india' && mentionsVisitorPurpose) {
+    return 'regular_tourist_visa';
+  }
+
+  if (country === 'philippines' && mentionsVisitorPurpose) {
+    return 'visa_free_14_days_or_evisa';
+  }
+
+  if (country === 'cambodia' && mentionsVisitorPurpose) {
+    return 'tourist_evisa';
+  }
+
+  if (country === 'laos' && mentionsVisitorPurpose) {
+    return 'tourist_evisa';
+  }
+
+  if (country === 'nepal' && mentionsVisitorPurpose) {
+    return 'tourist_visa_on_arrival';
+  }
+
+  if (country === 'mexico' && mentionsVisitorPurpose) {
+    return 'visitor_visa_or_exemption';
+  }
+
   if (!country && includesAny(normalized, ['申根', 'schengen'])) {
     return 'schengen_short_stay_tourism';
   }
@@ -534,7 +761,35 @@ export function resolveKnowledgeVisaType(
     (country === 'new_zealand' && applicationVisaType === 'visitor_visa') ||
     (country === 'japan' &&
       applicationVisaType === 'short_term_tourism_evisa') ||
-    (country === 'south_korea' && applicationVisaType === 'c3_or_keta')
+    (country === 'south_korea' && applicationVisaType === 'c3_or_keta') ||
+    (country === 'united_arab_emirates' &&
+      applicationVisaType === 'visa_free_or_tourist_visa') ||
+    (country === 'egypt' && applicationVisaType === 'evisa_tourism') ||
+    (country === 'turkey' &&
+      applicationVisaType === 'evisa_tourism_business') ||
+    (country === 'qatar' &&
+      applicationVisaType === 'hayya_a1_tourist_visa') ||
+    (country === 'saudi_arabia' &&
+      applicationVisaType === 'tourist_evisa') ||
+    (country === 'morocco' &&
+      applicationVisaType === 'visa_free_or_evisa') ||
+    (country === 'south_africa' &&
+      applicationVisaType === 'visitor_visa_tourism') ||
+    (country === 'maldives' &&
+      applicationVisaType === 'tourist_visa_on_arrival') ||
+    (country === 'sri_lanka' &&
+      applicationVisaType === 'eta_tourism') ||
+    (country === 'india' &&
+      applicationVisaType === 'regular_tourist_visa') ||
+    (country === 'philippines' &&
+      applicationVisaType === 'visa_free_14_days_or_evisa') ||
+    (country === 'cambodia' &&
+      applicationVisaType === 'tourist_evisa') ||
+    (country === 'laos' && applicationVisaType === 'tourist_evisa') ||
+    (country === 'nepal' &&
+      applicationVisaType === 'tourist_visa_on_arrival') ||
+    (country === 'mexico' &&
+      applicationVisaType === 'visitor_visa_or_exemption')
   ) {
     return applicationVisaType;
   }

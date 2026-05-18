@@ -1052,8 +1052,9 @@ function formatSelectedFlights(flights: SelectedFlightOption[]): string {
       const option = flight.option;
       const airline = option?.airline ?? "未命名航司";
       const price = option?.price ? `${option.price} ${option.currency ?? "CNY"}` : "价格未知";
+      const flightNumber = option?.flight_number ? ` | 航班号 ${option.flight_number}` : "";
 
-      return `- 路线 ${flight.leg_index}：${flight.from} -> ${flight.to} | ${airline} | ${price}`;
+      return `- 路线 ${flight.leg_index}：${flight.from} -> ${flight.to} | ${airline} | ${price}${flightNumber}`;
     })
     .join("\n");
 }
@@ -1074,8 +1075,10 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
         option?.rating !== undefined && option?.rating !== null
           ? `评分 ${option.rating}`
           : "暂无评分";
+      const address = option?.address ? ` | 地址 ${option.address}` : "";
+      const contact = option?.contact_phone ? ` | 电话 ${option.contact_phone}` : "";
 
-      return `- 城市 ${hotel.stay_index}：${hotel.city}（${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚）| ${name} | ${price} | ${rating}`;
+      return `- 城市 ${hotel.stay_index}：${hotel.city}（${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚）| ${name} | ${price} | ${rating}${address}${contact}`;
     })
     .join("\n");
 }
