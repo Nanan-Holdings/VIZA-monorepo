@@ -178,8 +178,8 @@
         "Typecheck passes for modified frontend and backend code"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": "Next iteration. v1 should be field tips only, not a full chat sidebar."
+      "passes": true,
+      "notes": "Implemented enhanced field-level copilot on the dynamic application form: inline field guidance, deterministic and AI-backed backend endpoint, examples, sources, confidence, field validation badges, lightweight per-field Q&A, and bottom-right copilot presence pill. No persistent chat history or DB migration."
     }
   ]
 }
