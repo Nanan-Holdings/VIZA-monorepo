@@ -13,6 +13,7 @@ import {
   BilingualTextControl,
   mirrorText,
   reverseWithDictionary,
+  toCopilotOptions,
   translateWithDictionary,
   type BilingualOptionPair,
 } from "./bilingual-form-shared";
@@ -158,6 +159,18 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
     setUsAddressZip({ zh: nextValue, en: nextValue });
   };
 
+  const copilotAnswers = {
+    purpose_of_trip: purposeOfTrip,
+    arrival_date: arrivalDate,
+    departure_date: departureDate,
+    arrival_city: textValues.arrivalCity.en,
+    accommodation_name: textValues.accommodationName.en,
+    us_address_street1: textValues.usAddressStreet1.en,
+    us_address_city: textValues.usAddressCity.en,
+    us_address_state: usAddressState,
+    us_address_zip: usAddressZip.en,
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onComplete({
@@ -182,6 +195,16 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.purposeOfVisit")} / Purpose of visit`}
             helper="中英文都从同一组官方旅行目的中选择。"
             badge="官方选项映射"
+            copilot={{
+              fieldName: "purpose_of_trip",
+              label: "Purpose of visit",
+              fieldType: "select",
+              value: purposeOfTrip,
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(PURPOSE_OPTIONS),
+              placeholder: "Select purpose...",
+            }}
             zhControl={
               <BilingualOptionControl
                 side="zh"
@@ -207,6 +230,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.arrivalDate")} / Arrival date`}
             helper="任意一侧选择日期，另一侧会同步显示中文日期或 DD/MM/YYYY。"
             badge="官方日期格式"
+            copilot={{
+              fieldName: "arrival_date",
+              label: "Arrival date",
+              fieldType: "date",
+              value: arrivalDate,
+              allAnswers: copilotAnswers,
+              required: true,
+              validationRules: { format: "DD/MM/YYYY" },
+            }}
             zhControl={
               <BilingualDateControl
                 side="zh"
@@ -228,6 +260,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.departureDate")} / Departure date`}
             helper="任意一侧选择日期，另一侧会同步显示中文日期或 DD/MM/YYYY。"
             badge="官方日期格式"
+            copilot={{
+              fieldName: "departure_date",
+              label: "Departure date",
+              fieldType: "date",
+              value: departureDate,
+              allAnswers: copilotAnswers,
+              required: true,
+              validationRules: { format: "DD/MM/YYYY" },
+            }}
             zhControl={
               <BilingualDateControl
                 side="zh"
@@ -249,6 +290,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.arrivalCity")} / Arrival city or port`}
             helper="机场、城市或口岸可从中文侧输入，英文侧自动给出常用写法。"
             badge="自动生成英文"
+            copilot={{
+              fieldName: "arrival_city",
+              label: "Arrival city or port",
+              fieldType: "text",
+              value: textValues.arrivalCity.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "e.g. John F. Kennedy International Airport",
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -272,6 +322,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.accommodationName")} / Accommodation name`}
             helper="住宿名称左右可编辑，英文侧作为官方提交值。"
             badge="双向同步"
+            copilot={{
+              fieldName: "accommodation_name",
+              label: "Accommodation name",
+              fieldType: "text",
+              value: textValues.accommodationName.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "Hotel / Airbnb name",
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -299,6 +358,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.usAddress")} / Street address`}
             helper="地址左侧可输入中文，右侧保留英文官方提交值。"
             badge="双向同步"
+            copilot={{
+              fieldName: "us_address_street1",
+              label: "Street address",
+              fieldType: "text",
+              value: textValues.usAddressStreet1.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "Street address",
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -322,6 +390,15 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.usCity")} / City`}
             helper="城市名称左右同步，英文侧作为官方提交值。"
             badge="自动生成英文"
+            copilot={{
+              fieldName: "us_address_city",
+              label: "City",
+              fieldType: "text",
+              value: textValues.usAddressCity.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "City",
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -345,6 +422,16 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.usState")} / State`}
             helper="美国州名以州代码保存，左右侧显示中英说明。"
             badge="官方选项映射"
+            copilot={{
+              fieldName: "us_address_state",
+              label: "State",
+              fieldType: "select",
+              value: usAddressState,
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(US_STATE_OPTIONS),
+              placeholder: "State",
+            }}
             zhControl={
               <BilingualOptionControl
                 side="zh"
@@ -370,6 +457,16 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
             label={`${t("travel.usZip")} / ZIP code`}
             helper="邮编不翻译，左右两侧保持完全一致。"
             badge="逐位同步"
+            copilot={{
+              fieldName: "us_address_zip",
+              label: "ZIP code",
+              fieldType: "text",
+              value: usAddressZip.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "ZIP code",
+              validationRules: { maxLength: 10 },
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"

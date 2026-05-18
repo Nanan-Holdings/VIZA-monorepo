@@ -1779,16 +1779,18 @@ export function ChatClient({
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="min-w-0">
                           <p className="font-heading text-[16px] font-medium text-[#3d3d3d]">
-                            Travel Agent
+                            {t("travelAI")}
                           </p>
                           <p className="mt-1 text-[12px] text-[rgba(0,0,0,0.45)]">
                             {!travelApplicationId
-                              ? "No application found yet. Create one in Application first."
-                              : "Application linked. You can use Travel Agent now."}
+                              ? t("noApplicationFound")
+                              : t("travelApplicationLinked")}
                           </p>
                           {travelApplicationStatus && (
                             <p className="mt-1 text-[11px] text-[rgba(0,0,0,0.35)]">
-                              Current application status: {travelApplicationStatus}
+                              {t("currentApplicationStatus", {
+                                status: travelApplicationStatus,
+                              })}
                             </p>
                           )}
                         </div>
@@ -1800,7 +1802,7 @@ export function ChatClient({
                           onClick={handleTravelAiClick}
                           type="button"
                         >
-                          Open Travel Agent
+                          {t("openTravelAI")}
                         </button>
                       </div>
                     </div>
@@ -1860,8 +1862,7 @@ export function ChatClient({
                     </div>
 
                     <p className="font-sans font-normal text-[13px] md:text-[14px] leading-[1.2] text-[rgba(0,0,0,0.25)] text-center px-2">
-                      Visa Consultant can make mistakes. Please double-check important
-                      information.
+                      {t("consultantDisclaimer")}
                     </p>
                   </div>
                 </div>
@@ -1912,7 +1913,7 @@ export function ChatClient({
                     onClick={() => selectChatMode("viza")}
                     type="button"
                   >
-                    Visa Consultant
+                    {t("vizaAI")}
                   </button>
                   <button
                     className={cn(
@@ -1924,7 +1925,7 @@ export function ChatClient({
                     onClick={() => selectChatMode("travel")}
                     type="button"
                   >
-                    Travel Agent
+                    {t("travelAI")}
                   </button>
                   {chatMode === "viza" && sessionPanelCollapsed && (
                     <button
@@ -2038,8 +2039,7 @@ export function ChatClient({
                         isConnecting={status === "connecting"}
                       />
                       <p className="mt-3 text-center text-sm text-gray-400">
-                        Visa Consultant can make mistakes. Please double-check important
-                        information.
+                        {t("consultantDisclaimer")}
                       </p>
                     </div>
                   </>

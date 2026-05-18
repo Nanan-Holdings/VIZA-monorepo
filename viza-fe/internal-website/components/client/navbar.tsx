@@ -34,13 +34,13 @@ const tabPaths: Record<string, string> = {
 const chatAgentOptions = [
   {
     id: "visa",
-    label: "Visa Consultant",
+    labelKey: "visaConsultant",
     href: "/client/chat?agent=visa",
     icon: MessageCircle,
   },
   {
     id: "travel",
-    label: "Travel Agent",
+    labelKey: "travelAgent",
     href: "/client/chat?agent=travel",
     icon: Plane,
   },
@@ -132,7 +132,7 @@ export function NavBar({
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#03346E]/10 text-[#03346E]">
               <Icon className="h-4 w-4" />
             </span>
-            <span>{option.label}</span>
+            <span>{t(option.labelKey)}</span>
           </button>
         );
       })}
