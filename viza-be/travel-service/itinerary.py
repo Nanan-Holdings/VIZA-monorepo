@@ -460,14 +460,54 @@ def _parse_revision_json(raw: str):
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _plain_text_reply(value):
+    text = str(value or "").strip()
+
+    def replace_code_block(match):
+        body = (match.group(1) or "").strip()
+        if body.startswith("{") or body.startswith("["):
+            return ""
+        return body
+
+    text = re.sub(r"```(?:[A-Za-z0-9_-]+)?\s*([\s\S]*?)```", replace_code_block, text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1", text)
+    text = re.sub(r"^\s{0,3}#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*>\s?", "", text, flags=re.MULTILINE)
+    text = re.sub(
+        r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$",
+        "",
+        text,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(
+        r"^\s*\|(.+)\|\s*$",
+        lambda match: "，".join(
+            cell.strip() for cell in match.group(1).split("|") if cell.strip()
+        ),
+        text,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(r"\*\*([^*\n]+)\*\*", r"\1", text)
+    text = re.sub(r"__([^_\n]+)__", r"\1", text)
+    text = re.sub(r"\*([^*\n]+)\*", r"\1", text)
+    text = re.sub(r"_([^_\n]+)_", r"\1", text)
+    text = re.sub(r"`([^`\n]+)`", r"\1", text)
+    text = re.sub(r"\s+\|\s+", "，", text)
+    text = re.sub(r"\s+->\s+", " 到 ", text)
+    text = re.sub(r"^\s*---+\s*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def _clean_revision_quick_replies(value, action):
     source = value if isinstance(value, list) and value else REVISION_QUICK_REPLIES
     replies = []
     for item in source:
         if not isinstance(item, dict):
             continue
-        label = str(item.get("label") or "").strip()
-        reply_value = str(item.get("value") or label).strip()
+        label = _plain_text_reply(item.get("label") or "")
+        reply_value = _plain_text_reply(item.get("value") or label)
         if label and reply_value:
             replies.append({"label": label, "value": reply_value})
         if len(replies) >= 5:
@@ -494,11 +534,11 @@ def _revision_response(
 ):
     return {
         "action": action,
-        "reply": str(reply or "").strip(),
+        "reply": _plain_text_reply(reply),
         "itinerary": itinerary if isinstance(itinerary, list) else [],
         "state_patch": state_patch if isinstance(state_patch, dict) else {},
         "module_patch": module_patch if isinstance(module_patch, dict) else {},
-        "edit_summary": str(edit_summary or "").strip(),
+        "edit_summary": _plain_text_reply(edit_summary),
         "quick_replies": _clean_revision_quick_replies(quick_replies, action),
     }
 
@@ -755,6 +795,8 @@ def revise_itinerary(request):
 你是 VIZA Travel AI 的行程修订引擎。你需要判断用户是在局部修改当前行程、要求整份重来，还是需要澄清。
 
 必须只输出 JSON object，不要 Markdown，不要额外解释。
+reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列表符号、粗体、斜体、表格、代码块、JSON、XML 或 HTML。
+如果需要分点说明，请写成普通短句或中文自然段，不要使用 #、-、*、`、| 等 Markdown 语法符号。
 
 动作规则：
 - action = "revise"：用户提出可执行的小改或中等修改。必须返回完整更新后的 itinerary。
@@ -802,6 +844,7 @@ def revise_itinerary(request):
                     "role": "system",
                     "content": (
                         "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
+                        "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
                         "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
                     ),
                 },
@@ -844,7 +887,7 @@ def _format_selected_flights(state):
 
         if skip:
             lines.append(
-                f"- 航段{leg_index}: {from_city} -> {to_city} ({departure_date})，用户选择其他交通方式"
+                f"航段{leg_index}：{from_city} 到 {to_city}（{departure_date}），用户选择其他交通方式"
             )
             continue
 
@@ -854,7 +897,7 @@ def _format_selected_flights(state):
         currency = option.get("currency", "CNY")
         departure_time = option.get("departure", departure_date)
         lines.append(
-            f"- 航段{leg_index}: {from_city} -> {to_city} | {airline} | {price} {currency} | 出发 {departure_time}"
+            f"航段{leg_index}：{from_city} 到 {to_city}，{airline}，{price} {currency}，出发 {departure_time}"
         )
 
     return "\n".join(lines) if lines else "无"
@@ -882,7 +925,7 @@ def _format_selected_hotels(state):
         rating = option.get("rating", "暂无")
 
         lines.append(
-            f"- 城市{stay_index}: {city} ({check_in} 到 {check_out}, {nights}晚) | {name} | {price} {currency}/晚 | 评分 {rating}"
+            f"城市{stay_index}：{city}，{check_in} 到 {check_out}，{nights}晚，{name}，{price} {currency}/晚，评分 {rating}"
         )
 
     return "\n".join(lines) if lines else "无"
@@ -900,7 +943,7 @@ def _format_attached_files(state):
         normalized = file_item.strip()
         if not normalized:
             continue
-        lines.append(f"- {normalized}")
+        lines.append(normalized)
 
     return "\n".join(lines) if lines else "无"
 
@@ -956,7 +999,7 @@ def generate_itinerary(state):
 附件信息（仅文件名/说明）：
 {attached_files}
 
-返回 JSON（不要 ```json）：
+返回 JSON（不要 ```json，不要 Markdown，不要额外解释）：
 
 [
   {{
@@ -977,7 +1020,7 @@ def generate_itinerary(state):
                 {
                     "role": "system",
                     "content": (
-                        "你只输出 JSON 数组。所有景点必须是具体地名，"
+                        "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
                         "不能使用泛泛的旅行活动描述。"
                     ),
                 },

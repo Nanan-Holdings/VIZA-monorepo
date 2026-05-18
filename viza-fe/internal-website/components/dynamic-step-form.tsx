@@ -180,20 +180,6 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     return init;
   });
 
-  // Identify which repeat_groups exist, preserving field order
-  const repeatGroupOrder = useMemo(() => {
-    const seen = new Set<string>();
-    const order: string[] = [];
-    for (const field of step.fields) {
-      const group = getRepeatGroup(field);
-      if (group && !seen.has(group)) {
-        seen.add(group);
-        order.push(group);
-      }
-    }
-    return order;
-  }, [step.fields]);
-
   const repeatGroupFields = useMemo(() => {
     const map: Record<string, VisaFormFieldRow[]> = {};
     for (const field of step.fields) {
@@ -393,7 +379,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
-    const label = translateLabel(field.label, locale);
+    const label = translateLabel(field.label, locale, field.fieldName);
     const rawPlaceholder = field.placeholder
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
     const placeholder = translatePlaceholder(rawPlaceholder, locale);
