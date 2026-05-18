@@ -2,12 +2,21 @@
 
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarDays, User } from "lucide-react";
+import { CalendarDays, CheckIcon, ChevronDown, Globe, MapPin, User } from "lucide-react";
+import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import countryRegionData from "country-region-data/data.json";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   InputGroup,
   InputGroupAddon,
@@ -25,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export interface PersonalInfoData {
   surname: string;
@@ -419,18 +429,23 @@ function OptionControl({
   side,
   options,
   placeholder,
+  icon,
   onChange,
 }: {
   value: string;
   side: Side;
   options: OptionPair[];
   placeholder: string;
+  icon?: ReactNode;
   onChange: (value: string) => void;
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground">
-        <SelectValue placeholder={placeholder} />
+        <div className="flex min-w-0 items-center gap-2">
+          {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
+          <SelectValue placeholder={placeholder} />
+        </div>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
@@ -440,6 +455,92 @@ function OptionControl({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+function CountryOptionControl({
+  value,
+  side,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  side: Side;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = findOption(COUNTRY_OPTIONS, value);
+  const emptyText = side === "zh" ? "未找到国家" : "No country found.";
+  const searchPlaceholder = side === "zh" ? "搜索国家..." : "Search country...";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
+      >
+        {selectedOption ? (
+          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
+              <CircleFlag countryCode={selectedOption.code.toLowerCase()} height={20} />
+            </span>
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+              {side === "zh" ? selectedOption.zh : selectedOption.en}
+            </span>
+          </div>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+            <Globe className="h-4 w-4 shrink-0 text-gray-400" />
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{placeholder}</span>
+          </div>
+        )}
+        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+      </PopoverTrigger>
+      <PopoverContent collisionPadding={10} side="bottom" className="min-w-[--radix-popper-anchor-width] p-0">
+        <Command
+          className="w-full"
+          filter={(commandValue, search, keywords) => {
+            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
+            return haystack.includes(search.toLowerCase()) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList className="max-h-[200px] sm:max-h-[270px]">
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              {COUNTRY_OPTIONS.map((option) => (
+                <CommandItem
+                  className="flex w-full items-center gap-2 [&_svg]:size-auto"
+                  key={`${side}-${option.code}`}
+                  value={option.code}
+                  keywords={[option.zh, option.en, option.code]}
+                  onSelect={() => {
+                    onChange(option.code);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                    <CircleFlag countryCode={option.code.toLowerCase()} height={20} />
+                  </span>
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {side === "zh" ? option.zh : option.en}
+                  </span>
+                  <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
+                    {side === "zh" ? option.en : option.zh}
+                  </span>
+                  <CheckIcon
+                    className={cn(
+                      "ml-auto !h-4 !w-4 shrink-0",
+                      selectedOption?.code === option.code ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -725,19 +826,17 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
             helper="国家名称左侧显示中文，右侧显示英文官方写法。"
             badge="国家选项映射"
             zhControl={
-              <OptionControl
+              <CountryOptionControl
                 side="zh"
                 value={nationalityCode}
-                options={COUNTRY_OPTIONS}
                 placeholder="选择国家..."
                 onChange={setNationalityCode}
               />
             }
             enControl={
-              <OptionControl
+              <CountryOptionControl
                 side="en"
                 value={nationalityCode}
-                options={COUNTRY_OPTIONS}
                 placeholder="Select country..."
                 onChange={setNationalityCode}
               />
@@ -752,19 +851,17 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
             helper="先选国家，再逐步缩小省 / 州和城市。"
             badge="级联下拉"
             zhControl={
-              <OptionControl
+              <CountryOptionControl
                 side="zh"
                 value={birthCountryCode}
-                options={COUNTRY_OPTIONS}
                 placeholder="选择出生国家..."
                 onChange={handleBirthCountryChange}
               />
             }
             enControl={
-              <OptionControl
+              <CountryOptionControl
                 side="en"
                 value={birthCountryCode}
-                options={COUNTRY_OPTIONS}
                 placeholder="Select country of birth..."
                 onChange={handleBirthCountryChange}
               />
@@ -780,6 +877,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthRegionCode}
                 options={regionOptions}
                 placeholder="选择省 / 州..."
+                icon={<MapPin className="h-4 w-4" />}
                 onChange={handleBirthRegionChange}
               />
             }
@@ -789,6 +887,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthRegionCode}
                 options={regionOptions}
                 placeholder="Select state / province..."
+                icon={<MapPin className="h-4 w-4" />}
                 onChange={handleBirthRegionChange}
               />
             }
@@ -803,6 +902,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthCityCode}
                 options={cityOptions}
                 placeholder="选择出生城市..."
+                icon={<MapPin className="h-4 w-4" />}
                 onChange={setBirthCityCode}
               />
             }
@@ -812,6 +912,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthCityCode}
                 options={cityOptions}
                 placeholder="Select city of birth..."
+                icon={<MapPin className="h-4 w-4" />}
                 onChange={setBirthCityCode}
               />
             }
