@@ -18,11 +18,11 @@ export interface BlockField {
 }
 
 export interface ApplicationBlockPayload {
-  blockType: string;
+  blockType: "trip_basics" | "traveller_identity" | "visa_route_specific" | string;
   title: string;
   description?: string;
   fields: BlockField[];
-  saveTarget: string;
+  saveTarget: "applicant_profile" | "application" | "visa_application_answers" | string;
   applicationId?: string;
 }
 
