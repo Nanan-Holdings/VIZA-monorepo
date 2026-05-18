@@ -17,33 +17,71 @@ import {
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
 type SupportedKnowledgeCountry =
+  | 'australia'
+  | 'canada'
   | 'france'
+  | 'iceland'
   | 'indonesia'
   | 'italy'
+  | 'japan'
+  | 'malaysia'
+  | 'new_zealand'
+  | 'norway'
+  | 'singapore'
+  | 'south_korea'
   | 'switzerland'
+  | 'thailand'
   | 'uk'
   | 'us'
   | 'vietnam';
 
 const COUNTRY_DISPLAY_NAMES: Record<SupportedKnowledgeCountry, string> = {
+  australia: 'Australia',
+  canada: 'Canada',
   france: 'France',
+  iceland: 'Iceland',
   indonesia: 'Indonesia',
   italy: 'Italy',
+  japan: 'Japan',
+  malaysia: 'Malaysia',
+  new_zealand: 'New Zealand',
+  norway: 'Norway',
+  singapore: 'Singapore',
+  south_korea: 'South Korea',
   switzerland: 'Switzerland',
+  thailand: 'Thailand',
   uk: 'United Kingdom',
   us: 'United States',
   vietnam: 'Vietnam',
 };
 
 const COUNTRY_ALIASES: Record<SupportedKnowledgeCountry, string[]> = {
+  australia: ['澳大利亚', '澳洲', 'australia', 'sydney', 'melbourne', '悉尼', '墨尔本'],
+  canada: ['加拿大', 'canada', 'vancouver', 'toronto', 'montreal', '温哥华', '多伦多', '蒙特利尔'],
   france: ['法国', 'france', 'paris', '巴黎'],
+  iceland: ['冰岛', 'iceland', 'reykjavik', '雷克雅未克'],
   indonesia: ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'],
   italy: ['意大利', 'italy', 'rome', 'roma', 'milan', 'venice', '罗马', '米兰', '威尼斯'],
+  japan: ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'japan evisa'],
+  malaysia: ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴'],
+  new_zealand: ['新西兰', 'new zealand', 'auckland', 'queenstown', '奥克兰', '皇后镇'],
+  norway: ['挪威', 'norway', 'oslo', 'bergen', '奥斯陆', '卑尔根'],
+  singapore: ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'],
+  south_korea: ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'],
   switzerland: ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'],
+  thailand: ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈'],
   uk: ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'],
   us: ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'],
   vietnam: ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'],
 };
+
+const SCHENGEN_KNOWLEDGE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
+  'france',
+  'iceland',
+  'italy',
+  'norway',
+  'switzerland',
+]);
 
 function includesAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
@@ -67,132 +105,52 @@ function hasUsKeyword(value: string): boolean {
   );
 }
 
+function matchesKnowledgeCountry(
+  normalized: string,
+  country: SupportedKnowledgeCountry
+): boolean {
+  if (country === 'us') {
+    return hasUsKeyword(normalized);
+  }
+
+  if (country === 'uk') {
+    return (
+      /\buk\b/.test(normalized) ||
+      includesAny(normalized, COUNTRY_ALIASES[country])
+    );
+  }
+
+  return includesAny(normalized, COUNTRY_ALIASES[country]);
+}
+
+function isSchengenKnowledgeCountry(
+  country: SupportedKnowledgeCountry | null
+): boolean {
+  return Boolean(country && SCHENGEN_KNOWLEDGE_COUNTRIES.has(country));
+}
+
 function normalizeKnowledgeCountry(
   country?: string | null
 ): SupportedKnowledgeCountry | null {
   if (!country) return null;
   const normalized = country.toLowerCase();
 
-  if (hasUsKeyword(normalized)) {
-    return 'us';
-  }
-
-  if (includesAny(normalized, ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'])) {
-    return 'indonesia';
-  }
-
-  if (includesAny(normalized, ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'])) {
-    return 'vietnam';
-  }
-
-  if (
-    /\buk\b/.test(normalized) ||
-    includesAny(normalized, [
-      '英国',
-      '英签',
-      '伦敦',
-      'united kingdom',
-      'britain',
-      'england',
-      'london',
-      'standard visitor',
-    ])
-  ) {
-    return 'uk';
-  }
-
-  if (includesAny(normalized, ['法国', 'france', 'paris', '巴黎', 'france-visas'])) {
-    return 'france';
-  }
-
-  if (includesAny(normalized, ['意大利', 'italy', 'rome', 'roma', 'milan', 'venice', '罗马', '米兰', '威尼斯'])) {
-    return 'italy';
-  }
-
-  if (includesAny(normalized, ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'])) {
-    return 'switzerland';
+  for (const knowledgeCountry of Object.keys(
+    COUNTRY_ALIASES
+  ) as SupportedKnowledgeCountry[]) {
+    if (matchesKnowledgeCountry(normalized, knowledgeCountry)) {
+      return knowledgeCountry;
+    }
   }
 
   return null;
 }
 
 function detectKnowledgeCountries(value: string): SupportedKnowledgeCountry[] {
-  const checks: Array<{
-    country: SupportedKnowledgeCountry;
-    matches: (normalized: string) => boolean;
-  }> = [
-    { country: 'us', matches: hasUsKeyword },
-    {
-      country: 'indonesia',
-      matches: (normalized) =>
-        includesAny(normalized, ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛']),
-    },
-    {
-      country: 'vietnam',
-      matches: (normalized) =>
-        includesAny(normalized, [
-          '越南',
-          'vietnam',
-          'hanoi',
-          '河内',
-          'ho chi minh',
-          'saigon',
-          '胡志明',
-        ]),
-    },
-    {
-      country: 'uk',
-      matches: (normalized) =>
-        /\buk\b/.test(normalized) ||
-        includesAny(normalized, [
-          '英国',
-          '英签',
-          '伦敦',
-          'united kingdom',
-          'britain',
-          'england',
-          'london',
-          'standard visitor',
-        ]),
-    },
-    {
-      country: 'france',
-      matches: (normalized) =>
-        includesAny(normalized, ['法国', 'france', 'paris', '巴黎', 'france-visas']),
-    },
-    {
-      country: 'italy',
-      matches: (normalized) =>
-        includesAny(normalized, [
-          '意大利',
-          'italy',
-          'rome',
-          'roma',
-          'milan',
-          'venice',
-          '罗马',
-          '米兰',
-          '威尼斯',
-        ]),
-    },
-    {
-      country: 'switzerland',
-      matches: (normalized) =>
-        includesAny(normalized, [
-          '瑞士',
-          'switzerland',
-          'swiss',
-          'zurich',
-          'geneva',
-          '苏黎世',
-          '日内瓦',
-        ]),
-    },
-  ];
-
-  return checks
-    .filter((check) => check.matches(value))
-    .map((check) => check.country);
+  const normalized = value.toLowerCase();
+  return (Object.keys(COUNTRY_ALIASES) as SupportedKnowledgeCountry[]).filter(
+    (country) => matchesKnowledgeCountry(normalized, country)
+  );
 }
 
 export function resolveKnowledgeCountry(
@@ -228,12 +186,7 @@ export function resolveKnowledgeCountry(
   }
 
   const contextCountry = normalizeKnowledgeCountry(applicationCountry);
-  if (
-    mentionsSchengen &&
-    contextCountry !== 'france' &&
-    contextCountry !== 'italy' &&
-    contextCountry !== 'switzerland'
-  ) {
+  if (mentionsSchengen && !isSchengenKnowledgeCountry(contextCountry)) {
     return null;
   }
 
@@ -520,12 +473,42 @@ export function resolveKnowledgeVisaType(
   }
 
   if (
-    (country === 'france' ||
-      country === 'italy' ||
-      country === 'switzerland') &&
+    isSchengenKnowledgeCountry(country) &&
     (mentionsVisitorPurpose || includesAny(normalized, ['申根', 'schengen']))
   ) {
     return 'schengen_short_stay_tourism';
+  }
+
+  if (country === 'singapore' && mentionsVisitorPurpose) {
+    return 'entry_visa_or_visit_pass';
+  }
+
+  if (country === 'malaysia' && mentionsVisitorPurpose) {
+    return 'visa_exemption_or_evisa_tourism';
+  }
+
+  if (country === 'thailand' && mentionsVisitorPurpose) {
+    return 'visa_exemption_or_tourist_visa';
+  }
+
+  if (country === 'canada' && mentionsVisitorPurpose) {
+    return 'visitor_visa';
+  }
+
+  if (country === 'australia' && mentionsVisitorPurpose) {
+    return 'visitor_subclass_600';
+  }
+
+  if (country === 'new_zealand' && mentionsVisitorPurpose) {
+    return 'visitor_visa';
+  }
+
+  if (country === 'japan' && mentionsVisitorPurpose) {
+    return 'short_term_tourism_evisa';
+  }
+
+  if (country === 'south_korea' && mentionsVisitorPurpose) {
+    return 'c3_or_keta';
   }
 
   if (!country && includesAny(normalized, ['申根', 'schengen'])) {
@@ -537,10 +520,21 @@ export function resolveKnowledgeVisaType(
     (country === 'us' && applicationVisaType === 'b1_b2') ||
     (country === 'vietnam' && applicationVisaType === 'evisa_tourism') ||
     (country === 'uk' && applicationVisaType === 'standard_visitor') ||
-    ((country === 'france' ||
-      country === 'italy' ||
-      country === 'switzerland') &&
-      applicationVisaType === 'schengen_short_stay_tourism')
+    (isSchengenKnowledgeCountry(country) &&
+      applicationVisaType === 'schengen_short_stay_tourism') ||
+    (country === 'singapore' &&
+      applicationVisaType === 'entry_visa_or_visit_pass') ||
+    (country === 'malaysia' &&
+      applicationVisaType === 'visa_exemption_or_evisa_tourism') ||
+    (country === 'thailand' &&
+      applicationVisaType === 'visa_exemption_or_tourist_visa') ||
+    (country === 'canada' && applicationVisaType === 'visitor_visa') ||
+    (country === 'australia' &&
+      applicationVisaType === 'visitor_subclass_600') ||
+    (country === 'new_zealand' && applicationVisaType === 'visitor_visa') ||
+    (country === 'japan' &&
+      applicationVisaType === 'short_term_tourism_evisa') ||
+    (country === 'south_korea' && applicationVisaType === 'c3_or_keta')
   ) {
     return applicationVisaType;
   }
