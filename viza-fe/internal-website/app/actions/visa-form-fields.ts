@@ -6,6 +6,10 @@ import {
   type WizardStep,
   dbRowToFormField,
 } from "@/types/visa-form-fields";
+import {
+  getRagVisitorIntakeSteps,
+  shouldUseRagVisitorIntakeFallback,
+} from "@/lib/rag-visitor-intake-form";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -38,7 +42,11 @@ export async function getVisaFormSteps(visaType = "B211A"): Promise<WizardStep[]
       return [];
     }
 
-    if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) {
+      return shouldUseRagVisitorIntakeFallback(visaType)
+        ? getRagVisitorIntakeSteps(visaType)
+        : [];
+    }
 
     // Group by step_number
     const stepMap = new Map<number, WizardStep>();

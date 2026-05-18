@@ -18,6 +18,7 @@ function isSelectedDestination(
   destination: PopularVisaDestination,
   selectedPackages: UserVisaPackage[],
 ): boolean {
+  if (destination.kind === "group") return false;
   const destinationKey = getVisaDestinationKey(destination.country, destination.visaType);
   return selectedPackages.some(
     (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey
@@ -38,6 +39,8 @@ function getSupportLabelZh(label: string): string {
     "DS-160 form": "DS-160 表格",
     "UKVI form": "UKVI 表格",
     "Schengen Type C": "申根 C 类",
+    "Schengen countries": "申根国家",
+    "RAG visitor intake": "RAG 表单",
   };
   return labels[label] ?? label;
 }
@@ -67,6 +70,7 @@ export function PopularDestinationsSection({
         destination.descriptionZh,
         destination.region,
         destination.supportLabel,
+        ...(destination.searchAliases ?? []),
       ].join(" ").toLowerCase();
       return searchableText.includes(normalizedSearch);
     })
@@ -74,6 +78,12 @@ export function PopularDestinationsSection({
 
   function handleSelect(destination: PopularVisaDestination) {
     setSelectionError(null);
+
+    if (destination.kind === "group" && destination.href) {
+      router.push(destination.href);
+      return;
+    }
+
     setPendingDestinationId(destination.id);
 
     startTransition(async () => {
@@ -126,15 +136,26 @@ export function PopularDestinationsSection({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filteredDestinations.map((destination) => {
-          const progress = applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
+          const isGroup = destination.kind === "group";
+          const progress = isGroup
+            ? undefined
+            : applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
           const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
           const loading = isPending && pendingDestinationId === destination.id;
-          const actionLabel = progress ? t("continue") : selected ? t("open") : t("start");
+          const actionLabel = isGroup
+            ? "查看国家"
+            : progress
+              ? t("continue")
+              : selected
+                ? t("open")
+                : t("start");
           const progressLabel = progress
             ? progress.label
             : selected
               ? t("addedNotStarted")
-              : t("readyToStart");
+              : isGroup
+                ? `${destination.countryCount ?? 0} 个国家`
+                : t("readyToStart");
 
           return (
             <button
@@ -144,7 +165,7 @@ export function PopularDestinationsSection({
               disabled={loading}
               className={[
                 "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
-                selected
+                selected || isGroup
                   ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
                   : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
                 loading ? "cursor-wait opacity-80" : "cursor-pointer",
@@ -164,7 +185,7 @@ export function PopularDestinationsSection({
                     </p>
                   </div>
                 </div>
-                {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
+                {selected && !isGroup && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
               </div>
 
               <div className="mt-5 space-y-3">
@@ -185,7 +206,7 @@ export function PopularDestinationsSection({
                   <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
                     <div
                       className="h-full rounded-full bg-[#03346E] transition-all duration-500"
-                      style={{ width: `${progress?.percent ?? 0}%` }}
+                      style={{ width: `${isGroup ? 100 : progress?.percent ?? 0}%` }}
                     />
                   </div>
                 </div>
