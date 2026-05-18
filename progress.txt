@@ -516,3 +516,10 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: home/page.tsx, SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
 - Learnings: until pricing and billing are finalized, the UI should clearly label subscription levels as draft/status information instead of implying active payment or renewal.
 ---
+
+## 2026-05-18 - SUB-001 naming follow-up
+- Renamed the subscription service label to Visa Consultant on the home dashboard card and subscription details page.
+- Kept renewal/payment copy as disabled placeholders because formal subscription pricing is not finalized.
+- Files changed: SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
+- Learnings: the account-level subscription surface should use the product/service name first, with billing state as supporting detail.
+---
