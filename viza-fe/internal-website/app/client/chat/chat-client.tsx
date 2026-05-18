@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Check,
   Loader2,
   PanelLeft,
   Pencil,
@@ -126,6 +125,12 @@ const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
 const TOKEN_BATCH_INTERVAL = 500;
+const ACTIVE_VIZA_SESSION_STORAGE_KEY = "viza_chat_session_id";
+
+interface PendingVizaMessage {
+  message: string;
+  sessionId: string;
+}
 
 function getSessionDisplayTitle(session: Session): string {
   return session.title || session.firstMessagePreview || "New conversation";
@@ -278,7 +283,7 @@ function ChatSessionPanel({
               if (editing) {
                 return (
                   <form
-                    className="flex items-center gap-1 rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-1.5"
+                    className="rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-2"
                     key={session.id}
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -288,7 +293,7 @@ function ChatSessionPanel({
                     <input
                       aria-label="Conversation title"
                       autoFocus
-                      className="min-w-0 flex-1 rounded bg-white px-2.5 py-2 text-base text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
+                      className="w-full rounded bg-white px-2.5 py-2 text-base text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
                       disabled={pendingSessionAction !== null}
                       maxLength={80}
                       onChange={(event) => setDraftTitle(event.target.value)}
@@ -300,23 +305,23 @@ function ChatSessionPanel({
                       }}
                       value={draftTitle}
                     />
-                    <button
-                      aria-label="Save conversation title"
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-[#03346E] transition-colors hover:bg-[#03346E]/10 disabled:opacity-40"
-                      disabled={pendingSessionAction !== null}
-                      type="submit"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      aria-label="Cancel rename"
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40"
-                      disabled={pendingSessionAction !== null}
-                      onClick={cancelRename}
-                      type="button"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        className="rounded-md bg-[#03346E] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#022a58] disabled:opacity-40"
+                        disabled={pendingSessionAction !== null}
+                        type="submit"
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-white disabled:opacity-40"
+                        disabled={pendingSessionAction !== null}
+                        onClick={cancelRename}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </form>
                 );
               }
@@ -582,7 +587,7 @@ export function ChatClient({
   const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [pendingMessages, setPendingMessages] = useState<string[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<PendingVizaMessage[]>([]);
   const [_isNearBottom, setIsNearBottom] = useState(true);
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
   const [blockMessages, setBlockMessages] = useState<Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>>([]);
@@ -1128,7 +1133,9 @@ export function ChatClient({
     if (status === "error") {
       toast.error(t("connectionReconnecting"));
     } else if (status === "connected" && pendingMessages.length > 0) {
-      for (const msg of pendingMessages) socketSendMessage(msg);
+      for (const pending of pendingMessages) {
+        socketSendMessage(pending.message, pending.sessionId);
+      }
       setPendingMessages([]);
       toast.success(t("connectedSending"));
     }
@@ -1171,6 +1178,7 @@ export function ChatClient({
     }
 
     setSessionId(null);
+    sessionStorage.removeItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
     setChatMessages([]);
     resetHistoryState(false);
     resetRuntimeMessages();
@@ -1183,6 +1191,7 @@ export function ChatClient({
   const handleSessionSelect = useCallback(
     async (nextSessionId: string) => {
       if (nextSessionId === sessionId) {
+        sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, nextSessionId);
         setSessionPanelOpen(false);
         setShowChat(true);
         setChatMode("viza");
@@ -1196,6 +1205,7 @@ export function ChatClient({
 
       setIsLoadingMessages(true);
       setSessionId(nextSessionId);
+      sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, nextSessionId);
       setShowChat(true);
       setChatMode("viza");
       setSessionPanelOpen(false);
@@ -1222,6 +1232,27 @@ export function ChatClient({
       userId,
     ]
   );
+
+  const restoredActiveSessionRef = useRef(false);
+  useEffect(() => {
+    if (restoredActiveSessionRef.current) return;
+
+    const savedSessionId = sessionStorage.getItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
+    if (!savedSessionId) {
+      restoredActiveSessionRef.current = true;
+      return;
+    }
+
+    if (savedSessionId === sessionId) {
+      restoredActiveSessionRef.current = true;
+      return;
+    }
+
+    if (!sessions.some((session) => session.id === savedSessionId)) return;
+
+    restoredActiveSessionRef.current = true;
+    void handleSessionSelect(savedSessionId);
+  }, [handleSessionSelect, sessionId, sessions]);
 
   const handleRenameVizaSession = useCallback(
     async (targetSessionId: string, nextTitle: string) => {
@@ -1277,6 +1308,7 @@ export function ChatClient({
           await handleSessionSelect(nextSession.id);
         } else {
           setSessionId(null);
+          sessionStorage.removeItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
           setChatMessages([]);
           resetHistoryState(false);
           resetRuntimeMessages();
@@ -1314,6 +1346,7 @@ export function ChatClient({
 
         effectiveSessionId = newSession.id;
         setSessionId(effectiveSessionId);
+        sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, effectiveSessionId);
         setSessions((prev) => [
           newSession,
           ...prev.filter((session) => session.id !== newSession.id),
@@ -1321,7 +1354,11 @@ export function ChatClient({
       }
 
       if (status !== "connected") {
-        setPendingMessages((prev) => [...prev, message]);
+        setPendingMessages((prev) => [
+          ...prev,
+          { message, sessionId: effectiveSessionId },
+        ]);
+        markSessionUsed(effectiveSessionId, message);
         toast.info(t("willSendWhenConnected"));
         return;
       }

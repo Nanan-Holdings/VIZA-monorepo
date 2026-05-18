@@ -106,6 +106,7 @@ export async function ensureDraftApplication(
       .from("applications")
       .select("id")
       .eq("applicant_id", profile.id)
+      .eq("country", resolvedCountry)
       .eq("visa_type", resolvedVisaType)
       .order("created_at", { ascending: false })
       .limit(1);

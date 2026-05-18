@@ -960,10 +960,18 @@ export default function ApplicationPage() {
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    const { data: application } = await supabase
+    let applicationQuery = supabase
       .from("applications")
       .select("*")
-      .eq("applicant_id", profile?.id ?? "")
+      .eq("applicant_id", profile?.id ?? "");
+
+    if (requestedVisaPackage) {
+      applicationQuery = applicationQuery
+        .eq("country", requestedVisaPackage.country)
+        .eq("visa_type", requestedVisaPackage.visa_type);
+    }
+
+    const { data: application } = await applicationQuery
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1037,7 +1045,7 @@ export default function ApplicationPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [requestedVisaPackage]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
