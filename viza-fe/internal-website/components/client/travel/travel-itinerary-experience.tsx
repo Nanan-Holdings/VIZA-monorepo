@@ -70,7 +70,19 @@ type TravelItineraryExperienceProps = {
   mapPoints: TripMapPoint[];
   activePointId?: string | null;
   initialItineryRows?: ItineryTableRow[];
+  versionOptions?: TravelItineraryVersionOption[];
+  activeVersionId?: string;
+  activeVersionSummary?: string;
   onPointSelect?: (id: string) => void;
+  onVersionSelect?: (versionId: string) => void;
+};
+
+type TravelItineraryVersionOption = {
+  id: string;
+  label: string;
+  createdAt: string;
+  editSummary?: string;
+  isLatest: boolean;
 };
 
 type CitySegment = {
@@ -872,7 +884,11 @@ export function TravelItineraryExperience({
   mapPoints,
   activePointId,
   initialItineryRows,
+  versionOptions = [],
+  activeVersionId,
+  activeVersionSummary,
   onPointSelect,
+  onVersionSelect,
 }: TravelItineraryExperienceProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [fullMapOpen, setFullMapOpen] = useState(false);
@@ -1269,6 +1285,48 @@ export function TravelItineraryExperience({
                 </div>
               </div>
             </button>
+
+            {versionOptions.length > 0 && (
+              <div
+                className="mt-5 rounded-xl border border-[#eadfff] bg-[#fbf8ff] px-4 py-3"
+                data-testid="travel-itinerary-version-bar"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="inline-flex items-center gap-2 text-xs font-semibold text-[#6f40cc]">
+                      <Clock3 className="h-3.5 w-3.5" />
+                      版本历史
+                    </p>
+                    <p className="mt-1 truncate text-sm text-[#4d3b55]">
+                      {activeVersionSummary || "每次聊天修改都会保存为一个新版本。"}
+                    </p>
+                  </div>
+                  <div className="flex max-w-full flex-wrap items-center gap-2">
+                    {versionOptions.map((version) => {
+                      const active = version.id === activeVersionId;
+                      return (
+                        <Button
+                          className={cn(
+                            "h-8 rounded-full px-3 text-xs",
+                            active
+                              ? "bg-[#03346E] text-white hover:bg-[#022b5d]"
+                              : "border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                          )}
+                          data-testid="travel-itinerary-version-button"
+                          key={version.id}
+                          onClick={() => onVersionSelect?.(version.id)}
+                          type="button"
+                          variant={active ? "default" : "outline"}
+                        >
+                          {version.label}
+                          {version.isLatest ? " · 最新" : active ? " · 已回退" : ""}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               <Button

@@ -17,6 +17,8 @@ export interface Session {
   endedAt: string | null;
   metadata: Record<string, unknown>;
   createdAt: string | null;
+  /** User-defined display title for the session */
+  title?: string;
   /** Preview of first message (for sidebar display) */
   firstMessagePreview?: string;
 }
@@ -53,6 +55,22 @@ export interface Message {
 // =============================================================================
 // Helper: Get authenticated user ID
 // =============================================================================
+
+const SESSION_TITLE_PREFIX = "__viza_session_title__:";
+
+function normalizeSessionTitle(title: string): string {
+  return title.trim().replace(/\s+/g, " ").slice(0, 80);
+}
+
+function encodeSessionTitle(title: string): string {
+  return `${SESSION_TITLE_PREFIX}${title}`;
+}
+
+function decodeSessionTitle(content: string): string | undefined {
+  if (!content.startsWith(SESSION_TITLE_PREFIX)) return undefined;
+  const title = content.slice(SESSION_TITLE_PREFIX.length).trim();
+  return title || undefined;
+}
 
 async function getAuthenticatedUserId(): Promise<string | null> {
   // Check impersonation first
@@ -124,6 +142,24 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       }
     }
 
+    const { data: titleMessages } = await adminClient
+      .from("visa_chat_messages")
+      .select("session_id, content")
+      .in("session_id", sessionIds)
+      .eq("role", "system")
+      .like("content", `${SESSION_TITLE_PREFIX}%`)
+      .order("created_at", { ascending: false });
+
+    const titleMap = new Map<string, string>();
+    if (titleMessages) {
+      for (const msg of titleMessages) {
+        const title = decodeSessionTitle(msg.content);
+        if (title && !titleMap.has(msg.session_id)) {
+          titleMap.set(msg.session_id, title);
+        }
+      }
+    }
+
     return sessions.map((session) => ({
       id: session.id,
       userId: session.applicant_id,
@@ -133,6 +169,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       endedAt: session.updated_at,
       metadata: {},
       createdAt: session.created_at,
+      title: titleMap.get(session.id),
       firstMessagePreview: firstMessageMap.get(session.id)?.slice(0, 30) || undefined,
     }));
   } catch {
@@ -178,6 +215,7 @@ export async function getSessionMessages(
     .from("visa_chat_messages")
     .select("*")
     .eq("session_id", sessionId)
+    .neq("role", "system")
     .order("created_at", { ascending: true })
     .limit(50);
 
@@ -296,6 +334,85 @@ export async function createSession(
   };
 }
 
+export async function renameSession(
+  userId: string,
+  sessionId: string,
+  title: string
+): Promise<{ success: boolean; title?: string; error?: string }> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const normalizedTitle = normalizeSessionTitle(title);
+  const adminClient = createAdminClient();
+
+  const { data: session, error: sessionError } = await adminClient
+    .from("visa_chat_sessions")
+    .select("id, applicant_id")
+    .eq("id", sessionId)
+    .eq("applicant_id", userId)
+    .maybeSingle();
+
+  if (sessionError || !session) {
+    return { success: false, error: "Conversation not found" };
+  }
+
+  const { error: deleteError } = await adminClient
+    .from("visa_chat_messages")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("role", "system")
+    .like("content", `${SESSION_TITLE_PREFIX}%`);
+
+  if (deleteError) {
+    return { success: false, error: "Failed to update title" };
+  }
+
+  if (!normalizedTitle) {
+    return { success: true };
+  }
+
+  const { error: insertError } = await adminClient
+    .from("visa_chat_messages")
+    .insert({
+      session_id: sessionId,
+      role: "system",
+      content: encodeSessionTitle(normalizedTitle),
+    });
+
+  if (insertError) {
+    return { success: false, error: "Failed to save title" };
+  }
+
+  return { success: true, title: normalizedTitle };
+}
+
+export async function deleteSession(
+  userId: string,
+  sessionId: string
+): Promise<{ success: boolean; error?: string }> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("visa_chat_sessions")
+    .delete()
+    .eq("id", sessionId)
+    .eq("applicant_id", userId);
+
+  if (error) {
+    return { success: false, error: "Failed to delete conversation" };
+  }
+
+  return { success: true };
+}
+
 // =============================================================================
 // Continuous Chat Server Actions
 // =============================================================================
@@ -407,6 +524,7 @@ export async function getMessagesAroundCheckpoint(
       visa_chat_sessions!inner(applicant_id)
     `)
     .eq("id", messageId)
+    .neq("role", "system")
     .eq("visa_chat_sessions.applicant_id", userId)
     .single();
 
@@ -429,6 +547,7 @@ export async function getMessagesAroundCheckpoint(
       visa_chat_sessions!inner(applicant_id)
     `)
     .eq("visa_chat_sessions.applicant_id", userId)
+    .neq("role", "system")
     .gte("created_at", thirtyDaysAgo.toISOString())
     .lt("created_at", targetTimestamp)
     .order("created_at", { ascending: false })
@@ -446,6 +565,7 @@ export async function getMessagesAroundCheckpoint(
       visa_chat_sessions!inner(applicant_id)
     `)
     .eq("visa_chat_sessions.applicant_id", userId)
+    .neq("role", "system")
     .gt("created_at", targetTimestamp)
     .order("created_at", { ascending: true })
     .limit(after + 1);
@@ -516,6 +636,7 @@ export async function loadMoreHistory(
       visa_chat_sessions!inner(applicant_id)
     `)
     .eq("visa_chat_sessions.applicant_id", userId)
+    .neq("role", "system")
     .gte("created_at", thirtyDaysAgo.toISOString())
     .lt("created_at", beforeTimestamp);
 
@@ -598,6 +719,7 @@ export async function searchMessages(
       visa_chat_sessions!inner(applicant_id)
     `, { count: "exact" })
     .eq("visa_chat_sessions.applicant_id", userId)
+    .neq("role", "system")
     .gte("created_at", thirtyDaysAgo.toISOString())
     .ilike("content", `%${query}%`)
     .order("created_at", { ascending: false })
@@ -675,6 +797,7 @@ export async function getRecentMessages(
         visa_chat_sessions!inner(applicant_id)
       `, { count: "exact" })
       .eq("visa_chat_sessions.applicant_id", userId)
+      .neq("role", "system")
       .gte("created_at", thirtyDaysAgo.toISOString())
       .order("created_at", { ascending: false })
       .limit(limit + 1);
@@ -797,6 +920,7 @@ export async function getOrCreateUserSession(
         created_at
       `)
       .eq("session_id", session.id)
+      .neq("role", "system")
       .order("created_at", { ascending: false })
       .limit(100);
 
