@@ -32,7 +32,7 @@ const plannedTiers = [
 ];
 
 const renewalRows = [
-  { label: "当前方案", value: "体验版" },
+  { label: "当前方案", value: "Visa Consultant" },
   { label: "续费状态", value: "暂未启用自动续费" },
   { label: "下次续费", value: "待定" },
   { label: "支付方式", value: "暂未绑定" },
@@ -57,12 +57,12 @@ export default function SubscriptionPage() {
                 <CreditCard className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-[14px] font-semibold text-[#03346E]">VIZA Subscription</p>
+                <p className="text-[14px] font-semibold text-[#03346E]">Visa Consultant</p>
                 <h1 className="mt-2 font-heading text-[32px] font-medium leading-tight text-[#2f2f2f] sm:text-[42px]">
-                  订阅与方案
+                  Visa Consultant
                 </h1>
                 <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#667085]">
-                  这里先作为订阅入口和方案说明页。正式计费、续费周期和价格还未开启，因此当前用户默认显示为体验版。
+                  这里先作为签证顾问服务入口和方案说明页。正式计费、续费周期和价格还未开启，因此当前用户默认显示为 Visa Consultant 体验版。
                 </p>
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function SubscriptionPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-medium text-[#667085]">当前方案</p>
-                  <p className="mt-1 text-[24px] font-semibold text-[#03346E]">体验版</p>
+                  <p className="mt-1 text-[24px] font-semibold text-[#03346E]">Visa Consultant</p>
                 </div>
                 <span className="rounded-full bg-[#eaf2ff] px-3 py-1 text-[12px] font-semibold text-[#03346E]">
                   免费测试中

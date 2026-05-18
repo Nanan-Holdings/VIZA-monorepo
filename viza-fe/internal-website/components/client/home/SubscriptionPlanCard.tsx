@@ -20,10 +20,10 @@ export function SubscriptionPlanCard() {
         <div className="relative flex w-full items-start justify-between gap-4">
           <div>
             <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">
-              订阅
+              Visa Consultant
             </p>
             <p className="mt-1 text-[12px] leading-5 text-[rgba(255,255,255,0.58)]">
-              当前方案与续费状态
+              顾问方案与续费状态
             </p>
           </div>
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">
@@ -38,10 +38,10 @@ export function SubscriptionPlanCard() {
             </span>
             <div>
               <p className="text-[18px] font-medium leading-tight text-white">
-                体验版
+                Visa Consultant
               </p>
               <p className="mt-0.5 text-[13px] text-[rgba(255,255,255,0.62)]">
-                续费暂未启用 · 无需付款
+                体验版 · 续费暂未启用
               </p>
             </div>
           </div>
