@@ -605,6 +605,7 @@ export function ChatClient({
   const tokenBufferRef = useRef<string>("");
   const tokenFlushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
+  const chatContextRef = useRef<SocketChatMessage[]>([]);
 
   const generateId = useCallback(
     () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -857,6 +858,16 @@ export function ChatClient({
         user_id: userId,
         session_id: effectiveSessionId,
         message,
+        history: [
+          ...chatContextRef.current
+            .filter((msg) => !msg.isStreaming && msg.content.trim().length > 0)
+            .slice(-24)
+            .map((msg) => ({
+              role: msg.role === "user" ? "user" as const : "assistant" as const,
+              content: msg.content,
+            })),
+          { role: "user", content: message },
+        ],
       };
       socketRef.current.emit("visa_chat_message", request);
     },
@@ -921,6 +932,10 @@ export function ChatClient({
     setShowNewMessageButton,
     setShowScrollToBottom,
   } = continuousChat;
+
+  useEffect(() => {
+    chatContextRef.current = chatMessages;
+  }, [chatMessages]);
 
   // ==========================================================================
   // Merge socket messages into continuous chat
