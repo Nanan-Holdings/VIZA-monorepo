@@ -364,3 +364,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/bilingual-review-preview/page.tsx, progress.txt
 - Learnings: the preview needs explicit option-pair metadata rather than free-text translation for official select/radio fields; it better matches the real dynamic form behavior and removes ambiguity for users.
 ---
+
+## 2026-05-18 - REV-001 form-control parity follow-up
+- Updated the standalone bilingual preview controls to follow the real form page styling: h-12 rounded controls, #e8e8e8 borders, and #03346E focus rings.
+- Replaced normal-field textareas with form-style inputs so short fields no longer look like oversized note boxes.
+- Added manual date input plus the existing DatePicker component for date fields; both handwritten and selected dates sync to the opposite language/format.
+- Converted birth city and birth province/state into paired dropdowns, and reused the existing CountryDropdown for nationality and country of birth.
+- Improved mock pinyin sync for common Chinese names so changing values like 李 immediately updates the English side to LI.
+- Files changed: app/bilingual-review-preview/page.tsx, progress.txt
+- Learnings: product validation depends on using the same control primitives as the production form, otherwise the preview can verify data behavior but still mislead on interaction fidelity.
+---
