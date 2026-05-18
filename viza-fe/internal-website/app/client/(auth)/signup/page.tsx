@@ -272,7 +272,6 @@ export default function ClientSignupPage() {
               ['--polaroid-rotate' as string]: `${m.rotate}deg`,
             } as React.CSSProperties}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={m.image} alt={m.caption} />
             <span className="showcase-polaroid-caption">{m.caption}</span>
           </div>

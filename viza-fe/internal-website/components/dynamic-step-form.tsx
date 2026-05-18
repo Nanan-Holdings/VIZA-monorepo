@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { AlertCircle, Bot, CheckCircle2, HelpCircle, Plus, Trash2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
+import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
   getChineseLabel,
@@ -17,12 +18,15 @@ import {
   toOfficialEnglishValue,
 } from "@/lib/ds160-translations";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
+import { cn } from "@/lib/utils";
 
 interface DynamicStepFormProps {
   step: WizardStep;
   prefill: Record<string, string>;
   onComplete: (data: Record<string, string>) => void;
   saving?: boolean;
+  country?: string | null;
+  visaType?: string;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -37,6 +41,13 @@ type BilingualSide = "zh" | "en";
 interface BilingualTextValue {
   zh: string;
   en: string;
+}
+
+type FieldIssueSeverity = "ok" | "warning" | "error";
+
+interface FieldIssue {
+  severity: FieldIssueSeverity;
+  message: string;
 }
 
 function isTextLikeField(field: VisaFormFieldRow): boolean {
@@ -65,6 +76,167 @@ function getSideOptions(
       text: side === "zh" ? getChineseOptionText(text) : getEnglishOptionText(text),
     };
   });
+}
+
+function parseFlexibleDate(value?: string): Date | null {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "DO_NOT_KNOW" || trimmed === "DOES_NOT_APPLY") return null;
+
+  const iso = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const official = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  const chinese = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  if (official) return new Date(Number(official[3]), Number(official[2]) - 1, Number(official[1]));
+  if (chinese) return new Date(Number(chinese[1]), Number(chinese[2]) - 1, Number(chinese[3]));
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function findAnswerValue(values: Record<string, string>, candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    const value = values[candidate];
+    if (value?.trim()) return value;
+  }
+
+  const entries = Object.entries(values);
+  for (const candidate of candidates) {
+    const found = entries.find(([key, value]) =>
+      key.toLowerCase().includes(candidate.toLowerCase()) && value.trim()
+    );
+    if (found) return found[1];
+  }
+
+  return null;
+}
+
+function normaliseFieldOptions(options: VisaFormFieldRow["options"]): Array<{ value: string; text: string }> {
+  if (!options) return [];
+  return options.map((option) => {
+    if (typeof option === "string") return { value: option, text: option };
+    return { value: option.value, text: option.text || option.value };
+  });
+}
+
+function getLocalFieldIssue(
+  field: VisaFormFieldRow,
+  valueKey: string,
+  value: string,
+  values: Record<string, string>,
+): FieldIssue {
+  const trimmed = value.trim();
+  const rules = field.validationRules as {
+    maxLength?: number;
+    pattern?: string;
+  } | null;
+  const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
+
+  if (field.required && !trimmed) {
+    return issue("warning", "Required field");
+  }
+
+  if (rules?.maxLength && trimmed.length > rules.maxLength) {
+    return issue("error", `Over ${rules.maxLength} characters`);
+  }
+
+  if (rules?.pattern && trimmed) {
+    try {
+      if (!new RegExp(rules.pattern).test(trimmed)) {
+        return issue("error", "Format issue");
+      }
+    } catch {
+      // Ignore malformed schema regexes here; the backend logs them.
+    }
+  }
+
+  const options = normaliseFieldOptions(field.options);
+  if ((field.fieldType === "select" || field.fieldType === "radio") && trimmed && options.length > 0) {
+    const optionMatch = options.some(
+      (option) =>
+        option.value.toLowerCase() === trimmed.toLowerCase() ||
+        option.text.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (!optionMatch) return issue("error", "Option mismatch");
+  }
+
+  const currentDate = field.fieldType === "date" ? parseFlexibleDate(trimmed) : null;
+  if (field.fieldType === "date" && trimmed && !currentDate) {
+    return issue("error", "Date format issue");
+  }
+
+  if (
+    currentDate &&
+    (valueKey.toLowerCase().includes("birth") || field.fieldName.toLowerCase().includes("birth")) &&
+    currentDate > new Date()
+  ) {
+    return issue("error", "Future birth date");
+  }
+
+  const issueDate = parseFlexibleDate(findAnswerValue(values, [
+    "passport_issuance_date",
+    "passport_issue_date",
+    "travel_document_issue_date",
+    "issue_date",
+  ]) ?? undefined);
+  const expiryDate = parseFlexibleDate(findAnswerValue(values, [
+    "passport_expiration_date",
+    "passport_expiry_date",
+    "travel_document_expiry_date",
+    "expiry_date",
+    "valid_until",
+  ]) ?? undefined);
+
+  if (issueDate && expiryDate && expiryDate <= issueDate) {
+    return issue("error", "Expiry before issue date");
+  }
+
+  const arrivalDate = parseFlexibleDate(findAnswerValue(values, [
+    "arrival_date",
+    "intended_arrival_date",
+    "entry_date",
+  ]) ?? undefined);
+  const departureDate = parseFlexibleDate(findAnswerValue(values, [
+    "departure_date",
+    "intended_departure_date",
+    "exit_date",
+  ]) ?? undefined);
+
+  if (arrivalDate && departureDate && departureDate <= arrivalDate) {
+    return issue("error", "Departure before arrival");
+  }
+  if (arrivalDate && expiryDate && expiryDate < arrivalDate) {
+    return issue("error", "Document expires before travel");
+  }
+  if (arrivalDate && expiryDate && expiryDate < addMonths(arrivalDate, 6)) {
+    return issue("warning", "Document expires within 6 months of travel");
+  }
+
+  const currentNationality = findAnswerValue(values, ["current_nationality", "nationality_country", "nationality"]);
+  const nationalityAtBirth = findAnswerValue(values, ["nationality_at_birth"]);
+  const nationalityDifferent = findAnswerValue(values, ["nationality_at_birth_different"]);
+  if (
+    currentNationality &&
+    nationalityAtBirth &&
+    nationalityDifferent?.toLowerCase() === "no" &&
+    currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase()
+  ) {
+    return issue("warning", "Nationality answers may conflict");
+  }
+
+  return issue("ok", "AI guidance");
+}
+
+function issueButtonClasses(severity: FieldIssueSeverity): string {
+  if (severity === "error") return "border-red-200 bg-red-50 text-red-700 hover:bg-red-100";
+  if (severity === "warning") return "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100";
+  return "border-[#dbe7f5] bg-[#f8fbff] text-[#03346E] hover:bg-[#eef6ff]";
 }
 
 /** Helper: get the repeat_group name from a field's validationRules */
@@ -179,8 +351,17 @@ function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow |
   return result;
 }
 
-export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicStepFormProps) {
+export function DynamicStepForm({
+  step,
+  prefill,
+  onComplete,
+  saving,
+  country,
+  visaType,
+}: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
+  const locale = useLocale();
+  const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
 
   // Track how many instances each repeat_group has (min 1)
   const [groupCounts, setGroupCounts] = useState<Record<string, number>>(() => {
@@ -524,10 +705,74 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       );
     };
 
+    const guidanceField: VisaFormFieldRow = {
+      ...field,
+      options: fieldOptions ?? null,
+    };
+    const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values);
+    const panelOpen = activeGuidanceKey === valueKey;
+    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
+    const buttonLabel = panelOpen
+      ? locale.startsWith("zh") ? "AI 帮助已打开" : "AI help open"
+      : issue.severity === "ok"
+        ? locale.startsWith("zh") ? "问 AI" : "Ask AI"
+        : locale.startsWith("zh") ? "查看提示" : "Review tip";
+    const IssueIcon = issue.severity === "error"
+      ? AlertCircle
+      : issue.severity === "warning"
+        ? HelpCircle
+        : CheckCircle2;
+
     return (
-      <div key={valueKey} className="grid min-w-0 gap-4 md:grid-cols-2">
-        {renderSide("zh")}
-        {renderSide("en")}
+      <div
+        key={valueKey}
+        className={cn(
+          "rounded-lg border border-transparent p-2 transition-colors",
+          panelOpen ? "border-[#dbe7f5] bg-[#fbfdff]" : "hover:border-[#eef3f8]",
+        )}
+        onClick={() => setActiveGuidanceKey(valueKey)}
+        onFocusCapture={() => setActiveGuidanceKey(valueKey)}
+      >
+        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+          {renderSide("zh")}
+          {renderSide("en")}
+        </div>
+        <div className="mt-2 flex items-center justify-end gap-2">
+          {issue.severity !== "ok" && (
+            <span className={cn("text-[12px] font-medium", issue.severity === "error" ? "text-red-600" : "text-amber-700")}>
+              {issue.message}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setActiveGuidanceKey(valueKey);
+            }}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+              issueButtonClasses(issue.severity),
+            )}
+            aria-expanded={panelOpen}
+            aria-label={buttonLabel}
+          >
+            {issue.severity === "ok" ? <Bot className="h-3.5 w-3.5" /> : <IssueIcon className="h-3.5 w-3.5" />}
+            {buttonLabel}
+          </button>
+        </div>
+        {panelOpen && (
+          <div className="mt-3">
+            <FieldGuidancePanel
+              country={country}
+              visaType={resolvedVisaType}
+              locale={locale}
+              field={guidanceField}
+              answer={values[valueKey] ?? ""}
+              allAnswers={values}
+              onClose={() => setActiveGuidanceKey(null)}
+            />
+          </div>
+        )}
       </div>
     );
   };
@@ -688,6 +933,16 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       >
         {tButtons("continue")}
       </BrandActionButton>
+      <div className="fixed bottom-4 right-4 z-40 flex max-w-[260px] items-center gap-2 rounded-lg border border-[#dbe7f5] bg-white/95 px-3 py-2 text-[12px] text-[#3f4652] shadow-lg backdrop-blur">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
+          <Bot className="h-4 w-4" />
+        </span>
+        <span>
+          {locale.startsWith("zh")
+            ? "对问题有疑问？点击题目旁的 AI 提示。"
+            : "Need help? Click the AI tip beside any question."}
+        </span>
+      </div>
     </form>
   );
 }

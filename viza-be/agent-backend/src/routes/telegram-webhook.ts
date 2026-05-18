@@ -27,8 +27,9 @@ async function answerCallbackQuery(callbackQueryId: string, text: string): Promi
       text,
       show_alert: false,
     });
-  } catch (err: any) {
-    logger.error("Failed to answer callback query", new Error("Failed to answer callback query"), { error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown Telegram API error";
+    logger.error("Failed to answer callback query", new Error("Failed to answer callback query"), { error: message });
   }
 }
 

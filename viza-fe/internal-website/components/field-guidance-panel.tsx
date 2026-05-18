@@ -1,0 +1,308 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  Bot,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import {
+  type FieldGuidanceRequest,
+  type FieldGuidanceResponse,
+  type FieldGuidanceSeverity,
+} from "@/types/field-guidance";
+import { cn } from "@/lib/utils";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
+
+interface FieldGuidancePanelProps {
+  country?: string | null;
+  visaType: string;
+  locale: string;
+  field: VisaFormFieldRow;
+  answer: string;
+  allAnswers: Record<string, string>;
+  onClose: () => void;
+}
+
+function severityClasses(severity: FieldGuidanceSeverity): string {
+  if (severity === "error") return "border-red-200 bg-red-50 text-red-700";
+  if (severity === "warning") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
+function SeverityIcon({ severity }: { severity: FieldGuidanceSeverity }) {
+  if (severity === "ok") return <CheckCircle2 className="h-4 w-4 shrink-0" />;
+  return <AlertCircle className="h-4 w-4 shrink-0" />;
+}
+
+function SectionList({
+  title,
+  items,
+  compact = false,
+}: {
+  title: string;
+  items: string[];
+  compact?: boolean;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+        {title}
+      </h4>
+      <div className={compact ? "flex flex-wrap gap-2" : "flex flex-col gap-1.5"}>
+        {items.map((item) => (
+          <span
+            key={item}
+            className={compact
+              ? "rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
+              : "text-[13px] leading-5 text-[#4b5563]"}
+          >
+            {compact ? item : `• ${item}`}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function FieldGuidancePanel({
+  country,
+  visaType,
+  locale,
+  field,
+  answer,
+  allAnswers,
+  onClose,
+}: FieldGuidancePanelProps) {
+  const [data, setData] = useState<FieldGuidanceResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [question, setQuestion] = useState("");
+  const [questionLoading, setQuestionLoading] = useState(false);
+
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const labels = useMemo(
+    () => ({
+      loading: isZh ? "AI 正在读取题目要求..." : "AI is reading the field requirements...",
+      retry: isZh ? "重试" : "Retry",
+      examples: isZh ? "示例" : "Examples",
+      hints: isZh ? "填写提示" : "Hints",
+      warnings: isZh ? "官方注意事项" : "Official warnings",
+      format: isZh ? "格式" : "Format",
+      sources: isZh ? "来源" : "Sources",
+      ask: isZh ? "继续问这个问题" : "Ask about this field",
+      askPlaceholder: isZh
+        ? "比如：这个必须和护照完全一样吗？"
+        : "For example: does this need to match my passport exactly?",
+      send: isZh ? "发送" : "Send",
+      close: isZh ? "关闭" : "Close",
+      confidence: isZh ? "可信度" : "Confidence",
+      generated: isZh ? "AI 生成" : "AI generated",
+      fallback: isZh ? "规则提示" : "Rule-based",
+    }),
+    [isZh],
+  );
+
+  const fetchGuidance = useCallback(
+    async (nextQuestion?: string) => {
+      if (nextQuestion) {
+        setQuestionLoading(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      const requestBody: FieldGuidanceRequest = {
+        visaType,
+        country,
+        locale,
+        field,
+        answer,
+        allAnswers,
+        question: nextQuestion,
+      };
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/field-guidance`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        if (!res.ok) throw new Error(`Guidance service returned ${res.status}`);
+        const nextData = (await res.json()) as FieldGuidanceResponse;
+        setData(nextData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load field guidance");
+      } finally {
+        setLoading(false);
+        setQuestionLoading(false);
+      }
+    },
+    [allAnswers, answer, country, field, locale, visaType],
+  );
+
+  useEffect(() => {
+    void fetchGuidance();
+  }, [fetchGuidance]);
+
+  const handleAsk = () => {
+    const trimmed = question.trim();
+    if (!trimmed || questionLoading) return;
+    void fetchGuidance(trimmed);
+    setQuestion("");
+  };
+
+  return (
+    <div
+      className="rounded-lg border border-[#dbe7f5] bg-[#f8fbff] p-4 shadow-sm"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
+            <Bot className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-[14px] font-semibold text-[#1f2937]">
+              {data?.guidance.title ?? (isZh ? "字段填写帮助" : "Field guidance")}
+            </h3>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {data && (
+                <>
+                  <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
+                    {labels.confidence}: {data.confidence}
+                  </Badge>
+                  <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
+                    {data.aiUsed ? labels.generated : labels.fallback}
+                  </Badge>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-1 text-[#697386] transition-colors hover:bg-white hover:text-[#1f2937]"
+          aria-label={labels.close}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {loading && (
+        <div className="mt-4 flex items-center gap-2 text-[13px] text-[#697386]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {labels.loading}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
+          <span>{error}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void fetchGuidance()}
+            className="h-8 shrink-0 bg-white"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {labels.retry}
+          </Button>
+        </div>
+      )}
+
+      {data && !loading && (
+        <div className="mt-4 flex flex-col gap-4">
+          <div className={cn("flex items-start gap-2 rounded-lg border p-3 text-[13px]", severityClasses(data.validation.severity))}>
+            <SeverityIcon severity={data.validation.severity} />
+            <div className="flex flex-col gap-1">
+              {data.validation.messages.map((message) => (
+                <span key={message}>{message}</span>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[13px] leading-5 text-[#3f4652]">{data.guidance.summary}</p>
+
+          <SectionList title={labels.examples} items={data.guidance.examples} compact />
+          <SectionList title={labels.hints} items={data.guidance.hints} />
+          <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
+          <SectionList title={labels.format} items={data.guidance.formatHints} compact />
+
+          {data.reply && (
+            <div className="rounded-lg border border-[#d8e2ef] bg-white p-3">
+              <div className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+                <Sparkles className="h-3.5 w-3.5" />
+                {isZh ? "回答" : "Reply"}
+              </div>
+              <p className="text-[13px] leading-5 text-[#24272f]">{data.reply}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+              {labels.ask}
+            </label>
+            <Textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder={labels.askPlaceholder}
+              className="min-h-[72px] resize-none rounded-lg border-[#d8e2ef] bg-white text-[13px] focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]"
+            />
+            <Button
+              type="button"
+              onClick={handleAsk}
+              size="sm"
+              disabled={!question.trim() || questionLoading}
+              className="self-end bg-[#03346E] hover:bg-[#022a5a]"
+            >
+              {questionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {labels.send}
+            </Button>
+          </div>
+
+          {data.sources.length > 0 && (
+            <section className="flex flex-col gap-2 border-t border-[#e3edf8] pt-3">
+              <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+                {labels.sources}
+              </h4>
+              <div className="flex flex-col gap-2">
+                {data.sources.map((source) => (
+                  <div key={`${source.title}-${source.url ?? source.excerpt}`} className="text-[12px] leading-5 text-[#697386]">
+                    {source.url ? (
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-[#03346E] hover:underline"
+                      >
+                        {source.title}
+                      </a>
+                    ) : (
+                      <span className="font-medium text-[#3f4652]">{source.title}</span>
+                    )}
+                    <p>{source.excerpt}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

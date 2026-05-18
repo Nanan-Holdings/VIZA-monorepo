@@ -209,8 +209,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         if (Array.isArray(parsed.errors)) allErrors.push(...parsed.errors);
         if (Array.isArray(parsed.warnings)) allWarnings.push(...parsed.warnings);
       }
-    } catch (err: any) {
-      logger.error("Claude validation failed", new Error("Claude validation failed"), { error: err.message });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown Claude validation error";
+      logger.error("Claude validation failed", new Error("Claude validation failed"), { error: message });
       // Don't block submission on Claude failure — hard rules already ran
     }
   }

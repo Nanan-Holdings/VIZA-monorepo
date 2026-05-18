@@ -9,6 +9,7 @@ import applicationAnswersRouter from './routes/application-answers.routes.js';
 import profilePrefillRouter from './routes/profile-prefill.routes.js';
 import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import translationRouter from './routes/translation.routes.js';
+import fieldGuidanceRouter from './routes/field-guidance.routes.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -34,6 +35,12 @@ app.use('/webhook/telegram', telegramWebhookRouter);
 
 // AI validation endpoint
 app.use('/api/validate-application', validateApplicationRouter);
+
+// Field-level form guidance endpoint
+app.use('/api/field-guidance', fieldGuidanceRouter);
+
+// Chat block save endpoint
+app.use('/api/chat/save-block', chatSaveBlockRouter);
 
 // User package routes
 app.use('/api/user/package', userPackagesRouter);
