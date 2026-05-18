@@ -54,6 +54,7 @@ import {
 } from "@/components/client/travel/travel-itinerary-data";
 
 type ItineryTableRow = {
+  time?: string;
   type: string;
   date: string;
   route: string;
@@ -106,6 +107,8 @@ type TravelDownloadEndpoint =
   | "/api/travel/download-word"
   | "/api/travel/download-pdf";
 
+type TravelExportLanguage = "zh" | "en" | "bilingual";
+
 type TravelExportPayload = {
   country: string;
   countries: string[];
@@ -127,7 +130,17 @@ type TravelExportPayload = {
   attached_files: string[];
   itinerary: ItineraryDay[];
   itinery_rows: ItineryTableRow[];
+  export_language: TravelExportLanguage;
 };
+
+const EXPORT_LANGUAGE_OPTIONS: Array<{
+  value: TravelExportLanguage;
+  label: string;
+}> = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "English" },
+  { value: "bilingual", label: "中英双语" },
+];
 
 const CITY_IMAGE_POOL = [
   "/globe/tokyo.jpg",
@@ -400,6 +413,72 @@ function getDepartureDate(travelState: TravelState): string {
   return travelState.departure_date ?? new Date().toISOString().slice(0, 10);
 }
 
+function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const datePart = value.includes("T") ? value.split("T")[0] : value;
+  const parsed = new Date(`${datePart}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getDayNumberForDate(value: string | null | undefined, travelState: TravelState) {
+  const start = parseIsoDate(getDepartureDate(travelState));
+  const target = parseIsoDate(value);
+  if (!start || !target) return 1;
+  const diff = target.getTime() - start.getTime();
+  return Math.max(1, Math.round(diff / 86_400_000) + 1);
+}
+
+function getDayNumber(day: ItineraryDay): number {
+  if (typeof day.day === "number" && Number.isFinite(day.day)) {
+    return Math.max(1, day.day);
+  }
+  const match = String(day.day).match(/\d+/);
+  return match ? Math.max(1, Number(match[0])) : 1;
+}
+
+function extractClockTime(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const match = value.match(/(?:T|\s)(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, "0")}:${match[2]}`;
+  const loose = value.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (loose) return `${loose[1].padStart(2, "0")}:${loose[2]}`;
+  return fallback;
+}
+
+function timeToMinutes(value: string): number {
+  const match = value.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return 0;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function makeTimelineSortKey(dayNumber: number, time: string): number {
+  return dayNumber * 1440 + timeToMinutes(time);
+}
+
+type TimedItineryRow = ItineryTableRow & { sortKey: number };
+
+function createTimedItineryRow(
+  row: ItineryTableRow,
+  dayNumber: number,
+  time: string
+): TimedItineryRow {
+  return {
+    ...row,
+    time,
+    sortKey: makeTimelineSortKey(dayNumber, time),
+  };
+}
+
+function finalizeTimedRows(rows: TimedItineryRow[]): ItineryTableRow[] {
+  return [...rows]
+    .sort((first, second) => first.sortKey - second.sortKey)
+    .map(({ sortKey: _sortKey, ...row }) => row);
+}
+
+function getFlightNumberFallback(route: string): string {
+  return `VZ${String((hashString(route) % 900) + 100)}`;
+}
+
 function findHotelForCity(
   hotels: SelectedHotelOption[],
   city: string
@@ -630,10 +709,6 @@ function getHotelDisplayPrice(hotel: SelectedHotelOption): string {
   return `${currencyLabel}${priceText}`;
 }
 
-function joinList(items: string[]): string {
-  return items.filter(Boolean).join("、") || "-";
-}
-
 function isVagueActivityName(value: string): boolean {
   return !value.trim() || VAGUE_ACTIVITY_RE.test(value);
 }
@@ -648,8 +723,9 @@ function getSpecificAttraction(city: string, dayIndex: number, activityIndex: nu
   return attractions[(dayIndex * 2 + activityIndex) % attractions.length];
 }
 
-function buildAttractionRows(itinerary: ItineraryDay[]): ItineryTableRow[] {
+function buildAttractionRows(itinerary: ItineraryDay[]): TimedItineryRow[] {
   return itinerary.flatMap((day, dayIndex) => {
+    const dayNumber = getDayNumber(day);
     const activities =
       day.activities.length > 0
         ? day.activities
@@ -658,62 +734,150 @@ function buildAttractionRows(itinerary: ItineraryDay[]): ItineryTableRow[] {
             getSpecificAttraction(day.city, dayIndex, 1),
           ];
 
-    return activities.map((activity, activityIndex) => {
-      const name = isVagueActivityName(activity)
-        ? getSpecificAttraction(day.city, dayIndex, activityIndex)
-        : activity;
+    const morningActivity = isVagueActivityName(activities[0] ?? "")
+      ? getSpecificAttraction(day.city, dayIndex, 0)
+      : activities[0];
+    const afternoonActivity = isVagueActivityName(activities[1] ?? "")
+      ? getSpecificAttraction(day.city, dayIndex, 1)
+      : activities[1] ?? getSpecificAttraction(day.city, dayIndex, 1);
+    const cityLabel = getLocalCityLabel(day.city);
+    const rows: TimedItineryRow[] = [
+      createTimedItineryRow(
+        {
+          time: "09:00 上午",
+          type: "景点",
+          date: formatDayTab(day),
+          route: cityLabel,
+          name: morningActivity,
+          details: `上午：抵达并游览 ${morningActivity}，建议停留 2-3 小时。`,
+          contact: "-",
+        },
+        dayNumber,
+        "09:00"
+      ),
+    ];
 
-      return {
-        type: "景点",
-        date: formatDayTab(day),
-        route: getLocalCityLabel(day.city),
-        name,
-        details: day.food.length ? `餐饮：${joinList(day.food)}` : "-",
-        contact: "-",
-      };
-    });
+    if (day.food[0]) {
+      rows.push(
+        createTimedItineryRow(
+          {
+            time: "12:30 午餐",
+            type: "餐饮",
+            date: formatDayTab(day),
+            route: cityLabel,
+            name: day.food[0],
+            details: `午餐：${day.food[0]}。`,
+            contact: "-",
+          },
+          dayNumber,
+          "12:30"
+        )
+      );
+    }
+
+    rows.push(
+      createTimedItineryRow(
+        {
+          time: "14:30 下午",
+          type: "景点",
+          date: formatDayTab(day),
+          route: cityLabel,
+          name: afternoonActivity,
+          details: `下午：继续游览 ${afternoonActivity}，可安排拍照、步行和周边街区体验。`,
+          contact: "-",
+        },
+        dayNumber,
+        "14:30"
+      )
+    );
+
+    if (day.food[1]) {
+      rows.push(
+        createTimedItineryRow(
+          {
+            time: "18:30 晚餐",
+            type: "餐饮",
+            date: formatDayTab(day),
+            route: cityLabel,
+            name: day.food[1],
+            details: `晚餐：${day.food[1]}。`,
+            contact: "-",
+          },
+          dayNumber,
+          "18:30"
+        )
+      );
+    }
+
+    return rows;
   });
 }
 
 function buildDefaultHotelRows(
   segments: CitySegment[],
   travelState: TravelState
-): ItineryTableRow[] {
+): TimedItineryRow[] {
   const startDate = getDepartureDate(travelState);
 
   return segments.map((segment) => {
     const checkIn = addDays(startDate, segment.dayStart - 1);
     const nights = Math.max(1, segment.dayEnd - segment.dayStart);
     const checkOut = addDays(startDate, segment.dayStart - 1 + nights);
+    const cityLabel = segment.label;
 
-    return {
-      type: "酒店",
-      date: `${formatMonthDay(checkIn)} - ${formatMonthDay(checkOut)}`,
-      route: segment.label,
-      name: `${segment.label}默认酒店（可编辑）`,
-      details: `${nights}晚；默认住宿占位；用户可修改酒店名、地址和价格`,
-      contact: "待补充",
-    };
+    return createTimedItineryRow(
+        {
+          time: "15:00 入住",
+          type: "酒店",
+        date: `${formatMonthDay(checkIn)} - ${formatMonthDay(checkOut)}`,
+        route: cityLabel,
+        name: `${cityLabel}默认酒店（可编辑）`,
+        details: `${nights}晚；地址：${cityLabel}市中心区域；价格：待酒店 API 确认；入住 15:00，退房 11:00。`,
+        contact: "请通过预订平台确认",
+      },
+      segment.dayStart,
+      "15:00"
+    );
   });
 }
 
-function buildSelectedHotelRows(hotels: SelectedHotelOption[]): ItineryTableRow[] {
-  return hotels.map((hotel) => ({
-    type: "酒店",
-    date: `${formatMonthDay(hotel.check_in)} - ${formatMonthDay(hotel.check_out)}`,
-    route: getLocalCityLabel(hotel.city),
-    name: hotel.option.name ?? `${getLocalCityLabel(hotel.city)}酒店`,
-    details: `${hotel.nights}晚；${hotel.option.address ?? "-"}；${getHotelDisplayPrice(
-      hotel
-    )}`,
-    contact: hotel.option.contact_phone ?? "待补充",
-  }));
+function buildSelectedHotelRows(
+  hotels: SelectedHotelOption[],
+  travelState: TravelState
+): TimedItineryRow[] {
+  return hotels.map((hotel) => {
+    const cityLabel = getLocalCityLabel(hotel.city);
+    const checkInTime = extractClockTime(hotel.option.check_in_time, "15:00");
+    const checkOutTime = hotel.option.check_out_time ?? "11:00";
+    const address = hotel.option.address ?? `${cityLabel}市中心区域`;
+    const contact =
+      hotel.option.contact_phone ??
+      hotel.option.website ??
+      hotel.option.contact_email ??
+      "请通过预订平台确认";
+
+    return createTimedItineryRow(
+      {
+        time: `${checkInTime} 入住`,
+        type: "酒店",
+        date: `${formatMonthDay(hotel.check_in)} - ${formatMonthDay(hotel.check_out)}`,
+        route: cityLabel,
+        name: hotel.option.name ?? `${cityLabel}酒店`,
+        details: `${hotel.nights}晚；地址：${address}；价格：${getHotelDisplayPrice(
+          hotel
+        )}；入住 ${checkInTime}，退房 ${checkOutTime}。`,
+        contact,
+      },
+      getDayNumberForDate(hotel.check_in, travelState),
+      checkInTime
+    );
+  });
 }
 
 function buildDefaultFlightRows(
   segments: CitySegment[],
   travelState: TravelState
-): ItineryTableRow[] {
+): TimedItineryRow[] {
   const firstCity = segments[0]?.city;
   const lastCity = segments[segments.length - 1]?.city ?? firstCity;
   if (!firstCity || !lastCity) return [];
@@ -721,17 +885,25 @@ function buildDefaultFlightRows(
   const origin = travelState.origin_city?.trim() || firstCity;
   const returnCity = travelState.return_city?.trim() || origin;
   const startDate = getDepartureDate(travelState);
-  const rows: ItineryTableRow[] = [];
+  const rows: TimedItineryRow[] = [];
 
   if (normalizeLookupKey(origin) !== normalizeLookupKey(firstCity)) {
-    rows.push({
-      type: "航班",
-      date: formatMonthDay(startDate),
-      route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
-      name: "默认航班（可编辑）",
-      details: "经济舱；用户可修改时间、价格和航司",
-      contact: "TBD",
-    });
+    const route = `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`;
+    rows.push(
+      createTimedItineryRow(
+        {
+          time: "08:00 出发",
+          type: "航班",
+          date: formatMonthDay(startDate),
+          route,
+          name: "默认航班（可编辑）",
+          details: "出发 08:00；预计经济舱；用户可修改时间、价格和航司。",
+          contact: getFlightNumberFallback(route),
+        },
+        1,
+        "08:00"
+      )
+    );
   }
 
   if (normalizeLookupKey(lastCity) !== normalizeLookupKey(returnCity)) {
@@ -739,36 +911,58 @@ function buildDefaultFlightRows(
       startDate,
       Math.max(0, segments[segments.length - 1].dayEnd - 1)
     );
-    rows.push({
-      type: "航班",
-      date: formatMonthDay(returnDate),
-      route: `${getLocalCityLabel(lastCity)} → ${getLocalCityLabel(returnCity)}`,
-      name: "默认航班（可编辑）",
-      details: "经济舱；用户可修改时间、价格和航司",
-      contact: "TBD",
-    });
+    const route = `${getLocalCityLabel(lastCity)} → ${getLocalCityLabel(returnCity)}`;
+    rows.push(
+      createTimedItineryRow(
+        {
+          time: "18:00 出发",
+          type: "航班",
+          date: formatMonthDay(returnDate),
+          route,
+          name: "默认航班（可编辑）",
+          details: "出发 18:00；预计经济舱；用户可修改时间、价格和航司。",
+          contact: getFlightNumberFallback(route),
+        },
+        segments[segments.length - 1].dayEnd,
+        "18:00"
+      )
+    );
   }
 
   if (!rows.length) {
-    rows.push({
-      type: "航班",
-      date: formatMonthDay(startDate),
-      route: `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`,
-      name: "默认航班（可编辑）",
-      details: "经济舱；用户可修改出发/到达城市和航班号",
-      contact: "TBD",
-    });
+    const route = `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`;
+    rows.push(
+      createTimedItineryRow(
+        {
+          time: "08:00 出发",
+          type: "航班",
+          date: formatMonthDay(startDate),
+          route,
+          name: "默认航班（可编辑）",
+          details: "出发 08:00；预计经济舱；用户可修改出发/到达城市和航班号。",
+          contact: getFlightNumberFallback(route),
+        },
+        1,
+        "08:00"
+      )
+    );
   }
 
   return rows;
 }
 
-function buildSelectedFlightRows(flights: SelectedFlightOption[]): ItineryTableRow[] {
+function buildSelectedFlightRows(
+  flights: SelectedFlightOption[],
+  travelState: TravelState
+): TimedItineryRow[] {
   return flights
     .filter((flight) => !flight.skip)
     .map((flight) => {
       const option = flight.option;
       const airline = option?.airline ?? option?.provider ?? "已选航班";
+      const route = `${flight.from} → ${flight.to}`;
+      const departureTime = extractClockTime(option?.departure, "08:00");
+      const arrivalTime = extractClockTime(option?.arrival, "");
       const airports = [option?.from_id ?? option?.from, option?.to_id ?? option?.to]
         .filter(Boolean)
         .join(" → ");
@@ -779,14 +973,30 @@ function buildSelectedFlightRows(flights: SelectedFlightOption[]): ItineryTableR
             ? `${option.stops}次中转`
             : "-";
 
-      return {
-        type: "航班",
-        date: flight.departure_date,
-        route: `${flight.from} → ${flight.to}`,
-        name: airline,
-        details: [airports, option?.duration, stops].filter(Boolean).join("；") || "-",
-        contact: option?.flight_number ?? "TBD",
-      };
+      const flightNumber = option?.flight_number ?? getFlightNumberFallback(route);
+      const detailItems = [
+        option?.departure ? `出发：${option.departure}` : `出发：${departureTime}`,
+        option?.arrival ? `到达：${option.arrival}` : arrivalTime ? `到达：${arrivalTime}` : "",
+        airports ? `机场：${airports}` : "",
+        option?.duration ? `时长：${option.duration}` : "",
+        `经停：${stops}`,
+        option?.cabin_class ? `舱位：${option.cabin_class}` : "",
+        option?.price ? `价格：${option.price} ${option.currency ?? ""}`.trim() : "",
+      ].filter(Boolean);
+
+      return createTimedItineryRow(
+        {
+          time: `${departureTime} 出发`,
+          type: "航班",
+          date: formatMonthDay(flight.departure_date),
+          route,
+          name: `${airline} ${flightNumber}`,
+          details: detailItems.join("；") || "-",
+          contact: flightNumber,
+        },
+        getDayNumberForDate(flight.departure_date, travelState),
+        departureTime
+      );
     });
 }
 
@@ -797,21 +1007,25 @@ function buildItineryTableRows(
 ): ItineryTableRow[] {
   const attractionRows = buildAttractionRows(itinerary);
   const hotelRows = travelState.selected_hotels.length
-    ? buildSelectedHotelRows(travelState.selected_hotels)
+    ? buildSelectedHotelRows(travelState.selected_hotels, travelState)
     : buildDefaultHotelRows(segments, travelState);
-  const selectedFlightRows = buildSelectedFlightRows(travelState.selected_flights);
+  const selectedFlightRows = buildSelectedFlightRows(
+    travelState.selected_flights,
+    travelState
+  );
   const flightRows = selectedFlightRows.length
     ? selectedFlightRows
     : buildDefaultFlightRows(segments, travelState);
 
-  return [...attractionRows, ...hotelRows, ...flightRows];
+  return finalizeTimedRows([...flightRows, ...hotelRows, ...attractionRows]);
 }
 
 function buildTravelExportPayload(
   itinerary: ItineraryDay[],
   travelState: TravelState,
   orderedCities: string[],
-  itineryRows: ItineryTableRow[]
+  itineryRows: ItineryTableRow[],
+  exportLanguage: TravelExportLanguage
 ): TravelExportPayload {
   const cities =
     travelState.cities.length > 0
@@ -843,6 +1057,7 @@ function buildTravelExportPayload(
     attached_files: travelState.attached_files,
     itinerary,
     itinery_rows: itineryRows,
+    export_language: exportLanguage,
   };
 }
 
@@ -901,6 +1116,7 @@ export function TravelItineraryExperience({
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isSharingLink, setIsSharingLink] = useState(false);
+  const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -968,9 +1184,10 @@ export function TravelItineraryExperience({
         itinerary,
         travelState,
         orderedCities,
-        editableItineryRows
+        editableItineryRows,
+        exportLanguage
       ),
-    [editableItineryRows, itinerary, orderedCities, travelState]
+    [editableItineryRows, exportLanguage, itinerary, orderedCities, travelState]
   );
   const sharePayload = useMemo(
     () =>
@@ -982,6 +1199,8 @@ export function TravelItineraryExperience({
       ),
     [editableItineryRows, itinerary, title, travelState]
   );
+  const exportFilenameSuffix =
+    exportLanguage === "zh" ? "" : `-${exportLanguage}`;
 
   useEffect(() => {
     setActiveDayIndex(0);
@@ -1093,6 +1312,7 @@ export function TravelItineraryExperience({
       ...rows,
       {
         type: "景点",
+        time: "09:00 上午",
         date: activeDay ? formatDayTab(activeDay) : "天 1",
         route: city ? getLocalCityLabel(city) : "待填写",
         name: "新的景点/酒店/航班",
@@ -1214,6 +1434,29 @@ export function TravelItineraryExperience({
     </div>
   );
 
+  const renderExportLanguageSwitch = (placement: string) => (
+    <div
+      className="flex rounded-full bg-[#f6efff] p-1"
+      data-testid={`travel-itinerary-export-language-${placement}`}
+    >
+      {EXPORT_LANGUAGE_OPTIONS.map((option) => (
+        <button
+          className={cn(
+            "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+            exportLanguage === option.value
+              ? "bg-white text-[#2d1635] shadow-sm"
+              : "text-[#7b4de8] hover:bg-white/70"
+          )}
+          key={`${placement}-${option.value}`}
+          onClick={() => setExportLanguage(option.value)}
+          type="button"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <>
       <div
@@ -1329,6 +1572,7 @@ export function TravelItineraryExperience({
             )}
 
             <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+              {renderExportLanguageSwitch("hero")}
               <Button
                 className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
                 data-testid="travel-itinerary-share-link-button"
@@ -1347,7 +1591,7 @@ export function TravelItineraryExperience({
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-word",
-                    "travel-itinerary.docx",
+                    `travel-itinerary${exportFilenameSuffix}.docx`,
                     setIsDownloadingWord
                   )
                 }
@@ -1364,7 +1608,7 @@ export function TravelItineraryExperience({
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-pdf",
-                    "travel-itinerary.pdf",
+                    `travel-itinerary${exportFilenameSuffix}.pdf`,
                     setIsDownloadingPdf
                   )
                 }
@@ -1477,10 +1721,11 @@ export function TravelItineraryExperience({
               </div>
             </div>
             <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#e6dff0] [scrollbar-width:thin]">
-              <table className="min-w-[1080px] w-full border-collapse text-left text-sm">
+              <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
                 <thead className="sticky top-0 bg-[#efe5ff] text-[#2d1635]">
                   <tr>
                     {[
+                      "时间",
                       "类型",
                       "日期/天数",
                       "城市/路线",
@@ -1501,6 +1746,7 @@ export function TravelItineraryExperience({
                       <tr className="align-top text-[#3a273f]" key={`${row.type}-${index}`}>
                         {(
                           [
+                            ["time", "时间"],
                             ["type", "类型"],
                             ["date", "日期/天数"],
                             ["route", "城市/路线"],
@@ -1517,7 +1763,7 @@ export function TravelItineraryExperience({
                                 onChange={(event) =>
                                   updateItineryRow(index, field, event.target.value)
                                 }
-                                value={row[field]}
+                                value={row[field] ?? ""}
                               />
                             ) : (
                               <input
@@ -1533,7 +1779,7 @@ export function TravelItineraryExperience({
                                 onChange={(event) =>
                                   updateItineryRow(index, field, event.target.value)
                                 }
-                                value={row[field]}
+                                value={row[field] ?? ""}
                               />
                             )}
                           </td>
@@ -1554,7 +1800,7 @@ export function TravelItineraryExperience({
                     ))
                   ) : (
                     <tr>
-                      <td className="px-4 py-4 text-[#5f5166]" colSpan={7}>
+                      <td className="px-4 py-4 text-[#5f5166]" colSpan={8}>
                         暂无可导出的行程项目
                       </td>
                     </tr>
@@ -1831,6 +2077,7 @@ export function TravelItineraryExperience({
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {renderExportLanguageSwitch("sticky")}
               <Button
                 className="h-10 rounded-full border-[#d8c5ff] bg-white px-3 text-[#2d1635] hover:bg-[#f6efff]"
                 disabled={isSharingLink}
@@ -1848,7 +2095,7 @@ export function TravelItineraryExperience({
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-word",
-                    "travel-itinerary.docx",
+                    `travel-itinerary${exportFilenameSuffix}.docx`,
                     setIsDownloadingWord
                   )
                 }
@@ -1865,7 +2112,7 @@ export function TravelItineraryExperience({
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-pdf",
-                    "travel-itinerary.pdf",
+                    `travel-itinerary${exportFilenameSuffix}.pdf`,
                     setIsDownloadingPdf
                   )
                 }

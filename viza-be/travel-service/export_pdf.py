@@ -10,7 +10,13 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from export_summary import build_itinery_rows
+from export_summary import (
+    TABLE_KEYS,
+    build_itinery_rows,
+    get_table_headers,
+    localize_itinery_rows,
+    normalize_export_language,
+)
 
 PDF_FONT = "TravelCJKFont"
 CID_FALLBACK_FONT = "STSong-Light"
@@ -19,8 +25,6 @@ LEFT_MARGIN = 50
 RIGHT_MARGIN = 50
 TOP_MARGIN = 50
 BOTTOM_MARGIN = 50
-TABLE_HEADERS = ["类型", "日期/天数", "城市/路线", "名称", "详情", "联系电话/航班号"]
-TABLE_KEYS = ["type", "date", "route", "name", "details", "contact"]
 
 
 def _register_font():
@@ -70,6 +74,8 @@ def _paragraph(text, style):
 
 
 def export_to_pdf(itinerary, state=None):
+    state = state or {}
+    export_language = normalize_export_language(state.get("export_language"))
     active_font = _register_font()
 
     with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -104,8 +110,9 @@ def export_to_pdf(itinerary, state=None):
         spaceBefore=8,
     )
 
-    rows = build_itinery_rows(itinerary, state or {})
-    table_data = [[_paragraph(header, cell_style) for header in TABLE_HEADERS]]
+    rows = localize_itinery_rows(build_itinery_rows(itinerary, state), export_language)
+    headers = get_table_headers(export_language)
+    table_data = [[_paragraph(header, cell_style) for header in headers]]
     if rows:
         for row in rows:
             table_data.append([
@@ -115,15 +122,15 @@ def export_to_pdf(itinerary, state=None):
         table_data.append(
             [
                 _paragraph("暂无行程" if index == 0 else "-", cell_style)
-                for index in range(len(TABLE_HEADERS))
+                for index in range(len(headers))
             ]
         )
 
-    story = [_paragraph("itinery", title_style)]
+    story = [_paragraph("itinery" if export_language != "en" else "itinerary", title_style)]
     story.append(
         Table(
             table_data,
-            colWidths=[42, 66, 78, 94, 160, 86],
+            colWidths=[50, 38, 58, 68, 82, 150, 66],
             repeatRows=1,
             style=TableStyle(
                 [

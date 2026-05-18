@@ -47,6 +47,7 @@ class TravelRequest(BaseModel):
     attached_files: list[str] = Field(default_factory=list)
     itinerary: list[dict] = Field(default_factory=list)
     itinery_rows: list[dict] = Field(default_factory=list)
+    export_language: Optional[str] = "zh"
 
 
 class TravelRevisionRequest(BaseModel):
@@ -261,7 +262,7 @@ def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
 
     return FileResponse(
         path=file_path,
-        filename="travel_plan.docx",
+        filename=f"travel_plan_{data.export_language or 'zh'}.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
@@ -275,7 +276,7 @@ def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
 
     return FileResponse(
         path=file_path,
-        filename="travel_plan.pdf",
+        filename=f"travel_plan_{data.export_language or 'zh'}.pdf",
         media_type="application/pdf",
     )
 

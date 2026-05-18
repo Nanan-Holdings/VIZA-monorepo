@@ -23,6 +23,17 @@ type TravelItineraryPanelProps = {
   variant?: "full" | "compact";
 };
 
+type TravelExportLanguage = "zh" | "en" | "bilingual";
+
+const EXPORT_LANGUAGE_OPTIONS: Array<{
+  value: TravelExportLanguage;
+  label: string;
+}> = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "English" },
+  { value: "bilingual", label: "中英双语" },
+];
+
 const CITY_IMAGE_POOL = [
   "/globe/tokyo.jpg",
   "/globe/singapore.jpg",
@@ -98,12 +109,17 @@ export function TravelItineraryPanel({
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
 
   const itinerary = useMemo(() => {
     return getTravelItineraryFromMessages(messages);
   }, [messages]);
 
   const payload = useMemo(() => buildTravelPayloadFromChat(messages), [messages]);
+  const exportPayload = useMemo(
+    () => (payload ? { ...payload, export_language: exportLanguage } : null),
+    [exportLanguage, payload]
+  );
   const activeDay = itinerary[activeDayIndex] ?? itinerary[0];
   const uniqueCities = useMemo(
     () => Array.from(new Set(itinerary.map((day) => day.city))),
@@ -115,6 +131,8 @@ export function TravelItineraryPanel({
     ? `${payload.budget.toLocaleString()} RMB`
     : "Flexible";
   const showMapPanel = variant === "full";
+  const exportFilenameSuffix =
+    exportLanguage === "zh" ? "" : `-${exportLanguage}`;
 
   useEffect(() => {
     setActiveDayIndex(0);
@@ -146,11 +164,27 @@ export function TravelItineraryPanel({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-full bg-white/10 p-1">
+              {EXPORT_LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    exportLanguage === option.value
+                      ? "bg-white text-[#052b59]"
+                      : "text-blue-50 hover:bg-white/15"
+                  }`}
+                  key={option.value}
+                  onClick={() => setExportLanguage(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <Button
               className="border-white/40 bg-white/10 text-white hover:bg-white/20"
-              disabled={!payload || isDownloadingWord}
+              disabled={!exportPayload || isDownloadingWord}
               onClick={async () => {
-                if (!payload) {
+                if (!exportPayload) {
                   toast.error("Please complete trip information before exporting.");
                   return;
                 }
@@ -158,8 +192,8 @@ export function TravelItineraryPanel({
                 try {
                   await downloadBlob(
                     "/api/travel/download-word",
-                    payload,
-                    "travel-itinerary.docx"
+                    exportPayload,
+                    `travel-itinerary${exportFilenameSuffix}.docx`
                   );
                 } catch (error) {
                   const message =
@@ -179,9 +213,9 @@ export function TravelItineraryPanel({
             </Button>
             <Button
               className="border-white/40 bg-white/10 text-white hover:bg-white/20"
-              disabled={!payload || isDownloadingPdf}
+              disabled={!exportPayload || isDownloadingPdf}
               onClick={async () => {
-                if (!payload) {
+                if (!exportPayload) {
                   toast.error("Please complete trip information before exporting.");
                   return;
                 }
@@ -189,8 +223,8 @@ export function TravelItineraryPanel({
                 try {
                   await downloadBlob(
                     "/api/travel/download-pdf",
-                    payload,
-                    "travel-itinerary.pdf"
+                    exportPayload,
+                    `travel-itinerary${exportFilenameSuffix}.pdf`
                   );
                 } catch (error) {
                   const message =

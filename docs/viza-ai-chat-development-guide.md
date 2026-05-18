@@ -171,6 +171,7 @@ RAG routing context:
 - 这样用户按编号压缩回答时，例如 `中国，新加坡，不知道，会去别的国家`，系统仍能沿用上一轮用户提到的 main destination（如 Switzerland），同时不会把 `新加坡` 误当成目的地。
 - application `visa_type` 只能在与解析出的 country 兼容时作为 fallback，避免默认 `tourist_b211a` 污染 Schengen/UK/U.S. 问题。
 - `buildCompactAnswerInterpretation()` 是独立于 RAG 的上下文解释层：它读取上一轮 assistant 的编号问题或天数分配问题，把当前短答案映射成 slot/day-split note 注入 system prompt。例如瑞士主目的地后回答 `中国护照，中国，7天，法国，意大利` 会保留 Switzerland 并把 France/Italy 识别为 other Schengen countries；法国/意大利天数问题后回答 `2，5` 会映射为 France 2 days / Italy 5 days。
+- 当前 supported RAG country 覆盖所有当前 Schengen Area 国家（Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden, Switzerland）以及 Australia, Cambodia, Canada, Egypt, India, Indonesia, Japan, Laos, Malaysia, Maldives, Mexico, Morocco, Nepal, New Zealand, Philippines, Qatar, Saudi Arabia, Singapore, South Africa, South Korea, Sri Lanka, Thailand, Turkey, UAE, UK, US, Vietnam。Schengen 国家统一走 `schengen_short_stay_tourism`，其他国家当前以 tourism/visitor/entry visa 为主。
 
 RAG migration：
 
@@ -200,8 +201,9 @@ RAG 知识源与写入：
   - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
 
 - `knowledge-base/supported-visa-rag.json`
-  - 官方来源整理后的 Vietnam / UK / France / Italy / Switzerland 短期访问签证 chunks。
-  - 当前覆盖越南 e-visa、英国 Standard Visitor、法国 tourism/private stay、意大利 Uniform Schengen Visa、瑞士 90 天内 Schengen route，以及 France/Italy/Switzerland 共用的 Schengen 申请规则。
+  - 官方来源和签证中心来源整理后的多国短期访问签证 chunks。
+  - 当前覆盖所有 29 个 Schengen Area 国家，以及 Vietnam, UK, Singapore, Malaysia, Thailand, Canada, Australia, New Zealand, Japan, South Korea, UAE, Egypt, Turkey, Qatar, Saudi Arabia, Morocco, South Africa, Maldives, Sri Lanka, India, Philippines, Cambodia, Laos, Nepal, Mexico。
+  - 美国和印尼使用独立 JSON seed；不要把它们重复粘进 supported seed。
 
 - `viza-be/agent-backend/scripts/ingest-supported-visa-rag.ts`
   - 读取上面的 JSON。
@@ -293,7 +295,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - `match_visa_chunks` RPC migration 已新增；应用 migration 后可启用 pgvector 相似度检索。
 - `/visa` Socket chat 已接入 RAG：每条用户消息会先检索 `visa_chunks`，再把知识上下文注入 VIZA AI 的 system prompt。
 - VIZA AI 的 system prompt 已改成多目的地签证助手，不再把自己定义为 Indonesia-only，也不会在用户没说目的地时默认查 Indonesia。
-- `/visa` 的 knowledge routing 已支持 Vietnam、UK、France、Italy、Switzerland、U.S.、Indonesia；多个国家或泛 Schengen 问题不会被旧 application country 拉回 Indonesia。
+- `/visa` 的 knowledge routing 已支持所有当前 Schengen Area 国家、Vietnam、UK、U.S.、Indonesia，以及 Singapore/Malaysia/Thailand/Canada/Australia/New Zealand/Japan/South Korea；多个国家或泛 Schengen 问题不会被旧 application country 拉回 Indonesia。
 - Indonesia visa 官方知识源与 ingestion 脚本已新增。RAG 内容覆盖中国游客 7 天赴印尼应优先考虑 VoA/e-VOA，而不是美国 B-2/DS-160。
 - Indonesia RAG 已写入 Supabase：`visa_documents` 6 条，`visa_chunks` 12 条，均为 `country=indonesia`、`visa_type=tourist_b211a`。
 - 页面 UI 已经有入口选择页和截图里的聊天页。
@@ -361,5 +363,7 @@ npm run type-check
 - Step 17 session panel alignment：VIZA process 侧栏现在默认关闭；桌面展开为左侧浮层，不再给主聊天区加左 padding，因此 AI 输出、tab 和输入框不会因为打开侧栏而横向跳动。移动端仍使用 drawer 打开/关闭。`viza-fe/internal-website npm run type-check` 通过；Playwright route smoke 由于无登录态重定向到 `/client/login`。
 - Step 18 process management UX：用 Chrome 登录态实测 chatbot，多轮验证瑞士/申根、新加坡居住地、美国 B-2/B-1/B-2 切换都能接住上下文。侧栏移除重复无文字加号，只保留一个 `New chat`；process 支持 inline rename 和 two-step delete。Chrome 复查已验证 disposable session 创建、回复、rename、delete 均成功；`viza-fe/internal-website npm run type-check` 通过。
 - Step 19 compact answer context repair：修复用户用短答案回答上一轮问题时模型丢上下文的问题。前端 `VisaChatRequest.history` 会携带最近可见聊天历史；后端在 DB 历史不完整时使用该历史，并新增 `buildCompactAnswerInterpretation()` 给 system prompt 注入短答案映射。Chrome 复查：瑞士 -> `中国护照，中国，7天，法国，意大利` 后保留 `瑞士 + 法国 + 意大利`；继续输入 `2，5` 不再重置，会要求补齐缺失国家天数。法国+意大利场景下 `2，5` 正确映射为法国 2 天、意大利 5 天，并推荐意大利申根签。前后端 type-check 通过。
+- Step 20 popular destination RAG expansion：扩展 `supported-visa-rag.json` 到 20 documents / 55 chunks，新增 Norway, Iceland, Singapore, Malaysia, Thailand, Canada, Australia, New Zealand, Japan, South Korea；`visa-namespace.ts` 同步扩展 country aliases、Schengen country set 和 visitor visa type mapping。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：55 chunks / 55 embeddings。Retrieval smoke 对 Norway/Iceland/Singapore/Malaysia/Thailand/Canada/Australia/New Zealand/Japan/South Korea 均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档。Chrome 复查：日本问题走 Japan eVISA/短期停留，加拿大问题走 Canada TRV，挪威+冰岛同天数时按 Schengen 规则追问首入境国。前后端 type-check 和 `git diff --check` 通过。
+- Step 21 full Schengen RAG coverage：补齐所有当前 Schengen Area 国家。`supported-visa-rag.json` 从 20 documents / 55 chunks 扩展到 44 documents / 103 chunks，新增 Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, Germany, Greece, Hungary, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden。`visa-namespace.ts` 同步新增 country aliases 和完整 Schengen country set；这些国家统一映射到 `schengen_short_stay_tourism`。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：103 chunks / 103 embeddings。Retrieval smoke 覆盖全部 29 个 Schengen countries，均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档；同时修复 Italy `roma` alias 误伤 Romania 的路由问题。前后端 type-check 与 `git diff --check` 通过。Chrome 复查启动时被未关联的 application-steps dev build error 阻塞：`components/application-steps/index.ts` 仍引用已删除的 `personal-info-step.tsx`。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

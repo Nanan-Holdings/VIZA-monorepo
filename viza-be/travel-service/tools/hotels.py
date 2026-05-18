@@ -82,6 +82,10 @@ def _fallback_hotels(destination, adults=1):
             "currency": "USD",
             "rating": 4.5,
             "adults": adults,
+            "address": f"1 Central Avenue, {destination}",
+            "contact_phone": "+1 555 010 1200",
+            "check_in_time": "15:00",
+            "check_out_time": "11:00",
         },
         {
             "provider": "mock",
@@ -91,6 +95,10 @@ def _fallback_hotels(destination, adults=1):
             "currency": "USD",
             "rating": 3.8,
             "adults": adults,
+            "address": f"88 Station Road, {destination}",
+            "contact_phone": "+1 555 010 0600",
+            "check_in_time": "15:00",
+            "check_out_time": "11:00",
         },
     ]
 
