@@ -133,6 +133,10 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "-",
             "stops": 0,
+            "flight_number": "SQ318",
+            "departure_airport": origin_city,
+            "arrival_airport": destination_city,
+            "cabin_class": "ECONOMY",
         },
         {
             "provider": "mock",
@@ -144,6 +148,10 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "-",
             "stops": 0,
+            "flight_number": "TR808",
+            "departure_airport": origin_city,
+            "arrival_airport": destination_city,
+            "cabin_class": "ECONOMY",
         },
     ]
 

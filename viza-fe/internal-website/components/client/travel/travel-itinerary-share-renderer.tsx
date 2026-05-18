@@ -34,6 +34,8 @@ type TravelDownloadEndpoint =
   | "/api/travel/download-word"
   | "/api/travel/download-pdf";
 
+type TravelExportLanguage = "zh" | "en" | "bilingual";
+
 type TravelExportPayload = {
   country: string;
   countries: string[];
@@ -55,7 +57,17 @@ type TravelExportPayload = {
   attached_files: string[];
   itinerary: ItineraryDay[];
   itinery_rows: TravelItineryShareRow[];
+  export_language: TravelExportLanguage;
 };
+
+const EXPORT_LANGUAGE_OPTIONS: Array<{
+  value: TravelExportLanguage;
+  label: string;
+}> = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "English" },
+  { value: "bilingual", label: "中英双语" },
+];
 
 const CITY_IMAGE_POOL = [
   "/globe/tokyo.jpg",
@@ -156,21 +168,64 @@ function getCities(payload: TravelItinerarySharePayload): string[] {
 }
 
 function buildRowsFromItinerary(itinerary: ItineraryDay[]): TravelItineryShareRow[] {
-  return itinerary.flatMap((day) =>
-    day.activities.map((activity) => ({
+  return itinerary.flatMap((day) => {
+    const rows: TravelItineryShareRow[] = [];
+    const city = getLocalCityLabel(day.city);
+    const firstActivity = day.activities[0] ?? `${city}城市地标`;
+    const secondActivity = day.activities[1] ?? day.activities[0] ?? `${city}街区体验`;
+
+    rows.push({
+      time: "09:00 上午",
       type: "景点",
       date: formatDayTab(day),
-      route: getLocalCityLabel(day.city),
-      name: activity,
-      details: day.food.length ? `餐饮：${joinList(day.food)}` : "-",
+      route: city,
+      name: firstActivity,
+      details: `上午：游览 ${firstActivity}，建议停留 2-3 小时。`,
       contact: "-",
-    }))
-  );
+    });
+
+    if (day.food[0]) {
+      rows.push({
+        time: "12:30 午餐",
+        type: "餐饮",
+        date: formatDayTab(day),
+        route: city,
+        name: day.food[0],
+        details: `午餐：${day.food[0]}。`,
+        contact: "-",
+      });
+    }
+
+    rows.push({
+      time: "14:30 下午",
+      type: "景点",
+      date: formatDayTab(day),
+      route: city,
+      name: secondActivity,
+      details: `下午：继续游览 ${secondActivity}，安排拍照、步行和周边体验。`,
+      contact: "-",
+    });
+
+    if (day.food[1]) {
+      rows.push({
+        time: "18:30 晚餐",
+        type: "餐饮",
+        date: formatDayTab(day),
+        route: city,
+        name: day.food[1],
+        details: `晚餐：${day.food[1]}。`,
+        contact: "-",
+      });
+    }
+
+    return rows;
+  });
 }
 
 function buildExportPayload(
   payload: TravelItinerarySharePayload,
-  rows: TravelItineryShareRow[]
+  rows: TravelItineryShareRow[],
+  exportLanguage: TravelExportLanguage
 ): TravelExportPayload {
   const state: TravelState = payload.travelState;
   const cities = getCities(payload);
@@ -196,7 +251,8 @@ function buildExportPayload(
     final_note: state.final_note ?? "",
     attached_files: state.attached_files,
     itinerary: payload.itinerary,
-    itinery_rows: rows,
+    itinery_rows: payload.itineryRows?.length ? rows : [],
+    export_language: exportLanguage,
   };
 }
 
@@ -251,6 +307,7 @@ export function TravelItineraryShareRenderer() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
   const payload = useMemo(
     () => (hasMounted ? decodeTravelItinerarySharePayload(encoded) : null),
     [encoded, hasMounted]
@@ -269,8 +326,8 @@ export function TravelItineraryShareRenderer() {
   );
   const cities = useMemo(() => (payload ? getCities(payload) : []), [payload]);
   const exportPayload = useMemo(
-    () => (payload ? buildExportPayload(payload, rows) : null),
-    [payload, rows]
+    () => (payload ? buildExportPayload(payload, rows, exportLanguage) : null),
+    [exportLanguage, payload, rows]
   );
 
   if (!hasMounted) {
@@ -300,6 +357,8 @@ export function TravelItineraryShareRenderer() {
   const heroImage = getCityImage(heroCity);
   const hotelRows = rows.filter((row) => row.type.includes("酒店"));
   const flightRows = rows.filter((row) => row.type.includes("航班"));
+  const exportFilenameSuffix =
+    exportLanguage === "zh" ? "" : `-${exportLanguage}`;
 
   const handleCopyLink = async () => {
     if (!navigator.clipboard?.writeText) return;
@@ -361,6 +420,22 @@ export function TravelItineraryShareRenderer() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <div className="flex rounded-full bg-[#f6efff] p-1">
+                {EXPORT_LANGUAGE_OPTIONS.map((option) => (
+                  <button
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                      exportLanguage === option.value
+                        ? "bg-white text-[#2d1635] shadow-sm"
+                        : "text-[#7b4de8] hover:bg-white/70"
+                    }`}
+                    key={option.value}
+                    onClick={() => setExportLanguage(option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <Button
                 className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                 onClick={handleCopyLink}
@@ -376,7 +451,7 @@ export function TravelItineraryShareRenderer() {
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-word",
-                    "travel-itinerary.docx",
+                    `travel-itinerary${exportFilenameSuffix}.docx`,
                     setIsDownloadingWord
                   )
                 }
@@ -391,7 +466,7 @@ export function TravelItineraryShareRenderer() {
                 onClick={() =>
                   handleDownload(
                     "/api/travel/download-pdf",
-                    "travel-itinerary.pdf",
+                    `travel-itinerary${exportFilenameSuffix}.pdf`,
                     setIsDownloadingPdf
                   )
                 }
@@ -412,10 +487,11 @@ export function TravelItineraryShareRenderer() {
             </span>
           </div>
           <div className="mt-5 overflow-auto rounded-2xl border border-[#e6dff0]">
-            <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
               <thead className="bg-[#efe5ff] text-[#2d1635]">
                 <tr>
                   {[
+                    "时间",
                     "类型",
                     "日期/天数",
                     "城市/路线",
@@ -432,6 +508,9 @@ export function TravelItineraryShareRenderer() {
               <tbody className="divide-y divide-[#eee7f5]">
                 {rows.map((row, index) => (
                   <tr className="align-top" key={`${row.type}-${row.name}-${index}`}>
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#5f5166]">
+                      {row.time ?? "-"}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-4 font-bold">
                       {row.type}
                     </td>

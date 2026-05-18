@@ -1,6 +1,6 @@
 {
-  "version": "2026-05-15",
-  "notes": "Official-source RAG seed data for currently supported non-Indonesia destinations. Scope is short-stay tourism/visitor routes unless a chunk explicitly says otherwise.",
+  "version": "2026-05-18",
+  "notes": "Official-source and visa-centre RAG seed data for supported tourism/visitor destinations. Scope is short-stay tourism/visitor routes unless a chunk explicitly says otherwise; Schengen coverage includes all current Schengen Area countries and the popular-destination set includes major Middle East, North Africa, South Asia, Southeast Asia, Indian Ocean, and Americas routes.",
   "documents": [
     {
       "slug": "vietnam-official-evisa",
@@ -13,19 +13,39 @@
         {
           "id": "vnm_evisa_basic_route_zh",
           "title": "中国护照越南短期旅游签证建议",
-          "tags": ["vietnam", "china", "chinese-passport", "tourism", "e-visa", "电子签"],
+          "tags": [
+            "vietnam",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "e-visa",
+            "电子签"
+          ],
           "content": "中国护照持有人计划去越南短期旅游时，VIZA AI 应优先考虑越南官方 E-visa 电子签证路线，而不是美国 DS-160、英国 Standard Visitor 或申根签证。越南移民局官方页面说明，电子签证由 Vietnam Immigration Department 通过电子系统签发；境外外国人可通过 evisa.gov.vn 官方入口自行申请。回答时先确认目的地是越南、国籍、旅行目的、停留天数、入境口岸和是否需要多次入境。"
         },
         {
           "id": "vnm_evisa_validity_conditions",
           "title": "Vietnam e-visa validity and basic conditions",
-          "tags": ["vietnam", "e-visa", "validity", "90-days", "passport", "entry"],
+          "tags": [
+            "vietnam",
+            "e-visa",
+            "validity",
+            "90-days",
+            "passport",
+            "entry"
+          ],
           "content": "Vietnam E-visa is valid for a maximum of 90 days and can be single or multiple entry. The official Immigration Department page lists basic conditions: the applicant is outside Vietnam, holds a valid passport, and is not in a category suspended from entry under Vietnamese law. The fee is paid through the official electronic payment gateway and is not refunded if the application is refused. Travellers should check the official list of ports that allow entry and exit with an E-visa."
         },
         {
           "id": "vnm_evisa_portal_transition",
           "title": "Vietnam official e-visa portal domains",
-          "tags": ["vietnam", "official", "portal", "evisa.gov.vn", "anti-scam"],
+          "tags": [
+            "vietnam",
+            "official",
+            "portal",
+            "evisa.gov.vn",
+            "anti-scam"
+          ],
           "content": "The legacy Vietnam Immigration Department portal states that, from 08:00 on 11 November 2024 GMT+7, the Vietnam Electronic Visa Portal operates on the new domains thithucdientu.gov.vn and evisa.gov.vn. For VIZA AI: direct users to official .gov.vn portals and warn them to avoid unofficial paid lookalike sites when possible."
         }
       ]
@@ -41,19 +61,38 @@
         {
           "id": "uk_standard_visitor_scope",
           "title": "Standard Visitor scope and permitted activities",
-          "tags": ["uk", "standard-visitor", "tourism", "business", "visit", "study"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "tourism",
+            "business",
+            "visit",
+            "study"
+          ],
           "content": "The UK Standard Visitor route can cover tourism, visiting family or friends, certain business activities such as meetings or interviews, short study or exams, transit, medical reasons, and other permitted activities. A visitor can usually stay in the UK for up to 6 months, with limited exceptions. Depending on nationality, the traveller may need a Standard Visitor visa, an ETA, or neither, so VIZA AI should tell users to use the GOV.UK visa checker before applying."
         },
         {
           "id": "uk_standard_visitor_limits",
           "title": "Standard Visitor limits",
-          "tags": ["uk", "standard-visitor", "not-permitted", "work", "public-funds"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "not-permitted",
+            "work",
+            "public-funds"
+          ],
           "content": "A UK Standard Visitor cannot do paid or unpaid work for a UK company or as a self-employed person unless the activity is specifically permitted, cannot claim public funds, cannot live in the UK for long periods through frequent or successive visits, and cannot marry or give notice of marriage or civil partnership on this route. If the user's purpose is work, long-term study, settlement, or marriage, do not recommend Standard Visitor as the final answer; ask clarifying questions and route them to the appropriate category."
         },
         {
           "id": "uk_standard_visitor_eligibility",
           "title": "Standard Visitor eligibility basics",
-          "tags": ["uk", "standard-visitor", "eligibility", "funds", "return"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "eligibility",
+            "funds",
+            "return"
+          ],
           "content": "Standard Visitor eligibility includes having a passport or travel document valid for the whole UK stay, showing that the traveller will leave the UK at the end of the visit, can support themselves and dependants during the trip, can pay for return or onward travel, and will not make the UK their main home through frequent or successive visits. Additional requirements can apply for study, academic visits, paid engagements, or medical visits."
         }
       ]
@@ -69,19 +108,37 @@
         {
           "id": "uk_standard_visitor_apply_online",
           "title": "Apply online and appointment",
-          "tags": ["uk", "standard-visitor", "apply-online", "appointment", "biometrics"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "apply-online",
+            "appointment",
+            "biometrics"
+          ],
           "content": "If a traveller needs a UK Standard Visitor visa, they must apply online before travelling to the UK and attend an appointment at a visa application centre. The earliest application time is 3 months before travel. At the appointment, the applicant proves identity with the passport or travel document, gives fingerprints and a photo, and provides documents showing eligibility. Each family member needs their own application and fee."
         },
         {
           "id": "uk_standard_visitor_fee_timing",
           "title": "Standard Visitor fee and timing",
-          "tags": ["uk", "standard-visitor", "fee", "processing-time", "6-months"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "fee",
+            "processing-time",
+            "6-months"
+          ],
           "content": "GOV.UK lists the Standard Visitor visa fee as GBP 135 for a maximum stay of 6 months as of the reviewed page. Long-term Standard Visitor visas may be available for regular visitors, but each visit is still limited to a maximum of 6 months. After applying online, proving identity, and providing documents, applicants usually get a decision within 3 weeks; users should still check GOV.UK for the current fee and processing options."
         },
         {
           "id": "uk_standard_visitor_application_info",
           "title": "Information needed for online application",
-          "tags": ["uk", "standard-visitor", "documents", "application-info", "translation"],
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "documents",
+            "application-info",
+            "translation"
+          ],
           "content": "The UK Standard Visitor online application asks for information such as planned travel dates, UK accommodation, estimated trip cost, current home address and residence history, parents' names and dates of birth if known, annual income if applicable, and any criminal, civil, or immigration offences. Depending on circumstances, applicants may also need travel history for the past 10 years, employer details, partner details, sponsor payer details, family in the UK details, or TB test evidence for visits over 6 months. Documents not in English or Welsh need certified translation."
         }
       ]
@@ -97,19 +154,37 @@
         {
           "id": "fra_tourism_private_stay_scope",
           "title": "France tourism/private stay scope",
-          "tags": ["france", "tourism", "private-stay", "schengen", "short-stay"],
+          "tags": [
+            "france",
+            "tourism",
+            "private-stay",
+            "schengen",
+            "short-stay"
+          ],
           "content": "France-Visas separates tourism and private stay from professional, study/training, and family-purpose routes. Stays for private reasons or tourism do not allow the traveller to exercise an activity related to a professional reason, except for specific working holiday eligibility. For VIZA AI: if the user wants tourism in France for under 3 months, use the France short-stay tourism/private stay route; if they mention work, study, family migration, volunteering, or medical care, ask follow-up questions and avoid forcing the tourism route."
         },
         {
           "id": "fra_application_wizard_online",
           "title": "France visa wizard and online application",
-          "tags": ["france", "france-visas", "visa-wizard", "online-application"],
+          "tags": [
+            "france",
+            "france-visas",
+            "visa-wizard",
+            "online-application"
+          ],
           "content": "France-Visas tells applicants to assess their situation with the France-Visas online support/wizard to identify the required supporting documents, then start the visa process online after checking whether a visa is needed. Supporting documents depend on nationality, residence country, destination territory, and purpose."
         },
         {
           "id": "fra_chinese_tourist_basic_route_zh",
           "title": "中国护照法国短期旅游签证建议",
-          "tags": ["france", "china", "chinese-passport", "法国旅游", "申根签证", "short-stay"],
+          "tags": [
+            "france",
+            "china",
+            "chinese-passport",
+            "法国旅游",
+            "申根签证",
+            "short-stay"
+          ],
           "content": "中国护照持有人如果去法国短期旅游、探亲访友或私人访问，且法国是唯一目的地或主要停留国家，通常应按法国短期 Schengen 旅游/私人访问路线准备，而不是越南 e-visa、英国 Standard Visitor 或美国 DS-160。VIZA AI 应先确认国籍、居住地、法国是否为主目的地、停留天数、是否同时去其他申根国家；常见材料方向包括护照、申请表、照片、旅行医疗保险、行程/住宿、资金证明、回国约束力和指纹采集。"
         }
       ]
@@ -125,19 +200,37 @@
         {
           "id": "ita_entry_visa_scope",
           "title": "Italy entry visa scope",
-          "tags": ["italy", "entry-visa", "schengen", "short-stay", "uniform-schengen-visa"],
+          "tags": [
+            "italy",
+            "entry-visa",
+            "schengen",
+            "short-stay",
+            "uniform-schengen-visa"
+          ],
           "content": "The Italian Ministry of Foreign Affairs describes an entry visa as an authorization placed in the applicant's passport or travel document for entry into the Schengen Area and the Italian Republic. A visa issued by Italian representations abroad allows transit or a short stay up to 90 days in Italy and other Schengen Convention countries as a Uniform Schengen Visa. A long stay over 90 days is a National Visa, not the short-stay tourism route."
         },
         {
           "id": "ita_visa_for_italy_portal",
           "title": "Visa for Italy portal",
-          "tags": ["italy", "visa-for-italy", "official-portal", "schengen"],
+          "tags": [
+            "italy",
+            "visa-for-italy",
+            "official-portal",
+            "schengen"
+          ],
           "content": "The Italian Ministry points applicants to the official Visa for Italy portal for further entry visa information. For VIZA AI: if Italy is the sole or main destination for a short tourism trip, use Italy/Schengen Type C short-stay guidance and direct users to the official Italian visa portal or the competent Italian representation/VAC for residence-specific instructions."
         },
         {
           "id": "ita_chinese_tourist_basic_route_zh",
           "title": "中国护照意大利短期旅游签证建议",
-          "tags": ["italy", "china", "chinese-passport", "意大利旅游", "申根签证", "type-c"],
+          "tags": [
+            "italy",
+            "china",
+            "chinese-passport",
+            "意大利旅游",
+            "申根签证",
+            "type-c"
+          ],
           "content": "中国护照持有人如果去意大利短期旅游，且意大利是唯一目的地或主要停留国家，通常应准备 Italy/Schengen Type C 短期签证材料，而不是美国 B-2、英国 Standard Visitor 或越南电子签。VIZA AI 应先确认国籍、居住地、意大利是否为主目的地、停留天数和是否多国申根行程；常见材料方向包括护照、申根申请表、照片、旅行医疗保险、行程/住宿、资金证明、回程或续程安排、回国约束力和指纹采集。"
         }
       ]
@@ -153,7 +246,13 @@
         {
           "id": "ita_type_c_duration",
           "title": "Italy Type C short-stay duration",
-          "tags": ["italy", "type-c", "short-stay", "90-180", "schengen"],
+          "tags": [
+            "italy",
+            "type-c",
+            "short-stay",
+            "90-180",
+            "schengen"
+          ],
           "content": "Italy's visa type page explains that Uniform Schengen Visa type C is for short stays in the Schengen Area. The maximum duration is 90 days in any 180-day period, calculated from the date of first entry, and a visa may allow one, two, or multiple entries. If the user plans to stay over 90 days in Italy, ask about the purpose and use a long-stay National Visa category instead of Type C tourism."
         }
       ]
@@ -169,19 +268,38 @@
         {
           "id": "che_schengen_visa_up_to_90",
           "title": "Switzerland short-stay Schengen route",
-          "tags": ["switzerland", "china", "schengen", "tourism", "90-days"],
+          "tags": [
+            "switzerland",
+            "china",
+            "schengen",
+            "tourism",
+            "90-days"
+          ],
           "content": "The Swiss FDFA China page has a dedicated Schengen visa route for a stay of up to 90 days and links to nationality-based visa provisions, where to apply, application procedure, documentation, fees, and data information. For a China-resident applicant going to Switzerland for short tourism, VIZA AI should use the Switzerland Schengen short-stay route and tell the user to confirm requirements by nationality/residence and submit through the competent authority or visa application centre."
         },
         {
           "id": "che_vfs_and_residence_district",
           "title": "Switzerland application channel in China",
-          "tags": ["switzerland", "china", "vfs", "where-to-apply", "consular-district"],
+          "tags": [
+            "switzerland",
+            "china",
+            "vfs",
+            "where-to-apply",
+            "consular-district"
+          ],
           "content": "The Swiss FDFA China page points users to VFS Global for visa services and lists Swiss representations/consular districts in China. Where to apply can depend on place of residence, so VIZA AI should ask where the applicant legally resides before giving appointment instructions."
         },
         {
           "id": "che_chinese_tourist_basic_route_zh",
           "title": "中国护照瑞士短期旅游签证建议",
-          "tags": ["switzerland", "china", "chinese-passport", "瑞士旅游", "申根签证", "90-days"],
+          "tags": [
+            "switzerland",
+            "china",
+            "chinese-passport",
+            "瑞士旅游",
+            "申根签证",
+            "90-days"
+          ],
           "content": "中国护照持有人如果去瑞士短期旅游，且瑞士是唯一目的地或主要停留国家，通常应按 Switzerland/Schengen 90 天以内短期签证路线准备，而不是美国、英国或越南签证。VIZA AI 应先确认国籍、居住地、瑞士是否为主目的地、停留天数、是否同时去法国/意大利等其他申根国家；常见材料方向包括护照、申请表、照片、旅行医疗保险、行程/住宿、资金证明、回国约束力、指纹采集，并按居住地选择对应瑞士签证申请渠道。"
         }
       ]
@@ -197,13 +315,25 @@
         {
           "id": "fra_schengen_where_when",
           "title": "Where and when to apply for France/Schengen",
-          "tags": ["france", "schengen", "where-to-apply", "timing", "90-180"],
+          "tags": [
+            "france",
+            "schengen",
+            "where-to-apply",
+            "timing",
+            "90-180"
+          ],
           "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
         },
         {
           "id": "fra_schengen_documents_fees_timing",
           "title": "France/Schengen documents, fees, and processing",
-          "tags": ["france", "schengen", "documents", "fee", "processing"],
+          "tags": [
+            "france",
+            "schengen",
+            "documents",
+            "fee",
+            "processing"
+          ],
           "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
         }
       ]
@@ -219,13 +349,25 @@
         {
           "id": "ita_schengen_where_when",
           "title": "Where and when to apply for Italy/Schengen",
-          "tags": ["italy", "schengen", "where-to-apply", "timing", "90-180"],
+          "tags": [
+            "italy",
+            "schengen",
+            "where-to-apply",
+            "timing",
+            "90-180"
+          ],
           "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
         },
         {
           "id": "ita_schengen_documents_fees_timing",
           "title": "Italy/Schengen documents, fees, and processing",
-          "tags": ["italy", "schengen", "documents", "fee", "processing"],
+          "tags": [
+            "italy",
+            "schengen",
+            "documents",
+            "fee",
+            "processing"
+          ],
           "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
         }
       ]
@@ -241,13 +383,25 @@
         {
           "id": "che_schengen_where_when",
           "title": "Where and when to apply for Switzerland/Schengen",
-          "tags": ["switzerland", "schengen", "where-to-apply", "timing", "90-180"],
+          "tags": [
+            "switzerland",
+            "schengen",
+            "where-to-apply",
+            "timing",
+            "90-180"
+          ],
           "content": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal. Applications should be submitted at least 15 days before travel and no earlier than 6 months before the intended journey."
         },
         {
           "id": "che_schengen_documents_fees_timing",
           "title": "Switzerland/Schengen documents, fees, and processing",
-          "tags": ["switzerland", "schengen", "documents", "fee", "processing"],
+          "tags": [
+            "switzerland",
+            "schengen",
+            "documents",
+            "fee",
+            "processing"
+          ],
           "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
         }
       ]
@@ -263,19 +417,41 @@
         {
           "id": "nor_schengen_basic_route_zh",
           "title": "中国护照挪威短期旅游签证建议",
-          "tags": ["norway", "china", "chinese-passport", "挪威旅游", "申根签证", "90-180"],
+          "tags": [
+            "norway",
+            "china",
+            "chinese-passport",
+            "挪威旅游",
+            "申根签证",
+            "90-180"
+          ],
           "content": "中国护照持有人计划去挪威短期旅游，且挪威是唯一目的地或主要停留国家时，VIZA AI 应推荐 Norway/Schengen visitor visa 路线。先确认国籍、合法居住地、挪威是否为停留最长或主目的地、是否同时去冰岛/法国/意大利/瑞士等其他申根国家、计划停留天数和入境次数需求。不要把挪威问题路由到美国 B1/B2、英国 Standard Visitor、加拿大 TRV 或东南亚签证。"
         },
         {
           "id": "nor_udi_requirements_funds",
           "title": "Norway visitor visa requirements and funds",
-          "tags": ["norway", "udi", "requirements", "passport", "insurance", "funds", "fingerprints"],
+          "tags": [
+            "norway",
+            "udi",
+            "requirements",
+            "passport",
+            "insurance",
+            "funds",
+            "fingerprints"
+          ],
           "content": "UDI states that a visitor visa can be used for a visit to Norway/Schengen of up to 90 days. Core checks include paying the application fee, submitting the embassy checklist, holding a passport valid for at least 3 months after the visit and issued within the last 10 years, valid travel insurance, sufficient money for the stay and return journey, no entry ban, Schengen 90/180 compliance, and fingerprint registration. UDI gives a funding benchmark of at least NOK 500 per day in Norway/Schengen, or a financial guarantee from the person/company visited if the applicant cannot show enough funds."
         },
         {
           "id": "nor_china_vfs_channel",
           "title": "Norway application channel in China",
-          "tags": ["norway", "china", "vfs", "application-centre", "appointment", "checklist"],
+          "tags": [
+            "norway",
+            "china",
+            "vfs",
+            "application-centre",
+            "appointment",
+            "checklist"
+          ],
           "content": "Norway's China service pages direct short-stay visa applicants to register the application online with UDI/Application Portal and submit documents through VFS Global in China. VIZA AI should ask the applicant's legal residence city/country before giving appointment guidance because the visa application centre and checklist can differ by jurisdiction. Remind users that VFS is a service provider and may charge service fees in addition to the visa fee."
         }
       ]
@@ -291,19 +467,40 @@
         {
           "id": "isl_schengen_basic_route_zh",
           "title": "中国护照冰岛短期旅游签证建议",
-          "tags": ["iceland", "china", "chinese-passport", "冰岛旅游", "申根签证", "90-180"],
+          "tags": [
+            "iceland",
+            "china",
+            "chinese-passport",
+            "冰岛旅游",
+            "申根签证",
+            "90-180"
+          ],
           "content": "中国护照持有人计划去冰岛短期旅游，且冰岛是唯一目的地或停留最长/主要目的地时，VIZA AI 应推荐 Iceland/Schengen short-stay visa 路线。先确认国籍、合法居住地、冰岛是否为主目的地、是否同时去其他申根国家、停留天数、入境次数和是否已有有效申根签。"
         },
         {
           "id": "isl_vfs_china_timing",
           "title": "Iceland VFS China timing and 90/180 rule",
-          "tags": ["iceland", "vfs", "china", "timing", "90-180", "schengen"],
+          "tags": [
+            "iceland",
+            "vfs",
+            "china",
+            "timing",
+            "90-180",
+            "schengen"
+          ],
           "content": "VFS Global's Iceland China page states that short-stay Schengen visas allow stays of up to 90 days in any 180-day period. Applications should be submitted in advance, no later than 15 days before the planned trip and no earlier than 6 months before the intended visit. If the user visits multiple Schengen states, apply to Iceland only when Iceland is the longest stay or main purpose; if stays are equal, use first-entry rules."
         },
         {
           "id": "isl_tourism_documents",
           "title": "Iceland tourist document direction",
-          "tags": ["iceland", "tourism", "documents", "insurance", "itinerary", "employment-letter"],
+          "tags": [
+            "iceland",
+            "tourism",
+            "documents",
+            "insurance",
+            "itinerary",
+            "employment-letter"
+          ],
           "content": "For Iceland tourism applications through VFS/Embassy processing, typical Schengen materials include the harmonised Schengen application form, passport, photo, travel medical insurance, itinerary and accommodation evidence, proof of transport, proof of financial means, and employment/study/business evidence. If travelling to several Schengen states, the itinerary should show why Iceland is the main destination or first entry."
         }
       ]
@@ -319,19 +516,38 @@
         {
           "id": "sgp_entry_visa_basic_route_zh",
           "title": "中国护照新加坡短期旅游签证建议",
-          "tags": ["singapore", "china", "chinese-passport", "新加坡旅游", "entry-visa", "sgac"],
+          "tags": [
+            "singapore",
+            "china",
+            "chinese-passport",
+            "新加坡旅游",
+            "entry-visa",
+            "sgac"
+          ],
           "content": "中国护照持有人短期赴新加坡旅游通常需要先检查 ICA 的 entry visa requirement，并在入境前完成 SG Arrival Card。VIZA AI 应区分三件事：entry visa 是入境前许可，SG Arrival Card 不是签证，最终停留期由入境时签发的 electronic Visit Pass/e-Pass 决定。不要把新加坡路线误判成申根签证、马来西亚 eVISA 或美国 B1/B2。"
         },
         {
           "id": "sgp_ica_visa_not_pass",
           "title": "Singapore entry visa is not an immigration pass",
-          "tags": ["singapore", "ica", "visa-required", "e-pass", "entry-decision"],
+          "tags": [
+            "singapore",
+            "ica",
+            "visa-required",
+            "e-pass",
+            "entry-decision"
+          ],
           "content": "ICA explains that a Singapore entry visa is not an immigration pass; it is pre-entry permission to travel to and seek entry into Singapore. Possessing a valid visa does not guarantee entry, and ICA officers decide whether to grant an immigration pass at the checkpoint. The period of stay is not tied to visa validity and is shown on the digital e-Pass sent by email after entry."
         },
         {
           "id": "sgp_sgac_three_days",
           "title": "SG Arrival Card timing",
-          "tags": ["singapore", "sgac", "arrival-card", "three-days", "health-declaration"],
+          "tags": [
+            "singapore",
+            "sgac",
+            "arrival-card",
+            "three-days",
+            "health-declaration"
+          ],
           "content": "ICA requires travellers to submit the SG Arrival Card with electronic health declaration within 3 days before arriving in Singapore, including the day of arrival. VIZA AI should tell users to use official ICA/e-service channels and avoid paid lookalike SGAC websites where possible. SGAC does not replace a visa for visa-required passport holders."
         }
       ]
@@ -347,19 +563,39 @@
         {
           "id": "mys_china_tourism_basic_route_zh",
           "title": "中国护照马来西亚短期旅游签证建议",
-          "tags": ["malaysia", "china", "chinese-passport", "马来西亚旅游", "visa-exemption", "mdac"],
+          "tags": [
+            "malaysia",
+            "china",
+            "chinese-passport",
+            "马来西亚旅游",
+            "visa-exemption",
+            "mdac"
+          ],
           "content": "中国护照持有人短期赴马来西亚旅游时，VIZA AI 应优先核查马来西亚移民局/外交部当前对中国公民的 social visit visa exemption 或 eVISA 规则。当前知识库范围覆盖旅游/社交访问；若用户目的为工作、学习、长期居留或多次商务活动，应提示需要不同准证或向官方确认。"
         },
         {
           "id": "mys_china_india_exemption_30_days",
           "title": "Malaysia China/India short social visit exemption",
-          "tags": ["malaysia", "china", "india", "30-days", "social-visit", "visa-exemption"],
+          "tags": [
+            "malaysia",
+            "china",
+            "india",
+            "30-days",
+            "social-visit",
+            "visa-exemption"
+          ],
           "content": "Malaysia's visa liberalisation materials and Immigration pages state that citizens of China and India may be covered by a visa exemption for social visit purposes for up to 30 days. VIZA AI should avoid promising entry: the final decision is made by Malaysian immigration at the border, and travellers should still prepare passport validity, return/onward ticket, accommodation, funds, and any required arrival declaration."
         },
         {
           "id": "mys_evisa_mdac_route",
           "title": "Malaysia eVISA and arrival declaration",
-          "tags": ["malaysia", "evisa", "mdac", "official-portal", "arrival-card"],
+          "tags": [
+            "malaysia",
+            "evisa",
+            "mdac",
+            "official-portal",
+            "arrival-card"
+          ],
           "content": "For travellers who are not visa-exempt or whose purpose/stay does not fit the exemption, route them to the official Malaysia eVISA portal and current Immigration Malaysia instructions. Malaysia also operates a digital arrival card/MDAC process for many foreign arrivals; VIZA AI should tell users to complete current official arrival requirements before travel and verify exemptions on the Immigration Malaysia site."
         }
       ]
@@ -375,19 +611,38 @@
         {
           "id": "tha_tourism_basic_route_zh",
           "title": "中国护照泰国短期旅游签证建议",
-          "tags": ["thailand", "china", "chinese-passport", "泰国旅游", "visa-exemption", "tourist-visa"],
+          "tags": [
+            "thailand",
+            "china",
+            "chinese-passport",
+            "泰国旅游",
+            "visa-exemption",
+            "tourist-visa"
+          ],
           "content": "中国护照持有人赴泰国短期旅游时，VIZA AI 应优先核查泰国外交部/使领馆当前 visa exemption、visa on arrival 或 tourist visa 规则。泰国规则近年调整频繁，回答时要说明需以出发前泰国官方页面为准，并确认停留天数、入境次数、是否有返程/续程票和是否需要长期停留。"
         },
         {
           "id": "tha_visa_exemption_60_days",
           "title": "Thailand visa exemption overview",
-          "tags": ["thailand", "visa-exemption", "60-days", "onward-ticket", "funds"],
+          "tags": [
+            "thailand",
+            "visa-exemption",
+            "60-days",
+            "onward-ticket",
+            "funds"
+          ],
           "content": "Royal Thai Embassy guidance for the visa exemption scheme states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
         },
         {
           "id": "tha_tourist_visa_when_needed",
           "title": "When Thailand tourist visa may be needed",
-          "tags": ["thailand", "tourist-visa", "evisa", "longer-stay", "multiple-entry"],
+          "tags": [
+            "thailand",
+            "tourist-visa",
+            "evisa",
+            "longer-stay",
+            "multiple-entry"
+          ],
           "content": "If a traveller wants to stay beyond the visa-exempt period, enter repeatedly, work remotely under a specific long-stay route, or is not eligible for exemption, VIZA AI should not assume visa-free entry. Route them to the official Thai e-Visa / Royal Thai Embassy guidance for tourist visa or other visa categories."
         }
       ]
@@ -403,19 +658,38 @@
         {
           "id": "can_visitor_basic_route_zh",
           "title": "中国护照加拿大旅游签证建议",
-          "tags": ["canada", "china", "chinese-passport", "加拿大旅游", "visitor-visa", "trv"],
+          "tags": [
+            "canada",
+            "china",
+            "chinese-passport",
+            "加拿大旅游",
+            "visitor-visa",
+            "trv"
+          ],
           "content": "中国护照持有人短期赴加拿大旅游、探亲访友或普通商务访问时，VIZA AI 应优先考虑 Canada visitor visa / Temporary Resident Visa (TRV) 路线，而不是 eTA。先确认国籍、居住地、旅行目的、停留天数、是否探亲、是否有美国签证/加拿大旧签证等背景；如果是学习、工作、移民或长期陪读，应转向对应 permit/visa。"
         },
         {
           "id": "can_trv_definition",
           "title": "Canada TRV definition and entry decision",
-          "tags": ["canada", "visitor-visa", "trv", "passport-sticker", "entry-decision"],
+          "tags": [
+            "canada",
+            "visitor-visa",
+            "trv",
+            "passport-sticker",
+            "entry-decision"
+          ],
           "content": "IRCC states that a visitor visa, also called a temporary resident visa, is an official document placed in the passport showing the traveller meets requirements to travel to Canada. It does not by itself guarantee entry; border officers make the final entry decision and decide the allowed period of stay. Most visitors are allowed to stay for up to 6 months unless a different date is indicated."
         },
         {
           "id": "can_apply_online_biometrics",
           "title": "Canada visitor visa online application and biometrics",
-          "tags": ["canada", "ircc", "online-application", "biometrics", "vac"],
+          "tags": [
+            "canada",
+            "ircc",
+            "online-application",
+            "biometrics",
+            "vac"
+          ],
           "content": "IRCC directs visitor visa applicants to apply online through the IRCC Portal, provide passport/travel document copies and supporting documents, pay fees, and give biometrics if required. China is listed among passports that generally need a visitor visa. Applicants outside Canada may need to attend a visa application centre for biometrics and passport submission depending on instructions."
         }
       ]
@@ -431,19 +705,38 @@
         {
           "id": "aus_visitor_600_basic_route_zh",
           "title": "中国护照澳大利亚旅游签证建议",
-          "tags": ["australia", "china", "chinese-passport", "澳大利亚旅游", "visitor-600", "tourist-stream"],
+          "tags": [
+            "australia",
+            "china",
+            "chinese-passport",
+            "澳大利亚旅游",
+            "visitor-600",
+            "tourist-stream"
+          ],
           "content": "中国护照持有人短期赴澳大利亚旅游、探亲访友或短期商务访问时，VIZA AI 应优先推荐 Visitor visa (subclass 600) 的合适 stream，通常是 Tourist stream（outside Australia）或 Business Visitor stream，具体取决于目的。不要把澳大利亚问题误判成新西兰 Visitor Visa、加拿大 TRV、英国 Standard Visitor 或美国 B1/B2。"
         },
         {
           "id": "aus_600_genuine_visitor",
           "title": "Australia subclass 600 decision focus",
-          "tags": ["australia", "visitor-600", "genuine-visitor", "funds", "ties"],
+          "tags": [
+            "australia",
+            "visitor-600",
+            "genuine-visitor",
+            "funds",
+            "ties"
+          ],
           "content": "Australian visitor visa decisions focus on whether the applicant is a genuine temporary visitor, has enough funds, meets health/character requirements, and will comply with visa conditions and leave Australia before the visa expires. Common supporting evidence includes passport, travel plan, funds, employment/study/business ties, family ties, invitation details if visiting someone, and previous travel history."
         },
         {
           "id": "aus_600_immiaccount",
           "title": "Australia application channel",
-          "tags": ["australia", "immiaccount", "online-application", "biometrics", "avac"],
+          "tags": [
+            "australia",
+            "immiaccount",
+            "online-application",
+            "biometrics",
+            "avac"
+          ],
           "content": "Home Affairs uses online visa lodgement through ImmiAccount for many visitor applications. Depending on country and applicant profile, the applicant may be asked to provide biometrics at an Australian Visa Application Centre or supply additional documents. VIZA AI should tell users to follow the document request letter and check current processing times on Home Affairs."
         }
       ]
@@ -459,19 +752,37 @@
         {
           "id": "nzl_visitor_basic_route_zh",
           "title": "中国护照新西兰旅游签证建议",
-          "tags": ["new-zealand", "china", "chinese-passport", "新西兰旅游", "visitor-visa"],
+          "tags": [
+            "new-zealand",
+            "china",
+            "chinese-passport",
+            "新西兰旅游",
+            "visitor-visa"
+          ],
           "content": "中国护照持有人短期赴新西兰旅游通常需要按 Immigration New Zealand Visitor Visa 路线准备；不要默认使用 NZeTA，除非用户属于明确的 visa waiver / transit / Australian visa recognition 等特殊情形。先确认国籍、居住地、是否从澳大利亚出发且持有合格澳签、旅行目的、停留天数、同行家庭成员和资金来源。"
         },
         {
           "id": "nzl_china_supplementary_form",
           "title": "New Zealand China applicant supplementary form",
-          "tags": ["new-zealand", "china", "inz", "supplementary-form", "hukou"],
+          "tags": [
+            "new-zealand",
+            "china",
+            "inz",
+            "supplementary-form",
+            "hukou"
+          ],
           "content": "Immigration New Zealand states that citizens of China applying from China, Hong Kong or Macau must also provide a completed supplementary form with more details of background and intentions. Applicants may provide Hukou household registration as additional identity evidence, and family members included in the application may need Hukou copies. INZ also publishes China-specific visitor visa guides and checklists."
         },
         {
           "id": "nzl_arrival_funds_onward",
           "title": "New Zealand arrival funds and onward ticket",
-          "tags": ["new-zealand", "visitor-visa", "onward-ticket", "funds", "arrival"],
+          "tags": [
+            "new-zealand",
+            "visitor-visa",
+            "onward-ticket",
+            "funds",
+            "arrival"
+          ],
           "content": "INZ states that on arrival visitors need a ticket to leave New Zealand at the end of the stay, proof they have enough money to buy one, or agreement that a sponsor will pay for one, plus proof of enough money to live on during the stay. VIZA AI should ask about travel dates, sponsor, funds, accommodation and return/onward travel before producing a checklist."
         }
       ]
@@ -487,19 +798,40 @@
         {
           "id": "jpn_short_term_basic_route_zh",
           "title": "中国护照日本短期旅游签证建议",
-          "tags": ["japan", "china", "chinese-passport", "日本旅游", "short-term-stay", "evisa"],
+          "tags": [
+            "japan",
+            "china",
+            "chinese-passport",
+            "日本旅游",
+            "short-term-stay",
+            "evisa"
+          ],
           "content": "中国护照持有人赴日本短期旅游时，VIZA AI 应推荐 Japan short-term stay tourism visa / eVISA 路线，并根据申请人居住地判断是否可通过 JAPAN eVISA、指定旅行社/代理或日本驻外使领馆办理。不要把日本短期旅游误判成韩国 C-3/K-ETA、加拿大 TRV 或申根签。"
         },
         {
           "id": "jpn_evisa_china_agency",
           "title": "Japan eVISA availability and China agency route",
-          "tags": ["japan", "evisa", "china", "accredited-agency", "15-days", "30-days"],
+          "tags": [
+            "japan",
+            "evisa",
+            "china",
+            "accredited-agency",
+            "15-days",
+            "30-days"
+          ],
           "content": "MOFA states that JAPAN eVISA is available for short-term tourism for eligible residents. For nationals of China residing in China, applications should be made through an accredited agency; electronic visas with a period of stay of 15 or 30 days may be issued. eVISA travellers must display the Visa Issuance Notice online at the airport; PDF, screenshots and printed copies are not accepted."
         },
         {
           "id": "jpn_short_term_scope_processing",
           "title": "Japan short-term stay scope and processing",
-          "tags": ["japan", "short-term-stay", "tourism", "business", "relatives", "processing-time"],
+          "tags": [
+            "japan",
+            "short-term-stay",
+            "tourism",
+            "business",
+            "relatives",
+            "processing-time"
+          ],
           "content": "MOFA describes short-term stay as up to 90 days for tourism, business, visiting friends/relatives and similar activities that do not include remunerative work. Visa applications cannot be made inside Japan. MOFA notes that processing takes approximately one week if all necessary requirements are met, but additional documents or consultation can make it longer."
         }
       ]
@@ -515,20 +847,1744 @@
         {
           "id": "kor_short_term_basic_route_zh",
           "title": "中国护照韩国短期旅游签证建议",
-          "tags": ["south-korea", "china", "chinese-passport", "韩国旅游", "c-3", "k-eta"],
+          "tags": [
+            "south-korea",
+            "china",
+            "chinese-passport",
+            "韩国旅游",
+            "c-3",
+            "k-eta"
+          ],
           "content": "中国大陆普通护照持有人短期赴韩国旅游通常应先核查韩国签证门户/Korean mission 的 C-3 短期访问或团体旅游签证要求，而不是默认 K-ETA。K-ETA 主要适用于免签/免签协定国家和地区的旅客；对不属于免签范围的旅客，仍需要申请相应韩国签证。"
         },
         {
           "id": "kor_c3_tourism_group",
           "title": "Korea C-3 short-term and Chinese group tourism",
-          "tags": ["south-korea", "visa-portal", "c-3", "c-3-2", "tourism", "designated-agency"],
+          "tags": [
+            "south-korea",
+            "visa-portal",
+            "c-3",
+            "c-3-2",
+            "tourism",
+            "designated-agency"
+          ],
           "content": "Korea Visa Portal lists short-term visa categories including Short-term Group Tourist (C-3-2) for Chinese group tourists who apply through designated travel agencies. For individual tourism, visiting relatives/friends, medical tourism, short study or business, the exact C-3 subtype and documents depend on the Korean mission or visa application centre with jurisdiction."
         },
         {
           "id": "kor_keta_not_visa",
           "title": "K-ETA scope and official site",
-          "tags": ["south-korea", "k-eta", "visa-free", "official-site", "not-visa"],
+          "tags": [
+            "south-korea",
+            "k-eta",
+            "visa-free",
+            "official-site",
+            "not-visa"
+          ],
           "content": "K-ETA is Korea's electronic travel authorization for eligible visa-free travellers and is not a visa. The official site is k-eta.go.kr. Some visa-free nationalities have temporary K-ETA exemptions, but this does not help travellers who need a visa. VIZA AI should first determine passport nationality and whether the user is visa-exempt before mentioning K-ETA as the answer."
+        }
+      ]
+    },
+    {
+      "slug": "austria-schengen-short-stay",
+      "country": "austria",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Austria",
+      "sourceUrl": "https://www.bmeia.gv.at/en/travel-stay/entry-and-residence-in-austria/visa",
+      "chunks": [
+        {
+          "id": "aut_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Austria",
+          "tags": [
+            "austria",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Austria should normally use the Austria/Schengen short-stay Type C tourism route when Austria is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "aut_schengen_where_apply_documents",
+          "title": "Austria Schengen where-to-apply and documents",
+          "tags": [
+            "austria",
+            "austria",
+            "vienna",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Austria's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "belgium-schengen-short-stay",
+      "country": "belgium",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Belgium",
+      "sourceUrl": "https://dofi.ibz.be/en/themes/third-country-nationals/short-stay",
+      "chunks": [
+        {
+          "id": "bel_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Belgium",
+          "tags": [
+            "belgium",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Belgium should normally use the Belgium/Schengen short-stay Type C tourism route when Belgium is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "bel_schengen_where_apply_documents",
+          "title": "Belgium Schengen where-to-apply and documents",
+          "tags": [
+            "belgium",
+            "belgium",
+            "brussels",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Belgium's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "bulgaria-schengen-short-stay",
+      "country": "bulgaria",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Bulgaria",
+      "sourceUrl": "https://www.mfa.bg/en/services-travel/consular-services/travel-bulgaria/visa-bulgaria",
+      "chunks": [
+        {
+          "id": "bgr_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Bulgaria",
+          "tags": [
+            "bulgaria",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Bulgaria should normally use the Bulgaria/Schengen short-stay Type C tourism route when Bulgaria is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "bgr_schengen_where_apply_documents",
+          "title": "Bulgaria Schengen where-to-apply and documents",
+          "tags": [
+            "bulgaria",
+            "bulgaria",
+            "sofia",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Bulgaria's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "croatia-schengen-short-stay",
+      "country": "croatia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Croatia",
+      "sourceUrl": "https://mvep.gov.hr/services-for-citizens/consular-information/visas/234",
+      "chunks": [
+        {
+          "id": "hrv_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Croatia",
+          "tags": [
+            "croatia",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Croatia should normally use the Croatia/Schengen short-stay Type C tourism route when Croatia is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "hrv_schengen_where_apply_documents",
+          "title": "Croatia Schengen where-to-apply and documents",
+          "tags": [
+            "croatia",
+            "croatia",
+            "zagreb",
+            "dubrovnik",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Croatia's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "czech-republic-schengen-short-stay",
+      "country": "czech_republic",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Czech Republic",
+      "sourceUrl": "https://mzv.gov.cz/jnp/en/information_for_aliens/short_stay_visa/index.html",
+      "chunks": [
+        {
+          "id": "cze_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Czech Republic",
+          "tags": [
+            "czech-republic",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Czech Republic should normally use the Czech Republic/Schengen short-stay Type C tourism route when Czech Republic is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "cze_schengen_where_apply_documents",
+          "title": "Czech Republic Schengen where-to-apply and documents",
+          "tags": [
+            "czech_republic",
+            "czech-republic",
+            "czechia",
+            "prague",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Czech Republic's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "denmark-schengen-short-stay",
+      "country": "denmark",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Denmark",
+      "sourceUrl": "https://www.nyidanmark.dk/en-GB/You-want-to-apply/Short-stay-visa",
+      "chunks": [
+        {
+          "id": "dnk_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Denmark",
+          "tags": [
+            "denmark",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Denmark should normally use the Denmark/Schengen short-stay Type C tourism route when Denmark is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "dnk_schengen_where_apply_documents",
+          "title": "Denmark Schengen where-to-apply and documents",
+          "tags": [
+            "denmark",
+            "denmark",
+            "copenhagen",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Denmark's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "estonia-schengen-short-stay",
+      "country": "estonia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Estonia",
+      "sourceUrl": "https://vm.ee/en/consular-visa-and-travel-information/visa-information/who-does-not-need-visa-visit-estonia",
+      "chunks": [
+        {
+          "id": "est_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Estonia",
+          "tags": [
+            "estonia",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Estonia should normally use the Estonia/Schengen short-stay Type C tourism route when Estonia is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "est_schengen_where_apply_documents",
+          "title": "Estonia Schengen where-to-apply and documents",
+          "tags": [
+            "estonia",
+            "estonia",
+            "tallinn",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Estonia's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "finland-schengen-short-stay",
+      "country": "finland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Finland",
+      "sourceUrl": "https://um.fi/visa-to-visit-finland",
+      "chunks": [
+        {
+          "id": "fin_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Finland",
+          "tags": [
+            "finland",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Finland should normally use the Finland/Schengen short-stay Type C tourism route when Finland is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "fin_schengen_where_apply_documents",
+          "title": "Finland Schengen where-to-apply and documents",
+          "tags": [
+            "finland",
+            "finland",
+            "helsinki",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Finland's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "germany-schengen-short-stay",
+      "country": "germany",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Germany",
+      "sourceUrl": "https://www.auswaertiges-amt.de/en/visa-service/visabestimmungen-node",
+      "chunks": [
+        {
+          "id": "deu_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Germany",
+          "tags": [
+            "germany",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Germany should normally use the Germany/Schengen short-stay Type C tourism route when Germany is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "deu_schengen_where_apply_documents",
+          "title": "Germany Schengen where-to-apply and documents",
+          "tags": [
+            "germany",
+            "germany",
+            "berlin",
+            "munich",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Germany's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "greece-schengen-short-stay",
+      "country": "greece",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Greece",
+      "sourceUrl": "https://www.mfa.gr/en/visas/visas-for-foreigners-traveling-to-greece/",
+      "chunks": [
+        {
+          "id": "grc_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Greece",
+          "tags": [
+            "greece",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Greece should normally use the Greece/Schengen short-stay Type C tourism route when Greece is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "grc_schengen_where_apply_documents",
+          "title": "Greece Schengen where-to-apply and documents",
+          "tags": [
+            "greece",
+            "greece",
+            "athens",
+            "santorini",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Greece's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "hungary-schengen-short-stay",
+      "country": "hungary",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Hungary",
+      "sourceUrl": "https://konzinfo.mfa.gov.hu/en/visa-application-forms",
+      "chunks": [
+        {
+          "id": "hun_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Hungary",
+          "tags": [
+            "hungary",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Hungary should normally use the Hungary/Schengen short-stay Type C tourism route when Hungary is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "hun_schengen_where_apply_documents",
+          "title": "Hungary Schengen where-to-apply and documents",
+          "tags": [
+            "hungary",
+            "hungary",
+            "budapest",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Hungary's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "latvia-schengen-short-stay",
+      "country": "latvia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Latvia",
+      "sourceUrl": "https://www.mfa.gov.lv/en/short-stay-visa",
+      "chunks": [
+        {
+          "id": "lva_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Latvia",
+          "tags": [
+            "latvia",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Latvia should normally use the Latvia/Schengen short-stay Type C tourism route when Latvia is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "lva_schengen_where_apply_documents",
+          "title": "Latvia Schengen where-to-apply and documents",
+          "tags": [
+            "latvia",
+            "latvia",
+            "riga",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Latvia's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "liechtenstein-schengen-short-stay",
+      "country": "liechtenstein",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Liechtenstein",
+      "sourceUrl": "https://www.llv.li/en/national-administration/office-for-foreigners-and-passport-affairs/entry-and-stay",
+      "chunks": [
+        {
+          "id": "lie_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Liechtenstein",
+          "tags": [
+            "liechtenstein",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Liechtenstein should normally use the Liechtenstein/Schengen short-stay Type C tourism route when Liechtenstein is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "lie_schengen_where_apply_documents",
+          "title": "Liechtenstein Schengen where-to-apply and documents",
+          "tags": [
+            "liechtenstein",
+            "liechtenstein",
+            "vaduz",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Liechtenstein does not have the same global visa-office footprint as larger Schengen states; applicants should follow the official Liechtenstein/Swiss representation instructions for their place of residence before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "lithuania-schengen-short-stay",
+      "country": "lithuania",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Lithuania",
+      "sourceUrl": "https://keliauk.urm.lt/en/entry-to-lithuania/visas",
+      "chunks": [
+        {
+          "id": "ltu_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Lithuania",
+          "tags": [
+            "lithuania",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Lithuania should normally use the Lithuania/Schengen short-stay Type C tourism route when Lithuania is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "ltu_schengen_where_apply_documents",
+          "title": "Lithuania Schengen where-to-apply and documents",
+          "tags": [
+            "lithuania",
+            "lithuania",
+            "vilnius",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Lithuania's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "luxembourg-schengen-short-stay",
+      "country": "luxembourg",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Luxembourg",
+      "sourceUrl": "https://guichet.public.lu/en/citoyens/immigration/moins-3-mois/ressortissant-tiers/visa-court-sejour.html",
+      "chunks": [
+        {
+          "id": "lux_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Luxembourg",
+          "tags": [
+            "luxembourg",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Luxembourg should normally use the Luxembourg/Schengen short-stay Type C tourism route when Luxembourg is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "lux_schengen_where_apply_documents",
+          "title": "Luxembourg Schengen where-to-apply and documents",
+          "tags": [
+            "luxembourg",
+            "luxembourg",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Luxembourg's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "malta-schengen-short-stay",
+      "country": "malta",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Malta",
+      "sourceUrl": "https://identita.gov.mt/visa-application/",
+      "chunks": [
+        {
+          "id": "mlt_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Malta",
+          "tags": [
+            "malta",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Malta should normally use the Malta/Schengen short-stay Type C tourism route when Malta is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "mlt_schengen_where_apply_documents",
+          "title": "Malta Schengen where-to-apply and documents",
+          "tags": [
+            "malta",
+            "malta",
+            "valletta",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Malta's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "netherlands-schengen-short-stay",
+      "country": "netherlands",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Netherlands",
+      "sourceUrl": "https://www.netherlandsworldwide.nl/visa-the-netherlands/schengen-visa",
+      "chunks": [
+        {
+          "id": "nld_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Netherlands",
+          "tags": [
+            "netherlands",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Netherlands should normally use the Netherlands/Schengen short-stay Type C tourism route when Netherlands is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "nld_schengen_where_apply_documents",
+          "title": "Netherlands Schengen where-to-apply and documents",
+          "tags": [
+            "netherlands",
+            "netherlands",
+            "holland",
+            "amsterdam",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Netherlands's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "poland-schengen-short-stay",
+      "country": "poland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Poland",
+      "sourceUrl": "https://www.gov.pl/web/diplomacy/visas",
+      "chunks": [
+        {
+          "id": "pol_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Poland",
+          "tags": [
+            "poland",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Poland should normally use the Poland/Schengen short-stay Type C tourism route when Poland is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "pol_schengen_where_apply_documents",
+          "title": "Poland Schengen where-to-apply and documents",
+          "tags": [
+            "poland",
+            "poland",
+            "warsaw",
+            "krakow",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Poland's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "portugal-schengen-short-stay",
+      "country": "portugal",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Portugal",
+      "sourceUrl": "https://vistos.mne.gov.pt/en/short-stay-visas-schengen/general-information/type-of-visa",
+      "chunks": [
+        {
+          "id": "prt_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Portugal",
+          "tags": [
+            "portugal",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Portugal should normally use the Portugal/Schengen short-stay Type C tourism route when Portugal is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "prt_schengen_where_apply_documents",
+          "title": "Portugal Schengen where-to-apply and documents",
+          "tags": [
+            "portugal",
+            "portugal",
+            "lisbon",
+            "porto",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Portugal's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "romania-schengen-short-stay",
+      "country": "romania",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Romania",
+      "sourceUrl": "https://www.mae.ro/en/node/2035",
+      "chunks": [
+        {
+          "id": "rou_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Romania",
+          "tags": [
+            "romania",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Romania should normally use the Romania/Schengen short-stay Type C tourism route when Romania is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "rou_schengen_where_apply_documents",
+          "title": "Romania Schengen where-to-apply and documents",
+          "tags": [
+            "romania",
+            "romania",
+            "bucharest",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Romania's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "slovakia-schengen-short-stay",
+      "country": "slovakia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Slovakia",
+      "sourceUrl": "https://www.mzv.sk/en/web/en/consular_info/visa",
+      "chunks": [
+        {
+          "id": "svk_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Slovakia",
+          "tags": [
+            "slovakia",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Slovakia should normally use the Slovakia/Schengen short-stay Type C tourism route when Slovakia is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "svk_schengen_where_apply_documents",
+          "title": "Slovakia Schengen where-to-apply and documents",
+          "tags": [
+            "slovakia",
+            "slovakia",
+            "bratislava",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Slovakia's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "slovenia-schengen-short-stay",
+      "country": "slovenia",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Slovenia",
+      "sourceUrl": "https://www.gov.si/en/topics/entry-and-residence/",
+      "chunks": [
+        {
+          "id": "svn_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Slovenia",
+          "tags": [
+            "slovenia",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Slovenia should normally use the Slovenia/Schengen short-stay Type C tourism route when Slovenia is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "svn_schengen_where_apply_documents",
+          "title": "Slovenia Schengen where-to-apply and documents",
+          "tags": [
+            "slovenia",
+            "slovenia",
+            "ljubljana",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Slovenia's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "spain-schengen-short-stay",
+      "country": "spain",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Spain",
+      "sourceUrl": "https://www.exteriores.gob.es/Consulados/pekin/en/ServiciosConsulares/Paginas/Consular/Visado-Schengen.aspx",
+      "chunks": [
+        {
+          "id": "esp_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Spain",
+          "tags": [
+            "spain",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Spain should normally use the Spain/Schengen short-stay Type C tourism route when Spain is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "esp_schengen_where_apply_documents",
+          "title": "Spain Schengen where-to-apply and documents",
+          "tags": [
+            "spain",
+            "spain",
+            "madrid",
+            "barcelona",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Spain's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "sweden-schengen-short-stay",
+      "country": "sweden",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Sweden",
+      "sourceUrl": "https://www.swedenabroad.se/en/about-sweden-non-swedish-citizens/going-to-sweden/visiting-sweden/",
+      "chunks": [
+        {
+          "id": "swe_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Sweden",
+          "tags": [
+            "sweden",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Sweden should normally use the Sweden/Schengen short-stay Type C tourism route when Sweden is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "swe_schengen_where_apply_documents",
+          "title": "Sweden Schengen where-to-apply and documents",
+          "tags": [
+            "sweden",
+            "sweden",
+            "stockholm",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Sweden's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "uae-tourism-visit-visa",
+      "country": "united_arab_emirates",
+      "visaType": "visa_free_or_tourist_visa",
+      "documentType": "requirements",
+      "title": "United Arab Emirates Tourist and Visit Visa",
+      "sourceUrl": "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
+      "chunks": [
+        {
+          "id": "are_china_visitor_basic_route_zh",
+          "title": "Chinese passport tourism route for United Arab Emirates",
+          "tags": [
+            "united-arab-emirates",
+            "are",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to United Arab Emirates, VIZA AI should consider the visa-free eligibility or the UAE tourist/visit visa route. First confirm nationality, passport type, stay length, arrival emirate, purpose, accommodation, return or onward ticket, and whether the trip is tourism, family visit, transit or short business. Do not route UAE queries to Saudi Arabia, Qatar, Egypt or Schengen. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "are_tourist_visa_channels",
+          "title": "UAE tourist visa channels and duration direction",
+          "tags": [
+            "uae",
+            "tourist-visa",
+            "visit-visa",
+            "icp",
+            "gdrfa",
+            "airline",
+            "hotel",
+            "travel-agency"
+          ],
+          "content": "The UAE Government portal says tourist/visit visas are used for tourism and other short visit purposes. Tourist visas are commonly arranged through UAE-based airlines, travel agencies, hotels, or official UAE visa-issuing authorities such as ICP/GDRFA channels. UAE official guidance also describes long-term multiple-entry tourist visa options and visit visa durations that can vary by category. VIZA AI should avoid guaranteeing entry or a fixed stay without checking passport nationality and current UAE official rules."
+        },
+        {
+          "id": "are_entry_controls_documents",
+          "title": "UAE entry checks and documents",
+          "tags": [
+            "uae",
+            "entry-check",
+            "passport",
+            "hotel",
+            "return-ticket",
+            "funds"
+          ],
+          "content": "For UAE visitor questions, ask for passport nationality, passport validity, arrival airport/emirate, return/onward ticket, hotel/accommodation, and purpose of visit. If the user is eligible for visa-free/visa-on-arrival entry, still explain that immigration officers make the final entry decision and airlines may check documents before boarding. For non-eligible travellers, direct them to official UAE ICP/GDRFA, airline, hotel or licensed travel agency channels."
+        }
+      ]
+    },
+    {
+      "slug": "egypt-official-evisa-tourism",
+      "country": "egypt",
+      "visaType": "evisa_tourism",
+      "documentType": "requirements",
+      "title": "Egypt Official e-Visa for Tourism",
+      "sourceUrl": "https://www.visa2egypt.gov.eg/eVisa/Home?lang=en",
+      "chunks": [
+        {
+          "id": "egy_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Egypt",
+          "tags": [
+            "egypt",
+            "egy",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Egypt, VIZA AI should consider the official Egypt e-Visa route through visa2egypt.gov.eg when eligible. First confirm nationality, stay length, single or multiple entry need, tourist itinerary, hotel details, and whether the purpose is tourism only. Do not route Egypt queries to UAE, Turkey or Schengen. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "egy_evisa_process_requirements",
+          "title": "Egypt e-Visa process and requirements",
+          "tags": [
+            "egypt",
+            "official-evisa",
+            "apply-online",
+            "7-days",
+            "hotel-booking",
+            "entry-decision"
+          ],
+          "content": "Egypt e-Visa Portal states that applicants create an account, apply and pay online, and should create an e-Visa application at least 7 days before departure. The FAQ describes the e-Visa as an official document permitting entry into and travel from Egypt for eligible nationalities, with the visa downloaded after approval. Typical tourist requirements include hotel booking/details about places to visit. Egyptian port authorities retain the right to refuse entry even when an e-Visa is held."
+        },
+        {
+          "id": "egy_evisa_types_direction",
+          "title": "Egypt e-Visa type direction",
+          "tags": [
+            "egypt",
+            "single-entry",
+            "multiple-entry",
+            "30-days",
+            "tourism"
+          ],
+          "content": "For Egypt tourist trips, distinguish single-entry and multiple-entry needs, and ask whether the user will leave and re-enter Egypt during the itinerary. Keep advice focused on tourism unless the user states business, study, work, residence, journalism or other regulated purposes, which may require an embassy/consular route rather than a tourist e-Visa."
+        }
+      ]
+    },
+    {
+      "slug": "turkey-official-evisa-tourism",
+      "country": "turkey",
+      "visaType": "evisa_tourism_business",
+      "documentType": "requirements",
+      "title": "T?rkiye Official e-Visa for Tourism and Commerce",
+      "sourceUrl": "https://www.evisa.gov.tr/tour/",
+      "chunks": [
+        {
+          "id": "tur_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Turkey/Turkiye",
+          "tags": [
+            "turkey-turkiye",
+            "tur",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Turkey/Turkiye, VIZA AI should consider the official Turkey e-Visa route for tourism or commerce when eligible. First confirm nationality, residence, purpose, stay length, supporting visa/residence documents if relevant, and whether the activity is tourism or commerce only. Work, study and residence require consular routing rather than tourist e-Visa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "tur_evisa_official_portal",
+          "title": "T?rkiye e-Visa official portal rules",
+          "tags": [
+            "turkey",
+            "official-evisa",
+            "mfa",
+            "tourism",
+            "commerce",
+            "passport-validity"
+          ],
+          "content": "T?rkiye MFA states that www.evisa.gov.tr is the government portal run by the Ministry of Foreign Affairs. e-Visa applications can be created online for individuals, families or groups, and each traveller, including infants and children, must obtain a separate e-Visa. The official e-Visa is valid only for touristic and trade purposes. Travellers should carry a passport or travel document with validity at least 60 days beyond the permitted stay or visa/visa-exemption duration."
+        },
+        {
+          "id": "tur_non_evisa_purposes",
+          "title": "T?rkiye non-tourism routes",
+          "tags": [
+            "turkey",
+            "work",
+            "study",
+            "consulate",
+            "not-evisa"
+          ],
+          "content": "If the user wants to work, study, reside, conduct paid activity, or stay beyond the short visitor route, do not recommend the e-Visa as final. T?rkiye MFA guidance says visas for purposes other than tourism or commerce are issued by Turkish Embassies or Consulates. Ask follow-up questions when the purpose is ambiguous."
+        }
+      ]
+    },
+    {
+      "slug": "qatar-hayya-a1-tourist-visa",
+      "country": "qatar",
+      "visaType": "hayya_a1_tourist_visa",
+      "documentType": "requirements",
+      "title": "Qatar Hayya A1 Tourist Visa",
+      "sourceUrl": "https://portal.moi.gov.qa/qatarvisas/",
+      "chunks": [
+        {
+          "id": "qat_hayya_basic_route_zh",
+          "title": "Chinese passport tourism route for Qatar",
+          "tags": [
+            "qatar",
+            "qat",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Qatar, VIZA AI should consider the Hayya e-visa route, usually Tourist Visa A1 unless another Hayya category fits better. First confirm nationality, stay length, accommodation, GCC residence or eligible third-country visas, and whether the trip is tourism or visit. Check Hayya categories before assuming A1. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "qat_hayya_official_platform",
+          "title": "Qatar Hayya official platform and categories",
+          "tags": [
+            "qatar",
+            "hayya",
+            "moi",
+            "qatar-tourism",
+            "a1",
+            "a2",
+            "a3"
+          ],
+          "content": "Qatar Ministry of Interior visa pages and Qatar Tourism materials describe Hayya as the e-platform used to streamline tourist visa applications for visitors to Qatar. Qatar Tourism says Hayya is Qatar's official e-visa digital platform and includes categories such as Tourist Visa (A1), GCC Resident Visa (A2), Visa with ETA (A3), Companion of GCC Citizen Visa (A4), and other visitor categories. VIZA AI should route generic tourism to A1 only after checking whether another category fits better."
+        },
+        {
+          "id": "qat_documents_direction",
+          "title": "Qatar tourist visa document direction",
+          "tags": [
+            "qatar",
+            "passport",
+            "hotel",
+            "health-insurance",
+            "hayya"
+          ],
+          "content": "For Qatar tourist visa advice, collect passport nationality, passport validity, travel dates, accommodation/hotel booking, host details if applicable, and whether mandatory visitor health insurance applies. Tell users to apply through the official Hayya portal or app and to monitor approval before travel; airline boarding and border entry remain subject to official checks."
+        }
+      ]
+    },
+    {
+      "slug": "saudi-tourist-evisa",
+      "country": "saudi_arabia",
+      "visaType": "tourist_evisa",
+      "documentType": "requirements",
+      "title": "Saudi Arabia Tourist eVisa",
+      "sourceUrl": "https://embassies.mofa.gov.sa/sites/uk/EN/DiplomaticMissionServices/Consulates/ConsulatesServices/Other%20Visas%20Services%20e/Pages/UK-Travel-Agents-for-Visa-Services14.aspx",
+      "chunks": [
+        {
+          "id": "sau_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Saudi Arabia",
+          "tags": [
+            "saudi-arabia",
+            "sau",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Saudi Arabia, VIZA AI should consider the Saudi tourist eVisa or visa-on-arrival route when the nationality is eligible. First confirm nationality, passport validity, purpose, stay length, Umrah plans, entry count, minors, and whether the trip involves Hajj, work or residence. Hajj, work, study and residence need separate official routes. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "sau_evisa_eligible_countries",
+          "title": "Saudi tourist eVisa eligible route",
+          "tags": [
+            "saudi-arabia",
+            "tourist-evisa",
+            "eligible-countries",
+            "passport-validity",
+            "six-months"
+          ],
+          "content": "Saudi official tourist eVisa materials state that tourists from eligible countries can apply online before travel or obtain tourist visa services on arrival through Saudi immigration visa offices, subject to current rules. The official Saudi MOFA page lists China, including Hong Kong and Macau, among eligible Asian countries and states that the passport must be valid for at least six months from entry."
+        },
+        {
+          "id": "sau_tourism_scope_limits",
+          "title": "Saudi tourist visa scope and limits",
+          "tags": [
+            "saudi-arabia",
+            "tourism",
+            "events",
+            "family-visit",
+            "not-work"
+          ],
+          "content": "Saudi tourist eVisa guidance is for tourism and related short visits; it is not a work, study, residence or Hajj visa. If the user mentions Hajj, employment, long-term residence, journalism, study or regulated activity, VIZA AI should route away from the tourist eVisa and ask clarifying questions. For Umrah, explain that rules can differ by season and official Nusuk/Saudi channels should be checked."
+        }
+      ]
+    },
+    {
+      "slug": "morocco-visa-free-or-evisa",
+      "country": "morocco",
+      "visaType": "visa_free_or_evisa",
+      "documentType": "requirements",
+      "title": "Morocco Visa-Free Travel and eVisa",
+      "sourceUrl": "https://www.visitmorocco.com/en/formalities",
+      "chunks": [
+        {
+          "id": "mar_china_visa_free_basic_route_zh",
+          "title": "Chinese passport tourism route for Morocco",
+          "tags": [
+            "morocco",
+            "mar",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Morocco, VIZA AI should consider the visa-free short-stay route when eligible, otherwise Morocco eVisa or consular visa route. First confirm nationality, stay length, purpose, passport validity, accommodation and whether the stay exceeds the short-stay limit. Do not promise visa-free entry without checking nationality and current Moroccan rules. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "mar_formalities_evisa",
+          "title": "Morocco formalities and Acces Maroc",
+          "tags": [
+            "morocco",
+            "formalities",
+            "acces-maroc",
+            "evisa",
+            "passport"
+          ],
+          "content": "Moroccan tourism formalities guidance says foreign nationals arriving as part of an organised trip need a valid passport covering at least the duration of stay. Morocco also provides Acces Maroc for submitting and tracking e-Visa or AEVM electronic travel authorization applications. Moroccan consular guidance explains short-stay visas generally cover one to ninety days, and possession of a visa does not create an irrevocable right of entry."
+        },
+        {
+          "id": "mar_entry_controls",
+          "title": "Morocco entry checks and overstay caution",
+          "tags": [
+            "morocco",
+            "entry-control",
+            "funds",
+            "return-ticket",
+            "90-days"
+          ],
+          "content": "For Morocco, VIZA AI should collect destination cities, accommodation, return/onward ticket, funds and intended length of stay. Warn users not to rely on repeated border runs or assumptions about resetting stays; if staying longer than the visa-free/short-stay period, they should check Moroccan consular/residence rules before travel."
+        }
+      ]
+    },
+    {
+      "slug": "south-africa-visitor-visa",
+      "country": "south_africa",
+      "visaType": "visitor_visa_tourism",
+      "documentType": "requirements",
+      "title": "South Africa Visitor Visa for Tourism or Business",
+      "sourceUrl": "https://www.gov.za/services/temporary-residence/visa",
+      "chunks": [
+        {
+          "id": "zaf_china_visitor_basic_route_zh",
+          "title": "Chinese passport tourism route for South Africa",
+          "tags": [
+            "south-africa",
+            "zaf",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to South Africa, VIZA AI should consider the South Africa visitor visa or eVisa route for tourism/business visitor cases. First confirm nationality, residence, itinerary, stay length, funds, return ticket, accommodation, children travelling, and yellow-fever origin or transit. Do not treat Chinese ordinary passport tourism as automatically visa-free. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "zaf_visitor_visa_scope",
+          "title": "South Africa visitor visa scope",
+          "tags": [
+            "south-africa",
+            "visitor-visa",
+            "tourism",
+            "business",
+            "90-days"
+          ],
+          "content": "South African Government guidance says visitors who need a visa must obtain a valid visa before entering South Africa. A visitor visa is issued for tourism or business purposes and is valid for a period of 90 days. VIZA AI should not recommend this route for work, study, long-term residence, volunteering or paid activities without further checks."
+        },
+        {
+          "id": "zaf_documents_direction",
+          "title": "South Africa document direction",
+          "tags": [
+            "south-africa",
+            "passport",
+            "return-ticket",
+            "funds",
+            "minor-children",
+            "yellow-fever"
+          ],
+          "content": "For South Africa tourist visa questions, ask for passport nationality, residence country, itinerary, funds, return/onward ticket, accommodation, employment/study ties, and whether children are travelling. Also ask about yellow-fever transit/origin and current eVisa availability for the applicant nationality and residence country."
+        }
+      ]
+    },
+    {
+      "slug": "maldives-tourist-visa-on-arrival",
+      "country": "maldives",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "requirements",
+      "title": "Maldives Tourist Visa on Arrival and Traveller Declaration",
+      "sourceUrl": "https://www.immigration.gov.mv/visa/tourist-visa",
+      "chunks": [
+        {
+          "id": "mdv_china_voa_basic_route_zh",
+          "title": "Chinese passport tourism route for Maldives",
+          "tags": [
+            "maldives",
+            "mdv",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Maldives, VIZA AI should consider the Maldives tourist visa on arrival plus IMUGA Traveller Declaration route. First confirm nationality, stay length, resort or hotel booking, return or onward ticket, funds, and traveller declaration status. Employment or non-tourist activities require a different permit. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "mdv_visa_on_arrival_requirements",
+          "title": "Maldives tourist visa on arrival requirements",
+          "tags": [
+            "maldives",
+            "tourist-visa",
+            "arrival",
+            "30-days",
+            "traveller-declaration"
+          ],
+          "content": "Maldives Immigration states that tourist visa is granted on arrival. Maldives official/mission pages describe a free tourist visa on arrival for up to 30 days for foreign tourists subject to entry requirements. IMUGA is the official Maldives Immigration portal for traveller declaration and immigration services; Traveller Declaration is required within the official pre-arrival/departure window."
+        },
+        {
+          "id": "mdv_entry_documents",
+          "title": "Maldives entry document direction",
+          "tags": [
+            "maldives",
+            "passport",
+            "hotel",
+            "return-ticket",
+            "funds",
+            "imuga"
+          ],
+          "content": "For Maldives, collect passport validity, confirmed accommodation at a registered tourist facility, return/onward ticket, travel itinerary, sufficient funds or sponsorship, and IMUGA Traveller Declaration status. Explain that the full 30-day period is subject to immigration discretion and that employment or non-tourist purposes require a different visa/permit."
+        }
+      ]
+    },
+    {
+      "slug": "sri-lanka-eta-tourism",
+      "country": "sri_lanka",
+      "visaType": "eta_tourism",
+      "documentType": "requirements",
+      "title": "Sri Lanka ETA for Tourism",
+      "sourceUrl": "https://www.eta.gov.lk/slvisa/",
+      "chunks": [
+        {
+          "id": "lka_china_eta_basic_route_zh",
+          "title": "Chinese passport tourism route for Sri Lanka",
+          "tags": [
+            "sri-lanka",
+            "lka",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Sri Lanka, VIZA AI should consider the official Sri Lanka ETA route through eta.gov.lk when applicable. First confirm nationality, purpose, stay length, entry count, passport validity, and whether the user qualifies for any free ETA policy. Use the official ETA site and do not promise eVisa availability without checking current rules. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "lka_eta_official_rules",
+          "title": "Sri Lanka ETA official rules",
+          "tags": [
+            "sri-lanka",
+            "eta",
+            "official-site",
+            "30-days",
+            "double-entry"
+          ],
+          "content": "Sri Lanka ETA official notices state that short-stay travellers for tourism or business must obtain an Electronic Travel Authorization via eta.gov.lk. Recent official notices list China among nationalities eligible for free ETA for tourism purposes, with a 30-day free visa period and double-entry facility within 30 days from first arrival, subject to current regulations. Passport validity of at least 6 months from first arrival is commonly required by Sri Lankan mission guidance."
+        },
+        {
+          "id": "lka_eta_scope_limits",
+          "title": "Sri Lanka ETA scope and limits",
+          "tags": [
+            "sri-lanka",
+            "tourism",
+            "business",
+            "transit",
+            "not-residence"
+          ],
+          "content": "Tourist/Business ETA is for short visits and cannot be converted into residence status as a general answer. If the user mentions work, long-term study, volunteering, residence, media work or paid activities, VIZA AI should route them away from tourist ETA and ask clarifying questions."
+        }
+      ]
+    },
+    {
+      "slug": "india-regular-tourist-visa-china",
+      "country": "india",
+      "visaType": "regular_tourist_visa",
+      "documentType": "requirements",
+      "title": "India Tourist Visa for Chinese Nationals",
+      "sourceUrl": "https://indianvisaonline.gov.in/visa/index.html",
+      "chunks": [
+        {
+          "id": "ind_china_tourist_basic_route_zh",
+          "title": "Chinese passport tourism route for India",
+          "tags": [
+            "india",
+            "ind",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to India, VIZA AI should consider the Indian Visa Online and Indian mission or visa application centre route, with regular tourist visa as the conservative route for Chinese tourists. First confirm nationality, legal residence, purpose, stay length, destination cities, and whether the applicant is eligible for eVisa under current rules. Do not assume Chinese ordinary passport holders can use e-Tourist Visa unless current official eligibility is confirmed. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "ind_regular_visa_process",
+          "title": "India regular visa application process direction",
+          "tags": [
+            "india",
+            "regular-visa",
+            "online-form",
+            "visa-application-centre",
+            "appointment"
+          ],
+          "content": "Indian visa application guidance uses the Indian Visa Online portal for completing the visa application form. For regular/paper tourist visa cases, applicants typically fill the online form, print/sign it, book or follow the relevant mission/visa application centre process, and submit passport, photo and supporting documents. VIZA AI should ask where the applicant legally resides because the Indian mission or visa application centre jurisdiction affects the checklist."
+        },
+        {
+          "id": "ind_evisa_caution_china",
+          "title": "India eVisa caution for Chinese passport holders",
+          "tags": [
+            "india",
+            "evisa",
+            "china",
+            "policy-change",
+            "caution"
+          ],
+          "content": "Because India eVisa eligibility for Chinese nationals has changed over time and may differ by visa category, VIZA AI should not promise eVisa availability for Chinese ordinary passport holders unless current official eligibility is confirmed. For Chinese tourists, explain the safer route as regular tourist visa through Indian official channels and ask the user to verify on the official Indian Visa Online / Embassy pages immediately before applying."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-china-visa-free-or-evisa",
+      "country": "philippines",
+      "visaType": "visa_free_14_days_or_evisa",
+      "documentType": "requirements",
+      "title": "Philippines Visa-Free Entry or eVisa for Chinese Tourists",
+      "sourceUrl": "https://www.pna.gov.ph/articles/1267062",
+      "chunks": [
+        {
+          "id": "phl_china_visa_free_basic_route_zh",
+          "title": "Chinese passport tourism route for Philippines",
+          "tags": [
+            "philippines",
+            "phl",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Philippines, VIZA AI should consider the Philippines visa-free short visitor route when eligible, otherwise eVisa or consular visa route. First confirm nationality, stay length, purpose, hotel booking, return or onward ticket, passport validity, and eTravel status. For Chinese tourists, check the current 14-day visa-free policy and route longer stays to visa/eVisa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "phl_14_day_policy_2026",
+          "title": "Philippines 14-day visa-free entry for Chinese tourists",
+          "tags": [
+            "philippines",
+            "dfa",
+            "china",
+            "14-days",
+            "passport-validity",
+            "hotel",
+            "onward-ticket"
+          ],
+          "content": "Philippine government news reports DFA guidance that, effective 16 January 2026, Chinese nationals may enter the Philippines without obtaining a visa for stays up to 14 days for tourism or business visitor purposes. Documents include passport valid at least six months beyond the contemplated stay, confirmed hotel accommodation/booking, and return or onward ticket. VIZA AI should still tell users to check DFA/BI/eTravel rules before departure."
+        },
+        {
+          "id": "phl_longer_stay_route",
+          "title": "Philippines longer or non-tourist stay route",
+          "tags": [
+            "philippines",
+            "evisa",
+            "longer-stay",
+            "not-work"
+          ],
+          "content": "If the user plans to stay more than 14 days, work, study, reside, or conduct activities outside tourism/business visitor scope, do not present visa-free entry as sufficient. Route them to Philippine visa/eVisa or consular guidance and ask for exact stay length and purpose."
+        }
+      ]
+    },
+    {
+      "slug": "cambodia-tourist-evisa",
+      "country": "cambodia",
+      "visaType": "tourist_evisa",
+      "documentType": "requirements",
+      "title": "Cambodia Tourist eVisa",
+      "sourceUrl": "https://www.evisa.gov.kh/",
+      "chunks": [
+        {
+          "id": "khm_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Cambodia",
+          "tags": [
+            "cambodia",
+            "khm",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Cambodia, VIZA AI should consider the official Cambodia tourist eVisa route or tourist visa route at accepted ports. First confirm nationality, stay length, entry port, tourism purpose, passport validity, photo and whether the user will enter by air or land. Check accepted eVisa ports before travel. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "khm_evisa_scope",
+          "title": "Cambodia tourist eVisa scope",
+          "tags": [
+            "cambodia",
+            "official-evisa",
+            "tourist",
+            "30-days",
+            "entry-points"
+          ],
+          "content": "Cambodia e-Visa is an official electronic visa issued by the Royal Government of Cambodia via the official evisa.gov.kh portal. Tourist e-Visa is normally for tourism, generally single entry, and commonly permits a stay up to 30 days subject to current official rules and accepted entry points. Applicants receive an approval certificate that should be presented with the passport at immigration."
+        },
+        {
+          "id": "khm_documents_direction",
+          "title": "Cambodia documents and entry direction",
+          "tags": [
+            "cambodia",
+            "passport-validity",
+            "photo",
+            "entry-point",
+            "printout"
+          ],
+          "content": "For Cambodia, collect passport validity, photo, arrival date, entry point, hotel/itinerary, return/onward arrangements and visa type. Warn users to use the official government e-Visa portal, check the accepted ports of entry, and carry the e-Visa approval certificate as required."
+        }
+      ]
+    },
+    {
+      "slug": "laos-tourist-evisa",
+      "country": "laos",
+      "visaType": "tourist_evisa",
+      "documentType": "requirements",
+      "title": "Laos Tourist eVisa",
+      "sourceUrl": "https://www.evisagov.la/official/en-us/evisa",
+      "chunks": [
+        {
+          "id": "lao_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Laos",
+          "tags": [
+            "laos",
+            "lao",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Laos, VIZA AI should consider the official Laos tourist eVisa route or visa-on-arrival/consular route depending on entry point. First confirm nationality, stay length, entry port, passport type, tourism purpose, and whether the port accepts eVisa. Laos eVisa is for ordinary passports and tourism-related short stays. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "lao_evisa_scope",
+          "title": "Laos tourist eVisa scope",
+          "tags": [
+            "laos",
+            "official-evisa",
+            "tourist",
+            "ordinary-passport",
+            "entry-points"
+          ],
+          "content": "The official Laos eVisa portal describes Laos e-Visa as a Tourist eVisa for short stays related to tourism, sightseeing, cultural visits and short family trips. It is for ordinary passports, not diplomatic, official or emergency travel documents. VIZA AI should check accepted entry points and avoid recommending eVisa for non-tourism or ineligible passport types."
+        },
+        {
+          "id": "lao_documents_direction",
+          "title": "Laos document and port direction",
+          "tags": [
+            "laos",
+            "passport",
+            "photo",
+            "entry-port",
+            "approval-letter"
+          ],
+          "content": "For Laos, ask for entry point, travel dates, passport validity, photo/document upload readiness, and whether the traveller will enter by air or land. Tell users to use the official eVisa portal and carry the eVisa approval document with the same passport used for the application."
+        }
+      ]
+    },
+    {
+      "slug": "nepal-tourist-visa-on-arrival",
+      "country": "nepal",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "requirements",
+      "title": "Nepal Tourist Visa on Arrival",
+      "sourceUrl": "https://tia.immigration.gov.np/en/post/on-arrival-tourist-visa",
+      "chunks": [
+        {
+          "id": "npl_china_voa_basic_route_zh",
+          "title": "Chinese passport tourism route for Nepal",
+          "tags": [
+            "nepal",
+            "npl",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Nepal, VIZA AI should consider the Nepal tourist visa on arrival or online pre-arrival route at authorized entry points. First confirm nationality, arrival airport or land border, stay length, accommodation, trek plans and whether restricted-area permits may be needed. Trekking and restricted-area permits are separate from the tourist visa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "npl_on_arrival_process",
+          "title": "Nepal on-arrival tourist visa process",
+          "tags": [
+            "nepal",
+            "tourist-visa",
+            "on-arrival",
+            "tribhuvan",
+            "15-days",
+            "30-days",
+            "90-days"
+          ],
+          "content": "Nepal Immigration states that Tourist Visa on Arrival is available at Tribhuvan International Airport and other authorized entry/exit points. Tourist visa on arrival is the only entry visa for tourists and is issued with multiple re-entry facility, with common 15-day, 30-day and 90-day categories. Chinese nationals are listed in Nepal guidance as eligible for on-arrival visa at authorized entry points."
+        },
+        {
+          "id": "npl_documents_direction",
+          "title": "Nepal documents and trekking caution",
+          "tags": [
+            "nepal",
+            "passport",
+            "photo",
+            "trekking-permit",
+            "restricted-area"
+          ],
+          "content": "For Nepal, collect passport validity, arrival airport/land border, intended stay length, photo, accommodation/itinerary and whether the user will trek or enter restricted areas. Explain that trekking permits or restricted-area permits are separate from the tourist visa and may be needed for certain routes."
+        }
+      ]
+    },
+    {
+      "slug": "mexico-visitor-visa-or-exemption",
+      "country": "mexico",
+      "visaType": "visitor_visa_or_exemption",
+      "documentType": "requirements",
+      "title": "Mexico Visitor Visa or Visa Exemption",
+      "sourceUrl": "https://www.gob.mx/inm/documentos/paises-y-regiones-que-requieren-visa-para-viajar-a-mexico",
+      "chunks": [
+        {
+          "id": "mex_china_visitor_basic_route_zh",
+          "title": "Chinese passport tourism route for Mexico",
+          "tags": [
+            "mexico",
+            "mex",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Mexico, VIZA AI should consider the Mexico visitor visa or visa-exemption route based on qualifying third-country visas or residence permits. First confirm nationality, valid US/Canada/Schengen/UK/Japan visa or permanent residence status, stay length, purpose, accommodation, funds and return ticket. Do not confuse a Mexican visitor visa with US B1/B2 or Schengen visas. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "mex_inm_visitor_visa_scope",
+          "title": "Mexico visitor visa scope and 180-day direction",
+          "tags": [
+            "mexico",
+            "inm",
+            "visitor-visa",
+            "tourism",
+            "business",
+            "180-days",
+            "no-paid-work"
+          ],
+          "content": "Mexico INM lists countries/regions whose nationals require a visa to travel to Mexico and describes the visitor without permission to perform remunerated activities category for tourism, business and other unpaid activities. Mexican consular guidance commonly describes visitor stays for a period not exceeding 180 days, subject to immigration officer decision at entry. A valid visa or permanent residence from certain countries/regions can exempt some travellers from needing a Mexican visa."
+        },
+        {
+          "id": "mex_documents_direction",
+          "title": "Mexico documents and exemption check",
+          "tags": [
+            "mexico",
+            "passport",
+            "us-visa",
+            "canada-visa",
+            "schengen",
+            "return-ticket",
+            "funds"
+          ],
+          "content": "For Mexico, collect passport nationality, whether the traveller holds a valid US/Canada/Schengen/UK/Japan visa or permanent residence, exact purpose, stay length, return/onward ticket, hotel/invitation, funds and employment/study ties. If the user lacks an acceptable exemption document, recommend applying for a Mexican visitor visa through a Mexican consulate before travel."
         }
       ]
     }

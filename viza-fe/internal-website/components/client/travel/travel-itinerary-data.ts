@@ -19,6 +19,7 @@ export const TRAVEL_ITINERARY_SHARE_PARAM = "travelShare";
 const ITINERY_ROWS_PAYLOAD_PREFIX = "__TRAVEL_ITINERY_ROWS__:";
 
 export type TravelItineryShareRow = {
+  time?: string;
   type: string;
   date: string;
   route: string;
@@ -129,6 +130,7 @@ function isTravelItineryShareRow(value: unknown): value is TravelItineryShareRow
   const record = value as Record<string, unknown>;
 
   return (
+    (record.time === undefined || typeof record.time === "string") &&
     typeof record.type === "string" &&
     typeof record.date === "string" &&
     typeof record.route === "string" &&
