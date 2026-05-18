@@ -12,9 +12,9 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatusCard";
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
+import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
 import {
   PopularDestinationsSection,
@@ -22,18 +22,9 @@ import {
 } from "@/components/client/home/PopularDestinationsSection";
 import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
 import {
-  getDestinationFlag,
   getVisaDestinationKey,
   getVisaPackageTitleZh,
 } from "@/lib/visa-destinations";
-
-// ---------------------------------------------------------------------------
-// Country helpers
-// ---------------------------------------------------------------------------
-
-function getCountryFlag(country: string): string {
-  return getDestinationFlag(country);
-}
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -412,11 +403,6 @@ export default function HomePage() {
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
-  const primaryApplication = applications[0] ?? null;
-  const primaryProgress = primaryApplication
-    ? applicationProgress[getVisaDestinationKey(primaryApplication.country, primaryApplication.visa_type)]
-    : null;
-  const primaryPackage = visaPackages[0] ?? null;
   const activityEvents = buildActivityEvents(applications, documents);
 
   const headingVariants = {
@@ -472,58 +458,9 @@ export default function HomePage() {
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            {primaryApplication ? (
-              <>
-                <ApplicationStatusCard
-                  status={primaryApplication.status}
-                  visaType={primaryApplication.visa_type}
-                  country={primaryApplication.country}
-                  submittedAt={primaryApplication.submitted_at}
-                  progressPercent={primaryProgress?.percent}
-                  applicationCount={applications.length}
-                />
-                <UniversalInfoCard {...universalInfoProgress} />
-                <QuickActionsCard />
-              </>
-            ) : (
-              <>
-                {/* Application card */}
-                <motion.div
-                  className="basis-0 grow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0, duration: 0.5 }}
-                >
-                  <div className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex flex-col justify-between items-start p-[24px] relative rounded-[12px] w-full h-[240px]">
-                    <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
-                    <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
-                    <div className="w-full">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-4xl leading-none" role="img" aria-label="flag">{primaryPackage ? getCountryFlag(primaryPackage.country) : "🌐"}</span>
-                        <div>
-                          <p className="text-white font-heading font-medium text-[18px] leading-tight">
-                            {primaryPackage
-                              ? getVisaPackageTitleZh(primaryPackage.country, primaryPackage.visa_type)
-                              : t("emptyApplication.noActiveApplication")}
-                          </p>
-                          {primaryPackage?.description && (
-                            <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{primaryPackage.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30">
-                        {t("notStarted")}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <UniversalInfoCard {...universalInfoProgress} />
-
-                {/* Quick Actions card */}
-                <QuickActionsCard />
-              </>
-            )}
+            <SubscriptionPlanCard />
+            <UniversalInfoCard {...universalInfoProgress} />
+            <QuickActionsCard />
           </div>
         </motion.div>
 
