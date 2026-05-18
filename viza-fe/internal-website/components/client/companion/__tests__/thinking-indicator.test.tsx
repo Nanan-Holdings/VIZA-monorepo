@@ -14,8 +14,8 @@ describe("ThinkingIndicator", () => {
     expect(screen.getByLabelText("Loading")).toBeInTheDocument();
   });
 
-  it("renders Labs AI avatar", () => {
-    render(<ThinkingIndicator />);
-    expect(screen.getByText("✻")).toBeInTheDocument();
+  it("applies custom className to the loading indicator", () => {
+    render(<ThinkingIndicator className="mt-2" />);
+    expect(screen.getByLabelText("Loading")).toHaveClass("mt-2");
   });
 });

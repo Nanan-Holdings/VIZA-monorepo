@@ -20,7 +20,7 @@ export function SubscriptionPlanCard() {
         <div className="relative flex w-full items-start justify-between gap-4">
           <div>
             <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">
-              VIZA Application
+              VIZA 申请
             </p>
             <p className="mt-1 text-[12px] leading-5 text-[rgba(255,255,255,0.58)]">
               申请方案与订阅状态
@@ -38,7 +38,7 @@ export function SubscriptionPlanCard() {
             </span>
             <div>
               <p className="text-[18px] font-medium leading-tight text-white">
-                VIZA Application
+                VIZA 申请
               </p>
               <p className="mt-0.5 text-[13px] text-[rgba(255,255,255,0.62)]">
                 体验版 · 续费暂未启用
