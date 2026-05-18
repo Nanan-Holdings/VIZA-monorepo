@@ -1347,7 +1347,7 @@ export default function ApplicationPage() {
   }
 
   return (
-    <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
+    <div className="flex min-h-0 pt-3 lg:-ml-5">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar
@@ -1362,7 +1362,7 @@ export default function ApplicationPage() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px] lg:overflow-y-auto">
+      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px]">
         <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
           {/* Mobile step indicator */}
           {useDynamic ? (

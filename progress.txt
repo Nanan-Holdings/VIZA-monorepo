@@ -436,3 +436,10 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: review-step.tsx, progress.txt
 - Learnings: Review should confirm submitted data, not behave like another editable form surface; the layout can be simpler when it is strictly read-only.
 ---
+
+## 2026-05-18 - REV-001 page boundary follow-up
+- Removed the forced desktop viewport-height shell from the application page so short steps no longer leave a large blank scroll area below the form card.
+- Let the application content use the normal page flow while preserving the existing sidebar and form card layout.
+- Files changed: app/client/application/page.tsx, progress.txt
+- Learnings: the hardcoded application flow should end visually at its active content instead of reserving an internal app-scroll viewport for every step.
+---
