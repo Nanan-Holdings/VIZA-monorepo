@@ -13,8 +13,8 @@ import {
   EmptyDescription,
 } from "@/components/ui/empty";
 import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatusCard";
-import { DocumentProgressCard } from "@/components/client/home/DocumentProgressCard";
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
+import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
 import {
   PopularDestinationsSection,
@@ -97,6 +97,60 @@ interface AnswerRow {
   updated_at: string | null;
 }
 
+interface ApplicantProfileSummary {
+  full_name: string | null;
+  date_of_birth: string | null;
+  place_of_birth: string | null;
+  gender: string | null;
+  nationality: string | null;
+  occupation: string | null;
+  address: string | null;
+  passport_number: string | null;
+  passport_issue_date: string | null;
+  passport_expiry_date: string | null;
+  passport_issuing_country: string | null;
+  email: string | null;
+  phone: string | null;
+  wechat: string | null;
+}
+
+interface UniversalInfoProgress {
+  completedCount: number;
+  totalCount: number;
+}
+
+const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
+  "full_name",
+  "date_of_birth",
+  "place_of_birth",
+  "gender",
+  "nationality",
+  "occupation",
+  "address",
+  "passport_number",
+  "passport_issue_date",
+  "passport_expiry_date",
+  "passport_issuing_country",
+  "email",
+  "phone",
+  "wechat",
+];
+
+function buildUniversalInfoProgress(
+  profile: ApplicantProfileSummary | null,
+  authEmail?: string | null,
+): UniversalInfoProgress {
+  const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
+    if (field === "email" && !profile?.email && authEmail) return true;
+    return Boolean(profile?.[field]?.trim());
+  }).length;
+
+  return {
+    completedCount,
+    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+  };
+}
+
 function getProgressLabel(status: string, percent: number): string {
   if (status === "approved") return "已批准";
   if (status === "submitted") return "已提交";
@@ -169,6 +223,10 @@ export default function HomePage() {
   const [applicationProgress, setApplicationProgress] = useState<Record<string, DestinationApplicationProgress>>({});
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
+  const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
+    completedCount: 0,
+    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -277,13 +335,16 @@ export default function HomePage() {
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
-          .select("id, full_name")
+          .select("id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
           .eq("auth_user_id", user.id)
           .maybeSingle();
 
         if (!isMounted) return;
 
         const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
+        setUniversalInfoProgress(
+          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
+        );
 
         if (profile) {
           setApplicantName((profile as { full_name: string | null }).full_name || authName);
@@ -356,7 +417,6 @@ export default function HomePage() {
     ? applicationProgress[getVisaDestinationKey(primaryApplication.country, primaryApplication.visa_type)]
     : null;
   const primaryPackage = visaPackages[0] ?? null;
-  const uploadedDocuments = documents.filter((d) => d.status !== "missing");
   const activityEvents = buildActivityEvents(applications, documents);
 
   const headingVariants = {
@@ -422,10 +482,7 @@ export default function HomePage() {
                   progressPercent={primaryProgress?.percent}
                   applicationCount={applications.length}
                 />
-                <DocumentProgressCard
-                  uploadedCount={uploadedDocuments.length}
-                  totalRequired={Math.max(6, applications.length * 6)}
-                />
+                <UniversalInfoCard {...universalInfoProgress} />
                 <QuickActionsCard />
               </>
             ) : (
@@ -461,28 +518,7 @@ export default function HomePage() {
                   </div>
                 </motion.div>
 
-                {/* Documents card */}
-                <motion.div
-                  className="basis-0 grow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.5 }}
-                >
-                  <div className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex flex-col justify-between items-start p-[24px] relative rounded-[12px] w-full h-[240px]">
-                    <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
-                    <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("documentsTitle")}</p>
-                    <div className="w-full space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="font-heading font-normal text-[48px] leading-none text-white">0</span>
-                        <span className="text-[rgba(255,255,255,0.55)] text-[14px]">{t("ofRequired", { total: 6 })}</span>
-                      </div>
-                      <div className="w-full bg-[rgba(255,255,255,0.2)] rounded-full h-2">
-                        <div className="bg-white rounded-full h-2 transition-all duration-700" style={{ width: "0%" }} />
-                      </div>
-                      <p className="text-[rgba(255,255,255,0.55)] text-[13px]">{t("percentComplete", { pct: 0 })}</p>
-                    </div>
-                  </div>
-                </motion.div>
+                <UniversalInfoCard {...universalInfoProgress} />
 
                 {/* Quick Actions card */}
                 <QuickActionsCard />
