@@ -510,7 +510,11 @@ function validateAnswer(
   }
 
   const options = normalizeOptions(field.options);
-  if ((field.fieldType === "select" || field.fieldType === "radio") && trimmed && options.length > 0) {
+  if (
+    (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
+    trimmed &&
+    options.length > 0
+  ) {
     const matches = options.some(
       (option) =>
         option.value.toLowerCase() === trimmed.toLowerCase() ||
