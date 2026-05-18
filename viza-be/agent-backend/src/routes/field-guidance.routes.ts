@@ -109,6 +109,36 @@ function asStringArray(value: unknown): string[] {
     .filter((item): item is string => Boolean(item));
 }
 
+function stripMarkdown(content: string): string {
+  return content
+    .replace(/```[\s\S]*?```/g, (block) => {
+      const code = block.slice(3, -3);
+      const firstNewline = code.indexOf("\n");
+      return firstNewline > 0 ? code.slice(firstNewline + 1).trim() : code.trim();
+    })
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/(^|\s)#{1,6}\s+/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+[.)]\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/__([^_\n]+)__/g, "$1")
+    .replace(/(^|[^\w])\*([^*\n]+)\*([^\w]|$)/g, "$1$2$3")
+    .replace(/(^|[^\w])_([^_\n]+)_([^\w]|$)/g, "$1$2$3")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function cleanAiStringArray(value: unknown, limit: number): string[] {
+  return asStringArray(value)
+    .map((item) => stripMarkdown(item))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 function normalizeOptions(
   options?: Array<FieldOption | string> | null
 ): FieldOption[] {
@@ -302,11 +332,11 @@ function mergeGuidance(
 ): GuidanceBody {
   return {
     title: makeTitle(field, locale),
-    summary: asString(ai.summary) ?? base.summary,
-    examples: asStringArray(ai.examples).slice(0, 4),
-    hints: asStringArray(ai.hints).slice(0, 5),
-    officialWarnings: asStringArray(ai.officialWarnings).slice(0, 4),
-    formatHints: asStringArray(ai.formatHints).slice(0, 4),
+    summary: asString(ai.summary) ? stripMarkdown(asString(ai.summary) ?? "") : base.summary,
+    examples: cleanAiStringArray(ai.examples, 4),
+    hints: cleanAiStringArray(ai.hints, 5),
+    officialWarnings: cleanAiStringArray(ai.officialWarnings, 4),
+    formatHints: cleanAiStringArray(ai.formatHints, 4),
   };
 }
 
@@ -536,7 +566,7 @@ async function generateAiGuidance(
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 700,
-      system: `You are a visa form field copilot. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Do not invent legal requirements not supported by the field metadata or context.`,
+      system: `You are a visa form field copilot. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
       messages: [
         {
           role: "user",
@@ -582,7 +612,7 @@ async function generateQuestionReply(
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 350,
-      system: `You answer user questions about one visa form field. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin.`,
+      system: `You answer user questions about one visa form field. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
       messages: [
         {
           role: "user",
@@ -591,7 +621,7 @@ async function generateQuestionReply(
       ],
     });
 
-    const reply = extractTextContent(message.content).trim();
+    const reply = stripMarkdown(extractTextContent(message.content).trim());
     return { reply: reply || fallback, aiUsed: Boolean(reply) };
   } catch (error) {
     logger.warn("AI field question reply failed", error as Error, {
