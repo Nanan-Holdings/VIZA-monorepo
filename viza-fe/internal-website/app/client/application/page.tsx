@@ -73,6 +73,22 @@ interface StepSectionDef {
   steps: StepDef[];
 }
 
+interface ApplicantProfilePrefill {
+  full_name?: string | null;
+  date_of_birth?: string | null;
+  place_of_birth?: string | null;
+  gender?: string | null;
+  nationality?: string | null;
+  occupation?: string | null;
+  address?: string | null;
+  passport_number?: string | null;
+  passport_issue_date?: string | null;
+  passport_expiry_date?: string | null;
+  passport_issuing_country?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 const STEP_SECTION_ORDER: StepSectionKey[] = [
   "personal",
   "travel",
@@ -156,6 +172,44 @@ function buildStepSections(steps: StepDef[], titles: Record<StepSectionKey, stri
       title: titles[key],
       steps: sectionMap.get(key) ?? [],
     }));
+}
+
+function applyPrefillValue(
+  answers: Record<string, string>,
+  fieldNames: string[],
+  value?: string | null,
+) {
+  const trimmed = value?.trim();
+  if (!trimmed) return;
+
+  for (const fieldName of fieldNames) {
+    if (!answers[fieldName]) answers[fieldName] = trimmed;
+  }
+}
+
+function buildUniversalDynamicAnswers(profile: ApplicantProfilePrefill): Record<string, string> {
+  const answers: Record<string, string> = {};
+  const nameParts = profile.full_name?.trim().split(/\s+/).filter(Boolean) ?? [];
+
+  applyPrefillValue(answers, ["full_name", "fullName", "full_name_native_alphabet"], profile.full_name);
+  if (nameParts.length > 1) {
+    applyPrefillValue(answers, ["given_names", "givenNames", "first_name", "given_name"], nameParts.slice(0, -1).join(" "));
+    applyPrefillValue(answers, ["surname", "last_name", "family_name"], nameParts[nameParts.length - 1]);
+  }
+  applyPrefillValue(answers, ["date_of_birth", "dob", "birth_date"], profile.date_of_birth);
+  applyPrefillValue(answers, ["place_of_birth", "city_of_birth", "birth_city"], profile.place_of_birth);
+  applyPrefillValue(answers, ["gender", "sex"], profile.gender);
+  applyPrefillValue(answers, ["nationality", "nationality_country", "country_of_nationality", "current_nationality"], profile.nationality);
+  applyPrefillValue(answers, ["occupation", "current_occupation", "primary_occupation"], profile.occupation);
+  applyPrefillValue(answers, ["address", "home_address_line1", "home_address", "residential_address"], profile.address);
+  applyPrefillValue(answers, ["passport_number", "passportNumber"], profile.passport_number);
+  applyPrefillValue(answers, ["passport_issue_date", "passport_issuance_date", "passportIssuanceDate"], profile.passport_issue_date);
+  applyPrefillValue(answers, ["passport_expiry_date", "passport_expiration_date", "passportExpirationDate"], profile.passport_expiry_date);
+  applyPrefillValue(answers, ["passport_issuing_country", "passport_issuance_country", "issuing_country"], profile.passport_issuing_country);
+  applyPrefillValue(answers, ["email", "email_address"], profile.email);
+  applyPrefillValue(answers, ["phone", "phone_number", "primary_phone_number", "mobile_phone"], profile.phone);
+
+  return answers;
 }
 
 // ---------------------------------------------------------------------------
@@ -983,9 +1037,10 @@ export default function ApplicationPage() {
         const { answers } = await loadDynamicAnswers(application.id);
         ds160Answers = answers;
       }
+      const universalDynamicAnswers = buildUniversalDynamicAnswers(profile as ApplicantProfilePrefill);
 
       // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
-      const a = ds160Answers;
+      const a = { ...universalDynamicAnswers, ...ds160Answers };
       setAppState((prev) => ({
         ...prev,
         applicationId: application?.id ?? null,
@@ -1036,10 +1091,10 @@ export default function ApplicationPage() {
       setCurrentStep(Math.min(completed, 5));
 
       // Set dynamic answers for the dynamic form steps
-      if (Object.keys(ds160Answers).length > 0) {
-        setDynamicAnswers(ds160Answers);
-        if (ds160Answers["photo_path"]) {
-          setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
+      if (Object.keys(a).length > 0) {
+        setDynamicAnswers(a);
+        if (a["photo_path"]) {
+          setAppState((prev) => ({ ...prev, photo: a["photo_path"] }));
         }
       }
     }

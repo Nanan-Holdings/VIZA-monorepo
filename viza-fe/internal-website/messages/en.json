@@ -91,6 +91,8 @@
       "selected": "Selected",
       "readyToStart": "Ready to start",
       "addedNotStarted": "Added · not started",
+      "searchPlaceholder": "Search country, visa, or form...",
+      "noSearchResults": "No matching visa form found.",
       "selectError": "Could not select this destination. Please try again."
     },
     "visaTimeline": {

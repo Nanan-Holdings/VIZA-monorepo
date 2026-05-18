@@ -91,6 +91,8 @@
       "selected": "已选择",
       "readyToStart": "可开始",
       "addedNotStarted": "已添加 · 尚未开始",
+      "searchPlaceholder": "搜索国家、签证或表单...",
+      "noSearchResults": "没有找到匹配的签证表单。",
       "selectError": "暂时无法选择该目的地，请重试。"
     },
     "visaTimeline": {

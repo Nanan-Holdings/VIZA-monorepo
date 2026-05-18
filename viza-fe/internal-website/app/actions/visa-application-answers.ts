@@ -3,6 +3,54 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+type ProfilePatch = Record<string, string>;
+const DATE_PROFILE_FIELDS = new Set(["date_of_birth", "passport_issue_date", "passport_expiry_date"]);
+
+function firstFilled(data: Record<string, string>, fieldNames: string[]): string | null {
+  for (const fieldName of fieldNames) {
+    const value = data[fieldName]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+function buildProfilePatchFromAnswers(data: Record<string, string>): ProfilePatch {
+  const patch: ProfilePatch = {};
+  const givenNames = firstFilled(data, ["given_names", "givenNames", "first_name", "given_name"]);
+  const surname = firstFilled(data, ["surname", "last_name", "family_name"]);
+  const explicitFullName = firstFilled(data, ["full_name", "fullName", "full_name_native_alphabet"]);
+
+  if (explicitFullName) {
+    patch.full_name = explicitFullName;
+  } else if (givenNames || surname) {
+    patch.full_name = [givenNames, surname].filter(Boolean).join(" ");
+  }
+
+  const fieldMappings: Record<string, string[]> = {
+    date_of_birth: ["date_of_birth", "dob", "birth_date"],
+    place_of_birth: ["place_of_birth", "city_of_birth", "birth_city"],
+    gender: ["gender", "sex"],
+    nationality: ["nationality", "nationality_country", "country_of_nationality", "current_nationality"],
+    occupation: ["occupation", "current_occupation", "primary_occupation"],
+    address: ["address", "home_address_line1", "home_address", "residential_address"],
+    passport_number: ["passport_number", "passportNumber"],
+    passport_issue_date: ["passport_issue_date", "passport_issuance_date", "passportIssuanceDate"],
+    passport_expiry_date: ["passport_expiry_date", "passport_expiration_date", "passportExpirationDate"],
+    passport_issuing_country: ["passport_issuing_country", "passport_issuance_country", "issuing_country"],
+    email: ["email", "email_address"],
+    phone: ["phone", "phone_number", "primary_phone_number", "mobile_phone"],
+  };
+
+  for (const [profileField, answerFields] of Object.entries(fieldMappings)) {
+    const value = firstFilled(data, answerFields);
+    if (!value) continue;
+    if (DATE_PROFILE_FIELDS.has(profileField) && !/^\d{4}-\d{2}-\d{2}$/.test(value)) continue;
+    patch[profileField] = value;
+  }
+
+  return patch;
+}
+
 /**
  * Save dynamic form answers for a visa application.
  * Uses admin client to bypass RLS on visa_application_answers.
@@ -50,6 +98,21 @@ export async function saveDynamicAnswers(
         .from("visa_application_answers")
         .upsert(upserts, { onConflict: "application_id,field_name" });
       if (upsertError) return { error: upsertError.message };
+    }
+
+    const profilePatch = buildProfilePatchFromAnswers(data);
+    if (Object.keys(profilePatch).length > 0) {
+      const { error: profileUpdateError } = await adminClient
+        .from("applicant_profiles")
+        .update({
+          ...profilePatch,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
+
+      if (profileUpdateError) {
+        console.warn("[saveDynamicAnswers] Failed to sync applicant profile:", profileUpdateError.message);
+      }
     }
 
     return {};

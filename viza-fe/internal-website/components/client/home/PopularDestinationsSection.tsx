@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   POPULAR_VISA_DESTINATIONS,
@@ -51,9 +51,26 @@ export function PopularDestinationsSection({
 }) {
   const t = useTranslations("home.popularDestinations");
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredDestinations = normalizedSearch
+    ? POPULAR_VISA_DESTINATIONS.filter((destination) => {
+      const searchableText = [
+        destination.countryName,
+        destination.countryNameZh,
+        destination.visaName,
+        destination.visaNameZh,
+        destination.description,
+        destination.descriptionZh,
+        destination.region,
+        destination.supportLabel,
+      ].join(" ").toLowerCase();
+      return searchableText.includes(normalizedSearch);
+    })
+    : POPULAR_VISA_DESTINATIONS;
 
   function handleSelect(destination: PopularVisaDestination) {
     setSelectionError(null);
@@ -75,7 +92,7 @@ export function PopularDestinationsSection({
 
   return (
     <section className="w-full max-w-[1090px] mt-10 xl:mt-12">
-      <div className="mb-5 flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
+      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="font-heading font-medium leading-[1.3] text-[#3d3d3d] text-[30px] tracking-[-0.9px]">
             {t("heading")}
@@ -84,9 +101,21 @@ export function PopularDestinationsSection({
             {t("subheading")}
           </p>
         </div>
-        <span className="w-fit rounded-full bg-[#eef3fa] px-3 py-1 text-[13px] font-medium text-[#03346E]">
-          {t("schemaReady")}
-        </span>
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center xl:w-auto">
+          <label className="relative w-full sm:w-[320px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a94a3]" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t("searchPlaceholder")}
+              className="h-11 w-full rounded-full border border-[#dce5f0] bg-white pl-10 pr-4 text-[14px] font-medium text-[#26364a] outline-none transition focus:border-[#03346E] focus:shadow-[0_0_0_3px_rgba(3,52,110,0.08)]"
+            />
+          </label>
+          <span className="w-fit rounded-full bg-[#eef3fa] px-3 py-1 text-[13px] font-medium text-[#03346E]">
+            {t("schemaReady")}
+          </span>
+        </div>
       </div>
 
       {selectionError && (
@@ -96,7 +125,7 @@ export function PopularDestinationsSection({
       )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {POPULAR_VISA_DESTINATIONS.map((destination) => {
+        {filteredDestinations.map((destination) => {
           const progress = applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
           const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
           const loading = isPending && pendingDestinationId === destination.id;
@@ -179,6 +208,11 @@ export function PopularDestinationsSection({
           );
         })}
       </div>
+      {filteredDestinations.length === 0 && (
+        <div className="rounded-[16px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">
+          <p className="text-[15px] font-medium text-[#526174]">{t("noSearchResults")}</p>
+        </div>
+      )}
     </section>
   );
 }
