@@ -347,3 +347,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: prd.json, progress.txt, app/bilingual-review-preview/page.tsx, bilingual-review-panel.tsx, dynamic-review-step.tsx, translation-panel.tsx, application-steps/index.ts
 - Learnings: the isolated preview route is safer for UI/product validation; production application flow should stay untouched until the review layout is accepted.
 ---
+
+## 2026-05-18 - REV-001 preview refinement
+- Rebuilt /bilingual-review-preview as a Chinese-first standalone validation page with no dependency on the existing application module.
+- Both Chinese source values and English official values are directly editable; editing the Chinese side immediately regenerates the English side using local mock translation and date-format rules.
+- The review table now uses a two-column Chinese/English layout on desktop and switches long address/history fields into two stacked rows for easier reading.
+- Removed English-only preview copy and replaced all visible labels, helper text, warnings, badges, and buttons with Chinese.
+- Files changed: app/bilingual-review-preview/page.tsx, progress.txt
+- Learnings: for product validation, the key interaction is Chinese-as-source with editable generated English; this is distinct from the production review panel, which can later wire the same behavior to the real translation service.
+---
