@@ -33,18 +33,6 @@ export interface DestinationApplicationProgress {
   updatedAt: string | null;
 }
 
-function getSupportLabelZh(label: string): string {
-  const labels: Record<string, string> = {
-    "B211A form": "B211A 表格",
-    "DS-160 form": "DS-160 表格",
-    "UKVI form": "UKVI 表格",
-    "Schengen Type C": "申根 C 类",
-    "Schengen countries": "申根国家",
-    "RAG visitor intake": "RAG 表单",
-  };
-  return labels[label] ?? label;
-}
-
 export function PopularDestinationsSection({
   selectedPackages,
   applicationProgress,
@@ -156,6 +144,13 @@ export function PopularDestinationsSection({
               : isGroup
                 ? `${destination.countryCount ?? 0} 个国家`
                 : t("readyToStart");
+          const progressPill = isGroup
+            ? t("chooseCountry")
+            : progress
+              ? t("progressPill", { pct: progress.percent })
+              : selected
+                ? t("selectedNotFilled")
+                : t("fillable");
 
           return (
             <button
@@ -213,7 +208,7 @@ export function PopularDestinationsSection({
 
                 <div className="flex items-center justify-between gap-3">
                   <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
-                    {getSupportLabelZh(destination.supportLabel)}
+                    {progressPill}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
                     {loading ? t("starting") : actionLabel}

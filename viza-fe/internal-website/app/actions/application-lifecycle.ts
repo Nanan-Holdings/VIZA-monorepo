@@ -87,6 +87,10 @@ export interface ApplicationLifecycleResult {
   error?: string;
 }
 
+export interface ApplicationLifecycleOptions {
+  startedOnly?: boolean;
+}
+
 interface ApplicantProfileRow {
   id: string;
 }
@@ -344,8 +348,27 @@ function buildPackageOnlySummary(userPackage: VisaPackageRow, assignedAt: string
   };
 }
 
-export async function getApplicationLifecycleSummaries(): Promise<ApplicationLifecycleResult> {
+function hasStartedApplication(summary: ApplicationLifecycleSummary): boolean {
+  const terminalOrSubmittedStatus =
+    summary.rawApplicationStatus === "submitted" ||
+    summary.rawApplicationStatus === "approved" ||
+    summary.rawApplicationStatus === "rejected";
+
+  return Boolean(summary.applicationId) && (
+    summary.formAnswerCount > 0 ||
+    Boolean(summary.latestSubmission) ||
+    Boolean(summary.submittedAt) ||
+    Boolean(summary.confirmationNumber) ||
+    Boolean(summary.receiptUrl) ||
+    terminalOrSubmittedStatus
+  );
+}
+
+export async function getApplicationLifecycleSummaries(
+  options: ApplicationLifecycleOptions = {},
+): Promise<ApplicationLifecycleResult> {
   try {
+    const startedOnly = options.startedOnly ?? false;
     const supabase = await createClient();
     const {
       data: { user },
@@ -420,7 +443,7 @@ export async function getApplicationLifecycleSummaries(): Promise<ApplicationLif
     const documentsByApplication = groupRowsByApplication(documents);
     const answersByApplication = groupRowsByApplication(answers);
     const queueByApplication = groupRowsByApplication(submissionQueue);
-    const summaries = applications.map((application) =>
+    let summaries = applications.map((application) =>
       buildApplicationSummary(
         application,
         documentsByApplication.get(application.id) ?? [],
@@ -429,11 +452,15 @@ export async function getApplicationLifecycleSummaries(): Promise<ApplicationLif
       ),
     );
 
-    const applicationKeys = new Set(summaries.map((summary) => summary.key));
-    for (const userPackage of userPackages) {
-      const key = getVisaDestinationKey(userPackage.package.country, userPackage.package.visa_type);
-      if (!applicationKeys.has(key)) {
-        summaries.push(buildPackageOnlySummary(userPackage.package, userPackage.assignedAt));
+    if (startedOnly) {
+      summaries = summaries.filter(hasStartedApplication);
+    } else {
+      const applicationKeys = new Set(summaries.map((summary) => summary.key));
+      for (const userPackage of userPackages) {
+        const key = getVisaDestinationKey(userPackage.package.country, userPackage.package.visa_type);
+        if (!applicationKeys.has(key)) {
+          summaries.push(buildPackageOnlySummary(userPackage.package, userPackage.assignedAt));
+        }
       }
     }
 

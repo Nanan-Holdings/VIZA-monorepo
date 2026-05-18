@@ -34,6 +34,8 @@ interface ApplicationStatusHubProps {
   applicationId?: string | null;
   country?: string | null;
   visaType?: string | null;
+  startedOnly?: boolean;
+  basePath?: string;
 }
 
 const FILTERS: HubFilter[] = ["all", "not_submitted", "processing", "needs_attention", "completed"];
@@ -125,12 +127,12 @@ const STATUS_TONE: Record<
   },
 };
 
-function getDetailHref(summary: ApplicationLifecycleSummary): string {
+function getDetailHref(summary: ApplicationLifecycleSummary, basePath: string): string {
   if (summary.applicationId) {
-    return `/client/application?view=detail&applicationId=${encodeURIComponent(summary.applicationId)}`;
+    return `${basePath}?view=detail&applicationId=${encodeURIComponent(summary.applicationId)}`;
   }
 
-  return `/client/application?view=detail&country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
+  return `${basePath}?view=detail&country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
 }
 
 function getFormHref(summary: Pick<ApplicationLifecycleSummary, "country" | "visaType">): string {
@@ -191,7 +193,15 @@ function ChecklistItem({ done, label }: { done: boolean; label: string }) {
   );
 }
 
-function SummaryCard({ summary, index }: { summary: ApplicationLifecycleSummary; index: number }) {
+function SummaryCard({
+  summary,
+  index,
+  basePath,
+}: {
+  summary: ApplicationLifecycleSummary;
+  index: number;
+  basePath: string;
+}) {
   const t = useTranslations("application.statusHub");
   const locale = useLocale();
   const tone = STATUS_TONE[summary.status];
@@ -203,7 +213,7 @@ function SummaryCard({ summary, index }: { summary: ApplicationLifecycleSummary;
       transition={{ duration: 0.25, delay: index * 0.04 }}
     >
       <Link
-        href={getDetailHref(summary)}
+        href={getDetailHref(summary, basePath)}
         className="group flex min-h-[286px] flex-col justify-between rounded-[8px] border border-[#e7edf5] bg-white p-5 text-left shadow-[0_10px_24px_rgba(15,23,42,0.04)] transition hover:border-[#03346E]/35 hover:shadow-[0_16px_34px_rgba(3,52,110,0.11)]"
       >
         <div className="space-y-5">
@@ -262,7 +272,7 @@ function SummaryCard({ summary, index }: { summary: ApplicationLifecycleSummary;
   );
 }
 
-function EmptyState() {
+function EmptyState({ startedOnly }: { startedOnly: boolean }) {
   const t = useTranslations("application.statusHub");
 
   return (
@@ -270,8 +280,12 @@ function EmptyState() {
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#eef3fa] text-[#03346E]">
         <FileText className="h-6 w-6" />
       </div>
-      <h2 className="mt-4 font-heading text-[22px] font-medium text-[#27364a]">{t("emptyTitle")}</h2>
-      <p className="mx-auto mt-2 max-w-md text-[14px] leading-6 text-[#66758a]">{t("emptyBody")}</p>
+      <h2 className="mt-4 font-heading text-[22px] font-medium text-[#27364a]">
+        {startedOnly ? t("emptyStartedTitle") : t("emptyTitle")}
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-[14px] leading-6 text-[#66758a]">
+        {startedOnly ? t("emptyStartedBody") : t("emptyBody")}
+      </p>
       <Link
         href="/client/home"
         className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#03346E] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#052b58]"
@@ -305,7 +319,15 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
-function Overview({ summaries }: { summaries: ApplicationLifecycleSummary[] }) {
+function Overview({
+  summaries,
+  startedOnly,
+  basePath,
+}: {
+  summaries: ApplicationLifecycleSummary[];
+  startedOnly: boolean;
+  basePath: string;
+}) {
   const t = useTranslations("application.statusHub");
   const [activeFilter, setActiveFilter] = useState<HubFilter>("all");
   const filteredSummaries = summaries.filter((summary) => FILTER_STATUS_MAP[activeFilter].includes(summary.status));
@@ -358,7 +380,7 @@ function Overview({ summaries }: { summaries: ApplicationLifecycleSummary[] }) {
 
       <section className="mt-6">
         {summaries.length === 0 ? (
-          <EmptyState />
+          <EmptyState startedOnly={startedOnly} />
         ) : filteredSummaries.length === 0 ? (
           <div className="rounded-[8px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">
             <p className="text-[15px] font-medium text-[#526174]">{t("noFilteredResults")}</p>
@@ -370,6 +392,7 @@ function Overview({ summaries }: { summaries: ApplicationLifecycleSummary[] }) {
                 key={summary.applicationId ?? `${summary.country}-${summary.visaType}`}
                 summary={summary}
                 index={index}
+                basePath={basePath}
               />
             ))}
           </div>
@@ -424,9 +447,11 @@ function TimelineStep({
 function DetailView({
   summary,
   missingRequest,
+  basePath,
 }: {
   summary: ApplicationLifecycleSummary | null;
   missingRequest: { country?: string | null; visaType?: string | null };
+  basePath: string;
 }) {
   const t = useTranslations("application.statusHub");
   const locale = useLocale();
@@ -436,7 +461,7 @@ function DetailView({
     return (
       <div className="mx-auto w-full max-w-[960px] pb-14 pt-5 sm:pt-8">
         <Link
-          href="/client/application"
+          href={basePath}
           className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#03346E]"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -463,7 +488,7 @@ function DetailView({
   }
 
   const tone = STATUS_TONE[summary.status];
-  const primaryHref = summary.nextAction === "upload_documents" ? "/client/documents" : getFormHref(summary);
+  const primaryHref = getFormHref(summary);
   const resultDone = summary.status === "approved" || summary.status === "rejected";
   const submittingDone = summary.status === "submitting" || summary.status === "submitted" || resultDone;
   const timeline = [
@@ -502,7 +527,7 @@ function DetailView({
   return (
     <div className="mx-auto w-full max-w-[1040px] pb-14 pt-5 sm:pt-8">
       <Link
-        href="/client/application"
+        href={basePath}
         className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#03346E]"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -632,6 +657,8 @@ export function ApplicationStatusHub({
   applicationId,
   country,
   visaType,
+  startedOnly = false,
+  basePath = "/client/application",
 }: ApplicationStatusHubProps) {
   const [summaries, setSummaries] = useState<ApplicationLifecycleSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -643,7 +670,7 @@ export function ApplicationStatusHub({
     async function loadSummaries() {
       setIsLoading(true);
       setError(null);
-      const result = await getApplicationLifecycleSummaries();
+      const result = await getApplicationLifecycleSummaries({ startedOnly });
       if (!isMounted) return;
 
       setSummaries(result.summaries);
@@ -655,7 +682,7 @@ export function ApplicationStatusHub({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [startedOnly]);
 
   const detailSummary = useMemo(
     () => summaries.find((summary) => matchesDetailRequest(summary, applicationId, country, visaType)) ?? null,
@@ -666,8 +693,8 @@ export function ApplicationStatusHub({
   if (error) return <ErrorState message={error} />;
 
   if (mode === "detail") {
-    return <DetailView summary={detailSummary} missingRequest={{ country, visaType }} />;
+    return <DetailView summary={detailSummary} missingRequest={{ country, visaType }} basePath={basePath} />;
   }
 
-  return <Overview summaries={summaries} />;
+  return <Overview summaries={summaries} startedOnly={startedOnly} basePath={basePath} />;
 }

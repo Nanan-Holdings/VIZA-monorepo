@@ -9,7 +9,7 @@
     "home": "Home",
     "application": "Application",
     "chat": "Chat",
-    "documents": "Documents",
+    "documents": "Status",
     "inviteFriends": "Invite Friends"
   },
   "menu": {
@@ -39,7 +39,7 @@
     "touristVisaB211A": "Tourist Visa B211A",
     "notStarted": "Not started",
     "submitted": "Submitted {date}",
-    "documentsTitle": "Documents",
+    "documentsTitle": "Status",
     "ofRequired": "of {total} required",
     "percentComplete": "{pct}% complete",
     "quickActions": {
@@ -91,6 +91,10 @@
       "selected": "Selected",
       "readyToStart": "Ready to start",
       "addedNotStarted": "Added · not started",
+      "chooseCountry": "Choose country",
+      "progressPill": "{pct}% filled",
+      "selectedNotFilled": "Selected, not filled",
+      "fillable": "Fillable",
       "searchPlaceholder": "Search country, visa, or form...",
       "noSearchResults": "No matching visa form found.",
       "selectError": "Could not select this destination. Please try again."
@@ -242,6 +246,8 @@
       "noFilteredResults": "No applications match this filter yet.",
       "emptyTitle": "No applications yet",
       "emptyBody": "Choose a destination on Home and VIZA will attach the matching country and visa workflow.",
+      "emptyStartedTitle": "No started applications yet",
+      "emptyStartedBody": "Choose a destination from Home and fill part of the form. Started applications will appear here with full status.",
       "backToOverview": "Back to application overview",
       "detailMissingTitle": "Application not found",
       "detailMissingBody": "This application may not have been started yet, or it may not belong to the current account. You can still start the matching country and visa flow.",

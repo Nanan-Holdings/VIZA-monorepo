@@ -22,7 +22,7 @@ type DestinationInput = Omit<PopularVisaDestination, "id" | "kind" | "supportLab
   supportLabel?: string;
 };
 
-const RAG_VISITOR_SUPPORT_LABEL = "RAG visitor intake";
+const VISITOR_INTAKE_SUPPORT_LABEL = "Visitor intake";
 const SCHENGEN_VISA_TYPE = "EU_SCHENGEN_C_SHORT_STAY";
 
 function slug(value: string): string {
@@ -34,7 +34,7 @@ function destination(input: DestinationInput): PopularVisaDestination {
     ...input,
     id: input.id ?? `${slug(input.country)}-${slug(input.visaType)}`,
     kind: "destination",
-    supportLabel: input.supportLabel ?? RAG_VISITOR_SUPPORT_LABEL,
+    supportLabel: input.supportLabel ?? VISITOR_INTAKE_SUPPORT_LABEL,
   };
 }
 
