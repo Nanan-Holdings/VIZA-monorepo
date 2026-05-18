@@ -31,7 +31,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
 - `components/client/companion/chat-message.tsx`: shared message renderer for user and agent bubbles/text.
-- `components/client/companion/block-message.tsx`: renders `send_application_block` tool payloads and saves them through `/api/chat/save-block`.
+- `components/client/companion/block-message.tsx`: renders application redirect CTA payloads. It must not render inline application form fields in VIZA chat.
 
 ## Guardrails
 
@@ -43,7 +43,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 6. The VIZA process/session panel defaults to collapsed. On desktop, opening it should render a floating left panel that does not move the centered AI output or the `VIZA AI / Travel AI` tab controls; on mobile, it opens as a drawer.
 7. Treat `components/client/companion/**` as shared UI. Check other imports before changing props or styles.
 8. Preserve queued-message behavior while an assistant response is streaming.
-9. Keep inline application blocks type-safe and compatible with `send_application_block`.
+9. Keep application redirect blocks type-safe. VIZA chat should redirect to `/client/application` for form filling instead of collecting fields inline.
 10. Avoid new dependencies unless the existing Next.js, Socket.IO, Tailwind, and shadcn/ui stack cannot reasonably cover the change.
 11. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
 12. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
@@ -52,6 +52,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 15. Session titles are currently persisted as hidden `visa_chat_messages` records with `role='system'` and content prefix `__viza_session_title__:`. Filter these markers out of user-visible history, search/recent history, and LLM chat context.
 16. Preserve conversation context for compact follow-ups. `visa_chat_message` should include recent visible user/assistant history from the frontend, and the backend should use that client history when database history is missing or shorter. Short replies like `中国护照，中国，7天，法国，意大利` or `2，5` must be interpreted against the previous assistant question instead of treated as standalone prompts.
 17. VIZA AI user-facing answers must be plain text by default. Keep the no-Markdown rule in `BASE_SYSTEM_PROMPT`, the robustness harness, and `ChatMessage`; do not add Markdown headings, tables, bold markers, bullet markers, code fences, raw JSON, or raw XML unless the user explicitly asks. `ChatMessage` should render common Markdown markers as plain text for VIZA answers.
+18. Do not collect application form fields inside VIZA chat. When the user wants to apply, VIZA should provide a rough overview of route, requirements, timing/fees caveats, then show an application redirect CTA. Detailed field collection belongs in `/client/application`.
 
 ## Session Model
 
@@ -102,8 +103,8 @@ Session-level state is persisted as hidden `visa_chat_messages` rows with `role=
 - `knowledge-base/visa-rag-seeds/countries/*.json`: independent country-level RAG seeds. Each file owns one country's visitor/tourism visa knowledge and should evolve with that country's future form-filling workflow.
 - `knowledge-base/visa-rag-seeds/README.md`: source-of-truth rules for country seed structure and ingestion commands.
 - `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`: generic ingestion script that writes one or more country seeds to `visa_documents` and `visa_chunks`; run all countries with `npm run ingest:all-visa-rag` or one country with `npm run ingest:country-visa-rag -- --country japan`.
-- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic robustness harness. Run with `npm run test:visa-agent-evals` or `npm run test:visa-agent-robustness` after routing, prompt, state, or RAG changes. Current suite covers 60 prompt evals plus 38 branch assertions for intent, RAG document type mapping, country routing, visa type fallback, state merge, compact interpretation, and plain-text output guardrails.
+- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic robustness harness. Run with `npm run test:visa-agent-evals` or `npm run test:visa-agent-robustness` after routing, prompt, state, or RAG changes. Current suite covers 60 prompt evals plus 38 branch assertions for intent, RAG document type mapping, country routing, visa type fallback, state merge, compact interpretation, plain-text output guardrails, and no-inline-form prompt guardrails.
 
 Each country seed should have exactly one `documentType="form_requirements"` document. These chunks are the RAG bridge for industrial form-filling agents: official application channel, fields to collect before filling, supporting document uploads, and review/submission guardrails.
 
-Application blocks should use stable block types: `trip_basics`, `traveller_identity`, and `visa_route_specific`. Form-intake blocks should prefer `saveTarget="visa_application_answers"` when an application ID is available.
+Application blocks in VIZA chat should use `blockType="application_redirect"` and a `redirectUrl` to `/client/application?country=...&visaType=...`. Legacy `trip_basics`, `traveller_identity`, and `visa_route_specific` payloads may still exist in old histories, but `BlockMessage` should render them as redirect CTAs rather than inline forms.

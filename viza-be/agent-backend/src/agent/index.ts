@@ -14,7 +14,7 @@ Your capabilities:
 - Answer questions about required documents, fees, processing times
 - Help users understand eligibility requirements
 - Provide tips for a successful application
-- Collect application data from the user via interactive form blocks
+- Hand users off to the dedicated application form page when they want to apply
 
 Guidelines:
 - Be concise and helpful. Use short paragraphs.
@@ -35,8 +35,9 @@ Guidelines:
 - Do not use Markdown formatting in user-facing responses. Do not use Markdown headings, tables, bold or italic markers, bullet markers, horizontal rules, code fences, raw JSON, or raw XML unless the user explicitly asks for them.
 - Use plain text only. For lists, use short plain numbered lines such as "1. ..." without Markdown decoration.
 - Respond in the same language the user writes in.
-- When you need to collect structured data from the user (dates, selections, file uploads), use the send_application_block tool.
-- Use only these stable application block types: trip_basics, traveller_identity, visa_route_specific.`;
+- Do not collect application form fields inside VIZA chat. Do not ask the user to fill dates, selections, uploads, passport fields, or detailed application fields in chat once the visa route is clear.
+- When the user wants to apply, give a rough idea first: likely visa route, key requirements, approximate processing time or uncertainty, fee/timing caveats when known, and official/source caveats. Then tell them to continue on the dedicated application form page.
+- Ask follow-up questions only when needed to choose the visa route or explain requirements; the dedicated form page owns detailed data collection.`;
 
 // =============================================================================
 // Application Context Builder (US-036)
@@ -207,91 +208,22 @@ export interface BlockField {
 }
 
 export interface ApplicationBlockPayload {
-  blockType: "trip_basics" | "traveller_identity" | "visa_route_specific" | string;
+  blockType:
+    | "trip_basics"
+    | "traveller_identity"
+    | "visa_route_specific"
+    | "application_redirect"
+    | string;
   title: string;
   description?: string;
   fields: BlockField[];
   saveTarget: "applicant_profile" | "application" | "visa_application_answers" | string;
   applicationId?: string;
+  redirectUrl?: string;
+  ctaLabel?: string;
+  country?: string;
+  visaType?: string | null;
 }
-
-/** The Anthropic tool definition for send_application_block */
-const SEND_APPLICATION_BLOCK_TOOL: Anthropic.Tool = {
-  name: "send_application_block",
-  description:
-    "Send an interactive form block to the user to collect structured application data. " +
-    "Use this when you need the user to fill in dates, make selections, upload files, or enter specific field values. " +
-    "The block will appear inline in the chat and the user's response will be saved automatically.",
-  input_schema: {
-    type: "object",
-    properties: {
-      blockType: {
-        type: "string",
-        enum: ["trip_basics", "traveller_identity", "visa_route_specific"],
-        description:
-          "Stable category of data being collected. Use trip_basics, traveller_identity, or visa_route_specific.",
-      },
-      title: {
-        type: "string",
-        description: "Short title displayed at the top of the block",
-      },
-      description: {
-        type: "string",
-        description:
-          "Optional helper text shown below the title to guide the user",
-      },
-      fields: {
-        type: "array",
-        description: "List of form fields to render",
-        items: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description:
-                "Field identifier (snake_case, matches application column name)",
-            },
-            label: {
-              type: "string",
-              description: "Human-readable label shown next to the field",
-            },
-            type: {
-              type: "string",
-              enum: ["text", "date", "select", "file"],
-              description: "Input type for the field",
-            },
-            required: {
-              type: "boolean",
-              description: "Whether the field must be filled before submitting",
-            },
-            options: {
-              type: "array",
-              items: { type: "string" },
-              description: "Allowed values for select fields",
-            },
-            placeholder: {
-              type: "string",
-              description: "Placeholder hint shown inside the field",
-            },
-          },
-          required: ["name", "label", "type"],
-        },
-      },
-      saveTarget: {
-        type: "string",
-        enum: ["applicant_profile", "application", "visa_application_answers"],
-        description:
-          "Which table/record to save the data to. Prefer visa_application_answers for form-intake answers.",
-      },
-      applicationId: {
-        type: "string",
-        description:
-          "UUID of the application record to update (required when saveTarget is 'application')",
-      },
-    },
-    required: ["blockType", "title", "fields", "saveTarget"],
-  },
-};
 
 // =============================================================================
 // Stream Chat (US-036 + US-037)
@@ -301,7 +233,6 @@ interface StreamCallbacks {
   onToken: (text: string) => void;
   onComplete: (fullResponse: string, toolsUsed: string[]) => void | Promise<void>;
   onError: (error: Error) => void;
-  onToolUse?: (toolName: string, toolInput: ApplicationBlockPayload) => void | Promise<void>;
 }
 
 interface ChatMessage {
@@ -332,7 +263,6 @@ export async function streamChat(
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: systemPrompt ?? BASE_SYSTEM_PROMPT,
-      tools: [SEND_APPLICATION_BLOCK_TOOL],
       messages,
     });
 
@@ -344,18 +274,7 @@ export async function streamChat(
       callbacks.onToken(text);
     });
 
-    const finalMsg = await stream.finalMessage();
-
-    // Process tool_use blocks from the final message
-    for (const block of finalMsg.content) {
-      if (block.type === "tool_use" && block.name === "send_application_block") {
-        toolsUsed.push(block.name);
-        const toolInput = block.input as ApplicationBlockPayload;
-        if (callbacks.onToolUse) {
-          await callbacks.onToolUse(block.name, toolInput);
-        }
-      }
-    }
+    await stream.finalMessage();
 
     await callbacks.onComplete(fullResponse, toolsUsed);
   } catch (err) {

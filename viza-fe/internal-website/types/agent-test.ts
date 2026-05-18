@@ -173,7 +173,7 @@ export interface ApplicationBlockEvent {
     blockType: string;
     title: string;
     description?: string;
-    fields: Array<{
+    fields?: Array<{
       name: string;
       label: string;
       type: "text" | "date" | "select" | "file";
@@ -183,6 +183,10 @@ export interface ApplicationBlockEvent {
     }>;
     saveTarget: "applicant_profile" | "application" | "visa_application_answers" | string;
     applicationId?: string;
+    redirectUrl?: string;
+    ctaLabel?: string;
+    country?: string;
+    visaType?: string | null;
   };
   timestamp: number;
 }

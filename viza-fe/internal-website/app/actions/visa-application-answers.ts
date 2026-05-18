@@ -64,7 +64,8 @@ export async function saveDynamicAnswers(
  */
 export async function ensureDraftApplication(
   country: string,
-  visaType: string
+  visaType: string,
+  options: { preferExplicit?: boolean } = {}
 ): Promise<{ applicationId?: string; error?: string }> {
   try {
     const supabase = await createClient();
@@ -94,9 +95,11 @@ export async function ensureDraftApplication(
       ? activePackage?.visa_packages[0]
       : activePackage?.visa_packages;
 
-    const resolvedCountry = pkg?.country ?? country;
-    const resolvedVisaType = pkg?.visa_type ?? visaType;
-    const resolvedVisaPackageId = activePackage?.visa_package_id ?? pkg?.id ?? null;
+    const resolvedCountry = options.preferExplicit ? country : pkg?.country ?? country;
+    const resolvedVisaType = options.preferExplicit ? visaType : pkg?.visa_type ?? visaType;
+    const resolvedVisaPackageId = options.preferExplicit
+      ? null
+      : activePackage?.visa_package_id ?? pkg?.id ?? null;
 
     // Check for existing application for the same package/type first
     let existingQuery = adminClient

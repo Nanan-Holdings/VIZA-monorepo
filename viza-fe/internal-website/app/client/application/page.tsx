@@ -31,7 +31,11 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { getFormVisaType } from "@/lib/visa-destinations";
+import {
+  getDestinationDisplayName,
+  getFormVisaType,
+  getVisaTypeDisplayName,
+} from "@/lib/visa-destinations";
 import { translateLabel } from "@/lib/ds160-translations";
 
 // ---------------------------------------------------------------------------
@@ -765,6 +769,22 @@ export default function ApplicationPage() {
   const locale = useLocale();
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
+  const requestedCountry = searchParams.get("country")?.trim() || null;
+  const requestedVisaType =
+    searchParams.get("visaType")?.trim() ||
+    searchParams.get("visa_type")?.trim() ||
+    null;
+  const requestedVisaPackage = useMemo<UserVisaPackage | null>(() => {
+    if (!requestedCountry || !requestedVisaType) return null;
+
+    return {
+      id: `chat:${requestedCountry}:${requestedVisaType}`,
+      country: requestedCountry,
+      visa_type: requestedVisaType,
+      name: `${getDestinationDisplayName(requestedCountry)} ${getVisaTypeDisplayName(requestedVisaType)}`,
+      description: null,
+    };
+  }, [requestedCountry, requestedVisaType]);
 
   const hardcodedSteps: StepDef[] = useMemo(
     () =>
@@ -784,6 +804,24 @@ export default function ApplicationPage() {
   const [packageLoaded, setPackageLoaded] = useState(false);
 
   useEffect(() => {
+    setPackageLoaded(false);
+    setDbSteps([]);
+
+    if (requestedVisaPackage) {
+      setVisaPackage(requestedVisaPackage);
+      getVisaFormSteps(getFormVisaType(requestedVisaPackage.visa_type))
+        .then((steps) => {
+          if (steps.length > 0) setDbSteps(steps);
+        })
+        .catch(() => {
+          // Silent fallback to hardcoded steps
+        })
+        .finally(() => {
+          setPackageLoaded(true);
+        });
+      return;
+    }
+
     getUserVisaPackage().then((pkg) => {
       if (pkg) setVisaPackage(pkg);
       const visaType = getFormVisaType(pkg?.visa_type ?? "B211A");
@@ -795,7 +833,7 @@ export default function ApplicationPage() {
     }).finally(() => {
       setPackageLoaded(true);
     });
-  }, []);
+  }, [requestedVisaPackage]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1180,7 +1218,8 @@ export default function ApplicationPage() {
       if (!applicationId) {
         const result = await ensureDraftApplication(
           visaPackage?.country ?? "indonesia",
-          visaPackage?.visa_type ?? "B211A"
+          visaPackage?.visa_type ?? "B211A",
+          { preferExplicit: Boolean(requestedVisaPackage) }
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
@@ -1220,6 +1259,7 @@ export default function ApplicationPage() {
         const result = await ensureDraftApplication(
           visaPackage?.country ?? "indonesia",
           visaPackage?.visa_type ?? "B211A",
+          { preferExplicit: Boolean(requestedVisaPackage) },
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;

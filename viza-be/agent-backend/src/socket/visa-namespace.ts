@@ -421,124 +421,51 @@ function isFormIntakeRequest(intent: VisaKnowledgeIntent): boolean {
   return intent === 'form_intake';
 }
 
-function buildIntakeBlockForState(
-  stateSummary: ReturnType<typeof summarizeVisaConversationState>,
-  applicationId?: string | null
+const APPLICATION_COUNTRY_PARAM_OVERRIDES: Partial<Record<SupportedKnowledgeCountry, string>> = {
+  us: 'united_states',
+  uk: 'united_kingdom',
+};
+
+const APPLICATION_VISA_TYPE_PARAM_OVERRIDES: Record<string, string> = {
+  b1_b2: 'DS160',
+  standard_visitor: 'UK_STANDARD_VISITOR',
+  schengen_short_stay_tourism: 'EU_SCHENGEN_C_SHORT_STAY',
+  tourist_b211a: 'B211A',
+};
+
+function buildApplicationFormUrl(
+  country: SupportedKnowledgeCountry,
+  visaType: string | null
+): string {
+  const params = new URLSearchParams({
+    country: APPLICATION_COUNTRY_PARAM_OVERRIDES[country] ?? country,
+  });
+
+  if (visaType) {
+    params.set('visaType', APPLICATION_VISA_TYPE_PARAM_OVERRIDES[visaType] ?? visaType);
+  }
+
+  return `/client/application?${params.toString()}`;
+}
+
+function buildApplicationRedirectBlock(
+  country: SupportedKnowledgeCountry | null,
+  visaType: string | null
 ): ApplicationBlockPayload | null {
-  if (!applicationId) return null;
+  if (!country) return null;
 
-  const missingSlots = Array.isArray(stateSummary.missingSlots)
-    ? stateSummary.missingSlots.filter((slot): slot is string => typeof slot === 'string')
-    : [];
-  const needsTripBasics = missingSlots.some((slot) =>
-    ['destination', 'tripPurpose', 'stayLengthDays', 'schengenDaySplit'].includes(slot)
-  );
-  const needsTravellerIdentity = missingSlots.includes('nationality');
-
-  if (needsTripBasics) {
-    return {
-      blockType: 'trip_basics',
-      title: 'Trip basics',
-      description: 'Confirm the core trip details so VIZA can choose the right visa route.',
-      saveTarget: 'visa_application_answers',
-      applicationId,
-      fields: [
-        {
-          name: 'destination_countries',
-          label: 'Destination countries',
-          type: 'text',
-          required: true,
-          placeholder: 'Example: Switzerland, France, Italy',
-        },
-        {
-          name: 'trip_purpose',
-          label: 'Trip purpose',
-          type: 'select',
-          required: true,
-          options: ['Tourism', 'Business', 'Family visit', 'Study', 'Work', 'Transit'],
-        },
-        {
-          name: 'intended_arrival_date',
-          label: 'Intended arrival date',
-          type: 'date',
-          required: false,
-        },
-        {
-          name: 'intended_departure_date',
-          label: 'Intended departure date',
-          type: 'date',
-          required: false,
-        },
-        {
-          name: 'stay_length_days',
-          label: 'Total stay length in days',
-          type: 'text',
-          required: true,
-          placeholder: 'Example: 7',
-        },
-      ],
-    };
-  }
-
-  if (needsTravellerIdentity) {
-    return {
-      blockType: 'traveller_identity',
-      title: 'Traveller identity',
-      description: 'Add the passport details needed before preparing the application form.',
-      saveTarget: 'visa_application_answers',
-      applicationId,
-      fields: [
-        {
-          name: 'nationality_country',
-          label: 'Nationality / passport country',
-          type: 'text',
-          required: true,
-          placeholder: 'Example: China',
-        },
-        {
-          name: 'passport_number',
-          label: 'Passport number',
-          type: 'text',
-          required: false,
-        },
-        {
-          name: 'date_of_birth',
-          label: 'Date of birth',
-          type: 'date',
-          required: false,
-        },
-      ],
-    };
-  }
-
+  const displayCountry = COUNTRY_DISPLAY_NAMES[country];
   return {
-    blockType: 'visa_route_specific',
-    title: 'Visa route details',
-    description: 'Confirm the route-specific details before VIZA prepares the application checklist.',
-    saveTarget: 'visa_application_answers',
-    applicationId,
-    fields: [
-      {
-        name: 'main_destination',
-        label: 'Main destination / application country',
-        type: 'text',
-        required: true,
-        placeholder: 'Example: Italy',
-      },
-      {
-        name: 'recommended_visa_type',
-        label: 'Recommended visa type',
-        type: 'text',
-        required: true,
-        placeholder: 'Example: schengen_short_stay_tourism',
-      },
-      {
-        name: 'first_entry_country',
-        label: 'First entry country, if relevant',
-        type: 'text',
-        required: false,
-      },
-    ],
+    blockType: 'application_redirect',
+    title: `Open ${displayCountry} application form`,
+    description:
+      'Continue on the dedicated form page. VIZA chat will keep guidance here and will not collect form fields in chat.',
+    saveTarget: 'application_redirect',
+    fields: [],
+    redirectUrl: buildApplicationFormUrl(country, visaType),
+    ctaLabel: 'Open form',
+    country,
+    visaType,
   };
 }
 
@@ -698,19 +625,19 @@ export function registerVisaNamespace(nsp: Namespace): void {
         );
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
-        const proactiveBlock = isFormIntakeRequest(knowledgeIntent)
-          ? buildIntakeBlockForState(
-              stateSummary,
-              appContext.application?.id ?? null
+        const applicationRedirect = isFormIntakeRequest(knowledgeIntent)
+          ? buildApplicationRedirectBlock(
+              knowledgeCountry,
+              knowledgeVisaType ?? (knowledgeCountry ? getDefaultVisitorVisaType(knowledgeCountry) : null)
             )
           : null;
-        if (proactiveBlock) {
+        if (applicationRedirect) {
           try {
-            await emitAndSaveApplicationBlock(socket, session_id, proactiveBlock);
+            await emitAndSaveApplicationBlock(socket, session_id, applicationRedirect);
           } catch (dbErr) {
-            logger.error('Failed to emit/save proactive intake block', dbErr as Error, {
+            logger.error('Failed to emit/save application redirect block', dbErr as Error, {
               sessionId: session_id,
-              blockType: proactiveBlock.blockType,
+              blockType: applicationRedirect.blockType,
             });
           }
         }
@@ -719,8 +646,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
           knowledgeContext,
           [
             compactAnswerInterpretation,
-            proactiveBlock
-              ? `A ${proactiveBlock.blockType} application block has already been sent in this turn. Mention it briefly; do not call send_application_block again unless another block is needed.`
+            applicationRedirect
+              ? 'An application form redirect button has already been sent in this turn. Mention it briefly, provide a rough overview of requirements and timing from retrieved knowledge, and do not ask the user to fill an inline chat form.'
               : null,
           ]
             .filter((note): note is string => Boolean(note))
@@ -805,22 +732,6 @@ export function registerVisaNamespace(nsp: Namespace): void {
                 code: 'AGENT_ERROR',
                 timestamp: Date.now(),
               });
-            },
-            // US-037: handle tool use
-            onToolUse: async (toolName, toolInput: ApplicationBlockPayload) => {
-              logger.info('Tool use: send_application_block', {
-                toolName,
-                blockType: toolInput.blockType,
-                sessionId: session_id,
-              });
-
-              try {
-                await emitAndSaveApplicationBlock(socket, session_id, toolInput);
-              } catch (dbErr) {
-                logger.error('Failed to save block message', dbErr as Error, {
-                  sessionId: session_id,
-                });
-              }
             },
           },
           dynamicSystemPrompt
