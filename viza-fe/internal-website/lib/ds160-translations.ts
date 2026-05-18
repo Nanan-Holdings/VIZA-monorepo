@@ -951,6 +951,106 @@ function generateChinesePlaceholder(placeholder: string): string | null {
   return generateChineseFromText(placeholder);
 }
 
+function getEnglishText(text: string): string {
+  const cleanText = normalizeText(text);
+  if (!cleanText) return "";
+  if (!hasChinese(cleanText)) return cleanText;
+  const slashParts = cleanText.split(/\s+\/\s+/);
+  const englishPart = slashParts.find((part) => !hasChinese(part));
+  return englishPart ? normalizeText(englishPart) : cleanText;
+}
+
+const VALUE_TRANSLATIONS: Record<string, string> = {
+  王: "WANG",
+  李: "LI",
+  张: "ZHANG",
+  刘: "LIU",
+  陈: "CHEN",
+  杨: "YANG",
+  黄: "HUANG",
+  赵: "ZHAO",
+  周: "ZHOU",
+  吴: "WU",
+  小明: "XIAOMING",
+  小红: "XIAOHONG",
+  伟: "WEI",
+  芳: "FANG",
+  王小明: "WANG XIAOMING",
+  李小明: "LI XIAOMING",
+  张三: "ZHANG SAN",
+  北京: "Beijing",
+  上海: "Shanghai",
+  广州: "Guangzhou",
+  深圳: "Shenzhen",
+  成都: "Chengdu",
+  杭州: "Hangzhou",
+  南京: "Nanjing",
+  苏州: "Suzhou",
+  纽约: "New York",
+  洛杉矶: "Los Angeles",
+  酒店: "Hotel",
+  民宿: "Homestay",
+  北京首都国际机场: "Beijing Capital International Airport",
+  上海浦东国际机场: "Shanghai Pudong International Airport",
+  纽约肯尼迪国际机场: "John F. Kennedy International Airport, New York",
+  洛杉矶国际机场: "Los Angeles International Airport",
+};
+
+const REVERSE_VALUE_TRANSLATIONS = Object.entries(VALUE_TRANSLATIONS).reduce<Record<string, string>>(
+  (translations, [zh, en]) => {
+    translations[normalizeText(en).toLowerCase()] = zh;
+    return translations;
+  },
+  {},
+);
+
+export function getChineseLabel(label: string, fieldName?: string): string {
+  return getExactChineseText(label) ?? generateChineseFromFieldName(fieldName) ?? generateChineseFromText(label) ?? label;
+}
+
+export function getEnglishLabel(label: string): string {
+  return getEnglishText(label);
+}
+
+export function getChinesePlaceholder(placeholder: string | null): string | null {
+  if (!placeholder) return null;
+  return generateChinesePlaceholder(placeholder) ?? placeholder;
+}
+
+export function getEnglishPlaceholder(placeholder: string | null): string | null {
+  if (!placeholder) return null;
+  const example = placeholder.match(/^例如[:：]\s*(.+)$/);
+  if (example) return `e.g., ${example[1]}`;
+  return getEnglishText(placeholder);
+}
+
+export function getChineseOptionText(text: string): string {
+  return TRANSLATIONS.zh.options[text] ?? generateChineseFromText(text) ?? text;
+}
+
+export function getEnglishOptionText(text: string): string {
+  return getEnglishText(text);
+}
+
+export function toOfficialEnglishValue(value: string): string {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return "";
+  const direct = VALUE_TRANSLATIONS[trimmed];
+  if (direct) return direct;
+
+  const syllables = Array.from(trimmed.replace(/\s+/g, "")).map((character) => VALUE_TRANSLATIONS[character]);
+  if (syllables.length > 0 && syllables.every(Boolean)) return syllables.join(" ");
+
+  if (/^[\dA-Za-z\s,.'#/@&()+-]+$/.test(trimmed)) return trimmed;
+  return trimmed;
+}
+
+export function toChineseSourceValue(value: string): string {
+  const trimmed = normalizeText(value);
+  if (!trimmed) return "";
+  return REVERSE_VALUE_TRANSLATIONS[trimmed.toLowerCase()] ?? trimmed;
+}
+
 export function translateLabel(label: string, locale: string, fieldName?: string): string {
   const zh = getExactChineseText(label) ?? generateChineseFromFieldName(fieldName) ?? generateChineseFromText(label);
   return composeBilingual(label, zh, locale);

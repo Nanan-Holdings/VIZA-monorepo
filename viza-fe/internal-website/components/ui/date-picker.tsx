@@ -21,6 +21,7 @@ interface DatePickerProps {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  displayLocale?: string
 }
 
 export function DatePicker({
@@ -28,16 +29,18 @@ export function DatePicker({
   onChange,
   placeholder,
   className,
+  displayLocale,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
   const locale = useLocale()
-  const dateFnsLocale = locale === "zh" ? zhCN : enUS
+  const resolvedLocale = displayLocale ?? locale
+  const dateFnsLocale = resolvedLocale === "zh" ? zhCN : enUS
 
   // Parse YYYY-MM-DD string to Date in local time (avoid timezone offset)
   const date = value ? new Date(value + "T00:00:00") : undefined
 
   // Locale-aware default placeholder
-  const resolvedPlaceholder = placeholder ?? (locale === "zh" ? "请选择日期" : "Pick a date")
+  const resolvedPlaceholder = placeholder ?? (resolvedLocale === "zh" ? "请选择日期" : "Pick a date")
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

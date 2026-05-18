@@ -23,7 +23,7 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 interface DynamicFormFieldProps {
@@ -32,6 +32,7 @@ interface DynamicFormFieldProps {
   onChange: (value: string) => void;
   forceWhiteBackground?: boolean;
   disabled?: boolean;
+  displayLocale?: "zh" | "en";
 }
 
 function FieldWrapper({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
@@ -139,10 +140,16 @@ export function DynamicFormField({
   onChange,
   forceWhiteBackground = false,
   disabled = false,
+  displayLocale,
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
+  const locale = useLocale();
   const { label, fieldType, required, placeholder, options } = field;
   const whiteControlClass = forceWhiteBackground ? "bg-white hover:bg-white" : "";
+  const sideLocale = displayLocale ?? (locale.startsWith("zh") ? "zh" : "en");
+  const selectFallback = sideLocale === "zh" ? "请选择..." : "Select...";
+  const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
+  const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
 
   switch (fieldType) {
     case "date": {
@@ -158,10 +165,11 @@ export function DynamicFormField({
           onChange={onChange}
           placeholder={placeholder ?? undefined}
           className={whiteControlClass}
+          displayLocale={sideLocale}
         />
       ) : (
         <div className={`h-12 rounded-lg border border-[#e8e8e8] flex items-center px-3 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
-          {dateIsDoNotKnow ? t("dynamicField.doNotKnow") : t("dynamicField.doesNotApply")}
+          {dateIsDoNotKnow ? doNotKnowLabel : doesNotApplyLabel}
         </div>
       );
       const sideCheckbox = dateAllowDoNotKnow ? (
@@ -170,7 +178,7 @@ export function DynamicFormField({
             checked={dateIsDoNotKnow}
             onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
           />
-          {t("dynamicField.doNotKnow")}
+          {doNotKnowLabel}
         </label>
       ) : dateAllowDoesNotApply ? (
         <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
@@ -178,7 +186,7 @@ export function DynamicFormField({
             checked={dateIsDoesNotApply}
             onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
           />
-          {t("dynamicField.doesNotApply")}
+          {doesNotApplyLabel}
         </label>
       ) : null;
 
@@ -205,10 +213,11 @@ export function DynamicFormField({
         return (
           <FieldWrapper label={label} required={required}>
             <CountryDropdown
-              placeholder={placeholder ?? t("select")}
+              placeholder={placeholder ?? selectFallback}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
               className={whiteControlClass}
+              displayLocale={sideLocale}
             />
           </FieldWrapper>
         );
@@ -218,7 +227,7 @@ export function DynamicFormField({
           <FieldWrapper label={label} required={required}>
             <RegionSelect
               countryCode="US"
-              placeholder={placeholder ?? t("select")}
+              placeholder={placeholder ?? selectFallback}
               defaultValue={value}
               onChange={(region) => onChange(region.shortCode)}
               className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}
@@ -231,7 +240,7 @@ export function DynamicFormField({
         <FieldWrapper label={label} required={required}>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
             <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
-              <SelectValue placeholder={placeholder ?? t("select")} />
+              <SelectValue placeholder={placeholder ?? selectFallback} />
             </SelectTrigger>
             <SelectContent>
               {opts.map((opt) => (
@@ -285,10 +294,11 @@ export function DynamicFormField({
       return (
         <FieldWrapper label={label} required={required}>
           <CountryDropdown
-            placeholder={placeholder ?? t("dynamicField.selectCountry")}
+            placeholder={placeholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
             defaultValue={value}
             onChange={(country) => onChange(country.name)}
             className={whiteControlClass}
+            displayLocale={sideLocale}
           />
         </FieldWrapper>
       );
@@ -360,7 +370,7 @@ export function DynamicFormField({
               checked={isDoNotKnow}
               onCheckedChange={(checked) => onChange(checked ? "DO_NOT_KNOW" : "")}
             />
-            {t("dynamicField.doNotKnow")}
+            {doNotKnowLabel}
           </label>
         ) : allowDoesNotApply ? (
           <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
@@ -368,7 +378,7 @@ export function DynamicFormField({
               checked={isDoesNotApply}
               onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
             />
-            {t("dynamicField.doesNotApply")}
+            {doesNotApplyLabel}
           </label>
         ) : null;
 

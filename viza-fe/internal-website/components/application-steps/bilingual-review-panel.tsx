@@ -1,19 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle, Check, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
 
 export interface ReviewRow {
   section: string;
   fieldName: string;
   label: string;
+  sourceLabel?: string;
+  officialLabel?: string;
   sourceValue: string;
   officialValue: string;
   badges: string[];
@@ -46,147 +43,39 @@ function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[
 }
 
 function BilingualReviewRow({
-  applicationId,
   row,
-  onSaveOfficialValue,
-  onUpdated,
 }: {
-  applicationId?: string;
   row: ReviewRow;
-  onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
-  onUpdated?: (fieldName: string, officialValue: string) => void;
 }) {
-  const t = useTranslations("applicationSteps.translation");
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(row.officialValue);
-  const [saving, setSaving] = useState(false);
-
-  async function save() {
-    if (!row.editable || draft === row.officialValue) {
-      setEditing(false);
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (onSaveOfficialValue) {
-        await onSaveOfficialValue(row.fieldName, draft);
-        onUpdated?.(row.fieldName, draft);
-      } else if (applicationId) {
-        const res = await fetch(
-          `${BACKEND_URL}/api/applications/${applicationId}/translations/${encodeURIComponent(row.fieldName)}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ translated_text: draft }),
-          },
-        );
-
-        if (res.ok) {
-          onUpdated?.(row.fieldName, draft);
-        }
-      } else {
-        onUpdated?.(row.fieldName, draft);
-      }
-    } finally {
-      setSaving(false);
-      setEditing(false);
-    }
-  }
+  const sourceLabel = row.sourceLabel ?? row.label;
+  const officialLabel = row.officialLabel ?? row.label;
 
   return (
-    <div className="border-b border-border/50 py-3 last:border-0">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-[#3d3d3d]">{row.label}</span>
-        {row.badges.map((badge) => (
-          <Badge key={badge} variant="secondary" className="px-1.5 py-0 text-[10px]">
-            {badge}
-          </Badge>
-        ))}
-      </div>
-
+    <div className="border-b border-border/50 py-4 last:border-0">
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-md border border-[#e8e8e8] bg-[#fafafa] p-3">
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.04em] text-gray-500">
-            {t("sourceColumn")}
-          </p>
-          <p className="break-words text-sm font-medium text-gray-800">{row.sourceValue}</p>
-        </div>
-
-        <div className="rounded-md border border-[#d7e0ee] bg-[#f7faff] p-3">
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-[#03346E]">
-              {t("officialColumn")}
-            </p>
-            {row.editable && !editing && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(row.officialValue);
-                  setEditing(true);
-                }}
-                className="text-[#03346E] transition-colors hover:text-[#02264f]"
-                title={t("editTranslation")}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
+        <div className="min-w-0">
+          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{sourceLabel}</p>
+          <div className="min-h-12 rounded-lg border border-[#e8e8e8] bg-white px-3 py-3 text-sm font-medium text-gray-800">
+            {row.sourceValue}
           </div>
-
-          {editing ? (
-            <div className="flex items-center gap-2">
-              <Input
-                className="h-8 bg-white text-sm"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void save();
-                  if (event.key === "Escape") {
-                    setEditing(false);
-                    setDraft(row.officialValue);
-                  }
-                }}
-                autoFocus
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => void save()}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
-          ) : (
-            <p className="break-words text-sm font-semibold text-[#1f2f46]">{row.officialValue}</p>
-          )}
+        </div>
+        <div className="min-w-0">
+          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
+          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
+            {row.officialValue}
+          </div>
         </div>
       </div>
-
-      {row.warnings.length > 0 && (
-        <div className="mt-2 flex flex-col gap-1">
-          {row.warnings.map((warning) => (
-            <p key={warning} className="text-xs text-amber-700">
-              {warning}
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 export function BilingualReviewPanel({
-  applicationId,
   rows,
   loading,
   error,
   retrying,
   onRetry,
-  onSaveOfficialValue,
-  onUpdated,
 }: BilingualReviewPanelProps) {
   const t = useTranslations("applicationSteps.translation");
   const sections = groupRows(rows);
@@ -203,11 +92,6 @@ export function BilingualReviewPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-lg border border-[#d7e0ee] bg-[#f7faff] p-4">
-        <p className="text-sm font-semibold text-[#03346E]">{t("bilingualTitle")}</p>
-        <p className="mt-1 text-xs leading-5 text-gray-600">{t("bilingualHint")}</p>
-      </div>
-
       {error && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
@@ -242,10 +126,7 @@ export function BilingualReviewPanel({
               {section.rows.map((row) => (
                 <BilingualReviewRow
                   key={row.fieldName}
-                  applicationId={applicationId}
                   row={row}
-                  onSaveOfficialValue={onSaveOfficialValue}
-                  onUpdated={onUpdated}
                 />
               ))}
             </div>

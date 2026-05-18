@@ -2,11 +2,20 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
-import { translateLabel, translatePlaceholder, translateOptionText } from "@/lib/ds160-translations";
+import {
+  getChineseLabel,
+  getChineseOptionText,
+  getChinesePlaceholder,
+  getEnglishLabel,
+  getEnglishOptionText,
+  getEnglishPlaceholder,
+  toChineseSourceValue,
+  toOfficialEnglishValue,
+} from "@/lib/ds160-translations";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 
 interface DynamicStepFormProps {
@@ -22,6 +31,41 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
 
 /** Default max instances for repeatable groups without an explicit max_items */
 const REPEAT_GROUP_DEFAULT_MAX = 5;
+
+type BilingualSide = "zh" | "en";
+
+interface BilingualTextValue {
+  zh: string;
+  en: string;
+}
+
+function isTextLikeField(field: VisaFormFieldRow): boolean {
+  return field.fieldType === "text" || field.fieldType === "textarea";
+}
+
+function toInitialBilingualText(value?: string): BilingualTextValue {
+  const storedValue = value ?? "";
+  if (!storedValue.trim()) return { zh: "", en: "" };
+  if (/[\u3400-\u9fff]/.test(storedValue)) {
+    return { zh: storedValue, en: toOfficialEnglishValue(storedValue) };
+  }
+  return { zh: toChineseSourceValue(storedValue), en: storedValue };
+}
+
+function getSideOptions(
+  options: VisaFormFieldRow["options"],
+  side: BilingualSide,
+): VisaFormFieldRow["options"] {
+  if (!options) return null;
+  return options.map((option) => {
+    const value = typeof option === "string" ? option : option.value;
+    const text = typeof option === "string" ? option : option.text;
+    return {
+      value,
+      text: side === "zh" ? getChineseOptionText(text) : getEnglishOptionText(text),
+    };
+  });
+}
 
 /** Helper: get the repeat_group name from a field's validationRules */
 function getRepeatGroup(field: VisaFormFieldRow): string | null {
@@ -136,7 +180,6 @@ function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow |
 }
 
 export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicStepFormProps) {
-  const locale = useLocale();
   const tButtons = useTranslations("application.dynamicButtons");
 
   // Track how many instances each repeat_group has (min 1)
@@ -175,6 +218,24 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
           const bValue = findBOptionValue(field.options);
           if (bValue) init[field.fieldName] = bValue;
         }
+      }
+    }
+    return init;
+  });
+
+  const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
+    const init: Record<string, BilingualTextValue> = {};
+    for (const field of step.fields) {
+      if (!isTextLikeField(field)) continue;
+      const group = getRepeatGroup(field);
+      if (group) {
+        const count = groupCounts[group] ?? 1;
+        for (let i = 0; i < count; i++) {
+          const key = instanceKey(field.fieldName, i);
+          init[key] = toInitialBilingualText(prefill[key]);
+        }
+      } else {
+        init[field.fieldName] = toInitialBilingualText(prefill[field.fieldName]);
       }
     }
     return init;
@@ -261,6 +322,17 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
     });
   };
 
+  const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
+    const currentPair = textPairs[fieldName] ?? toInitialBilingualText(values[fieldName]);
+    const nextPair = side === "zh"
+      ? { zh: value, en: toOfficialEnglishValue(value) }
+      : { zh: toChineseSourceValue(value), en: value };
+    setTextPairs((prev) => ({ ...prev, [fieldName]: nextPair }));
+
+    const officialValue = nextPair.en || nextPair.zh || currentPair.en || currentPair.zh;
+    handleChange(fieldName, officialValue);
+  };
+
   const addGroupInstance = (group: string) => {
     const currentCount = groupCounts[group] ?? 1;
     const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
@@ -273,6 +345,15 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
         next[instanceKey(field.fieldName, count - 1)] = "";
+      }
+      return next;
+    });
+    setTextPairs((prev) => {
+      const next = { ...prev };
+      for (const field of repeatGroupFields[group] ?? []) {
+        if (isTextLikeField(field)) {
+          next[instanceKey(field.fieldName, count - 1)] = { zh: "", en: "" };
+        }
       }
       return next;
     });
@@ -293,6 +374,23 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       // Remove last instance keys
       for (const field of fields) {
         delete next[instanceKey(field.fieldName, count - 1)];
+      }
+      return next;
+    });
+    setTextPairs((prev) => {
+      const next = { ...prev };
+      const fields = repeatGroupFields[group] ?? [];
+      for (let i = instanceIdx; i < count - 1; i++) {
+        for (const field of fields) {
+          if (isTextLikeField(field)) {
+            next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
+          }
+        }
+      }
+      for (const field of fields) {
+        if (isTextLikeField(field)) {
+          delete next[instanceKey(field.fieldName, count - 1)];
+        }
       }
       return next;
     });
@@ -379,10 +477,10 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
-    const label = translateLabel(field.label, locale, field.fieldName);
     const rawPlaceholder = field.placeholder
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
-    const placeholder = translatePlaceholder(rawPlaceholder, locale);
+    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder);
+    const enPlaceholder = getEnglishPlaceholder(rawPlaceholder);
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
@@ -393,23 +491,44 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
       });
     }
 
-    const options = fieldOptions?.map((opt) => {
-      if (typeof opt === "string") return translateOptionText(opt, locale);
-      return { ...opt, text: translateOptionText(opt.text, locale) };
-    }) ?? null;
-
     const isLockedPurpose = isPurposeOfTripField(field);
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
+    const isTextLike = isTextLikeField(field);
+    const pair = textPairs[valueKey] ?? toInitialBilingualText(values[valueKey]);
+
+    const renderSide = (side: BilingualSide) => {
+      const sideField: VisaFormFieldRow = {
+        ...field,
+        fieldName: `${valueKey}-${side}`,
+        label: side === "zh" ? getChineseLabel(field.label, field.fieldName) : getEnglishLabel(field.label),
+        placeholder: side === "zh" ? zhPlaceholder : enPlaceholder,
+        options: getSideOptions(fieldOptions, side),
+      };
+
+      return (
+        <DynamicFormField
+          key={`${valueKey}-${side}`}
+          field={sideField}
+          value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
+          onChange={(nextValue) => {
+            if (isTextLike) {
+              handleBilingualTextChange(valueKey, side, nextValue);
+              return;
+            }
+            handleChange(valueKey, nextValue);
+          }}
+          forceWhiteBackground={forceWhiteBackground}
+          disabled={isLockedPurpose || lt24Disabled}
+          displayLocale={side}
+        />
+      );
+    };
 
     return (
-      <DynamicFormField
-        key={valueKey}
-        field={{ ...field, label, placeholder, options }}
-        value={values[valueKey] ?? ""}
-        onChange={(v) => handleChange(valueKey, v)}
-        forceWhiteBackground={forceWhiteBackground}
-        disabled={isLockedPurpose || lt24Disabled}
-      />
+      <div key={valueKey} className="grid min-w-0 gap-4 md:grid-cols-2">
+        {renderSide("zh")}
+        {renderSide("en")}
+      </div>
     );
   };
 
@@ -461,7 +580,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
                     const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
                     if (inlineFields.length <= 1) return renderField(f, f.fieldName, true);
                     return (
-                      <div key={`inline-${inlineInBlock}`} className="grid grid-cols-2 gap-3">
+                      <div key={`inline-${inlineInBlock}`} className="grid gap-4">
                         {inlineFields.map((x) => renderField(x, x.fieldName, true))}
                       </div>
                     );
@@ -491,7 +610,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
             }
 
             return (
-              <div key={`inline-${ig}`} className="grid grid-cols-2 gap-3">
+              <div key={`inline-${ig}`} className="grid gap-4">
                 {inlineFields.map((f) => renderField(f, f.fieldName))}
               </div>
             );
@@ -537,7 +656,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
                 {groupFieldsInline(visibleGroupFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((f) => f.fieldName).join("-")} className="grid grid-cols-2 gap-3">
+                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-4">
                         {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
                       </div>
                     );

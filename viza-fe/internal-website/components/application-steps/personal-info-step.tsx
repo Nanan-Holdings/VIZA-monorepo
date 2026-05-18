@@ -362,14 +362,12 @@ function SectionHeader({ children }: { children: ReactNode }) {
 
 function BilingualRow({
   label,
-  helper,
-  badge,
   zhControl,
   enControl,
 }: {
   label: string;
-  helper: string;
-  badge: string;
+  helper?: string;
+  badge?: string;
   zhControl: ReactNode;
   enControl: ReactNode;
 }) {
@@ -377,10 +375,6 @@ function BilingualRow({
     <div className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-[#24272f]">{label}</p>
-        <p className="mt-1 text-xs leading-5 text-[#697386]">{helper}</p>
-        <span className="mt-2 inline-flex rounded-full bg-[#eaf2ff] px-2 py-1 text-[11px] font-medium text-[#03346E]">
-          {badge}
-        </span>
       </div>
       <label className="min-w-0">
         <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">中文</span>
@@ -679,12 +673,6 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div className="overflow-hidden rounded-lg border border-[#dfe5ee] bg-white">
-        <div className="hidden grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-[#dfe5ee] bg-[#edf3fb] px-4 py-3 text-xs font-semibold text-[#42506a] md:grid">
-          <span>字段</span>
-          <span>中文</span>
-          <span>English / Official</span>
-        </div>
-
         <SectionHeader>个人信息</SectionHeader>
         <div className="divide-y divide-[#eef1f5]">
           <BilingualRow

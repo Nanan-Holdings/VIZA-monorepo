@@ -461,3 +461,13 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: lib/ds160-translations.ts, progress.txt
 - Learnings: page-level bilingual UI is not enough; every DB-driven visa schema needs bilingual composition at the renderer translation layer so US, UK, Schengen, and future countries stay consistent.
 ---
+
+## 2026-05-18 - REV-001 paired bilingual controls follow-up
+- Reworked DB-driven dynamic forms from single bilingual labels into paired controls: the left side renders Chinese labels/placeholders/options, and the right side renders English labels/placeholders/options.
+- Added synchronized text drafts so editing either language side updates the other side immediately, while select/date/country/radio controls continue to share one canonical value.
+- Added side-specific country and date display support so the Chinese side stays Chinese and the English side stays official English.
+- Simplified bilingual review into read-only left/right rows and removed the explanatory title, column header row, badges, warning copy, and inline edit affordances.
+- Removed the visible header row and helper/badge explainer text from the existing hardcoded bilingual table surfaces.
+- Files changed: dynamic-step-form.tsx, dynamic-form-field.tsx, dynamic-review-step.tsx, bilingual-review-panel.tsx, bilingual-form-shared.tsx, personal-info-step.tsx, date-picker.tsx, country-dropdown.tsx, ds160-translations.ts, progress.txt
+- Learnings: users expect the bilingual experience to be structural, not textual; the two languages need separate controls with shared state instead of a single control with a combined label.
+---

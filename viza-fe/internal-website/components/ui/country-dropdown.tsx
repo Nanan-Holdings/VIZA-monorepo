@@ -41,6 +41,7 @@ interface CountryDropdownProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  displayLocale?: string;
 }
 
 const filteredCountries: Country[] = countries.all.filter(
@@ -64,21 +65,23 @@ const CountryDropdownComponent = (
     disabled = false,
     placeholder = "Select a country",
     className,
+    displayLocale,
   }: CountryDropdownProps,
   ref: React.ForwardedRef<HTMLButtonElement>
 ) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Country | null>(null);
   const locale = useLocale();
+  const resolvedLocale = displayLocale ?? locale;
 
   const localizedMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of filteredCountries) {
-      const localized = getLocalizedName(c.alpha2, locale);
+      const localized = getLocalizedName(c.alpha2, resolvedLocale);
       if (localized) map.set(c.alpha2, localized);
     }
     return map;
-  }, [locale]);
+  }, [resolvedLocale]);
 
   useEffect(() => {
     if (!defaultValue) {
@@ -157,9 +160,9 @@ const CountryDropdownComponent = (
             return 0;
           }}
         >
-          <CommandInput placeholder={locale === "zh" ? "搜索国家..." : "Search country..."} />
+          <CommandInput placeholder={resolvedLocale === "zh" ? "搜索国家..." : "Search country..."} />
           <CommandList className="max-h-[200px] sm:max-h-[270px]">
-            <CommandEmpty>{locale === "zh" ? "未找到国家" : "No country found."}</CommandEmpty>
+            <CommandEmpty>{resolvedLocale === "zh" ? "未找到国家" : "No country found."}</CommandEmpty>
             <CommandGroup>
               {filteredCountries
                 .filter((x) => x.name)
