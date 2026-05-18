@@ -518,7 +518,7 @@ function evaluateBranchTests(): BranchResult[] {
     branch('RAGDOC-001', 'rag_document_type_branch', () => [
       expectArrayEqual('route docs', documentTypesForIntent('route_recommendation'), ['requirements', 'process']),
       expectArrayEqual('requirements docs', documentTypesForIntent('requirements'), ['requirements', 'form_requirements']),
-      expectArrayEqual('form docs', documentTypesForIntent('form_intake'), ['form_requirements']),
+      expectArrayEqual('form docs', documentTypesForIntent('form_intake'), ['form_requirements', 'requirements', 'process']),
       expectArrayEqual('fees docs', documentTypesForIntent('fees_timing'), ['requirements', 'process']),
       expectArrayEqual('eligibility docs', documentTypesForIntent('eligibility'), ['requirements']),
       expectArrayEqual('source docs', documentTypesForIntent('source_check'), ['requirements', 'process', 'form_requirements']),
@@ -704,6 +704,8 @@ function evaluateBranchTests(): BranchResult[] {
       expectEqual('prompt bans Markdown tables', BASE_SYSTEM_PROMPT.includes('tables'), true),
       expectEqual('prompt requires plain text only', BASE_SYSTEM_PROMPT.includes('Use plain text only'), true),
       expectEqual('prompt still cites sources', BASE_SYSTEM_PROMPT.includes('source title or URL'), true),
+      expectEqual('prompt forbids chat form collection', BASE_SYSTEM_PROMPT.includes('Do not collect application form fields inside VIZA chat'), true),
+      expectEqual('prompt asks for rough overview before redirect', BASE_SYSTEM_PROMPT.includes('give a rough idea first'), true),
     ]),
   ];
 }

@@ -80,7 +80,7 @@ export function documentTypesForIntent(
   const mapping: Record<VisaKnowledgeIntent, string[]> = {
     route_recommendation: ["requirements", "process"],
     requirements: ["requirements", "form_requirements"],
-    form_intake: ["form_requirements"],
+    form_intake: ["form_requirements", "requirements", "process"],
     fees_timing: ["requirements", "process"],
     eligibility: ["requirements"],
     source_check: ["requirements", "process", "form_requirements"],
