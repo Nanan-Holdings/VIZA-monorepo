@@ -51,6 +51,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 14. Keep process management visible and simple: one labeled `New chat` entry in the process panel, plus per-session rename and delete controls. Do not add duplicate unlabeled plus buttons.
 15. Session titles are currently persisted as hidden `visa_chat_messages` records with `role='system'` and content prefix `__viza_session_title__:`. Filter these markers out of user-visible history, search/recent history, and LLM chat context.
 16. Preserve conversation context for compact follow-ups. `visa_chat_message` should include recent visible user/assistant history from the frontend, and the backend should use that client history when database history is missing or shorter. Short replies like `中国护照，中国，7天，法国，意大利` or `2，5` must be interpreted against the previous assistant question instead of treated as standalone prompts.
+17. VIZA AI user-facing answers must be plain text by default. Keep the no-Markdown rule in `BASE_SYSTEM_PROMPT`, the robustness harness, and `ChatMessage`; do not add Markdown headings, tables, bold markers, bullet markers, code fences, raw JSON, or raw XML unless the user explicitly asks. `ChatMessage` should render common Markdown markers as plain text for VIZA answers.
 
 ## Session Model
 
@@ -65,7 +66,8 @@ Session rename uses hidden system marker rows instead of a `visa_chat_sessions.t
 For frontend-only changes:
 
 1. `cd viza-fe/internal-website && npm run type-check`
-2. Manually verify `/client/chat`:
+2. If message rendering changes, run `npm run test -- components/client/companion/__tests__/chat-message.test.tsx --run`
+3. Manually verify `/client/chat`:
    - unauthenticated users redirect to login
    - `VIZA AI` tab connects and sends a message
    - streamed tokens become one finalized assistant message
@@ -100,7 +102,7 @@ Session-level state is persisted as hidden `visa_chat_messages` rows with `role=
 - `knowledge-base/visa-rag-seeds/countries/*.json`: independent country-level RAG seeds. Each file owns one country's visitor/tourism visa knowledge and should evolve with that country's future form-filling workflow.
 - `knowledge-base/visa-rag-seeds/README.md`: source-of-truth rules for country seed structure and ingestion commands.
 - `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`: generic ingestion script that writes one or more country seeds to `visa_documents` and `visa_chunks`; run all countries with `npm run ingest:all-visa-rag` or one country with `npm run ingest:country-visa-rag -- --country japan`.
-- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic 60-case agent behavior eval harness. Run with `npm run test:visa-agent-evals` after routing, prompt, state, or RAG changes.
+- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic robustness harness. Run with `npm run test:visa-agent-evals` or `npm run test:visa-agent-robustness` after routing, prompt, state, or RAG changes. Current suite covers 60 prompt evals plus 38 branch assertions for intent, RAG document type mapping, country routing, visa type fallback, state merge, compact interpretation, and plain-text output guardrails.
 
 Each country seed should have exactly one `documentType="form_requirements"` document. These chunks are the RAG bridge for industrial form-filling agents: official application channel, fields to collect before filling, supporting document uploads, and review/submission guardrails.
 

@@ -31,6 +31,7 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
+import { getFormVisaType } from "@/lib/visa-destinations";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -779,7 +780,7 @@ export default function ApplicationPage() {
   useEffect(() => {
     getUserVisaPackage().then((pkg) => {
       if (pkg) setVisaPackage(pkg);
-      const visaType = pkg?.visa_type ?? "tourist_b211a";
+      const visaType = getFormVisaType(pkg?.visa_type ?? "B211A");
       return getVisaFormSteps(visaType);
     }).then((steps) => {
       if (steps.length > 0) setDbSteps(steps);
@@ -1112,7 +1113,7 @@ export default function ApplicationPage() {
             applicant_id: profile.id,
             status: "draft",
             country: visaPackage?.country ?? "indonesia",
-            visa_type: visaPackage?.visa_type ?? "tourist_b211a",
+            visa_type: visaPackage?.visa_type ?? "B211A",
             arrival_date: data.arrivalDate || null,
             departure_date: data.departureDate || null,
             port_of_entry: data.arrivalCity || null,
@@ -1154,7 +1155,7 @@ export default function ApplicationPage() {
       if (!applicationId) {
         const result = await ensureDraftApplication(
           visaPackage?.country ?? "indonesia",
-          visaPackage?.visa_type ?? "tourist_b211a"
+          visaPackage?.visa_type ?? "B211A"
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
@@ -1193,7 +1194,7 @@ export default function ApplicationPage() {
       if (!applicationId) {
         const result = await ensureDraftApplication(
           visaPackage?.country ?? "indonesia",
-          visaPackage?.visa_type ?? "tourist_b211a",
+          visaPackage?.visa_type ?? "B211A",
         );
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;

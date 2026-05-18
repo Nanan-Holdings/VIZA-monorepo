@@ -73,7 +73,7 @@ function clampMatchCount(value: number | undefined): number {
   return Math.min(Math.max(Math.trunc(value), 1), 12);
 }
 
-function documentTypesForIntent(
+export function documentTypesForIntent(
   intent?: VisaKnowledgeIntent
 ): string[] | undefined {
   if (!intent) return undefined;
