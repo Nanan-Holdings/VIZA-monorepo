@@ -12,27 +12,33 @@ import {
 
 const plannedTiers = [
   {
-    name: "基础版",
-    status: "方案草案",
-    description: "适合自己填写签证表单，只需要保存通用资料和双语表单辅助的用户。",
-    features: ["通用资料自动预填", "双语对照表单", "热门目的地表单入口"],
+    name: "体验版",
+    price: "$0",
+    cadence: "/ 月",
+    status: "当前可用",
+    description: "适合先体验 VIZA 的申请入口、双语表单和通用资料保存。",
+    features: ["1 个进行中的签证申请", "通用资料自动预填", "双语对照表单", "热门目的地表单入口"],
   },
   {
-    name: "智能版",
-    status: "推荐方向",
-    description: "适合需要 AI 帮忙理解字段、检查答案和减少重复填写的用户。",
-    features: ["包含基础版能力", "字段级 AI 填写帮助", "申请进度与材料提醒"],
+    name: "标准版",
+    price: "$19",
+    cadence: "/ 月",
+    status: "推荐预览",
+    description: "适合同时准备多个国家签证，希望减少重复填写和遗漏的用户。",
+    features: ["最多 3 个进行中的签证申请", "包含体验版能力", "字段级 visa consultant 帮助", "申请进度与材料提醒"],
   },
   {
-    name: "全程协助版",
-    status: "待定",
-    description: "适合需要更高触达度，希望有人协助检查材料和提交前核对的用户。",
-    features: ["包含智能版能力", "材料清单核对", "提交前人工复核入口"],
+    name: "高级版",
+    price: "$49",
+    cadence: "/ 月",
+    status: "方案预览",
+    description: "适合高频出行或家庭申请，需要更完整的核对、提醒和材料整理。",
+    features: ["最多 8 个进行中的签证申请", "包含标准版能力", "材料清单核对", "提交前核对入口"],
   },
 ];
 
 const renewalRows = [
-  { label: "当前方案", value: "Visa Consultant" },
+  { label: "当前方案", value: "VIZA Application 体验版" },
   { label: "续费状态", value: "暂未启用自动续费" },
   { label: "下次续费", value: "待定" },
   { label: "支付方式", value: "暂未绑定" },
@@ -57,12 +63,12 @@ export default function SubscriptionPage() {
                 <CreditCard className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-[14px] font-semibold text-[#03346E]">Visa Consultant</p>
+                <p className="text-[14px] font-semibold text-[#03346E]">VIZA Application</p>
                 <h1 className="mt-2 font-heading text-[32px] font-medium leading-tight text-[#2f2f2f] sm:text-[42px]">
-                  Visa Consultant
+                  VIZA Application
                 </h1>
                 <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#667085]">
-                  这里先作为签证顾问服务入口和方案说明页。正式计费、续费周期和价格还未开启，因此当前用户默认显示为 Visa Consultant 体验版。
+                  这里先作为申请方案和订阅说明页。正式计费、续费周期和价格还未开启，因此当前用户默认显示为 VIZA Application 体验版。
                 </p>
               </div>
             </div>
@@ -71,7 +77,7 @@ export default function SubscriptionPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-medium text-[#667085]">当前方案</p>
-                  <p className="mt-1 text-[24px] font-semibold text-[#03346E]">Visa Consultant</p>
+                  <p className="mt-1 text-[24px] font-semibold text-[#03346E]">VIZA Application</p>
                 </div>
                 <span className="rounded-full bg-[#eaf2ff] px-3 py-1 text-[12px] font-semibold text-[#03346E]">
                   免费测试中
@@ -116,28 +122,35 @@ export default function SubscriptionPage() {
             <section className="p-6 lg:p-8">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="font-heading text-[26px] font-medium text-[#2f2f2f]">方案级别草案</h2>
+                  <h2 className="font-heading text-[26px] font-medium text-[#2f2f2f]">方案级别预览</h2>
                   <p className="mt-2 text-[14px] leading-6 text-[#667085]">
-                    这些不是最终价格页，只用于给用户一个清楚的产品层级预期。
+                    这些数字只是为了先看页面效果，正式价格、额度和续费周期之后再调整。
                   </p>
                 </div>
                 <span className="w-fit rounded-full bg-[#eef3fa] px-3 py-1 text-[13px] font-medium text-[#03346E]">
-                  Subscription design
+                  Pricing preview
                 </span>
               </div>
 
               <div className="mt-5 grid gap-4 lg:grid-cols-3">
                 {plannedTiers.map((tier) => (
-                  <article key={tier.name} className="rounded-[16px] border border-[#e6edf6] bg-white p-5">
+                  <article
+                    key={tier.name}
+                    className="flex min-h-[340px] flex-col rounded-[16px] border border-[#e6edf6] bg-white p-5"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-[20px] font-semibold text-[#26364a]">{tier.name}</h3>
-                        <p className="mt-2 text-[14px] leading-6 text-[#667085]">{tier.description}</p>
+                        <div className="mt-3 flex items-end gap-1">
+                          <span className="text-[34px] font-semibold leading-none text-[#03346E]">{tier.price}</span>
+                          <span className="pb-1 text-[14px] font-medium text-[#667085]">{tier.cadence}</span>
+                        </div>
                       </div>
                       <span className="shrink-0 rounded-full bg-[#eaf2ff] px-2.5 py-1 text-[12px] font-semibold text-[#03346E]">
                         {tier.status}
                       </span>
                     </div>
+                    <p className="mt-4 text-[14px] leading-6 text-[#667085]">{tier.description}</p>
                     <ul className="mt-5 space-y-3">
                       {tier.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-[14px] leading-6 text-[#26364a]">
@@ -146,6 +159,12 @@ export default function SubscriptionPage() {
                         </li>
                       ))}
                     </ul>
+                    <button
+                      className="mt-auto rounded-full border border-[#03346E] px-4 py-2.5 text-[14px] font-semibold text-[#03346E] transition hover:bg-[#03346E] hover:text-white"
+                      type="button"
+                    >
+                      查看方案
+                    </button>
                   </article>
                 ))}
               </div>
@@ -175,7 +194,7 @@ export default function SubscriptionPage() {
                     <MessageCircle className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-[16px] font-semibold text-[#26364a]">询问 VIZA AI</p>
+                    <p className="text-[16px] font-semibold text-[#26364a]">询问 visa consultant</p>
                     <p className="mt-1 text-[13px] text-[#667085]">可以继续讨论适合你的方案和申请需求。</p>
                   </div>
                 </div>
