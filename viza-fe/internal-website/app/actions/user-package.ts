@@ -23,7 +23,7 @@ type VisaPackageRow = {
 
 /**
  * Assign a visa package to a user (admin only).
- * Cancels any existing active package before assigning the new one.
+ * Keeps other active packages so one user can work on multiple visas.
  */
 export async function assignUserPackage(
   userId: string,
@@ -36,14 +36,23 @@ export async function assignUserPackage(
 
     const adminClient = createAdminClient();
 
-    // Cancel any existing active package for this user
-    await adminClient
+    const { data: existingAssignment, error: lookupError } = await adminClient
       .from("user_packages")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .select("id")
       .eq("auth_user_id", userId)
-      .eq("status", "active");
+      .eq("visa_package_id", visaPackageId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
 
-    // Assign new package
+    if (lookupError) {
+      return { success: false, error: lookupError.message };
+    }
+
+    if (existingAssignment) {
+      return { success: true };
+    }
+
     const { error } = await adminClient
       .from("user_packages")
       .insert({
@@ -137,22 +146,31 @@ export async function selectUserVisaDestination(
       packageRow = insertedPackage as VisaPackageRow;
     }
 
-    await adminClient
+    const { data: existingAssignment, error: assignmentLookupError } = await adminClient
       .from("user_packages")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .select("id")
       .eq("auth_user_id", user.id)
-      .eq("status", "active");
+      .eq("visa_package_id", packageRow.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
 
-    const { error: assignError } = await adminClient
-      .from("user_packages")
-      .insert({
-        auth_user_id: user.id,
-        visa_package_id: packageRow.id,
-        status: "active",
-      });
+    if (assignmentLookupError) {
+      return { success: false, error: assignmentLookupError.message };
+    }
 
-    if (assignError) {
-      return { success: false, error: assignError.message };
+    if (!existingAssignment) {
+      const { error: assignError } = await adminClient
+        .from("user_packages")
+        .insert({
+          auth_user_id: user.id,
+          visa_package_id: packageRow.id,
+          status: "active",
+        });
+
+      if (assignError) {
+        return { success: false, error: assignError.message };
+      }
     }
 
     revalidatePath("/client/home");
@@ -178,44 +196,53 @@ export async function selectUserVisaDestination(
 }
 
 /**
- * Get the active visa package assigned to the current user.
- * Returns null if no package is assigned.
+ * Get all active visa packages assigned to the current user.
  */
-export async function getUserVisaPackage(): Promise<UserVisaPackage | null> {
+export async function getUserVisaPackages(): Promise<UserVisaPackage[]> {
   try {
     const supabase = await createClient();
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) return [];
 
     const { data, error } = await supabase
       .from("user_packages")
       .select("visa_package_id, visa_packages(id, country, visa_type, name, description)")
       .eq("auth_user_id", user.id)
       .eq("status", "active")
-      .order("assigned_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("assigned_at", { ascending: false });
 
-    if (error || !data?.visa_packages) return null;
+    if (error || !data) return [];
 
-    const pkg = Array.isArray(data.visa_packages)
-      ? data.visa_packages[0]
-      : data.visa_packages;
+    return data
+      .map((row) => {
+        const pkg = Array.isArray(row.visa_packages)
+          ? row.visa_packages[0]
+          : row.visa_packages;
 
-    if (!pkg) return null;
-
-    return {
-      id: pkg.id,
-      country: pkg.country,
-      visa_type: pkg.visa_type,
-      name: pkg.name,
-      description: pkg.description ?? null,
-    };
+        if (!pkg) return null;
+        return {
+          id: pkg.id,
+          country: pkg.country,
+          visa_type: pkg.visa_type,
+          name: pkg.name,
+          description: pkg.description ?? null,
+        } satisfies UserVisaPackage;
+      })
+      .filter((pkg): pkg is UserVisaPackage => Boolean(pkg));
   } catch (err) {
-    console.error("[getUserVisaPackage] Error:", err);
-    return null;
+    console.error("[getUserVisaPackages] Error:", err);
+    return [];
   }
+}
+
+/**
+ * Get the latest active visa package assigned to the current user.
+ * Returns null if no package is assigned.
+ */
+export async function getUserVisaPackage(): Promise<UserVisaPackage | null> {
+  const packages = await getUserVisaPackages();
+  return packages[0] ?? null;
 }

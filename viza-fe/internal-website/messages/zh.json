@@ -33,6 +33,8 @@
     "authError": "认证失败。请重新点击链接。",
     "dashboardError": "加载仪表板时发生错误",
     "application": "申请",
+    "activeApplicationCount": "共 {count} 个进行中的签证",
+    "applicationProgress": "申请进度",
     "indonesia": "印度尼西亚",
     "touristVisaB211A": "旅游签证 B211A",
     "notStarted": "未开始",
@@ -83,8 +85,12 @@
       "subheading": "从目的地卡片开始，VIZA 会绑定对应的申请流程。申根国家会共用 C 类短期签证表单，同时保留所选国家作为主要目的地。",
       "schemaReady": "官方表单结构已接入",
       "start": "开始",
+      "open": "打开",
+      "continue": "继续",
       "starting": "正在开始",
       "selected": "已选择",
+      "readyToStart": "可开始",
+      "addedNotStarted": "已添加 · 尚未开始",
       "selectError": "暂时无法选择该目的地，请重试。"
     },
     "visaTimeline": {

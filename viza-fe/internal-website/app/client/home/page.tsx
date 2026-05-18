@@ -16,9 +16,16 @@ import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatu
 import { DocumentProgressCard } from "@/components/client/home/DocumentProgressCard";
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
-import { PopularDestinationsSection } from "@/components/client/home/PopularDestinationsSection";
-import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
-import { getDestinationFlag } from "@/lib/visa-destinations";
+import {
+  PopularDestinationsSection,
+  type DestinationApplicationProgress,
+} from "@/components/client/home/PopularDestinationsSection";
+import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
+import {
+  getDestinationFlag,
+  getVisaDestinationKey,
+  getVisaPackageTitleZh,
+} from "@/lib/visa-destinations";
 
 // ---------------------------------------------------------------------------
 // Country helpers
@@ -52,7 +59,7 @@ function ErrorState({ message }: { message: string }) {
           </EmptyMedia>
           <EmptyTitle>{message}</EmptyTitle>
           <EmptyDescription>
-            Something went wrong loading your dashboard. Please try refreshing the page.
+            加载仪表板时出现问题，请刷新页面后重试。
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -71,114 +78,83 @@ interface ApplicationRow {
   visa_type: string;
   submitted_at: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 interface DocumentRow {
   id: string;
+  application_id: string;
   document_type: string;
   status: string;
   created_at: string;
   updated_at: string;
 }
 
-// ---------------------------------------------------------------------------
-// Visa Timeline Card (shown when no application exists)
-// ---------------------------------------------------------------------------
-
-type StageStatus = "active" | "locked";
-
-const STAGE_IDS = ["application", "documents", "submit", "review", "decision"] as const;
-
-const STAGE_META: Record<string, { icon: string; status: StageStatus; href?: string }> = {
-  application: { icon: "📋", status: "active", href: "/client/application" },
-  documents: { icon: "📁", status: "locked" },
-  submit: { icon: "✈️", status: "locked" },
-  review: { icon: "🔍", status: "locked" },
-  decision: { icon: "✅", status: "locked" },
-};
-
-function VisaStageCard({ title, subtitle, badge, icon, status, href }: {
-  title: string; subtitle: string; badge: string; icon: string; status: StageStatus; href?: string;
-}) {
-  const isLocked = status === "locked";
-
-  const inner = (
-    <div
-      className={[
-        "w-full rounded-[16px] border border-[#efefef]",
-        isLocked ? "bg-[rgba(239,239,239,0.5)]" : "bg-white hover:bg-[#fbfbfb] transition-colors cursor-pointer",
-      ].join(" ")}
-    >
-      <div className="flex flex-col xl:flex-row xl:items-center w-full p-[16px] xl:p-[20px] gap-[12px] xl:gap-[24px] xl:justify-between">
-        <div className="flex items-center gap-[16px] xl:gap-[20px] min-w-0">
-          <div
-            className={[
-              "relative rounded-[8px] shrink-0 size-[72px] xl:size-[80px] flex items-center justify-center text-[32px]",
-              isLocked ? "bg-[#f0f0f0] opacity-60" : "bg-[#eef3fa]",
-            ].join(" ")}
-          >
-            <span role="img">{icon}</span>
-          </div>
-          <div className={["flex flex-col gap-[8px] min-w-0", isLocked ? "opacity-50" : ""].join(" ")}>
-            <p className="font-heading font-medium leading-[1.3] text-[#3d3d3d] text-[18px] xl:text-[20px] tracking-[-0.6px] truncate">
-              {title}
-            </p>
-            <p className="font-normal leading-[1.3] text-[14px] xl:text-[16px] text-[rgba(0,0,0,0.45)] tracking-[-0.48px] truncate">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-        <div
-          className={[
-            "shrink-0 rounded-[999px] px-[20px] xl:px-[24px] py-[8px] xl:py-[12px] font-medium text-[14px] xl:text-[16px] leading-[1.5] tracking-[-0.24px] w-full xl:w-auto text-center",
-            isLocked ? "bg-[#dcdcdc] text-[#989898]" : "bg-[#03346E] text-white",
-          ].join(" ")}
-        >
-          {badge}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (href && !isLocked) {
-    return <a href={href}>{inner}</a>;
-  }
-  return inner;
+interface AnswerRow {
+  application_id: string;
+  field_name: string;
+  value_text: string | null;
+  updated_at: string | null;
 }
 
-function VisaTimelineCard({ packageName }: { packageName?: string }) {
-  const t = useTranslations("home.visaTimeline");
+function getProgressLabel(status: string, percent: number): string {
+  if (status === "approved") return "已批准";
+  if (status === "submitted") return "已提交";
+  if (status === "rejected") return "需要处理";
+  if (percent >= 70) return "接近完成";
+  if (percent >= 30) return "填写中";
+  return "已开始";
+}
 
-  return (
-    <motion.div
-      className="w-full max-w-[1090px] mt-20 xl:mt-24 flex flex-col gap-[16px]"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <p className="font-heading font-medium leading-[1.3] text-[30px] text-[#3d3d3d] tracking-[-0.9px]">
-        {packageName || t("heading")}
-      </p>
-      <p className="font-normal leading-[1.3] text-[20px] text-[rgba(0,0,0,0.45)] tracking-[-0.6px]">
-        {t("subheading")}
-      </p>
+function buildApplicationProgress(
+  applications: ApplicationRow[],
+  documents: DocumentRow[],
+  answers: AnswerRow[],
+): Record<string, DestinationApplicationProgress> {
+  const docsByApplication = new Map<string, DocumentRow[]>();
+  const answersByApplication = new Map<string, AnswerRow[]>();
 
-      {STAGE_IDS.map((id) => {
-        const meta = STAGE_META[id];
-        return (
-          <VisaStageCard
-            key={id}
-            title={t(`stages.${id}.title`)}
-            subtitle={t(`stages.${id}.subtitle`)}
-            badge={t(`stages.${id}.badge`)}
-            icon={meta.icon}
-            status={meta.status}
-            href={meta.href}
-          />
-        );
-      })}
-    </motion.div>
-  );
+  for (const document of documents) {
+    const existing = docsByApplication.get(document.application_id) ?? [];
+    existing.push(document);
+    docsByApplication.set(document.application_id, existing);
+  }
+
+  for (const answer of answers) {
+    if (!answer.value_text?.trim()) continue;
+    const existing = answersByApplication.get(answer.application_id) ?? [];
+    existing.push(answer);
+    answersByApplication.set(answer.application_id, existing);
+  }
+
+  return applications.reduce<Record<string, DestinationApplicationProgress>>((progress, application) => {
+    const appAnswers = answersByApplication.get(application.id) ?? [];
+    const appDocs = docsByApplication.get(application.id) ?? [];
+    const hasPhoto = appAnswers.some((answer) => answer.field_name === "photo_path");
+    const answeredFieldCount = new Set(appAnswers.map((answer) => answer.field_name)).size;
+    const documentCount = appDocs.filter((document) => document.status !== "missing").length;
+
+    let percent = 10;
+    if (application.status === "submitted" || application.status === "approved") {
+      percent = 100;
+    } else if (application.status === "rejected") {
+      percent = 85;
+    } else {
+      percent += Math.min(55, answeredFieldCount * 3);
+      if (hasPhoto) percent += 10;
+      percent += Math.min(20, documentCount * 5);
+      percent = Math.min(95, Math.max(10, percent));
+    }
+
+    progress[getVisaDestinationKey(application.country, application.visa_type)] = {
+      applicationId: application.id,
+      status: application.status,
+      percent,
+      label: getProgressLabel(application.status, percent),
+      updatedAt: application.updated_at ?? application.submitted_at ?? application.created_at,
+    };
+    return progress;
+  }, {});
 }
 
 // ---------------------------------------------------------------------------
@@ -189,26 +165,28 @@ export default function HomePage() {
   const t = useTranslations("home");
   const PAGE_SCALE = 1;
   const [applicantName, setApplicantName] = useState<string | null>(null);
-  const [application, setApplication] = useState<ApplicationRow | null>(null);
+  const [applications, setApplications] = useState<ApplicationRow[]>([]);
+  const [applicationProgress, setApplicationProgress] = useState<Record<string, DestinationApplicationProgress>>({});
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
+  const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   function buildActivityEvents(
-    application: ApplicationRow | null,
+    applications: ApplicationRow[],
     documents: DocumentRow[]
   ): ActivityEvent[] {
     const events: ActivityEvent[] = [];
 
-    if (application) {
+    for (const application of applications) {
+      const applicationName = getVisaPackageTitleZh(application.country, application.visa_type);
       if (application.submitted_at) {
         events.push({
           id: `app-submitted-${application.id}`,
           eventType: "status_change",
           label: t("activity.applicationSubmitted"),
-          sublabel: visaPackage?.name ?? t("activity.visaType"),
+          sublabel: applicationName,
           timestamp: application.submitted_at,
           icon: "check",
         });
@@ -217,7 +195,7 @@ export default function HomePage() {
         id: `app-created-${application.id}`,
         eventType: "application_created",
         label: t("activity.applicationCreated"),
-        sublabel: visaPackage?.name ?? t("activity.visaType"),
+        sublabel: applicationName,
         timestamp: application.created_at,
         icon: "clock",
       });
@@ -292,10 +270,10 @@ export default function HomePage() {
           return;
         }
 
-        // Fetch assigned visa package
-        getUserVisaPackage().then((pkg) => {
-          if (isMounted && pkg) setVisaPackage(pkg);
-        });
+        // Fetch all assigned visa packages so users can run multiple applications at once.
+        const packages = await getUserVisaPackages();
+        if (!isMounted) return;
+        setVisaPackages(packages);
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
@@ -310,26 +288,38 @@ export default function HomePage() {
         if (profile) {
           setApplicantName((profile as { full_name: string | null }).full_name || authName);
 
-          const { data: app } = await supabase
+          const { data: appRows } = await supabase
             .from("applications")
-            .select("id, status, country, visa_type, submitted_at, created_at")
+            .select("id, status, country, visa_type, submitted_at, created_at, updated_at")
             .eq("applicant_id", (profile as { id: string }).id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order("created_at", { ascending: false });
 
           if (!isMounted) return;
 
-          if (app) {
-            setApplication(app as ApplicationRow);
+          const loadedApplications = (appRows ?? []) as ApplicationRow[];
+          setApplications(loadedApplications);
 
-            const { data: docs } = await supabase
+          if (loadedApplications.length > 0) {
+            const applicationIds = loadedApplications.map((application) => application.id);
+            const [{ data: docs }, { data: answers }] = await Promise.all([
+              supabase
               .from("application_documents")
-              .select("id, document_type, status, created_at, updated_at")
-              .eq("application_id", (app as { id: string }).id);
+                .select("id, application_id, document_type, status, created_at, updated_at")
+                .in("application_id", applicationIds),
+              supabase
+                .from("visa_application_answers")
+                .select("application_id, field_name, value_text, updated_at")
+                .in("application_id", applicationIds),
+            ]);
 
             if (!isMounted) return;
-            setDocuments((docs ?? []) as DocumentRow[]);
+            const loadedDocuments = (docs ?? []) as DocumentRow[];
+            const loadedAnswers = (answers ?? []) as AnswerRow[];
+            setDocuments(loadedDocuments);
+            setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers));
+          } else {
+            setDocuments([]);
+            setApplicationProgress({});
           }
         } else if (authName) {
           setApplicantName(authName);
@@ -361,8 +351,13 @@ export default function HomePage() {
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
+  const primaryApplication = applications[0] ?? null;
+  const primaryProgress = primaryApplication
+    ? applicationProgress[getVisaDestinationKey(primaryApplication.country, primaryApplication.visa_type)]
+    : null;
+  const primaryPackage = visaPackages[0] ?? null;
   const uploadedDocuments = documents.filter((d) => d.status !== "missing");
-  const activityEvents = buildActivityEvents(application, documents);
+  const activityEvents = buildActivityEvents(applications, documents);
 
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -417,17 +412,19 @@ export default function HomePage() {
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            {application ? (
+            {primaryApplication ? (
               <>
                 <ApplicationStatusCard
-                  status={application.status}
-                  visaType={application.visa_type}
-                  country={application.country}
-                  submittedAt={application.submitted_at}
+                  status={primaryApplication.status}
+                  visaType={primaryApplication.visa_type}
+                  country={primaryApplication.country}
+                  submittedAt={primaryApplication.submitted_at}
+                  progressPercent={primaryProgress?.percent}
+                  applicationCount={applications.length}
                 />
                 <DocumentProgressCard
                   uploadedCount={uploadedDocuments.length}
-                  totalRequired={6}
+                  totalRequired={Math.max(6, applications.length * 6)}
                 />
                 <QuickActionsCard />
               </>
@@ -445,13 +442,15 @@ export default function HomePage() {
                     <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
                     <div className="w-full">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-4xl leading-none" role="img" aria-label="flag">{visaPackage ? getCountryFlag(visaPackage.country) : "🌐"}</span>
+                        <span className="text-4xl leading-none" role="img" aria-label="flag">{primaryPackage ? getCountryFlag(primaryPackage.country) : "🌐"}</span>
                         <div>
                           <p className="text-white font-heading font-medium text-[18px] leading-tight">
-                            {visaPackage?.name ?? t("emptyApplication.noActiveApplication")}
+                            {primaryPackage
+                              ? getVisaPackageTitleZh(primaryPackage.country, primaryPackage.visa_type)
+                              : t("emptyApplication.noActiveApplication")}
                           </p>
-                          {visaPackage?.description && (
-                            <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{visaPackage.description}</p>
+                          {primaryPackage?.description && (
+                            <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">{primaryPackage.description}</p>
                           )}
                         </div>
                       </div>
@@ -492,13 +491,10 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* Timeline / stage cards (only when no application) */}
-        {!application && (
-          <>
-            <PopularDestinationsSection selectedPackage={visaPackage} />
-            <VisaTimelineCard packageName={visaPackage?.name} />
-          </>
-        )}
+        <PopularDestinationsSection
+          selectedPackages={visaPackages}
+          applicationProgress={applicationProgress}
+        />
 
         {/* Recent Activity Heading */}
         <motion.p
