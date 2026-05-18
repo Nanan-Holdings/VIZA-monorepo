@@ -942,11 +942,24 @@ function generateChineseFromText(text: string): string | null {
   return tokens.length > 0 ? tokens.join("") : null;
 }
 
-function generateChinesePlaceholder(placeholder: string): string | null {
+function getChineseExampleForField(fieldName?: string, fallbackExample?: string): string {
+  const normalizedField = fieldName?.toLowerCase() ?? "";
+  if (normalizedField.includes("surname") || normalizedField.includes("family_name")) return "张";
+  if (normalizedField.includes("given") || normalizedField.includes("first_name")) return "小明";
+  if (normalizedField.includes("full_name") || normalizedField.includes("native")) return "张小明";
+  if (normalizedField.includes("city") || normalizedField.includes("town") || normalizedField.includes("place_of_birth")) return "北京";
+  if (normalizedField.includes("country") || normalizedField.includes("nationality")) return "中国";
+  if (normalizedField.includes("address")) return "北京市朝阳区示例路1号";
+  if (normalizedField.includes("hotel") || normalizedField.includes("accommodation")) return "示例酒店";
+  if (fallbackExample && /[\u3400-\u9fff]/.test(fallbackExample)) return fallbackExample;
+  return "示例";
+}
+
+function generateChinesePlaceholder(placeholder: string, fieldName?: string): string | null {
   const exact = getExactChineseText(placeholder);
   if (exact) return exact;
   const example = placeholder.match(/^e\.g\.,?\s*(.+)$/i);
-  if (example) return `例如：${example[1]}`;
+  if (example) return `例如：${getChineseExampleForField(fieldName, example[1])}`;
   if (/^select/i.test(placeholder)) return "请选择...";
   return generateChineseFromText(placeholder);
 }
@@ -1012,9 +1025,9 @@ export function getEnglishLabel(label: string): string {
   return getEnglishText(label);
 }
 
-export function getChinesePlaceholder(placeholder: string | null): string | null {
+export function getChinesePlaceholder(placeholder: string | null, fieldName?: string): string | null {
   if (!placeholder) return null;
-  return generateChinesePlaceholder(placeholder) ?? placeholder;
+  return generateChinesePlaceholder(placeholder, fieldName) ?? placeholder;
 }
 
 export function getEnglishPlaceholder(placeholder: string | null): string | null {

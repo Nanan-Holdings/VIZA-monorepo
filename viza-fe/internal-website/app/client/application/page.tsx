@@ -1249,12 +1249,28 @@ export default function ApplicationPage() {
     setCurrentStep(4);
   };
 
+  const ensurePhotoApplicationId = useCallback(async () => {
+    if (appState.applicationId) return appState.applicationId;
+
+    const result = await ensureDraftApplication(
+      visaPackage?.country ?? "indonesia",
+      visaPackage?.visa_type ?? "B211A",
+      { preferExplicit: Boolean(requestedVisaPackage) },
+    );
+    if (result.error || !result.applicationId) {
+      throw new Error(result.error ?? t("errors.noApplicationFound"));
+    }
+
+    setAppState((prev) => ({ ...prev, applicationId: result.applicationId! }));
+    return result.applicationId;
+  }, [appState.applicationId, requestedVisaPackage, t, visaPackage?.country, visaPackage?.visa_type]);
+
   // ── Dynamic-mode photo handlers ─────────────────────────────────────
-  const handlePhotoComplete = async (storagePath: string) => {
+  const handlePhotoComplete = async (storagePath: string, uploadedApplicationId?: string) => {
     setSaving(true);
     setError(null);
     try {
-      let applicationId = appState.applicationId;
+      let applicationId = uploadedApplicationId ?? appState.applicationId;
       if (!applicationId) {
         const result = await ensureDraftApplication(
           visaPackage?.country ?? "indonesia",
@@ -1493,9 +1509,10 @@ export default function ApplicationPage() {
                         )}
 
                         {/* Photo upload step */}
-                        {step.id === photoStepIndex && appState.applicationId && (
+                        {step.id === photoStepIndex && (
                           <PhotoUploadStep
                             applicationId={appState.applicationId}
+                            ensureApplicationId={ensurePhotoApplicationId}
                             existingPhotoUrl={appState.photo ? undefined : undefined}
                             onComplete={handlePhotoComplete}
                             onSkip={handlePhotoSkip}
