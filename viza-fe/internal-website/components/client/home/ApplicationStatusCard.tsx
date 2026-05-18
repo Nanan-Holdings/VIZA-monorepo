@@ -3,9 +3,9 @@
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import {
-  getDestinationDisplayName,
+  getDestinationDisplayNameZh,
   getDestinationFlag,
-  getVisaTypeDisplayName,
+  getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
@@ -21,15 +21,24 @@ interface Props {
   visaType: string;
   country: string;
   submittedAt?: string | null;
+  progressPercent?: number;
+  applicationCount?: number;
 }
 
-export function ApplicationStatusCard({ status, visaType, country, submittedAt }: Props) {
+export function ApplicationStatusCard({
+  status,
+  visaType,
+  country,
+  submittedAt,
+  progressPercent,
+  applicationCount = 1,
+}: Props) {
   const t = useTranslations("home");
   const statusLabel = t(`statusLabels.${status}`);
   const badgeClass = STATUS_BADGE_CLASSES[status] ?? STATUS_BADGE_CLASSES.draft;
-  const visaTypeLabel = getVisaTypeDisplayName(visaType);
+  const visaTypeLabel = getVisaTypeDisplayNameZh(visaType);
   const countryFlag = getDestinationFlag(country?.toLowerCase?.() ?? "");
-  const countryName = getDestinationDisplayName(country?.toLowerCase?.() ?? "");
+  const countryName = getDestinationDisplayNameZh(country?.toLowerCase?.() ?? "");
 
   return (
     <motion.div
@@ -41,7 +50,14 @@ export function ApplicationStatusCard({ status, visaType, country, submittedAt }
       <div className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex flex-col justify-between items-start p-[24px] relative rounded-[12px] w-full h-[240px]">
         <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
         <div className="flex items-start justify-between w-full">
-          <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
+          <div>
+            <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">{t("application")}</p>
+            {applicationCount > 1 && (
+              <p className="mt-1 text-[12px] text-[rgba(255,255,255,0.58)]">
+                {t("activeApplicationCount", { count: applicationCount })}
+              </p>
+            )}
+          </div>
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${badgeClass}`}>
             {statusLabel}
           </span>
@@ -52,14 +68,28 @@ export function ApplicationStatusCard({ status, visaType, country, submittedAt }
             <div>
               <p className="text-white font-heading font-medium text-[18px] leading-tight capitalize">{countryName}</p>
               <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">
-                {visaType === "tourist_b211a" || visaType === "B211A" ? t("touristVisaB211A") : visaTypeLabel}
+                {visaTypeLabel}
               </p>
             </div>
           </div>
+          {typeof progressPercent === "number" && (
+            <div className="mb-3 space-y-1.5">
+              <div className="flex items-center justify-between text-[12px] text-[rgba(255,255,255,0.62)]">
+                <span>{t("applicationProgress")}</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                <div
+                  className="h-full rounded-full bg-white transition-all duration-700"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
           {submittedAt && (
             <p className="text-[rgba(255,255,255,0.5)] text-[12px]">
               {t("submitted", {
-                date: new Date(submittedAt).toLocaleDateString("en-US", {
+                date: new Date(submittedAt).toLocaleDateString("zh-CN", {
                   month: "short",
                   day: "numeric",
                   year: "numeric",

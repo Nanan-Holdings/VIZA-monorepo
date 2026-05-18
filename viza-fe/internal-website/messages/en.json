@@ -33,6 +33,8 @@
     "authError": "Authentication failed. Please try clicking the link again.",
     "dashboardError": "An error occurred while loading your dashboard",
     "application": "Application",
+    "activeApplicationCount": "{count} active visa applications",
+    "applicationProgress": "Application progress",
     "indonesia": "Indonesia",
     "touristVisaB211A": "Tourist Visa B211A",
     "notStarted": "Not started",
@@ -83,8 +85,12 @@
       "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
       "schemaReady": "Official-form schemas ready",
       "start": "Start",
+      "open": "Open",
+      "continue": "Continue",
       "starting": "Starting",
       "selected": "Selected",
+      "readyToStart": "Ready to start",
+      "addedNotStarted": "Added · not started",
       "selectError": "Could not select this destination. Please try again."
     },
     "visaTimeline": {

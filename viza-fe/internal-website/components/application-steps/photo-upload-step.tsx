@@ -19,12 +19,15 @@ import {
   type PhotoValidationResult,
   type PhotoFailureReason,
 } from "@/lib/photo-validation";
+import { getPhotoGuidance } from "@/lib/photo-guidance";
 import { PhotoCropTool } from "./photo-crop-tool";
 
 type Screen = "upload" | "quality_check" | "confirm";
 
 export interface PhotoUploadStepProps {
   applicationId: string | null;
+  country?: string;
+  visaType?: string;
   existingPhotoUrl?: string;
   ensureApplicationId?: () => Promise<string>;
   onComplete: (storagePath: string, applicationId?: string) => void;
@@ -33,12 +36,15 @@ export interface PhotoUploadStepProps {
 
 export function PhotoUploadStep({
   applicationId,
+  country,
+  visaType,
   existingPhotoUrl,
   ensureApplicationId,
   onComplete,
   onSkip,
 }: PhotoUploadStepProps) {
   const t = useTranslations("applicationSteps.photoUpload");
+  const guidance = getPhotoGuidance(country, visaType);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [screen, setScreen] = useState<Screen>(
@@ -170,7 +176,7 @@ export function PhotoUploadStep({
             </h3>
           </div>
           <p className="text-sm text-gray-600 leading-relaxed">
-            {t("instructions")}
+            {guidance.instructions}
           </p>
         </div>
 
@@ -184,7 +190,7 @@ export function PhotoUploadStep({
               </h3>
             </div>
             <p className="text-sm text-gray-500">
-              {t("cropToolDescription")}
+              {guidance.cropToolDescription}
             </p>
             <PhotoCropTool
               imageObjectUrl={rawObjectUrl}
@@ -203,7 +209,7 @@ export function PhotoUploadStep({
                 </span>
               </div>
               <p className="text-xs text-gray-500">
-                {t("cropToolDescription")}
+                {guidance.cropToolDescription}
               </p>
             </div>
 
@@ -212,7 +218,7 @@ export function PhotoUploadStep({
               <h3 className="text-[15px] font-semibold text-[#3d3d3d]">
                 {t("selectPhoto")}
               </h3>
-              <p className="text-sm text-gray-500">{t("formatHint")}</p>
+              <p className="text-sm text-gray-500">{guidance.formatHint}</p>
 
               <div
                 className="rounded-lg border-2 border-dashed border-gray-300 hover:border-[#03346E]/50 p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors"
@@ -224,7 +230,7 @@ export function PhotoUploadStep({
                     {t("browse")}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {t("formatSpec")}
+                    {guidance.formatSpec}
                   </p>
                 </div>
               </div>
@@ -249,7 +255,7 @@ export function PhotoUploadStep({
                 {t("qualityTitle")}
               </h4>
               <p className="text-xs text-gray-500 leading-relaxed">
-                {t("qualityDescription")}
+                {guidance.qualityDescription}
               </p>
             </div>
           </>
