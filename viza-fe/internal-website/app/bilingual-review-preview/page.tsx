@@ -13,6 +13,11 @@ import {
 
 type FieldKind = "text" | "date" | "option" | "address";
 
+interface OptionPair {
+  zh: string;
+  en: string;
+}
+
 interface PreviewField {
   id: string;
   section: string;
@@ -226,21 +231,80 @@ const DIRECT_TRANSLATIONS: Record<string, string> = {
   英国: "United Kingdom",
   日本: "Japan",
   新加坡: "Singapore",
+  加拿大: "Canada",
+  澳大利亚: "Australia",
+  德国: "Germany",
   男: "Male",
   女: "Female",
+  其他: "Other",
   未婚: "Single",
   已婚: "Married",
   离异: "Divorced",
+  丧偶: "Widowed",
   无: "None",
+  佛教: "Buddhism",
+  基督教: "Christianity",
+  伊斯兰教: "Islam",
   旅游: "Tourism",
   商务: "Business",
   留学: "Study",
   探亲: "Visit family",
+  过境: "Transit",
   纽约肯尼迪国际机场: "John F. Kennedy International Airport, New York",
   上海浦东国际机场: "Shanghai Pudong International Airport",
   北京首都国际机场: "Beijing Capital International Airport",
   "巴黎第一区里沃利街 10 号": "10 Rue de Rivoli, 1st arrondissement, Paris",
 };
+
+const COUNTRY_OPTIONS: OptionPair[] = [
+  { zh: "中国", en: "China" },
+  { zh: "美国", en: "United States" },
+  { zh: "英国", en: "United Kingdom" },
+  { zh: "法国", en: "France" },
+  { zh: "日本", en: "Japan" },
+  { zh: "新加坡", en: "Singapore" },
+  { zh: "加拿大", en: "Canada" },
+  { zh: "澳大利亚", en: "Australia" },
+  { zh: "德国", en: "Germany" },
+];
+
+const OPTION_SETS: Record<string, OptionPair[]> = {
+  maritalStatus: [
+    { zh: "未婚", en: "Single" },
+    { zh: "已婚", en: "Married" },
+    { zh: "离异", en: "Divorced" },
+    { zh: "丧偶", en: "Widowed" },
+  ],
+  gender: [
+    { zh: "男", en: "Male" },
+    { zh: "女", en: "Female" },
+    { zh: "其他", en: "Other" },
+  ],
+  nationality: COUNTRY_OPTIONS,
+  countryOfBirth: COUNTRY_OPTIONS,
+  religion: [
+    { zh: "无", en: "None" },
+    { zh: "佛教", en: "Buddhism" },
+    { zh: "基督教", en: "Christianity" },
+    { zh: "伊斯兰教", en: "Islam" },
+    { zh: "其他", en: "Other" },
+  ],
+  journeyPurpose: [
+    { zh: "旅游", en: "Tourism" },
+    { zh: "商务", en: "Business" },
+    { zh: "留学", en: "Study" },
+    { zh: "探亲", en: "Visit family" },
+    { zh: "过境", en: "Transit" },
+  ],
+};
+
+const REVERSE_TRANSLATIONS = Object.entries(DIRECT_TRANSLATIONS).reduce<Record<string, string>>(
+  (translations, [chinese, english]) => {
+    translations[normaliseLookup(english)] = chinese;
+    return translations;
+  },
+  {},
+);
 
 const TEXT_REPLACEMENTS = [
   ["2023年", "issued in 2023"],
@@ -253,6 +317,10 @@ const TEXT_REPLACEMENTS = [
   ["，", ", "],
   ["。", "."],
 ] as const;
+
+function normaliseLookup(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 function formatOfficialDate(value: string): string | null {
   const trimmed = value.trim();
@@ -268,8 +336,40 @@ function formatOfficialDate(value: string): string | null {
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 }
 
+function formatChineseDate(value: string): string | null {
+  const trimmed = value.trim();
+  const officialMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+
+  if (officialMatch) {
+    const [, day, month, year] = officialMatch;
+    return `${year}年${Number(month)}月${Number(day)}日`;
+  }
+
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${year}年${Number(month)}月${Number(day)}日`;
+  }
+
+  return null;
+}
+
 function looksLikeMostlyLatin(value: string): boolean {
   return /^[\dA-Za-z\s,.'#/-]+$/.test(value.trim());
+}
+
+function getOptions(fieldId: string): OptionPair[] {
+  return OPTION_SETS[fieldId] ?? [];
+}
+
+function findOptionByChinese(fieldId: string, value: string): OptionPair | undefined {
+  const lookup = normaliseLookup(value);
+  return getOptions(fieldId).find((option) => normaliseLookup(option.zh) === lookup);
+}
+
+function findOptionByEnglish(fieldId: string, value: string): OptionPair | undefined {
+  const lookup = normaliseLookup(value);
+  return getOptions(fieldId).find((option) => normaliseLookup(option.en) === lookup);
 }
 
 function translateText(value: string, kind: FieldKind): string {
@@ -308,9 +408,32 @@ function translateText(value: string, kind: FieldKind): string {
   return `Please confirm official English: ${trimmed}`;
 }
 
+function reverseTranslateText(value: string, kind: FieldKind): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (kind === "date") {
+    return formatChineseDate(trimmed) ?? "日期格式无法识别，请手动确认";
+  }
+
+  const direct = REVERSE_TRANSLATIONS[normaliseLookup(trimmed)];
+  if (direct) {
+    return direct;
+  }
+
+  if (normaliseLookup(trimmed) === normaliseLookup("Schengen tourist visa issued in 2023, visa number SCH-2023-8891, valid for 30 days.")) {
+    return "2023年获得申根旅游签证，签证号 SCH-2023-8891，有效期 30 天。";
+  }
+
+  return trimmed;
+}
+
 function getFieldBadge(field: PreviewField): string {
   if (field.englishEdited) {
-    return "英文已手动编辑";
+    return "英文侧已同步";
   }
 
   if (field.kind === "date") {
@@ -322,6 +445,63 @@ function getFieldBadge(field: PreviewField): string {
   }
 
   return "自动生成英文";
+}
+
+function ReviewValueControl({
+  field,
+  side,
+  onChange,
+}: {
+  field: PreviewField;
+  side: "chinese" | "english";
+  onChange: (value: string) => void;
+}) {
+  const options = getOptions(field.id);
+  const isChinese = side === "chinese";
+  const label = isChinese ? `${field.label}中文原文` : `${field.label}英文翻译`;
+  const value = isChinese ? field.chineseValue : field.englishValue;
+  const selectClass =
+    "h-12 w-full rounded-md border px-3 text-sm font-medium outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15";
+  const textareaClass =
+    "min-h-[76px] w-full resize-y rounded-md border px-3 py-2 text-sm leading-6 outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15";
+
+  if (options.length > 0) {
+    return (
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={label}
+        className={
+          isChinese
+            ? `${selectClass} border-[#d6dce6] bg-white text-[#252a33]`
+            : `${selectClass} border-[#b8c9e0] bg-[#f8fbff] text-[#172033]`
+        }
+      >
+        {options.map((option) => {
+          const optionValue = isChinese ? option.zh : option.en;
+          return (
+            <option key={`${field.id}-${optionValue}`} value={optionValue}>
+              {optionValue}
+            </option>
+          );
+        })}
+      </select>
+    );
+  }
+
+  return (
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      rows={field.long ? 4 : 2}
+      className={
+        isChinese
+          ? `${textareaClass} border-[#d6dce6] bg-white text-[#252a33]`
+          : `${textareaClass} border-[#b8c9e0] bg-[#f8fbff] font-medium text-[#172033]`
+      }
+      aria-label={label}
+    />
+  );
 }
 
 function groupFields(fields: PreviewField[]): Array<{ section: string; fields: PreviewField[] }> {
@@ -348,12 +528,15 @@ export default function BilingualReviewPreviewPage() {
     setFields((current) =>
       current.map((field) =>
         field.id === fieldId
-          ? {
-              ...field,
-              chineseValue,
-              englishValue: translateText(chineseValue, field.kind),
-              englishEdited: false,
-            }
+          ? (() => {
+              const selectedOption = findOptionByChinese(field.id, chineseValue);
+              return {
+                ...field,
+                chineseValue: selectedOption?.zh ?? chineseValue,
+                englishValue: selectedOption?.en ?? translateText(chineseValue, field.kind),
+                englishEdited: false,
+              };
+            })()
           : field,
       ),
     );
@@ -363,11 +546,15 @@ export default function BilingualReviewPreviewPage() {
     setFields((current) =>
       current.map((field) =>
         field.id === fieldId
-          ? {
-              ...field,
-              englishValue,
-              englishEdited: true,
-            }
+          ? (() => {
+              const selectedOption = findOptionByEnglish(field.id, englishValue);
+              return {
+                ...field,
+                chineseValue: selectedOption?.zh ?? reverseTranslateText(englishValue, field.kind),
+                englishValue: selectedOption?.en ?? englishValue,
+                englishEdited: true,
+              };
+            })()
           : field,
       ),
     );
@@ -375,11 +562,14 @@ export default function BilingualReviewPreviewPage() {
 
   function refreshAllTranslations() {
     setFields((current) =>
-      current.map((field) => ({
-        ...field,
-        englishValue: translateText(field.chineseValue, field.kind),
-        englishEdited: false,
-      })),
+      current.map((field) => {
+        const selectedOption = findOptionByChinese(field.id, field.chineseValue);
+        return {
+          ...field,
+          englishValue: selectedOption?.en ?? translateText(field.chineseValue, field.kind),
+          englishEdited: false,
+        };
+      }),
     );
   }
 
@@ -424,19 +614,19 @@ export default function BilingualReviewPreviewPage() {
           <div className="rounded-lg border border-[#dfe5ee] bg-white p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-[#03346E]">
               <Sparkles className="h-4 w-4" />
-              中文驱动翻译
+              下拉选项映射
             </div>
             <p className="mt-2 text-sm leading-6 text-[#5e6673]">
-              修改任意中文输入后，右侧英文会立刻刷新，模拟后续真实 AI 翻译服务。
+              婚姻状况、性别、国籍、宗教信仰、旅行目的等字段改为下拉选择。
             </p>
           </div>
           <div className="rounded-lg border border-[#dfe5ee] bg-white p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-[#03346E]">
               <PencilLine className="h-4 w-4" />
-              双侧可编辑
+              双向同步
             </div>
             <p className="mt-2 text-sm leading-6 text-[#5e6673]">
-              英文侧可以人工覆盖；一旦再次改中文，会重新生成英文并清除手动编辑标记。
+              中文侧变化会刷新英文；英文侧变化也会反向同步中文，日期会自动在两种格式间转换。
             </p>
           </div>
           <div className="rounded-lg border border-[#dfe5ee] bg-white p-4">
@@ -445,7 +635,7 @@ export default function BilingualReviewPreviewPage() {
               当前状态
             </div>
             <p className="mt-2 text-sm leading-6 text-[#5e6673]">
-              共 {fields.length} 个核对字段，{editedCount} 个英文值已手动编辑。
+              共 {fields.length} 个核对字段，{editedCount} 个字段刚从英文侧同步。
             </p>
           </div>
         </section>
@@ -469,11 +659,11 @@ export default function BilingualReviewPreviewPage() {
                     key={field.id}
                     className={
                       field.long
-                        ? "grid gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)]"
-                        : "grid gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]"
+                        ? "grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)]"
+                        : "grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]"
                     }
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#24272f]">{field.label}</p>
                       <p className="mt-1 text-xs leading-5 text-[#697386]">{field.helper}</p>
                       <span className="mt-2 inline-flex rounded-full bg-[#eaf2ff] px-2 py-1 text-[11px] font-medium text-[#03346E]">
@@ -481,29 +671,25 @@ export default function BilingualReviewPreviewPage() {
                       </span>
                     </div>
 
-                    <label className={field.long ? "md:col-start-2" : undefined}>
+                    <label className={field.long ? "min-w-0 md:col-start-2" : "min-w-0"}>
                       <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">
                         中文原文
                       </span>
-                      <textarea
-                        value={field.chineseValue}
-                        onChange={(event) => updateChineseValue(field.id, event.target.value)}
-                        rows={field.long ? 4 : 2}
-                        className="min-h-[76px] w-full resize-y rounded-md border border-[#d6dce6] bg-white px-3 py-2 text-sm leading-6 text-[#252a33] outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15"
-                        aria-label={`${field.label}中文原文`}
+                      <ReviewValueControl
+                        field={field}
+                        side="chinese"
+                        onChange={(value) => updateChineseValue(field.id, value)}
                       />
                     </label>
 
-                    <label className={field.long ? "md:col-start-2" : undefined}>
+                    <label className={field.long ? "min-w-0 md:col-start-2" : "min-w-0"}>
                       <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">
                         英文翻译 / 官方格式
                       </span>
-                      <textarea
-                        value={field.englishValue}
-                        onChange={(event) => updateEnglishValue(field.id, event.target.value)}
-                        rows={field.long ? 4 : 2}
-                        className="min-h-[76px] w-full resize-y rounded-md border border-[#b8c9e0] bg-[#f8fbff] px-3 py-2 text-sm font-medium leading-6 text-[#172033] outline-none transition focus:border-[#03346E] focus:ring-2 focus:ring-[#03346E]/15"
-                        aria-label={`${field.label}英文翻译`}
+                      <ReviewValueControl
+                        field={field}
+                        side="english"
+                        onChange={(value) => updateEnglishValue(field.id, value)}
                       />
                     </label>
 
