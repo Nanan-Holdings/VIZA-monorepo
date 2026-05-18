@@ -1517,6 +1517,8 @@ export default function ApplicationPage() {
                             prefill={dynamicAnswers}
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
                             saving={saving}
+                            country={visaPackage?.country}
+                            visaType={getFormVisaType(visaPackage?.visa_type ?? "B211A")}
                           />
                         )}
 
