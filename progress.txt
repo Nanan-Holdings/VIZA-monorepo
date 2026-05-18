@@ -384,3 +384,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: prd.json, progress.txt, app/bilingual-review-preview/page.tsx, dynamic-review-step.tsx
 - Learnings: the production integration can safely sit beside the existing review summary first; this preserves the original confirmation surface while adding the bilingual official-format check before submit.
 ---
+
+## 2026-05-18 - REV-001 application-page follow-up
+- Added a development-only bilingual question generator to /client/application so developers can type either Chinese or English field copy and immediately get the other language.
+- Filled the missing hardcoded B211A personal-info translation keys so the application page no longer renders applicationSteps.personalInfo.* labels.
+- Kept the helper local and non-persistent; it does not save to the user application flow and is hidden in production builds.
+- Files changed: app/client/application/page.tsx, bilingual-question-dev-tool.tsx, messages/en.json, messages/zh.json, progress.txt
+- Learnings: the hardcoded fallback flow needs its own next-intl keys even when DB-driven dynamic forms already translate labels elsewhere; a small dev-only copy helper reduces friction while the field schema is still changing.
+---
