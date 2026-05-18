@@ -3250,6 +3250,7 @@ export function TravelChatClient({
                 initialItineryRows={sharedItineryRows}
                 itinerary={displayItinerary}
                 mapPoints={mapPoints}
+                modulePatch={activeTravelVersion?.modulePatch}
                 onPointSelect={handleMapPointSelect}
                 onVersionSelect={(versionId) =>
                   setActiveTravelVersion(activeSessionId, versionId)

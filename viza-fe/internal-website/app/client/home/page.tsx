@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, AlertCircle, CheckCircle2, Lock, ArrowRight, CircleAlert } from "lucide-react";
-import Link from "next/link";
+import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
@@ -17,25 +16,16 @@ import { ApplicationStatusCard } from "@/components/client/home/ApplicationStatu
 import { DocumentProgressCard } from "@/components/client/home/DocumentProgressCard";
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
+import { PopularDestinationsSection } from "@/components/client/home/PopularDestinationsSection";
 import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
+import { getDestinationFlag } from "@/lib/visa-destinations";
 
 // ---------------------------------------------------------------------------
 // Country helpers
 // ---------------------------------------------------------------------------
 
-const COUNTRY_FLAGS: Record<string, string> = {
-  indonesia: "🇮🇩",
-  united_states: "🇺🇸",
-  japan: "🇯🇵",
-  australia: "🇦🇺",
-  singapore: "🇸🇬",
-  china: "🇨🇳",
-  united_kingdom: "🇬🇧",
-  canada: "🇨🇦",
-};
-
 function getCountryFlag(country: string): string {
-  return COUNTRY_FLAGS[country.toLowerCase()] ?? "🌐";
+  return getDestinationFlag(country);
 }
 
 // ---------------------------------------------------------------------------
@@ -505,7 +495,10 @@ export default function HomePage() {
 
         {/* Timeline / stage cards (only when no application) */}
         {!application && (
-          <VisaTimelineCard packageName={visaPackage?.name} />
+          <>
+            <PopularDestinationsSection selectedPackage={visaPackage} />
+            <VisaTimelineCard packageName={visaPackage?.name} />
+          </>
         )}
 
         {/* Recent Activity Heading */}

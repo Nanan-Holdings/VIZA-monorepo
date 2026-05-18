@@ -357,6 +357,16 @@ function computeMissingSlots(state: VisaConversationState): string[] {
     const splitCountries = Object.keys(state.schengenDaySplit);
     if (splitCountries.length < schengenDestinations.length) {
       missing.push('schengenDaySplit');
+    } else if (!state.mainDestination && !state.firstEntryCountry) {
+      const dayValues = schengenDestinations
+        .map((country) => state.schengenDaySplit[country])
+        .filter((days): days is number => typeof days === 'number');
+      const maxDays = dayValues.length > 0 ? Math.max(...dayValues) : null;
+      const longestCount =
+        maxDays === null ? 0 : dayValues.filter((days) => days === maxDays).length;
+      if (longestCount > 1) {
+        missing.push('firstEntryCountry');
+      }
     }
   }
 
@@ -378,6 +388,12 @@ function resolveMainDestination(
 ): SupportedKnowledgeCountry | null {
   if (state.mainDestination) return state.mainDestination;
   if (state.destinationCountries.length === 1) return state.destinationCountries[0];
+  if (
+    state.firstEntryCountry &&
+    state.destinationCountries.includes(state.firstEntryCountry)
+  ) {
+    return state.firstEntryCountry;
+  }
 
   const splitEntries = Object.entries(state.schengenDaySplit) as Array<
     [SupportedKnowledgeCountry, number]

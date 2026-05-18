@@ -2,19 +2,11 @@
 
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
-
-const VISA_TYPE_LABELS: Record<string, string> = {
-  tourist_b211a: "Tourist Visa B211A",
-  B211A: "Tourist Visa B211A",
-  DS160: "DS-160 Visitor Visa",
-  UK_STANDARD_VISITOR: "UK Standard Visitor Visa",
-};
-
-const COUNTRY_FLAGS: Record<string, string> = {
-  indonesia: "🇮🇩",
-  united_states: "🇺🇸",
-  united_kingdom: "🇬🇧",
-};
+import {
+  getDestinationDisplayName,
+  getDestinationFlag,
+  getVisaTypeDisplayName,
+} from "@/lib/visa-destinations";
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   draft: "bg-gray-100/20 text-gray-200 border border-gray-200/30",
@@ -35,8 +27,9 @@ export function ApplicationStatusCard({ status, visaType, country, submittedAt }
   const t = useTranslations("home");
   const statusLabel = t(`statusLabels.${status}`);
   const badgeClass = STATUS_BADGE_CLASSES[status] ?? STATUS_BADGE_CLASSES.draft;
-  const visaTypeLabel = VISA_TYPE_LABELS[visaType] ?? visaType;
-  const countryFlag = COUNTRY_FLAGS[country?.toLowerCase?.() ?? ""] ?? "🌐";
+  const visaTypeLabel = getVisaTypeDisplayName(visaType);
+  const countryFlag = getDestinationFlag(country?.toLowerCase?.() ?? "");
+  const countryName = getDestinationDisplayName(country?.toLowerCase?.() ?? "");
 
   return (
     <motion.div
@@ -57,9 +50,9 @@ export function ApplicationStatusCard({ status, visaType, country, submittedAt }
           <div className="flex items-center gap-3 mb-2">
             <span className="text-4xl leading-none" role="img" aria-label={`${country} flag`}>{countryFlag}</span>
             <div>
-              <p className="text-white font-heading font-medium text-[18px] leading-tight capitalize">{country}</p>
+              <p className="text-white font-heading font-medium text-[18px] leading-tight capitalize">{countryName}</p>
               <p className="text-[rgba(255,255,255,0.65)] text-[13px] mt-0.5">
-                {visaType === "tourist_b211a" ? t("touristVisaB211A") : visaTypeLabel}
+                {visaType === "tourist_b211a" || visaType === "B211A" ? t("touristVisaB211A") : visaTypeLabel}
               </p>
             </div>
           </div>
