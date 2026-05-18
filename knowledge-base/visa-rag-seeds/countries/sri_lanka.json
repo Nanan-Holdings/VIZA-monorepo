@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "sri_lanka",
+  "notes": "Country-level VIZA RAG seed for sri_lanka. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "sri-lanka-eta-tourism",
+      "country": "sri_lanka",
+      "visaType": "eta_tourism",
+      "documentType": "requirements",
+      "title": "Sri Lanka ETA for Tourism",
+      "sourceUrl": "https://www.eta.gov.lk/slvisa/",
+      "chunks": [
+        {
+          "id": "lka_china_eta_basic_route_zh",
+          "title": "Chinese passport tourism route for Sri Lanka",
+          "tags": [
+            "sri-lanka",
+            "lka",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Sri Lanka, VIZA AI should consider the official Sri Lanka ETA route through eta.gov.lk when applicable. First confirm nationality, purpose, stay length, entry count, passport validity, and whether the user qualifies for any free ETA policy. Use the official ETA site and do not promise eVisa availability without checking current rules. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "lka_eta_official_rules",
+          "title": "Sri Lanka ETA official rules",
+          "tags": [
+            "sri-lanka",
+            "eta",
+            "official-site",
+            "30-days",
+            "double-entry"
+          ],
+          "content": "Sri Lanka ETA official notices state that short-stay travellers for tourism or business must obtain an Electronic Travel Authorization via eta.gov.lk. Recent official notices list China among nationalities eligible for free ETA for tourism purposes, with a 30-day free visa period and double-entry facility within 30 days from first arrival, subject to current regulations. Passport validity of at least 6 months from first arrival is commonly required by Sri Lankan mission guidance."
+        },
+        {
+          "id": "lka_eta_scope_limits",
+          "title": "Sri Lanka ETA scope and limits",
+          "tags": [
+            "sri-lanka",
+            "tourism",
+            "business",
+            "transit",
+            "not-residence"
+          ],
+          "content": "Tourist/Business ETA is for short visits and cannot be converted into residence status as a general answer. If the user mentions work, long-term study, volunteering, residence, media work or paid activities, VIZA AI should route them away from tourist ETA and ask clarifying questions."
+        }
+      ]
+    },
+    {
+      "slug": "sri_lanka-form-requirements",
+      "country": "sri_lanka",
+      "visaType": "eta_tourism",
+      "documentType": "form_requirements",
+      "title": "Sri Lanka Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.eta.gov.lk/slvisa/",
+      "chunks": [
+        {
+          "id": "sri_lanka_form_channel_and_scope",
+          "title": "Sri Lanka application channel and form scope",
+          "tags": [
+            "sri_lanka",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Sri Lanka ETA portal Official source URLs reviewed for this seed: https://www.eta.gov.lk/slvisa/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "sri_lanka_form_fields_to_collect",
+          "title": "Sri Lanka fields to collect before filling the form",
+          "tags": [
+            "sri_lanka",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, travel dates, purpose, address in Sri Lanka, contact/email and double-entry/transit/business category answers"
+        },
+        {
+          "id": "sri_lanka_supporting_documents_and_review",
+          "title": "Sri Lanka supporting documents and review checklist",
+          "tags": [
+            "sri_lanka",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport, return/onward travel and accommodation/contact details; keep ETA approval with the travel document Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

@@ -25,7 +25,6 @@ import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { TravelItineraryExperience } from "@/components/client/travel/travel-itinerary-experience";
-import { TravelItineraryPanel } from "@/components/client/travel/travel-itinerary-panel";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
   createTravelShareMessages,
@@ -3212,9 +3211,6 @@ export function TravelChatClient({
               })}
                 </div>
 
-                {showFinalItinerary && (
-                  <TravelItineraryPanel messages={messages} variant="compact" />
-                )}
               </div>
               </div>
                 <div
@@ -3224,7 +3220,7 @@ export function TravelChatClient({
                   <ScrollToBottomFab
                     className="-top-20 right-2"
                     hasNewMessage={false}
-                    onClick={scrollConversationToBottom}
+                    onClick={() => scrollConversationToBottom("smooth")}
                     show={showScrollToBottom}
                   />
                   <ChatInput

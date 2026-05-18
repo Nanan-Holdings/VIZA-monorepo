@@ -1,0 +1,99 @@
+{
+  "version": "2026-05-18",
+  "country": "new_zealand",
+  "notes": "Country-level VIZA RAG seed for new_zealand. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "new-zealand-inz-visitor-visa",
+      "country": "new_zealand",
+      "visaType": "visitor_visa",
+      "documentType": "requirements",
+      "title": "New Zealand Visitor Visa",
+      "sourceUrl": "https://www.immigration.govt.nz/visas/visitor-visa/",
+      "chunks": [
+        {
+          "id": "nzl_visitor_basic_route_zh",
+          "title": "中国护照新西兰旅游签证建议",
+          "tags": [
+            "new-zealand",
+            "china",
+            "chinese-passport",
+            "新西兰旅游",
+            "visitor-visa"
+          ],
+          "content": "中国护照持有人短期赴新西兰旅游通常需要按 Immigration New Zealand Visitor Visa 路线准备；不要默认使用 NZeTA，除非用户属于明确的 visa waiver / transit / Australian visa recognition 等特殊情形。先确认国籍、居住地、是否从澳大利亚出发且持有合格澳签、旅行目的、停留天数、同行家庭成员和资金来源。"
+        },
+        {
+          "id": "nzl_china_supplementary_form",
+          "title": "New Zealand China applicant supplementary form",
+          "tags": [
+            "new-zealand",
+            "china",
+            "inz",
+            "supplementary-form",
+            "hukou"
+          ],
+          "content": "Immigration New Zealand states that citizens of China applying from China, Hong Kong or Macau must also provide a completed supplementary form with more details of background and intentions. Applicants may provide Hukou household registration as additional identity evidence, and family members included in the application may need Hukou copies. INZ also publishes China-specific visitor visa guides and checklists."
+        },
+        {
+          "id": "nzl_arrival_funds_onward",
+          "title": "New Zealand arrival funds and onward ticket",
+          "tags": [
+            "new-zealand",
+            "visitor-visa",
+            "onward-ticket",
+            "funds",
+            "arrival"
+          ],
+          "content": "INZ states that on arrival visitors need a ticket to leave New Zealand at the end of the stay, proof they have enough money to buy one, or agreement that a sponsor will pay for one, plus proof of enough money to live on during the stay. VIZA AI should ask about travel dates, sponsor, funds, accommodation and return/onward travel before producing a checklist."
+        }
+      ]
+    },
+    {
+      "slug": "new_zealand-form-requirements",
+      "country": "new_zealand",
+      "visaType": "visitor_visa",
+      "documentType": "form_requirements",
+      "title": "New Zealand Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.immigration.govt.nz/visas/visitor-visa/",
+      "chunks": [
+        {
+          "id": "new_zealand_form_channel_and_scope",
+          "title": "New Zealand application channel and form scope",
+          "tags": [
+            "new_zealand",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Apply online through Immigration New Zealand for a Visitor Visa where required; travellers also need the New Zealand Traveller Declaration before travel. Official source URLs reviewed for this seed: https://www.immigration.govt.nz/visas/visitor-visa/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "new_zealand_form_fields_to_collect",
+          "title": "New Zealand fields to collect before filling the form",
+          "tags": [
+            "new_zealand",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "New Zealand visitor intake should collect identity, passport, photo, nationality and residence, travel dates, purpose and itinerary, funds or sponsorship, onward/return travel, accommodation, family members, employment/study/home ties, health and character answers, and China-specific supplementary form data where applicable."
+        },
+        {
+          "id": "new_zealand_supporting_documents_and_review",
+          "title": "New Zealand supporting documents and review checklist",
+          "tags": [
+            "new_zealand",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Evidence usually covers passport, acceptable photo, funds or sponsorship, onward travel, itinerary/accommodation, proof of genuine visitor intent, employment/study or family ties, medical/police certificates if requested, and translated documents where needed. Workflow guardrails: VIZA should separate the visa application from the New Zealand Traveller Declaration and should track whether the applicant needs supplementary China guide materials."
+        }
+      ]
+    }
+  ]
+}

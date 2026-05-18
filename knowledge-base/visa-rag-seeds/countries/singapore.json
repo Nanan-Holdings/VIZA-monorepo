@@ -1,0 +1,100 @@
+{
+  "version": "2026-05-18",
+  "country": "singapore",
+  "notes": "Country-level VIZA RAG seed for singapore. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "singapore-ica-entry-visa-sgac",
+      "country": "singapore",
+      "visaType": "entry_visa_or_visit_pass",
+      "documentType": "requirements",
+      "title": "Singapore Entry Visa and SG Arrival Card",
+      "sourceUrl": "https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements",
+      "chunks": [
+        {
+          "id": "sgp_entry_visa_basic_route_zh",
+          "title": "中国护照新加坡短期旅游签证建议",
+          "tags": [
+            "singapore",
+            "china",
+            "chinese-passport",
+            "新加坡旅游",
+            "entry-visa",
+            "sgac"
+          ],
+          "content": "中国护照持有人短期赴新加坡旅游通常需要先检查 ICA 的 entry visa requirement，并在入境前完成 SG Arrival Card。VIZA AI 应区分三件事：entry visa 是入境前许可，SG Arrival Card 不是签证，最终停留期由入境时签发的 electronic Visit Pass/e-Pass 决定。不要把新加坡路线误判成申根签证、马来西亚 eVISA 或美国 B1/B2。"
+        },
+        {
+          "id": "sgp_ica_visa_not_pass",
+          "title": "Singapore entry visa is not an immigration pass",
+          "tags": [
+            "singapore",
+            "ica",
+            "visa-required",
+            "e-pass",
+            "entry-decision"
+          ],
+          "content": "ICA explains that a Singapore entry visa is not an immigration pass; it is pre-entry permission to travel to and seek entry into Singapore. Possessing a valid visa does not guarantee entry, and ICA officers decide whether to grant an immigration pass at the checkpoint. The period of stay is not tied to visa validity and is shown on the digital e-Pass sent by email after entry."
+        },
+        {
+          "id": "sgp_sgac_three_days",
+          "title": "SG Arrival Card timing",
+          "tags": [
+            "singapore",
+            "sgac",
+            "arrival-card",
+            "three-days",
+            "health-declaration"
+          ],
+          "content": "ICA requires travellers to submit the SG Arrival Card with electronic health declaration within 3 days before arriving in Singapore, including the day of arrival. VIZA AI should tell users to use official ICA/e-service channels and avoid paid lookalike SGAC websites where possible. SGAC does not replace a visa for visa-required passport holders."
+        }
+      ]
+    },
+    {
+      "slug": "singapore-form-requirements",
+      "country": "singapore",
+      "visaType": "entry_visa_or_visit_pass",
+      "documentType": "form_requirements",
+      "title": "Singapore Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.ica.gov.sg/eservicesandforms/all-forms",
+      "chunks": [
+        {
+          "id": "singapore_form_channel_and_scope",
+          "title": "Singapore application channel and form scope",
+          "tags": [
+            "singapore",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use ICA/SAVE or an authorised local contact/strategic partner where a Singapore entry visa is required; Form 14A is the standard visa application form. Official source URLs reviewed for this seed: https://www.ica.gov.sg/eservicesandforms/all-forms ; https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "singapore_form_fields_to_collect",
+          "title": "Singapore fields to collect before filling the form",
+          "tags": [
+            "singapore",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Singapore visa intake should collect Form 14A-style personal particulars, passport details, nationality, sex, marital status, address/contact details, occupation/employer, purpose and duration of visit, arrival/departure details, local contact or sponsor where required, and declarations about previous immigration or criminal matters."
+        },
+        {
+          "id": "singapore_supporting_documents_and_review",
+          "title": "Singapore supporting documents and review checklist",
+          "tags": [
+            "singapore",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Common documents include completed Form 14A, passport biodata page, recent passport-sized photo, travel itinerary or tickets, hotel or local contact details, and Letter of Introduction Form V39A when required by the applicant category. Workflow guardrails: SG Arrival Card is separate from the visa and is normally submitted shortly before arrival. VIZA should not describe the visa as an entry pass; ICA states possession of a visa does not guarantee entry."
+        }
+      ]
+    }
+  ]
+}

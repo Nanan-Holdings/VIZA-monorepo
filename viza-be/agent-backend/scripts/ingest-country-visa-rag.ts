@@ -1,9 +1,11 @@
 /**
- * RAG ingestion: supported multi-country short-stay visa knowledge base
- * Reads knowledge-base/supported-visa-rag.json -> visa_documents + visa_chunks.
+ * RAG ingestion: country-level visa knowledge seeds.
+ * Reads knowledge-base/visa-rag-seeds/countries/*.json -> visa_documents + visa_chunks.
  *
  * Run:
- *   npm run ingest:supported-visa-rag
+ *   npm run ingest:all-visa-rag
+ *   npm run ingest:country-visa-rag -- --country japan
+ *   npm run ingest:country-visa-rag -- --countries japan,us,indonesia
  */
 
 import * as dotenv from "dotenv";
@@ -22,6 +24,10 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = "text-embedding-3-small";
+const SEED_DIR = path.resolve(
+  __dirname,
+  "../../../knowledge-base/visa-rag-seeds/countries"
+);
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("Missing Supabase credentials");
@@ -49,19 +55,124 @@ interface RagDocument {
   chunks: RagChunk[];
 }
 
-interface RagSource {
+interface CountryRagSeed {
   version: string;
+  country: string;
   notes: string;
   documents: RagDocument[];
 }
 
-function readSource(): RagSource {
-  const sourcePath = path.resolve(
-    __dirname,
-    "../../../knowledge-base/supported-visa-rag.json"
+interface CliOptions {
+  countries: string[];
+  listOnly: boolean;
+}
+
+function normalizeCountry(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function parseArgs(argv: string[]): CliOptions {
+  const countries = new Set<string>();
+  let listOnly = false;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--all") continue;
+
+    if (arg === "--list") {
+      listOnly = true;
+      continue;
+    }
+
+    if (arg === "--country" || arg === "--countries") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`${arg} requires a value`);
+      }
+      value.split(",").map(normalizeCountry).filter(Boolean).forEach((country) => {
+        countries.add(country);
+      });
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--country=") || arg.startsWith("--countries=")) {
+      const value = arg.slice(arg.indexOf("=") + 1);
+      value.split(",").map(normalizeCountry).filter(Boolean).forEach((country) => {
+        countries.add(country);
+      });
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return {
+    countries: Array.from(countries).sort(),
+    listOnly,
+  };
+}
+
+function listSeedFiles(): string[] {
+  return fs
+    .readdirSync(SEED_DIR)
+    .filter((fileName) => fileName.endsWith(".json"))
+    .sort()
+    .map((fileName) => path.join(SEED_DIR, fileName));
+}
+
+function readSeed(filePath: string): CountryRagSeed {
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const seed = JSON.parse(raw) as CountryRagSeed;
+  validateSeed(seed, filePath);
+  return seed;
+}
+
+function validateSeed(seed: CountryRagSeed, filePath: string): void {
+  if (!seed.country || !Array.isArray(seed.documents) || seed.documents.length === 0) {
+    throw new Error(`Invalid country seed: ${filePath}`);
+  }
+
+  const mismatchedDocument = seed.documents.find(
+    (document) => document.country !== seed.country
   );
-  const raw = fs.readFileSync(sourcePath, "utf-8");
-  return JSON.parse(raw) as RagSource;
+  if (mismatchedDocument) {
+    throw new Error(
+      `Seed ${filePath} has document ${mismatchedDocument.slug} with country ${mismatchedDocument.country}, expected ${seed.country}`
+    );
+  }
+
+  const chunkIds = new Set<string>();
+  for (const document of seed.documents) {
+    for (const chunk of document.chunks) {
+      if (chunkIds.has(chunk.id)) {
+        throw new Error(`Duplicate chunk id ${chunk.id} in ${filePath}`);
+      }
+      chunkIds.add(chunk.id);
+    }
+  }
+}
+
+function resolveSeeds(options: CliOptions): CountryRagSeed[] {
+  const seeds = listSeedFiles().map(readSeed);
+  const available = new Set(seeds.map((seed) => seed.country));
+
+  for (const country of options.countries) {
+    if (!available.has(country)) {
+      throw new Error(
+        `No country seed found for ${country}. Available: ${Array.from(available)
+          .sort()
+          .join(", ")}`
+      );
+    }
+  }
+
+  if (options.countries.length === 0) {
+    return seeds;
+  }
+
+  const requested = new Set(options.countries);
+  return seeds.filter((seed) => requested.has(seed.country));
 }
 
 async function getEmbedding(text: string): Promise<number[] | null> {
@@ -210,37 +321,65 @@ async function ingestDocument(document: RagDocument): Promise<{
 
     inserted += 1;
     process.stdout.write(
-      `  - ${chunk.id} (${content.length} chars${embedding ? ", embedded" : ""})\n`
+      `    - ${chunk.id} (${content.length} chars${embedding ? ", embedded" : ""})\n`
     );
   }
 
   return { inserted, embedded };
 }
 
+async function ingestSeed(seed: CountryRagSeed): Promise<{
+  inserted: number;
+  embedded: number;
+}> {
+  let inserted = 0;
+  let embedded = 0;
+
+  console.log(`\nCountry: ${seed.country}`);
+  console.log(`Version: ${seed.version}`);
+  console.log(`Documents: ${seed.documents.length}`);
+
+  for (const document of seed.documents) {
+    console.log(`  Ingesting: ${document.title}`);
+    const result = await ingestDocument(document);
+    inserted += result.inserted;
+    embedded += result.embedded;
+  }
+
+  return { inserted, embedded };
+}
+
 async function main(): Promise<void> {
-  const source = readSource();
-  console.log("Starting supported visa RAG ingestion");
-  console.log(`Source version: ${source.version}`);
-  console.log(`Documents: ${source.documents.length}`);
+  const options = parseArgs(process.argv.slice(2));
+  const seeds = resolveSeeds(options);
+
+  if (options.listOnly) {
+    console.log(seeds.map((seed) => seed.country).join("\n"));
+    return;
+  }
+
+  console.log("Starting country visa RAG ingestion");
+  console.log(`Seed directory: ${SEED_DIR}`);
+  console.log(`Countries: ${seeds.length}`);
   console.log(
     `Embeddings: ${
       OPENAI_KEY && OPENAI_KEY !== "your_openai_api_key_here"
         ? `enabled (${EMBEDDING_MODEL})`
         : "disabled (chunks will still be inserted for filtered fallback)"
-    }\n`
+    }`
   );
 
   let totalInserted = 0;
   let totalEmbedded = 0;
 
-  for (const document of source.documents) {
-    console.log(`Ingesting: ${document.title}`);
-    const result = await ingestDocument(document);
+  for (const seed of seeds) {
+    const result = await ingestSeed(seed);
     totalInserted += result.inserted;
     totalEmbedded += result.embedded;
   }
 
-  console.log("\nSupported visa RAG ingestion complete");
+  console.log("\nCountry visa RAG ingestion complete");
+  console.log(`Countries ingested: ${seeds.length}`);
   console.log(`Chunks inserted: ${totalInserted}`);
   console.log(`Chunks embedded: ${totalEmbedded}`);
 }

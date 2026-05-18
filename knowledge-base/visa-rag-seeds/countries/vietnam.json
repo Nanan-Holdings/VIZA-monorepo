@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "vietnam",
+  "notes": "Country-level VIZA RAG seed for vietnam. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "vietnam-official-evisa",
+      "country": "vietnam",
+      "visaType": "evisa_tourism",
+      "documentType": "requirements",
+      "title": "Vietnam Official E-Visa",
+      "sourceUrl": "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt",
+      "chunks": [
+        {
+          "id": "vnm_evisa_basic_route_zh",
+          "title": "中国护照越南短期旅游签证建议",
+          "tags": [
+            "vietnam",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "e-visa",
+            "电子签"
+          ],
+          "content": "中国护照持有人计划去越南短期旅游时，VIZA AI 应优先考虑越南官方 E-visa 电子签证路线，而不是美国 DS-160、英国 Standard Visitor 或申根签证。越南移民局官方页面说明，电子签证由 Vietnam Immigration Department 通过电子系统签发；境外外国人可通过 evisa.gov.vn 官方入口自行申请。回答时先确认目的地是越南、国籍、旅行目的、停留天数、入境口岸和是否需要多次入境。"
+        },
+        {
+          "id": "vnm_evisa_validity_conditions",
+          "title": "Vietnam e-visa validity and basic conditions",
+          "tags": [
+            "vietnam",
+            "e-visa",
+            "validity",
+            "90-days",
+            "passport",
+            "entry"
+          ],
+          "content": "Vietnam E-visa is valid for a maximum of 90 days and can be single or multiple entry. The official Immigration Department page lists basic conditions: the applicant is outside Vietnam, holds a valid passport, and is not in a category suspended from entry under Vietnamese law. The fee is paid through the official electronic payment gateway and is not refunded if the application is refused. Travellers should check the official list of ports that allow entry and exit with an E-visa."
+        },
+        {
+          "id": "vnm_evisa_portal_transition",
+          "title": "Vietnam official e-visa portal domains",
+          "tags": [
+            "vietnam",
+            "official",
+            "portal",
+            "evisa.gov.vn",
+            "anti-scam"
+          ],
+          "content": "The legacy Vietnam Immigration Department portal states that, from 08:00 on 11 November 2024 GMT+7, the Vietnam Electronic Visa Portal operates on the new domains thithucdientu.gov.vn and evisa.gov.vn. For VIZA AI: direct users to official .gov.vn portals and warn them to avoid unofficial paid lookalike sites when possible."
+        }
+      ]
+    },
+    {
+      "slug": "vietnam-form-requirements",
+      "country": "vietnam",
+      "visaType": "evisa_tourism",
+      "documentType": "form_requirements",
+      "title": "Vietnam Application Form and Document Intake Requirements",
+      "sourceUrl": "https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt",
+      "chunks": [
+        {
+          "id": "vietnam_form_channel_and_scope",
+          "title": "Vietnam application channel and form scope",
+          "tags": [
+            "vietnam",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Vietnam official e-visa portal Official source URLs reviewed for this seed: https://evisa.xuatnhapcanh.gov.vn/trang-chu-ttdt. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "vietnam_form_fields_to_collect",
+          "title": "Vietnam fields to collect before filling the form",
+          "tags": [
+            "vietnam",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, portrait/photo, travel dates, entry and exit ports, address in Vietnam, purpose, email/contact and single/multiple entry selection"
+        },
+        {
+          "id": "vietnam_supporting_documents_and_review",
+          "title": "Vietnam supporting documents and review checklist",
+          "tags": [
+            "vietnam",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport biodata page, portrait/photo, entry/exit plan, accommodation/address and payment method Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}
