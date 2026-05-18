@@ -248,6 +248,104 @@
       "profileNotFound": "未找到个人资料",
       "noApplicationFound": "未找到申请"
     },
+    "statusHub": {
+      "loading": "正在加载申请状态...",
+      "loadError": "申请状态加载失败",
+      "eyebrow": "Full cycle applications",
+      "title": "申请状态中心",
+      "subtitle": "这里展示每个签证申请从开始填写、材料、提交队列到官方结果的完整周期；首页仍只展示轻量表单进度。",
+      "chooseDestination": "从首页选择目的地",
+      "cardProgress": "完整周期进度",
+      "updatedAt": "最近更新",
+      "noFilteredResults": "这个筛选下暂时没有申请。",
+      "emptyTitle": "还没有申请",
+      "emptyBody": "先从首页选择一个目的地，VIZA 会为该国家和签证类型创建对应的申请流程。",
+      "backToOverview": "返回申请总览",
+      "detailMissingTitle": "未找到该申请",
+      "detailMissingBody": "这个申请可能尚未开始，或当前账户没有对应记录。你仍然可以从对应国家和签证类型开始填写。",
+      "startApplication": "开始填写",
+      "continueForm": "继续填写表单",
+      "fullCycleProgress": "完整周期进度",
+      "timelineTitle": "申请周期",
+      "detailsTitle": "申请详情",
+      "evidenceTitle": "表单与材料",
+      "submissionTitle": "提交队列",
+      "yes": "已完成",
+      "no": "未完成",
+      "viewReceipt": "查看回执",
+      "filters": {
+        "all": "全部",
+        "not_submitted": "未提交",
+        "processing": "处理中",
+        "needs_attention": "需处理",
+        "completed": "已完成"
+      },
+      "statuses": {
+        "not_started": "未开始",
+        "not_submitted": "未提交",
+        "in_progress": "填写中",
+        "needs_documents": "待补材料",
+        "submitting": "提交中",
+        "submitted": "已提交",
+        "needs_attention": "需要处理",
+        "approved": "已批准",
+        "rejected": "被拒"
+      },
+      "nextActions": {
+        "start": "开始填写",
+        "continue": "继续填写",
+        "upload_documents": "补充材料",
+        "wait": "查看进度",
+        "fix": "处理问题",
+        "view": "查看详情"
+      },
+      "checklist": {
+        "destination": "目的地",
+        "form": "表单",
+        "photo": "照片",
+        "documents": "材料"
+      },
+      "timeline": {
+        "destination": {
+          "title": "选择目的地与签证类型",
+          "description": "申请已经绑定到具体国家和签证路径。"
+        },
+        "form": {
+          "title": "填写申请表",
+          "description": "完成官方表单所需问题，并保存可复用的个人信息。"
+        },
+        "photo": {
+          "title": "上传照片",
+          "description": "准备符合该国家要求的护照式照片或身份图片。"
+        },
+        "documents": {
+          "title": "上传支持材料",
+          "description": "补齐护照、行程、资金、住宿或该签证类型需要的材料。"
+        },
+        "submission": {
+          "title": "提交与处理",
+          "description": "申请进入提交队列或已经提交到对应官方/人工处理流程。"
+        },
+        "result": {
+          "title": "官方结果",
+          "description": "等待官方审批结果；VIZA 不会伪造批准或拒签状态。"
+        }
+      },
+      "metrics": {
+        "applicationId": "申请 ID",
+        "rawStatus": "数据库状态",
+        "createdAt": "创建时间",
+        "submittedAt": "提交时间",
+        "confirmation": "确认号",
+        "answerCount": "已保存答案",
+        "photo": "照片",
+        "docsUploaded": "已上传材料",
+        "docsRejected": "被拒材料",
+        "queueStatus": "队列状态",
+        "queueAttempts": "尝试次数",
+        "queueUpdatedAt": "队列更新时间"
+      }
+    },
     "dynamicSteps": {
       "Personal Information": "个人信息",
       "Personal Information 1": "个人信息 1",

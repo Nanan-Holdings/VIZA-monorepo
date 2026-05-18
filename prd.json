@@ -180,6 +180,22 @@
       "priority": 12,
       "passes": true,
       "notes": "Implemented enhanced field-level copilot on the dynamic application form: inline field guidance, deterministic and AI-backed backend endpoint, examples, sources, confidence, field validation badges, lightweight per-field Q&A, and bottom-right copilot presence pill. No persistent chat history or DB migration."
+    },
+    {
+      "id": "US-041",
+      "title": "Application Full-Cycle Status Hub",
+      "description": "As a user, I need the Application tab to show each visa application's full lifecycle status, so I can distinguish form completion from submission, document, queue, and official-result progress.",
+      "acceptanceCriteria": [
+        "/client/application defaults to a multi-application status overview instead of the form wizard",
+        "Direct country and visaType links still open the existing form workflow",
+        "Each status card shows lifecycle status, progress, checklist items, and a detail entry",
+        "Application detail shows the full-cycle timeline plus form, document, submission, and confirmation metadata",
+        "Lifecycle status is derived from existing applications, application_documents, visa_application_answers, and submission_queue rows without a migration",
+        "Frontend typecheck and lint pass"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Implemented as a frontend lifecycle aggregation and UI pass. No new database fields were added; submission_queue is read server-side via the admin client after authenticating the current user."
     }
   ]
 }
