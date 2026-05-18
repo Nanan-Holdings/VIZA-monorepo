@@ -1,0 +1,657 @@
+/**
+ * Exhaustive field guidance copilot evaluations.
+ *
+ * This script loads every row in visa_form_fields and exercises POST
+ * /api/field-guidance with deterministic AI/RAG-free behavior by default.
+ */
+
+import supertest from "supertest";
+import { getSupabaseClient } from "../src/db/supabase-client.js";
+
+process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL ??= "1";
+if (process.env.FIELD_GUIDANCE_EVAL_USE_AI !== "1") {
+  process.env.ANTHROPIC_API_KEY = "";
+}
+
+type Locale = "zh" | "en";
+type Severity = "ok" | "warning" | "error";
+type FieldType =
+  | "text"
+  | "select"
+  | "date"
+  | "file"
+  | "radio"
+  | "checkbox"
+  | "textarea"
+  | "country";
+
+interface DbFieldRow {
+  id: string;
+  visa_type: string;
+  field_name: string;
+  label: string;
+  field_type: FieldType;
+  required: boolean;
+  step_number: number;
+  step_name: string | null;
+  display_order: number;
+  placeholder: string | null;
+  validation_rules: Record<string, unknown> | null;
+  options: unknown | null;
+  conditional_logic: Record<string, unknown> | null;
+}
+
+interface FieldOption {
+  value: string;
+  text: string;
+}
+
+interface ApiField {
+  fieldName: string;
+  label: string;
+  fieldType: FieldType;
+  required: boolean;
+  stepName?: string | null;
+  placeholder?: string | null;
+  options?: Array<FieldOption | string> | null;
+  validationRules?: Record<string, unknown> | null;
+  conditionalLogic?: Record<string, unknown> | null;
+}
+
+interface GuidanceResponse {
+  guidance?: {
+    title?: string;
+    summary?: string;
+    examples?: string[];
+    hints?: string[];
+    officialWarnings?: string[];
+    formatHints?: string[];
+  };
+  validation?: {
+    severity?: Severity;
+    messages?: string[];
+  };
+  reply?: string;
+  sources?: Array<{ title?: string; url?: string | null; excerpt?: string }>;
+  confidence?: "high" | "medium" | "low";
+  aiUsed?: boolean;
+  cached?: boolean;
+  error?: string;
+}
+
+interface EvalCase {
+  name: string;
+  locale: Locale;
+  field: DbFieldRow;
+  answer: string;
+  allAnswers: Record<string, string>;
+  question?: string;
+  expectedSeverity?: Exclude<Severity, "ok">;
+}
+
+interface EvalFailure {
+  caseName: string;
+  visaType: string;
+  fieldName: string;
+  message: string;
+  details?: unknown;
+}
+
+interface EvalCounters {
+  totalCases: number;
+  guidanceCases: number;
+  invalidCases: number;
+  crossFieldCases: number;
+  fields: number;
+  visaTypes: Record<string, number>;
+}
+
+const MARKDOWN_PATTERN = /```|`|\*\*|__|\[[^\]]+\]\([^)]+\)|(^|\s)#{1,6}\s/m;
+const BAD_TEXT_PATTERN = /\bundefined\b|\bnull\b|<script\b|<\/?[a-z][\s\S]*>/i;
+const CONCURRENCY = Number(process.env.FIELD_GUIDANCE_EVAL_CONCURRENCY ?? 16);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numericValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeOptions(value: unknown): Array<FieldOption | string> | null {
+  if (!Array.isArray(value)) return null;
+  const options = value
+    .map((option) => {
+      if (typeof option === "string") return option;
+      if (!isRecord(option)) return null;
+      const optionValue = stringValue(option.value);
+      const optionText = stringValue(option.text) ?? optionValue;
+      return optionValue ? { value: optionValue, text: optionText ?? optionValue } : null;
+    })
+    .filter((option): option is FieldOption | string => Boolean(option));
+
+  return options.length > 0 ? options : null;
+}
+
+function toApiField(field: DbFieldRow): ApiField {
+  return {
+    fieldName: field.field_name,
+    label: field.label,
+    fieldType: field.field_type,
+    required: field.required,
+    stepName: field.step_name,
+    placeholder: field.placeholder,
+    options: normalizeOptions(field.options),
+    validationRules: field.validation_rules,
+    conditionalLogic: field.conditional_logic,
+  };
+}
+
+function firstOption(field: DbFieldRow): string | null {
+  const options = normalizeOptions(field.options);
+  if (!options?.length) return null;
+  const first = options[0];
+  return typeof first === "string" ? first : first.value || first.text;
+}
+
+function fieldText(field: DbFieldRow): string {
+  return `${field.field_name} ${field.label} ${field.placeholder ?? ""}`.toLowerCase();
+}
+
+function sampleAnswer(field: DbFieldRow): string {
+  const text = fieldText(field);
+  const option = firstOption(field);
+
+  if (field.field_type === "select" || field.field_type === "radio" || field.field_type === "checkbox") {
+    return option ?? "yes";
+  }
+  if (field.field_type === "country") return "China";
+  if (field.field_type === "file") return "uploaded-document.pdf";
+  if (field.field_type === "date" || text.includes("date")) {
+    if (text.includes("birth") || text.includes("dob")) return "15/03/1990";
+    if (text.includes("issue")) return "01/01/2020";
+    if (text.includes("expir") || text.includes("valid until")) return "01/01/2032";
+    if (text.includes("arrival") || text.includes("entry")) return "01/06/2026";
+    if (text.includes("depart") || text.includes("exit")) return "15/06/2026";
+    return "01/06/2026";
+  }
+  if (text.includes("email")) return "applicant@example.com";
+  if (text.includes("phone") || text.includes("telephone") || text.includes("mobile")) return "+65 8123 4567";
+  if (text.includes("url") || text.includes("resume link")) {
+    return "https://visas-immigration.service.gov.uk/forceResume/550e8400-e29b-41d4-a716-446655440000";
+  }
+  if (text.includes("passport") || text.includes("document number")) return "E12345678";
+  if (text.includes("surname") || text.includes("family name")) return "ZHANG";
+  if (text.includes("given") || text.includes("first name")) return "XIAOMING";
+  if (field.field_type === "textarea") return "This is a concise supporting explanation for the application.";
+  return "Sample answer";
+}
+
+function baseAnswers(field: DbFieldRow, answer: string): Record<string, string> {
+  return {
+    passport_issue_date: "01/01/2020",
+    passport_issuance_date: "01/01/2020",
+    passport_expiry_date: "01/01/2032",
+    passport_expiration_date: "01/01/2032",
+    arrival_date: "01/06/2026",
+    intended_arrival_date: "01/06/2026",
+    departure_date: "15/06/2026",
+    intended_departure_date: "15/06/2026",
+    current_nationality: "China",
+    nationality_at_birth: "China",
+    nationality_at_birth_different: "no",
+    [field.field_name]: answer,
+  };
+}
+
+function questionFor(locale: Locale): string {
+  return locale === "zh"
+    ? "这个字段应该怎么填？请给一个正确例子，不要使用Markdown。"
+    : "How should I fill this field? Give one correct example without Markdown.";
+}
+
+function maxLength(field: DbFieldRow): number | null {
+  return numericValue(field.validation_rules?.maxLength);
+}
+
+function hasPattern(field: DbFieldRow): boolean {
+  return Boolean(stringValue(field.validation_rules?.pattern));
+}
+
+function buildGuidanceCases(fields: DbFieldRow[]): EvalCase[] {
+  return fields.flatMap((field) =>
+    (["zh", "en"] as const).map((locale) => {
+      const answer = sampleAnswer(field);
+      return {
+        name: `guidance:${locale}`,
+        locale,
+        field,
+        answer,
+        allAnswers: baseAnswers(field, answer),
+        question: questionFor(locale),
+      };
+    }),
+  );
+}
+
+function buildInvalidCases(fields: DbFieldRow[]): EvalCase[] {
+  const cases: EvalCase[] = [];
+
+  for (const field of fields) {
+    if (field.required) {
+      cases.push({
+        name: "invalid:required-empty",
+        locale: "en",
+        field,
+        answer: "",
+        allAnswers: baseAnswers(field, ""),
+        question: "What is wrong with this answer?",
+        expectedSeverity: "warning",
+      });
+    }
+
+    const limit = maxLength(field);
+    if (limit && limit > 0 && limit <= 2500) {
+      const answer = "X".repeat(limit + 1);
+      cases.push({
+        name: "invalid:max-length",
+        locale: "en",
+        field,
+        answer,
+        allAnswers: baseAnswers(field, answer),
+        question: "What is wrong with this answer?",
+        expectedSeverity: "error",
+      });
+    }
+
+    if (hasPattern(field)) {
+      const answer = "###INVALID###";
+      cases.push({
+        name: "invalid:pattern",
+        locale: "en",
+        field,
+        answer,
+        allAnswers: baseAnswers(field, answer),
+        question: "What is wrong with this answer?",
+        expectedSeverity: "error",
+      });
+    }
+
+    if (
+      (field.field_type === "select" || field.field_type === "radio" || field.field_type === "checkbox") &&
+      normalizeOptions(field.options)?.length
+    ) {
+      const answer = "__not_a_valid_option__";
+      cases.push({
+        name: "invalid:option-mismatch",
+        locale: "en",
+        field,
+        answer,
+        allAnswers: baseAnswers(field, answer),
+        question: "What is wrong with this answer?",
+        expectedSeverity: "error",
+      });
+    }
+
+    if (field.field_type === "date") {
+      const answer = "31/31/2026";
+      cases.push({
+        name: "invalid:date-format",
+        locale: "en",
+        field,
+        answer,
+        allAnswers: baseAnswers(field, answer),
+        question: "What is wrong with this answer?",
+        expectedSeverity: "error",
+      });
+    }
+  }
+
+  return cases;
+}
+
+function findField(fields: DbFieldRow[], candidates: string[]): DbFieldRow | null {
+  return fields.find((field) => candidates.some((candidate) => field.field_name.toLowerCase().includes(candidate))) ?? null;
+}
+
+function buildCrossFieldCases(fields: DbFieldRow[]): EvalCase[] {
+  const cases: EvalCase[] = [];
+  const byVisaType = new Map<string, DbFieldRow[]>();
+  for (const field of fields) {
+    const existing = byVisaType.get(field.visa_type) ?? [];
+    existing.push(field);
+    byVisaType.set(field.visa_type, existing);
+  }
+
+  for (const visaFields of byVisaType.values()) {
+    const fallbackField = visaFields[0];
+    if (!fallbackField) continue;
+
+    const expiryField = findField(visaFields, ["expiry", "expiration", "valid_until"]) ?? fallbackField;
+    cases.push({
+      name: "cross:passport-expiry-before-issue",
+      locale: "en",
+      field: expiryField,
+      answer: "01/01/2020",
+      allAnswers: {
+        ...baseAnswers(expiryField, "01/01/2020"),
+        passport_issue_date: "01/01/2030",
+        passport_issuance_date: "01/01/2030",
+        passport_expiry_date: "01/01/2020",
+        passport_expiration_date: "01/01/2020",
+      },
+      question: "Why is this date wrong?",
+      expectedSeverity: "error",
+    });
+
+    const departureField = findField(visaFields, ["departure", "exit"]) ?? fallbackField;
+    cases.push({
+      name: "cross:departure-before-arrival",
+      locale: "en",
+      field: departureField,
+      answer: "01/06/2026",
+      allAnswers: {
+        ...baseAnswers(departureField, "01/06/2026"),
+        arrival_date: "15/06/2026",
+        intended_arrival_date: "15/06/2026",
+        departure_date: "01/06/2026",
+        intended_departure_date: "01/06/2026",
+      },
+      question: "Why is this date wrong?",
+      expectedSeverity: "error",
+    });
+
+    const birthField = findField(visaFields, ["birth", "dob"]);
+    if (birthField) {
+      cases.push({
+        name: "cross:dob-future",
+        locale: "en",
+        field: birthField,
+        answer: "01/01/2099",
+        allAnswers: baseAnswers(birthField, "01/01/2099"),
+        question: "Why is this date wrong?",
+        expectedSeverity: "error",
+      });
+    }
+
+    cases.push({
+      name: "cross:passport-expires-before-arrival",
+      locale: "en",
+      field: expiryField,
+      answer: "01/01/2024",
+      allAnswers: {
+        ...baseAnswers(expiryField, "01/01/2024"),
+        passport_expiry_date: "01/01/2024",
+        passport_expiration_date: "01/01/2024",
+        arrival_date: "01/06/2026",
+        intended_arrival_date: "01/06/2026",
+      },
+      question: "Why is this expiry date wrong?",
+      expectedSeverity: "error",
+    });
+
+    const nationalityField = findField(visaFields, ["nationality"]) ?? fallbackField;
+    cases.push({
+      name: "cross:nationality-at-birth-conflict",
+      locale: "en",
+      field: nationalityField,
+      answer: "China",
+      allAnswers: {
+        ...baseAnswers(nationalityField, "China"),
+        current_nationality: "China",
+        nationality_at_birth: "Singapore",
+        nationality_at_birth_different: "no",
+      },
+      question: "Why might these nationality answers conflict?",
+      expectedSeverity: "warning",
+    });
+  }
+
+  return cases;
+}
+
+function validateText(text: string | undefined, path: string, testCase: EvalCase, failures: EvalFailure[]): void {
+  if (!text?.trim()) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: `${path} is empty`,
+    });
+    return;
+  }
+
+  if (MARKDOWN_PATTERN.test(text)) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: `${path} contains Markdown markers`,
+      details: text.slice(0, 240),
+    });
+  }
+
+  if (BAD_TEXT_PATTERN.test(text)) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: `${path} contains unsafe or placeholder text`,
+      details: text.slice(0, 240),
+    });
+  }
+}
+
+function validateResponse(response: GuidanceResponse, testCase: EvalCase, failures: EvalFailure[]): void {
+  const guidance = response.guidance;
+  const validation = response.validation;
+
+  if (!guidance || !validation) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Missing guidance or validation object",
+      details: response,
+    });
+    return;
+  }
+
+  if (!["ok", "warning", "error"].includes(validation.severity ?? "")) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Invalid validation severity",
+      details: validation,
+    });
+  }
+
+  if (testCase.expectedSeverity && validation.severity === "ok") {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: `Expected ${testCase.expectedSeverity} validation, got ok`,
+      details: validation,
+    });
+  }
+
+  if (!validation.messages?.length) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Validation has no messages",
+    });
+  }
+
+  validateText(guidance.title, "guidance.title", testCase, failures);
+  validateText(guidance.summary, "guidance.summary", testCase, failures);
+  for (const [index, message] of (validation.messages ?? []).entries()) {
+    validateText(message, `validation.messages[${index}]`, testCase, failures);
+  }
+
+  const listChecks: Array<[string, string[] | undefined]> = [
+    ["guidance.examples", guidance.examples],
+    ["guidance.hints", guidance.hints],
+    ["guidance.officialWarnings", guidance.officialWarnings],
+    ["guidance.formatHints", guidance.formatHints],
+  ];
+  for (const [path, values] of listChecks) {
+    if (!values?.length) {
+      failures.push({
+        caseName: testCase.name,
+        visaType: testCase.field.visa_type,
+        fieldName: testCase.field.field_name,
+        message: `${path} is empty`,
+      });
+      continue;
+    }
+    values.forEach((value, index) => validateText(value, `${path}[${index}]`, testCase, failures));
+  }
+
+  if (testCase.question) {
+    validateText(response.reply, "reply", testCase, failures);
+    const replyLength = response.reply?.length ?? 0;
+    if (replyLength < 20 || replyLength > 1600) {
+      failures.push({
+        caseName: testCase.name,
+        visaType: testCase.field.visa_type,
+        fieldName: testCase.field.field_name,
+        message: "Reply length is outside expected chat range",
+        details: { replyLength, reply: response.reply?.slice(0, 240) },
+      });
+    }
+  }
+
+  if (!["high", "medium", "low"].includes(response.confidence ?? "")) {
+    failures.push({
+      caseName: testCase.name,
+      visaType: testCase.field.visa_type,
+      fieldName: testCase.field.field_name,
+      message: "Invalid confidence value",
+      details: response.confidence,
+    });
+  }
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  handler: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await handler(items[index] as T, index);
+    }
+  });
+  await Promise.all(workers);
+}
+
+async function main(): Promise<void> {
+  const { default: app } = await import("../src/app.js");
+  const request = supertest(app);
+  const supabase = getSupabaseClient();
+  const selectedVisaTypes = (process.env.FIELD_GUIDANCE_EVAL_VISA_TYPES ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  let query = supabase
+    .from("visa_form_fields")
+    .select("id, visa_type, field_name, label, field_type, required, step_number, step_name, display_order, placeholder, validation_rules, options, conditional_logic")
+    .order("visa_type", { ascending: true })
+    .order("step_number", { ascending: true })
+    .order("display_order", { ascending: true });
+
+  if (selectedVisaTypes.length > 0) {
+    query = query.in("visa_type", selectedVisaTypes);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to load visa_form_fields: ${error.message}`);
+
+  const fields = (data ?? []) as DbFieldRow[];
+  if (fields.length === 0) throw new Error("No visa_form_fields rows found for evaluation.");
+
+  const counters: EvalCounters = {
+    totalCases: 0,
+    guidanceCases: 0,
+    invalidCases: 0,
+    crossFieldCases: 0,
+    fields: fields.length,
+    visaTypes: {},
+  };
+
+  for (const field of fields) {
+    counters.visaTypes[field.visa_type] = (counters.visaTypes[field.visa_type] ?? 0) + 1;
+  }
+
+  const guidanceCases = buildGuidanceCases(fields);
+  const invalidCases = buildInvalidCases(fields);
+  const crossFieldCases = buildCrossFieldCases(fields);
+  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases];
+  counters.guidanceCases = guidanceCases.length;
+  counters.invalidCases = invalidCases.length;
+  counters.crossFieldCases = crossFieldCases.length;
+  counters.totalCases = cases.length;
+
+  const failures: EvalFailure[] = [];
+
+  await runWithConcurrency(cases, CONCURRENCY, async (testCase) => {
+    const response = await request
+      .post("/api/field-guidance")
+      .send({
+        visaType: testCase.field.visa_type,
+        country: "Eval Country",
+        locale: testCase.locale,
+        field: toApiField(testCase.field),
+        answer: testCase.answer,
+        allAnswers: testCase.allAnswers,
+        question: testCase.question,
+      });
+
+    if (response.status !== 200) {
+      failures.push({
+        caseName: testCase.name,
+        visaType: testCase.field.visa_type,
+        fieldName: testCase.field.field_name,
+        message: `Expected HTTP 200, got ${response.status}`,
+        details: response.body,
+      });
+      return;
+    }
+
+    validateResponse(response.body as GuidanceResponse, testCase, failures);
+  });
+
+  const report = {
+    mode: {
+      retrievalDisabled: process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1",
+      aiEnabled: process.env.FIELD_GUIDANCE_EVAL_USE_AI === "1",
+      concurrency: CONCURRENCY,
+    },
+    counters,
+    failureCount: failures.length,
+    failures: failures.slice(0, 25),
+  };
+
+  console.log(JSON.stringify(report, null, 2));
+
+  if (failures.length > 0) {
+    process.exitCode = 1;
+  }
+}
+
+void main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

@@ -16,6 +16,7 @@
 		"test:integration": "vitest run tests/integration",
 		"test:visa-agent-evals": "tsx scripts/run-visa-agent-evals.ts",
 		"test:visa-agent-robustness": "npm run test:visa-agent-evals",
+		"test:field-guidance-copilot": "tsx scripts/run-field-guidance-copilot-evals.ts",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:db": "tsx src/db/migrate.ts",
