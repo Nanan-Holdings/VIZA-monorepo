@@ -251,6 +251,286 @@
           "content": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
         }
       ]
+    },
+    {
+      "slug": "norway-visitor-schengen",
+      "country": "norway",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Norway Visitor Visa and Schengen Short Stay",
+      "sourceUrl": "https://www.udi.no/en/want-to-apply/visit-and-holiday/visitors-visa-to-norway/?c=xxk",
+      "chunks": [
+        {
+          "id": "nor_schengen_basic_route_zh",
+          "title": "中国护照挪威短期旅游签证建议",
+          "tags": ["norway", "china", "chinese-passport", "挪威旅游", "申根签证", "90-180"],
+          "content": "中国护照持有人计划去挪威短期旅游，且挪威是唯一目的地或主要停留国家时，VIZA AI 应推荐 Norway/Schengen visitor visa 路线。先确认国籍、合法居住地、挪威是否为停留最长或主目的地、是否同时去冰岛/法国/意大利/瑞士等其他申根国家、计划停留天数和入境次数需求。不要把挪威问题路由到美国 B1/B2、英国 Standard Visitor、加拿大 TRV 或东南亚签证。"
+        },
+        {
+          "id": "nor_udi_requirements_funds",
+          "title": "Norway visitor visa requirements and funds",
+          "tags": ["norway", "udi", "requirements", "passport", "insurance", "funds", "fingerprints"],
+          "content": "UDI states that a visitor visa can be used for a visit to Norway/Schengen of up to 90 days. Core checks include paying the application fee, submitting the embassy checklist, holding a passport valid for at least 3 months after the visit and issued within the last 10 years, valid travel insurance, sufficient money for the stay and return journey, no entry ban, Schengen 90/180 compliance, and fingerprint registration. UDI gives a funding benchmark of at least NOK 500 per day in Norway/Schengen, or a financial guarantee from the person/company visited if the applicant cannot show enough funds."
+        },
+        {
+          "id": "nor_china_vfs_channel",
+          "title": "Norway application channel in China",
+          "tags": ["norway", "china", "vfs", "application-centre", "appointment", "checklist"],
+          "content": "Norway's China service pages direct short-stay visa applicants to register the application online with UDI/Application Portal and submit documents through VFS Global in China. VIZA AI should ask the applicant's legal residence city/country before giving appointment guidance because the visa application centre and checklist can differ by jurisdiction. Remind users that VFS is a service provider and may charge service fees in addition to the visa fee."
+        }
+      ]
+    },
+    {
+      "slug": "iceland-schengen-short-stay",
+      "country": "iceland",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Iceland Schengen Short-Stay Visa",
+      "sourceUrl": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/index.html",
+      "chunks": [
+        {
+          "id": "isl_schengen_basic_route_zh",
+          "title": "中国护照冰岛短期旅游签证建议",
+          "tags": ["iceland", "china", "chinese-passport", "冰岛旅游", "申根签证", "90-180"],
+          "content": "中国护照持有人计划去冰岛短期旅游，且冰岛是唯一目的地或停留最长/主要目的地时，VIZA AI 应推荐 Iceland/Schengen short-stay visa 路线。先确认国籍、合法居住地、冰岛是否为主目的地、是否同时去其他申根国家、停留天数、入境次数和是否已有有效申根签。"
+        },
+        {
+          "id": "isl_vfs_china_timing",
+          "title": "Iceland VFS China timing and 90/180 rule",
+          "tags": ["iceland", "vfs", "china", "timing", "90-180", "schengen"],
+          "content": "VFS Global's Iceland China page states that short-stay Schengen visas allow stays of up to 90 days in any 180-day period. Applications should be submitted in advance, no later than 15 days before the planned trip and no earlier than 6 months before the intended visit. If the user visits multiple Schengen states, apply to Iceland only when Iceland is the longest stay or main purpose; if stays are equal, use first-entry rules."
+        },
+        {
+          "id": "isl_tourism_documents",
+          "title": "Iceland tourist document direction",
+          "tags": ["iceland", "tourism", "documents", "insurance", "itinerary", "employment-letter"],
+          "content": "For Iceland tourism applications through VFS/Embassy processing, typical Schengen materials include the harmonised Schengen application form, passport, photo, travel medical insurance, itinerary and accommodation evidence, proof of transport, proof of financial means, and employment/study/business evidence. If travelling to several Schengen states, the itinerary should show why Iceland is the main destination or first entry."
+        }
+      ]
+    },
+    {
+      "slug": "singapore-ica-entry-visa-sgac",
+      "country": "singapore",
+      "visaType": "entry_visa_or_visit_pass",
+      "documentType": "requirements",
+      "title": "Singapore Entry Visa and SG Arrival Card",
+      "sourceUrl": "https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements",
+      "chunks": [
+        {
+          "id": "sgp_entry_visa_basic_route_zh",
+          "title": "中国护照新加坡短期旅游签证建议",
+          "tags": ["singapore", "china", "chinese-passport", "新加坡旅游", "entry-visa", "sgac"],
+          "content": "中国护照持有人短期赴新加坡旅游通常需要先检查 ICA 的 entry visa requirement，并在入境前完成 SG Arrival Card。VIZA AI 应区分三件事：entry visa 是入境前许可，SG Arrival Card 不是签证，最终停留期由入境时签发的 electronic Visit Pass/e-Pass 决定。不要把新加坡路线误判成申根签证、马来西亚 eVISA 或美国 B1/B2。"
+        },
+        {
+          "id": "sgp_ica_visa_not_pass",
+          "title": "Singapore entry visa is not an immigration pass",
+          "tags": ["singapore", "ica", "visa-required", "e-pass", "entry-decision"],
+          "content": "ICA explains that a Singapore entry visa is not an immigration pass; it is pre-entry permission to travel to and seek entry into Singapore. Possessing a valid visa does not guarantee entry, and ICA officers decide whether to grant an immigration pass at the checkpoint. The period of stay is not tied to visa validity and is shown on the digital e-Pass sent by email after entry."
+        },
+        {
+          "id": "sgp_sgac_three_days",
+          "title": "SG Arrival Card timing",
+          "tags": ["singapore", "sgac", "arrival-card", "three-days", "health-declaration"],
+          "content": "ICA requires travellers to submit the SG Arrival Card with electronic health declaration within 3 days before arriving in Singapore, including the day of arrival. VIZA AI should tell users to use official ICA/e-service channels and avoid paid lookalike SGAC websites where possible. SGAC does not replace a visa for visa-required passport holders."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-visa-exemption-evisa-mdac",
+      "country": "malaysia",
+      "visaType": "visa_exemption_or_evisa_tourism",
+      "documentType": "requirements",
+      "title": "Malaysia Tourist Entry, eVISA, and MDAC",
+      "sourceUrl": "https://www.imi.gov.my/index.php/en/main-services/visa/",
+      "chunks": [
+        {
+          "id": "mys_china_tourism_basic_route_zh",
+          "title": "中国护照马来西亚短期旅游签证建议",
+          "tags": ["malaysia", "china", "chinese-passport", "马来西亚旅游", "visa-exemption", "mdac"],
+          "content": "中国护照持有人短期赴马来西亚旅游时，VIZA AI 应优先核查马来西亚移民局/外交部当前对中国公民的 social visit visa exemption 或 eVISA 规则。当前知识库范围覆盖旅游/社交访问；若用户目的为工作、学习、长期居留或多次商务活动，应提示需要不同准证或向官方确认。"
+        },
+        {
+          "id": "mys_china_india_exemption_30_days",
+          "title": "Malaysia China/India short social visit exemption",
+          "tags": ["malaysia", "china", "india", "30-days", "social-visit", "visa-exemption"],
+          "content": "Malaysia's visa liberalisation materials and Immigration pages state that citizens of China and India may be covered by a visa exemption for social visit purposes for up to 30 days. VIZA AI should avoid promising entry: the final decision is made by Malaysian immigration at the border, and travellers should still prepare passport validity, return/onward ticket, accommodation, funds, and any required arrival declaration."
+        },
+        {
+          "id": "mys_evisa_mdac_route",
+          "title": "Malaysia eVISA and arrival declaration",
+          "tags": ["malaysia", "evisa", "mdac", "official-portal", "arrival-card"],
+          "content": "For travellers who are not visa-exempt or whose purpose/stay does not fit the exemption, route them to the official Malaysia eVISA portal and current Immigration Malaysia instructions. Malaysia also operates a digital arrival card/MDAC process for many foreign arrivals; VIZA AI should tell users to complete current official arrival requirements before travel and verify exemptions on the Immigration Malaysia site."
+        }
+      ]
+    },
+    {
+      "slug": "thailand-tourism-visa-exemption",
+      "country": "thailand",
+      "visaType": "visa_exemption_or_tourist_visa",
+      "documentType": "requirements",
+      "title": "Thailand Tourist Entry and Visa Exemption",
+      "sourceUrl": "https://seoul.thaiembassy.org/en/publicservice/visa-exemption-scheme",
+      "chunks": [
+        {
+          "id": "tha_tourism_basic_route_zh",
+          "title": "中国护照泰国短期旅游签证建议",
+          "tags": ["thailand", "china", "chinese-passport", "泰国旅游", "visa-exemption", "tourist-visa"],
+          "content": "中国护照持有人赴泰国短期旅游时，VIZA AI 应优先核查泰国外交部/使领馆当前 visa exemption、visa on arrival 或 tourist visa 规则。泰国规则近年调整频繁，回答时要说明需以出发前泰国官方页面为准，并确认停留天数、入境次数、是否有返程/续程票和是否需要长期停留。"
+        },
+        {
+          "id": "tha_visa_exemption_60_days",
+          "title": "Thailand visa exemption overview",
+          "tags": ["thailand", "visa-exemption", "60-days", "onward-ticket", "funds"],
+          "content": "Royal Thai Embassy guidance for the visa exemption scheme states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
+        },
+        {
+          "id": "tha_tourist_visa_when_needed",
+          "title": "When Thailand tourist visa may be needed",
+          "tags": ["thailand", "tourist-visa", "evisa", "longer-stay", "multiple-entry"],
+          "content": "If a traveller wants to stay beyond the visa-exempt period, enter repeatedly, work remotely under a specific long-stay route, or is not eligible for exemption, VIZA AI should not assume visa-free entry. Route them to the official Thai e-Visa / Royal Thai Embassy guidance for tourist visa or other visa categories."
+        }
+      ]
+    },
+    {
+      "slug": "canada-ircc-visitor-visa",
+      "country": "canada",
+      "visaType": "visitor_visa",
+      "documentType": "requirements",
+      "title": "Canada Visitor Visa (Temporary Resident Visa)",
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html",
+      "chunks": [
+        {
+          "id": "can_visitor_basic_route_zh",
+          "title": "中国护照加拿大旅游签证建议",
+          "tags": ["canada", "china", "chinese-passport", "加拿大旅游", "visitor-visa", "trv"],
+          "content": "中国护照持有人短期赴加拿大旅游、探亲访友或普通商务访问时，VIZA AI 应优先考虑 Canada visitor visa / Temporary Resident Visa (TRV) 路线，而不是 eTA。先确认国籍、居住地、旅行目的、停留天数、是否探亲、是否有美国签证/加拿大旧签证等背景；如果是学习、工作、移民或长期陪读，应转向对应 permit/visa。"
+        },
+        {
+          "id": "can_trv_definition",
+          "title": "Canada TRV definition and entry decision",
+          "tags": ["canada", "visitor-visa", "trv", "passport-sticker", "entry-decision"],
+          "content": "IRCC states that a visitor visa, also called a temporary resident visa, is an official document placed in the passport showing the traveller meets requirements to travel to Canada. It does not by itself guarantee entry; border officers make the final entry decision and decide the allowed period of stay. Most visitors are allowed to stay for up to 6 months unless a different date is indicated."
+        },
+        {
+          "id": "can_apply_online_biometrics",
+          "title": "Canada visitor visa online application and biometrics",
+          "tags": ["canada", "ircc", "online-application", "biometrics", "vac"],
+          "content": "IRCC directs visitor visa applicants to apply online through the IRCC Portal, provide passport/travel document copies and supporting documents, pay fees, and give biometrics if required. China is listed among passports that generally need a visitor visa. Applicants outside Canada may need to attend a visa application centre for biometrics and passport submission depending on instructions."
+        }
+      ]
+    },
+    {
+      "slug": "australia-visitor-subclass-600",
+      "country": "australia",
+      "visaType": "visitor_subclass_600",
+      "documentType": "requirements",
+      "title": "Australia Visitor Visa Subclass 600",
+      "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600",
+      "chunks": [
+        {
+          "id": "aus_visitor_600_basic_route_zh",
+          "title": "中国护照澳大利亚旅游签证建议",
+          "tags": ["australia", "china", "chinese-passport", "澳大利亚旅游", "visitor-600", "tourist-stream"],
+          "content": "中国护照持有人短期赴澳大利亚旅游、探亲访友或短期商务访问时，VIZA AI 应优先推荐 Visitor visa (subclass 600) 的合适 stream，通常是 Tourist stream（outside Australia）或 Business Visitor stream，具体取决于目的。不要把澳大利亚问题误判成新西兰 Visitor Visa、加拿大 TRV、英国 Standard Visitor 或美国 B1/B2。"
+        },
+        {
+          "id": "aus_600_genuine_visitor",
+          "title": "Australia subclass 600 decision focus",
+          "tags": ["australia", "visitor-600", "genuine-visitor", "funds", "ties"],
+          "content": "Australian visitor visa decisions focus on whether the applicant is a genuine temporary visitor, has enough funds, meets health/character requirements, and will comply with visa conditions and leave Australia before the visa expires. Common supporting evidence includes passport, travel plan, funds, employment/study/business ties, family ties, invitation details if visiting someone, and previous travel history."
+        },
+        {
+          "id": "aus_600_immiaccount",
+          "title": "Australia application channel",
+          "tags": ["australia", "immiaccount", "online-application", "biometrics", "avac"],
+          "content": "Home Affairs uses online visa lodgement through ImmiAccount for many visitor applications. Depending on country and applicant profile, the applicant may be asked to provide biometrics at an Australian Visa Application Centre or supply additional documents. VIZA AI should tell users to follow the document request letter and check current processing times on Home Affairs."
+        }
+      ]
+    },
+    {
+      "slug": "new-zealand-inz-visitor-visa",
+      "country": "new_zealand",
+      "visaType": "visitor_visa",
+      "documentType": "requirements",
+      "title": "New Zealand Visitor Visa",
+      "sourceUrl": "https://www.immigration.govt.nz/visas/visitor-visa/",
+      "chunks": [
+        {
+          "id": "nzl_visitor_basic_route_zh",
+          "title": "中国护照新西兰旅游签证建议",
+          "tags": ["new-zealand", "china", "chinese-passport", "新西兰旅游", "visitor-visa"],
+          "content": "中国护照持有人短期赴新西兰旅游通常需要按 Immigration New Zealand Visitor Visa 路线准备；不要默认使用 NZeTA，除非用户属于明确的 visa waiver / transit / Australian visa recognition 等特殊情形。先确认国籍、居住地、是否从澳大利亚出发且持有合格澳签、旅行目的、停留天数、同行家庭成员和资金来源。"
+        },
+        {
+          "id": "nzl_china_supplementary_form",
+          "title": "New Zealand China applicant supplementary form",
+          "tags": ["new-zealand", "china", "inz", "supplementary-form", "hukou"],
+          "content": "Immigration New Zealand states that citizens of China applying from China, Hong Kong or Macau must also provide a completed supplementary form with more details of background and intentions. Applicants may provide Hukou household registration as additional identity evidence, and family members included in the application may need Hukou copies. INZ also publishes China-specific visitor visa guides and checklists."
+        },
+        {
+          "id": "nzl_arrival_funds_onward",
+          "title": "New Zealand arrival funds and onward ticket",
+          "tags": ["new-zealand", "visitor-visa", "onward-ticket", "funds", "arrival"],
+          "content": "INZ states that on arrival visitors need a ticket to leave New Zealand at the end of the stay, proof they have enough money to buy one, or agreement that a sponsor will pay for one, plus proof of enough money to live on during the stay. VIZA AI should ask about travel dates, sponsor, funds, accommodation and return/onward travel before producing a checklist."
+        }
+      ]
+    },
+    {
+      "slug": "japan-mofa-short-term-tourism",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentType": "requirements",
+      "title": "Japan Short-Term Tourism Visa and eVISA",
+      "sourceUrl": "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html",
+      "chunks": [
+        {
+          "id": "jpn_short_term_basic_route_zh",
+          "title": "中国护照日本短期旅游签证建议",
+          "tags": ["japan", "china", "chinese-passport", "日本旅游", "short-term-stay", "evisa"],
+          "content": "中国护照持有人赴日本短期旅游时，VIZA AI 应推荐 Japan short-term stay tourism visa / eVISA 路线，并根据申请人居住地判断是否可通过 JAPAN eVISA、指定旅行社/代理或日本驻外使领馆办理。不要把日本短期旅游误判成韩国 C-3/K-ETA、加拿大 TRV 或申根签。"
+        },
+        {
+          "id": "jpn_evisa_china_agency",
+          "title": "Japan eVISA availability and China agency route",
+          "tags": ["japan", "evisa", "china", "accredited-agency", "15-days", "30-days"],
+          "content": "MOFA states that JAPAN eVISA is available for short-term tourism for eligible residents. For nationals of China residing in China, applications should be made through an accredited agency; electronic visas with a period of stay of 15 or 30 days may be issued. eVISA travellers must display the Visa Issuance Notice online at the airport; PDF, screenshots and printed copies are not accepted."
+        },
+        {
+          "id": "jpn_short_term_scope_processing",
+          "title": "Japan short-term stay scope and processing",
+          "tags": ["japan", "short-term-stay", "tourism", "business", "relatives", "processing-time"],
+          "content": "MOFA describes short-term stay as up to 90 days for tourism, business, visiting friends/relatives and similar activities that do not include remunerative work. Visa applications cannot be made inside Japan. MOFA notes that processing takes approximately one week if all necessary requirements are met, but additional documents or consultation can make it longer."
+        }
+      ]
+    },
+    {
+      "slug": "south-korea-visa-c3-keta",
+      "country": "south_korea",
+      "visaType": "c3_or_keta",
+      "documentType": "requirements",
+      "title": "South Korea Short-Term Visit Visa and K-ETA",
+      "sourceUrl": "https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105",
+      "chunks": [
+        {
+          "id": "kor_short_term_basic_route_zh",
+          "title": "中国护照韩国短期旅游签证建议",
+          "tags": ["south-korea", "china", "chinese-passport", "韩国旅游", "c-3", "k-eta"],
+          "content": "中国大陆普通护照持有人短期赴韩国旅游通常应先核查韩国签证门户/Korean mission 的 C-3 短期访问或团体旅游签证要求，而不是默认 K-ETA。K-ETA 主要适用于免签/免签协定国家和地区的旅客；对不属于免签范围的旅客，仍需要申请相应韩国签证。"
+        },
+        {
+          "id": "kor_c3_tourism_group",
+          "title": "Korea C-3 short-term and Chinese group tourism",
+          "tags": ["south-korea", "visa-portal", "c-3", "c-3-2", "tourism", "designated-agency"],
+          "content": "Korea Visa Portal lists short-term visa categories including Short-term Group Tourist (C-3-2) for Chinese group tourists who apply through designated travel agencies. For individual tourism, visiting relatives/friends, medical tourism, short study or business, the exact C-3 subtype and documents depend on the Korean mission or visa application centre with jurisdiction."
+        },
+        {
+          "id": "kor_keta_not_visa",
+          "title": "K-ETA scope and official site",
+          "tags": ["south-korea", "k-eta", "visa-free", "official-site", "not-visa"],
+          "content": "K-ETA is Korea's electronic travel authorization for eligible visa-free travellers and is not a visa. The official site is k-eta.go.kr. Some visa-free nationalities have temporary K-ETA exemptions, but this does not help travellers who need a visa. VIZA AI should first determine passport nationality and whether the user is visa-exempt before mentioning K-ETA as the answer."
+        }
+      ]
     }
   ]
 }
