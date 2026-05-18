@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "south_korea",
+  "notes": "Country-level VIZA RAG seed for south_korea. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "south-korea-visa-c3-keta",
+      "country": "south_korea",
+      "visaType": "c3_or_keta",
+      "documentType": "requirements",
+      "title": "South Korea Short-Term Visit Visa and K-ETA",
+      "sourceUrl": "https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105",
+      "chunks": [
+        {
+          "id": "kor_short_term_basic_route_zh",
+          "title": "中国护照韩国短期旅游签证建议",
+          "tags": [
+            "south-korea",
+            "china",
+            "chinese-passport",
+            "韩国旅游",
+            "c-3",
+            "k-eta"
+          ],
+          "content": "中国大陆普通护照持有人短期赴韩国旅游通常应先核查韩国签证门户/Korean mission 的 C-3 短期访问或团体旅游签证要求，而不是默认 K-ETA。K-ETA 主要适用于免签/免签协定国家和地区的旅客；对不属于免签范围的旅客，仍需要申请相应韩国签证。"
+        },
+        {
+          "id": "kor_c3_tourism_group",
+          "title": "Korea C-3 short-term and Chinese group tourism",
+          "tags": [
+            "south-korea",
+            "visa-portal",
+            "c-3",
+            "c-3-2",
+            "tourism",
+            "designated-agency"
+          ],
+          "content": "Korea Visa Portal lists short-term visa categories including Short-term Group Tourist (C-3-2) for Chinese group tourists who apply through designated travel agencies. For individual tourism, visiting relatives/friends, medical tourism, short study or business, the exact C-3 subtype and documents depend on the Korean mission or visa application centre with jurisdiction."
+        },
+        {
+          "id": "kor_keta_not_visa",
+          "title": "K-ETA scope and official site",
+          "tags": [
+            "south-korea",
+            "k-eta",
+            "visa-free",
+            "official-site",
+            "not-visa"
+          ],
+          "content": "K-ETA is Korea's electronic travel authorization for eligible visa-free travellers and is not a visa. The official site is k-eta.go.kr. Some visa-free nationalities have temporary K-ETA exemptions, but this does not help travellers who need a visa. VIZA AI should first determine passport nationality and whether the user is visa-exempt before mentioning K-ETA as the answer."
+        }
+      ]
+    },
+    {
+      "slug": "south_korea-form-requirements",
+      "country": "south_korea",
+      "visaType": "c3_or_keta",
+      "documentType": "form_requirements",
+      "title": "South Korea Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105",
+      "chunks": [
+        {
+          "id": "south_korea_form_channel_and_scope",
+          "title": "South Korea application channel and form scope",
+          "tags": [
+            "south_korea",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use Korea Visa Portal or consular/VAC route for C-3 visitor visas; use K-ETA only when the traveller is eligible and visa-free. Official source URLs reviewed for this seed: https://www.visa.go.kr/openPage.do?LANG_TYPE=EN&MENU_ID=10105. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "south_korea_form_fields_to_collect",
+          "title": "South Korea fields to collect before filling the form",
+          "tags": [
+            "south_korea",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Korea visitor intake should collect identity, passport, nationality/residence, contact details, occupation, purpose, itinerary, address in Korea, host/inviter if any, funds, previous Korea travel/visa history, and immigration/criminal declarations."
+        },
+        {
+          "id": "south_korea_supporting_documents_and_review",
+          "title": "South Korea supporting documents and review checklist",
+          "tags": [
+            "south_korea",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Common documents include application form, passport, photo, itinerary, accommodation or invitation, funds/employment evidence, family or business evidence where relevant, and residence/jurisdiction evidence. Workflow guardrails: VIZA must not confuse K-ETA with a visa. Route visa-required users to C-3/consular process and visa-exempt users to K-ETA only when eligible."
+        }
+      ]
+    }
+  ]
+}

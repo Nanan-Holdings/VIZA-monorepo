@@ -1,0 +1,102 @@
+{
+  "version": "2026-05-18",
+  "country": "south_africa",
+  "notes": "Country-level VIZA RAG seed for south_africa. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "south-africa-visitor-visa",
+      "country": "south_africa",
+      "visaType": "visitor_visa_tourism",
+      "documentType": "requirements",
+      "title": "South Africa Visitor Visa for Tourism or Business",
+      "sourceUrl": "https://www.gov.za/services/temporary-residence/visa",
+      "chunks": [
+        {
+          "id": "zaf_china_visitor_basic_route_zh",
+          "title": "Chinese passport tourism route for South Africa",
+          "tags": [
+            "south-africa",
+            "zaf",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to South Africa, VIZA AI should consider the South Africa visitor visa or eVisa route for tourism/business visitor cases. First confirm nationality, residence, itinerary, stay length, funds, return ticket, accommodation, children travelling, and yellow-fever origin or transit. Do not treat Chinese ordinary passport tourism as automatically visa-free. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "zaf_visitor_visa_scope",
+          "title": "South Africa visitor visa scope",
+          "tags": [
+            "south-africa",
+            "visitor-visa",
+            "tourism",
+            "business",
+            "90-days"
+          ],
+          "content": "South African Government guidance says visitors who need a visa must obtain a valid visa before entering South Africa. A visitor visa is issued for tourism or business purposes and is valid for a period of 90 days. VIZA AI should not recommend this route for work, study, long-term residence, volunteering or paid activities without further checks."
+        },
+        {
+          "id": "zaf_documents_direction",
+          "title": "South Africa document direction",
+          "tags": [
+            "south-africa",
+            "passport",
+            "return-ticket",
+            "funds",
+            "minor-children",
+            "yellow-fever"
+          ],
+          "content": "For South Africa tourist visa questions, ask for passport nationality, residence country, itinerary, funds, return/onward ticket, accommodation, employment/study ties, and whether children are travelling. Also ask about yellow-fever transit/origin and current eVisa availability for the applicant nationality and residence country."
+        }
+      ]
+    },
+    {
+      "slug": "south_africa-form-requirements",
+      "country": "south_africa",
+      "visaType": "visitor_visa_tourism",
+      "documentType": "form_requirements",
+      "title": "South Africa Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.gov.za/services/temporary-residence/visa",
+      "chunks": [
+        {
+          "id": "south_africa_form_channel_and_scope",
+          "title": "South Africa application channel and form scope",
+          "tags": [
+            "south_africa",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "South Africa visitor visa/eVisa route Official source URLs reviewed for this seed: https://www.gov.za/services/temporary-residence/visa. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "south_africa_form_fields_to_collect",
+          "title": "South Africa fields to collect before filling the form",
+          "tags": [
+            "south_africa",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality/residence, travel purpose, itinerary, accommodation, funds, employment/study, family/minor details and yellow-fever origin/transit"
+        },
+        {
+          "id": "south_africa_supporting_documents_and_review",
+          "title": "South Africa supporting documents and review checklist",
+          "tags": [
+            "south_africa",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport, application form, photo, proof of funds, return/onward ticket, accommodation/invitation, employment/study evidence, minor documents and yellow-fever certificate where required Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

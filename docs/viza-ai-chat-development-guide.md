@@ -182,33 +182,19 @@ RAG migration：
 
 RAG 知识源与写入：
 
-- `knowledge-base/indonesia-visa-rag.json`
-  - 官方来源整理后的 Indonesia visa chunks。
-  - 当前覆盖 e-Visa portal、Arrival Card、VoA/e-VOA、中国游客短期旅游、C1 旅游访问签、延期规则、禁止活动与 sponsor 注意事项。
+- `knowledge-base/visa-rag-seeds/countries/*.json`
+  - 国家级独立 RAG seed。每个文件只负责一个国家，当前共 56 个国家、72 documents、180 chunks。
+  - 这是新的 source of truth；旧的 `supported-visa-rag.json`、`us-visa-rag.json`、`indonesia-visa-rag.json` 已移除，避免同一知识被两个文件维护。
+  - 设计目标是工业级国家模块：每个国家后续都可以独立挂官方知识、材料规则、字段映射、预约/填表流程和 form-filling workflow。
 
-- `viza-be/agent-backend/scripts/ingest-indonesia-visa-rag.ts`
-  - 读取上面的 JSON。
-  - 删除同 country / visa type / document type / source URL / title 的旧 Indonesia RAG 文档后重新写入。
+- `knowledge-base/visa-rag-seeds/README.md`
+  - 记录国家 seed 的维护规则和 ingestion 命令。
+
+- `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`
+  - 读取一个或多个国家 seed，写入共享 `visa_documents` / `visa_chunks` 表。
+  - 删除同 country / visa type / document type / source URL / title 的旧 RAG 文档后重新写入。
   - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
-
-- `knowledge-base/us-visa-rag.json`
-  - 官方来源整理后的 U.S. visitor visa chunks。
-  - 当前覆盖 B-1/B-2 适用目的、禁止活动、DS-160、申请流程、费用、材料、面签、VWP/ESTA、预约等待时间、行政审理、以及中国公民 10 年 B 类签证 EVUS。
-
-- `viza-be/agent-backend/scripts/ingest-us-visa-rag.ts`
-  - 读取上面的 JSON。
-  - 删除同 country / visa type / document type / source URL / title 的旧 U.S. RAG 文档后重新写入，避免多个知识文档共用同一个官方页面时互相覆盖。
-  - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
-
-- `knowledge-base/supported-visa-rag.json`
-  - 官方来源和签证中心来源整理后的多国短期访问签证 chunks。
-  - 当前覆盖所有 29 个 Schengen Area 国家，以及 Vietnam, UK, Singapore, Malaysia, Thailand, Canada, Australia, New Zealand, Japan, South Korea, UAE, Egypt, Turkey, Qatar, Saudi Arabia, Morocco, South Africa, Maldives, Sri Lanka, India, Philippines, Cambodia, Laos, Nepal, Mexico。
-  - 美国和印尼使用独立 JSON seed；不要把它们重复粘进 supported seed。
-
-- `viza-be/agent-backend/scripts/ingest-supported-visa-rag.ts`
-  - 读取上面的 JSON。
-  - 删除同 country / visa type / document type / source URL / title 的旧 supported-country RAG 文档后重新写入。
-  - 有 `OPENAI_API_KEY` 时写入 `text-embedding-3-small` embedding；没有 key 时仍写入 chunk，供 filtered fallback 使用。
+  - 全量入库：`npm run ingest:all-visa-rag`。单国家入库：`npm run ingest:country-visa-rag -- --country japan`。多国家入库：`npm run ingest:country-visa-rag -- --countries japan,us,indonesia`。
 
 ## 6. 数据与持久化
 
@@ -366,5 +352,6 @@ npm run type-check
 - Step 20 popular destination RAG expansion：扩展 `supported-visa-rag.json` 到 20 documents / 55 chunks，新增 Norway, Iceland, Singapore, Malaysia, Thailand, Canada, Australia, New Zealand, Japan, South Korea；`visa-namespace.ts` 同步扩展 country aliases、Schengen country set 和 visitor visa type mapping。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：55 chunks / 55 embeddings。Retrieval smoke 对 Norway/Iceland/Singapore/Malaysia/Thailand/Canada/Australia/New Zealand/Japan/South Korea 均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档。Chrome 复查：日本问题走 Japan eVISA/短期停留，加拿大问题走 Canada TRV，挪威+冰岛同天数时按 Schengen 规则追问首入境国。前后端 type-check 和 `git diff --check` 通过。
 - Step 21 full Schengen RAG coverage：补齐所有当前 Schengen Area 国家。`supported-visa-rag.json` 从 20 documents / 55 chunks 扩展到 44 documents / 103 chunks，新增 Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, Germany, Greece, Hungary, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden。`visa-namespace.ts` 同步新增 country aliases 和完整 Schengen country set；这些国家统一映射到 `schengen_short_stay_tourism`。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：103 chunks / 103 embeddings。Retrieval smoke 覆盖全部 29 个 Schengen countries，均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档；同时修复 Italy `roma` alias 误伤 Romania 的路由问题。前后端 type-check 与 `git diff --check` 通过。Chrome 复查启动时被未关联的 application-steps dev build error 阻塞：`components/application-steps/index.ts` 仍引用已删除的 `personal-info-step.tsx`。
 - Step 22 second popular destination RAG expansion：继续扩展 `supported-visa-rag.json` 到 59 documents / 148 chunks，新增 UAE, Egypt, Turkey, Qatar, Saudi Arabia, Morocco, South Africa, Maldives, Sri Lanka, India, Philippines, Cambodia, Laos, Nepal, Mexico。`visa-namespace.ts` 同步新增 country aliases 和 visitor visa type mapping；新增国家分别映射到 UAE visa-free/tourist visa, Egypt e-Visa, Turkey e-Visa tourism/commerce, Qatar Hayya A1, Saudi tourist eVisa, Morocco visa-free/eVisa, South Africa visitor visa, Maldives visa on arrival, Sri Lanka ETA, India regular tourist visa, Philippines 14-day visa-free/eVisa, Cambodia tourist eVisa, Laos tourist eVisa, Nepal visa on arrival, Mexico visitor visa/exemption。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：148 chunks / 148 embeddings。Retrieval smoke 对上述 15 个新增国家均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档；同时修复 India/Indonesia alias 冲突，以及 Mexico + valid US visa exemption 场景误判为多国家的问题。前后端 type-check 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
+- Step 23 industrial country-level RAG seeds：将旧的 shared/partial seed 架构升级为国家级独立 seed。`knowledge-base/visa-rag-seeds/countries/*.json` 现在包含 56 个国家文件、72 documents、180 chunks；美国和印尼也已纳入同一国家级 seed 目录，不再作为特殊独立脚本。新增 `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`，支持 `npm run ingest:all-visa-rag` 全量入库、`npm run ingest:country-visa-rag -- --country japan` 单国家入库，以及 `--countries japan,us,indonesia` 多国家入库。旧 `supported-visa-rag.json`、`us-visa-rag.json`、`indonesia-visa-rag.json` 和三套重复 ingestion 脚本已移除，避免双 source of truth。`npm run ingest:all-visa-rag` 已成功写入 Supabase：56 countries / 180 chunks / 180 embeddings；全 56 个国家 retrieval smoke 均 PASS。后端 type-check、前端 type-check、`git diff --check` 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

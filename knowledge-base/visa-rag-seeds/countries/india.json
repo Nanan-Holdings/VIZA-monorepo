@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "india",
+  "notes": "Country-level VIZA RAG seed for india. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "india-regular-tourist-visa-china",
+      "country": "india",
+      "visaType": "regular_tourist_visa",
+      "documentType": "requirements",
+      "title": "India Tourist Visa for Chinese Nationals",
+      "sourceUrl": "https://indianvisaonline.gov.in/visa/index.html",
+      "chunks": [
+        {
+          "id": "ind_china_tourist_basic_route_zh",
+          "title": "Chinese passport tourism route for India",
+          "tags": [
+            "india",
+            "ind",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to India, VIZA AI should consider the Indian Visa Online and Indian mission or visa application centre route, with regular tourist visa as the conservative route for Chinese tourists. First confirm nationality, legal residence, purpose, stay length, destination cities, and whether the applicant is eligible for eVisa under current rules. Do not assume Chinese ordinary passport holders can use e-Tourist Visa unless current official eligibility is confirmed. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "ind_regular_visa_process",
+          "title": "India regular visa application process direction",
+          "tags": [
+            "india",
+            "regular-visa",
+            "online-form",
+            "visa-application-centre",
+            "appointment"
+          ],
+          "content": "Indian visa application guidance uses the Indian Visa Online portal for completing the visa application form. For regular/paper tourist visa cases, applicants typically fill the online form, print/sign it, book or follow the relevant mission/visa application centre process, and submit passport, photo and supporting documents. VIZA AI should ask where the applicant legally resides because the Indian mission or visa application centre jurisdiction affects the checklist."
+        },
+        {
+          "id": "ind_evisa_caution_china",
+          "title": "India eVisa caution for Chinese passport holders",
+          "tags": [
+            "india",
+            "evisa",
+            "china",
+            "policy-change",
+            "caution"
+          ],
+          "content": "Because India eVisa eligibility for Chinese nationals has changed over time and may differ by visa category, VIZA AI should not promise eVisa availability for Chinese ordinary passport holders unless current official eligibility is confirmed. For Chinese tourists, explain the safer route as regular tourist visa through Indian official channels and ask the user to verify on the official Indian Visa Online / Embassy pages immediately before applying."
+        }
+      ]
+    },
+    {
+      "slug": "india-form-requirements",
+      "country": "india",
+      "visaType": "regular_tourist_visa",
+      "documentType": "form_requirements",
+      "title": "India Application Form and Document Intake Requirements",
+      "sourceUrl": "https://indianvisaonline.gov.in/visa/index.html",
+      "chunks": [
+        {
+          "id": "india_form_channel_and_scope",
+          "title": "India application channel and form scope",
+          "tags": [
+            "india",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Indian Visa Online / regular visa application route Official source URLs reviewed for this seed: https://indianvisaonline.gov.in/visa/index.html. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "india_form_fields_to_collect",
+          "title": "India fields to collect before filling the form",
+          "tags": [
+            "india",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, religion/visible identification marks where requested, address/contact, family details, profession, travel itinerary, Indian references, previous India travel/visa history and security questions"
+        },
+        {
+          "id": "india_supporting_documents_and_review",
+          "title": "India supporting documents and review checklist",
+          "tags": [
+            "india",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "printed/signed online form when required, passport, photo, appointment/receipt, itinerary, hotel/invitation, funds/employment evidence and jurisdiction-specific checklist items Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "version": "2026-05-18",
+  "country": "thailand",
+  "notes": "Country-level VIZA RAG seed for thailand. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "thailand-tourism-visa-exemption",
+      "country": "thailand",
+      "visaType": "visa_exemption_or_tourist_visa",
+      "documentType": "requirements",
+      "title": "Thailand Tourist Entry and Visa Exemption",
+      "sourceUrl": "https://seoul.thaiembassy.org/en/publicservice/visa-exemption-scheme",
+      "chunks": [
+        {
+          "id": "tha_tourism_basic_route_zh",
+          "title": "中国护照泰国短期旅游签证建议",
+          "tags": [
+            "thailand",
+            "china",
+            "chinese-passport",
+            "泰国旅游",
+            "visa-exemption",
+            "tourist-visa"
+          ],
+          "content": "中国护照持有人赴泰国短期旅游时，VIZA AI 应优先核查泰国外交部/使领馆当前 visa exemption、visa on arrival 或 tourist visa 规则。泰国规则近年调整频繁，回答时要说明需以出发前泰国官方页面为准，并确认停留天数、入境次数、是否有返程/续程票和是否需要长期停留。"
+        },
+        {
+          "id": "tha_visa_exemption_60_days",
+          "title": "Thailand visa exemption overview",
+          "tags": [
+            "thailand",
+            "visa-exemption",
+            "60-days",
+            "onward-ticket",
+            "funds"
+          ],
+          "content": "Royal Thai Embassy guidance for the visa exemption scheme states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
+        },
+        {
+          "id": "tha_tourist_visa_when_needed",
+          "title": "When Thailand tourist visa may be needed",
+          "tags": [
+            "thailand",
+            "tourist-visa",
+            "evisa",
+            "longer-stay",
+            "multiple-entry"
+          ],
+          "content": "If a traveller wants to stay beyond the visa-exempt period, enter repeatedly, work remotely under a specific long-stay route, or is not eligible for exemption, VIZA AI should not assume visa-free entry. Route them to the official Thai e-Visa / Royal Thai Embassy guidance for tourist visa or other visa categories."
+        }
+      ]
+    },
+    {
+      "slug": "thailand-form-requirements",
+      "country": "thailand",
+      "visaType": "visa_exemption_or_tourist_visa",
+      "documentType": "form_requirements",
+      "title": "Thailand Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.thaievisa.go.th/",
+      "chunks": [
+        {
+          "id": "thailand_form_channel_and_scope",
+          "title": "Thailand application channel and form scope",
+          "tags": [
+            "thailand",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use the Royal Thai e-Visa system when a visa is required; visa-exempt travellers may not need a visa application form but still must meet entry checks. Official source URLs reviewed for this seed: https://www.thaievisa.go.th/ ; https://seoul.thaiembassy.org/en/publicservice/visa-exemption-scheme. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "thailand_form_fields_to_collect",
+          "title": "Thailand fields to collect before filling the form",
+          "tags": [
+            "thailand",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Thailand e-Visa intake should collect personal details, passport, residence, occupation, travel purpose, arrival/departure dates, itinerary, accommodation, inviter/host if any, previous Thai visa/travel history, and declarations."
+        },
+        {
+          "id": "thailand_supporting_documents_and_review",
+          "title": "Thailand supporting documents and review checklist",
+          "tags": [
+            "thailand",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Typical tourist visa evidence includes passport biodata page, photo, travel booking or itinerary, accommodation, financial evidence, proof of residence in the application country, and invitation/host evidence if relevant. Workflow guardrails: VIZA should first check visa exemption eligibility and stay length. For e-Visa cases, collect upload-ready documents and avoid promising entry because immigration checks still apply."
+        }
+      ]
+    }
+  ]
+}
