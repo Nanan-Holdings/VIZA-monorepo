@@ -1,0 +1,100 @@
+{
+  "version": "2026-05-18",
+  "country": "australia",
+  "notes": "Country-level VIZA RAG seed for australia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "australia-visitor-subclass-600",
+      "country": "australia",
+      "visaType": "visitor_subclass_600",
+      "documentType": "requirements",
+      "title": "Australia Visitor Visa Subclass 600",
+      "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600",
+      "chunks": [
+        {
+          "id": "aus_visitor_600_basic_route_zh",
+          "title": "中国护照澳大利亚旅游签证建议",
+          "tags": [
+            "australia",
+            "china",
+            "chinese-passport",
+            "澳大利亚旅游",
+            "visitor-600",
+            "tourist-stream"
+          ],
+          "content": "中国护照持有人短期赴澳大利亚旅游、探亲访友或短期商务访问时，VIZA AI 应优先推荐 Visitor visa (subclass 600) 的合适 stream，通常是 Tourist stream（outside Australia）或 Business Visitor stream，具体取决于目的。不要把澳大利亚问题误判成新西兰 Visitor Visa、加拿大 TRV、英国 Standard Visitor 或美国 B1/B2。"
+        },
+        {
+          "id": "aus_600_genuine_visitor",
+          "title": "Australia subclass 600 decision focus",
+          "tags": [
+            "australia",
+            "visitor-600",
+            "genuine-visitor",
+            "funds",
+            "ties"
+          ],
+          "content": "Australian visitor visa decisions focus on whether the applicant is a genuine temporary visitor, has enough funds, meets health/character requirements, and will comply with visa conditions and leave Australia before the visa expires. Common supporting evidence includes passport, travel plan, funds, employment/study/business ties, family ties, invitation details if visiting someone, and previous travel history."
+        },
+        {
+          "id": "aus_600_immiaccount",
+          "title": "Australia application channel",
+          "tags": [
+            "australia",
+            "immiaccount",
+            "online-application",
+            "biometrics",
+            "avac"
+          ],
+          "content": "Home Affairs uses online visa lodgement through ImmiAccount for many visitor applications. Depending on country and applicant profile, the applicant may be asked to provide biometrics at an Australian Visa Application Centre or supply additional documents. VIZA AI should tell users to follow the document request letter and check current processing times on Home Affairs."
+        }
+      ]
+    },
+    {
+      "slug": "australia-form-requirements",
+      "country": "australia",
+      "visaType": "visitor_subclass_600",
+      "documentType": "form_requirements",
+      "title": "Australia Application Form and Document Intake Requirements",
+      "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600",
+      "chunks": [
+        {
+          "id": "australia_form_channel_and_scope",
+          "title": "Australia application channel and form scope",
+          "tags": [
+            "australia",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Apply online through ImmiAccount for Visitor visa subclass 600 where online lodgement is available. Official source URLs reviewed for this seed: https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/visitor-600. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "australia_form_fields_to_collect",
+          "title": "Australia fields to collect before filling the form",
+          "tags": [
+            "australia",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Subclass 600 intake should collect identity, passport and national ID details, contact and residential address, travel dates and itinerary, stream/purpose, accommodation or host, employment/study, finances, family members, accompanying travellers, previous visas/refusals, health and character declarations, and whether minors require consent documents."
+        },
+        {
+          "id": "australia_supporting_documents_and_review",
+          "title": "Australia supporting documents and review checklist",
+          "tags": [
+            "australia",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Evidence can include passport biodata, national ID, photo, invitation or itinerary, accommodation, proof of funds, employment/study evidence, business visitor evidence when relevant, prior travel evidence, character/health documents if requested, and parental consent for children. Workflow guardrails: ImmiAccount applications involve online questions, document upload, declarations and payment. VIZA should keep document categories aligned with ImmiAccount labels and never submit health/character answers without explicit user confirmation."
+        }
+      ]
+    }
+  ]
+}

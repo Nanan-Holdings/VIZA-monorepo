@@ -29,7 +29,7 @@ export function ScrollToBottomFab({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
           transition={{ duration: 0.2 }}
-          onClick={onClick}
+          onClick={() => onClick()}
           className={cn(
             "absolute z-20",
             "flex items-center gap-3 px-5 py-3",

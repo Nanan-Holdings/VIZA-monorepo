@@ -1,0 +1,102 @@
+{
+  "version": "2026-05-18",
+  "country": "turkey",
+  "notes": "Country-level VIZA RAG seed for turkey. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "turkey-official-evisa-tourism",
+      "country": "turkey",
+      "visaType": "evisa_tourism_business",
+      "documentType": "requirements",
+      "title": "Turkiye Official e-Visa for Tourism and Commerce",
+      "sourceUrl": "https://www.evisa.gov.tr/tour/",
+      "chunks": [
+        {
+          "id": "tur_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Turkey/Turkiye",
+          "tags": [
+            "turkey-turkiye",
+            "tur",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Turkey/Turkiye, VIZA AI should consider the official Turkey e-Visa route for tourism or commerce when eligible. First confirm nationality, residence, purpose, stay length, supporting visa/residence documents if relevant, and whether the activity is tourism or commerce only. Work, study and residence require consular routing rather than tourist e-Visa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "tur_evisa_official_portal",
+          "title": "Turkiye e-Visa official portal rules",
+          "tags": [
+            "turkey",
+            "official-evisa",
+            "mfa",
+            "tourism",
+            "commerce",
+            "passport-validity"
+          ],
+          "content": "Turkiye MFA states that www.evisa.gov.tr is the government portal run by the Ministry of Foreign Affairs. e-Visa applications can be created online for individuals, families or groups, and each traveller, including infants and children, must obtain a separate e-Visa. The official e-Visa is valid only for touristic and trade purposes. Travellers should carry a passport or travel document with validity at least 60 days beyond the permitted stay or visa/visa-exemption duration."
+        },
+        {
+          "id": "tur_non_evisa_purposes",
+          "title": "Turkiye non-tourism routes",
+          "tags": [
+            "turkey",
+            "work",
+            "study",
+            "consulate",
+            "not-evisa"
+          ],
+          "content": "If the user wants to work, study, reside, conduct paid activity, or stay beyond the short visitor route, do not recommend the e-Visa as final. Turkiye MFA guidance says visas for purposes other than tourism or commerce are issued by Turkish Embassies or Consulates. Ask follow-up questions when the purpose is ambiguous."
+        }
+      ]
+    },
+    {
+      "slug": "turkey-form-requirements",
+      "country": "turkey",
+      "visaType": "evisa_tourism_business",
+      "documentType": "form_requirements",
+      "title": "Turkiye Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.evisa.gov.tr/tour/",
+      "chunks": [
+        {
+          "id": "turkey_form_channel_and_scope",
+          "title": "Turkiye application channel and form scope",
+          "tags": [
+            "turkey",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Turkiye official e-Visa portal Official source URLs reviewed for this seed: https://www.evisa.gov.tr/tour/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "turkey_form_fields_to_collect",
+          "title": "Turkiye fields to collect before filling the form",
+          "tags": [
+            "turkey",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport/travel document, nationality, travel dates, email/contact and tourism/commerce purpose"
+        },
+        {
+          "id": "turkey_supporting_documents_and_review",
+          "title": "Turkiye supporting documents and review checklist",
+          "tags": [
+            "turkey",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport/travel document meeting validity rules, payment method and any supporting visa/residence document required by eligibility rules Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

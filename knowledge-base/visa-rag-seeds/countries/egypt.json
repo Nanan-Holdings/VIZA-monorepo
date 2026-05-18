@@ -1,0 +1,102 @@
+{
+  "version": "2026-05-18",
+  "country": "egypt",
+  "notes": "Country-level VIZA RAG seed for egypt. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "egypt-official-evisa-tourism",
+      "country": "egypt",
+      "visaType": "evisa_tourism",
+      "documentType": "requirements",
+      "title": "Egypt Official e-Visa for Tourism",
+      "sourceUrl": "https://www.visa2egypt.gov.eg/eVisa/Home?lang=en",
+      "chunks": [
+        {
+          "id": "egy_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Egypt",
+          "tags": [
+            "egypt",
+            "egy",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Egypt, VIZA AI should consider the official Egypt e-Visa route through visa2egypt.gov.eg when eligible. First confirm nationality, stay length, single or multiple entry need, tourist itinerary, hotel details, and whether the purpose is tourism only. Do not route Egypt queries to UAE, Turkey or Schengen. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "egy_evisa_process_requirements",
+          "title": "Egypt e-Visa process and requirements",
+          "tags": [
+            "egypt",
+            "official-evisa",
+            "apply-online",
+            "7-days",
+            "hotel-booking",
+            "entry-decision"
+          ],
+          "content": "Egypt e-Visa Portal states that applicants create an account, apply and pay online, and should create an e-Visa application at least 7 days before departure. The FAQ describes the e-Visa as an official document permitting entry into and travel from Egypt for eligible nationalities, with the visa downloaded after approval. Typical tourist requirements include hotel booking/details about places to visit. Egyptian port authorities retain the right to refuse entry even when an e-Visa is held."
+        },
+        {
+          "id": "egy_evisa_types_direction",
+          "title": "Egypt e-Visa type direction",
+          "tags": [
+            "egypt",
+            "single-entry",
+            "multiple-entry",
+            "30-days",
+            "tourism"
+          ],
+          "content": "For Egypt tourist trips, distinguish single-entry and multiple-entry needs, and ask whether the user will leave and re-enter Egypt during the itinerary. Keep advice focused on tourism unless the user states business, study, work, residence, journalism or other regulated purposes, which may require an embassy/consular route rather than a tourist e-Visa."
+        }
+      ]
+    },
+    {
+      "slug": "egypt-form-requirements",
+      "country": "egypt",
+      "visaType": "evisa_tourism",
+      "documentType": "form_requirements",
+      "title": "Egypt Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.visa2egypt.gov.eg/eVisa/Home?lang=en",
+      "chunks": [
+        {
+          "id": "egypt_form_channel_and_scope",
+          "title": "Egypt application channel and form scope",
+          "tags": [
+            "egypt",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Egypt official e-Visa portal Official source URLs reviewed for this seed: https://www.visa2egypt.gov.eg/eVisa/Home?lang=en. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "egypt_form_fields_to_collect",
+          "title": "Egypt fields to collect before filling the form",
+          "tags": [
+            "egypt",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, email/account, travel dates, entry count, accommodation/hotel and places to visit"
+        },
+        {
+          "id": "egypt_supporting_documents_and_review",
+          "title": "Egypt supporting documents and review checklist",
+          "tags": [
+            "egypt",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport, hotel booking or accommodation details, itinerary and downloaded e-Visa after approval Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

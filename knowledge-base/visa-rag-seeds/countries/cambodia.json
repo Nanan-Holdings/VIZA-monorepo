@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "cambodia",
+  "notes": "Country-level VIZA RAG seed for cambodia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "cambodia-tourist-evisa",
+      "country": "cambodia",
+      "visaType": "tourist_evisa",
+      "documentType": "requirements",
+      "title": "Cambodia Tourist eVisa",
+      "sourceUrl": "https://www.evisa.gov.kh/",
+      "chunks": [
+        {
+          "id": "khm_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Cambodia",
+          "tags": [
+            "cambodia",
+            "khm",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Cambodia, VIZA AI should consider the official Cambodia tourist eVisa route or tourist visa route at accepted ports. First confirm nationality, stay length, entry port, tourism purpose, passport validity, photo and whether the user will enter by air or land. Check accepted eVisa ports before travel. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "khm_evisa_scope",
+          "title": "Cambodia tourist eVisa scope",
+          "tags": [
+            "cambodia",
+            "official-evisa",
+            "tourist",
+            "30-days",
+            "entry-points"
+          ],
+          "content": "Cambodia e-Visa is an official electronic visa issued by the Royal Government of Cambodia via the official evisa.gov.kh portal. Tourist e-Visa is normally for tourism, generally single entry, and commonly permits a stay up to 30 days subject to current official rules and accepted entry points. Applicants receive an approval certificate that should be presented with the passport at immigration."
+        },
+        {
+          "id": "khm_documents_direction",
+          "title": "Cambodia documents and entry direction",
+          "tags": [
+            "cambodia",
+            "passport-validity",
+            "photo",
+            "entry-point",
+            "printout"
+          ],
+          "content": "For Cambodia, collect passport validity, photo, arrival date, entry point, hotel/itinerary, return/onward arrangements and visa type. Warn users to use the official government e-Visa portal, check the accepted ports of entry, and carry the e-Visa approval certificate as required."
+        }
+      ]
+    },
+    {
+      "slug": "cambodia-form-requirements",
+      "country": "cambodia",
+      "visaType": "tourist_evisa",
+      "documentType": "form_requirements",
+      "title": "Cambodia Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.evisa.gov.kh/",
+      "chunks": [
+        {
+          "id": "cambodia_form_channel_and_scope",
+          "title": "Cambodia application channel and form scope",
+          "tags": [
+            "cambodia",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Cambodia official eVisa portal Official source URLs reviewed for this seed: https://www.evisa.gov.kh/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "cambodia_form_fields_to_collect",
+          "title": "Cambodia fields to collect before filling the form",
+          "tags": [
+            "cambodia",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, photo, arrival date, entry point, purpose and contact/accommodation details"
+        },
+        {
+          "id": "cambodia_supporting_documents_and_review",
+          "title": "Cambodia supporting documents and review checklist",
+          "tags": [
+            "cambodia",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport biodata, photo, itinerary/accommodation and eVisa approval printout/electronic copy Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

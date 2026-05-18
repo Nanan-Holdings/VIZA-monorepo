@@ -1,0 +1,102 @@
+{
+  "version": "2026-05-18",
+  "country": "maldives",
+  "notes": "Country-level VIZA RAG seed for maldives. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "maldives-tourist-visa-on-arrival",
+      "country": "maldives",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "requirements",
+      "title": "Maldives Tourist Visa on Arrival and Traveller Declaration",
+      "sourceUrl": "https://www.immigration.gov.mv/visa/tourist-visa",
+      "chunks": [
+        {
+          "id": "mdv_china_voa_basic_route_zh",
+          "title": "Chinese passport tourism route for Maldives",
+          "tags": [
+            "maldives",
+            "mdv",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Maldives, VIZA AI should consider the Maldives tourist visa on arrival plus IMUGA Traveller Declaration route. First confirm nationality, stay length, resort or hotel booking, return or onward ticket, funds, and traveller declaration status. Employment or non-tourist activities require a different permit. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "mdv_visa_on_arrival_requirements",
+          "title": "Maldives tourist visa on arrival requirements",
+          "tags": [
+            "maldives",
+            "tourist-visa",
+            "arrival",
+            "30-days",
+            "traveller-declaration"
+          ],
+          "content": "Maldives Immigration states that tourist visa is granted on arrival. Maldives official/mission pages describe a free tourist visa on arrival for up to 30 days for foreign tourists subject to entry requirements. IMUGA is the official Maldives Immigration portal for traveller declaration and immigration services; Traveller Declaration is required within the official pre-arrival/departure window."
+        },
+        {
+          "id": "mdv_entry_documents",
+          "title": "Maldives entry document direction",
+          "tags": [
+            "maldives",
+            "passport",
+            "hotel",
+            "return-ticket",
+            "funds",
+            "imuga"
+          ],
+          "content": "For Maldives, collect passport validity, confirmed accommodation at a registered tourist facility, return/onward ticket, travel itinerary, sufficient funds or sponsorship, and IMUGA Traveller Declaration status. Explain that the full 30-day period is subject to immigration discretion and that employment or non-tourist purposes require a different visa/permit."
+        }
+      ]
+    },
+    {
+      "slug": "maldives-form-requirements",
+      "country": "maldives",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "form_requirements",
+      "title": "Maldives Application Form and Document Intake Requirements",
+      "sourceUrl": "https://imuga.immigration.gov.mv/",
+      "chunks": [
+        {
+          "id": "maldives_form_channel_and_scope",
+          "title": "Maldives application channel and form scope",
+          "tags": [
+            "maldives",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "IMUGA Traveller Declaration and tourist visa on arrival workflow Official source URLs reviewed for this seed: https://imuga.immigration.gov.mv/ ; https://www.immigration.gov.mv/visa/tourist-visa. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "maldives_form_fields_to_collect",
+          "title": "Maldives fields to collect before filling the form",
+          "tags": [
+            "maldives",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, travel dates, flight details, accommodation/resort, contact details and health/customs declaration data"
+        },
+        {
+          "id": "maldives_supporting_documents_and_review",
+          "title": "Maldives supporting documents and review checklist",
+          "tags": [
+            "maldives",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport, confirmed accommodation, return/onward ticket, funds/sponsorship evidence and completed Traveller Declaration Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

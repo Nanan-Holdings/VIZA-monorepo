@@ -1,0 +1,102 @@
+{
+  "version": "2026-05-18",
+  "country": "japan",
+  "notes": "Country-level VIZA RAG seed for japan. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "japan-mofa-short-term-tourism",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentType": "requirements",
+      "title": "Japan Short-Term Tourism Visa and eVISA",
+      "sourceUrl": "https://www.mofa.go.jp/j_info/visit/visa/visaonline.html",
+      "chunks": [
+        {
+          "id": "jpn_short_term_basic_route_zh",
+          "title": "中国护照日本短期旅游签证建议",
+          "tags": [
+            "japan",
+            "china",
+            "chinese-passport",
+            "日本旅游",
+            "short-term-stay",
+            "evisa"
+          ],
+          "content": "中国护照持有人赴日本短期旅游时，VIZA AI 应推荐 Japan short-term stay tourism visa / eVISA 路线，并根据申请人居住地判断是否可通过 JAPAN eVISA、指定旅行社/代理或日本驻外使领馆办理。不要把日本短期旅游误判成韩国 C-3/K-ETA、加拿大 TRV 或申根签。"
+        },
+        {
+          "id": "jpn_evisa_china_agency",
+          "title": "Japan eVISA availability and China agency route",
+          "tags": [
+            "japan",
+            "evisa",
+            "china",
+            "accredited-agency",
+            "15-days",
+            "30-days"
+          ],
+          "content": "MOFA states that JAPAN eVISA is available for short-term tourism for eligible residents. For nationals of China residing in China, applications should be made through an accredited agency; electronic visas with a period of stay of 15 or 30 days may be issued. eVISA travellers must display the Visa Issuance Notice online at the airport; PDF, screenshots and printed copies are not accepted."
+        },
+        {
+          "id": "jpn_short_term_scope_processing",
+          "title": "Japan short-term stay scope and processing",
+          "tags": [
+            "japan",
+            "short-term-stay",
+            "tourism",
+            "business",
+            "relatives",
+            "processing-time"
+          ],
+          "content": "MOFA describes short-term stay as up to 90 days for tourism, business, visiting friends/relatives and similar activities that do not include remunerative work. Visa applications cannot be made inside Japan. MOFA notes that processing takes approximately one week if all necessary requirements are met, but additional documents or consultation can make it longer."
+        }
+      ]
+    },
+    {
+      "slug": "japan-form-requirements",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentType": "form_requirements",
+      "title": "Japan Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.mofa.go.jp/j_info/visit/visa/index.html",
+      "chunks": [
+        {
+          "id": "japan_form_channel_and_scope",
+          "title": "Japan application channel and form scope",
+          "tags": [
+            "japan",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use Japan eVISA or the competent Japanese mission/agency route where applicable; Japan also provides official visa application forms for paper routes. Official source URLs reviewed for this seed: https://www.mofa.go.jp/j_info/visit/visa/index.html ; https://www.mofa.go.jp/j_info/visit/visa/visaonline.html. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "japan_form_fields_to_collect",
+          "title": "Japan fields to collect before filling the form",
+          "tags": [
+            "japan",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Japan short-stay intake should collect names, nationality, date/place of birth, sex, marital status, passport details, occupation, address/contact details, purpose of visit, intended arrival and stay length, port of entry, airline/ship, hotel or host, guarantor/inviter if any, travel history, and declarations about criminal/deportation/overstay history."
+        },
+        {
+          "id": "japan_supporting_documents_and_review",
+          "title": "Japan supporting documents and review checklist",
+          "tags": [
+            "japan",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Tourism evidence can include passport, visa application form or eVISA data, photo, itinerary, flight/transport plan, hotel booking, funds/employment evidence, and agency or residence-specific checklist documents. Workflow guardrails: For Chinese residents, VIZA should check the current eVISA/agency route and jurisdiction before promising direct online submission."
+        }
+      ]
+    }
+  ]
+}

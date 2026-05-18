@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "malaysia",
+  "notes": "Country-level VIZA RAG seed for malaysia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "malaysia-visa-exemption-evisa-mdac",
+      "country": "malaysia",
+      "visaType": "visa_exemption_or_evisa_tourism",
+      "documentType": "requirements",
+      "title": "Malaysia Tourist Entry, eVISA, and MDAC",
+      "sourceUrl": "https://www.imi.gov.my/index.php/en/main-services/visa/",
+      "chunks": [
+        {
+          "id": "mys_china_tourism_basic_route_zh",
+          "title": "中国护照马来西亚短期旅游签证建议",
+          "tags": [
+            "malaysia",
+            "china",
+            "chinese-passport",
+            "马来西亚旅游",
+            "visa-exemption",
+            "mdac"
+          ],
+          "content": "中国护照持有人短期赴马来西亚旅游时，VIZA AI 应优先核查马来西亚移民局/外交部当前对中国公民的 social visit visa exemption 或 eVISA 规则。当前知识库范围覆盖旅游/社交访问；若用户目的为工作、学习、长期居留或多次商务活动，应提示需要不同准证或向官方确认。"
+        },
+        {
+          "id": "mys_china_india_exemption_30_days",
+          "title": "Malaysia China/India short social visit exemption",
+          "tags": [
+            "malaysia",
+            "china",
+            "india",
+            "30-days",
+            "social-visit",
+            "visa-exemption"
+          ],
+          "content": "Malaysia's visa liberalisation materials and Immigration pages state that citizens of China and India may be covered by a visa exemption for social visit purposes for up to 30 days. VIZA AI should avoid promising entry: the final decision is made by Malaysian immigration at the border, and travellers should still prepare passport validity, return/onward ticket, accommodation, funds, and any required arrival declaration."
+        },
+        {
+          "id": "mys_evisa_mdac_route",
+          "title": "Malaysia eVISA and arrival declaration",
+          "tags": [
+            "malaysia",
+            "evisa",
+            "mdac",
+            "official-portal",
+            "arrival-card"
+          ],
+          "content": "For travellers who are not visa-exempt or whose purpose/stay does not fit the exemption, route them to the official Malaysia eVISA portal and current Immigration Malaysia instructions. Malaysia also operates a digital arrival card/MDAC process for many foreign arrivals; VIZA AI should tell users to complete current official arrival requirements before travel and verify exemptions on the Immigration Malaysia site."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-form-requirements",
+      "country": "malaysia",
+      "visaType": "visa_exemption_or_evisa_tourism",
+      "documentType": "form_requirements",
+      "title": "Malaysia Application Form and Document Intake Requirements",
+      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "chunks": [
+        {
+          "id": "malaysia_form_channel_and_scope",
+          "title": "Malaysia application channel and form scope",
+          "tags": [
+            "malaysia",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use Malaysia eVISA where required/eligible and complete MDAC where applicable before arrival. Official source URLs reviewed for this seed: https://malaysiavisa.imi.gov.my/evisa/evisa.jsp ; https://www.imi.gov.my/index.php/en/main-services/visa/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "malaysia_form_fields_to_collect",
+          "title": "Malaysia fields to collect before filling the form",
+          "tags": [
+            "malaysia",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Malaysia eVISA/entry intake should collect identity, passport, nationality and residence, contact details, travel dates, entry/exit points, accommodation, purpose, prior Malaysia travel/visa history, and MDAC arrival details."
+        },
+        {
+          "id": "malaysia_supporting_documents_and_review",
+          "title": "Malaysia supporting documents and review checklist",
+          "tags": [
+            "malaysia",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Common evidence includes passport biodata page, compliant photo, return/onward ticket, accommodation booking, bank statement or funds evidence when required, birth certificate/consent for minors where relevant, and any previous visa or residence evidence. Workflow guardrails: VIZA should distinguish visa-exemption, eVISA and MDAC. MDAC is not a visa and should be tracked as a separate pre-arrival declaration."
+        }
+      ]
+    }
+  ]
+}

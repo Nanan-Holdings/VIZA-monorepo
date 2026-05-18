@@ -1,0 +1,103 @@
+{
+  "version": "2026-05-18",
+  "country": "nepal",
+  "notes": "Country-level VIZA RAG seed for nepal. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "nepal-tourist-visa-on-arrival",
+      "country": "nepal",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "requirements",
+      "title": "Nepal Tourist Visa on Arrival",
+      "sourceUrl": "https://tia.immigration.gov.np/en/post/on-arrival-tourist-visa",
+      "chunks": [
+        {
+          "id": "npl_china_voa_basic_route_zh",
+          "title": "Chinese passport tourism route for Nepal",
+          "tags": [
+            "nepal",
+            "npl",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Nepal, VIZA AI should consider the Nepal tourist visa on arrival or online pre-arrival route at authorized entry points. First confirm nationality, arrival airport or land border, stay length, accommodation, trek plans and whether restricted-area permits may be needed. Trekking and restricted-area permits are separate from the tourist visa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "npl_on_arrival_process",
+          "title": "Nepal on-arrival tourist visa process",
+          "tags": [
+            "nepal",
+            "tourist-visa",
+            "on-arrival",
+            "tribhuvan",
+            "15-days",
+            "30-days",
+            "90-days"
+          ],
+          "content": "Nepal Immigration states that Tourist Visa on Arrival is available at Tribhuvan International Airport and other authorized entry/exit points. Tourist visa on arrival is the only entry visa for tourists and is issued with multiple re-entry facility, with common 15-day, 30-day and 90-day categories. Chinese nationals are listed in Nepal guidance as eligible for on-arrival visa at authorized entry points."
+        },
+        {
+          "id": "npl_documents_direction",
+          "title": "Nepal documents and trekking caution",
+          "tags": [
+            "nepal",
+            "passport",
+            "photo",
+            "trekking-permit",
+            "restricted-area"
+          ],
+          "content": "For Nepal, collect passport validity, arrival airport/land border, intended stay length, photo, accommodation/itinerary and whether the user will trek or enter restricted areas. Explain that trekking permits or restricted-area permits are separate from the tourist visa and may be needed for certain routes."
+        }
+      ]
+    },
+    {
+      "slug": "nepal-form-requirements",
+      "country": "nepal",
+      "visaType": "tourist_visa_on_arrival",
+      "documentType": "form_requirements",
+      "title": "Nepal Application Form and Document Intake Requirements",
+      "sourceUrl": "https://nepaliport.immigration.gov.np/",
+      "chunks": [
+        {
+          "id": "nepal_form_channel_and_scope",
+          "title": "Nepal application channel and form scope",
+          "tags": [
+            "nepal",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Nepal online pre-arrival / on-arrival tourist visa workflow Official source URLs reviewed for this seed: https://nepaliport.immigration.gov.np/ ; https://tia.immigration.gov.np/en/post/on-arrival-tourist-visa. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "nepal_form_fields_to_collect",
+          "title": "Nepal fields to collect before filling the form",
+          "tags": [
+            "nepal",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, passport, nationality, arrival point, stay length, address in Nepal, contact details and visa duration category"
+        },
+        {
+          "id": "nepal_supporting_documents_and_review",
+          "title": "Nepal supporting documents and review checklist",
+          "tags": [
+            "nepal",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport, photo, online receipt/kiosk slip where applicable, visa fee unless gratis/exempt, and trekking/restricted-area permits if relevant Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

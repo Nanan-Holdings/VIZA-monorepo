@@ -1,0 +1,94 @@
+{
+  "version": "2026-05-18",
+  "country": "germany",
+  "notes": "Country-level VIZA RAG seed for germany. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "germany-schengen-short-stay",
+      "country": "germany",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "requirements",
+      "title": "Schengen Short-Stay Requirements for Germany",
+      "sourceUrl": "https://www.auswaertiges-amt.de/en/visa-service/visabestimmungen-node",
+      "chunks": [
+        {
+          "id": "deu_schengen_basic_route_zh",
+          "title": "Chinese passport tourism route for Germany",
+          "tags": [
+            "germany",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "schengen",
+            "short-stay",
+            "type-c"
+          ],
+          "content": "Chinese ordinary passport holders planning a short tourism trip to Germany should normally use the Germany/Schengen short-stay Type C tourism route when Germany is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+        },
+        {
+          "id": "deu_schengen_where_apply_documents",
+          "title": "Germany Schengen where-to-apply and documents",
+          "tags": [
+            "germany",
+            "germany",
+            "berlin",
+            "munich",
+            "schengen",
+            "where-to-apply",
+            "documents",
+            "fee",
+            "processing",
+            "90-180"
+          ],
+          "content": "EU Schengen guidance says a short-stay Schengen visa covers temporary visits of up to 90 days in any 180-day period. For a single-country trip, apply to the consulate/official visa channel of that country. For multiple Schengen countries, apply to the country where the traveller will spend the longest time or, if stays are equal, the first-entry country. Applications should normally be submitted at least 15 days before travel and no earlier than 6 months before the intended journey. Common documents include passport, signed Schengen application form, ICAO-compliant photo, travel medical insurance, itinerary/accommodation, funds, evidence of return intention, and fingerprints. EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days. Use Germany's official consular or outsourced visa application channel for the applicant's legal residence country before booking an appointment. EU common source: https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en"
+        }
+      ]
+    },
+    {
+      "slug": "germany-form-requirements",
+      "country": "germany",
+      "visaType": "schengen_short_stay_tourism",
+      "documentType": "form_requirements",
+      "title": "Germany Application Form and Document Intake Requirements",
+      "sourceUrl": "https://home-affairs.ec.europa.eu/document/download/5fe79baa-2d46-4b65-84ec-ea2e9b5ab1d6_en?filename=Visa+Application+Form.pdf",
+      "chunks": [
+        {
+          "id": "germany_form_channel_and_scope",
+          "title": "Germany application channel and form scope",
+          "tags": [
+            "germany",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Use the competent Germany consulate or its authorised visa application centre when Germany is the only destination, main destination, longest-stay destination, or first-entry state when stays are equal. Also check the country-specific source: https://www.auswaertiges-amt.de/en/visa-service/visabestimmungen-node. Official source URLs reviewed for this seed: https://home-affairs.ec.europa.eu/document/download/5fe79baa-2d46-4b65-84ec-ea2e9b5ab1d6_en?filename=Visa+Application+Form.pdf ; https://www.auswaertiges-amt.de/en/visa-service/visabestimmungen-node. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "germany_form_fields_to_collect",
+          "title": "Germany fields to collect before filling the form",
+          "tags": [
+            "germany",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "The harmonised Schengen form intake should collect surname/current and birth names, first names, date/place/country of birth, current and birth nationality, sex, civil status, parental authority for minors, national ID where applicable, travel document type/number/issue/expiry/issuing authority, home address/email/phone, residence in another country if any, occupation, employer or school, travel purpose, destination Member State(s), first-entry Member State, number of entries requested, intended arrival/departure dates and duration, prior Schengen fingerprints, entry permit for final destination if any, inviting person/company or hotel/accommodation, who pays travel/living costs, EU/EEA/Swiss family member data if applicable, and applicant declaration/signature."
+        },
+        {
+          "id": "germany_supporting_documents_and_review",
+          "title": "Germany supporting documents and review checklist",
+          "tags": [
+            "germany",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Core Schengen evidence includes signed visa application form, passport/travel document valid beyond the planned Schengen exit, photo, travel medical insurance, proof of purpose, itinerary/transport, accommodation or host invitation, evidence of financial means, evidence of intention to return, residence/jurisdiction proof, fee, and biometrics where required. Workflow guardrails: VIZA should determine the competent Schengen state before filling forms. For multi-country trips, compute longest stay or first entry if equal; collect day split and accommodation per country. Do not submit or sign declarations without explicit user confirmation."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "version": "2026-05-18",
+  "country": "laos",
+  "notes": "Country-level VIZA RAG seed for laos. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "laos-tourist-evisa",
+      "country": "laos",
+      "visaType": "tourist_evisa",
+      "documentType": "requirements",
+      "title": "Laos Tourist eVisa",
+      "sourceUrl": "https://www.evisagov.la/official/en-us/evisa",
+      "chunks": [
+        {
+          "id": "lao_china_evisa_basic_route_zh",
+          "title": "Chinese passport tourism route for Laos",
+          "tags": [
+            "laos",
+            "lao",
+            "china",
+            "chinese-passport",
+            "tourism",
+            "visitor",
+            "short-stay"
+          ],
+          "content": "For Chinese ordinary passport holders planning short tourism travel to Laos, VIZA AI should consider the official Laos tourist eVisa route or visa-on-arrival/consular route depending on entry point. First confirm nationality, stay length, entry port, passport type, tourism purpose, and whether the port accepts eVisa. Laos eVisa is for ordinary passports and tourism-related short stays. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+        },
+        {
+          "id": "lao_evisa_scope",
+          "title": "Laos tourist eVisa scope",
+          "tags": [
+            "laos",
+            "official-evisa",
+            "tourist",
+            "ordinary-passport",
+            "entry-points"
+          ],
+          "content": "The official Laos eVisa portal describes Laos e-Visa as a Tourist eVisa for short stays related to tourism, sightseeing, cultural visits and short family trips. It is for ordinary passports, not diplomatic, official or emergency travel documents. VIZA AI should check accepted entry points and avoid recommending eVisa for non-tourism or ineligible passport types."
+        },
+        {
+          "id": "lao_documents_direction",
+          "title": "Laos document and port direction",
+          "tags": [
+            "laos",
+            "passport",
+            "photo",
+            "entry-port",
+            "approval-letter"
+          ],
+          "content": "For Laos, ask for entry point, travel dates, passport validity, photo/document upload readiness, and whether the traveller will enter by air or land. Tell users to use the official eVisa portal and carry the eVisa approval document with the same passport used for the application."
+        }
+      ]
+    },
+    {
+      "slug": "laos-form-requirements",
+      "country": "laos",
+      "visaType": "tourist_evisa",
+      "documentType": "form_requirements",
+      "title": "Laos Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.evisagov.la/official/en-us/evisa",
+      "chunks": [
+        {
+          "id": "laos_form_channel_and_scope",
+          "title": "Laos application channel and form scope",
+          "tags": [
+            "laos",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Laos official eVisa portal Official source URLs reviewed for this seed: https://www.evisagov.la/official/en-us/evisa. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "laos_form_fields_to_collect",
+          "title": "Laos fields to collect before filling the form",
+          "tags": [
+            "laos",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "identity, ordinary passport details, photo, travel dates, arrival port, contact details and tourism purpose"
+        },
+        {
+          "id": "laos_supporting_documents_and_review",
+          "title": "Laos supporting documents and review checklist",
+          "tags": [
+            "laos",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "passport biodata, photo, accepted entry port confirmation and eVisa approval document Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+        }
+      ]
+    }
+  ]
+}

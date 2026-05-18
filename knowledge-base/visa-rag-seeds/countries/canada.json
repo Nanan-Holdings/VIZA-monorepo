@@ -1,0 +1,100 @@
+{
+  "version": "2026-05-18",
+  "country": "canada",
+  "notes": "Country-level VIZA RAG seed for canada. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "documents": [
+    {
+      "slug": "canada-ircc-visitor-visa",
+      "country": "canada",
+      "visaType": "visitor_visa",
+      "documentType": "requirements",
+      "title": "Canada Visitor Visa (Temporary Resident Visa)",
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html",
+      "chunks": [
+        {
+          "id": "can_visitor_basic_route_zh",
+          "title": "中国护照加拿大旅游签证建议",
+          "tags": [
+            "canada",
+            "china",
+            "chinese-passport",
+            "加拿大旅游",
+            "visitor-visa",
+            "trv"
+          ],
+          "content": "中国护照持有人短期赴加拿大旅游、探亲访友或普通商务访问时，VIZA AI 应优先考虑 Canada visitor visa / Temporary Resident Visa (TRV) 路线，而不是 eTA。先确认国籍、居住地、旅行目的、停留天数、是否探亲、是否有美国签证/加拿大旧签证等背景；如果是学习、工作、移民或长期陪读，应转向对应 permit/visa。"
+        },
+        {
+          "id": "can_trv_definition",
+          "title": "Canada TRV definition and entry decision",
+          "tags": [
+            "canada",
+            "visitor-visa",
+            "trv",
+            "passport-sticker",
+            "entry-decision"
+          ],
+          "content": "IRCC states that a visitor visa, also called a temporary resident visa, is an official document placed in the passport showing the traveller meets requirements to travel to Canada. It does not by itself guarantee entry; border officers make the final entry decision and decide the allowed period of stay. Most visitors are allowed to stay for up to 6 months unless a different date is indicated."
+        },
+        {
+          "id": "can_apply_online_biometrics",
+          "title": "Canada visitor visa online application and biometrics",
+          "tags": [
+            "canada",
+            "ircc",
+            "online-application",
+            "biometrics",
+            "vac"
+          ],
+          "content": "IRCC directs visitor visa applicants to apply online through the IRCC Portal, provide passport/travel document copies and supporting documents, pay fees, and give biometrics if required. China is listed among passports that generally need a visitor visa. Applicants outside Canada may need to attend a visa application centre for biometrics and passport submission depending on instructions."
+        }
+      ]
+    },
+    {
+      "slug": "canada-form-requirements",
+      "country": "canada",
+      "visaType": "visitor_visa",
+      "documentType": "form_requirements",
+      "title": "Canada Application Form and Document Intake Requirements",
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html",
+      "chunks": [
+        {
+          "id": "canada_form_channel_and_scope",
+          "title": "Canada application channel and form scope",
+          "tags": [
+            "canada",
+            "application-form",
+            "form-requirements",
+            "workflow",
+            "official-source"
+          ],
+          "content": "Apply online through the IRCC visitor visa flow unless a paper exception applies. Official source URLs reviewed for this seed: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+        },
+        {
+          "id": "canada_form_fields_to_collect",
+          "title": "Canada fields to collect before filling the form",
+          "tags": [
+            "canada",
+            "application-form",
+            "autofill",
+            "field-mapping",
+            "intake"
+          ],
+          "content": "Canada visitor visa intake should collect identity, passport/travel document, country of residence, travel purpose and dates, family information, employment or study, funds and payer, travel history, previous refusals/immigration history, invitation or host details if any, and biometrics status."
+        },
+        {
+          "id": "canada_supporting_documents_and_review",
+          "title": "Canada supporting documents and review checklist",
+          "tags": [
+            "canada",
+            "documents",
+            "checklist",
+            "upload",
+            "review-before-submit"
+          ],
+          "content": "Documents commonly include passport copy, photo, purpose-of-travel evidence, proof of funds, itinerary or tickets if available, employment/study/home ties, family information form when required, invitation letter and host proof if visiting someone, and translations for non-English/French documents. Workflow guardrails: After submission, applicants may receive a biometric instruction letter and must give biometrics within the official deadline unless exempt. VIZA should track biometrics, passport request, and final decision as separate process steps."
+        }
+      ]
+    }
+  ]
+}
