@@ -508,3 +508,11 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: universal-info page, UniversalInfoCard, home/page.tsx, PopularDestinationsSection.tsx, visa-application-answers.ts, application/page.tsx, visa-destinations.ts, photo-guidance.ts, messages/en.json, messages/zh.json, progress.txt
 - Learnings: new destination cards should only be startable when a normalized form schema exists; RAG-only destinations need a schema pass before they become application pages.
 ---
+
+## 2026-05-18 - SUB-001 subscription entry follow-up
+- Replaced the top home dashboard application glass card with a subscription entry card showing the current plan and renewal state.
+- Added /client/subscription as a subscription details page with current experience-plan status, renewal placeholders, and draft plan tiers.
+- Kept the actual application progress in the destination cards below the hero so the top panel can focus on account-level status.
+- Files changed: home/page.tsx, SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
+- Learnings: until pricing and billing are finalized, the UI should clearly label subscription levels as draft/status information instead of implying active payment or renewal.
+---
