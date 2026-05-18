@@ -21,7 +21,7 @@
   用户气泡和 AI 文本消息的渲染。AI 消息默认纯文本显示，会把常见 Markdown 标记转成普通文字，避免 VIZA 回答呈现为 Markdown 富文本。
 
 - `viza-fe/internal-website/components/client/companion/block-message.tsx`  
-  AI 工具返回 application block 时，渲染可填写的小表单。
+  AI 发出 application redirect block 时，渲染跳转到 `/client/application` 的 CTA。VIZA chat 不在对话里收集申请表字段。
 
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`  
   `Travel AI` tab 嵌入的旅行规划主组件。
@@ -68,8 +68,8 @@ flowchart TD
   M --> P["optional application_block tool event"]
   N --> Q["ChatClient buffers tokens"]
   O --> R["finalize assistant message"]
-  P --> S["BlockMessage renders inline form"]
-  S --> T["POST /api/chat/save-block"]
+  P --> S["BlockMessage renders application form CTA"]
+  S --> T["User continues on /client/application"]
 ```
 
 ## 4. 前端逻辑关系
@@ -101,7 +101,7 @@ flowchart TD
 - `chatMessages`：`useContinuousChat` 维护的最终消息列表。
 - `pendingMessages`：断线时暂存，重连后发送。
 - `queuedMessageRef`：AI 正在 streaming 时，用户下一条消息排队。
-- `blockMessages`：后端工具 `send_application_block` 返回的表单块。
+- `blockMessages`：后端返回的 application redirect CTA。聊天页不再渲染行程/护照/日期等 inline form fields。
 
 输入框启用规则：
 
@@ -146,7 +146,7 @@ flowchart TD
 6. 调用 `buildSystemPrompt(context, knowledgeContext, conversationInterpretation)` 拼出动态 system prompt。
 7. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
 8. 完成后保存 assistant message，并 emit `response_complete`。
-9. 如果模型调用 `send_application_block`，后端 emit `application_block`，前端渲染 `BlockMessage`。
+9. 当用户明确要开始申请/填表时，后端 emit `application_block`，payload 使用 `blockType="application_redirect"`，前端渲染跳转按钮。
 
 Agent 核心：
 
@@ -154,7 +154,7 @@ Agent 核心：
   - `BASE_SYSTEM_PROMPT` 定义 VIZA AI 的角色和边界。
   - `buildApplicationContext()` 读取用户资料和 application。
   - `buildSystemPrompt()` 把用户上下文、结构化 conversation state、RAG sources 注入 system prompt。
-  - `streamChat()` 调用 Anthropic，并注册 `send_application_block` tool；稳定 block type 为 `trip_basics`、`traveller_identity`、`visa_route_specific`。
+  - `streamChat()` 调用 Anthropic。VIZA chat 不暴露 inline form-collection tool；申请字段收集交给 `/client/application`。
 
 RAG 检索服务：
 
@@ -214,7 +214,7 @@ RAG 知识源与写入：
   当前 `/client/chat` 的 session source of truth。一个 applicant 可以有多条 VIZA conversation processes；`ChatClient` 通过 `getUserSessions()` 展示最近会话，通过 `createSession()` 创建新会话。
 
 - `visa_chat_messages`  
-  保存用户、assistant、`role='block'` 的 inline application block 记录，以及隐藏 `role='system'` marker（session title / conversation state）。`session_id` 指向 `visa_chat_sessions.id`。
+  保存用户、assistant、`role='block'` 的 application redirect block 记录，以及隐藏 `role='system'` marker（session title / conversation state）。`session_id` 指向 `visa_chat_sessions.id`。
 
 当前约定：
 
@@ -226,21 +226,18 @@ Session rename：
 - `getUserSessions()` 会读取最新 marker 作为 `Session.title`。
 - `getSessionMessages()`、history load、search、recent messages、backend `/visa` chat history 都不能把这些 system marker 当作用户可见消息或 LLM 上下文。
 
-## 7. Application block 保存链路
+## 7. Application redirect 链路
 
-当后端 agent 判断需要收集结构化资料时，会调用 `send_application_block` tool。
+VIZA chat 的职责是解释签证路线、材料、费用/时间和注意事项；真正的申请字段收集放到 `/client/application`。当用户说“开始申请/帮我填表/下一步”时，后端不再在聊天里发可填写表单，而是发一个 redirect CTA。
 
 链路：
 
-1. `agent/index.ts` 定义 tool schema。
-2. `visa-namespace.ts` 收到 tool use 后 emit `application_block`。
+1. `visa-namespace.ts` 识别 `form_intake` intent。
+2. 如果已经能解析 destination / visa type，后端 emit `application_block`，payload 为 `blockType="application_redirect"`。
 3. `chat-client.tsx` 把 payload 存到 `blockMessages`。
-4. `BlockMessage` 渲染表单。
-5. 用户保存后，前端请求 `POST /api/chat/save-block`。
-6. `save-block/route.ts` 根据 `saveTarget` 更新：
-   - `applicant_profiles`
-   - `applications`
-   - `visa_application_answers`（用于 chat-driven form intake）
+4. `BlockMessage` 只渲染跳转按钮，不渲染输入框。
+5. 按钮跳转到 `/client/application?country=...&visaType=...`。
+6. `/client/application` 读取 query 参数作为当前国家/签证类型上下文，后续字段收集都在专门表单页完成。
 
 ## 8. Travel AI 的关系
 
@@ -301,7 +298,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 - 前端已经支持 token streaming、response finalize、断线排队、streaming 时排队下一条用户消息。
 - 历史消息 hook `useContinuousChat` 已经存在，支持向上加载、搜索、jump to message 等能力。
 - 后端已经有动态 system prompt，能把 profile/application context 注入给 VIZA AI。
-- 后端已经有 `send_application_block` tool，前端也有 inline block 渲染和保存 API。
+- VIZA chat 已改为 application redirect CTA；不再在聊天里渲染 inline form 或保存 chat-driven form intake。
 
 还需要重点确认/补齐的部分：
 
@@ -335,7 +332,7 @@ npm run type-check
 3. `VIZA AI` tab 发送消息后，后端 streaming 正常。
 4. 刷新后历史消息能恢复。
 5. `Travel AI` tab 能正常嵌入 Travel planner。
-6. 如果 agent 返回 application block，表单能保存到目标表。
+6. 如果 agent 返回 application block，应显示跳转到 `/client/application` 的按钮，而不是聊天内表单。
 
 ## 12. 当前验证状态
 
@@ -365,7 +362,8 @@ npm run type-check
 - Step 22 second popular destination RAG expansion：继续扩展 `supported-visa-rag.json` 到 59 documents / 148 chunks，新增 UAE, Egypt, Turkey, Qatar, Saudi Arabia, Morocco, South Africa, Maldives, Sri Lanka, India, Philippines, Cambodia, Laos, Nepal, Mexico。`visa-namespace.ts` 同步新增 country aliases 和 visitor visa type mapping；新增国家分别映射到 UAE visa-free/tourist visa, Egypt e-Visa, Turkey e-Visa tourism/commerce, Qatar Hayya A1, Saudi tourist eVisa, Morocco visa-free/eVisa, South Africa visitor visa, Maldives visa on arrival, Sri Lanka ETA, India regular tourist visa, Philippines 14-day visa-free/eVisa, Cambodia tourist eVisa, Laos tourist eVisa, Nepal visa on arrival, Mexico visitor visa/exemption。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：148 chunks / 148 embeddings。Retrieval smoke 对上述 15 个新增国家均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档；同时修复 India/Indonesia alias 冲突，以及 Mexico + valid US visa exemption 场景误判为多国家的问题。前后端 type-check 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
 - Step 23 industrial country-level RAG seeds：将旧的 shared/partial seed 架构升级为国家级独立 seed。`knowledge-base/visa-rag-seeds/countries/*.json` 现在包含 56 个国家文件、72 documents、180 chunks；美国和印尼也已纳入同一国家级 seed 目录，不再作为特殊独立脚本。新增 `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`，支持 `npm run ingest:all-visa-rag` 全量入库、`npm run ingest:country-visa-rag -- --country japan` 单国家入库，以及 `--countries japan,us,indonesia` 多国家入库。旧 `supported-visa-rag.json`、`us-visa-rag.json`、`indonesia-visa-rag.json` 和三套重复 ingestion 脚本已移除，避免双 source of truth。`npm run ingest:all-visa-rag` 已成功写入 Supabase：56 countries / 180 chunks / 180 embeddings；全 56 个国家 retrieval smoke 均 PASS。后端 type-check、前端 type-check、`git diff --check` 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
 - Step 24 country form requirements RAG layer：为 56 个国家 seed 全部新增 `documentType="form_requirements"` 文档。每个国家新增 3 个 form-filling chunks：official application channel/scope、fields to collect before filling、supporting documents and review checklist。数据来源优先使用官方 government / immigration / embassy / visa-centre 页面；申根国家统一参考 EU Schengen applying page 和 harmonised Schengen visa application form，非申根国家使用各自官方签证、eVisa、ETA、DS-160、GOV.UK、IRCC、ImmiAccount、INZ、ICA、IMUGA 等入口。当前 country seeds 变为 56 countries / 128 documents / 348 chunks。结构校验确认 56 个国家各有且仅有 1 个 `form_requirements` 文档；`npm run ingest:all-visa-rag` 已成功写入 Supabase：348 chunks / 348 embeddings；全 56 个国家的 form-specific retrieval smoke 均 PASS。
-- Step 25 answering agent industrial upgrade：新增 `visa-destination-registry.ts`，把 56 个国家的 aliases、Schengen membership、default visitor visa type、RAG document types 和 form intake schema key 从 namespace 收拢为配置源；新增 `visa-conversation-state.service.ts`，用 hidden system marker 持久化 `VisaConversationState`，每轮先合并 slots 再做 RAG routing；`retrieveVisaKnowledge()` 新增 intent-based document type priority；`/visa` app_log 新增 `intent`、`resolvedStateSummary`、`stateConfidence`；用户触发“开始申请/填表/下一步”时会主动发 `trip_basics` / `traveller_identity` / `visa_route_specific` application block，block 保存支持写入 `visa_application_answers`。新增 `npm run test:visa-agent-evals` / `npm run test:visa-agent-robustness`，当前 98 assertions / 98 passed：60 prompt evals 覆盖 20 Schengen route、15 non-Schengen visitor、10 compact answer、10 correction、5 unsupported/high-risk 场景；38 branch assertions 覆盖 intent、RAG document type mapping、country routing、visa type fallback、state merge、compact interpretation、plain-text response guard。
+- Step 25 answering agent industrial upgrade：新增 `visa-destination-registry.ts`，把 56 个国家的 aliases、Schengen membership、default visitor visa type、RAG document types 和 form intake schema key 从 namespace 收拢为配置源；新增 `visa-conversation-state.service.ts`，用 hidden system marker 持久化 `VisaConversationState`，每轮先合并 slots 再做 RAG routing；`retrieveVisaKnowledge()` 新增 intent-based document type priority；`/visa` app_log 新增 `intent`、`resolvedStateSummary`、`stateConfidence`；用户触发“开始申请/填表/下一步”时会主动发 application redirect CTA，真实字段收集由 `/client/application` 负责。新增 `npm run test:visa-agent-evals` / `npm run test:visa-agent-robustness`，当前 98 assertions / 98 passed：60 prompt evals 覆盖 20 Schengen route、15 non-Schengen visitor、10 compact answer、10 correction、5 unsupported/high-risk 场景；38 branch assertions 覆盖 intent、RAG document type mapping、country routing、visa type fallback、state merge、compact interpretation、plain-text response guard。
 - Step 26 no-Markdown response guard：`BASE_SYSTEM_PROMPT` 现在明确禁止 VIZA AI 面向用户的回答使用 Markdown headings、tables、bold/italic markers、bullet markers、horizontal rules、code fences、raw JSON 或 raw XML，除非用户明确要求。`ChatMessage` 也改为纯文本渲染，把常见 Markdown 标记转成普通文字，避免流式输出期间仍被前端渲染成富文本。`test:visa-agent-robustness` 新增 `formatting_branch`，防止后续 prompt 修改时漏掉纯文本输出规则；`chat-message.test.tsx` 覆盖 bold/italic/link/code/code-block 均不再渲染为 Markdown 元素。
+- Step 27 chat-to-form handoff：按产品要求，VIZA chat 不再收集行程、身份、护照或 route-specific 表单字段。`BASE_SYSTEM_PROMPT` 改为先解释路线、要求、处理时间/费用不确定性和官方来源 caveat；`/visa` 的 `form_intake` intent 改为发 `application_redirect` block；`BlockMessage` 只渲染 CTA；`/client/application` 支持读取 `country` / `visaType` query，避免从聊天跳转后被旧 active package 拉回其他国家。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

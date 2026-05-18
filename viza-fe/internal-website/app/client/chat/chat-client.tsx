@@ -217,12 +217,12 @@ function ChatSessionPanel({
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
+      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-5 py-5">
         <div>
-          <p className="text-[13px] font-semibold text-[#3d3d3d]">
+          <p className="text-lg font-semibold leading-tight text-[#3d3d3d]">
             VIZA chats
           </p>
-          <p className="mt-0.5 text-[11px] text-[rgba(0,0,0,0.45)]">
+          <p className="mt-1 text-base leading-snug text-[rgba(0,0,0,0.48)]">
             Separate visa conversations
           </p>
         </div>
@@ -252,23 +252,23 @@ function ChatSessionPanel({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         <button
-          className="mb-3 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mb-4 flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-lg font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={actionDisabled}
           onClick={onNewSession}
           type="button"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5" />
           <span>New chat</span>
         </button>
 
         {sessions.length === 0 ? (
-          <p className="px-3 py-8 text-center text-[13px] text-gray-400">
+          <p className="px-3 py-8 text-center text-base text-gray-400">
             No conversations yet
           </p>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {sessions.map((session) => {
               const active = session.id === activeSessionId;
               const title = getSessionDisplayTitle(session);
@@ -278,7 +278,7 @@ function ChatSessionPanel({
               if (editing) {
                 return (
                   <form
-                    className="flex items-center gap-1 rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-1"
+                    className="flex items-center gap-1 rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-1.5"
                     key={session.id}
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -288,7 +288,7 @@ function ChatSessionPanel({
                     <input
                       aria-label="Conversation title"
                       autoFocus
-                      className="min-w-0 flex-1 rounded bg-white px-2 py-1.5 text-[13px] text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
+                      className="min-w-0 flex-1 rounded bg-white px-2.5 py-2 text-base text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
                       disabled={pendingSessionAction !== null}
                       maxLength={80}
                       onChange={(event) => setDraftTitle(event.target.value)}
@@ -324,14 +324,14 @@ function ChatSessionPanel({
               if (confirmingDelete) {
                 return (
                   <div
-                    className="flex items-center gap-1 rounded-md border border-red-100 bg-red-50 p-1"
+                    className="flex items-center gap-1 rounded-md border border-red-100 bg-red-50 p-1.5"
                     key={session.id}
                   >
                     <div className="min-w-0 flex-1 px-2">
-                      <span className="block text-[12px] font-medium text-red-700">
+                      <span className="block text-base font-medium text-red-700">
                         Delete conversation?
                       </span>
-                      <span className="block truncate text-[11px] text-red-500">
+                      <span className="block truncate text-sm text-red-500">
                         {title}
                       </span>
                     </div>
@@ -371,15 +371,15 @@ function ChatSessionPanel({
                 >
                   <button
                     aria-pressed={active}
-                    className="min-w-0 flex-1 px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-w-0 flex-1 px-3 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={actionDisabled}
                     onClick={() => onSelectSession(session.id)}
                     type="button"
                   >
-                    <span className="block truncate text-[13px] font-medium">
+                    <span className="block truncate text-lg font-medium leading-snug">
                       {title}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-gray-400">
+                    <span className="mt-1 block text-base leading-snug text-gray-400">
                       {formatSessionDate(session.createdAt)}
                     </span>
                   </button>
@@ -773,10 +773,10 @@ export function ChatClient({
       }
     });
 
-    // US-038: application_block from send_application_block tool
+    // Application redirect CTA from the VIZA backend
     socket.on("application_block", (event: ApplicationBlockEvent) => {
       addLog("tool_call", {
-        toolName: "send_application_block",
+        toolName: event.payload.blockType ?? "application_block",
         args: event.payload,
       });
       setBlockMessages((prev) => [
@@ -1940,7 +1940,7 @@ export function ChatClient({
                     </motion.div>
                   ))}
 
-                  {/* US-038: application_block messages from the agent tool */}
+                  {/* Application redirect CTA messages from the VIZA backend */}
                   {blockMessages.map((block) => (
                     <motion.div
                       key={block.id}
