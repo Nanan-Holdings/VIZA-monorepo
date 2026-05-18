@@ -541,3 +541,10 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: visa-destinations.ts, PopularDestinationsSection.tsx, app/client/destinations/schengen/page.tsx, visa-form-fields.ts, rag-visitor-intake-form.ts, photo-guidance.ts, progress.txt
 - Learnings: RAG-backed countries can be safely exposed if they route to a generic visitor intake form, while fully normalized forms remain preferred for Indonesia, US, UK and Schengen.
 ---
+
+## 2026-05-18 - SUB-002 plan preview naming follow-up
+- Restored the home subscription entry and subscription details page product naming to VIZA Application.
+- Kept the chat/consultation CTA as visa consultant and added three draft plan tiers with temporary prices and application limits for visual review.
+- Files changed: SubscriptionPlanCard.tsx, app/client/subscription/page.tsx, progress.txt
+- Learnings: product-level subscription surfaces should use VIZA Application, while user-facing chat assistance can keep the visa consultant wording.
+---
