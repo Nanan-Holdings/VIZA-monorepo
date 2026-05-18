@@ -764,12 +764,16 @@ export default function ApplicationPage() {
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
 
-  const STEPS: StepDef[] = STEP_KEYS.map((key, id) => ({
-    id,
-    name: t(`steps.${key}.name`),
-    description: t(`steps.${key}.description`),
-    sourceName: key,
-  }));
+  const hardcodedSteps: StepDef[] = useMemo(
+    () =>
+      STEP_KEYS.map((key, id) => ({
+        id,
+        name: t(`steps.${key}.name`),
+        description: t(`steps.${key}.description`),
+        sourceName: key,
+      })),
+    [t],
+  );
 
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
@@ -826,8 +830,10 @@ export default function ApplicationPage() {
   // The displayed/navigated list (`effectiveSteps` below) is reordered to
   // match the grouped section order so the sidebar numbers stay sequential
   // (1, 2, 3, 4…) instead of jumping (e.g. 1, 2, 5, 3, 4).
-  const sourceOrderedSteps: StepDef[] = useDynamic
-    ? [
+  const sourceOrderedSteps: StepDef[] = useMemo(() => {
+    if (!useDynamic) return hardcodedSteps;
+
+    return [
         ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
           sourceName: step.stepName,
@@ -855,24 +861,37 @@ export default function ApplicationPage() {
           name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
-      ]
-    : STEPS;
+      ];
+  }, [
+    hardcodedSteps,
+    photoStepIndex,
+    reviewStepIndex,
+    statusStepIndex,
+    tApp,
+    tDyn,
+    useDynamic,
+    visibleDynamicSteps,
+  ]);
 
-  const dynamicSectionTitles = {
-    personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
-    travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
-    travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
-    previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
-    addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
-    passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
-    usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
-    family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
-    workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
-    securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
-    photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
-    review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
-    confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
-  } satisfies Record<StepSectionKey, string>;
+  const dynamicSectionTitles = useMemo(
+    () =>
+      ({
+        personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
+        travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+        travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
+        previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
+        addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
+        passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
+        usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
+        family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
+        workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
+        securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
+        photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
+        review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
+        confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
+      }) satisfies Record<StepSectionKey, string>,
+    [tApp],
+  );
 
   const groupedSections = useMemo(
     () => (useDynamic ? buildStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),

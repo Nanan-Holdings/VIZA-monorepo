@@ -48,8 +48,8 @@
     },
     "emptyApplication": {
       "noActiveApplication": "No active application",
-      "subtitle": "Start your Indonesian tourist visa application today.",
-      "cta": "Start your Indonesia visa application"
+      "subtitle": "Choose a destination below to start the right visitor visa workflow.",
+      "cta": "Choose a destination"
     },
     "statusLabels": {
       "draft": "Draft",
@@ -69,7 +69,7 @@
     "activity": {
       "applicationSubmitted": "Application submitted",
       "applicationCreated": "Application created",
-      "visaType": "Indonesia Tourist Visa B211A",
+      "visaType": "Visitor visa",
       "documentUploaded": "{docType} uploaded",
       "documentRejected": "Document rejected — please re-upload",
       "documentReceived": "Document received",
@@ -78,8 +78,17 @@
       "hoursAgo": "{count}h ago",
       "daysAgo": "{count}d ago"
     },
+    "popularDestinations": {
+      "heading": "Choose a popular destination",
+      "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
+      "schemaReady": "Official-form schemas ready",
+      "start": "Start",
+      "starting": "Starting",
+      "selected": "Selected",
+      "selectError": "Could not select this destination. Please try again."
+    },
     "visaTimeline": {
-      "heading": "Indonesia Tourist Visa B211A",
+      "heading": "Choose a destination to start",
       "subheading": "Complete each step to submit your visa application",
       "stages": {
         "application": {
