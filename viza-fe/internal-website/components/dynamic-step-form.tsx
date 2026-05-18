@@ -78,6 +78,18 @@ function getSideOptions(
   });
 }
 
+function buildStrictDate(year: number, month: number, day: number): Date | null {
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 function parseFlexibleDate(value?: string): Date | null {
   const trimmed = value?.trim();
   if (!trimmed || trimmed === "DO_NOT_KNOW" || trimmed === "DOES_NOT_APPLY") return null;
@@ -86,9 +98,9 @@ function parseFlexibleDate(value?: string): Date | null {
   const official = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
   const chinese = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
 
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-  if (official) return new Date(Number(official[3]), Number(official[2]) - 1, Number(official[1]));
-  if (chinese) return new Date(Number(chinese[1]), Number(chinese[2]) - 1, Number(chinese[3]));
+  if (iso) return buildStrictDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  if (official) return buildStrictDate(Number(official[3]), Number(official[2]), Number(official[1]));
+  if (chinese) return buildStrictDate(Number(chinese[1]), Number(chinese[2]), Number(chinese[3]));
 
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;

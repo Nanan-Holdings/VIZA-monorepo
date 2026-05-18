@@ -13,6 +13,7 @@ import {
 import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,6 +128,8 @@ const AGENT_BACKEND_URL =
 const TOKEN_BATCH_INTERVAL = 500;
 const ACTIVE_VIZA_SESSION_STORAGE_KEY = "viza_chat_session_id";
 
+type ChatAgentMode = "viza" | "travel";
+
 interface PendingVizaMessage {
   message: string;
   sessionId: string;
@@ -153,6 +156,12 @@ function formatStoredMessages(messages: Message[]): SocketChatMessage[] {
     isStreaming: false,
     sessionId: msg.sessionId,
   }));
+}
+
+function parseRequestedChatMode(value: string | null): ChatAgentMode | null {
+  if (value === "travel" || value === "travel-agent") return "travel";
+  if (value === "visa" || value === "visa-consultant") return "viza";
+  return null;
 }
 
 function ChatSessionPanel({
@@ -568,6 +577,8 @@ export function ChatClient({
   travelApplicationStatus,
 }: ChatClientProps) {
   const t = useTranslations("chat");
+  const searchParams = useSearchParams();
+  const requestedChatMode = parseRequestedChatMode(searchParams.get("agent"));
 
   // ==========================================================================
   // Session & UI State
@@ -576,12 +587,20 @@ export function ChatClient({
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
   const [showChat, setShowChat] = useState(() => {
+    if (requestedChatMode) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("viza_chat_active", "true");
+      }
+      return true;
+    }
     if (typeof window !== "undefined" && sessionStorage.getItem("viza_chat_active") === "true") {
       return true;
     }
     return initialMessages.length > 0 || !!initialSessionId;
   });
-  const [chatMode, setChatMode] = useState<"viza" | "travel">("viza");
+  const [chatMode, setChatMode] = useState<ChatAgentMode>(
+    requestedChatMode ?? "viza"
+  );
   const [showDebug] = useState(false);
   const [sessionPanelOpen, setSessionPanelOpen] = useState(false);
   const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(true);
@@ -591,6 +610,23 @@ export function ChatClient({
   const [_isNearBottom, setIsNearBottom] = useState(true);
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
   const [blockMessages, setBlockMessages] = useState<Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>>([]);
+
+  const selectChatMode = useCallback((mode: ChatAgentMode) => {
+    setShowChat(true);
+    setChatMode(mode);
+    sessionStorage.setItem("viza_chat_active", "true");
+
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("agent", mode === "travel" ? "travel" : "visa");
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!requestedChatMode) return;
+    selectChatMode(requestedChatMode);
+  }, [requestedChatMode, selectChatMode]);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1405,16 +1441,12 @@ export function ChatClient({
   );
 
   const handleVizaAiClick = useCallback(() => {
-    setShowChat(true);
-    setChatMode("viza");
-    sessionStorage.setItem("viza_chat_active", "true");
-  }, []);
+    selectChatMode("viza");
+  }, [selectChatMode]);
 
   const handleTravelAiClick = useCallback(() => {
-    setShowChat(true);
-    setChatMode("travel");
-    sessionStorage.setItem("viza_chat_active", "true");
-  }, []);
+    selectChatMode("travel");
+  }, [selectChatMode]);
 
   const handleSupportTeamClick = useCallback(() => {
     toast.info(t("supportComingSoon"));
@@ -1747,12 +1779,12 @@ export function ChatClient({
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="min-w-0">
                           <p className="font-heading text-[16px] font-medium text-[#3d3d3d]">
-                            Travel AI Testing
+                            Travel Agent
                           </p>
                           <p className="mt-1 text-[12px] text-[rgba(0,0,0,0.45)]">
                             {!travelApplicationId
                               ? "No application found yet. Create one in Application first."
-                              : "Application linked. You can use Travel AI now."}
+                              : "Application linked. You can use Travel Agent now."}
                           </p>
                           {travelApplicationStatus && (
                             <p className="mt-1 text-[11px] text-[rgba(0,0,0,0.35)]">
@@ -1768,7 +1800,7 @@ export function ChatClient({
                           onClick={handleTravelAiClick}
                           type="button"
                         >
-                          Open Travel AI
+                          Open Travel Agent
                         </button>
                       </div>
                     </div>
@@ -1828,7 +1860,7 @@ export function ChatClient({
                     </div>
 
                     <p className="font-sans font-normal text-[13px] md:text-[14px] leading-[1.2] text-[rgba(0,0,0,0.25)] text-center px-2">
-                      VIZA AI can make mistakes. Please double-check important
+                      Visa Consultant can make mistakes. Please double-check important
                       information.
                     </p>
                   </div>
@@ -1877,10 +1909,10 @@ export function ChatClient({
                         ? "bg-[#03346E] text-white"
                         : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
                     )}
-                    onClick={() => setChatMode("viza")}
+                    onClick={() => selectChatMode("viza")}
                     type="button"
                   >
-                    VIZA AI
+                    Visa Consultant
                   </button>
                   <button
                     className={cn(
@@ -1889,10 +1921,10 @@ export function ChatClient({
                         ? "bg-[#03346E] text-white"
                         : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
                     )}
-                    onClick={() => setChatMode("travel")}
+                    onClick={() => selectChatMode("travel")}
                     type="button"
                   >
-                    Travel AI
+                    Travel Agent
                   </button>
                   {chatMode === "viza" && sessionPanelCollapsed && (
                     <button
@@ -2006,7 +2038,7 @@ export function ChatClient({
                         isConnecting={status === "connecting"}
                       />
                       <p className="mt-3 text-center text-sm text-gray-400">
-                        VIZA AI can make mistakes. Please double-check important
+                        Visa Consultant can make mistakes. Please double-check important
                         information.
                       </p>
                     </div>

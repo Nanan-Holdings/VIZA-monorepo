@@ -16,6 +16,7 @@ const router = Router();
 const logger = new Logger({ serviceName: "FieldGuidance" });
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 
 type FieldType =
@@ -281,6 +282,20 @@ function deterministicWarnings(field: FieldGuidanceField, locale: "zh" | "en"): 
         : "Dates must be consistent with related answers, such as passport issue date before expiry date."
     );
   }
+  if (includesAny(combined, ["password", "secret", "token", "totp"])) {
+    warnings.push(
+      locale === "zh"
+        ? "此字段可能包含敏感登录信息，请只在安全环境中填写，不要与他人分享。"
+        : "This field may contain sensitive login information; enter it only in a secure environment and do not share it."
+    );
+  }
+  if (warnings.length === 0) {
+    warnings.push(
+      locale === "zh"
+        ? "提交前请核对该答案是否与官方文件、申请账户或行程信息一致。"
+        : "Before submitting, check that this answer is consistent with official documents, application account details, or travel plans."
+    );
+  }
 
   return warnings;
 }
@@ -302,6 +317,21 @@ function deterministicFormatHints(field: FieldGuidanceField, locale: "zh" | "en"
   }
   if (source === "ISO3166-1") {
     hints.push(locale === "zh" ? "请选择官方国家/地区名称。" : "Choose the official country or region name.");
+  }
+  if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") {
+    hints.push(locale === "zh" ? "请选择题目提供的一个选项。" : "Choose one of the options provided by the form.");
+  }
+  if (field.fieldType === "country") {
+    hints.push(locale === "zh" ? "使用官方国家/地区名称。" : "Use the official country or region name.");
+  }
+  if (field.fieldType === "textarea") {
+    hints.push(locale === "zh" ? "用简洁自然语言填写，避免无关信息。" : "Use concise plain language and avoid unrelated details.");
+  }
+  if (field.fieldType === "file") {
+    hints.push(locale === "zh" ? "上传清晰、完整、与题目要求一致的文件。" : "Upload a clear, complete file that matches the field requirement.");
+  }
+  if (hints.length === 0) {
+    hints.push(locale === "zh" ? "按官方文件上的写法填写。" : "Enter the value as it appears on the official document.");
   }
 
   return hints;
@@ -373,6 +403,18 @@ function addMessage(messages: string[], message: string): void {
   if (!messages.includes(message)) messages.push(message);
 }
 
+function buildStrictDate(year: number, month: number, day: number): Date | null {
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 function parseDate(value: string | null | undefined): Date | null {
   const trimmed = value?.trim();
   if (!trimmed || trimmed === "DO_NOT_KNOW" || trimmed === "DOES_NOT_APPLY") return null;
@@ -382,13 +424,13 @@ function parseDate(value: string | null | undefined): Date | null {
   const chinese = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
 
   if (iso) {
-    return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    return buildStrictDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   }
   if (official) {
-    return new Date(Number(official[3]), Number(official[2]) - 1, Number(official[1]));
+    return buildStrictDate(Number(official[3]), Number(official[2]), Number(official[1]));
   }
   if (chinese) {
-    return new Date(Number(chinese[1]), Number(chinese[2]) - 1, Number(chinese[3]));
+    return buildStrictDate(Number(chinese[1]), Number(chinese[2]), Number(chinese[3]));
   }
 
   const parsed = new Date(trimmed);
@@ -652,13 +694,15 @@ async function getStaticGuidance(
     .filter(Boolean)
     .join(" ");
 
-  const knowledge = await retrieveVisaKnowledge({
-    query,
-    country: reqBody.country,
-    visaType: reqBody.visaType,
-    intent: "form_intake",
-    matchCount: 5,
-  });
+  const knowledge = DISABLE_RETRIEVAL
+    ? { chunks: [] as VisaKnowledgeChunk[] }
+    : await retrieveVisaKnowledge({
+        query,
+        country: reqBody.country,
+        visaType: reqBody.visaType,
+        intent: "form_intake",
+        matchCount: 5,
+      });
 
   const base = buildDeterministicGuidance(field, locale);
   const ai = await generateAiGuidance(field, locale, knowledge.chunks);

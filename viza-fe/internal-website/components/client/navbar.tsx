@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
+import { MessageCircle, Plane } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
@@ -25,10 +26,25 @@ const tabs = ["Home", "Application", "Chat", "Documents"];
 const tabPaths: Record<string, string> = {
   Home: "/client/home",
   Application: "/client/application",
-  Chat: "/client/chat",
+  Chat: "/client/chat?agent=visa",
   Documents: "/client/documents",
   Settings: "/client/settings",
 };
+
+const chatAgentOptions = [
+  {
+    id: "travel",
+    label: "Travel Agent",
+    href: "/client/chat?agent=travel",
+    icon: Plane,
+  },
+  {
+    id: "visa",
+    label: "Visa Consultant",
+    href: "/client/chat?agent=visa",
+    icon: MessageCircle,
+  },
+] as const;
 
 export function NavBar({
   activeTab,
@@ -41,6 +57,8 @@ export function NavBar({
   const t = useTranslations("nav");
   const [navColor, setNavColor] = useState<string>("#000000");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const transitionDuration = 0.6;
 
   const tabLabels: Record<string, string> = {
@@ -93,8 +111,66 @@ export function NavBar({
   const leftTabs = ["Home", "Application"];
   const rightTabs = ["Chat", "Documents"];
 
+  const openChatAgent = (href: string) => {
+    setActiveTab("Chat");
+    setChatMenuOpen(false);
+    setMobileChatMenuOpen(false);
+    router.push(href);
+  };
+
+  const renderChatAgentMenu = () => (
+    <div className="w-[210px] rounded-2xl border border-[#dbe4f0] bg-white p-2 shadow-[0_18px_45px_rgba(3,52,110,0.18)]">
+      {chatAgentOptions.map((option) => {
+        const Icon = option.icon;
+        return (
+          <button
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-switzer text-sm font-medium text-[#03346E] transition-colors hover:bg-[#eef5ff]"
+            key={option.id}
+            onClick={() => openChatAgent(option.href)}
+            type="button"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#03346E]/10 text-[#03346E]">
+              <Icon className="h-4 w-4" />
+            </span>
+            <span>{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderTab = (tab: string) => {
     const isActive = activeTab === tab;
+
+    if (tab === "Chat") {
+      return (
+        <Popover key={tab} open={chatMenuOpen} onOpenChange={setChatMenuOpen}>
+          <PopoverTrigger asChild>
+            <motion.button
+              className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <motion.span
+                className="relative transition-colors duration-600"
+                style={{ color: isActive ? activeTabColor : inactiveColor }}
+              >
+                {tabLabels[tab] ?? tab}
+              </motion.span>
+            </motion.button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="center"
+            className="w-auto border-0 bg-transparent p-0 shadow-none"
+            sideOffset={10}
+          >
+            {renderChatAgentMenu()}
+          </PopoverContent>
+        </Popover>
+      );
+    }
+
     return (
       <motion.button
         key={tab}
@@ -289,6 +365,39 @@ export function NavBar({
           <div className="flex gap-[8px] pl-4">
             {tabs.map((tab) => {
               const isActive = activeTab === tab;
+              if (tab === "Chat") {
+                return (
+                  <Popover
+                    key={tab}
+                    open={mobileChatMenuOpen}
+                    onOpenChange={setMobileChatMenuOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        className={clsx(
+                          "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
+                          isActive
+                            ? "bg-transparent border-transparent text-[#03346E]"
+                            : isDark
+                              ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
+                              : "bg-white border-[#ececec] text-black"
+                        )}
+                        type="button"
+                      >
+                        {tabLabels[tab] ?? tab}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-auto border-0 bg-transparent p-0 shadow-none"
+                      sideOffset={8}
+                    >
+                      {renderChatAgentMenu()}
+                    </PopoverContent>
+                  </Popover>
+                );
+              }
+
               return (
                 <button
                   key={tab}
