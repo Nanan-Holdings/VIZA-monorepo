@@ -198,6 +198,13 @@ const COUNTRY_NAMES = new Map(
   ]),
 );
 
+const COUNTRY_NAMES_ZH = new Map(
+  POPULAR_VISA_DESTINATIONS.map((destination) => [
+    destination.country,
+    destination.countryNameZh,
+  ]),
+);
+
 const VISA_TYPE_LABELS: Record<string, string> = {
   tourist_b211a: "Tourist Visa B211A",
   B211A: "Tourist Visa B211A",
@@ -207,8 +214,26 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   EU_SCHENGEN_C_SHORT_STAY: "Schengen Short-Stay Visa",
 };
 
+const VISA_TYPE_LABELS_ZH: Record<string, string> = {
+  tourist_b211a: "B211A 旅游签证",
+  B211A: "B211A 旅游签证",
+  B1_B2: "B1/B2 访客签证",
+  DS160: "B1/B2 访客签证",
+  UK_STANDARD_VISITOR: "英国标准访客签证",
+  EU_SCHENGEN_C_SHORT_STAY: "申根短期签证",
+};
+
 export function getPopularVisaDestination(destinationId: string): PopularVisaDestination | null {
   return POPULAR_VISA_DESTINATIONS.find((destination) => destination.id === destinationId) ?? null;
+}
+
+export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
+  const normalizedCountry = country.toLowerCase();
+  const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
+  return POPULAR_VISA_DESTINATIONS.find((destination) =>
+    destination.country === normalizedCountry &&
+    getFormVisaType(destination.visaType).toLowerCase() === normalizedVisaType
+  ) ?? null;
 }
 
 export function getDestinationFlag(country: string): string {
@@ -219,12 +244,30 @@ export function getDestinationDisplayName(country: string): string {
   return COUNTRY_NAMES.get(country.toLowerCase()) ?? country.replace(/_/g, " ");
 }
 
+export function getDestinationDisplayNameZh(country: string): string {
+  return COUNTRY_NAMES_ZH.get(country.toLowerCase()) ?? getDestinationDisplayName(country);
+}
+
 export function getVisaTypeDisplayName(visaType: string): string {
   return VISA_TYPE_LABELS[visaType] ?? visaType.replace(/_/g, " ");
+}
+
+export function getVisaTypeDisplayNameZh(visaType: string): string {
+  return VISA_TYPE_LABELS_ZH[visaType] ?? getVisaTypeDisplayName(visaType);
 }
 
 export function getFormVisaType(visaType: string): string {
   if (visaType === "B1_B2") return "DS160";
   if (visaType === "tourist_b211a") return "B211A";
   return visaType;
+}
+
+export function getVisaDestinationKey(country: string, visaType: string): string {
+  return `${country.toLowerCase()}::${getFormVisaType(visaType).toLowerCase()}`;
+}
+
+export function getVisaPackageTitleZh(country: string, visaType: string): string {
+  const destination = getPopularVisaDestinationByPackage(country, visaType);
+  if (destination) return `${destination.countryNameZh}${destination.visaNameZh}`;
+  return `${getDestinationDisplayNameZh(country)}${getVisaTypeDisplayNameZh(visaType)}`;
 }

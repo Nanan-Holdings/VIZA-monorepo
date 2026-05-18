@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   POPULAR_VISA_DESTINATIONS,
+  getVisaDestinationKey,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
@@ -15,18 +16,38 @@ import {
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
-  selectedPackage: UserVisaPackage | null,
+  selectedPackages: UserVisaPackage[],
 ): boolean {
-  return (
-    selectedPackage?.country === destination.country &&
-    selectedPackage?.visa_type === destination.visaType
+  const destinationKey = getVisaDestinationKey(destination.country, destination.visaType);
+  return selectedPackages.some(
+    (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey
   );
 }
 
+export interface DestinationApplicationProgress {
+  applicationId: string;
+  status: string;
+  percent: number;
+  label: string;
+  updatedAt: string | null;
+}
+
+function getSupportLabelZh(label: string): string {
+  const labels: Record<string, string> = {
+    "B211A form": "B211A 表格",
+    "DS-160 form": "DS-160 表格",
+    "UKVI form": "UKVI 表格",
+    "Schengen Type C": "申根 C 类",
+  };
+  return labels[label] ?? label;
+}
+
 export function PopularDestinationsSection({
-  selectedPackage,
+  selectedPackages,
+  applicationProgress,
 }: {
-  selectedPackage: UserVisaPackage | null;
+  selectedPackages: UserVisaPackage[];
+  applicationProgress: Record<string, DestinationApplicationProgress>;
 }) {
   const t = useTranslations("home.popularDestinations");
   const router = useRouter();
@@ -46,7 +67,9 @@ export function PopularDestinationsSection({
         return;
       }
 
-      router.push("/client/application");
+      router.push(
+        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
+      );
     });
   }
 
@@ -74,8 +97,15 @@ export function PopularDestinationsSection({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {POPULAR_VISA_DESTINATIONS.map((destination) => {
-          const selected = isSelectedDestination(destination, selectedPackage);
+          const progress = applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
+          const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
           const loading = isPending && pendingDestinationId === destination.id;
+          const actionLabel = progress ? t("continue") : selected ? t("open") : t("start");
+          const progressLabel = progress
+            ? progress.label
+            : selected
+              ? t("addedNotStarted")
+              : t("readyToStart");
 
           return (
             <button
@@ -98,10 +128,10 @@ export function PopularDestinationsSection({
                   </span>
                   <div>
                     <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
-                      {destination.countryNameZh} / {destination.countryName}
+                      {destination.countryNameZh}
                     </p>
                     <p className="mt-1 text-[13px] font-medium text-[#637083]">
-                      {destination.region}
+                      {destination.countryName} · {destination.region}
                     </p>
                   </div>
                 </div>
@@ -111,19 +141,32 @@ export function PopularDestinationsSection({
               <div className="mt-5 space-y-3">
                 <div>
                   <p className="text-[15px] font-semibold leading-5 text-[#03346E]">
-                    {destination.visaNameZh} / {destination.visaName}
+                    {destination.visaNameZh}
                   </p>
                   <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[rgba(0,0,0,0.55)]">
-                    {destination.descriptionZh} {destination.description}
+                    {destination.descriptionZh}
                   </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-[#526174]">
+                    <span>{progressLabel}</span>
+                    <span>{progress ? `${progress.percent}%` : selected ? "0%" : ""}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
+                    <div
+                      className="h-full rounded-full bg-[#03346E] transition-all duration-500"
+                      style={{ width: `${progress?.percent ?? 0}%` }}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
                   <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
-                    {destination.supportLabel}
+                    {getSupportLabelZh(destination.supportLabel)}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
-                    {loading ? t("starting") : selected ? t("selected") : t("start")}
+                    {loading ? t("starting") : actionLabel}
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (

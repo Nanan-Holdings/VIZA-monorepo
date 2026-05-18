@@ -31,12 +31,8 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import {
-  getDestinationDisplayName,
-  getFormVisaType,
-  getVisaTypeDisplayName,
-} from "@/lib/visa-destinations";
-import { translateLabel } from "@/lib/ds160-translations";
+import { getFormVisaType, getVisaPackageTitleZh } from "@/lib/visa-destinations";
+import { getChineseLabel, translateLabel } from "@/lib/ds160-translations";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -116,6 +112,10 @@ function getVisibleStepIndex(steps: StepDef[], currentStepId: number): number {
 
 function normalizeStepName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function localizeTitle(label: string, locale: string): string {
+  return locale.startsWith("zh") ? getChineseLabel(label) : translateLabel(label, locale);
 }
 
 function getStepSectionKey(step: StepDef): StepSectionKey {
@@ -781,7 +781,7 @@ export default function ApplicationPage() {
       id: `chat:${requestedCountry}:${requestedVisaType}`,
       country: requestedCountry,
       visa_type: requestedVisaType,
-      name: `${getDestinationDisplayName(requestedCountry)} ${getVisaTypeDisplayName(requestedVisaType)}`,
+      name: getVisaPackageTitleZh(requestedCountry, requestedVisaType),
       description: null,
     };
   }, [requestedCountry, requestedVisaType]);
@@ -879,29 +879,29 @@ export default function ApplicationPage() {
           sourceName: step.stepName,
           name: (() => {
             const safeKey = step.stepName.replace(/\./g, "");
-            const translatedStepName = translateLabel(step.stepName, locale);
+            const translatedStepName = localizeTitle(step.stepName, locale);
             if (translatedStepName !== step.stepName) return translatedStepName;
             const localizedStepName = tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
-            return translateLabel(localizedStepName, locale);
+            return localizeTitle(localizedStepName, locale);
           })(),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
         {
           id: photoStepIndex,
           sourceName: "Upload Photo",
-          name: translateLabel("Upload Photo", locale),
+          name: localizeTitle("Upload Photo", locale),
           description: tApp.has("photoStepDescription") ? tApp("photoStepDescription" as never) : "Upload your passport-style photo",
         },
         {
           id: reviewStepIndex,
           sourceName: "Review",
-          name: translateLabel("Review Application", locale),
+          name: localizeTitle("Review Application", locale),
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
-          name: translateLabel("Confirmation", locale),
+          name: localizeTitle("Confirmation", locale),
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ];
@@ -920,19 +920,19 @@ export default function ApplicationPage() {
   const dynamicSectionTitles = useMemo(
     () =>
       ({
-        personal: translateLabel("Personal", locale),
-        travel: translateLabel("Travel", locale),
-        travelCompanions: translateLabel("Travel Companions", locale),
-        previousTravel: translateLabel("Previous U.S. Travel", locale),
-        addressAndPhone: translateLabel("Address and Phone", locale),
-        passport: translateLabel("Passport", locale),
-        usContact: translateLabel("U.S. Contact", locale),
-        family: translateLabel("Family", locale),
-        workEducationTraining: translateLabel("Work / Education / Training", locale),
-        securityAndBackground: translateLabel("Security and Background", locale),
-        photo: translateLabel("Upload Photo", locale),
-        review: translateLabel("Review", locale),
-        confirmation: translateLabel("Confirmation", locale),
+        personal: localizeTitle("Personal", locale),
+        travel: localizeTitle("Travel", locale),
+        travelCompanions: localizeTitle("Travel Companions", locale),
+        previousTravel: localizeTitle("Previous U.S. Travel", locale),
+        addressAndPhone: localizeTitle("Address and Phone", locale),
+        passport: localizeTitle("Passport", locale),
+        usContact: localizeTitle("U.S. Contact", locale),
+        family: localizeTitle("Family", locale),
+        workEducationTraining: localizeTitle("Work / Education / Training", locale),
+        securityAndBackground: localizeTitle("Security and Background", locale),
+        photo: localizeTitle("Upload Photo", locale),
+        review: localizeTitle("Review", locale),
+        confirmation: localizeTitle("Confirmation", locale),
       }) satisfies Record<StepSectionKey, string>,
     [locale],
   );
@@ -1436,6 +1436,10 @@ export default function ApplicationPage() {
     );
   }
 
+  const pageTitle = visaPackage
+    ? getVisaPackageTitleZh(visaPackage.country, visaPackage.visa_type)
+    : t("title");
+
   return (
     <div className="flex min-h-0 pt-3 lg:-ml-5">
       {/* Left sidebar - desktop only */}
@@ -1470,7 +1474,7 @@ export default function ApplicationPage() {
           {/* Page header */}
           <div className="mb-8 sm:mb-12">
             <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
-              {visaPackage?.name ?? t("title")}
+              {pageTitle}
             </h1>
           </div>
 
@@ -1520,6 +1524,8 @@ export default function ApplicationPage() {
                         {step.id === photoStepIndex && (
                           <PhotoUploadStep
                             applicationId={appState.applicationId}
+                            country={visaPackage?.country}
+                            visaType={visaPackage?.visa_type}
                             ensureApplicationId={ensurePhotoApplicationId}
                             existingPhotoUrl={appState.photo ? undefined : undefined}
                             onComplete={handlePhotoComplete}

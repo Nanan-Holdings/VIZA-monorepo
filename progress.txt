@@ -480,3 +480,14 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: application/page.tsx, photo-upload-step.tsx, dynamic-step-form.tsx, ds160-translations.ts, progress.txt
 - Learnings: photo upload is the first step that needs storage before saving answers, so it must be able to create the draft application at upload time rather than depending on a parent render guard.
 ---
+
+## 2026-05-18 - DEST-001 multi-application progress follow-up
+- Enabled self-serve destination selection to keep multiple active visa packages instead of cancelling earlier selections.
+- Updated the home dashboard so every popular destination card can show its own application progress, continue/open action, and Chinese-first title copy.
+- Removed the oversized standalone visa timeline from the home page and folded progress into each application card.
+- Changed the dynamic application page title and step titles to Chinese-first display while preserving paired Chinese/English field controls.
+- Added country-specific photo upload guidance for US DS-160, Indonesia B211A, UKVI, and Schengen destinations instead of using the same US Department of State copy everywhere.
+- Fixed UKVI-style field labels and placeholders so fields like account password and resume URL no longer collapse into country-only labels.
+- Files changed: user-package.ts, home/page.tsx, application/page.tsx, PopularDestinationsSection.tsx, ApplicationStatusCard.tsx, photo-upload-step.tsx, photo-guidance.ts, visa-destinations.ts, ds160-translations.ts, messages/en.json, messages/zh.json, progress.txt
+- Learnings: multi-application support needs a stable country + visa type key across package selection, dashboard progress, and application routing; otherwise latest-application logic causes different countries to overwrite each other.
+---
