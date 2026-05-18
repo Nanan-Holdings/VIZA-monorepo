@@ -1957,7 +1957,7 @@
       "country": "turkey",
       "visaType": "evisa_tourism_business",
       "documentType": "requirements",
-      "title": "T?rkiye Official e-Visa for Tourism and Commerce",
+      "title": "Turkiye Official e-Visa for Tourism and Commerce",
       "sourceUrl": "https://www.evisa.gov.tr/tour/",
       "chunks": [
         {
@@ -1976,7 +1976,7 @@
         },
         {
           "id": "tur_evisa_official_portal",
-          "title": "T?rkiye e-Visa official portal rules",
+          "title": "Turkiye e-Visa official portal rules",
           "tags": [
             "turkey",
             "official-evisa",
@@ -1985,11 +1985,11 @@
             "commerce",
             "passport-validity"
           ],
-          "content": "T?rkiye MFA states that www.evisa.gov.tr is the government portal run by the Ministry of Foreign Affairs. e-Visa applications can be created online for individuals, families or groups, and each traveller, including infants and children, must obtain a separate e-Visa. The official e-Visa is valid only for touristic and trade purposes. Travellers should carry a passport or travel document with validity at least 60 days beyond the permitted stay or visa/visa-exemption duration."
+          "content": "Turkiye MFA states that www.evisa.gov.tr is the government portal run by the Ministry of Foreign Affairs. e-Visa applications can be created online for individuals, families or groups, and each traveller, including infants and children, must obtain a separate e-Visa. The official e-Visa is valid only for touristic and trade purposes. Travellers should carry a passport or travel document with validity at least 60 days beyond the permitted stay or visa/visa-exemption duration."
         },
         {
           "id": "tur_non_evisa_purposes",
-          "title": "T?rkiye non-tourism routes",
+          "title": "Turkiye non-tourism routes",
           "tags": [
             "turkey",
             "work",
@@ -1997,7 +1997,7 @@
             "consulate",
             "not-evisa"
           ],
-          "content": "If the user wants to work, study, reside, conduct paid activity, or stay beyond the short visitor route, do not recommend the e-Visa as final. T?rkiye MFA guidance says visas for purposes other than tourism or commerce are issued by Turkish Embassies or Consulates. Ask follow-up questions when the purpose is ambiguous."
+          "content": "If the user wants to work, study, reside, conduct paid activity, or stay beyond the short visitor route, do not recommend the e-Visa as final. Turkiye MFA guidance says visas for purposes other than tourism or commerce are issued by Turkish Embassies or Consulates. Ask follow-up questions when the purpose is ambiguous."
         }
       ]
     },
