@@ -1072,7 +1072,28 @@ function applyRevisionPatches(
   return nextState;
 }
 
-function formatSelectedFlights(flights: SelectedFlightOption[]): string {
+function revisionRemovesFlights(modulePatch?: Record<string, unknown>): boolean {
+  return (
+    modulePatch?.remove_flights === true ||
+    modulePatch?.flight_policy === "skip_all"
+  );
+}
+
+function revisionPrefersFourStarHotels(modulePatch?: Record<string, unknown>): boolean {
+  return (
+    typeof modulePatch?.hotel_note === "string" &&
+    /4星|四星|four.?star|4.?star/i.test(modulePatch.hotel_note)
+  );
+}
+
+function formatSelectedFlights(
+  flights: SelectedFlightOption[],
+  modulePatch?: Record<string, unknown>
+): string {
+  if (revisionRemovesFlights(modulePatch)) {
+    return "已按你的要求减少或移除航班，itinerary 表格中不会再自动补默认航班。";
+  }
+
   if (!flights.length) {
     return "默认航班会在行程表格中生成，可直接编辑航司、时间、价格和航班号。";
   }
@@ -1093,9 +1114,16 @@ function formatSelectedFlights(flights: SelectedFlightOption[]): string {
     .join("\n");
 }
 
-function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
+function formatSelectedHotels(
+  hotels: SelectedHotelOption[],
+  modulePatch?: Record<string, unknown>
+): string {
+  const fourStarNote = revisionPrefersFourStarHotels(modulePatch)
+    ? "已应用 4 星酒店偏好；"
+    : "";
+
   if (!hotels.length) {
-    return "默认酒店会在行程表格中生成，可直接编辑酒店名、地址、价格和联系方式。";
+    return `${fourStarNote}默认酒店会在行程表格中生成，可直接编辑酒店名、地址、价格和联系方式。`;
   }
 
   return hotels
@@ -1112,7 +1140,7 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
       const address = option?.address ? `，地址 ${option.address}` : "";
       const contact = option?.contact_phone ? `，电话 ${option.contact_phone}` : "";
 
-      return `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${name}，${price}，${rating}${address}${contact}。`;
+      return `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${fourStarNote}${name}，${price}，${rating}${address}${contact}。`;
     })
     .join("\n");
 }
@@ -1122,6 +1150,7 @@ function createItineraryAssistantMessage(options: {
   selectedFlights: SelectedFlightOption[];
   selectedHotels: SelectedHotelOption[];
   intro?: string;
+  modulePatch?: Record<string, unknown>;
   quickReplies?: TravelQuickReply[];
 }): TravelChatMessage {
   const intro =
@@ -1129,8 +1158,14 @@ function createItineraryAssistantMessage(options: {
     "行程已经生成，我已经把每天安排整理到行程卡片里。";
   const content =
     `${intro}\n\n` +
-    `路线节点：\n${formatSelectedFlights(options.selectedFlights)}\n\n` +
-    `已选酒店：\n${formatSelectedHotels(options.selectedHotels)}`;
+    `路线节点：\n${formatSelectedFlights(
+      options.selectedFlights,
+      options.modulePatch
+    )}\n\n` +
+    `已选酒店：\n${formatSelectedHotels(
+      options.selectedHotels,
+      options.modulePatch
+    )}`;
 
   return {
     id: createMessageId(),
@@ -2371,6 +2406,7 @@ export function TravelChatClient({
           selectedFlights: revisedState.selected_flights,
           selectedHotels: revisedState.selected_hotels,
           intro: `${revision.reply}${editSummaryText}`,
+          modulePatch: revision.modulePatch,
           quickReplies: revision.quickReplies,
         });
 
