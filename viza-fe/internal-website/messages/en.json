@@ -10,6 +10,8 @@
     "application": "Application",
     "chat": "Chat",
     "documents": "Status",
+    "visaConsultant": "Visa Consultant",
+    "travelAgent": "Travel Agent",
     "inviteFriends": "Invite Friends"
   },
   "menu": {
@@ -950,7 +952,13 @@
     "noConversations": "No conversations yet",
     "chatWith": "Chat with",
     "vizaAI": "Visa Consultant",
+    "travelAI": "Travel Agent",
     "vizaAIDescription": "Visa guidance, document help, and Q&A",
+    "noApplicationFound": "No application found yet. Create one in Application first.",
+    "travelApplicationLinked": "Application linked. You can use Travel Agent now.",
+    "currentApplicationStatus": "Current application status: {status}",
+    "openTravelAI": "Open Travel Agent",
+    "consultantDisclaimer": "Visa Consultant can make mistakes. Please double-check important information.",
     "immediate": "Immediate",
     "askSupportTeam": "Ask the Support Team",
     "supportDescription": "Complex topics and customer service",

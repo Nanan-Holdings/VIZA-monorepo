@@ -16,6 +16,7 @@ import {
   findBilingualOption,
   mirrorText,
   reverseWithDictionary,
+  toCopilotOptions,
   translateWithDictionary,
   type BilingualOptionPair,
 } from "./bilingual-form-shared";
@@ -105,6 +106,18 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
     );
   };
 
+  const copilotAnswers = {
+    passport_document_type: passportDocumentType,
+    passport_number: mirroredValues.passportNumber.en,
+    passport_book_number: mirroredValues.passportBookNumber.en,
+    passport_issuing_country: findBilingualOption(COUNTRY_OPTIONS, passportIssuingCountryCode)?.en ?? "",
+    passport_issuance_city: passportIssuanceCity.en,
+    passport_issuance_date: passportIssuanceDate,
+    passport_issue_date: passportIssuanceDate,
+    passport_expiration_date: passportExpirationDate,
+    passport_expiry_date: passportExpirationDate,
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onComplete({
@@ -127,6 +140,16 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.documentType")} / Passport document type`}
             helper="中英文都从同一组官方护照类型中选择。"
             badge="官方选项映射"
+            copilot={{
+              fieldName: "passport_document_type",
+              label: "Passport document type",
+              fieldType: "select",
+              value: passportDocumentType,
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(PASSPORT_TYPE_OPTIONS),
+              placeholder: "Select passport type",
+            }}
             zhControl={
               <BilingualOptionControl
                 side="zh"
@@ -152,6 +175,16 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.passportNumber")} / Passport number`}
             helper="号码不翻译，左右两侧保持完全一致。"
             badge="逐位同步"
+            copilot={{
+              fieldName: "passport_number",
+              label: "Passport number",
+              fieldType: "text",
+              value: mirroredValues.passportNumber.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "PA1234567",
+              validationRules: { maxLength: 20 },
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -177,6 +210,15 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.bookNumber")} / Passport book number`}
             helper="如护照没有单独本号，可留空。"
             badge="逐位同步"
+            copilot={{
+              fieldName: "passport_book_number",
+              label: "Passport book number",
+              fieldType: "text",
+              value: mirroredValues.passportBookNumber.en,
+              allAnswers: copilotAnswers,
+              placeholder: "Book number if any",
+              validationRules: { maxLength: 20 },
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -200,6 +242,15 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.issuingCountry")} / Issuing country`}
             helper="国家名称左侧显示中文，右侧显示英文官方写法。"
             badge="国家选项映射"
+            copilot={{
+              fieldName: "passport_issuing_country",
+              label: "Issuing country",
+              fieldType: "country",
+              value: findBilingualOption(COUNTRY_OPTIONS, passportIssuingCountryCode)?.en ?? "",
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "Select issuing country",
+            }}
             zhControl={
               <BilingualCountryControl
                 side="zh"
@@ -221,6 +272,15 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.issuanceCity")} / Issuance city`}
             helper="签发城市可从中文侧输入，英文侧自动给出常用写法。"
             badge="自动生成英文"
+            copilot={{
+              fieldName: "passport_issuance_city",
+              label: "Issuance city",
+              fieldType: "text",
+              value: passportIssuanceCity.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "e.g. Beijing",
+            }}
             zhControl={
               <BilingualTextControl
                 side="zh"
@@ -244,6 +304,15 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.issueDate")} / Issue date`}
             helper="任意一侧选择日期，另一侧会同步显示中文日期或 DD/MM/YYYY。"
             badge="官方日期格式"
+            copilot={{
+              fieldName: "passport_issuance_date",
+              label: "Issue date",
+              fieldType: "date",
+              value: passportIssuanceDate,
+              allAnswers: copilotAnswers,
+              required: true,
+              validationRules: { format: "DD/MM/YYYY" },
+            }}
             zhControl={
               <BilingualDateControl
                 side="zh"
@@ -265,6 +334,15 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
             label={`${t("passport.expiryDate")} / Expiry date`}
             helper="任意一侧选择日期，另一侧会同步显示中文日期或 DD/MM/YYYY。"
             badge="官方日期格式"
+            copilot={{
+              fieldName: "passport_expiration_date",
+              label: "Expiry date",
+              fieldType: "date",
+              value: passportExpirationDate,
+              allAnswers: copilotAnswers,
+              required: true,
+              validationRules: { format: "DD/MM/YYYY" },
+            }}
             zhControl={
               <BilingualDateControl
                 side="zh"

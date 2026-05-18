@@ -1,9 +1,11 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { CalendarDays, CheckIcon, ChevronDown, Globe, User } from "lucide-react";
+import { Bot, CalendarDays, CheckIcon, ChevronDown, Globe, User } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
+import { useLocale } from "next-intl";
+import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -32,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 export type BilingualSide = "zh" | "en";
 
@@ -39,6 +42,20 @@ export interface BilingualOptionPair {
   code: string;
   zh: string;
   en: string;
+}
+
+export interface BilingualFieldCopilotConfig {
+  fieldName: string;
+  label: string;
+  fieldType: VisaFormFieldRow["fieldType"];
+  value: string;
+  allAnswers: Record<string, string>;
+  required?: boolean;
+  options?: Array<{ value: string; text: string } | string> | null;
+  placeholder?: string | null;
+  validationRules?: Record<string, unknown> | null;
+  visaType?: string;
+  country?: string | null;
 }
 
 interface CountryRecord {
@@ -140,16 +157,74 @@ export function BilingualTableShell({ children }: { children: ReactNode }) {
   return <div className="flex flex-col">{children}</div>;
 }
 
+export function toCopilotOptions(options: BilingualOptionPair[]): Array<{ value: string; text: string }> {
+  return options.map((option) => ({
+    value: option.code,
+    text: option.en,
+  }));
+}
+
+export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilotConfig }) {
+  const locale = useLocale();
+  const [open, setOpen] = useState(false);
+  const field: VisaFormFieldRow = {
+    id: `legacy-${config.fieldName}`,
+    visaType: config.visaType ?? "DS160",
+    fieldName: config.fieldName,
+    label: config.label,
+    fieldType: config.fieldType,
+    required: Boolean(config.required),
+    stepNumber: 0,
+    stepName: null,
+    displayOrder: 0,
+    placeholder: config.placeholder ?? null,
+    validationRules: config.validationRules ?? null,
+    options: config.options ?? null,
+    conditionalLogic: null,
+  };
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 md:col-start-2 md:col-span-2">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
+          aria-expanded={open}
+          aria-label={`${open ? "Hide AI help" : "Ask AI"}: ${config.label}`}
+          data-copilot-trigger={config.fieldName}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          {open ? (locale.startsWith("zh") ? "收起 AI 帮助" : "Hide AI help") : locale.startsWith("zh") ? "问 AI" : "Ask AI"}
+        </button>
+      </div>
+      {open && (
+        <FieldGuidancePanel
+          country={config.country}
+          visaType={config.visaType ?? "DS160"}
+          locale={locale}
+          field={field}
+          answer={config.value}
+          allAnswers={config.allAnswers}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function BilingualRow({
   label,
   zhControl,
   enControl,
+  copilot,
 }: {
   label: string;
   helper?: string;
   badge?: string;
   zhControl: ReactNode;
   enControl: ReactNode;
+  copilot?: BilingualFieldCopilotConfig;
 }) {
   return (
     <div className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
@@ -164,6 +239,7 @@ export function BilingualRow({
         <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">English / Official</span>
         {enControl}
       </label>
+      {copilot && <BilingualFieldCopilot config={copilot} />}
     </div>
   );
 }
