@@ -174,6 +174,8 @@ const EMPTY_TRAVEL_MESSAGES: TravelChatMessage[] = [];
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 const TRAVEL_JSON_CODE_BLOCK_PATTERN = /```json[^\S\r\n]*(?:\r?\n)?[\s\S]*?```/gi;
+const TRAVEL_MARKDOWN_CODE_BLOCK_PATTERN =
+  /```[a-zA-Z0-9_-]*[^\S\r\n]*(?:\r?\n)?([\s\S]*?)```/g;
 
 const TRAVEL_STAGE_ORDER: readonly TravelField[] = [
   "country",
@@ -856,13 +858,46 @@ function getMessageText(message: TravelChatMessage): string {
     .trim();
 }
 
+function stripTravelMarkdown(value: string): string {
+  return value
+    .replace(TRAVEL_JSON_CODE_BLOCK_PATTERN, "")
+    .replace(TRAVEL_MARKDOWN_CODE_BLOCK_PATTERN, (_block, body: string) => {
+      const trimmedBody = body.trim();
+      return trimmedBody.startsWith("{") || trimmedBody.startsWith("[") ? "" : trimmedBody;
+    })
+    .replace(/\[([^]]+)]\(([^)]+)\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, "")
+    .replace(/^\s*\|(.+)\|\s*$/gm, (_line, cells: string) =>
+      cells
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter(Boolean)
+        .join("，")
+    )
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/__([^_\n]+)__/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/_([^_\n]+)_/g, "$1")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\s+\|\s+/g, "，")
+    .replace(/\s+->\s+/g, " 到 ")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function getVisibleMessageText(message: TravelChatMessage): string {
-  return getMessageText(message)
+  const visibleText = getMessageText(message)
     .replace(/<!--__TRAVEL_FORM__:[\s\S]*?-->/g, "")
     .replace(/<!--__TRAVEL_ITINERY_ROWS__:[\s\S]*?-->/g, "")
     .replace(TRAVEL_JSON_CODE_BLOCK_PATTERN, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  return message.role === "assistant" ? stripTravelMarkdown(visibleText) : visibleText;
 }
 
 function isDestinationEditRequest(text: string): boolean {
@@ -952,7 +987,7 @@ function parseTravelRevisionResponse(
     action,
     reply:
       typeof raw.reply === "string" && raw.reply.trim()
-        ? raw.reply.trim()
+        ? localizeTravelText(raw.reply.trim())
         : action === "restart"
           ? "可以，我们保留旧版本，先回到地图重新规划。"
           : "我已处理这次行程修改。",
@@ -1039,28 +1074,28 @@ function applyRevisionPatches(
 
 function formatSelectedFlights(flights: SelectedFlightOption[]): string {
   if (!flights.length) {
-    return "- 将在 itinerary 表格中生成默认航班，可直接编辑航司、时间、价格和航班号";
+    return "默认航班会在行程表格中生成，可直接编辑航司、时间、价格和航班号。";
   }
 
   return flights
     .map((flight) => {
       if (flight.skip) {
-        return `- 路线 ${flight.leg_index}：${flight.from} -> ${flight.to}`;
+        return `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}。`;
       }
 
       const option = flight.option;
       const airline = option?.airline ?? "未命名航司";
       const price = option?.price ? `${option.price} ${option.currency ?? "CNY"}` : "价格未知";
-      const flightNumber = option?.flight_number ? ` | 航班号 ${option.flight_number}` : "";
+      const flightNumber = option?.flight_number ? `，航班号 ${option.flight_number}` : "";
 
-      return `- 路线 ${flight.leg_index}：${flight.from} -> ${flight.to} | ${airline} | ${price}${flightNumber}`;
+      return `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}，${airline}，${price}${flightNumber}。`;
     })
     .join("\n");
 }
 
 function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
   if (!hotels.length) {
-    return "- 将在 itinerary 表格中生成默认酒店，可直接编辑酒店名、地址、价格和联系方式";
+    return "默认酒店会在行程表格中生成，可直接编辑酒店名、地址、价格和联系方式。";
   }
 
   return hotels
@@ -1074,10 +1109,10 @@ function formatSelectedHotels(hotels: SelectedHotelOption[]): string {
         option?.rating !== undefined && option?.rating !== null
           ? `评分 ${option.rating}`
           : "暂无评分";
-      const address = option?.address ? ` | 地址 ${option.address}` : "";
-      const contact = option?.contact_phone ? ` | 电话 ${option.contact_phone}` : "";
+      const address = option?.address ? `，地址 ${option.address}` : "";
+      const contact = option?.contact_phone ? `，电话 ${option.contact_phone}` : "";
 
-      return `- 城市 ${hotel.stay_index}：${hotel.city}（${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚）| ${name} | ${price} | ${rating}${address}${contact}`;
+      return `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${name}，${price}，${rating}${address}${contact}。`;
     })
     .join("\n");
 }
@@ -1094,8 +1129,8 @@ function createItineraryAssistantMessage(options: {
     "行程已经生成，我已经把每天安排整理到行程卡片里。";
   const content =
     `${intro}\n\n` +
-    `### 路线节点\n${formatSelectedFlights(options.selectedFlights)}\n\n` +
-    `### 已选酒店\n${formatSelectedHotels(options.selectedHotels)}`;
+    `路线节点：\n${formatSelectedFlights(options.selectedFlights)}\n\n` +
+    `已选酒店：\n${formatSelectedHotels(options.selectedHotels)}`;
 
   return {
     id: createMessageId(),
@@ -1305,10 +1340,12 @@ function escapeRegExp(value: string): string {
 }
 
 function localizeTravelText(value: string): string {
-  return PLACE_TEXT_REPLACEMENTS.reduce((text, [source, target]) => {
+  const localized = PLACE_TEXT_REPLACEMENTS.reduce((text, [source, target]) => {
     const pattern = new RegExp(`\\b${escapeRegExp(source)}\\b`, "g");
     return text.replace(pattern, target);
   }, value).replace(/\b(\d+(?:-\d+)?)\s*days\b/gi, "$1 天");
+
+  return stripTravelMarkdown(localized);
 }
 
 function localizeSuggestedDays(value: string | null | undefined): string {

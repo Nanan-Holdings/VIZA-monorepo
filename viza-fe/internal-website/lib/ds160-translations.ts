@@ -632,15 +632,255 @@ const TRANSLATIONS: Record<string, {
   zh: { labels: ZH_LABELS, placeholders: ZH_PLACEHOLDERS, options: ZH_OPTIONS },
 };
 
-export function translateLabel(label: string, locale: string): string {
-  return TRANSLATIONS[locale]?.labels[label] ?? label;
+const GENERIC_ZH_TEXT: Record<string, string> = {
+  "Personal Details": "个人信息",
+  "Travel Document & Identity": "旅行证件与身份信息",
+  "EU/EEA/CH Family Member": "欧盟/欧洲经济区/瑞士家庭成员",
+  "Contact Details & Residence": "联系方式与居住信息",
+  "Occupation": "职业信息",
+  "Trip Details": "旅行详情",
+  "Accommodation in Schengen": "申根住宿信息",
+  "Travel History": "旅行历史",
+  "Financial Support": "资金支持",
+  "Declaration": "声明",
+  "Personal": "个人信息",
+  "Travel": "旅行",
+  "Passport": "护照",
+  "Family": "家庭信息",
+  "U.S. Contact": "美国联系人",
+  "Previous U.S. Travel": "以往赴美记录",
+  "Address and Phone": "地址和电话",
+  "Work / Education / Training": "工作/教育/培训",
+  "Security and Background": "安全与背景",
+  "Upload Photo": "上传照片",
+  "Review": "审核",
+  "Review Application": "审核申请",
+  "Confirmation": "确认",
+  "About You — Personal Details": "关于您——个人信息",
+  "About You — Passport & Identity Documents": "关于您——护照与身份证件",
+  "Your Contact Details": "您的联系方式",
+  "Your Family": "您的家庭信息",
+  "Your Employment and Income": "您的工作与收入",
+  "Your Travel Plans": "您的旅行计划",
+  "Your Visit": "您的访问详情",
+  "Your Travel History": "您的旅行历史",
+  "Supporting Documents": "支持文件",
+  "Surname (family name)": "姓（家族姓）",
+  "Is your surname at birth different from your current surname?": "您的出生姓氏是否与当前姓氏不同？",
+  "First name(s) (given name(s))": "名（名字）",
+  "Place of birth (city or town)": "出生地（城市或城镇）",
+  "Country of birth": "出生国家",
+  "Current nationality": "当前国籍",
+  "Nationality at birth": "出生时国籍",
+  "Sex": "性别",
+  "Civil status": "婚姻状况",
+  "Travel document type": "旅行证件类型",
+  "Travel document number": "旅行证件号码",
+  "Date of issue": "签发日期",
+  "Valid until": "有效期至",
+  "Issued by": "签发机构",
+  "Issuing authority": "签发机构",
+  "Issuing country": "签发国家",
+  "Purpose(s) of the journey": "旅行目的",
+  "Member State(s) of destination": "目的地成员国",
+  "Member State of first entry": "首次入境成员国",
+  "Number of entries requested": "申请入境次数",
+  "Intended date of arrival in the Schengen Area": "预计抵达申根区日期",
+  "Intended date of departure from the Schengen Area": "预计离开申根区日期",
+  "Type of accommodation in the Schengen Area": "申根区住宿类型",
+  "Hotel name or accommodation label": "酒店名称或住宿名称",
+  "Accommodation address — line 1": "住宿地址——第1行",
+  "Accommodation telephone number": "住宿联系电话",
+  "Accommodation e-mail address": "住宿电子邮箱",
+  "Hotel / booking confirmation number (if available)": "酒店/预订确认号（如有）",
+  "Have your fingerprints been collected previously for the purpose of applying for a Schengen visa?": "您此前是否因申请申根签证采集过指纹？",
+  "Have you ever been refused a Schengen visa?": "您是否曾被拒发申根签证？",
+  "Means of support during your stay": "停留期间资金来源",
+  "Who will pay for your travel and living costs?": "谁将支付您的旅行和生活费用？",
+  "I declare that the information provided is true and complete.": "我声明所提供的信息真实且完整。",
+  "Given names (as shown in your passport)": "名字（与护照一致）",
+  "Family name / surname (as shown in your passport)": "姓氏（与护照一致）",
+  "Have you been known by any other names?": "您是否曾使用过其他姓名？",
+  "Previous given names": "曾用名字",
+  "Previous family name / surname": "曾用姓氏",
+  "Date name was changed": "姓名变更日期",
+  "Reason for name change": "姓名变更原因",
+  "What is your nationality?": "您的国籍是什么？",
+  "Do you have any other nationalities?": "您是否有其他国籍？",
+  "Other nationality": "其他国籍",
+  "Will you be under 18 on the date you plan to travel to the UK?": "在计划前往英国当天，您是否未满18岁？",
+  "Do you have a signed letter of consent from both parents or legal guardians?": "您是否有父母双方或法定监护人签署的同意书？",
+  "Passport number": "护照号码",
+  "Date of expiry": "到期日期",
+  "Place of issue": "签发地点",
+  "Do you have any other valid passports or travel documents?": "您是否有其他有效护照或旅行证件？",
+  "Do you have a national identity card?": "您是否有国民身份证？",
+  "National identity card number": "国民身份证号码",
+  "Email address": "电子邮箱",
+  "Phone number (including country code)": "电话号码（含国家代码）",
+  "Do you have an alternative phone number?": "您是否有备用电话号码？",
+  "Home address — line 1": "家庭地址——第1行",
+  "Home address — line 2": "家庭地址——第2行",
+  "Town or city": "城镇或城市",
+  "County / state / province": "县/州/省",
+  "Postcode / ZIP code": "邮政编码",
+  "Country": "国家",
+  "How long have you lived at this address?": "您在此地址居住了多久？",
+  "Do you own your home?": "您是否拥有自己的住房？",
+  "Is your correspondence address different from your home address?": "您的通信地址是否与家庭地址不同？",
+  "What is your current marital or civil partnership status?": "您当前的婚姻或民事伴侣关系状态是什么？",
+  "Current job title": "当前职位",
+  "Employer or school name": "雇主或学校名称",
+  "Monthly income": "月收入",
+  "Planned arrival date": "计划抵达日期",
+  "Planned departure date": "计划离开日期",
+  "Main reason for your visit": "访问主要原因",
+  "Where will you stay?": "您将住在哪里？",
+};
+
+const FIELD_NAME_ZH: Record<string, string> = {
+  surname: "姓氏",
+  given_names: "名字",
+  date_of_birth: "出生日期",
+  country_of_birth: "出生国家",
+  place_of_birth: "出生地",
+  city_of_birth: "出生城市",
+  nationality: "国籍",
+  country_of_nationality: "国籍",
+  passport_number: "护照号码",
+  passport_issue_date: "护照签发日期",
+  passport_expiry_date: "护照到期日期",
+  passport_issuing_authority: "护照签发机构",
+  passport_place_of_issue: "护照签发地点",
+  email_address: "电子邮箱",
+  phone_number: "电话号码",
+  intended_arrival_date: "预计抵达日期",
+  intended_departure_date: "预计离开日期",
+};
+
+const TOKEN_ZH: Record<string, string> = {
+  surname: "姓氏",
+  family: "家庭",
+  given: "名字",
+  names: "姓名",
+  first: "名",
+  current: "当前",
+  previous: "过往",
+  birth: "出生",
+  date: "日期",
+  place: "地点",
+  city: "城市",
+  town: "城镇",
+  country: "国家",
+  nationality: "国籍",
+  passport: "护照",
+  travel: "旅行",
+  document: "证件",
+  identity: "身份",
+  issue: "签发",
+  expiry: "到期",
+  valid: "有效",
+  until: "至",
+  authority: "机构",
+  number: "号码",
+  address: "地址",
+  line: "行",
+  phone: "电话",
+  email: "邮箱",
+  occupation: "职业",
+  employer: "雇主",
+  school: "学校",
+  income: "收入",
+  monthly: "每月",
+  arrival: "抵达",
+  departure: "离开",
+  intended: "预计",
+  purpose: "目的",
+  journey: "行程",
+  trip: "旅行",
+  member: "成员",
+  state: "州",
+  province: "省",
+  schengen: "申根",
+  accommodation: "住宿",
+  host: "接待方",
+  financial: "资金",
+  support: "支持",
+  declaration: "声明",
+  details: "详情",
+  personal: "个人",
+  upload: "上传",
+  photo: "照片",
+  review: "审核",
+  application: "申请",
+  confirmation: "确认",
+  security: "安全",
+  background: "背景",
+  contact: "联系人",
+  us: "美国",
+  u: "美国",
+  s: "",
+};
+
+function hasChinese(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function normalizeText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function composeBilingual(original: string, zh: string | null, locale: string): string {
+  const cleanOriginal = normalizeText(original);
+  const cleanZh = zh ? normalizeText(zh) : "";
+  if (!cleanOriginal || !cleanZh || cleanOriginal === cleanZh) return cleanOriginal || cleanZh;
+  if (cleanOriginal.includes(cleanZh) || cleanZh.includes(cleanOriginal)) return cleanOriginal.includes(cleanZh) ? cleanOriginal : cleanZh;
+  return locale.startsWith("zh") ? `${cleanZh} / ${cleanOriginal}` : `${cleanOriginal} / ${cleanZh}`;
+}
+
+function generateChineseFromFieldName(fieldName?: string): string | null {
+  if (!fieldName) return null;
+  if (FIELD_NAME_ZH[fieldName]) return FIELD_NAME_ZH[fieldName];
+  const tokens = fieldName
+    .replace(/__\d+$/, "")
+    .split(/[_\s-]+/)
+    .map((token) => TOKEN_ZH[token.toLowerCase()])
+    .filter(Boolean);
+  return tokens.length > 0 ? tokens.join("") : null;
+}
+
+function generateChineseFromText(text: string): string | null {
+  const exact = GENERIC_ZH_TEXT[text] ?? ZH_LABELS[text] ?? ZH_OPTIONS[text] ?? ZH_PLACEHOLDERS[text];
+  if (exact) return exact;
+  if (hasChinese(text)) return text;
+
+  const cleaned = text
+    .replace(/[()?]/g, " ")
+    .replace(/[—/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  const tokens = cleaned
+    .split(" ")
+    .map((token) => TOKEN_ZH[token])
+    .filter(Boolean);
+
+  return tokens.length > 0 ? tokens.join("") : null;
+}
+
+export function translateLabel(label: string, locale: string, fieldName?: string): string {
+  const zh = generateChineseFromText(label) ?? generateChineseFromFieldName(fieldName);
+  return composeBilingual(label, zh, locale);
 }
 
 export function translatePlaceholder(placeholder: string | null, locale: string): string | null {
   if (!placeholder) return null;
-  return TRANSLATIONS[locale]?.placeholders[placeholder] ?? placeholder;
+  const zh = TRANSLATIONS.zh.placeholders[placeholder] ?? generateChineseFromText(placeholder);
+  return composeBilingual(placeholder, zh, locale);
 }
 
 export function translateOptionText(text: string, locale: string): string {
-  return TRANSLATIONS[locale]?.options[text] ?? text;
+  const zh = TRANSLATIONS.zh.options[text] ?? generateChineseFromText(text);
+  return composeBilingual(text, zh, locale);
 }

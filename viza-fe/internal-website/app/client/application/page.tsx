@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -32,6 +32,7 @@ import {
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import { getFormVisaType } from "@/lib/visa-destinations";
+import { translateLabel } from "@/lib/ds160-translations";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -761,6 +762,7 @@ interface ApplicationState {
 
 export default function ApplicationPage() {
   const t = useTranslations("application");
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
 
@@ -839,31 +841,35 @@ export default function ApplicationPage() {
           sourceName: step.stepName,
           name: (() => {
             const safeKey = step.stepName.replace(/\./g, "");
-            return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+            const translatedStepName = translateLabel(step.stepName, locale);
+            if (translatedStepName !== step.stepName) return translatedStepName;
+            const localizedStepName = tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+            return translateLabel(localizedStepName, locale);
           })(),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
         {
           id: photoStepIndex,
           sourceName: "Upload Photo",
-          name: tDyn.has("Upload Photo") ? tDyn("Upload Photo" as never) : "Upload Photo",
+          name: translateLabel("Upload Photo", locale),
           description: tApp.has("photoStepDescription") ? tApp("photoStepDescription" as never) : "Upload your passport-style photo",
         },
         {
           id: reviewStepIndex,
           sourceName: "Review",
-          name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
+          name: translateLabel("Review Application", locale),
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
-          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
+          name: translateLabel("Confirmation", locale),
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ];
   }, [
     hardcodedSteps,
+    locale,
     photoStepIndex,
     reviewStepIndex,
     statusStepIndex,
@@ -876,21 +882,21 @@ export default function ApplicationPage() {
   const dynamicSectionTitles = useMemo(
     () =>
       ({
-        personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
-        travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
-        travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
-        previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
-        addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
-        passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
-        usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
-        family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
-        workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
-        securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
-        photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
-        review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
-        confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
+        personal: translateLabel("Personal", locale),
+        travel: translateLabel("Travel", locale),
+        travelCompanions: translateLabel("Travel Companions", locale),
+        previousTravel: translateLabel("Previous U.S. Travel", locale),
+        addressAndPhone: translateLabel("Address and Phone", locale),
+        passport: translateLabel("Passport", locale),
+        usContact: translateLabel("U.S. Contact", locale),
+        family: translateLabel("Family", locale),
+        workEducationTraining: translateLabel("Work / Education / Training", locale),
+        securityAndBackground: translateLabel("Security and Background", locale),
+        photo: translateLabel("Upload Photo", locale),
+        review: translateLabel("Review", locale),
+        confirmation: translateLabel("Confirmation", locale),
       }) satisfies Record<StepSectionKey, string>,
-    [tApp],
+    [locale],
   );
 
   const groupedSections = useMemo(
