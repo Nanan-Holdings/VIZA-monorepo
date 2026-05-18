@@ -31,7 +31,6 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { BilingualFieldReferenceTable } from "@/components/application-steps/bilingual-field-reference-table";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -1384,8 +1383,6 @@ export default function ApplicationPage() {
               {visaPackage?.name ?? t("title")}
             </h1>
           </div>
-
-          <BilingualFieldReferenceTable />
 
           {error && (
             <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm mb-6">
