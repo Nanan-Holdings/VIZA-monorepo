@@ -97,8 +97,8 @@ const STAGE_META: Record<string, { icon: string; status: StageStatus; href?: str
   decision: { icon: "✅", status: "locked" },
 };
 
-function VisaStageCard({ id, title, subtitle, badge, icon, status, href }: {
-  id: string; title: string; subtitle: string; badge: string; icon: string; status: StageStatus; href?: string;
+function VisaStageCard({ title, subtitle, badge, icon, status, href }: {
+  title: string; subtitle: string; badge: string; icon: string; status: StageStatus; href?: string;
 }) {
   const isLocked = status === "locked";
 
@@ -168,7 +168,6 @@ function VisaTimelineCard({ packageName }: { packageName?: string }) {
         return (
           <VisaStageCard
             key={id}
-            id={id}
             title={t(`stages.${id}.title`)}
             subtitle={t(`stages.${id}.subtitle`)}
             badge={t(`stages.${id}.badge`)}
@@ -270,7 +269,7 @@ export default function HomePage() {
     } else {
       setAuthChecked(true);
     }
-  }, []);
+  }, [t]);
 
   // Fetch VIZA dashboard data once auth is confirmed
   useEffect(() => {
@@ -344,7 +343,7 @@ export default function HomePage() {
 
     fetchData();
     return () => { isMounted = false; };
-  }, [authChecked]);
+  }, [authChecked, t]);
 
   // Nav color changes based on scroll (hero is navy, content below is white)
   useEffect(() => {
