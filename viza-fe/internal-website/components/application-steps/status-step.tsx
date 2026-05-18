@@ -51,36 +51,40 @@ export function StatusStep({
           <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
             <CheckCircle2 className="h-6 w-6 text-green-600" />
           </div>
-          <CardTitle className="font-heading text-lg">{t("status.title")}</CardTitle>
+          <CardTitle className="font-heading text-lg">{t("status.title")} / Application Submitted</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="rounded-lg bg-brand-50 border border-brand-100 p-4 flex flex-col gap-3">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">{t("status.confirmationNumber")}</span>
+            <span className="text-sm text-muted-foreground">{t("status.confirmationNumber")} / Confirmation number</span>
             <span className="text-sm font-mono font-semibold text-brand-500">{confirmationNumber}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">{t("status.submittedOn")}</span>
+            <span className="text-sm text-muted-foreground">{t("status.submittedOn")} / Submitted on</span>
             <span className="text-sm font-medium">{submittedDate}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">{t("status.estimatedProcessing")}</span>
+            <span className="text-sm text-muted-foreground">{t("status.estimatedProcessing")} / Estimated processing</span>
             <span className="text-sm font-medium">{estimatedProcessingDays} {t("status.businessDays")}</span>
           </div>
         </div>
 
         <p className="text-sm text-muted-foreground">
           {t("status.message")}
+          <br />
+          Your application has been submitted. Keep your confirmation number for reference.
         </p>
 
         <div className="rounded-lg border border-[#03346E]/20 bg-[#03346E]/5 p-3">
           <p className="mb-2 text-sm font-medium text-[#03346E]">
-            {t("status.travelPlannerTitle")}
+            {t("status.travelPlannerTitle")} / Next step: Plan your trip
           </p>
-          <p className="mb-3 text-xs text-gray-600">{t("status.travelPlannerHint")}</p>
+          <p className="mb-3 text-xs text-gray-600">
+            {t("status.travelPlannerHint")} / Build your itinerary, compare flights and hotels, and export Word/PDF.
+          </p>
           <Button asChild className="w-full bg-[#03346E] text-white hover:bg-[#02264f]">
-            <Link href="/client/travel-chat">{t("status.openTravelPlanner")}</Link>
+            <Link href="/client/travel-chat">{t("status.openTravelPlanner")} / Open Travel Chatbot</Link>
           </Button>
         </div>
 
@@ -88,7 +92,7 @@ export function StatusStep({
           <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" className="w-full gap-2">
               <ExternalLink className="h-4 w-4" />
-              {t("status.viewReceipt")}
+              {t("status.viewReceipt")} / View Receipt
             </Button>
           </a>
         )}
@@ -106,7 +110,7 @@ export function StatusStep({
             className="bg-brand-500 hover:bg-brand-600 text-white"
             onClick={() => onComplete({ acknowledged: true })}
           >
-            {t("status.done")}
+            {t("status.done")} / Done
           </Button>
         )}
       </CardContent>

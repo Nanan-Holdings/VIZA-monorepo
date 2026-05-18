@@ -71,7 +71,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
         <div className="rounded-lg border border-red-200 bg-red-50 p-3">
           <div className="flex items-center gap-2 mb-2 text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">{t("review.validation.hasErrors")}</p>
+            <p className="text-sm font-semibold">{t("review.validation.hasErrors")} / Application has errors</p>
           </div>
           <ul className="flex flex-col gap-1">
             {result!.errors.map((e, i) => (
@@ -86,7 +86,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <div className="flex items-center gap-2 mb-2 text-amber-700">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">{t("review.validation.hasWarnings")}</p>
+            <p className="text-sm font-semibold">{t("review.validation.hasWarnings")} / Warnings</p>
           </div>
           <ul className="flex flex-col gap-1">
             {result!.warnings.map((w, i) => (
@@ -100,7 +100,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
       {state === "done" && !hasErrors && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <p className="text-sm">{t("review.validation.allGood")}</p>
+          <p className="text-sm">{t("review.validation.allGood")} / Ready to submit</p>
         </div>
       )}
 
@@ -118,7 +118,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
             loading={state === "loading"}
             loadingText={t("review.validation.validating")}
           >
-            {t("review.validation.validateButton")}
+            {t("review.validation.validateButton")} / Validate Application
           </BrandActionButton>
         )}
 
@@ -126,7 +126,9 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
           disabled={state === "done" && hasErrors}
           onClick={onProceed}
         >
-          {state === "done" && hasWarnings && !hasErrors ? t("review.validation.submitWithWarnings") : t("review.confirmAndSubmit")}
+          {state === "done" && hasWarnings && !hasErrors
+            ? `${t("review.validation.submitWithWarnings")} / Submit with warnings`
+            : `${t("review.confirmAndSubmit")} / Confirm & Submit`}
         </BrandActionButton>
       </div>
     </div>
@@ -139,40 +141,41 @@ export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComp
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-heading text-lg">{t("review.title")}</CardTitle>
+        <CardTitle className="font-heading text-lg">{t("review.title")} / Review Your Application</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {data?.personal && (
-          <Section title={t("review.personalInformation")} onEdit={() => onEdit?.("personal")} editLabel={t("edit")}>
-            <SectionRow label={t("review.surname")} value={data.personal.surname} />
-            <SectionRow label={t("review.givenNames")} value={data.personal.givenNames} />
-            <SectionRow label={t("review.dateOfBirth")} value={data.personal.dateOfBirth} />
-            <SectionRow label={t("review.sex")} value={data.personal.sex} />
-            <SectionRow label={t("review.maritalStatus")} value={data.personal.maritalStatus} />
-            <SectionRow label={t("review.nationality")} value={data.personal.nationality} />
-            <SectionRow label={t("review.cityOfBirth")} value={data.personal.cityOfBirth} />
-            <SectionRow label={t("review.countryOfBirth")} value={data.personal.countryOfBirth} />
+          <Section title={`${t("review.personalInformation")} / Personal Information`} onEdit={() => onEdit?.("personal")} editLabel={`${t("edit")} / Edit`}>
+            <SectionRow label="姓 / Surname" value={data.personal.surname} />
+            <SectionRow label="名 / Given name(s)" value={data.personal.givenNames} />
+            <SectionRow label="出生日期 / Date of birth" value={data.personal.dateOfBirth} />
+            <SectionRow label="性别 / Sex" value={data.personal.sex} />
+            <SectionRow label="婚姻状况 / Marital status" value={data.personal.maritalStatus} />
+            <SectionRow label="国籍 / Nationality" value={data.personal.nationality} />
+            <SectionRow label="出生城市 / City of birth" value={data.personal.cityOfBirth} />
+            <SectionRow label="出生国家 / Country of birth" value={data.personal.countryOfBirth} />
           </Section>
         )}
 
         {data?.passport && (
-          <Section title={t("review.passportDetails")} onEdit={() => onEdit?.("passport")} editLabel={t("edit")}>
-            <SectionRow label={t("review.passportType")} value={data.passport.passportDocumentType} />
-            <SectionRow label={t("review.passportNumber")} value={data.passport.passportNumber} />
-            <SectionRow label={t("review.issuingCountry")} value={data.passport.passportIssuingCountry} />
-            <SectionRow label={t("review.issuanceDate")} value={data.passport.passportIssuanceDate} />
-            <SectionRow label={t("review.expiryDate")} value={data.passport.passportExpirationDate} />
+          <Section title={`${t("review.passportDetails")} / Passport Details`} onEdit={() => onEdit?.("passport")} editLabel={`${t("edit")} / Edit`}>
+            <SectionRow label="护照类型 / Passport type" value={data.passport.passportDocumentType} />
+            <SectionRow label={`${t("review.passportNumber")} / Passport number`} value={data.passport.passportNumber} />
+            <SectionRow label={`${t("review.issuingCountry")} / Issuing country`} value={data.passport.passportIssuingCountry} />
+            <SectionRow label="签发城市 / Issuance city" value={data.passport.passportIssuanceCity} />
+            <SectionRow label="签发日期 / Issue date" value={data.passport.passportIssuanceDate} />
+            <SectionRow label={`${t("review.expiryDate")} / Expiry date`} value={data.passport.passportExpirationDate} />
           </Section>
         )}
 
         {data?.travel && (
-          <Section title={t("review.travelInformation")} onEdit={() => onEdit?.("travel")} editLabel={t("edit")}>
-            <SectionRow label={t("review.purpose")} value={data.travel.purposeOfTrip} />
-            <SectionRow label={t("review.arrivalDate")} value={data.travel.arrivalDate} />
-            <SectionRow label={t("review.departureDate")} value={data.travel.departureDate} />
-            <SectionRow label={t("review.arrivalCity")} value={data.travel.arrivalCity} />
-            <SectionRow label={t("review.accommodation")} value={data.travel.accommodationName} />
-            <SectionRow label={t("review.usAddress")} value={[data.travel.usAddressStreet1, data.travel.usAddressCity, data.travel.usAddressState, data.travel.usAddressZip].filter(Boolean).join(", ")} />
+          <Section title={`${t("review.travelInformation")} / Travel Information`} onEdit={() => onEdit?.("travel")} editLabel={`${t("edit")} / Edit`}>
+            <SectionRow label={`${t("review.purpose")} / Purpose`} value={data.travel.purposeOfTrip} />
+            <SectionRow label={`${t("review.arrivalDate")} / Arrival date`} value={data.travel.arrivalDate} />
+            <SectionRow label={`${t("review.departureDate")} / Departure date`} value={data.travel.departureDate} />
+            <SectionRow label="到达城市 / Arrival city or port" value={data.travel.arrivalCity} />
+            <SectionRow label={`${t("review.accommodation")} / Accommodation`} value={data.travel.accommodationName} />
+            <SectionRow label="住宿地址 / Accommodation address" value={[data.travel.usAddressStreet1, data.travel.usAddressCity, data.travel.usAddressState, data.travel.usAddressZip].filter(Boolean).join(", ")} />
           </Section>
         )}
 
