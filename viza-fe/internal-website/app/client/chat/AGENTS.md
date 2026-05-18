@@ -84,17 +84,24 @@ For backend Socket.IO or agent changes:
 
 The `/visa` namespace routes explicit destination mentions to RAG countries for all current Schengen Area countries plus popular non-Schengen visitor destinations. Schengen coverage includes Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden, and Switzerland. Non-Schengen coverage includes Australia, Cambodia, Canada, Egypt, India, Indonesia, Japan, Laos, Malaysia, Maldives, Mexico, Morocco, Nepal, New Zealand, Philippines, Qatar, Saudi Arabia, Singapore, South Africa, South Korea, Sri Lanka, Thailand, Turkey, UAE, UK, US, and Vietnam. Do not reintroduce a default-to-Indonesia fallback. If a user mentions multiple supported countries, or asks a generic Schengen question, let retrieval search across the relevant Schengen knowledge instead of using a stale application country unless that context is itself a supported Schengen country.
 
-RAG routing uses the latest user message plus recent user-only chat context. This is intentional: a compact follow-up like "中国，新加坡，不知道，会去别的国家" may be answering the previous numbered questions, so retrieval must still remember the earlier main destination (for example Switzerland) while treating "Singapore" as residence/apply-from, not as a destination. Application `visa_type` fallback is only valid when compatible with the resolved country.
+RAG routing now uses structured conversation state first, then the latest user message plus recent user-only chat context. This is intentional: a compact follow-up like "中国，新加坡，不知道，会去别的国家" may be answering the previous numbered questions, so retrieval must still remember the earlier main destination (for example Switzerland) while treating "Singapore" as residence/apply-from, not as a destination. Application `visa_type` fallback is only valid when compatible with the resolved country.
 
 Compact answer repair runs after history is assembled and before `buildSystemPrompt()`. Keep `buildCompactAnswerInterpretation()` in the backend when changing prompt flow: it maps numbered answers and numeric day splits back to the last assistant question, so a user can answer `2，5` after a France/Italy day-split question without the assistant resetting the intake.
+
+Session-level state is persisted as hidden `visa_chat_messages` rows with `role='system'` and content prefix `__viza_conversation_state__:`. Filter these markers out anywhere user-visible or LLM-visible. The state owns route slots such as destination countries, main destination, nationality, residence/apply-from, purpose, stay length, Schengen day split, first entry country, recommended visa type, missing slots, and confidence.
 
 ## Important Files Added During Iterations
 
 - `docs/viza-ai-chat-development-guide.md`: complete DG for the `/client/chat` page, frontend state, backend Socket.IO flow, and current completion status.
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`: RAG retrieval helper for `visa_chunks`, including OpenAI embeddings, Supabase RPC vector lookup, filtered fallback, and context formatting.
+- `viza-be/agent-backend/src/config/visa-destination-registry.ts`: 56-country product registry for aliases, Schengen membership, default visitor visa types, RAG document types, and form-intake schema keys.
+- `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`: structured state extraction/merge/persistence for VIZA sessions.
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`: Supabase RPC for pgvector similarity search over `visa_chunks`, used by the RAG retrieval service.
 - `knowledge-base/visa-rag-seeds/countries/*.json`: independent country-level RAG seeds. Each file owns one country's visitor/tourism visa knowledge and should evolve with that country's future form-filling workflow.
 - `knowledge-base/visa-rag-seeds/README.md`: source-of-truth rules for country seed structure and ingestion commands.
 - `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`: generic ingestion script that writes one or more country seeds to `visa_documents` and `visa_chunks`; run all countries with `npm run ingest:all-visa-rag` or one country with `npm run ingest:country-visa-rag -- --country japan`.
+- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic 60-case agent behavior eval harness. Run with `npm run test:visa-agent-evals` after routing, prompt, state, or RAG changes.
 
 Each country seed should have exactly one `documentType="form_requirements"` document. These chunks are the RAG bridge for industrial form-filling agents: official application channel, fields to collect before filling, supporting document uploads, and review/submission guardrails.
+
+Application blocks should use stable block types: `trip_basics`, `traveller_identity`, and `visa_route_specific`. Form-intake blocks should prefer `saveTarget="visa_application_answers"` when an application ID is available.

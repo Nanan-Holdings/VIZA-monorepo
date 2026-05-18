@@ -8,10 +8,19 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_MATCH_COUNT = 5;
 const DEFAULT_MIN_SIMILARITY = 0.03;
 
+export type VisaKnowledgeIntent =
+  | "route_recommendation"
+  | "requirements"
+  | "form_intake"
+  | "fees_timing"
+  | "eligibility"
+  | "source_check";
+
 export interface VisaKnowledgeQuery {
   query: string;
   country?: string | null;
   visaType?: string | null;
+  intent?: VisaKnowledgeIntent;
   documentTypes?: string[];
   matchCount?: number;
   minSimilarity?: number;
@@ -62,6 +71,27 @@ function asNumber(value: unknown): number | null {
 function clampMatchCount(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) return DEFAULT_MATCH_COUNT;
   return Math.min(Math.max(Math.trunc(value), 1), 12);
+}
+
+function documentTypesForIntent(
+  intent?: VisaKnowledgeIntent
+): string[] | undefined {
+  if (!intent) return undefined;
+  const mapping: Record<VisaKnowledgeIntent, string[]> = {
+    route_recommendation: ["requirements", "process"],
+    requirements: ["requirements", "form_requirements"],
+    form_intake: ["form_requirements"],
+    fees_timing: ["requirements", "process"],
+    eligibility: ["requirements"],
+    source_check: ["requirements", "process", "form_requirements"],
+  };
+  return mapping[intent];
+}
+
+function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery {
+  if (query.documentTypes && query.documentTypes.length > 0) return query;
+  const documentTypes = documentTypesForIntent(query.intent);
+  return documentTypes ? { ...query, documentTypes } : query;
 }
 
 async function getEmbedding(text: string): Promise<number[] | null> {
@@ -208,11 +238,14 @@ export async function retrieveVisaKnowledge(
   const matchCount = clampMatchCount(query.matchCount);
   const minSimilarity = query.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
   const embedding = await getEmbedding(cleanQuery);
+  const intentQuery = withIntentDocumentTypes(query);
+  const shouldRetryWithoutIntentDocumentTypes =
+    !query.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
 
   if (embedding) {
     try {
       const chunks = await retrieveWithVectorSearch(
-        query,
+        intentQuery,
         embedding,
         matchCount,
         minSimilarity
@@ -224,6 +257,22 @@ export async function retrieveVisaKnowledge(
           fallbackReason: null,
         };
       }
+
+      if (shouldRetryWithoutIntentDocumentTypes) {
+        const broadChunks = await retrieveWithVectorSearch(
+          query,
+          embedding,
+          matchCount,
+          minSimilarity
+        );
+        if (broadChunks.length > 0) {
+          return {
+            chunks: broadChunks,
+            usedEmbedding: true,
+            fallbackReason: "intent_document_type_no_match",
+          };
+        }
+      }
     } catch (error) {
       logger.warn("Vector knowledge retrieval failed", error as Error, {
         country: query.country,
@@ -232,11 +281,27 @@ export async function retrieveVisaKnowledge(
     }
   }
 
-  const fallbackChunks = await retrieveWithFilteredFallback(query, matchCount);
+  const fallbackChunks = await retrieveWithFilteredFallback(intentQuery, matchCount);
+  if (fallbackChunks.length > 0) {
+    return {
+      chunks: fallbackChunks,
+      usedEmbedding: false,
+      fallbackReason: embedding ? "vector_search_failed" : "embedding_unavailable",
+    };
+  }
+
+  const broadFallbackChunks = shouldRetryWithoutIntentDocumentTypes
+    ? await retrieveWithFilteredFallback(query, matchCount)
+    : [];
   return {
-    chunks: fallbackChunks,
+    chunks: broadFallbackChunks,
     usedEmbedding: false,
-    fallbackReason: embedding ? "vector_search_failed" : "embedding_unavailable",
+    fallbackReason:
+      broadFallbackChunks.length > 0
+        ? "intent_document_type_no_match"
+        : embedding
+          ? "vector_search_failed"
+          : "embedding_unavailable",
   };
 }
 

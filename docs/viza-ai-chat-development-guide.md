@@ -153,13 +153,14 @@ Agent 核心：
 - `viza-be/agent-backend/src/agent/index.ts`
   - `BASE_SYSTEM_PROMPT` 定义 VIZA AI 的角色和边界。
   - `buildApplicationContext()` 读取用户资料和 application。
-  - `buildSystemPrompt()` 把用户上下文注入 system prompt。
-  - `streamChat()` 调用 Anthropic，并注册 `send_application_block` tool。
+  - `buildSystemPrompt()` 把用户上下文、结构化 conversation state、RAG sources 注入 system prompt。
+  - `streamChat()` 调用 Anthropic，并注册 `send_application_block` tool；稳定 block type 为 `trip_basics`、`traveller_identity`、`visa_route_specific`。
 
 RAG 检索服务：
 
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
   - `retrieveVisaKnowledge()` 负责把用户问题转成 embedding，并查询 `visa_chunks`。
+  - 支持 `intent` 参数：`route_recommendation`、`requirements`、`form_intake`、`fees_timing`、`eligibility`、`source_check`，按任务优先检索对应 `documentType`。
   - 优先调用 Supabase RPC `match_visa_chunks` 做 pgvector 相似度检索。
   - RPC/embedding 不可用时，会 fallback 到按 country / visa type / document type 过滤 `visa_chunks`。
   - 默认 `minSimilarity` 是 `0.03`；原因是当前 Supabase RPC 返回的多语种相似度分数整体偏低，country/visaType 过滤负责控制噪音。
@@ -167,11 +168,19 @@ RAG 检索服务：
 
 RAG routing context:
 
-- `visa-namespace.ts` 解析 RAG country / visa type 时使用当前用户消息 + 最近 user-only chat context，而不是只看当前一句。
+- `viza-be/agent-backend/src/config/visa-destination-registry.ts` 是国家/签证配置源，维护 country key、display name、aliases、Schengen membership、default visitor visa type、RAG document types 和 form intake schema key。
+- `visa-namespace.ts` 解析 RAG country / visa type 时优先使用结构化 conversation state，再使用当前用户消息 + 最近 user-only chat context。
 - 这样用户按编号压缩回答时，例如 `中国，新加坡，不知道，会去别的国家`，系统仍能沿用上一轮用户提到的 main destination（如 Switzerland），同时不会把 `新加坡` 误当成目的地。
 - application `visa_type` 只能在与解析出的 country 兼容时作为 fallback，避免默认 `tourist_b211a` 污染 Schengen/UK/U.S. 问题。
 - `buildCompactAnswerInterpretation()` 是独立于 RAG 的上下文解释层：它读取上一轮 assistant 的编号问题或天数分配问题，把当前短答案映射成 slot/day-split note 注入 system prompt。例如瑞士主目的地后回答 `中国护照，中国，7天，法国，意大利` 会保留 Switzerland 并把 France/Italy 识别为 other Schengen countries；法国/意大利天数问题后回答 `2，5` 会映射为 France 2 days / Italy 5 days。
 - 当前 supported RAG country 覆盖所有当前 Schengen Area 国家（Austria, Belgium, Bulgaria, Croatia, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden, Switzerland）以及 Australia, Cambodia, Canada, Egypt, India, Indonesia, Japan, Laos, Malaysia, Maldives, Mexico, Morocco, Nepal, New Zealand, Philippines, Qatar, Saudi Arabia, Singapore, South Africa, South Korea, Sri Lanka, Thailand, Turkey, UAE, UK, US, Vietnam。Schengen 国家统一走 `schengen_short_stay_tourism`，其他国家当前以 tourism/visitor/entry visa 为主。
+
+Structured conversation state:
+
+- `viza-be/agent-backend/src/services/visa-conversation-state.service.ts` 维护 `VisaConversationState`，字段包括 destination countries、main destination、nationality、residence/apply-from、trip purpose、stay length、Schengen day split、first entry country、recommended visa type、missing slots 和 confidence。
+- 每轮 `/visa` 消息会读取最新 state marker、根据当前消息和 history 合并 slot patch、保存新的 hidden marker，然后用 state 驱动 RAG routing 和 system prompt。
+- state marker 存在 `visa_chat_messages`：`role='system'` 且 `content` 以 `__viza_conversation_state__:` 开头。它和 session title marker 一样，不应进入用户可见消息或 LLM chat history。
+- 用户更正目的地（如“不对，改成韩国”）时，state 会替换旧目的地，而不是继续把旧目的地混在 route 判断里。
 
 RAG migration：
 
@@ -205,7 +214,7 @@ RAG 知识源与写入：
   当前 `/client/chat` 的 session source of truth。一个 applicant 可以有多条 VIZA conversation processes；`ChatClient` 通过 `getUserSessions()` 展示最近会话，通过 `createSession()` 创建新会话。
 
 - `visa_chat_messages`  
-  保存用户、assistant，以及 `role='block'` 的 inline application block 记录。`session_id` 指向 `visa_chat_sessions.id`。
+  保存用户、assistant、`role='block'` 的 inline application block 记录，以及隐藏 `role='system'` marker（session title / conversation state）。`session_id` 指向 `visa_chat_sessions.id`。
 
 当前约定：
 
@@ -231,6 +240,7 @@ Session rename：
 6. `save-block/route.ts` 根据 `saveTarget` 更新：
    - `applicant_profiles`
    - `applications`
+   - `visa_application_answers`（用于 chat-driven form intake）
 
 ## 8. Travel AI 的关系
 
@@ -355,5 +365,6 @@ npm run type-check
 - Step 22 second popular destination RAG expansion：继续扩展 `supported-visa-rag.json` 到 59 documents / 148 chunks，新增 UAE, Egypt, Turkey, Qatar, Saudi Arabia, Morocco, South Africa, Maldives, Sri Lanka, India, Philippines, Cambodia, Laos, Nepal, Mexico。`visa-namespace.ts` 同步新增 country aliases 和 visitor visa type mapping；新增国家分别映射到 UAE visa-free/tourist visa, Egypt e-Visa, Turkey e-Visa tourism/commerce, Qatar Hayya A1, Saudi tourist eVisa, Morocco visa-free/eVisa, South Africa visitor visa, Maldives visa on arrival, Sri Lanka ETA, India regular tourist visa, Philippines 14-day visa-free/eVisa, Cambodia tourist eVisa, Laos tourist eVisa, Nepal visa on arrival, Mexico visitor visa/exemption。`npm run ingest:supported-visa-rag` 已成功写入 Supabase：148 chunks / 148 embeddings。Retrieval smoke 对上述 15 个新增国家均返回 `usedEmbedding=true`、`fallbackReason=null`，Top 1 命中对应国家文档；同时修复 India/Indonesia alias 冲突，以及 Mexico + valid US visa exemption 场景误判为多国家的问题。前后端 type-check 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
 - Step 23 industrial country-level RAG seeds：将旧的 shared/partial seed 架构升级为国家级独立 seed。`knowledge-base/visa-rag-seeds/countries/*.json` 现在包含 56 个国家文件、72 documents、180 chunks；美国和印尼也已纳入同一国家级 seed 目录，不再作为特殊独立脚本。新增 `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`，支持 `npm run ingest:all-visa-rag` 全量入库、`npm run ingest:country-visa-rag -- --country japan` 单国家入库，以及 `--countries japan,us,indonesia` 多国家入库。旧 `supported-visa-rag.json`、`us-visa-rag.json`、`indonesia-visa-rag.json` 和三套重复 ingestion 脚本已移除，避免双 source of truth。`npm run ingest:all-visa-rag` 已成功写入 Supabase：56 countries / 180 chunks / 180 embeddings；全 56 个国家 retrieval smoke 均 PASS。后端 type-check、前端 type-check、`git diff --check` 通过；Playwright smoke 访问现有 `localhost:3000/client/chat`，未登录场景 200 跳转到 `/client/login`，无 console/page errors。
 - Step 24 country form requirements RAG layer：为 56 个国家 seed 全部新增 `documentType="form_requirements"` 文档。每个国家新增 3 个 form-filling chunks：official application channel/scope、fields to collect before filling、supporting documents and review checklist。数据来源优先使用官方 government / immigration / embassy / visa-centre 页面；申根国家统一参考 EU Schengen applying page 和 harmonised Schengen visa application form，非申根国家使用各自官方签证、eVisa、ETA、DS-160、GOV.UK、IRCC、ImmiAccount、INZ、ICA、IMUGA 等入口。当前 country seeds 变为 56 countries / 128 documents / 348 chunks。结构校验确认 56 个国家各有且仅有 1 个 `form_requirements` 文档；`npm run ingest:all-visa-rag` 已成功写入 Supabase：348 chunks / 348 embeddings；全 56 个国家的 form-specific retrieval smoke 均 PASS。
+- Step 25 answering agent industrial upgrade：新增 `visa-destination-registry.ts`，把 56 个国家的 aliases、Schengen membership、default visitor visa type、RAG document types 和 form intake schema key 从 namespace 收拢为配置源；新增 `visa-conversation-state.service.ts`，用 hidden system marker 持久化 `VisaConversationState`，每轮先合并 slots 再做 RAG routing；`retrieveVisaKnowledge()` 新增 intent-based document type priority；`/visa` app_log 新增 `intent`、`resolvedStateSummary`、`stateConfidence`；用户触发“开始申请/填表/下一步”时会主动发 `trip_basics` / `traveller_identity` / `visa_route_specific` application block，block 保存支持写入 `visa_application_answers`。新增 `npm run test:visa-agent-evals`，当前 60 cases / 60 passed，覆盖 20 Schengen route、15 non-Schengen visitor、10 compact answer、10 correction、5 unsupported/high-risk 场景。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

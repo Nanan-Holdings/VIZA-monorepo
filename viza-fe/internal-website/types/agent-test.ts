@@ -181,7 +181,7 @@ export interface ApplicationBlockEvent {
       options?: string[];
       placeholder?: string;
     }>;
-    saveTarget: string;
+    saveTarget: "applicant_profile" | "application" | "visa_application_answers" | string;
     applicationId?: string;
   };
   timestamp: number;

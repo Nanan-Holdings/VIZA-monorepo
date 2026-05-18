@@ -12,293 +12,31 @@ import {
 import {
   retrieveVisaKnowledge,
   formatKnowledgeContext,
+  type VisaKnowledgeIntent,
 } from '../services/visa-knowledge.service.js';
+import {
+  COUNTRY_DISPLAY_NAMES,
+  countrySupportsVisaType,
+  detectKnowledgeCountries,
+  detectKnowledgeCountriesInOrder,
+  getDefaultVisitorVisaType,
+  isSchengenKnowledgeCountry,
+  normalizeKnowledgeCountry,
+  type SupportedKnowledgeCountry,
+} from '../config/visa-destination-registry.js';
+import {
+  buildVisaConversationStatePrompt,
+  loadVisaConversationState,
+  saveVisaConversationState,
+  summarizeVisaConversationState,
+  updateVisaConversationState,
+  type VisaConversationState,
+} from '../services/visa-conversation-state.service.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 
-type SupportedKnowledgeCountry =
-  | 'austria'
-  | 'australia'
-  | 'belgium'
-  | 'bulgaria'
-  | 'canada'
-  | 'cambodia'
-  | 'croatia'
-  | 'czech_republic'
-  | 'denmark'
-  | 'egypt'
-  | 'estonia'
-  | 'finland'
-  | 'france'
-  | 'germany'
-  | 'greece'
-  | 'hungary'
-  | 'iceland'
-  | 'india'
-  | 'indonesia'
-  | 'italy'
-  | 'japan'
-  | 'laos'
-  | 'latvia'
-  | 'liechtenstein'
-  | 'lithuania'
-  | 'luxembourg'
-  | 'malaysia'
-  | 'maldives'
-  | 'malta'
-  | 'mexico'
-  | 'morocco'
-  | 'nepal'
-  | 'netherlands'
-  | 'new_zealand'
-  | 'norway'
-  | 'philippines'
-  | 'poland'
-  | 'portugal'
-  | 'qatar'
-  | 'romania'
-  | 'saudi_arabia'
-  | 'singapore'
-  | 'slovakia'
-  | 'slovenia'
-  | 'south_africa'
-  | 'south_korea'
-  | 'spain'
-  | 'sri_lanka'
-  | 'switzerland'
-  | 'sweden'
-  | 'thailand'
-  | 'turkey'
-  | 'uk'
-  | 'united_arab_emirates'
-  | 'us'
-  | 'vietnam';
-
-const COUNTRY_DISPLAY_NAMES: Record<SupportedKnowledgeCountry, string> = {
-  austria: 'Austria',
-  australia: 'Australia',
-  belgium: 'Belgium',
-  bulgaria: 'Bulgaria',
-  canada: 'Canada',
-  cambodia: 'Cambodia',
-  croatia: 'Croatia',
-  czech_republic: 'Czech Republic',
-  denmark: 'Denmark',
-  egypt: 'Egypt',
-  estonia: 'Estonia',
-  finland: 'Finland',
-  france: 'France',
-  germany: 'Germany',
-  greece: 'Greece',
-  hungary: 'Hungary',
-  iceland: 'Iceland',
-  india: 'India',
-  indonesia: 'Indonesia',
-  italy: 'Italy',
-  japan: 'Japan',
-  laos: 'Laos',
-  latvia: 'Latvia',
-  liechtenstein: 'Liechtenstein',
-  lithuania: 'Lithuania',
-  luxembourg: 'Luxembourg',
-  malaysia: 'Malaysia',
-  maldives: 'Maldives',
-  malta: 'Malta',
-  mexico: 'Mexico',
-  morocco: 'Morocco',
-  nepal: 'Nepal',
-  netherlands: 'Netherlands',
-  new_zealand: 'New Zealand',
-  norway: 'Norway',
-  philippines: 'Philippines',
-  poland: 'Poland',
-  portugal: 'Portugal',
-  qatar: 'Qatar',
-  romania: 'Romania',
-  saudi_arabia: 'Saudi Arabia',
-  singapore: 'Singapore',
-  slovakia: 'Slovakia',
-  slovenia: 'Slovenia',
-  south_africa: 'South Africa',
-  south_korea: 'South Korea',
-  spain: 'Spain',
-  sri_lanka: 'Sri Lanka',
-  switzerland: 'Switzerland',
-  sweden: 'Sweden',
-  thailand: 'Thailand',
-  turkey: 'Turkey',
-  uk: 'United Kingdom',
-  united_arab_emirates: 'United Arab Emirates',
-  us: 'United States',
-  vietnam: 'Vietnam',
-};
-
-const COUNTRY_ALIASES: Record<SupportedKnowledgeCountry, string[]> = {
-  austria: ['奥地利', 'austria', 'vienna', 'salzburg', '维也纳', '萨尔茨堡'],
-  australia: ['澳大利亚', '澳洲', 'australia', 'sydney', 'melbourne', '悉尼', '墨尔本'],
-  belgium: ['比利时', 'belgium', 'brussels', 'bruges', '布鲁塞尔', '布鲁日'],
-  bulgaria: ['保加利亚', 'bulgaria', 'sofia', '索非亚'],
-  canada: ['加拿大', 'canada', 'vancouver', 'toronto', 'montreal', '温哥华', '多伦多', '蒙特利尔'],
-  cambodia: ['柬埔寨', 'cambodia', 'phnom penh', 'siem reap', '金边', '暹粒'],
-  croatia: ['克罗地亚', 'croatia', 'zagreb', 'dubrovnik', '萨格勒布', '杜布罗夫尼克'],
-  czech_republic: ['捷克', 'czech republic', 'czechia', 'prague', '布拉格'],
-  denmark: ['丹麦', 'denmark', 'copenhagen', '哥本哈根'],
-  egypt: ['埃及', 'egypt', 'cairo', 'luxor', '开罗', '卢克索'],
-  estonia: ['爱沙尼亚', 'estonia', 'tallinn', '塔林'],
-  finland: ['芬兰', 'finland', 'helsinki', '赫尔辛基'],
-  france: ['法国', 'france', 'paris', '巴黎'],
-  germany: ['德国', 'germany', 'berlin', 'munich', 'frankfurt', '柏林', '慕尼黑', '法兰克福'],
-  greece: ['希腊', 'greece', 'athens', 'santorini', '雅典', '圣托里尼'],
-  hungary: ['匈牙利', 'hungary', 'budapest', '布达佩斯'],
-  iceland: ['冰岛', 'iceland', 'reykjavik', '雷克雅未克'],
-  india: ['india', 'delhi', 'mumbai', 'new delhi', '新德里', '孟买'],
-  indonesia: ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'],
-  italy: ['意大利', 'italy', 'rome', 'milan', 'venice', '罗马', '米兰', '威尼斯'],
-  japan: ['日本', 'japan', 'tokyo', 'osaka', 'kyoto', '东京', '大阪', '京都', 'japan evisa'],
-  laos: ['老挝', 'laos', 'vientiane', 'luang prabang', '万象', '琅勃拉邦'],
-  latvia: ['拉脱维亚', 'latvia', 'riga', '里加'],
-  liechtenstein: ['列支敦士登', 'liechtenstein', 'vaduz', '瓦杜兹'],
-  lithuania: ['立陶宛', 'lithuania', 'vilnius', '维尔纽斯'],
-  luxembourg: ['卢森堡', 'luxembourg'],
-  malaysia: ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴'],
-  maldives: ['马尔代夫', 'maldives', 'male', '马累'],
-  malta: ['马耳他', 'malta', 'valletta', '瓦莱塔'],
-  mexico: ['墨西哥', 'mexico', 'mexico city', 'cancun', '墨西哥城', '坎昆'],
-  morocco: ['摩洛哥', 'morocco', 'marrakech', 'casablanca', '马拉喀什', '卡萨布兰卡'],
-  nepal: ['尼泊尔', 'nepal', 'kathmandu', 'pokhara', '加德满都', '博卡拉'],
-  netherlands: ['荷兰', 'netherlands', 'holland', 'amsterdam', '阿姆斯特丹'],
-  new_zealand: ['新西兰', 'new zealand', 'auckland', 'queenstown', '奥克兰', '皇后镇'],
-  norway: ['挪威', 'norway', 'oslo', 'bergen', '奥斯陆', '卑尔根'],
-  philippines: ['菲律宾', 'philippines', 'manila', 'cebu', '马尼拉', '宿务'],
-  poland: ['波兰', 'poland', 'warsaw', 'krakow', '华沙', '克拉科夫'],
-  portugal: ['葡萄牙', 'portugal', 'lisbon', 'porto', '里斯本', '波尔图'],
-  qatar: ['卡塔尔', 'qatar', 'doha', '多哈', 'hayya'],
-  romania: ['罗马尼亚', 'romania', 'bucharest', '布加勒斯特'],
-  saudi_arabia: ['沙特', '沙特阿拉伯', 'saudi', 'saudi arabia', 'riyadh', 'jeddah', '利雅得', '吉达'],
-  singapore: ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'],
-  slovakia: ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'],
-  slovenia: ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'],
-  south_africa: ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'],
-  south_korea: ['韩国', '南韩', 'south korea', 'korea', 'seoul', '首尔', 'k-eta', 'keta'],
-  spain: ['西班牙', 'spain', 'madrid', 'barcelona', '马德里', '巴塞罗那'],
-  sri_lanka: ['斯里兰卡', 'sri lanka', 'colombo', '科伦坡'],
-  switzerland: ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'],
-  sweden: ['瑞典', 'sweden', 'stockholm', '斯德哥尔摩'],
-  thailand: ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈'],
-  turkey: ['土耳其', 'turkey', 'turkiye', 'istanbul', '伊斯坦布尔'],
-  uk: ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'],
-  united_arab_emirates: ['阿联酋', '迪拜', '阿布扎比', 'uae', 'united arab emirates', 'dubai', 'abu dhabi'],
-  us: ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'],
-  vietnam: ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'],
-};
-
-const SCHENGEN_KNOWLEDGE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
-  'austria',
-  'belgium',
-  'bulgaria',
-  'croatia',
-  'czech_republic',
-  'denmark',
-  'estonia',
-  'finland',
-  'france',
-  'germany',
-  'greece',
-  'hungary',
-  'iceland',
-  'italy',
-  'latvia',
-  'liechtenstein',
-  'lithuania',
-  'luxembourg',
-  'malta',
-  'netherlands',
-  'norway',
-  'poland',
-  'portugal',
-  'romania',
-  'slovakia',
-  'slovenia',
-  'spain',
-  'switzerland',
-  'sweden',
-]);
-
 function includesAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
-}
-
-function hasUsKeyword(value: string): boolean {
-  return (
-    /\bus\b/.test(value) ||
-    includesAny(value, [
-      '美国',
-      '美签',
-      'united states',
-      'u.s.',
-      'usa',
-      'us visa',
-      'b1/b2',
-      'b-1/b-2',
-      'ds-160',
-      'ds160',
-    ])
-  );
-}
-
-function matchesKnowledgeCountry(
-  normalized: string,
-  country: SupportedKnowledgeCountry
-): boolean {
-  if (country === 'us') {
-    return hasUsKeyword(normalized);
-  }
-
-  if (country === 'uk') {
-    return (
-      /\buk\b/.test(normalized) ||
-      includesAny(normalized, COUNTRY_ALIASES[country])
-    );
-  }
-
-  if (country === 'india') {
-    return (
-      (normalized.includes('印度') && !normalized.includes('印度尼西亚')) ||
-      includesAny(normalized, COUNTRY_ALIASES[country])
-    );
-  }
-
-  return includesAny(normalized, COUNTRY_ALIASES[country]);
-}
-
-function isSchengenKnowledgeCountry(
-  country: SupportedKnowledgeCountry | null
-): boolean {
-  return Boolean(country && SCHENGEN_KNOWLEDGE_COUNTRIES.has(country));
-}
-
-function normalizeKnowledgeCountry(
-  country?: string | null
-): SupportedKnowledgeCountry | null {
-  if (!country) return null;
-  const normalized = country.toLowerCase();
-
-  for (const knowledgeCountry of Object.keys(
-    COUNTRY_ALIASES
-  ) as SupportedKnowledgeCountry[]) {
-    if (matchesKnowledgeCountry(normalized, knowledgeCountry)) {
-      return knowledgeCountry;
-    }
-  }
-
-  return null;
-}
-
-function detectKnowledgeCountries(value: string): SupportedKnowledgeCountry[] {
-  const normalized = value.toLowerCase();
-  return (Object.keys(COUNTRY_ALIASES) as SupportedKnowledgeCountry[]).filter(
-    (country) => matchesKnowledgeCountry(normalized, country)
-  );
 }
 
 export function resolveKnowledgeCountry(
@@ -368,33 +106,6 @@ export function buildRecentUserContext(
     .slice(-6)
     .map((msg) => msg.content)
     .join('\n');
-}
-
-function earliestCountryIndex(
-  normalized: string,
-  country: SupportedKnowledgeCountry
-): number {
-  const indices = COUNTRY_ALIASES[country]
-    .map((alias) => normalized.indexOf(alias.toLowerCase()))
-    .filter((index) => index >= 0);
-
-  if (country === 'us') {
-    const usMatch = /\bus\b/.exec(normalized);
-    if (usMatch?.index !== undefined) {
-      indices.push(usMatch.index);
-    }
-  }
-
-  return indices.length > 0 ? Math.min(...indices) : -1;
-}
-
-function detectKnowledgeCountriesInOrder(value: string): SupportedKnowledgeCountry[] {
-  const normalized = value.toLowerCase();
-  return (Object.keys(COUNTRY_ALIASES) as SupportedKnowledgeCountry[])
-    .map((country) => ({ country, index: earliestCountryIndex(normalized, country) }))
-    .filter((entry) => entry.index >= 0)
-    .sort((a, b) => a.index - b.index)
-    .map((entry) => entry.country);
 }
 
 function splitCompactAnswer(message: string): string[] {
@@ -603,198 +314,29 @@ export function resolveKnowledgeVisaType(
     '短期',
   ]);
 
-  if (country === 'us') {
-    if (
-      normalized.includes('b1') ||
-      normalized.includes('b-1') ||
-      normalized.includes('b2') ||
-      normalized.includes('b-2') ||
-      normalized.includes('b1/b2') ||
-      normalized.includes('b-1/b-2') ||
-      normalized.includes('旅游') ||
-      normalized.includes('商务') ||
-      normalized.includes('visitor') ||
-      normalized.includes('tourist') ||
-      normalized.includes('business') ||
-      normalized.includes('ds-160') ||
-      normalized.includes('ds160')
-    ) {
-      return 'b1_b2';
-    }
-  }
-
-  if (country === 'indonesia' && mentionsVisitorPurpose) {
-    return 'tourist_b211a';
-  }
-
-  if (
-    country === 'vietnam' &&
-    (mentionsVisitorPurpose ||
-      includesAny(normalized, ['evisa', 'e-visa', '电子签', '电子签证']))
-  ) {
-    return 'evisa_tourism';
-  }
-
-  if (country === 'uk' && mentionsVisitorPurpose) {
-    return 'standard_visitor';
-  }
-
-  if (
-    isSchengenKnowledgeCountry(country) &&
-    (mentionsVisitorPurpose || includesAny(normalized, ['申根', 'schengen']))
-  ) {
-    return 'schengen_short_stay_tourism';
-  }
-
-  if (country === 'singapore' && mentionsVisitorPurpose) {
-    return 'entry_visa_or_visit_pass';
-  }
-
-  if (country === 'malaysia' && mentionsVisitorPurpose) {
-    return 'visa_exemption_or_evisa_tourism';
-  }
-
-  if (country === 'thailand' && mentionsVisitorPurpose) {
-    return 'visa_exemption_or_tourist_visa';
-  }
-
-  if (country === 'canada' && mentionsVisitorPurpose) {
-    return 'visitor_visa';
-  }
-
-  if (country === 'australia' && mentionsVisitorPurpose) {
-    return 'visitor_subclass_600';
-  }
-
-  if (country === 'new_zealand' && mentionsVisitorPurpose) {
-    return 'visitor_visa';
-  }
-
-  if (country === 'japan' && mentionsVisitorPurpose) {
-    return 'short_term_tourism_evisa';
-  }
-
-  if (country === 'south_korea' && mentionsVisitorPurpose) {
-    return 'c3_or_keta';
-  }
-
-  if (country === 'united_arab_emirates' && mentionsVisitorPurpose) {
-    return 'visa_free_or_tourist_visa';
-  }
-
-  if (country === 'egypt' && mentionsVisitorPurpose) {
-    return 'evisa_tourism';
-  }
-
-  if (country === 'turkey' && mentionsVisitorPurpose) {
-    return 'evisa_tourism_business';
-  }
-
-  if (country === 'qatar' && mentionsVisitorPurpose) {
-    return 'hayya_a1_tourist_visa';
-  }
-
-  if (country === 'saudi_arabia' && mentionsVisitorPurpose) {
-    return 'tourist_evisa';
-  }
-
-  if (country === 'morocco' && mentionsVisitorPurpose) {
-    return 'visa_free_or_evisa';
-  }
-
-  if (country === 'south_africa' && mentionsVisitorPurpose) {
-    return 'visitor_visa_tourism';
-  }
-
-  if (country === 'maldives' && mentionsVisitorPurpose) {
-    return 'tourist_visa_on_arrival';
-  }
-
-  if (country === 'sri_lanka' && mentionsVisitorPurpose) {
-    return 'eta_tourism';
-  }
-
-  if (country === 'india' && mentionsVisitorPurpose) {
-    return 'regular_tourist_visa';
-  }
-
-  if (country === 'philippines' && mentionsVisitorPurpose) {
-    return 'visa_free_14_days_or_evisa';
-  }
-
-  if (country === 'cambodia' && mentionsVisitorPurpose) {
-    return 'tourist_evisa';
-  }
-
-  if (country === 'laos' && mentionsVisitorPurpose) {
-    return 'tourist_evisa';
-  }
-
-  if (country === 'nepal' && mentionsVisitorPurpose) {
-    return 'tourist_visa_on_arrival';
-  }
-
-  if (country === 'mexico' && mentionsVisitorPurpose) {
-    return 'visitor_visa_or_exemption';
-  }
-
   if (!country && includesAny(normalized, ['申根', 'schengen'])) {
     return 'schengen_short_stay_tourism';
   }
 
-  if (
-    (country === 'indonesia' && applicationVisaType === 'tourist_b211a') ||
-    (country === 'us' && applicationVisaType === 'b1_b2') ||
-    (country === 'vietnam' && applicationVisaType === 'evisa_tourism') ||
-    (country === 'uk' && applicationVisaType === 'standard_visitor') ||
-    (isSchengenKnowledgeCountry(country) &&
-      applicationVisaType === 'schengen_short_stay_tourism') ||
-    (country === 'singapore' &&
-      applicationVisaType === 'entry_visa_or_visit_pass') ||
-    (country === 'malaysia' &&
-      applicationVisaType === 'visa_exemption_or_evisa_tourism') ||
-    (country === 'thailand' &&
-      applicationVisaType === 'visa_exemption_or_tourist_visa') ||
-    (country === 'canada' && applicationVisaType === 'visitor_visa') ||
-    (country === 'australia' &&
-      applicationVisaType === 'visitor_subclass_600') ||
-    (country === 'new_zealand' && applicationVisaType === 'visitor_visa') ||
-    (country === 'japan' &&
-      applicationVisaType === 'short_term_tourism_evisa') ||
-    (country === 'south_korea' && applicationVisaType === 'c3_or_keta') ||
-    (country === 'united_arab_emirates' &&
-      applicationVisaType === 'visa_free_or_tourist_visa') ||
-    (country === 'egypt' && applicationVisaType === 'evisa_tourism') ||
-    (country === 'turkey' &&
-      applicationVisaType === 'evisa_tourism_business') ||
-    (country === 'qatar' &&
-      applicationVisaType === 'hayya_a1_tourist_visa') ||
-    (country === 'saudi_arabia' &&
-      applicationVisaType === 'tourist_evisa') ||
-    (country === 'morocco' &&
-      applicationVisaType === 'visa_free_or_evisa') ||
-    (country === 'south_africa' &&
-      applicationVisaType === 'visitor_visa_tourism') ||
-    (country === 'maldives' &&
-      applicationVisaType === 'tourist_visa_on_arrival') ||
-    (country === 'sri_lanka' &&
-      applicationVisaType === 'eta_tourism') ||
-    (country === 'india' &&
-      applicationVisaType === 'regular_tourist_visa') ||
-    (country === 'philippines' &&
-      applicationVisaType === 'visa_free_14_days_or_evisa') ||
-    (country === 'cambodia' &&
-      applicationVisaType === 'tourist_evisa') ||
-    (country === 'laos' && applicationVisaType === 'tourist_evisa') ||
-    (country === 'nepal' &&
-      applicationVisaType === 'tourist_visa_on_arrival') ||
-    (country === 'mexico' &&
-      applicationVisaType === 'visitor_visa_or_exemption')
-  ) {
-    return applicationVisaType;
+  if (countrySupportsVisaType(country, applicationVisaType)) {
+    return applicationVisaType ?? null;
   }
 
-  return null;
+  if (includesAny(normalized, ['工作', '学习', '留学', 'work', 'study', 'student', 'employment'])) {
+    return null;
+  }
+
+  if (
+    country &&
+    (mentionsVisitorPurpose ||
+      (country === 'us' && includesAny(normalized, ['b1', 'b-1', 'b2', 'b-2', 'ds-160', 'ds160'])) ||
+      (country === 'vietnam' && includesAny(normalized, ['evisa', 'e-visa', '电子签', '电子签证'])) ||
+      (isSchengenKnowledgeCountry(country) && includesAny(normalized, ['申根', 'schengen'])))
+  ) {
+    return getDefaultVisitorVisaType(country);
+  }
+
+  return getDefaultVisitorVisaType(country);
 }
 
 /**
@@ -834,6 +376,189 @@ function normalizeClientHistory(
   }
 
   return [...normalized, { role: 'user', content: latestMessage }];
+}
+
+export function inferVisaKnowledgeIntent(
+  message: string,
+  missingSlots: string[] = []
+): VisaKnowledgeIntent {
+  const normalized = message.toLowerCase();
+  if (
+    includesAny(normalized, [
+      '开始申请',
+      '帮我申请',
+      '帮我填',
+      '填表',
+      '表格',
+      '下一步',
+      'start application',
+      'apply now',
+      'fill form',
+      'form intake',
+    ])
+  ) {
+    return 'form_intake';
+  }
+  if (includesAny(normalized, ['费用', '多少钱', '处理时间', '多久', 'fee', 'cost', 'processing time'])) {
+    return 'fees_timing';
+  }
+  if (includesAny(normalized, ['材料', '文件', 'documents', 'requirements', '需要什么'])) {
+    return 'requirements';
+  }
+  if (includesAny(normalized, ['能不能', '是否可以', 'eligible', 'eligibility', 'qualify'])) {
+    return 'eligibility';
+  }
+  if (includesAny(normalized, ['官方', '来源', '链接', 'source', 'official'])) {
+    return 'source_check';
+  }
+  if (missingSlots.length === 0 && includesAny(normalized, ['申请', 'apply'])) {
+    return 'form_intake';
+  }
+  return 'route_recommendation';
+}
+
+function isFormIntakeRequest(intent: VisaKnowledgeIntent): boolean {
+  return intent === 'form_intake';
+}
+
+function buildIntakeBlockForState(
+  stateSummary: ReturnType<typeof summarizeVisaConversationState>,
+  applicationId?: string | null
+): ApplicationBlockPayload | null {
+  if (!applicationId) return null;
+
+  const missingSlots = Array.isArray(stateSummary.missingSlots)
+    ? stateSummary.missingSlots.filter((slot): slot is string => typeof slot === 'string')
+    : [];
+  const needsTripBasics = missingSlots.some((slot) =>
+    ['destination', 'tripPurpose', 'stayLengthDays', 'schengenDaySplit'].includes(slot)
+  );
+  const needsTravellerIdentity = missingSlots.includes('nationality');
+
+  if (needsTripBasics) {
+    return {
+      blockType: 'trip_basics',
+      title: 'Trip basics',
+      description: 'Confirm the core trip details so VIZA can choose the right visa route.',
+      saveTarget: 'visa_application_answers',
+      applicationId,
+      fields: [
+        {
+          name: 'destination_countries',
+          label: 'Destination countries',
+          type: 'text',
+          required: true,
+          placeholder: 'Example: Switzerland, France, Italy',
+        },
+        {
+          name: 'trip_purpose',
+          label: 'Trip purpose',
+          type: 'select',
+          required: true,
+          options: ['Tourism', 'Business', 'Family visit', 'Study', 'Work', 'Transit'],
+        },
+        {
+          name: 'intended_arrival_date',
+          label: 'Intended arrival date',
+          type: 'date',
+          required: false,
+        },
+        {
+          name: 'intended_departure_date',
+          label: 'Intended departure date',
+          type: 'date',
+          required: false,
+        },
+        {
+          name: 'stay_length_days',
+          label: 'Total stay length in days',
+          type: 'text',
+          required: true,
+          placeholder: 'Example: 7',
+        },
+      ],
+    };
+  }
+
+  if (needsTravellerIdentity) {
+    return {
+      blockType: 'traveller_identity',
+      title: 'Traveller identity',
+      description: 'Add the passport details needed before preparing the application form.',
+      saveTarget: 'visa_application_answers',
+      applicationId,
+      fields: [
+        {
+          name: 'nationality_country',
+          label: 'Nationality / passport country',
+          type: 'text',
+          required: true,
+          placeholder: 'Example: China',
+        },
+        {
+          name: 'passport_number',
+          label: 'Passport number',
+          type: 'text',
+          required: false,
+        },
+        {
+          name: 'date_of_birth',
+          label: 'Date of birth',
+          type: 'date',
+          required: false,
+        },
+      ],
+    };
+  }
+
+  return {
+    blockType: 'visa_route_specific',
+    title: 'Visa route details',
+    description: 'Confirm the route-specific details before VIZA prepares the application checklist.',
+    saveTarget: 'visa_application_answers',
+    applicationId,
+    fields: [
+      {
+        name: 'main_destination',
+        label: 'Main destination / application country',
+        type: 'text',
+        required: true,
+        placeholder: 'Example: Italy',
+      },
+      {
+        name: 'recommended_visa_type',
+        label: 'Recommended visa type',
+        type: 'text',
+        required: true,
+        placeholder: 'Example: schengen_short_stay_tourism',
+      },
+      {
+        name: 'first_entry_country',
+        label: 'First entry country, if relevant',
+        type: 'text',
+        required: false,
+      },
+    ],
+  };
+}
+
+async function emitAndSaveApplicationBlock(
+  socket: Socket,
+  sessionId: string,
+  toolInput: ApplicationBlockPayload
+): Promise<void> {
+  socket.emit('application_block', {
+    type: 'application_block',
+    payload: toolInput,
+    timestamp: Date.now(),
+  });
+
+  await db.insert(visaChatMessages).values({
+    sessionId,
+    role: 'block',
+    content: toolInput.title,
+    blockData: toolInput as unknown as Record<string, unknown>,
+  });
 }
 
 /**
@@ -913,25 +638,57 @@ export function registerVisaNamespace(nsp: Namespace): void {
           });
         }
 
-        // 3. Build dynamic system prompt with user application context (US-036)
-        //    and retrieved visa knowledge from visa_chunks.
+        // 3. Build structured state, dynamic system prompt, and RAG context.
         const appContext = await buildApplicationContext(user_id);
-        const recentUserContext = buildRecentUserContext(chatHistory);
-        const knowledgeCountry = resolveKnowledgeCountry(
-          message,
-          appContext.application?.country,
-          recentUserContext
+        let priorConversationState: VisaConversationState | null = null;
+        try {
+          priorConversationState = await loadVisaConversationState(session_id);
+        } catch (stateErr) {
+          logger.warn('Failed to load visa conversation state', stateErr as Error, {
+            sessionId: session_id,
+          });
+        }
+        const conversationState = updateVisaConversationState(
+          priorConversationState,
+          chatHistory,
+          message
         );
+        try {
+          await saveVisaConversationState(session_id, conversationState);
+        } catch (stateErr) {
+          logger.warn('Failed to save visa conversation state', stateErr as Error, {
+            sessionId: session_id,
+          });
+        }
+
+        const recentUserContext = buildRecentUserContext(chatHistory);
+        const stateCountry =
+          conversationState.mainDestination ??
+          (conversationState.destinationCountries.length === 1
+            ? conversationState.destinationCountries[0]
+            : null);
+        const knowledgeCountry =
+          stateCountry ??
+          resolveKnowledgeCountry(
+            message,
+            appContext.application?.country,
+            recentUserContext
+          );
         const knowledgeVisaType = resolveKnowledgeVisaType(
           knowledgeCountry,
           message,
-          appContext.application?.visa_type,
+          conversationState.recommendedVisaType ?? appContext.application?.visa_type,
           recentUserContext
+        );
+        const knowledgeIntent = inferVisaKnowledgeIntent(
+          message,
+          conversationState.missingSlots
         );
         const knowledgeResult = await retrieveVisaKnowledge({
           query: recentUserContext ? `${recentUserContext}\n${message}` : message,
           country: knowledgeCountry,
           visaType: knowledgeVisaType,
+          intent: knowledgeIntent,
           matchCount: 5,
         });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
@@ -939,10 +696,36 @@ export function registerVisaNamespace(nsp: Namespace): void {
           chatHistory,
           message
         );
+        const statePrompt = buildVisaConversationStatePrompt(conversationState);
+        const stateSummary = summarizeVisaConversationState(conversationState);
+        const proactiveBlock = isFormIntakeRequest(knowledgeIntent)
+          ? buildIntakeBlockForState(
+              stateSummary,
+              appContext.application?.id ?? null
+            )
+          : null;
+        if (proactiveBlock) {
+          try {
+            await emitAndSaveApplicationBlock(socket, session_id, proactiveBlock);
+          } catch (dbErr) {
+            logger.error('Failed to emit/save proactive intake block', dbErr as Error, {
+              sessionId: session_id,
+              blockType: proactiveBlock.blockType,
+            });
+          }
+        }
         const dynamicSystemPrompt = buildSystemPrompt(
           appContext,
           knowledgeContext,
-          compactAnswerInterpretation ?? undefined
+          [
+            compactAnswerInterpretation,
+            proactiveBlock
+              ? `A ${proactiveBlock.blockType} application block has already been sent in this turn. Mention it briefly; do not call send_application_block again unless another block is needed.`
+              : null,
+          ]
+            .filter((note): note is string => Boolean(note))
+            .join('\n\n') || undefined,
+          statePrompt
         );
 
         socket.emit('app_log', {
@@ -953,8 +736,11 @@ export function registerVisaNamespace(nsp: Namespace): void {
             chunkCount: knowledgeResult.chunks.length,
             country: knowledgeCountry,
             visaType: knowledgeVisaType,
+            intent: knowledgeIntent,
             historySource,
             historyLength: chatHistory.length,
+            resolvedStateSummary: stateSummary,
+            stateConfidence: conversationState.confidence,
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
             compactAnswerInterpreted: Boolean(compactAnswerInterpretation),
@@ -1028,21 +814,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
                 sessionId: session_id,
               });
 
-              // Emit application_block event to the client
-              socket.emit('application_block', {
-                type: 'application_block',
-                payload: toolInput,
-                timestamp: Date.now(),
-              });
-
-              // Save block record to visa_chat_messages with role='block'
               try {
-                await db.insert(visaChatMessages).values({
-                  sessionId: session_id,
-                  role: 'block',
-                  content: toolInput.title,
-                  blockData: toolInput as unknown as Record<string, unknown>,
-                });
+                await emitAndSaveApplicationBlock(socket, session_id, toolInput);
               } catch (dbErr) {
                 logger.error('Failed to save block message', dbErr as Error, {
                   sessionId: session_id,

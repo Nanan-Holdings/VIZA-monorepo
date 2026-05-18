@@ -9,6 +9,7 @@
  * saveTarget values:
  *   - "applicant_profile": updates applicant_profiles for the given userId
  *   - "application": updates applications for the given applicationId
+ *   - "visa_application_answers": upserts dynamic form answers
  */
 
 import { Router } from "express";
@@ -21,7 +22,7 @@ export const chatSaveBlockRouter = Router();
 
 interface SaveBlockBody {
   userId: string;
-  saveTarget: "applicant_profile" | "application";
+  saveTarget: "applicant_profile" | "application" | "visa_application_answers";
   applicationId?: string;
   blockType: string;
   data: Record<string, string>;
@@ -91,6 +92,63 @@ chatSaveBlockRouter.post("/", async (req, res) => {
         });
         res.status(500).json({ error: true, message: error.message });
         return;
+      }
+
+      res.json({ success: true, saveTarget });
+    } else if (saveTarget === "visa_application_answers") {
+      if (!applicationId) {
+        res.status(400).json({
+          error: true,
+          message: "applicationId is required for saveTarget=visa_application_answers",
+        });
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("applicant_profiles")
+        .select("id")
+        .eq("auth_user_id", userId)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        res.status(404).json({ error: true, message: "Applicant profile not found" });
+        return;
+      }
+
+      const { data: application, error: applicationError } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("id", applicationId)
+        .eq("applicant_id", profile.id)
+        .maybeSingle();
+
+      if (applicationError || !application) {
+        res.status(404).json({ error: true, message: "Application not found" });
+        return;
+      }
+
+      const answerRows = Object.entries(data)
+        .filter(([, value]) => value.trim() !== "")
+        .map(([fieldName, value]) => ({
+          application_id: applicationId,
+          field_name: fieldName,
+          value_text: value,
+          updated_at: new Date().toISOString(),
+        }));
+
+      if (answerRows.length > 0) {
+        const { error } = await supabase
+          .from("visa_application_answers")
+          .upsert(answerRows, { onConflict: "application_id,field_name" });
+
+        if (error) {
+          logger.error("save_block_answers_error", new Error(error.message), {
+            userId,
+            applicationId,
+          });
+          res.status(500).json({ error: true, message: error.message });
+          return;
+        }
       }
 
       res.json({ success: true, saveTarget });

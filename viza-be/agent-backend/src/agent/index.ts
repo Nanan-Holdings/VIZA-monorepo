@@ -29,10 +29,13 @@ Guidelines:
 - Use country names in natural language; avoid unexplained country codes such as CH unless the user used them.
 - If you're unsure about specific details (fees, processing times), say so and recommend checking official sources.
 - Never fabricate visa requirements or official policies.
+- When retrieved knowledge includes source titles or URLs, cite the relevant source title or URL for key policy claims.
+- If retrieved knowledge is missing for a policy detail, say that the detail is not confirmed in the current knowledge base and recommend checking the official source.
 - Be encouraging but honest about potential issues.
 - When listing requirements, use clear formatting.
 - Respond in the same language the user writes in.
-- When you need to collect structured data from the user (dates, selections, file uploads), use the send_application_block tool.`;
+- When you need to collect structured data from the user (dates, selections, file uploads), use the send_application_block tool.
+- Use only these stable application block types: trip_basics, traveller_identity, visa_route_specific.`;
 
 // =============================================================================
 // Application Context Builder (US-036)
@@ -123,7 +126,8 @@ export async function buildApplicationContext(
 export function buildSystemPrompt(
   context: ApplicationContext,
   knowledgeContext?: string,
-  conversationInterpretation?: string
+  conversationInterpretation?: string,
+  conversationStateContext?: string
 ): string {
   const sections: string[] = [BASE_SYSTEM_PROMPT];
 
@@ -169,6 +173,14 @@ export function buildSystemPrompt(
     );
   }
 
+  if (conversationStateContext?.trim()) {
+    sections.push(
+      "\nStructured conversation state:\n" +
+        conversationStateContext.trim() +
+        "\n\nUse this state as the source of truth for already-collected slots. Ask only for missing or ambiguous slots; do not restart the intake."
+    );
+  }
+
   if (conversationInterpretation?.trim()) {
     sections.push(
       "\nConversation interpretation note:\n" +
@@ -194,11 +206,11 @@ export interface BlockField {
 }
 
 export interface ApplicationBlockPayload {
-  blockType: string;
+  blockType: "trip_basics" | "traveller_identity" | "visa_route_specific" | string;
   title: string;
   description?: string;
   fields: BlockField[];
-  saveTarget: string;
+  saveTarget: "applicant_profile" | "application" | "visa_application_answers" | string;
   applicationId?: string;
 }
 
@@ -214,8 +226,9 @@ const SEND_APPLICATION_BLOCK_TOOL: Anthropic.Tool = {
     properties: {
       blockType: {
         type: "string",
+        enum: ["trip_basics", "traveller_identity", "visa_route_specific"],
         description:
-          "The category of data being collected (e.g. 'travel_dates', 'personal_info', 'document_upload')",
+          "Stable category of data being collected. Use trip_basics, traveller_identity, or visa_route_specific.",
       },
       title: {
         type: "string",
@@ -265,8 +278,9 @@ const SEND_APPLICATION_BLOCK_TOOL: Anthropic.Tool = {
       },
       saveTarget: {
         type: "string",
+        enum: ["applicant_profile", "application", "visa_application_answers"],
         description:
-          "Which table/record to save the data to (e.g. 'application', 'applicant_profile')",
+          "Which table/record to save the data to. Prefer visa_application_answers for form-intake answers.",
       },
       applicationId: {
         type: "string",
