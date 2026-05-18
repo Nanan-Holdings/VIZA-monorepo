@@ -53,6 +53,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 16. Preserve conversation context for compact follow-ups. `visa_chat_message` should include recent visible user/assistant history from the frontend, and the backend should use that client history when database history is missing or shorter. Short replies like `中国护照，中国，7天，法国，意大利` or `2，5` must be interpreted against the previous assistant question instead of treated as standalone prompts.
 17. VIZA AI user-facing answers must be plain text by default. Keep the no-Markdown rule in `BASE_SYSTEM_PROMPT`, the robustness harness, and `ChatMessage`; do not add Markdown headings, tables, bold markers, bullet markers, code fences, raw JSON, or raw XML unless the user explicitly asks. `ChatMessage` should render common Markdown markers as plain text for VIZA answers.
 18. Do not collect application form fields inside VIZA chat. When the user wants to apply, VIZA should provide a rough overview of route, requirements, timing/fees caveats, then show an application redirect CTA. Detailed field collection belongs in `/client/application`.
+19. Keep VIZA process switching durable. The active process is stored in `sessionStorage["viza_chat_session_id"]`; switching must call `getSessionMessages(sessionId, userId)`, queued offline messages must carry their target `sessionId`, and rename must expose an obvious Save / Cancel action before reporting the feature complete.
 
 ## Session Model
 
@@ -73,6 +74,8 @@ For frontend-only changes:
    - `VIZA AI` tab connects and sends a message
    - streamed tokens become one finalized assistant message
    - the VIZA session panel can start a new chat and switch back to an older chat
+   - the last selected VIZA process survives a page refresh
+   - process rename persists after Save and exits cleanly on Cancel
    - the input remains editable while disconnected and queues messages for reconnect
    - `Travel AI` tab still renders the embedded planner
 
@@ -108,3 +111,5 @@ Session-level state is persisted as hidden `visa_chat_messages` rows with `role=
 Each country seed should have exactly one `documentType="form_requirements"` document. These chunks are the RAG bridge for industrial form-filling agents: official application channel, fields to collect before filling, supporting document uploads, and review/submission guardrails.
 
 Application blocks in VIZA chat should use `blockType="application_redirect"` and a `redirectUrl` to `/client/application?country=...&visaType=...`. Legacy `trip_basics`, `traveller_identity`, and `visa_route_specific` payloads may still exist in old histories, but `BlockMessage` should render them as redirect CTAs rather than inline forms.
+
+The application page supports multiple concurrent application progresses. When a redirect includes `country` and `visaType`, `/client/application` must load or create the matching `applications` row by `applicant_id + country + visa_type`; do not fall back to the latest application or a single active package for that redirected flow.

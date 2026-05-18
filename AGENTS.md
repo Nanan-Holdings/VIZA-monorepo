@@ -58,6 +58,10 @@ cd viza-be/submission-service && npm run type-check
 
 Only run type-check for packages you modified. Do NOT run `npm install` unless a new dependency is required.
 
+## Completion Verification
+
+Every user-facing feature or bug fix must be self-tested before reporting completion. Run the relevant automated checks and at least one route/component smoke test that exercises the changed behavior. If a full authenticated flow cannot be tested in the current environment, run the closest possible Playwright route smoke and clearly report the remaining authenticated/manual verification gap.
+
 ## Key Conventions
 
 - Supabase service role client: use `getSupabaseClient()` from `src/db/supabase-client.ts` in agent-backend
