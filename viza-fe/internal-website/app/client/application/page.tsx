@@ -33,6 +33,7 @@ import {
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import { getFormVisaType, getVisaPackageTitleZh } from "@/lib/visa-destinations";
 import { getChineseLabel, translateLabel } from "@/lib/ds160-translations";
+import { ApplicationStatusHub } from "@/components/client/application/application-status-hub";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -819,6 +820,33 @@ interface ApplicationState {
 // ---------------------------------------------------------------------------
 
 export default function ApplicationPage() {
+  const searchParams = useSearchParams();
+  const jumpToReview = searchParams.get("step") === "review";
+  const requestedCountry = searchParams.get("country")?.trim() || null;
+  const requestedVisaType =
+    searchParams.get("visaType")?.trim() ||
+    searchParams.get("visa_type")?.trim() ||
+    null;
+  const requestedView = searchParams.get("view");
+  const requestedApplicationId = searchParams.get("applicationId")?.trim() || null;
+  const shouldShowLifecycle =
+    requestedView === "detail" || (!requestedCountry && !requestedVisaType && !jumpToReview);
+
+  if (shouldShowLifecycle) {
+    return (
+      <ApplicationStatusHub
+        mode={requestedView === "detail" ? "detail" : "overview"}
+        applicationId={requestedApplicationId}
+        country={requestedCountry}
+        visaType={requestedVisaType}
+      />
+    );
+  }
+
+  return <ApplicationFormPage />;
+}
+
+function ApplicationFormPage() {
   const t = useTranslations("application");
   const locale = useLocale();
   const searchParams = useSearchParams();

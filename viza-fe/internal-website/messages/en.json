@@ -230,6 +230,104 @@
       "profileNotFound": "Profile not found",
       "noApplicationFound": "No application found"
     },
+    "statusHub": {
+      "loading": "Loading application status...",
+      "loadError": "Application status failed to load",
+      "eyebrow": "Full cycle applications",
+      "title": "Application Status Center",
+      "subtitle": "Track each visa application across the full cycle: form filling, documents, submission queue, and official outcome. Home stays focused on lightweight form progress.",
+      "chooseDestination": "Choose a destination from Home",
+      "cardProgress": "Full-cycle progress",
+      "updatedAt": "Last updated",
+      "noFilteredResults": "No applications match this filter yet.",
+      "emptyTitle": "No applications yet",
+      "emptyBody": "Choose a destination on Home and VIZA will attach the matching country and visa workflow.",
+      "backToOverview": "Back to application overview",
+      "detailMissingTitle": "Application not found",
+      "detailMissingBody": "This application may not have been started yet, or it may not belong to the current account. You can still start the matching country and visa flow.",
+      "startApplication": "Start application",
+      "continueForm": "Continue form",
+      "fullCycleProgress": "Full-cycle progress",
+      "timelineTitle": "Application cycle",
+      "detailsTitle": "Application details",
+      "evidenceTitle": "Form and documents",
+      "submissionTitle": "Submission queue",
+      "yes": "Complete",
+      "no": "Incomplete",
+      "viewReceipt": "View receipt",
+      "filters": {
+        "all": "All",
+        "not_submitted": "Not submitted",
+        "processing": "Processing",
+        "needs_attention": "Needs attention",
+        "completed": "Completed"
+      },
+      "statuses": {
+        "not_started": "Not started",
+        "not_submitted": "Not submitted",
+        "in_progress": "In progress",
+        "needs_documents": "Documents needed",
+        "submitting": "Submitting",
+        "submitted": "Submitted",
+        "needs_attention": "Needs attention",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "nextActions": {
+        "start": "Start",
+        "continue": "Continue",
+        "upload_documents": "Add documents",
+        "wait": "View progress",
+        "fix": "Resolve issue",
+        "view": "View details"
+      },
+      "checklist": {
+        "destination": "Destination",
+        "form": "Form",
+        "photo": "Photo",
+        "documents": "Documents"
+      },
+      "timeline": {
+        "destination": {
+          "title": "Choose destination and visa type",
+          "description": "The application is tied to a specific country and visa route."
+        },
+        "form": {
+          "title": "Complete the application form",
+          "description": "Answer the official form questions and save reusable applicant details."
+        },
+        "photo": {
+          "title": "Upload photo",
+          "description": "Prepare a passport-style photo or identity image for this destination."
+        },
+        "documents": {
+          "title": "Upload supporting documents",
+          "description": "Add passport, travel, finance, accommodation, or visa-specific supporting files."
+        },
+        "submission": {
+          "title": "Submit and process",
+          "description": "The application enters the submission queue or the official/manual processing flow."
+        },
+        "result": {
+          "title": "Official outcome",
+          "description": "Wait for the official decision; VIZA does not invent approval or refusal states."
+        }
+      },
+      "metrics": {
+        "applicationId": "Application ID",
+        "rawStatus": "Database status",
+        "createdAt": "Created",
+        "submittedAt": "Submitted",
+        "confirmation": "Confirmation number",
+        "answerCount": "Saved answers",
+        "photo": "Photo",
+        "docsUploaded": "Uploaded docs",
+        "docsRejected": "Rejected docs",
+        "queueStatus": "Queue status",
+        "queueAttempts": "Attempts",
+        "queueUpdatedAt": "Queue updated"
+      }
+    },
     "dynamicSteps": {
       "Personal Information": "Personal Information",
       "Personal Information 1": "Personal Information 1",
