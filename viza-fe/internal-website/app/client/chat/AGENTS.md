@@ -50,6 +50,7 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 13. Do not disable the VIZA chat input merely because Socket.IO is `connecting`, `disconnected`, or `error`; `handleSendMessage()` intentionally queues messages until the socket reconnects. Disable the input only for local UI states such as loading a different session.
 14. Keep process management visible and simple: one labeled `New chat` entry in the process panel, plus per-session rename and delete controls. Do not add duplicate unlabeled plus buttons.
 15. Session titles are currently persisted as hidden `visa_chat_messages` records with `role='system'` and content prefix `__viza_session_title__:`. Filter these markers out of user-visible history, search/recent history, and LLM chat context.
+16. Preserve conversation context for compact follow-ups. `visa_chat_message` should include recent visible user/assistant history from the frontend, and the backend should use that client history when database history is missing or shorter. Short replies like `中国护照，中国，7天，法国，意大利` or `2，5` must be interpreted against the previous assistant question instead of treated as standalone prompts.
 
 ## Session Model
 
@@ -84,6 +85,8 @@ For backend Socket.IO or agent changes:
 The `/visa` namespace routes explicit destination mentions to RAG countries: `indonesia`, `us`, `vietnam`, `uk`, `france`, `italy`, and `switzerland`. Do not reintroduce a default-to-Indonesia fallback. If a user mentions multiple supported countries, or asks a generic Schengen question, let retrieval search across the relevant Schengen knowledge instead of using a stale application country unless that context is itself France/Italy/Switzerland.
 
 RAG routing uses the latest user message plus recent user-only chat context. This is intentional: a compact follow-up like "中国，新加坡，不知道，会去别的国家" may be answering the previous numbered questions, so retrieval must still remember the earlier main destination (for example Switzerland) while treating "Singapore" as residence/apply-from, not as a destination. Application `visa_type` fallback is only valid when compatible with the resolved country.
+
+Compact answer repair runs after history is assembled and before `buildSystemPrompt()`. Keep `buildCompactAnswerInterpretation()` in the backend when changing prompt flow: it maps numbered answers and numeric day splits back to the last assistant question, so a user can answer `2，5` after a France/Italy day-split question without the assistant resetting the intake.
 
 ## Important Files Added During Iterations
 
