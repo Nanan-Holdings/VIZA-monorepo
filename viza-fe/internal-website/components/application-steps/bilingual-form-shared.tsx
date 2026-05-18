@@ -132,20 +132,12 @@ export function reverseWithDictionary(value: string, dictionary: Record<string, 
   return reversed?.[0] ?? trimmed;
 }
 
-export function BilingualSectionHeader({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-[#f7fafe] px-4 py-3 text-sm font-semibold text-[#03346E]">
-      {children}
-    </div>
-  );
+export function BilingualSectionHeader(_props: { children: ReactNode }) {
+  return null;
 }
 
 export function BilingualTableShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-[#dfe5ee] bg-white">
-      {children}
-    </div>
-  );
+  return <div className="flex flex-col">{children}</div>;
 }
 
 export function BilingualRow({

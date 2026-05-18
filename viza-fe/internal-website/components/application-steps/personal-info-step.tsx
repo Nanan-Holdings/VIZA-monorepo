@@ -35,6 +35,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  BilingualFieldCopilot,
+  toCopilotOptions,
+  type BilingualFieldCopilotConfig,
+} from "./bilingual-form-shared";
 
 export interface PersonalInfoData {
   surname: string;
@@ -352,24 +357,18 @@ function getInitialCityCode(countryCode: string, regionCode: string, value?: str
   return findOption(getCityOptions(countryCode, regionCode), value)?.code ?? "";
 }
 
-function SectionHeader({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-[#f7fafe] px-4 py-3 text-sm font-semibold text-[#03346E]">
-      {children}
-    </div>
-  );
-}
-
 function BilingualRow({
   label,
   zhControl,
   enControl,
+  copilot,
 }: {
   label: string;
   helper?: string;
   badge?: string;
   zhControl: ReactNode;
   enControl: ReactNode;
+  copilot?: BilingualFieldCopilotConfig;
 }) {
   return (
     <div className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
@@ -384,6 +383,7 @@ function BilingualRow({
         <span className="mb-1 block text-xs font-semibold text-[#667085] md:hidden">English / Official</span>
         {enControl}
       </label>
+      {copilot && <BilingualFieldCopilot config={copilot} />}
     </div>
   );
 }
@@ -628,6 +628,19 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
     () => getCityOptions(birthCountryCode, birthRegionCode),
     [birthCountryCode, birthRegionCode],
   );
+  const copilotAnswers = {
+    surname: textValues.surname.en,
+    given_names: textValues.givenNames.en,
+    full_name_native_alphabet: textValues.fullNameNativeAlphabet.zh,
+    date_of_birth: dateOfBirth,
+    marital_status: maritalStatus,
+    sex,
+    nationality: findOption(COUNTRY_OPTIONS, nationalityCode)?.en ?? "",
+    current_nationality: findOption(COUNTRY_OPTIONS, nationalityCode)?.en ?? "",
+    country_of_birth: findOption(COUNTRY_OPTIONS, birthCountryCode)?.en ?? "",
+    state_of_birth: findOption(regionOptions, birthRegionCode)?.en ?? "",
+    city_of_birth: findOption(cityOptions, birthCityCode)?.en ?? "",
+  };
 
   const updateText = (field: TextFieldKey, side: Side, value: string) => {
     setTextValues((current) => ({
@@ -672,172 +685,242 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="overflow-hidden rounded-lg border border-[#dfe5ee] bg-white">
-        <SectionHeader>个人信息</SectionHeader>
-        <div className="divide-y divide-[#eef1f5]">
+      <div className="divide-y divide-[#eef1f5]">
           <BilingualRow
             label={t("personalInfo.surname")}
             helper="左侧可填中文姓氏；右侧自动生成护照英文拼写。"
             badge="自动生成英文"
+            copilot={{
+              fieldName: "surname",
+              label: "Surname",
+              fieldType: "text",
+              value: textValues.surname.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "e.g. LI",
+              validationRules: { maxLength: 50 },
+            }}
             zhControl={
-              <TextControl
-                side="zh"
-                value={textValues.surname.zh}
-                placeholder="如：李"
-                required
-                onChange={(value) => updateText("surname", "zh", value)}
-              />
-            }
-            enControl={
-              <TextControl
-                side="en"
-                value={textValues.surname.en}
-                placeholder="e.g. LI"
-                required
-                onChange={(value) => updateText("surname", "en", value)}
-              />
-            }
-          />
+            <TextControl
+              side="zh"
+              value={textValues.surname.zh}
+              placeholder="如：李"
+              required
+              onChange={(value) => updateText("surname", "zh", value)}
+            />
+          }
+          enControl={
+            <TextControl
+              side="en"
+              value={textValues.surname.en}
+              placeholder="e.g. LI"
+              required
+              onChange={(value) => updateText("surname", "en", value)}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.givenNames")}
             helper="多个名字请按护照顺序核对。"
             badge="自动生成英文"
+            copilot={{
+              fieldName: "given_names",
+              label: "Given names",
+              fieldType: "text",
+              value: textValues.givenNames.en,
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "e.g. XIAOMING",
+              validationRules: { maxLength: 80 },
+            }}
             zhControl={
-              <TextControl
-                side="zh"
-                value={textValues.givenNames.zh}
-                placeholder="如：小明"
-                required
-                onChange={(value) => updateText("givenNames", "zh", value)}
-              />
-            }
-            enControl={
-              <TextControl
-                side="en"
-                value={textValues.givenNames.en}
-                placeholder="e.g. XIAOMING"
-                required
-                onChange={(value) => updateText("givenNames", "en", value)}
-              />
-            }
-          />
+            <TextControl
+              side="zh"
+              value={textValues.givenNames.zh}
+              placeholder="如：小明"
+              required
+              onChange={(value) => updateText("givenNames", "zh", value)}
+            />
+          }
+          enControl={
+            <TextControl
+              side="en"
+              value={textValues.givenNames.en}
+              placeholder="e.g. XIAOMING"
+              required
+              onChange={(value) => updateText("givenNames", "en", value)}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.fullNameNative")}
             helper="中文姓名保留原文，英文侧用于核对罗马化。"
             badge="双向同步"
+            copilot={{
+              fieldName: "full_name_native_alphabet",
+              label: "Full name in native alphabet",
+              fieldType: "text",
+              value: textValues.fullNameNativeAlphabet.zh,
+              allAnswers: copilotAnswers,
+              placeholder: "e.g. 李小明",
+              validationRules: { maxLength: 120 },
+            }}
             zhControl={
-              <TextControl
-                side="zh"
-                value={textValues.fullNameNativeAlphabet.zh}
-                placeholder="如：李小明"
-                onChange={(value) => updateText("fullNameNativeAlphabet", "zh", value)}
-              />
-            }
-            enControl={
-              <TextControl
-                side="en"
-                value={textValues.fullNameNativeAlphabet.en}
-                placeholder="e.g. LI XIAOMING"
-                onChange={(value) => updateText("fullNameNativeAlphabet", "en", value)}
-              />
-            }
-          />
+            <TextControl
+              side="zh"
+              value={textValues.fullNameNativeAlphabet.zh}
+              placeholder="如：李小明"
+              onChange={(value) => updateText("fullNameNativeAlphabet", "zh", value)}
+            />
+          }
+          enControl={
+            <TextControl
+              side="en"
+              value={textValues.fullNameNativeAlphabet.en}
+              placeholder="e.g. LI XIAOMING"
+              onChange={(value) => updateText("fullNameNativeAlphabet", "en", value)}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.dateOfBirth")}
             helper="任意一侧选择日期，另一侧会同步显示中文日期或 DD/MM/YYYY。"
             badge="官方日期格式"
+            copilot={{
+              fieldName: "date_of_birth",
+              label: "Date of birth",
+              fieldType: "date",
+              value: dateOfBirth,
+              allAnswers: copilotAnswers,
+              required: true,
+              validationRules: { format: "DD/MM/YYYY" },
+            }}
             zhControl={
-              <BilingualDateControl
-                side="zh"
-                value={dateOfBirth}
-                placeholder={t("personalInfo.dateOfBirthPlaceholder")}
-                onChange={setDateOfBirth}
-              />
-            }
-            enControl={
-              <BilingualDateControl
-                side="en"
-                value={dateOfBirth}
-                placeholder="Select date of birth"
-                onChange={setDateOfBirth}
-              />
-            }
-          />
+            <BilingualDateControl
+              side="zh"
+              value={dateOfBirth}
+              placeholder={t("personalInfo.dateOfBirthPlaceholder")}
+              onChange={setDateOfBirth}
+            />
+          }
+          enControl={
+            <BilingualDateControl
+              side="en"
+              value={dateOfBirth}
+              placeholder="Select date of birth"
+              onChange={setDateOfBirth}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.maritalStatus")}
             helper="中英文都从同一组官方选项里选择。"
             badge="官方选项映射"
+            copilot={{
+              fieldName: "marital_status",
+              label: "Marital status",
+              fieldType: "select",
+              value: maritalStatus,
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(MARITAL_STATUS_OPTIONS),
+              placeholder: "Select marital status",
+            }}
             zhControl={
-              <OptionControl
-                side="zh"
-                value={maritalStatus}
-                options={MARITAL_STATUS_OPTIONS}
-                placeholder={t("select")}
-                onChange={setMaritalStatus}
-              />
-            }
-            enControl={
-              <OptionControl
-                side="en"
-                value={maritalStatus}
-                options={MARITAL_STATUS_OPTIONS}
-                placeholder="Select..."
-                onChange={setMaritalStatus}
-              />
-            }
-          />
+            <OptionControl
+              side="zh"
+              value={maritalStatus}
+              options={MARITAL_STATUS_OPTIONS}
+              placeholder={t("select")}
+              onChange={setMaritalStatus}
+            />
+          }
+          enControl={
+            <OptionControl
+              side="en"
+              value={maritalStatus}
+              options={MARITAL_STATUS_OPTIONS}
+              placeholder="Select..."
+              onChange={setMaritalStatus}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.gender")}
             helper="按证件信息选择，左右两侧自动保持一致。"
             badge="官方选项映射"
+            copilot={{
+              fieldName: "sex",
+              label: "Sex",
+              fieldType: "select",
+              value: sex,
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(GENDER_OPTIONS),
+              placeholder: "Select sex",
+            }}
             zhControl={
-              <OptionControl
-                side="zh"
-                value={sex}
-                options={GENDER_OPTIONS}
-                placeholder={t("select")}
-                onChange={setSex}
-              />
-            }
-            enControl={
-              <OptionControl
-                side="en"
-                value={sex}
-                options={GENDER_OPTIONS}
-                placeholder="Select..."
-                onChange={setSex}
-              />
-            }
-          />
+            <OptionControl
+              side="zh"
+              value={sex}
+              options={GENDER_OPTIONS}
+              placeholder={t("select")}
+              onChange={setSex}
+            />
+          }
+          enControl={
+            <OptionControl
+              side="en"
+              value={sex}
+              options={GENDER_OPTIONS}
+              placeholder="Select..."
+              onChange={setSex}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.nationality")}
             helper="国家名称左侧显示中文，右侧显示英文官方写法。"
             badge="国家选项映射"
+            copilot={{
+              fieldName: "nationality",
+              label: "Nationality",
+              fieldType: "country",
+              value: findOption(COUNTRY_OPTIONS, nationalityCode)?.en ?? "",
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "Select country",
+            }}
             zhControl={
-              <CountryOptionControl
-                side="zh"
-                value={nationalityCode}
-                placeholder="选择国家..."
-                onChange={setNationalityCode}
-              />
-            }
-            enControl={
-              <CountryOptionControl
-                side="en"
-                value={nationalityCode}
-                placeholder="Select country..."
-                onChange={setNationalityCode}
-              />
-            }
-          />
-        </div>
-
-        <SectionHeader>出生信息</SectionHeader>
-        <div className="divide-y divide-[#eef1f5]">
+            <CountryOptionControl
+              side="zh"
+              value={nationalityCode}
+              placeholder="选择国家..."
+              onChange={setNationalityCode}
+            />
+          }
+          enControl={
+            <CountryOptionControl
+              side="en"
+              value={nationalityCode}
+              placeholder="Select country..."
+              onChange={setNationalityCode}
+            />
+          }
+        />
           <BilingualRow
             label={t("personalInfo.countryOfBirth")}
             helper="先选国家，再逐步缩小省 / 州和城市。"
             badge="级联下拉"
+            copilot={{
+              fieldName: "country_of_birth",
+              label: "Country of birth",
+              fieldType: "country",
+              value: findOption(COUNTRY_OPTIONS, birthCountryCode)?.en ?? "",
+              allAnswers: copilotAnswers,
+              required: true,
+              placeholder: "Select country of birth",
+            }}
             zhControl={
               <CountryOptionControl
                 side="zh"
@@ -859,6 +942,16 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
             label={t("personalInfo.stateOfBirth")}
             helper="根据所选国家显示对应省、州或地区。"
             badge="级联下拉"
+            copilot={{
+              fieldName: "state_of_birth",
+              label: "State or province of birth",
+              fieldType: "select",
+              value: findOption(regionOptions, birthRegionCode)?.en ?? "",
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(regionOptions),
+              placeholder: "Select state / province",
+            }}
             zhControl={
               <OptionControl
                 side="zh"
@@ -884,6 +977,16 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
             label={t("personalInfo.cityOfBirth")}
             helper="城市选项会根据国家和省 / 州继续缩小。"
             badge="级联下拉"
+            copilot={{
+              fieldName: "city_of_birth",
+              label: "City of birth",
+              fieldType: "select",
+              value: findOption(cityOptions, birthCityCode)?.en ?? "",
+              allAnswers: copilotAnswers,
+              required: true,
+              options: toCopilotOptions(cityOptions),
+              placeholder: "Select city of birth",
+            }}
             zhControl={
               <OptionControl
                 side="zh"
@@ -905,7 +1008,6 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
               />
             }
           />
-        </div>
       </div>
 
       <BrandActionButton type="submit" className="mt-2">
