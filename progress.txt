@@ -427,3 +427,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: bilingual-form-shared.tsx, passport-step.tsx, travel-info-step.tsx, document-upload-step.tsx, file-upload-card.tsx, review-step.tsx, status-step.tsx, messages/en.json, messages/zh.json, progress.txt
 - Learnings: for this hardcoded flow, every step needs bilingual affordances, but only data-entry steps need true bidirectional sync; upload, review, and status steps need stable bilingual labels and confirmation surfaces.
 ---
+
+## 2026-05-18 - REV-001 read-only review follow-up
+- Reworked the hardcoded Review tab into a simple read-only summary of previously entered personal, passport, and travel information.
+- Removed edit buttons from the Review tab and added a bilingual note explaining that changes should be made by returning to earlier steps.
+- Expanded every section by default and kept rows visible even when a value is missing, using "未填写 / Not provided" as the placeholder.
+- Mapped common saved codes and ISO dates into readable bilingual values for review.
+- Files changed: review-step.tsx, progress.txt
+- Learnings: Review should confirm submitted data, not behave like another editable form surface; the layout can be simpler when it is strictly read-only.
+---
