@@ -452,3 +452,12 @@ Started: Sun Apr 19 13:51:27     2026
 - Files changed: app/client/home/page.tsx, app/client/application/page.tsx, messages/en.json, messages/zh.json, progress.txt
 - Learnings: popular destination expansion should expose only form-ready countries as startable application cards; RAG-only countries should remain AI guidance until their field schemas are normalized.
 ---
+
+## 2026-05-18 - REV-001 dynamic bilingual coverage follow-up
+- Extended the dynamic field translation helper so DB-driven application pages compose labels, placeholders, and options as bilingual Chinese / English text instead of returning only the localized side.
+- Added exact Schengen and UK labels for common first-screen and navigation fields, including date of birth, nationality-at-birth questions, minor-travel questions, residence permits, and purpose/trip sections.
+- Changed the fallback order to prefer exact translations, then field-name-derived Chinese, then generic token-derived Chinese; this avoids awkward output such as "日期出生" for Date of birth.
+- Verified the helper with sample dynamic labels, placeholders, and options, and reran frontend typecheck plus targeted ESLint.
+- Files changed: lib/ds160-translations.ts, progress.txt
+- Learnings: page-level bilingual UI is not enough; every DB-driven visa schema needs bilingual composition at the renderer translation layer so US, UK, Schengen, and future countries stay consistent.
+---

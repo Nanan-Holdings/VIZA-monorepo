@@ -660,6 +660,13 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "About You — Passport & Identity Documents": "关于您——护照与身份证件",
   "Your Contact Details": "您的联系方式",
   "Your Family": "您的家庭信息",
+  "Your Accommodation in the UK": "您在英国的住宿",
+  "Your Employment": "您的工作信息",
+  "Your Finances": "您的财务信息",
+  "Dependants Travelling With You": "与您同行的受抚养人",
+  "Purpose-Specific Details": "目的相关详情",
+  "Additional Information": "补充信息",
+  "Parental Authority (for minors)": "父母或法定监护人（未成年人）",
   "Your Employment and Income": "您的工作与收入",
   "Your Travel Plans": "您的旅行计划",
   "Your Visit": "您的访问详情",
@@ -668,23 +675,41 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "Surname (family name)": "姓（家族姓）",
   "Is your surname at birth different from your current surname?": "您的出生姓氏是否与当前姓氏不同？",
   "First name(s) (given name(s))": "名（名字）",
+  "Date of birth": "出生日期",
   "Place of birth (city or town)": "出生地（城市或城镇）",
   "Country of birth": "出生国家",
   "Current nationality": "当前国籍",
+  "Is your nationality at birth different from your current nationality?": "您的出生时国籍是否与当前国籍不同？",
   "Nationality at birth": "出生时国籍",
+  "Do you hold any other nationalities?": "您是否持有其他国籍？",
+  "Other nationality": "其他国籍",
   "Sex": "性别",
   "Civil status": "婚姻状况",
+  "Please specify your civil status": "请说明您的婚姻状况",
+  "Will you be under 18 on the date you plan to travel to the Schengen Area?": "在计划前往申根区当天，您是否未满18岁？",
   "Travel document type": "旅行证件类型",
+  "Type of travel document": "旅行证件类型",
   "Travel document number": "旅行证件号码",
   "Date of issue": "签发日期",
+  "Date of expiry": "到期日期",
   "Valid until": "有效期至",
   "Issued by": "签发机构",
+  "Issued by (country)": "签发国家",
   "Issuing authority": "签发机构",
   "Issuing country": "签发国家",
+  "Country of residence": "居住国家",
+  "Residence permit or equivalent number": "居留许可或同等证件号码",
+  "Residence permit valid until": "居留许可有效期至",
+  "Current occupation": "当前职业",
+  "Are you a student?": "您是否是学生？",
+  "Main purpose of the journey": "主要旅行目的",
   "Purpose(s) of the journey": "旅行目的",
+  "Additional information on the purpose of stay": "停留目的补充信息",
+  "Member State of main destination": "主要目的地成员国",
   "Member State(s) of destination": "目的地成员国",
   "Member State of first entry": "首次入境成员国",
   "Number of entries requested": "申请入境次数",
+  "Duration of the intended stay or transit (number of days)": "预计停留或过境时长（天数）",
   "Intended date of arrival in the Schengen Area": "预计抵达申根区日期",
   "Intended date of departure from the Schengen Area": "预计离开申根区日期",
   "Type of accommodation in the Schengen Area": "申根区住宿类型",
@@ -697,6 +722,7 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "Have you ever been refused a Schengen visa?": "您是否曾被拒发申根签证？",
   "Means of support during your stay": "停留期间资金来源",
   "Who will pay for your travel and living costs?": "谁将支付您的旅行和生活费用？",
+  "Who will cover the cost of travelling and living during your stay?": "谁将承担您停留期间的旅行和生活费用？",
   "I declare that the information provided is true and complete.": "我声明所提供的信息真实且完整。",
   "Given names (as shown in your passport)": "名字（与护照一致）",
   "Family name / surname (as shown in your passport)": "姓氏（与护照一致）",
@@ -707,17 +733,16 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "Reason for name change": "姓名变更原因",
   "What is your nationality?": "您的国籍是什么？",
   "Do you have any other nationalities?": "您是否有其他国籍？",
-  "Other nationality": "其他国籍",
   "Will you be under 18 on the date you plan to travel to the UK?": "在计划前往英国当天，您是否未满18岁？",
   "Do you have a signed letter of consent from both parents or legal guardians?": "您是否有父母双方或法定监护人签署的同意书？",
   "Passport number": "护照号码",
-  "Date of expiry": "到期日期",
   "Place of issue": "签发地点",
   "Do you have any other valid passports or travel documents?": "您是否有其他有效护照或旅行证件？",
   "Do you have a national identity card?": "您是否有国民身份证？",
   "National identity card number": "国民身份证号码",
   "Email address": "电子邮箱",
   "Phone number (including country code)": "电话号码（含国家代码）",
+  "Telephone number (including country code)": "电话号码（含国家代码）",
   "Do you have an alternative phone number?": "您是否有备用电话号码？",
   "Home address — line 1": "家庭地址——第1行",
   "Home address — line 2": "家庭地址——第2行",
@@ -736,6 +761,14 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "Planned departure date": "计划离开日期",
   "Main reason for your visit": "访问主要原因",
   "Where will you stay?": "您将住在哪里？",
+  "Name of the adult travelling with you": "同行成年人的姓名",
+  "Relationship to the adult travelling with you": "与同行成年人的关系",
+  "Passport number of the accompanying adult": "同行成年人护照号码",
+  "Where will you be staying in the UK?": "您将在英国住在哪里？",
+  "Have you ever travelled to the UK before?": "您是否曾前往英国？",
+  "What is the main reason for your visit to the UK?": "您访问英国的主要原因是什么？",
+  "When do you plan to arrive in the UK?": "您计划何时抵达英国？",
+  "When do you plan to leave the UK?": "您计划何时离开英国？",
 };
 
 const FIELD_NAME_ZH: Record<string, string> = {
@@ -756,6 +789,10 @@ const FIELD_NAME_ZH: Record<string, string> = {
   phone_number: "电话号码",
   intended_arrival_date: "预计抵达日期",
   intended_departure_date: "预计离开日期",
+  has_other_nationalities: "是否持有其他国籍",
+  nationality_at_birth_different: "出生时国籍是否不同",
+  is_applicant_minor: "申请人是否未满18岁",
+  is_applicant_under_18: "申请人是否未满18岁",
 };
 
 const TOKEN_ZH: Record<string, string> = {
@@ -765,19 +802,26 @@ const TOKEN_ZH: Record<string, string> = {
   names: "姓名",
   first: "名",
   current: "当前",
+  other: "其他",
+  nationalities: "国籍",
   previous: "过往",
   birth: "出生",
   date: "日期",
+  start: "开始",
+  end: "结束",
+  signing: "签署",
   place: "地点",
   city: "城市",
   town: "城镇",
   country: "国家",
   nationality: "国籍",
+  national: "国民",
   passport: "护照",
   travel: "旅行",
   document: "证件",
   identity: "身份",
   issue: "签发",
+  issuing: "签发",
   expiry: "到期",
   valid: "有效",
   until: "至",
@@ -817,6 +861,29 @@ const TOKEN_ZH: Record<string, string> = {
   security: "安全",
   background: "背景",
   contact: "联系人",
+  contacts: "联系人",
+  residence: "居住",
+  permit: "许可",
+  equivalent: "同等",
+  student: "学生",
+  minors: "未成年人",
+  parental: "父母",
+  legal: "法定",
+  guardian: "监护人",
+  adult: "成年人",
+  accompanying: "同行",
+  dependants: "受抚养人",
+  dependent: "受抚养人",
+  finances: "财务",
+  employment: "工作",
+  specific: "相关",
+  additional: "补充",
+  information: "信息",
+  area: "区域",
+  uk: "英国",
+  eu: "欧盟",
+  eea: "欧洲经济区",
+  ch: "瑞士",
   us: "美国",
   u: "美国",
   s: "",
@@ -828,6 +895,13 @@ function hasChinese(value: string): boolean {
 
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function getExactChineseText(text: string): string | null {
+  const exact = GENERIC_ZH_TEXT[text] ?? ZH_LABELS[text] ?? ZH_OPTIONS[text] ?? ZH_PLACEHOLDERS[text];
+  if (exact) return exact;
+  if (hasChinese(text)) return text;
+  return null;
 }
 
 function composeBilingual(original: string, zh: string | null, locale: string): string {
@@ -850,9 +924,8 @@ function generateChineseFromFieldName(fieldName?: string): string | null {
 }
 
 function generateChineseFromText(text: string): string | null {
-  const exact = GENERIC_ZH_TEXT[text] ?? ZH_LABELS[text] ?? ZH_OPTIONS[text] ?? ZH_PLACEHOLDERS[text];
+  const exact = getExactChineseText(text);
   if (exact) return exact;
-  if (hasChinese(text)) return text;
 
   const cleaned = text
     .replace(/[()?]/g, " ")
@@ -869,14 +942,23 @@ function generateChineseFromText(text: string): string | null {
   return tokens.length > 0 ? tokens.join("") : null;
 }
 
+function generateChinesePlaceholder(placeholder: string): string | null {
+  const exact = getExactChineseText(placeholder);
+  if (exact) return exact;
+  const example = placeholder.match(/^e\.g\.,?\s*(.+)$/i);
+  if (example) return `例如：${example[1]}`;
+  if (/^select/i.test(placeholder)) return "请选择...";
+  return generateChineseFromText(placeholder);
+}
+
 export function translateLabel(label: string, locale: string, fieldName?: string): string {
-  const zh = generateChineseFromText(label) ?? generateChineseFromFieldName(fieldName);
+  const zh = getExactChineseText(label) ?? generateChineseFromFieldName(fieldName) ?? generateChineseFromText(label);
   return composeBilingual(label, zh, locale);
 }
 
 export function translatePlaceholder(placeholder: string | null, locale: string): string | null {
   if (!placeholder) return null;
-  const zh = TRANSLATIONS.zh.placeholders[placeholder] ?? generateChineseFromText(placeholder);
+  const zh = generateChinesePlaceholder(placeholder);
   return composeBilingual(placeholder, zh, locale);
 }
 
