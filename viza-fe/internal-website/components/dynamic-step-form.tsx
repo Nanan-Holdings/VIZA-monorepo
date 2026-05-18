@@ -479,7 +479,7 @@ export function DynamicStepForm({ step, prefill, onComplete, saving }: DynamicSt
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
     const rawPlaceholder = field.placeholder
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
-    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder);
+    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName);
     const enPlaceholder = getEnglishPlaceholder(rawPlaceholder);
 
     // Filter purpose of trip to only show "B" option
