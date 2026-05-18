@@ -169,7 +169,11 @@ function getLocalFieldIssue(
   }
 
   const options = normaliseFieldOptions(field.options);
-  if ((field.fieldType === "select" || field.fieldType === "radio") && trimmed && options.length > 0) {
+  if (
+    (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
+    trimmed &&
+    options.length > 0
+  ) {
     const optionMatch = options.some(
       (option) =>
         option.value.toLowerCase() === trimmed.toLowerCase() ||
