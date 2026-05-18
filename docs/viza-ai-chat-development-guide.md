@@ -139,13 +139,14 @@ flowchart TD
 `visa_chat_message` 流程：
 
 1. 尝试把用户消息写入 `visa_chat_messages`。
-2. 从 `visa_chat_messages` 读取最近 50 条历史作为 LLM 上下文。
+2. 从 `visa_chat_messages` 读取最近 50 条历史作为 LLM 上下文；前端同时会随 `visa_chat_message` 发送最近可见聊天历史，后端在 DB 历史缺失或短于前端历史时用前端历史兜底，避免短答案只带当前一句进入模型。
 3. 调用 `buildApplicationContext(user_id)` 从 Supabase 读取 applicant profile 和最新 application。
-4. 调用 `retrieveVisaKnowledge()`，按当前用户问题 + 最近 user-only context + 兼容的 application country/visa type 检索 `visa_chunks`。
-5. 调用 `buildSystemPrompt(context, knowledgeContext)` 拼出动态 system prompt。
-6. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
-7. 完成后保存 assistant message，并 emit `response_complete`。
-8. 如果模型调用 `send_application_block`，后端 emit `application_block`，前端渲染 `BlockMessage`。
+4. 调用 `buildCompactAnswerInterpretation()`，把 `中国护照，中国，7天，法国，意大利` 或 `2，5` 这类短答案映射回上一轮问题。
+5. 调用 `retrieveVisaKnowledge()`，按当前用户问题 + 最近 user-only context + 兼容的 application country/visa type 检索 `visa_chunks`。
+6. 调用 `buildSystemPrompt(context, knowledgeContext, conversationInterpretation)` 拼出动态 system prompt。
+7. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
+8. 完成后保存 assistant message，并 emit `response_complete`。
+9. 如果模型调用 `send_application_block`，后端 emit `application_block`，前端渲染 `BlockMessage`。
 
 Agent 核心：
 
@@ -169,6 +170,7 @@ RAG routing context:
 - `visa-namespace.ts` 解析 RAG country / visa type 时使用当前用户消息 + 最近 user-only chat context，而不是只看当前一句。
 - 这样用户按编号压缩回答时，例如 `中国，新加坡，不知道，会去别的国家`，系统仍能沿用上一轮用户提到的 main destination（如 Switzerland），同时不会把 `新加坡` 误当成目的地。
 - application `visa_type` 只能在与解析出的 country 兼容时作为 fallback，避免默认 `tourist_b211a` 污染 Schengen/UK/U.S. 问题。
+- `buildCompactAnswerInterpretation()` 是独立于 RAG 的上下文解释层：它读取上一轮 assistant 的编号问题或天数分配问题，把当前短答案映射成 slot/day-split note 注入 system prompt。例如瑞士主目的地后回答 `中国护照，中国，7天，法国，意大利` 会保留 Switzerland 并把 France/Italy 识别为 other Schengen countries；法国/意大利天数问题后回答 `2，5` 会映射为 France 2 days / Italy 5 days。
 
 RAG migration：
 
@@ -358,5 +360,6 @@ npm run type-check
 - Step 16 disconnected input fix：修复 `/client/chat` 输入框在 Socket.IO 未连接时被 disabled 导致无法点击/输入的问题。`ChatInput` 现在只在 session messages loading 时禁用；connecting/disconnected/error 状态下仍可输入，发送后走 `pendingMessages` 队列等待重连。
 - Step 17 session panel alignment：VIZA process 侧栏现在默认关闭；桌面展开为左侧浮层，不再给主聊天区加左 padding，因此 AI 输出、tab 和输入框不会因为打开侧栏而横向跳动。移动端仍使用 drawer 打开/关闭。`viza-fe/internal-website npm run type-check` 通过；Playwright route smoke 由于无登录态重定向到 `/client/login`。
 - Step 18 process management UX：用 Chrome 登录态实测 chatbot，多轮验证瑞士/申根、新加坡居住地、美国 B-2/B-1/B-2 切换都能接住上下文。侧栏移除重复无文字加号，只保留一个 `New chat`；process 支持 inline rename 和 two-step delete。Chrome 复查已验证 disposable session 创建、回复、rename、delete 均成功；`viza-fe/internal-website npm run type-check` 通过。
+- Step 19 compact answer context repair：修复用户用短答案回答上一轮问题时模型丢上下文的问题。前端 `VisaChatRequest.history` 会携带最近可见聊天历史；后端在 DB 历史不完整时使用该历史，并新增 `buildCompactAnswerInterpretation()` 给 system prompt 注入短答案映射。Chrome 复查：瑞士 -> `中国护照，中国，7天，法国，意大利` 后保留 `瑞士 + 法国 + 意大利`；继续输入 `2，5` 不再重置，会要求补齐缺失国家天数。法国+意大利场景下 `2，5` 正确映射为法国 2 天、意大利 5 天，并推荐意大利申根签。前后端 type-check 通过。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。

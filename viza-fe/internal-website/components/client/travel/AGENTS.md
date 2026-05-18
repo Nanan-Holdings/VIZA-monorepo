@@ -58,3 +58,4 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 1. Chinese copy should be friendly and actionable.
 2. Keep top-level status visible and non-overlapping with map interaction.
 3. Do not let map marker overlays block core form operations.
+4. When adding or changing travel imagery, ensure each image directly matches its title and description; do not use unrelated city-gallery, random, or placeholder images for item-level cards.

@@ -25,6 +25,26 @@ type SupportedKnowledgeCountry =
   | 'us'
   | 'vietnam';
 
+const COUNTRY_DISPLAY_NAMES: Record<SupportedKnowledgeCountry, string> = {
+  france: 'France',
+  indonesia: 'Indonesia',
+  italy: 'Italy',
+  switzerland: 'Switzerland',
+  uk: 'United Kingdom',
+  us: 'United States',
+  vietnam: 'Vietnam',
+};
+
+const COUNTRY_ALIASES: Record<SupportedKnowledgeCountry, string[]> = {
+  france: ['法国', 'france', 'paris', '巴黎'],
+  indonesia: ['印尼', '印度尼西亚', 'indonesia', 'bali', '巴厘岛'],
+  italy: ['意大利', 'italy', 'rome', 'roma', 'milan', 'venice', '罗马', '米兰', '威尼斯'],
+  switzerland: ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'],
+  uk: ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'],
+  us: ['美国', '美签', 'united states', 'u.s.', 'usa', 'us visa', 'b1/b2', 'b-1/b-2', 'ds-160', 'ds160'],
+  vietnam: ['越南', 'vietnam', 'hanoi', '河内', 'ho chi minh', 'saigon', '胡志明'],
+};
+
 function includesAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
 }
@@ -230,6 +250,212 @@ export function buildRecentUserContext(
     .join('\n');
 }
 
+function earliestCountryIndex(
+  normalized: string,
+  country: SupportedKnowledgeCountry
+): number {
+  const indices = COUNTRY_ALIASES[country]
+    .map((alias) => normalized.indexOf(alias.toLowerCase()))
+    .filter((index) => index >= 0);
+
+  if (country === 'us') {
+    const usMatch = /\bus\b/.exec(normalized);
+    if (usMatch?.index !== undefined) {
+      indices.push(usMatch.index);
+    }
+  }
+
+  return indices.length > 0 ? Math.min(...indices) : -1;
+}
+
+function detectKnowledgeCountriesInOrder(value: string): SupportedKnowledgeCountry[] {
+  const normalized = value.toLowerCase();
+  return (Object.keys(COUNTRY_ALIASES) as SupportedKnowledgeCountry[])
+    .map((country) => ({ country, index: earliestCountryIndex(normalized, country) }))
+    .filter((entry) => entry.index >= 0)
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.country);
+}
+
+function splitCompactAnswer(message: string): string[] {
+  return message
+    .split(/[,，;；\n]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isCompactFollowUp(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed || trimmed.length > 80) return false;
+  if (/[?？]/.test(trimmed)) return false;
+  return /[,，;；]/.test(trimmed) || /^[\d\s,，.．、;；天日days]+$/i.test(trimmed);
+}
+
+function extractNumberedQuestions(content: string): string[] {
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .map((line) => {
+      const match = line.match(/^(?:[-*]\s*)?(?:\d+[.)、]|[（(]?\d+[）)])\s*(.+)$/);
+      return match?.[1]?.trim() ?? '';
+    })
+    .filter(Boolean);
+}
+
+function inferQuestionSlot(question: string): string | null {
+  const normalized = question.toLowerCase();
+  if (includesAny(normalized, ['国籍', '护照', 'nationality', 'passport'])) {
+    return 'nationality/passport';
+  }
+  if (includesAny(normalized, ['居住', '住在', '所在', 'current residence', 'currently live', 'apply from'])) {
+    return 'residence/apply-from';
+  }
+  if (includesAny(normalized, ['停留', '多少天', '几天', 'how long', 'days'])) {
+    return 'stay length';
+  }
+  if (includesAny(normalized, ['其他申根', '除', 'other schengen'])) {
+    return 'other Schengen countries';
+  }
+  if (includesAny(normalized, ['目的', 'purpose', 'tourism', 'business'])) {
+    return 'trip purpose';
+  }
+  if (includesAny(normalized, ['目的地', 'destination'])) {
+    return 'destination';
+  }
+  return null;
+}
+
+function findPriorMainDestination(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  lastAssistantContent: string
+): SupportedKnowledgeCountry | null {
+  const exclusionMatch = lastAssistantContent.match(/除(.{0,20}?)(?:外|之外|以外)/);
+  if (exclusionMatch?.[1]) {
+    const excludedCountries = detectKnowledgeCountriesInOrder(exclusionMatch[1]);
+    if (excludedCountries.length === 1) {
+      return excludedCountries[0];
+    }
+  }
+
+  for (const msg of [...history].reverse()) {
+    if (msg.role !== 'user') continue;
+    const countries = detectKnowledgeCountriesInOrder(msg.content);
+    if (countries.length === 1) {
+      return countries[0];
+    }
+  }
+
+  return null;
+}
+
+function parseStayDays(value: string): number | null {
+  const match = value.trim().match(/^(\d+(?:[.．]\d+)?)\s*(?:天|日|days?)?$/i);
+  if (!match) return null;
+  return Number(match[1].replace('．', '.'));
+}
+
+export function buildCompactAnswerInterpretation(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  latestMessage: string
+): string | null {
+  if (!isCompactFollowUp(latestMessage)) return null;
+
+  const priorHistory =
+    history[history.length - 1]?.role === 'user' &&
+    history[history.length - 1]?.content === latestMessage
+      ? history.slice(0, -1)
+      : history;
+  const lastAssistant = [...priorHistory].reverse().find((msg) => msg.role === 'assistant');
+  if (!lastAssistant) return null;
+
+  const parts = splitCompactAnswer(latestMessage);
+  const lines: string[] = [
+    `The user's latest message "${latestMessage}" is a compact answer to your previous assistant question, not a new standalone visa request.`,
+  ];
+
+  const numberedQuestions = extractNumberedQuestions(lastAssistant.content);
+  if (numberedQuestions.length >= 2 && parts.length >= 2) {
+    lines.push('Map the compact answers to the previous numbered questions in order:');
+    numberedQuestions.forEach((question, index) => {
+      const slot = inferQuestionSlot(question) ?? `question ${index + 1}`;
+      const value =
+        index === numberedQuestions.length - 1
+          ? parts.slice(index).join(', ')
+          : parts[index];
+      if (value) {
+        lines.push(`- ${slot}: ${value}`);
+      }
+    });
+
+    const priorMainDestination = findPriorMainDestination(
+      priorHistory,
+      lastAssistant.content
+    );
+    const otherSchengenQuestion = numberedQuestions.find(
+      (question) => inferQuestionSlot(question) === 'other Schengen countries'
+    );
+    if (priorMainDestination && otherSchengenQuestion) {
+      const otherSchengenValue = parts
+        .slice(Math.max(0, numberedQuestions.indexOf(otherSchengenQuestion)))
+        .join(', ');
+      const otherCountries = detectKnowledgeCountriesInOrder(otherSchengenValue);
+      const destinations = Array.from(
+        new Set([priorMainDestination, ...otherCountries])
+      );
+      lines.push(
+        `- Preserve the previously stated main destination ${COUNTRY_DISPLAY_NAMES[priorMainDestination]}; the other Schengen countries are ${otherCountries.map((country) => COUNTRY_DISPLAY_NAMES[country]).join(', ') || 'not specified'}.`
+      );
+      lines.push(
+        `- Overall Schengen destination set: ${destinations.map((country) => COUNTRY_DISPLAY_NAMES[country]).join(', ')}. Ask for the day split across all of these if the main application country is still unclear.`
+      );
+    }
+  }
+
+  const numericParts = parts.map(parseStayDays);
+  const allPartsAreNumbers =
+    numericParts.length > 0 && numericParts.every((part) => part !== null);
+  const lastAssistantCountries = detectKnowledgeCountriesInOrder(lastAssistant.content);
+  const asksForDaySplit = includesAny(lastAssistant.content.toLowerCase(), [
+    '停留',
+    '各',
+    '几天',
+    '多少天',
+    'how many days',
+    'day split',
+  ]);
+
+  if (allPartsAreNumbers && asksForDaySplit && lastAssistantCountries.length > 0) {
+    if (lastAssistantCountries.length === numericParts.length) {
+      const dayPairs = lastAssistantCountries.map((country, index) => ({
+        country,
+        days: numericParts[index] ?? 0,
+      }));
+      lines.push('Interpret the numeric day split in the same country order as the previous assistant question:');
+      dayPairs.forEach((pair) => {
+        lines.push(`- ${COUNTRY_DISPLAY_NAMES[pair.country]}: ${pair.days} days`);
+      });
+
+      const maxDays = Math.max(...dayPairs.map((pair) => pair.days));
+      const longest = dayPairs.filter((pair) => pair.days === maxDays);
+      if (longest.length === 1 && longest[0]) {
+        lines.push(
+          `- The longest stay is ${COUNTRY_DISPLAY_NAMES[longest[0].country]}, so that is normally the Schengen application country unless the user clarifies a different main purpose.`
+        );
+      } else {
+        lines.push(
+          '- The stay lengths are tied; ask for first entry country or main purpose to choose the Schengen application country.'
+        );
+      }
+    } else {
+      lines.push(
+        `The user provided ${numericParts.length} numeric value(s), but the previous day-split question mentioned ${lastAssistantCountries.length} country/countries: ${lastAssistantCountries.map((country) => COUNTRY_DISPLAY_NAMES[country]).join(', ')}. Treat this as an incomplete answer to the previous question and ask only for the missing mapping; do not restart the visa intake.`
+      );
+    }
+  }
+
+  return lines.length > 1 ? lines.join('\n') : null;
+}
+
 export function resolveKnowledgeVisaType(
   country: SupportedKnowledgeCountry | null,
   message: string,
@@ -330,6 +556,35 @@ interface VisaChatRequest {
   session_id: string;
   message: string;
   service_id?: string;
+  history?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+}
+
+function normalizeClientHistory(
+  history: VisaChatRequest['history'],
+  latestMessage: string
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  const normalized = (history ?? [])
+    .filter(
+      (msg): msg is { role: 'user' | 'assistant'; content: string } =>
+        (msg.role === 'user' || msg.role === 'assistant') &&
+        typeof msg.content === 'string' &&
+        msg.content.trim().length > 0
+    )
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content.trim(),
+    }))
+    .slice(-30);
+
+  const latest = normalized[normalized.length - 1];
+  if (latest?.role === 'user' && latest.content === latestMessage) {
+    return normalized;
+  }
+
+  return [...normalized, { role: 'user', content: latestMessage }];
 }
 
 /**
@@ -375,9 +630,11 @@ export function registerVisaNamespace(nsp: Namespace): void {
         }
 
         // 2. Load conversation history (fallback to current message only)
-        let chatHistory: { role: 'user' | 'assistant'; content: string }[] = [
-          { role: 'user', content: message },
-        ];
+        const clientHistory = normalizeClientHistory(request.history, message);
+        let historySource: 'client' | 'database' | 'current_message' =
+          clientHistory.length > 1 ? 'client' : 'current_message';
+        let chatHistory: { role: 'user' | 'assistant'; content: string }[] =
+          clientHistory.length > 0 ? clientHistory : [{ role: 'user', content: message }];
 
         try {
           const history = await db
@@ -389,12 +646,17 @@ export function registerVisaNamespace(nsp: Namespace): void {
 
           if (history.length > 0) {
             // Only include user/assistant messages (skip 'block' role for Anthropic API)
-            chatHistory = history
+            const databaseHistory = history
               .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
               .map((msg) => ({
                 role: msg.role as 'user' | 'assistant',
                 content: msg.content,
               }));
+
+            if (databaseHistory.length >= clientHistory.length) {
+              chatHistory = databaseHistory;
+              historySource = 'database';
+            }
           }
         } catch (dbErr) {
           logger.warn('Failed to load chat history (using current message only)', dbErr as Error, {
@@ -424,9 +686,14 @@ export function registerVisaNamespace(nsp: Namespace): void {
           matchCount: 5,
         });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
+        const compactAnswerInterpretation = buildCompactAnswerInterpretation(
+          chatHistory,
+          message
+        );
         const dynamicSystemPrompt = buildSystemPrompt(
           appContext,
-          knowledgeContext
+          knowledgeContext,
+          compactAnswerInterpretation ?? undefined
         );
 
         socket.emit('app_log', {
@@ -437,8 +704,11 @@ export function registerVisaNamespace(nsp: Namespace): void {
             chunkCount: knowledgeResult.chunks.length,
             country: knowledgeCountry,
             visaType: knowledgeVisaType,
+            historySource,
+            historyLength: chatHistory.length,
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
+            compactAnswerInterpreted: Boolean(compactAnswerInterpretation),
             topSources: knowledgeResult.chunks.slice(0, 3).map((chunk) => ({
               title: chunk.title,
               country: chunk.country,

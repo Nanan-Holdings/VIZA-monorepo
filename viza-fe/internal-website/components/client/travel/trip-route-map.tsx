@@ -70,6 +70,12 @@ type DetailSection = DetailSectionSample & {
   body: string;
 };
 
+type DetailItemMedia = {
+  imageSrc?: string;
+  description: string;
+  sourceUrl?: string;
+};
+
 type GoogleMarkerInstance = {
   addListener: (eventName: string, handler: () => void) => GoogleMarkerListener;
   setMap: (map: GoogleMapInstance | null) => void;
@@ -597,6 +603,98 @@ const CITY_SAMPLE_ALIAS_BY_KEY: Record<string, string> = {
   shibuyacrossing: "tokyo",
   sensojitemple: "tokyo",
 };
+const DETAIL_ITEM_MEDIA_BY_TITLE: Record<string, DetailItemMedia> = {
+  比萨斜塔: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg/960px-The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg",
+    description: "比萨最具识别度的钟楼，适合安排在奇迹广场主线里，白天拍照效果最好。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:The_Leaning_Tower_of_Pisa,_Pisa,_Italy.jpg",
+  },
+  奇迹广场: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Piazza_dei_Miracoli_%28Pisa%29_2023.1.jpg/960px-Piazza_dei_Miracoli_%28Pisa%29_2023.1.jpg",
+    description: "比萨主教座堂、洗礼堂和斜塔所在的核心广场，适合集中半日游。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Miracoli_(Pisa)_2023.1.jpg",
+  },
+  比萨主教座堂: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Pisa_-_Cathedral_-_Facade_1052.jpg/960px-Pisa_-_Cathedral_-_Facade_1052.jpg",
+    description: "奇迹广场内的罗曼式主教座堂，和斜塔、洗礼堂一起看最完整。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_-_Cathedral_-_Facade_1052.jpg",
+  },
+  阿诺河岸: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Pisa_Arno_03.jpg/960px-Pisa_Arno_03.jpg",
+    description: "比萨老城里的河岸步行线，适合从景点区慢慢走回餐厅和小店。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_Arno_03.jpg",
+  },
+  托斯卡纳面包: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Pane_toscano.jpg/960px-Pane_toscano.jpg",
+    description: "托斯卡纳传统无盐面包，适合配火腿、橄榄油或当地炖菜一起尝。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pane_toscano.jpg",
+  },
+  意式冰淇淋: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Gelato%2C_Florence%2C_Italy_2016.jpg/960px-Gelato%2C_Florence%2C_Italy_2016.jpg",
+    description: "意大利 gelato 适合放在下午散步时段，轻松补糖，也很适合边走边吃。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Gelato,_Florence,_Italy_2016.jpg",
+  },
+  手工意面: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Handmade_pasta_noodles_%28Unsplash%29.jpg/960px-Handmade_pasta_noodles_%28Unsplash%29.jpg",
+    description: "手工意面更适合作为正餐，搭配托斯卡纳肉酱或简单番茄酱都很稳。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Handmade_pasta_noodles_(Unsplash).jpg",
+  },
+  当地葡萄酒: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Tuscan_Wine_Country_Vineyard_%2853593605746%29.jpg/960px-Tuscan_Wine_Country_Vineyard_%2853593605746%29.jpg",
+    description: "托斯卡纳葡萄酒适合晚餐搭配，想轻松一点可以选按杯供应的小酒馆。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Tuscan_Wine_Country_Vineyard_(53593605746).jpg",
+  },
+  奇迹广场附近: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Piazza_dei_miracoli_-_aerial_panorama.jpg/960px-Piazza_dei_miracoli_-_aerial_panorama.jpg",
+    description: "住在奇迹广场附近最方便早晚错峰拍斜塔，适合短停和第一次来比萨。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_miracoli_-_aerial_panorama.jpg",
+  },
+  中央车站周边: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Pisa_Centrale_train_station_-_platforms.jpg/960px-Pisa_Centrale_train_station_-_platforms.jpg",
+    description: "Pisa Centrale 周边适合赶火车或一晚短住，去佛罗伦萨、卢卡都方便。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_Centrale_train_station_-_platforms.jpg",
+  },
+  老城区: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Borgo_Stretto_de_Pisa.JPG/960px-Borgo_Stretto_de_Pisa.JPG",
+    description: "老城区街巷更有生活感，适合慢游、找小餐馆和晚上散步。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
+  },
+  阿诺河夜景: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Pisa_-_Arno_di_notte.JPG/960px-Pisa_-_Arno_di_notte.JPG",
+    description: "阿诺河夜间灯光柔和，适合晚饭后散步，把节奏放慢一点。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_-_Arno_di_notte.JPG",
+  },
+  老城酒吧: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Borgo_Stretto_de_Pisa.JPG/960px-Borgo_Stretto_de_Pisa.JPG",
+    description: "老城酒吧和小馆集中在步行街附近，适合晚餐后短距离探索。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
+  },
+  大学区小馆: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Piazza_dei_Cavalieri_%28Pisa%29.jpg/960px-Piazza_dei_Cavalieri_%28Pisa%29.jpg",
+    description: "骑士广场周边有大学氛围，小馆和咖啡店适合轻松收尾。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
+  },
+  广场散步: {
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Piazza_dei_Cavalieri_%28Pisa%29.jpg/960px-Piazza_dei_Cavalieri_%28Pisa%29.jpg",
+    description: "比萨广场夜间人少一些，适合饭后散步和补几张城市氛围照片。",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
+  },
+};
 const LABEL_MIN_ZOOM = 3;
 const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -1116,6 +1214,38 @@ function buildDetailSectionSample(
 ): DetailSectionSample {
   const citySamples = getCityDetailSamples(point);
   return citySamples?.[sectionId] ?? getFallbackDetailSample(point, sectionId, city, location);
+}
+
+function getDetailSectionItemDescription(
+  sectionId: DetailSectionId,
+  item: string,
+  city: string
+): string {
+  if (sectionId === "attractions") {
+    return `${item}适合安排成${city}的打卡点，白天拍照、傍晚散步都很顺。`;
+  }
+
+  if (sectionId === "food") {
+    return `${item}适合穿插在行程中间，作为轻松补给或晚间收尾。`;
+  }
+
+  if (sectionId === "stay") {
+    return `${item}周边交通和餐饮更集中，适合作为年轻旅行者的落脚点。`;
+  }
+
+  return `${item}适合晚饭后体验，节奏轻一点，照片和氛围都会更好。`;
+}
+
+function getDetailItemMedia(
+  sectionId: DetailSectionId,
+  item: string,
+  city: string
+): DetailItemMedia {
+  return (
+    DETAIL_ITEM_MEDIA_BY_TITLE[item] ?? {
+      description: getDetailSectionItemDescription(sectionId, item, city),
+    }
+  );
 }
 
 function getPointIntro(point: TripMapPoint): string {
@@ -2087,7 +2217,7 @@ export function TripRouteMap({
             <div className="flex items-center justify-end px-5 py-5">
               <button
                 aria-label="关闭目的地详情"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-4xl leading-none text-slate-900 transition-colors hover:bg-slate-100"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-4xl leading-none text-slate-900 transition-all duration-200 hover:scale-105 hover:bg-slate-100"
                 onClick={() => setDetailPointId(null)}
                 type="button"
               >
@@ -2124,7 +2254,7 @@ export function TripRouteMap({
                   {detailGalleryImages.map((imageSrc, index) => (
                     <div
                       aria-label={`${getPointDisplayName(detailPoint)}照片 ${index + 1}`}
-                      className="h-32 min-w-[150px] flex-1 rounded-md bg-cover bg-center"
+                      className="h-32 min-w-[150px] flex-1 rounded-md bg-cover bg-center transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-200/60"
                       key={`${detailPoint.id}-preview-${index}`}
                       role="img"
                       style={{ backgroundImage: `url(${imageSrc})` }}
@@ -2144,12 +2274,12 @@ export function TripRouteMap({
                     const isExpanded = expandedDetailSectionId === section.id;
                     return (
                       <div
-                        className="overflow-hidden rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 transition-colors hover:from-blue-50 hover:to-blue-100/70"
+                        className="overflow-hidden rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/80 transition-all duration-300 hover:-translate-y-0.5 hover:from-blue-50 hover:to-blue-100/70 hover:shadow-xl hover:shadow-blue-100/70"
                         key={section.id}
                       >
                         <button
                           aria-expanded={isExpanded}
-                          className="flex w-full items-center gap-4 px-4 py-4 text-left"
+                          className="group flex w-full items-center gap-4 px-4 py-4 text-left"
                           onClick={() =>
                             setExpandedDetailSectionId(isExpanded ? null : section.id)
                           }
@@ -2161,7 +2291,7 @@ export function TripRouteMap({
                               {section.title}
                               <span
                                 className={`inline-block text-slate-500 transition-transform ${
-                                  isExpanded ? "rotate-90" : ""
+                                  isExpanded ? "rotate-90" : "group-hover:translate-x-1"
                                 }`}
                               >
                                 ›
@@ -2177,15 +2307,41 @@ export function TripRouteMap({
                         </button>
                         {isExpanded ? (
                           <div className="border-t border-white/80 px-4 pb-4">
-                            <div className="grid grid-cols-2 gap-2 pt-4 max-sm:grid-cols-1">
-                              {section.items.map((item) => (
-                                <div
-                                  className="rounded-lg bg-white/75 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm shadow-blue-100/50"
-                                  key={`${section.id}-${item}`}
-                                >
-                                  {item}
-                                </div>
-                              ))}
+                            <div className="grid grid-cols-2 gap-3 pt-4 max-lg:grid-cols-1">
+                              {section.items.map((item) => {
+                                const itemMedia = getDetailItemMedia(
+                                  section.id,
+                                  item,
+                                  getPointDisplayName(detailPoint)
+                                );
+                                return (
+                                  <article
+                                    className="group overflow-hidden rounded-xl bg-white/85 shadow-sm shadow-blue-100/60 ring-1 ring-white/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-200/60"
+                                    key={`${section.id}-${item}`}
+                                  >
+                                    {itemMedia.imageSrc ? (
+                                      <div
+                                        aria-hidden="true"
+                                        className="h-24 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                                        style={{ backgroundImage: `url(${itemMedia.imageSrc})` }}
+                                      />
+                                    ) : null}
+                                    <div className="space-y-2 px-3 py-3">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <h4 className="line-clamp-1 text-sm font-semibold text-slate-950">
+                                          {item}
+                                        </h4>
+                                        <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                                          精选
+                                        </span>
+                                      </div>
+                                      <p className="line-clamp-2 text-xs leading-relaxed text-slate-600">
+                                        {itemMedia.description}
+                                      </p>
+                                    </div>
+                                  </article>
+                                );
+                              })}
                             </div>
                             <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm leading-relaxed text-slate-600">
                               {section.tip}
