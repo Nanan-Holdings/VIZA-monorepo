@@ -48,12 +48,16 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 11. Whenever you create a new important file for this chat/RAG area, update both `docs/viza-ai-chat-development-guide.md` and this `AGENTS.md` so other agents can find and understand it.
 12. After each implementation step touching this chat/RAG area, run the relevant type-check plus a Playwright smoke check before continuing.
 13. Do not disable the VIZA chat input merely because Socket.IO is `connecting`, `disconnected`, or `error`; `handleSendMessage()` intentionally queues messages until the socket reconnects. Disable the input only for local UI states such as loading a different session.
+14. Keep process management visible and simple: one labeled `New chat` entry in the process panel, plus per-session rename and delete controls. Do not add duplicate unlabeled plus buttons.
+15. Session titles are currently persisted as hidden `visa_chat_messages` records with `role='system'` and content prefix `__viza_session_title__:`. Filter these markers out of user-visible history, search/recent history, and LLM chat context.
 
 ## Session Model
 
 `/client/chat` uses `visa_chat_sessions.id` as the Socket.IO `session_id` and as the parent for `visa_chat_messages.session_id`. One applicant may have multiple VIZA conversation processes. The page loads recent sessions with `getUserSessions()`, switches messages with `getSessionMessages()`, and creates a new `visa_chat_sessions` row with `createSession()` when the user sends the first message in a new chat. Treat `user_chat_sessions` as legacy/unused for this route unless a future migration explicitly removes or repurposes it.
 
 New empty VIZA chats render a localized assistant greeting from `messages/*/chat.newChatGreeting`. This is display-only and must not be written to `visa_chat_messages`; the first persisted message should still be the user's first real prompt.
+
+Session rename uses hidden system marker rows instead of a `visa_chat_sessions.title` column. `getUserSessions()` turns the latest marker into `Session.title`; `getSessionMessages()` and history helpers must keep those markers hidden.
 
 ## Validation Checklist
 
