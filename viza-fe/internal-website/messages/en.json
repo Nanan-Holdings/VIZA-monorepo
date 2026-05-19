@@ -46,9 +46,9 @@
     "percentComplete": "{pct}% complete",
     "quickActions": {
       "title": "Quick Actions",
-      "continueWithAI": "Continue with AI",
-      "uploadDocuments": "Upload Documents",
-      "viewApplication": "View Application"
+      "visaAI": "Open Visa AI",
+      "travelAI": "Open Travel AI",
+      "viewStatus": "View Application Status"
     },
     "emptyApplication": {
       "noActiveApplication": "No active application",

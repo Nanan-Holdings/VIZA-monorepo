@@ -46,6 +46,43 @@ describe("ChatInput", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it("does not send while IME composition is active", () => {
+    const onSend = vi.fn();
+    render(<ChatInput onSend={onSend} disabled={false} />);
+
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "你好" } });
+    fireEvent.keyDown(input, {
+      key: "Enter",
+      isComposing: true,
+    });
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("does not send on legacy IME Enter keyCode", () => {
+    const onSend = vi.fn();
+    render(<ChatInput onSend={onSend} disabled={false} />);
+
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "你好" } });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("clears draft on Escape", () => {
+    const onSend = vi.fn();
+    render(<ChatInput onSend={onSend} disabled={false} />);
+
+    const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Draft message" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(input.value).toBe("");
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it("sends on Ctrl+Enter", () => {
     const onSend = vi.fn();
     render(<ChatInput onSend={onSend} disabled={false} />);

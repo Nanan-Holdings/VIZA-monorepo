@@ -46,9 +46,9 @@
     "percentComplete": "已完成 {pct}%",
     "quickActions": {
       "title": "快捷操作",
-      "continueWithAI": "继续与AI对话",
-      "uploadDocuments": "上传文件",
-      "viewApplication": "查看申请"
+      "visaAI": "进入签证 AI",
+      "travelAI": "进入旅行 AI",
+      "viewStatus": "查看申请状态"
     },
     "emptyApplication": {
       "noActiveApplication": "暂无活跃申请",

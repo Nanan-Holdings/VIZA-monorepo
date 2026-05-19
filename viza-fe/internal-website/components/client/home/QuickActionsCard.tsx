@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { MessageCircle, Upload, FileText } from "lucide-react";
+import { ClipboardList, MessageCircle, Plane } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export function QuickActionsCard() {
   const t = useTranslations("home.quickActions");
 
   const actions = [
-    { icon: <MessageCircle className="h-4 w-4 shrink-0" />, label: t("continueWithAI"), href: "/client/chat" },
-    { icon: <Upload className="h-4 w-4 shrink-0" />, label: t("uploadDocuments"), href: "/client/application" },
-    { icon: <FileText className="h-4 w-4 shrink-0" />, label: t("viewApplication"), href: "/client/application" },
+    { icon: <MessageCircle className="h-4 w-4 shrink-0" />, label: t("visaAI"), href: "/client/chat?agent=visa" },
+    { icon: <Plane className="h-4 w-4 shrink-0" />, label: t("travelAI"), href: "/client/chat?agent=travel" },
+    { icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: t("viewStatus"), href: "/client/documents" },
   ];
 
   return (

@@ -58,21 +58,23 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      // Enter to send (without shift)
-      if (e.key === "Enter" && !e.shiftKey) {
+      const isComposing =
+        e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+      if (isComposing) return;
+
+      if (e.key === "Escape" && value.length > 0) {
         e.preventDefault();
-        handleSend();
+        setValue("");
         return;
       }
 
-      // Ctrl/Cmd + Enter also sends
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      // Enter sends, Shift+Enter keeps the native newline behavior.
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
-        return;
       }
     },
-    [handleSend]
+    [handleSend, value.length]
   );
 
   const canSend = value.trim().length > 0 && !disabled;
@@ -102,6 +104,7 @@ export function ChatInput({
         )}
         style={{ height: "40px", maxHeight: `${LINE_HEIGHT * MAX_ROWS}px` }}
         aria-label="Message input"
+        aria-keyshortcuts="Enter Control+Enter Meta+Enter Escape"
       />
 
       <div className="flex justify-end">

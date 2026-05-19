@@ -1444,6 +1444,37 @@ export function ChatClient({
     selectChatMode("viza");
   }, [selectChatMode]);
 
+  const handleWelcomeInputSend = useCallback(() => {
+    const message = inputValue.trim();
+    if (!message) return;
+
+    handleVizaAiClick();
+    setTimeout(() => handleSendMessage(message), 100);
+    setInputValue("");
+  }, [handleSendMessage, handleVizaAiClick, inputValue]);
+
+  const handleWelcomeInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      const isComposing =
+        event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+      if (isComposing) return;
+
+      if (event.key === "Escape" && inputValue.length > 0) {
+        event.preventDefault();
+        setInputValue("");
+        return;
+      }
+
+      const shouldSend =
+        event.key === "Enter" && (event.ctrlKey || event.metaKey || !event.shiftKey);
+      if (shouldSend) {
+        event.preventDefault();
+        handleWelcomeInputSend();
+      }
+    },
+    [handleWelcomeInputSend, inputValue.length]
+  );
+
   const handleTravelAiClick = useCallback(() => {
     selectChatMode("travel");
   }, [selectChatMode]);
@@ -1815,30 +1846,13 @@ export function ChatClient({
                           type="text"
                           value={inputValue}
                           onChange={(e) => setInputValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && inputValue.trim()) {
-                              handleVizaAiClick();
-                              setTimeout(
-                                () => handleSendMessage(inputValue.trim()),
-                                100
-                              );
-                              setInputValue("");
-                            }
-                          }}
+                          onKeyDown={handleWelcomeInputKeyDown}
                           placeholder={t("inputPlaceholder")}
                           className="flex-1 bg-transparent outline-none font-sans font-medium text-[16px] md:text-[17px] leading-[1.5] text-gray-800 tracking-[-0.24px] placeholder:text-[rgba(0,0,0,0.35)]"
+                          aria-keyshortcuts="Enter Control+Enter Meta+Enter Escape"
                         />
                         <button
-                          onClick={() => {
-                            if (inputValue.trim()) {
-                              handleVizaAiClick();
-                              setTimeout(
-                                () => handleSendMessage(inputValue.trim()),
-                                100
-                              );
-                              setInputValue("");
-                            }
-                          }}
+                          onClick={handleWelcomeInputSend}
                           className="flex-shrink-0 rounded-full hover:opacity-80 transition-opacity active:opacity-60"
                           aria-label="Send message"
                         >
