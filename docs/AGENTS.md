@@ -15,6 +15,9 @@ reports, and workflow documentation for VIZA.
 - `application/UG.md`: application form user guide.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
+- `internal-automation/**`: VIZA website automation lifecycle, module plans,
+  payment/consent/document/packet/status boundaries, and process assignment
+  notes.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
@@ -30,6 +33,8 @@ reports, and workflow documentation for VIZA.
 - When code adds/moves/deletes important files, update the affected module
   `AGENTS.md` as well as docs that function as source maps.
 - Keep user guides user-facing and developer guides implementation-facing.
+- Keep internal automation docs explicit that official portal submission runners
+  are out of scope unless a later task reopens them.
 
 ## Validation
 
@@ -44,3 +49,4 @@ spot-check referenced files with `rg --files` or direct reads before finalizing.
 - `viza-fe/README.md`
 - `viza-be/README.md`
 - `knowledge-base/visa-rag-seeds/README.md`
+- `docs/internal-automation/AGENTS.md`

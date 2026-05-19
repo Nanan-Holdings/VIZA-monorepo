@@ -42,6 +42,7 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
 - `travel-attraction-knowledge.ts`: curated attraction knowledge base with city aliases, exact map coordinates, image URLs, and source URLs for itinerary editing and route maps.
 - `travel-itinerary-share-renderer.tsx`: public share-page renderer for standalone itinery cards, tables, and downloads.
+- `app/api/travel/geocode/route.ts`: resolves travel city coordinates through Google Geocoding API for map markers and routes.
 - `app/api/travel/ip-location/route.ts`: resolves the user's approximate IP city for the origin/return confirmation step.
 
 ## Validation Checklist (for every travel UI change)

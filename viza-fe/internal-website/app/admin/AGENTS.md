@@ -5,8 +5,8 @@ Scope: this file applies to `viza-fe/internal-website/app/admin/**`.
 ## Purpose
 
 The admin portal is the internal operations surface for VIZA staff/admin users.
-It manages accounts, products, orders, consultations, and user package
-assignment.
+It manages accounts, products, orders, consultations, user package assignment,
+website automation monitoring, coverage, and billing support.
 
 ## Key Flows
 
@@ -15,6 +15,12 @@ assignment.
 - `admin-layout-content.tsx`: fixed desktop admin shell and sidebar.
 - `(dashboard)/page.tsx`: dashboard shell.
 - `(dashboard)/users/**`: user list/detail and package assignment.
+- `(dashboard)/applications/**`: staff monitoring queue and application watch
+  detail for website-owned automation.
+- `(dashboard)/packages/**`: country/package coverage matrix and supported
+  automation capability flags.
+- `(dashboard)/billing/**`: payment, receipt, invoice, and refund support
+  visibility.
 - `(dashboard)/orders/page.tsx`: order management.
 - `(dashboard)/products/page.tsx`: product management.
 - `(dashboard)/cal-bookings/page.tsx`: consultation bookings.
@@ -28,6 +34,8 @@ assignment.
   is intentionally reused.
 - If adding a new admin section, update `admin-layout-content.tsx` navigation
   and this file.
+- Staff monitoring pages should observe and support cases; they must not become
+  required manual approval gates for the happy path.
 
 ## Validation
 
@@ -46,6 +54,9 @@ dashboard routes redirect to `/admin/login`.
 - `viza-fe/internal-website/app/admin/login/page.tsx`
 - `viza-fe/internal-website/app/admin/(dashboard)/layout.tsx`
 - `viza-fe/internal-website/app/admin/admin-layout-content.tsx`
+- `viza-fe/internal-website/app/admin/(dashboard)/applications/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/packages/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`
 - `viza-fe/internal-website/lib/rbac.ts`
 - `viza-fe/internal-website/app/actions/auth.ts`
 - `viza-fe/internal-website/lib/supabase/admin.ts`

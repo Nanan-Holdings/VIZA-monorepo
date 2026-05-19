@@ -5,8 +5,9 @@ Scope: this file applies to `viza-fe/internal-website/app/client/**`.
 ## Purpose
 
 The client portal is the authenticated applicant experience: home dashboard,
-destination selection, application status and form filling, VIZA AI, Travel AI,
-settings, subscription, universal applicant info, and help pages.
+destination selection, payment, consent, document checklist, application status
+and form filling, VIZA AI, Travel AI, settings, subscription, universal
+applicant info, and help pages.
 
 ## Key Flows
 
@@ -16,7 +17,16 @@ settings, subscription, universal applicant info, and help pages.
   information summary.
 - `application/page.tsx`: status hub by default; direct `country`/`visaType`
   links open the application form workflow.
-- `documents/page.tsx`: status center for started applications.
+- `status/**`: canonical customer-facing status center for website automation
+  progress, external handoff state, and result delivery.
+- `documents/**`: document checklist center, upload state, OCR confirmation,
+  and missing-material recovery.
+- `checkout/**`: Stripe Checkout entry for VIZA agency fee only.
+- `billing/**`: receipts, invoice requests, refund visibility, and payment
+  history.
+- `consent/**`: ToS/privacy/agency authorisation acceptance and e-signature
+  workflow.
+- `settings/**`: account settings plus privacy export/deletion request surface.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
@@ -30,6 +40,8 @@ settings, subscription, universal applicant info, and help pages.
 - Application form internals are governed by
   `app/client/application/AGENTS.md`.
 - Chat internals are governed by `app/client/chat/AGENTS.md`.
+- Status, documents, checkout, billing, consent, and settings routes have their
+  own child `AGENTS.md`; read those before changing the relevant route.
 - Travel component internals are governed by
   `components/client/travel/AGENTS.md`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
@@ -57,6 +69,12 @@ accessible component state.
 - `viza-fe/internal-website/app/client/layout.tsx`
 - `viza-fe/internal-website/app/client/home/page.tsx`
 - `viza-fe/internal-website/app/client/application/page.tsx`
+- `viza-fe/internal-website/app/client/status/AGENTS.md`
+- `viza-fe/internal-website/app/client/documents/AGENTS.md`
+- `viza-fe/internal-website/app/client/checkout/AGENTS.md`
+- `viza-fe/internal-website/app/client/billing/AGENTS.md`
+- `viza-fe/internal-website/app/client/consent/AGENTS.md`
+- `viza-fe/internal-website/app/client/settings/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
