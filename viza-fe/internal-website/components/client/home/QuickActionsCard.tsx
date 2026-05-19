@@ -11,7 +11,7 @@ export function QuickActionsCard() {
   const actions = [
     { icon: <MessageCircle className="h-4 w-4 shrink-0" />, label: t("visaAI"), href: "/client/chat?agent=visa" },
     { icon: <Plane className="h-4 w-4 shrink-0" />, label: t("travelAI"), href: "/client/chat?agent=travel" },
-    { icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: t("viewStatus"), href: "/client/documents" },
+    { icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: t("viewStatus"), href: "/client/status" },
   ];
 
   return (

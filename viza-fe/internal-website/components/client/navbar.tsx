@@ -21,13 +21,15 @@ interface NavBarProps {
   menuReady: boolean;
 }
 
-const tabs = ["Home", "Application", "Chat", "Documents"];
+const tabs = ["Home", "Application", "Status", "Documents", "Chat", "Support"];
 
 const tabPaths: Record<string, string> = {
   Home: "/client/home",
   Application: "/client/application",
+  Status: "/client/status",
   Chat: "/client/chat?agent=visa",
   Documents: "/client/documents",
+  Support: "/client/support",
   Settings: "/client/settings",
 };
 
@@ -64,8 +66,10 @@ export function NavBar({
   const tabLabels: Record<string, string> = {
     Home: t("home"),
     Application: t("application"),
+    Status: t("status"),
     Chat: t("chat"),
     Documents: t("documents"),
+    Support: t("support"),
   };
 
   useEffect(() => {
@@ -108,8 +112,8 @@ export function NavBar({
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
 
-  const leftTabs = ["Home", "Application"];
-  const rightTabs = ["Chat", "Documents"];
+  const leftTabs = ["Home", "Application", "Status"];
+  const rightTabs = ["Documents", "Chat", "Support"];
 
   const openChatAgent = (href: string) => {
     setActiveTab("Chat");
@@ -296,7 +300,7 @@ export function NavBar({
         {/* Row 1: Logo + Hamburger */}
         <div className="px-4 flex items-center justify-between">
           {/* Logo - sized to ~160脳30px per Figma spec */}
-          <Link href="/client/data">
+          <Link href="/client/home">
             <Image
               src={isDark ? "/logo/viza-logo-white.svg" : "/logo/viza-logo-black.svg"}
               alt="VIZA"
