@@ -34,6 +34,31 @@ const requiredTextStep: WizardStep = {
   ],
 };
 
+const shortcutStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Shortcuts",
+  fields: [
+    {
+      id: "field-travel-plan",
+      visaType: "DS160",
+      fieldName: "has_travel_plan",
+      label: "Do you have a specific travel plan?",
+      fieldType: "radio",
+      required: false,
+      stepNumber: 1,
+      stepName: "Shortcuts",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [
+        { value: "YES", text: "Yes" },
+        { value: "NO", text: "No" },
+      ],
+      conditionalLogic: null,
+    },
+  ],
+};
+
 describe("DynamicStepForm copilot format", () => {
   it("uses the unified Chinese copilot trigger format", () => {
     render(
@@ -57,5 +82,35 @@ describe("DynamicStepForm copilot format", () => {
 
     expect(screen.getByRole("button", { name: "收起 AI 帮助" })).toBeInTheDocument();
     expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
+  });
+
+  it("supports Windows and Mac undo/redo shortcuts for non-text controls", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={shortcutStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const getYesRadios = () =>
+      Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][value="YES"]'));
+    const firstYesRadio = () => getYesRadios()[0];
+
+    fireEvent.click(firstYesRadio()!);
+    expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+
+    fireEvent.keyDown(firstYesRadio()!, { key: "z", ctrlKey: true });
+    expect(getYesRadios().some((radio) => radio.checked)).toBe(false);
+
+    fireEvent.keyDown(firstYesRadio()!, { key: "y", ctrlKey: true });
+    expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+
+    fireEvent.keyDown(firstYesRadio()!, { key: "z", metaKey: true });
+    expect(getYesRadios().some((radio) => radio.checked)).toBe(false);
+
+    fireEvent.keyDown(firstYesRadio()!, { key: "Z", metaKey: true, shiftKey: true });
+    expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
   });
 });
