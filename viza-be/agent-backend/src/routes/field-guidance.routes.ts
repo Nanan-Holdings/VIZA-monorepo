@@ -179,11 +179,30 @@ function includesAny(haystack: string, needles: string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
-function deterministicExamples(field: FieldGuidanceField): string[] {
+function isPhotoField(field: FieldGuidanceField): boolean {
+  const combined = `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
+  return field.fieldType === "file" && includesAny(combined, [
+    "photo",
+    "photograph",
+    "portrait",
+    "visa picture",
+    "passport size",
+    "passport-style",
+    "证件照",
+    "照片",
+  ]);
+}
+
+function deterministicExamples(field: FieldGuidanceField, locale: "zh" | "en"): string[] {
   const name = field.fieldName.toLowerCase();
   const label = field.label.toLowerCase();
   const options = normalizeOptions(field.options);
 
+  if (isPhotoField(field)) {
+    return locale === "zh"
+      ? ["近期白色或浅色背景证件照", "清晰正面 JPG/JPEG 签证照片"]
+      : ["Recent photo with a white or light background", "Clear front-facing JPG/JPEG visa photo"];
+  }
   if (options.length > 0) {
     return options.slice(0, 3).map((option) => option.text || option.value);
   }
@@ -221,6 +240,18 @@ function deterministicHints(field: FieldGuidanceField, locale: "zh" | "en"): str
   const format = asString(rules.format);
   const maxLength = typeof rules.maxLength === "number" ? rules.maxLength : null;
 
+  if (isPhotoField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "请按当前目的地官方签证照片规格准备，不同国家/签证中心的尺寸和文件大小可能不同。"
+        : "Prepare the image according to the destination's official visa photo specification; size and file limits can vary by country or visa centre."
+    );
+    hints.push(
+      locale === "zh"
+        ? "优先使用近期、清晰、正面、背景纯净的证件照。"
+        : "Use a recent, clear, front-facing passport-style photo with a plain background."
+    );
+  }
   if (field.required) {
     hints.push(locale === "zh" ? "此项为必填项。" : "This field is required.");
   }
@@ -261,6 +292,18 @@ function deterministicWarnings(field: FieldGuidanceField, locale: "zh" | "en"): 
   const combined = `${field.fieldName} ${field.label}`.toLowerCase();
   const warnings: string[] = [];
 
+  if (isPhotoField(field)) {
+    warnings.push(
+      locale === "zh"
+        ? "不要上传自拍截图、证件扫描件、过度美颜或 AI 修改过的照片。"
+        : "Do not upload selfies, document scans, heavily retouched images, or AI-altered photos."
+    );
+    warnings.push(
+      locale === "zh"
+        ? "如果官方流程改为签证中心现场采集照片，请以预约确认页和签证中心要求为准。"
+        : "If the official process collects the photo at a visa application centre, follow the appointment confirmation and centre instructions."
+    );
+  }
   if (includesAny(combined, ["surname", "given", "full name", "passport"])) {
     warnings.push(
       locale === "zh"
@@ -328,7 +371,15 @@ function deterministicFormatHints(field: FieldGuidanceField, locale: "zh" | "en"
     hints.push(locale === "zh" ? "用简洁自然语言填写，避免无关信息。" : "Use concise plain language and avoid unrelated details.");
   }
   if (field.fieldType === "file") {
-    hints.push(locale === "zh" ? "上传清晰、完整、与题目要求一致的文件。" : "Upload a clear, complete file that matches the field requirement.");
+    hints.push(
+      isPhotoField(field)
+        ? locale === "zh"
+          ? "上传 JPG/JPEG/PNG 等官方页面允许的照片文件；文件大小以当前目的地官方页面为准。"
+          : "Upload a photo file type accepted by the official page, such as JPG/JPEG/PNG where allowed; follow the destination's file-size limit."
+        : locale === "zh"
+          ? "上传清晰、完整、与题目要求一致的文件。"
+          : "Upload a clear, complete file that matches the field requirement."
+    );
   }
   if (hints.length === 0) {
     hints.push(locale === "zh" ? "按官方文件上的写法填写。" : "Enter the value as it appears on the official document.");
@@ -344,10 +395,14 @@ function buildDeterministicGuidance(
   return {
     title: makeTitle(field, locale),
     summary:
-      locale === "zh"
-        ? "按官方表格含义填写，并确保答案和证件、行程、其他表格答案保持一致。"
-        : "Answer this according to the official form meaning and keep it consistent with documents, travel plans, and related answers.",
-    examples: deterministicExamples(field),
+      isPhotoField(field)
+        ? locale === "zh"
+          ? "上传的签证照片应符合当前目的地官方照片规格，并与本人当前外貌一致。"
+          : "The uploaded visa photo should follow the destination's official photo rules and reflect your current appearance."
+        : locale === "zh"
+          ? "按官方表格含义填写，并确保答案和证件、行程、其他表格答案保持一致。"
+          : "Answer this according to the official form meaning and keep it consistent with documents, travel plans, and related answers.",
+    examples: deterministicExamples(field, locale),
     hints: deterministicHints(field, locale),
     officialWarnings: deterministicWarnings(field, locale),
     formatHints: deterministicFormatHints(field, locale),
@@ -525,6 +580,23 @@ function validateAnswer(
     }
   }
 
+  if (isPhotoField(field) && trimmed) {
+    const normalizedPhotoAnswer = trimmed.toLowerCase();
+    const looksLikeFileName = /\.[a-z0-9]{2,5}($|\?)/i.test(normalizedPhotoAnswer);
+    const acceptedPhotoFile =
+      normalizedPhotoAnswer.endsWith(".jpg") ||
+      normalizedPhotoAnswer.endsWith(".jpeg") ||
+      normalizedPhotoAnswer.endsWith(".png") ||
+      normalizedPhotoAnswer.endsWith(".heic") ||
+      normalizedPhotoAnswer.endsWith(".heif");
+    if (looksLikeFileName && !acceptedPhotoFile) {
+      error(
+        "照片文件格式看起来不符合常见签证照片上传要求，请使用官方页面允许的图片格式。",
+        "The photo file type does not look like a common accepted visa-photo upload format; use an image type allowed by the official page."
+      );
+    }
+  }
+
   if (field.fieldType === "date" && trimmed) {
     const date = parseDate(trimmed);
     if (!date) {
@@ -693,6 +765,9 @@ async function getStaticGuidance(
     field.label,
     field.fieldName,
     field.placeholder,
+    isPhotoField(field)
+      ? "visa photo photograph passport photo digital image upload requirements size background file format"
+      : null,
     "visa application form field requirements examples warnings",
   ]
     .filter(Boolean)

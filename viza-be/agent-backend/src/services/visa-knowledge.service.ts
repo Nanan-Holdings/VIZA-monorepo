@@ -79,13 +79,50 @@ export function documentTypesForIntent(
   if (!intent) return undefined;
   const mapping: Record<VisaKnowledgeIntent, string[]> = {
     route_recommendation: ["requirements", "process"],
-    requirements: ["requirements", "form_requirements"],
-    form_intake: ["form_requirements", "requirements", "process"],
+    requirements: ["requirements", "form_requirements", "photo_requirements"],
+    form_intake: ["form_requirements", "photo_requirements", "requirements", "process"],
     fees_timing: ["requirements", "process"],
     eligibility: ["requirements"],
-    source_check: ["requirements", "process", "form_requirements"],
+    source_check: ["requirements", "process", "form_requirements", "photo_requirements"],
   };
   return mapping[intent];
+}
+
+function normalizeCountryFilter(country?: string | null): string | null | undefined {
+  if (!country) return country;
+  const normalized = country.trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    united_states: "us",
+    usa: "us",
+    "united states": "us",
+    united_kingdom: "uk",
+    "united kingdom": "uk",
+    britain: "uk",
+    schengen_area: "france",
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+function normalizeVisaTypeFilter(visaType?: string | null): string | null | undefined {
+  if (!visaType) return visaType;
+  const normalized = visaType.trim();
+  const aliasKey = normalized.toUpperCase();
+  const aliases: Record<string, string> = {
+    DS160: "b1_b2",
+    B1_B2: "b1_b2",
+    B211A: "tourist_b211a",
+    UK_STANDARD_VISITOR: "standard_visitor",
+    EU_SCHENGEN_C_SHORT_STAY: "schengen_short_stay_tourism",
+  };
+  return aliases[aliasKey] ?? normalized;
+}
+
+function normalizeKnowledgeQuery(query: VisaKnowledgeQuery): VisaKnowledgeQuery {
+  return {
+    ...query,
+    country: normalizeCountryFilter(query.country),
+    visaType: normalizeVisaTypeFilter(query.visaType),
+  };
 }
 
 function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery {
@@ -226,7 +263,8 @@ async function retrieveWithFilteredFallback(
 export async function retrieveVisaKnowledge(
   query: VisaKnowledgeQuery
 ): Promise<VisaKnowledgeResult> {
-  const cleanQuery = query.query.trim();
+  const normalizedQuery = normalizeKnowledgeQuery(query);
+  const cleanQuery = normalizedQuery.query.trim();
   if (!cleanQuery) {
     return {
       chunks: [],
@@ -235,12 +273,12 @@ export async function retrieveVisaKnowledge(
     };
   }
 
-  const matchCount = clampMatchCount(query.matchCount);
-  const minSimilarity = query.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
+  const matchCount = clampMatchCount(normalizedQuery.matchCount);
+  const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
   const embedding = await getEmbedding(cleanQuery);
-  const intentQuery = withIntentDocumentTypes(query);
+  const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
-    !query.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
+    !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
 
   if (embedding) {
     try {
@@ -260,7 +298,7 @@ export async function retrieveVisaKnowledge(
 
       if (shouldRetryWithoutIntentDocumentTypes) {
         const broadChunks = await retrieveWithVectorSearch(
-          query,
+          normalizedQuery,
           embedding,
           matchCount,
           minSimilarity
@@ -291,7 +329,7 @@ export async function retrieveVisaKnowledge(
   }
 
   const broadFallbackChunks = shouldRetryWithoutIntentDocumentTypes
-    ? await retrieveWithFilteredFallback(query, matchCount)
+    ? await retrieveWithFilteredFallback(normalizedQuery, matchCount)
     : [];
   return {
     chunks: broadFallbackChunks,

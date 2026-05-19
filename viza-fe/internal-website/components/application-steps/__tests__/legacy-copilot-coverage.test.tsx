@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PassportStep } from "../passport-step";
 import { PersonalInfoStep } from "../personal-info-step";
+import { PhotoUploadStep } from "../photo-upload-step";
 import { TravelInfoStep } from "../travel-info-step";
 
 vi.mock("next-intl", () => ({
@@ -11,6 +12,13 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/components/field-guidance-panel", () => ({
   FieldGuidancePanel: () => <div data-testid="field-guidance-panel" />,
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: { getUser: vi.fn() },
+    storage: { from: vi.fn() },
+  }),
 }));
 
 function getCopilotFields(container: HTMLElement) {
@@ -96,5 +104,35 @@ describe("legacy application step copilot coverage", () => {
 
     fireEvent.click(arrivalCityTrigger as HTMLElement);
     expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
+  });
+
+  it("renders a consistent copilot trigger for the photo upload field", () => {
+    const { container } = render(
+      <PhotoUploadStep
+        applicationId={null}
+        country="united_states"
+        visaType="DS160"
+        onComplete={vi.fn()}
+        onSkip={vi.fn()}
+      />,
+    );
+
+    const trigger = container.querySelector<HTMLElement>(
+      '[data-copilot-trigger="photo_upload"]',
+    );
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveTextContent("问 AI");
+    expect(screen.getByText("必填项")).toBeInTheDocument();
+    expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("browse"));
+    expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(trigger as HTMLElement);
+    expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
+    expect(container.querySelector('[data-copilot-panel-frame="photo_upload"]')).toHaveClass(
+      "w-full",
+    );
+    expect(screen.queryByText("Required field")).not.toBeInTheDocument();
   });
 });
