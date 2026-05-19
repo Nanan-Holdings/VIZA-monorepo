@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Camera,
   CheckCircle2,
@@ -10,9 +10,11 @@ import {
   Loader2,
   ImageIcon,
   Crop,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { createClient } from "@/lib/supabase/client";
 import {
   validatePhoto,
@@ -20,9 +22,18 @@ import {
   type PhotoFailureReason,
 } from "@/lib/photo-validation";
 import { getPhotoGuidance } from "@/lib/photo-guidance";
+import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { PhotoCropTool } from "./photo-crop-tool";
 
 type Screen = "upload" | "quality_check" | "confirm";
+
+const PHOTO_COPILOT_FIELD_NAME = "photo_upload";
+
+function normalizePhotoVisaType(visaType?: string): string {
+  if (visaType === "B1_B2") return "DS160";
+  if (visaType === "tourist_b211a") return "B211A";
+  return visaType ?? "photo_upload";
+}
 
 export interface PhotoUploadStepProps {
   applicationId: string | null;
@@ -44,6 +55,7 @@ export function PhotoUploadStep({
   onSkip,
 }: PhotoUploadStepProps) {
   const t = useTranslations("applicationSteps.photoUpload");
+  const locale = useLocale();
   const guidance = getPhotoGuidance(country, visaType);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +75,42 @@ export function PhotoUploadStep({
     existingPhotoUrl ?? null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [photoCopilotOpen, setPhotoCopilotOpen] = useState(false);
+
+  const fieldGuidanceVisaType = normalizePhotoVisaType(visaType);
+  const photoGuidanceField = useMemo<VisaFormFieldRow>(
+    () => ({
+      id: PHOTO_COPILOT_FIELD_NAME,
+      visaType: fieldGuidanceVisaType,
+      fieldName: PHOTO_COPILOT_FIELD_NAME,
+      label: "签证照片 / Visa photo",
+      fieldType: "file",
+      required: true,
+      stepNumber: 0,
+      stepName: "Upload Photo",
+      displayOrder: 0,
+      placeholder: guidance.formatSpec,
+      validationRules: {
+        documentType: "photo",
+        format: guidance.formatSpec,
+        acceptedFileTypes: ["jpg", "jpeg"],
+      },
+      options: null,
+      conditionalLogic: null,
+    }),
+    [fieldGuidanceVisaType, guidance.formatSpec],
+  );
+  const photoCopilotAnswer = uploadedPath ?? (photoPreviewUrl ? "photo.jpg" : "");
+  const photoAllAnswers = useMemo<Record<string, string>>(
+    () => ({
+      photo_upload: photoCopilotAnswer,
+      photo_path: uploadedPath ?? "",
+      photo_status: photoCopilotAnswer ? "uploaded" : "",
+      destination_country: country ?? "",
+      visa_type: fieldGuidanceVisaType,
+    }),
+    [country, fieldGuidanceVisaType, photoCopilotAnswer, uploadedPath],
+  );
 
   // Cleanup object URLs on unmount
   useEffect(() => {
@@ -162,23 +210,71 @@ export function PhotoUploadStep({
     }
   };
 
+  const renderPhotoCopilot = () => {
+    const buttonLabel = photoCopilotOpen ? "收起 AI 帮助" : "问 AI";
+
+    return (
+      <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-[#dbe7f5] bg-[#f8fbff] p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-2">
+            <Camera className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
+            <div className="min-w-0">
+              <h3 className="text-[16px] font-semibold text-[#3d3d3d]">
+                {t("prepareTitle")}
+              </h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-medium text-[#03346E]">
+                  必填项
+                </span>
+                {!photoCopilotAnswer && (
+                  <span className="text-[13px] font-medium text-[#03346E]">
+                    照片还未上传
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setPhotoCopilotOpen((current) => !current);
+            }}
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
+            aria-expanded={photoCopilotOpen}
+            aria-label={buttonLabel}
+            data-copilot-trigger={PHOTO_COPILOT_FIELD_NAME}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            {buttonLabel}
+          </button>
+        </div>
+        <p className="text-sm leading-relaxed text-gray-600">
+          {guidance.instructions}
+        </p>
+        {photoCopilotOpen && (
+          <div className="w-full" data-copilot-panel-frame={PHOTO_COPILOT_FIELD_NAME}>
+            <FieldGuidancePanel
+              country={country}
+              visaType={fieldGuidanceVisaType}
+              locale={locale}
+              field={photoGuidanceField}
+              answer={photoCopilotAnswer}
+              allAnswers={photoAllAnswers}
+              onClose={() => setPhotoCopilotOpen(false)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ── Screen 1: Upload ──────────────────────────────────────────────────
 
   if (screen === "upload") {
     return (
       <div className="flex flex-col gap-6">
-        {/* Instructions */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Camera className="h-5 w-5 text-[#03346E]" />
-            <h3 className="text-[16px] font-semibold text-[#3d3d3d]">
-              {t("prepareTitle")}
-            </h3>
-          </div>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            {guidance.instructions}
-          </p>
-        </div>
+        {renderPhotoCopilot()}
 
         {/* Crop tool section */}
         {showCropTool && rawObjectUrl ? (
@@ -275,6 +371,8 @@ export function PhotoUploadStep({
 
     return (
       <div className="flex flex-col gap-6">
+        {renderPhotoCopilot()}
+
         <h3 className="text-[16px] font-semibold text-[#3d3d3d]">
           {t("resultTitle")}
         </h3>
@@ -384,6 +482,8 @@ export function PhotoUploadStep({
 
   return (
     <div className="flex flex-col gap-6">
+      {renderPhotoCopilot()}
+
       <h3 className="text-[16px] font-semibold text-[#3d3d3d]">
         {t("confirmTitle")}
       </h3>
