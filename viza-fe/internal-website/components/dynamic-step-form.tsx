@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Bot, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -43,11 +43,48 @@ interface BilingualTextValue {
   en: string;
 }
 
+interface FormHistorySnapshot {
+  values: Record<string, string>;
+  textPairs: Record<string, BilingualTextValue>;
+  groupCounts: Record<string, number>;
+}
+
 type FieldIssueSeverity = "ok" | "warning" | "error";
 
 interface FieldIssue {
   severity: FieldIssueSeverity;
   message: string;
+}
+
+const TEXT_EDITING_INPUT_TYPES = new Set([
+  "date",
+  "datetime-local",
+  "email",
+  "month",
+  "number",
+  "password",
+  "search",
+  "tel",
+  "text",
+  "time",
+  "url",
+  "week",
+]);
+
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return TEXT_EDITING_INPUT_TYPES.has(target.type);
+  }
+  return false;
+}
+
+function cloneTextPairs(pairs: Record<string, BilingualTextValue>): Record<string, BilingualTextValue> {
+  return Object.fromEntries(
+    Object.entries(pairs).map(([key, value]) => [key, { ...value }]),
+  );
 }
 
 function isTextLikeField(field: VisaFormFieldRow): boolean {
@@ -441,6 +478,54 @@ export function DynamicStepForm({
     return init;
   });
 
+  const valuesRef = useRef(values);
+  const textPairsRef = useRef(textPairs);
+  const groupCountsRef = useRef(groupCounts);
+  const undoStackRef = useRef<FormHistorySnapshot[]>([]);
+  const redoStackRef = useRef<FormHistorySnapshot[]>([]);
+
+  valuesRef.current = values;
+  textPairsRef.current = textPairs;
+  groupCountsRef.current = groupCounts;
+
+  const getSnapshot = (): FormHistorySnapshot => ({
+    values: { ...valuesRef.current },
+    textPairs: cloneTextPairs(textPairsRef.current),
+    groupCounts: { ...groupCountsRef.current },
+  });
+
+  const restoreSnapshot = (snapshot: FormHistorySnapshot) => {
+    valuesRef.current = snapshot.values;
+    textPairsRef.current = snapshot.textPairs;
+    groupCountsRef.current = snapshot.groupCounts;
+    setValues(snapshot.values);
+    setTextPairs(snapshot.textPairs);
+    setGroupCounts(snapshot.groupCounts);
+  };
+
+  const pushUndoSnapshot = () => {
+    undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
+    redoStackRef.current = [];
+  };
+
+  const undoLastFormChange = () => {
+    const previous = undoStackRef.current.at(-1);
+    if (!previous) return false;
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    redoStackRef.current = [...redoStackRef.current.slice(-79), getSnapshot()];
+    restoreSnapshot(previous);
+    return true;
+  };
+
+  const redoLastFormChange = () => {
+    const next = redoStackRef.current.at(-1);
+    if (!next) return false;
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
+    restoreSnapshot(next);
+    return true;
+  };
+
   const repeatGroupFields = useMemo(() => {
     const map: Record<string, VisaFormFieldRow[]> = {};
     for (const field of step.fields) {
@@ -491,7 +576,11 @@ export function DynamicStepForm({
     [step.fields, values]
   );
 
-  const handleChange = (fieldName: string, value: string) => {
+  const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
+    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== value) {
+      pushUndoSnapshot();
+    }
+
     setValues((prev) => {
       const next = { ...prev, [fieldName]: value };
       const dependents = getDependentFields(fieldName);
@@ -518,19 +607,25 @@ export function DynamicStepForm({
         }
       }
 
+      valuesRef.current = next;
       return next;
     });
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
-    const currentPair = textPairs[fieldName] ?? toInitialBilingualText(values[fieldName]);
+    const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
       ? { zh: value, en: toOfficialEnglishValue(value) }
       : { zh: toChineseSourceValue(value), en: value };
-    setTextPairs((prev) => ({ ...prev, [fieldName]: nextPair }));
+    if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
+
+    pushUndoSnapshot();
+    const nextTextPairs = { ...textPairsRef.current, [fieldName]: nextPair };
+    textPairsRef.current = nextTextPairs;
+    setTextPairs(nextTextPairs);
 
     const officialValue = nextPair.en || nextPair.zh || currentPair.en || currentPair.zh;
-    handleChange(fieldName, officialValue);
+    handleChange(fieldName, officialValue, { recordUndo: false });
   };
 
   const addGroupInstance = (group: string) => {
@@ -538,14 +633,20 @@ export function DynamicStepForm({
     const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
     if (currentCount >= max) return;
 
+    pushUndoSnapshot();
     const count = currentCount + 1;
-    setGroupCounts((prev) => ({ ...prev, [group]: count }));
+    setGroupCounts((prev) => {
+      const next = { ...prev, [group]: count };
+      groupCountsRef.current = next;
+      return next;
+    });
     // Initialize empty values for the new instance
     setValues((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
         next[instanceKey(field.fieldName, count - 1)] = "";
       }
+      valuesRef.current = next;
       return next;
     });
     setTextPairs((prev) => {
@@ -555,6 +656,7 @@ export function DynamicStepForm({
           next[instanceKey(field.fieldName, count - 1)] = { zh: "", en: "" };
         }
       }
+      textPairsRef.current = next;
       return next;
     });
   };
@@ -562,6 +664,8 @@ export function DynamicStepForm({
   const removeGroupInstance = (group: string, instanceIdx: number) => {
     const count = groupCounts[group] ?? 1;
     if (count <= 1) return;
+
+    pushUndoSnapshot();
     setValues((prev) => {
       const next = { ...prev };
       const fields = repeatGroupFields[group] ?? [];
@@ -575,6 +679,7 @@ export function DynamicStepForm({
       for (const field of fields) {
         delete next[instanceKey(field.fieldName, count - 1)];
       }
+      valuesRef.current = next;
       return next;
     });
     setTextPairs((prev) => {
@@ -592,9 +697,30 @@ export function DynamicStepForm({
           delete next[instanceKey(field.fieldName, count - 1)];
         }
       }
+      textPairsRef.current = next;
       return next;
     });
-    setGroupCounts((prev) => ({ ...prev, [group]: count - 1 }));
+    setGroupCounts((prev) => {
+      const next = { ...prev, [group]: count - 1 };
+      groupCountsRef.current = next;
+      return next;
+    });
+  };
+
+  const handleKeyboardShortcuts = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const hasShortcutModifier = event.ctrlKey || event.metaKey;
+    if (!hasShortcutModifier || event.altKey || isTextEditingTarget(event.target)) return;
+
+    const key = event.key.toLowerCase();
+    const undoRequested = key === "z" && !event.shiftKey;
+    const redoRequested = key === "y" || (key === "z" && event.shiftKey);
+    if (!undoRequested && !redoRequested) return;
+
+    const handled = undoRequested ? undoLastFormChange() : redoLastFormChange();
+    if (!handled) return;
+
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -795,7 +921,7 @@ export function DynamicStepForm({
   const renderedBlockGroups = new Set<string>();
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
       {step.fields.map((field) => {
         // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
         if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
