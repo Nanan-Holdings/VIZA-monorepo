@@ -375,16 +375,16 @@ function BilingualRow({
   const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
 
   return (
-    <div className="grid min-w-0 gap-6 px-4 py-6 md:grid-cols-2">
+    <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
       <div className="min-w-0">
-        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.zh}
           {requiredMark}
         </span>
         {zhControl}
       </div>
       <div className="min-w-0">
-        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.en}
           {requiredMark}
         </span>
@@ -695,7 +695,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="divide-y divide-[#eef1f5]">
           <BilingualRow
             label={t("personalInfo.surname")}

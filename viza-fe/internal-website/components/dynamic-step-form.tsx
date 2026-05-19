@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { AlertCircle, Bot, CheckCircle2, HelpCircle, Plus, Trash2 } from "lucide-react";
+import { Bot, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
@@ -737,17 +737,17 @@ export function DynamicStepForm({
       <div
         key={valueKey}
         className={cn(
-          "py-4 transition-colors",
+          "py-3 transition-colors",
           panelOpen ? "bg-[#fbfdff]" : "",
         )}
       >
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2">
           {renderSide("zh")}
           {renderSide("en")}
         </div>
-        <div className="mt-3 grid min-w-0 gap-4 md:grid-cols-2">
+        <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
           <div aria-hidden="true" className="hidden md:block" />
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-2">
             {issue.severity !== "ok" && (
               <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                 {issue.message}
@@ -760,11 +760,12 @@ export function DynamicStepForm({
                 setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
               }}
               className={cn(
-                "inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-[13px] font-medium transition-colors",
+                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
                 copilotButtonClasses(),
               )}
               aria-expanded={panelOpen}
               aria-label={buttonLabel}
+              data-copilot-trigger={valueKey}
             >
               <Bot className="h-3.5 w-3.5" />
               {buttonLabel}
@@ -772,7 +773,7 @@ export function DynamicStepForm({
           </div>
         </div>
         {panelOpen && (
-          <div className="mt-3 w-full" data-copilot-panel-frame={valueKey}>
+          <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
             <FieldGuidancePanel
               country={country}
               visaType={resolvedVisaType}
@@ -794,7 +795,7 @@ export function DynamicStepForm({
   const renderedBlockGroups = new Set<string>();
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       {step.fields.map((field) => {
         // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
         if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
@@ -826,7 +827,7 @@ export function DynamicStepForm({
             return (
               <div
                 key={`block-${bg}`}
-                className="flex flex-col gap-4"
+                className="flex flex-col gap-3"
               >
                 {blockFields.map((f) => {
                   const inlineInBlock = getInlineGroup(f);
@@ -836,7 +837,7 @@ export function DynamicStepForm({
                     const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
                     if (inlineFields.length <= 1) return renderField(f, f.fieldName, true);
                     return (
-                      <div key={`inline-${inlineInBlock}`} className="grid gap-4">
+                      <div key={`inline-${inlineInBlock}`} className="grid gap-3">
                         {inlineFields.map((x) => renderField(x, x.fieldName, true))}
                       </div>
                     );
@@ -866,7 +867,7 @@ export function DynamicStepForm({
             }
 
             return (
-              <div key={`inline-${ig}`} className="grid gap-4">
+              <div key={`inline-${ig}`} className="grid gap-3">
                 {inlineFields.map((f) => renderField(f, f.fieldName))}
               </div>
             );
@@ -892,7 +893,7 @@ export function DynamicStepForm({
             {Array.from({ length: count }, (_, instanceIdx) => (
               <div
                 key={`${group}-${instanceIdx}`}
-                className="flex flex-col gap-4"
+                className="flex flex-col gap-3"
               >
                 {count > 1 && (
                   <div className="flex items-center justify-between">
@@ -912,7 +913,7 @@ export function DynamicStepForm({
                 {groupFieldsInline(visibleGroupFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-4">
+                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-3">
                         {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
                       </div>
                     );

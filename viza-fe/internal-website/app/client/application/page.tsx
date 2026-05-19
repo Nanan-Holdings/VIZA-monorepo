@@ -1,8 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { Loader2, Check, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, FileText, Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -33,7 +34,7 @@ import {
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import { getFormVisaType, getVisaPackageTitleZh } from "@/lib/visa-destinations";
 import { getChineseLabel, translateLabel } from "@/lib/ds160-translations";
-import { ApplicationStatusHub } from "@/components/client/application/application-status-hub";
+import { getApplicationLifecycleSummaries } from "@/app/actions/application-lifecycle";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -829,13 +830,10 @@ export default function ApplicationPage() {
     null;
   const requestedView = searchParams.get("view");
   const requestedApplicationId = searchParams.get("applicationId")?.trim() || null;
-  const shouldShowLifecycle =
-    requestedView === "detail" || (!requestedCountry && !requestedVisaType && !jumpToReview);
 
-  if (shouldShowLifecycle) {
+  if (requestedView === "detail") {
     return (
-      <ApplicationStatusHub
-        mode={requestedView === "detail" ? "detail" : "overview"}
+      <ApplicationStatusRedirect
         applicationId={requestedApplicationId}
         country={requestedCountry}
         visaType={requestedVisaType}
@@ -843,7 +841,117 @@ export default function ApplicationPage() {
     );
   }
 
+  if (!requestedCountry && !requestedVisaType && !jumpToReview) return <RecentApplicationRedirect />;
+
   return <ApplicationFormPage />;
+}
+
+function buildFormHref(country: string, visaType: string): string {
+  return `/client/application?country=${encodeURIComponent(country)}&visaType=${encodeURIComponent(visaType)}`;
+}
+
+function isStartedSummary(summary: {
+  applicationId: string | null;
+  status: string;
+  formAnswerCount: number;
+  latestSubmission: unknown;
+  submittedAt: string | null;
+  confirmationNumber: string | null;
+  receiptUrl: string | null;
+}) {
+  return Boolean(summary.applicationId) && (
+    summary.status !== "not_started" ||
+    summary.formAnswerCount > 0 ||
+    Boolean(summary.latestSubmission) ||
+    Boolean(summary.submittedAt) ||
+    Boolean(summary.confirmationNumber) ||
+    Boolean(summary.receiptUrl)
+  );
+}
+
+function ApplicationStatusRedirect({
+  applicationId,
+  country,
+  visaType,
+}: {
+  applicationId: string | null;
+  country: string | null;
+  visaType: string | null;
+}) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams({ view: "detail" });
+    if (applicationId) params.set("applicationId", applicationId);
+    if (country) params.set("country", country);
+    if (visaType) params.set("visaType", visaType);
+    router.replace(`/client/documents?${params.toString()}`);
+  }, [applicationId, country, router, visaType]);
+
+  return (
+    <div className="flex min-h-[52vh] flex-col items-center justify-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+    </div>
+  );
+}
+
+function RecentApplicationRedirect() {
+  const router = useRouter();
+  const t = useTranslations("application");
+  const [isLoadingLatest, setIsLoadingLatest] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function redirectToLatestStartedForm() {
+      const result = await getApplicationLifecycleSummaries();
+      if (!isMounted) return;
+
+      const latestStartedApplication = result.summaries.find(isStartedSummary);
+      const targetApplication = latestStartedApplication ?? result.summaries[0];
+      if (targetApplication) {
+        router.replace(buildFormHref(targetApplication.country, targetApplication.visaType));
+        return;
+      }
+
+      setIsLoadingLatest(false);
+    }
+
+    void redirectToLatestStartedForm();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  if (isLoadingLatest) {
+    return (
+      <div className="flex min-h-[52vh] flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+        <p className="text-[14px] font-medium text-[#66758a]">{t("findingRecentApplication")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex min-h-[52vh] w-full max-w-[620px] flex-col items-center justify-center text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#eef3fa] text-[#03346E]">
+        <FileText className="h-6 w-6" />
+      </div>
+      <h1 className="mt-4 font-heading text-[26px] font-medium text-[#26364a]">
+        {t("noRecentStartedTitle")}
+      </h1>
+      <p className="mt-2 max-w-md text-[14px] leading-6 text-[#66758a]">
+        {t("noRecentStartedBody")}
+      </p>
+      <Link
+        href="/client/home"
+        className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#03346E] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#052b58]"
+      >
+        {t("chooseDestination")}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
 }
 
 function ApplicationFormPage() {
@@ -1524,7 +1632,7 @@ function ApplicationFormPage() {
     : t("title");
 
   return (
-    <div className="flex min-h-0 pt-3 lg:-ml-5">
+    <div className="mx-auto flex min-h-0 w-full max-w-[1090px] gap-4 pt-3 lg:gap-6">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar
@@ -1539,8 +1647,8 @@ function ApplicationFormPage() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5">
-        <div className="mx-auto max-w-xl sm:max-w-2xl md:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
+      <main className="min-w-0 flex-1 bg-[#fcfcfc] p-0 lg:-mt-5">
+        <div className="w-full min-w-0">
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
@@ -1555,7 +1663,7 @@ function ApplicationFormPage() {
           )}
 
           {/* Page header */}
-          <div className="mb-8 sm:mb-12">
+          <div className="mb-5 sm:mb-6">
             <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
               {pageTitle}
             </h1>
@@ -1574,7 +1682,7 @@ function ApplicationFormPage() {
           )}
 
           {/* Step cards */}
-          <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
+          <div className="flex flex-col gap-5 sm:gap-6">
             {effectiveSteps.map((step) => {
               const isActive = step.id === currentStep;
 
@@ -1588,7 +1696,7 @@ function ApplicationFormPage() {
                     {step.name}
                   </h2>
                   {/* Panel card */}
-                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
+                  <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-5 md:p-6">
                     {useDynamic ? (
                       /* Dynamic DB-driven form + photo/review/status steps */
                       <>

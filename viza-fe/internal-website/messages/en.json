@@ -220,6 +220,10 @@
     "title": "Indonesia Tourist Visa B211A",
     "saving": "Saving...",
     "edit": "Edit",
+    "findingRecentApplication": "Opening your most recent application form...",
+    "noRecentStartedTitle": "No application selected yet",
+    "noRecentStartedBody": "Choose a destination from Home first. After that, Application will reopen your latest active form.",
+    "chooseDestination": "Choose a destination from Home",
     "stepOf": "Step {current} of {total}: {name}",
     "steps": {
       "personalInfo": { "name": "Personal Info", "description": "Full name, date of birth, nationality" },
