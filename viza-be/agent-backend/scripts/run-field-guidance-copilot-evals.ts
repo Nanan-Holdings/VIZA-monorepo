@@ -238,6 +238,64 @@ function buildGuidanceCases(fields: DbFieldRow[]): EvalCase[] {
   );
 }
 
+function buildSyntheticPhotoFields(): DbFieldRow[] {
+  const base = {
+    id: "synthetic-photo-upload",
+    field_name: "photo_upload",
+    label: "签证照片 / Visa photo",
+    field_type: "file" as const,
+    required: true,
+    step_number: 99,
+    step_name: "Upload Photo",
+    display_order: 1,
+    placeholder: "JPG/JPEG passport-style photo",
+    validation_rules: {
+      documentType: "photo",
+      format: "Official destination photo requirements",
+      acceptedFileTypes: ["jpg", "jpeg", "png"],
+    },
+    options: null,
+    conditional_logic: null,
+  };
+
+  return [
+    { ...base, id: `${base.id}-us`, visa_type: "DS160" },
+    { ...base, id: `${base.id}-indonesia`, visa_type: "B211A" },
+    { ...base, id: `${base.id}-schengen`, visa_type: "EU_SCHENGEN_C_SHORT_STAY" },
+  ];
+}
+
+function buildPhotoSpecificCases(fields: DbFieldRow[]): EvalCase[] {
+  return fields.flatMap((field) => [
+    {
+      name: "photo:empty-required",
+      locale: "zh" as const,
+      field,
+      answer: "",
+      allAnswers: baseAnswers(field, ""),
+      question: "照片应该怎么上传？不要使用Markdown。",
+      expectedSeverity: "warning" as const,
+    },
+    {
+      name: "photo:invalid-file-type",
+      locale: "en" as const,
+      field,
+      answer: "visa-photo.pdf",
+      allAnswers: baseAnswers(field, "visa-photo.pdf"),
+      question: "Why is this photo upload wrong?",
+      expectedSeverity: "error" as const,
+    },
+    {
+      name: "photo:accepted-upload",
+      locale: "en" as const,
+      field,
+      answer: "visa-photo.jpg",
+      allAnswers: baseAnswers(field, "visa-photo.jpg"),
+      question: "Is this photo field ready?",
+    },
+  ]);
+}
+
 function buildInvalidCases(fields: DbFieldRow[]): EvalCase[] {
   const cases: EvalCase[] = [];
 
@@ -579,15 +637,17 @@ async function main(): Promise<void> {
   const { data, error } = await query;
   if (error) throw new Error(`Failed to load visa_form_fields: ${error.message}`);
 
-  const fields = (data ?? []) as DbFieldRow[];
-  if (fields.length === 0) throw new Error("No visa_form_fields rows found for evaluation.");
+  const dbFields = (data ?? []) as DbFieldRow[];
+  if (dbFields.length === 0) throw new Error("No visa_form_fields rows found for evaluation.");
+  const photoFields = buildSyntheticPhotoFields();
+  const fields = [...dbFields, ...photoFields];
 
   const counters: EvalCounters = {
     totalCases: 0,
     guidanceCases: 0,
     invalidCases: 0,
     crossFieldCases: 0,
-    fields: fields.length,
+    fields: dbFields.length,
     visaTypes: {},
   };
 
@@ -598,9 +658,10 @@ async function main(): Promise<void> {
   const guidanceCases = buildGuidanceCases(fields);
   const invalidCases = buildInvalidCases(fields);
   const crossFieldCases = buildCrossFieldCases(fields);
-  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases];
+  const photoCases = buildPhotoSpecificCases(photoFields);
+  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases, ...photoCases];
   counters.guidanceCases = guidanceCases.length;
-  counters.invalidCases = invalidCases.length;
+  counters.invalidCases = invalidCases.length + photoCases.length;
   counters.crossFieldCases = crossFieldCases.length;
   counters.totalCases = cases.length;
 

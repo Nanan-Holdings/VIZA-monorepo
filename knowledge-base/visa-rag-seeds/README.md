@@ -14,9 +14,12 @@ Run from `viza-be/agent-backend`:
 npm run ingest:all-visa-rag
 npm run ingest:country-visa-rag -- --country japan
 npm run ingest:country-visa-rag -- --countries japan,us,indonesia
+npm run ingest:photo-requirements-rag
 ```
 
 The ingestion writes all chunks to the shared `visa_documents` and `visa_chunks` tables. The files are independent source assets; the runtime RAG store remains shared so retrieval can still search across countries when a user asks a multi-destination question.
+
+`ingest:photo-requirements-rag` crawls the official source URLs in the country seeds plus curated official photo-specification pages, then writes `documentType: "photo_requirements"` chunks for field-level upload guidance. Use `--dry-run` to verify crawl coverage without writing to Supabase, or `--countries us,uk,france` to limit the ingest.
 
 ## Rules
 

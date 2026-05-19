@@ -233,7 +233,7 @@ function VerticalStepSidebar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <aside className="w-[260px] shrink-0 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="hidden min-w-0 px-1 pt-9 lg:flex lg:flex-col z-10 overflow-y-auto overflow-x-visible">
       <div className="relative">
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
@@ -251,9 +251,9 @@ function VerticalStepSidebar({
               key={step.id}
               onClick={() => onStepClick(step.id)}
               className={cn(
-                "rounded-xl border border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
+                "box-border rounded-xl border-2 border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
                 isSelected
-                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  ? "border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                   : "hover:border-gray-300",
               )}
             >
@@ -399,7 +399,7 @@ function GroupedStepSidebar({
   }, []);
 
   return (
-    <aside className="w-[260px] shrink-0 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="hidden min-w-0 px-1 pt-9 lg:flex lg:flex-col z-10 overflow-y-auto overflow-x-visible">
       <div className="space-y-3">
         {sections.map((section) => {
           if (section.steps.length === 1) {
@@ -414,9 +414,9 @@ function GroupedStepSidebar({
                 key={section.key}
                 onClick={() => onStepClick(step.id)}
                 className={cn(
-                  "rounded-xl border border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
+                  "box-border rounded-xl border-2 border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
                   isSelected
-                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    ? "border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                     : "hover:border-gray-300",
                 )}
               >
@@ -459,9 +459,9 @@ function GroupedStepSidebar({
             <section
               key={section.key}
               className={cn(
-                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
+                "box-border rounded-xl border-2 bg-white overflow-hidden transition-all duration-200",
                 activeInSection
-                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  ? "border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                   : "border-[#efefef] hover:border-gray-300 hover:shadow-sm"
               )}
             >
@@ -646,9 +646,9 @@ function GroupedMobileStepBar({
                 type="button"
                 onClick={() => onStepClick(step.id)}
                 className={cn(
-                  "w-full rounded-xl border bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer",
+                  "box-border w-full rounded-xl border-2 bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer",
                   status === "in_progress"
-                    ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                    ? "border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                     : "border-[#efefef] active:bg-gray-50"
                 )}
               >
@@ -692,9 +692,9 @@ function GroupedMobileStepBar({
             <section
               key={section.key}
               className={cn(
-                "rounded-xl border bg-white overflow-hidden transition-all duration-200",
+                "box-border rounded-xl border-2 bg-white overflow-hidden transition-all duration-200",
                 activeInSection
-                  ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
+                  ? "border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                   : "border-[#efefef] active:bg-gray-50"
               )}
             >
@@ -1632,7 +1632,7 @@ function ApplicationFormPage() {
     : t("title");
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-[1090px] gap-4 pt-3">
+    <div className="mx-auto grid min-h-0 w-full max-w-[1090px] grid-cols-1 gap-4 pt-3 lg:grid-cols-[clamp(220px,21vw,250px)_minmax(0,1fr)] xl:gap-6">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar

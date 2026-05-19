@@ -25,6 +25,7 @@
 		"db:migrate": "tsx src/db/migrate.ts",
 		"ingest:country-visa-rag": "tsx scripts/ingest-country-visa-rag.ts",
 		"ingest:all-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --all",
+		"ingest:photo-requirements-rag": "tsx scripts/ingest-photo-requirements-rag.ts",
 		"ingest:indonesia-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --country indonesia",
 		"ingest:us-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --country us",
 		"ingest:supported-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --all",
