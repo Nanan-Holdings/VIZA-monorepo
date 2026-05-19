@@ -12,7 +12,7 @@ function getFormString(formData: FormData, key: string): string {
 }
 
 function safeReturnTo(value: string, applicationId: string): string {
-  if (value.startsWith(`/admin/applications/${applicationId}`)) return value;
+  if (value.startsWith("/admin/applications/")) return value;
   return `/admin/applications/${applicationId}`;
 }
 

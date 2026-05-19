@@ -25,6 +25,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { adminSignOut } from "@/app/actions/auth";
 import { useState, useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
+import { AdminSupportChatWidget } from "./admin-support-chat-widget";
 
 interface RouteChild {
   label: string;
@@ -325,6 +326,7 @@ export default function AdminLayoutContent({
           {children}
         </main>
       </div>
+      <AdminSupportChatWidget />
     </div>
   );
 }

@@ -21,6 +21,8 @@ website automation monitoring, coverage, and billing support.
   automation capability flags.
 - `(dashboard)/billing/**`: payment, receipt, invoice, and refund support
   visibility.
+- `admin-support-chat-widget.tsx`: global floating customer conversation
+  widget for staff to handle multiple user chats while reviewing admin pages.
 - `(dashboard)/orders/page.tsx`: order management.
 - `(dashboard)/products/page.tsx`: product management.
 - `(dashboard)/cal-bookings/page.tsx`: consultation bookings.
@@ -54,6 +56,7 @@ dashboard routes redirect to `/admin/login`.
 - `viza-fe/internal-website/app/admin/login/page.tsx`
 - `viza-fe/internal-website/app/admin/(dashboard)/layout.tsx`
 - `viza-fe/internal-website/app/admin/admin-layout-content.tsx`
+- `viza-fe/internal-website/app/admin/admin-support-chat-widget.tsx`
 - `viza-fe/internal-website/app/admin/(dashboard)/applications/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/packages/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`
