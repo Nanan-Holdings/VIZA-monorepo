@@ -7,6 +7,14 @@ const withNextIntl = createNextIntlPlugin();
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+      },
+    ],
+  },
   output: "standalone",
   turbopack: {
     root: projectRoot,
