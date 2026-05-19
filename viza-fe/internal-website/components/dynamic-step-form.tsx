@@ -151,17 +151,17 @@ function getLocalFieldIssue(
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
   if (field.required && !trimmed) {
-    return issue("warning", "Required field");
+    return issue("warning", "必填项");
   }
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
-    return issue("error", `Over ${rules.maxLength} characters`);
+    return issue("error", `最多 ${rules.maxLength} 个字符`);
   }
 
   if (rules?.pattern && trimmed) {
     try {
       if (!new RegExp(rules.pattern).test(trimmed)) {
-        return issue("error", "Format issue");
+        return issue("error", "格式不符合要求");
       }
     } catch {
       // Ignore malformed schema regexes here; the backend logs them.
@@ -179,12 +179,12 @@ function getLocalFieldIssue(
         option.value.toLowerCase() === trimmed.toLowerCase() ||
         option.text.toLowerCase() === trimmed.toLowerCase(),
     );
-    if (!optionMatch) return issue("error", "Option mismatch");
+    if (!optionMatch) return issue("error", "请选择题目提供的选项");
   }
 
   const currentDate = field.fieldType === "date" ? parseFlexibleDate(trimmed) : null;
   if (field.fieldType === "date" && trimmed && !currentDate) {
-    return issue("error", "Date format issue");
+    return issue("error", "日期格式不符合要求");
   }
 
   if (
@@ -192,7 +192,7 @@ function getLocalFieldIssue(
     (valueKey.toLowerCase().includes("birth") || field.fieldName.toLowerCase().includes("birth")) &&
     currentDate > new Date()
   ) {
-    return issue("error", "Future birth date");
+    return issue("error", "出生日期不能晚于今天");
   }
 
   const issueDate = parseFlexibleDate(findAnswerValue(values, [
@@ -210,7 +210,7 @@ function getLocalFieldIssue(
   ]) ?? undefined);
 
   if (issueDate && expiryDate && expiryDate <= issueDate) {
-    return issue("error", "Expiry before issue date");
+    return issue("error", "到期日必须晚于签发日");
   }
 
   const arrivalDate = parseFlexibleDate(findAnswerValue(values, [
@@ -225,13 +225,13 @@ function getLocalFieldIssue(
   ]) ?? undefined);
 
   if (arrivalDate && departureDate && departureDate <= arrivalDate) {
-    return issue("error", "Departure before arrival");
+    return issue("error", "离开日期必须晚于到达日期");
   }
   if (arrivalDate && expiryDate && expiryDate < arrivalDate) {
-    return issue("error", "Document expires before travel");
+    return issue("error", "证件到期日在旅行日期之前");
   }
   if (arrivalDate && expiryDate && expiryDate < addMonths(arrivalDate, 6)) {
-    return issue("warning", "Document expires within 6 months of travel");
+    return issue("warning", "证件有效期距离旅行日期不足 6 个月");
   }
 
   const currentNationality = findAnswerValue(values, ["current_nationality", "nationality_country", "nationality"]);
@@ -243,16 +243,19 @@ function getLocalFieldIssue(
     nationalityDifferent?.toLowerCase() === "no" &&
     currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase()
   ) {
-    return issue("warning", "Nationality answers may conflict");
+    return issue("warning", "国籍相关答案可能不一致");
   }
 
-  return issue("ok", "AI guidance");
+  return issue("ok", "AI 填写帮助");
 }
 
-function issueButtonClasses(severity: FieldIssueSeverity): string {
-  if (severity === "error") return "border-red-200 bg-red-50 text-red-700 hover:bg-red-100";
-  if (severity === "warning") return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E] hover:bg-[#e3f0ff]";
-  return "border-[#dbe7f5] bg-[#f8fbff] text-[#03346E] hover:bg-[#eef6ff]";
+function issueMessageClasses(severity: FieldIssueSeverity): string {
+  if (severity === "error") return "text-red-600";
+  return "text-[#03346E]";
+}
+
+function copilotButtonClasses(): string {
+  return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E] hover:bg-[#e3f0ff]";
 }
 
 /** Helper: get the repeat_group name from a field's validationRules */
@@ -728,16 +731,7 @@ export function DynamicStepForm({
     const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values);
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
-    const buttonLabel = panelOpen
-      ? locale.startsWith("zh") ? "收起 AI 帮助" : "Hide AI help"
-      : issue.severity === "ok"
-        ? locale.startsWith("zh") ? "问 AI" : "Ask AI"
-        : locale.startsWith("zh") ? "查看提示" : "Review tip";
-    const IssueIcon = issue.severity === "error"
-      ? AlertCircle
-      : issue.severity === "warning"
-        ? HelpCircle
-        : CheckCircle2;
+    const buttonLabel = panelOpen ? "收起 AI 帮助" : "问 AI";
 
     return (
       <div
@@ -755,7 +749,7 @@ export function DynamicStepForm({
           <div aria-hidden="true" className="hidden md:block" />
           <div className="flex items-center justify-end gap-3">
             {issue.severity !== "ok" && (
-              <span className={cn("text-[13px] font-medium", issue.severity === "error" ? "text-red-600" : "text-[#03346E]")}>
+              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                 {issue.message}
               </span>
             )}
@@ -767,18 +761,18 @@ export function DynamicStepForm({
               }}
               className={cn(
                 "inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-[13px] font-medium transition-colors",
-                issueButtonClasses(issue.severity),
+                copilotButtonClasses(),
               )}
               aria-expanded={panelOpen}
               aria-label={buttonLabel}
             >
-              {issue.severity === "ok" ? <Bot className="h-3.5 w-3.5" /> : <IssueIcon className="h-3.5 w-3.5" />}
+              <Bot className="h-3.5 w-3.5" />
               {buttonLabel}
             </button>
           </div>
         </div>
         {panelOpen && (
-          <div className="mt-3">
+          <div className="mt-3 w-full" data-copilot-panel-frame={valueKey}>
             <FieldGuidancePanel
               country={country}
               visaType={resolvedVisaType}

@@ -62,6 +62,15 @@ Only run type-check for packages you modified. Do NOT run `npm install` unless a
 
 Every user-facing feature or bug fix must be self-tested before reporting completion. Run the relevant automated checks and at least one route/component smoke test that exercises the changed behavior. If a full authenticated flow cannot be tested in the current environment, run the closest possible Playwright route smoke and clearly report the remaining authenticated/manual verification gap.
 
+## Module AGENTS.md Maintenance
+
+- When a module or major feature area is completed, create or update an `AGENTS.md` inside that module directory so future agents can continue safely from local context.
+- Each module-level `AGENTS.md` must include the module scope, purpose, key flows, ownership boundaries, validation commands, and all related files with their repo-relative paths.
+- At minimum, list every important source file, route, action/API handler, component, test, migration, seed/config file, and documentation file that the module depends on.
+- Whenever a file is added, deleted, moved, or renamed, update the nearest relevant module-level `AGENTS.md` in the same change. If no module-level file exists yet and the change completes a coherent module, create it.
+- Whenever a new important cross-module rule is introduced, update this root `AGENTS.md` and any affected module-level `AGENTS.md`.
+- After finishing any user-facing feature, run automated checks plus Playwright or direct browser verification before reporting completion. If browser verification cannot cover the full authenticated flow, run the closest available route/component smoke and explicitly report the remaining gap.
+
 ## Key Conventions
 
 - Supabase service role client: use `getSupabaseClient()` from `src/db/supabase-client.ts` in agent-backend

@@ -208,7 +208,7 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
   };
 
   return (
-    <div className="mt-3 flex flex-col gap-3">
+    <div className="mt-3 flex w-full flex-col gap-3">
       <div className="flex items-center justify-end gap-3">
         {config.required && (
           <span className="text-[13px] font-medium text-[#03346E]">
@@ -273,8 +273,12 @@ export function BilingualRow({
           {requiredMark}
         </span>
         {enControl}
-        {copilot && <BilingualFieldCopilot config={copilot} />}
       </div>
+      {copilot && (
+        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={copilot.fieldName}>
+          <BilingualFieldCopilot config={copilot} />
+        </div>
+      )}
     </div>
   );
 }

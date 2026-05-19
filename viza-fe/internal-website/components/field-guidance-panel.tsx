@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   Bot,
@@ -87,6 +87,10 @@ function renderPlainText(content: string) {
   ));
 }
 
+function sourceIdentity(source: FieldGuidanceResponse["sources"][number]): string {
+  return [source.title.trim(), source.url?.trim() ?? "", source.excerpt.trim()].join("|");
+}
+
 function SectionList({
   title,
   items,
@@ -103,15 +107,15 @@ function SectionList({
       <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
         {title}
       </h4>
-      <div className={compact ? "flex flex-wrap gap-2" : "flex flex-col gap-1.5"}>
+      <div className={compact ? "flex min-w-0 flex-wrap gap-2" : "flex min-w-0 flex-col gap-1.5"}>
         {items.map((item, index) => {
           const plainItem = normalizePlainTextContent(item);
           return (
             <span
               key={`${item}-${index}`}
               className={compact
-                ? "rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
-                : "text-[13px] leading-5 text-[#4b5563]"}
+                ? "min-w-0 break-words rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
+                : "min-w-0 break-words text-[13px] leading-5 text-[#4b5563]"}
             >
               {compact ? plainItem : `• ${plainItem}`}
             </span>
@@ -160,6 +164,16 @@ export function FieldGuidancePanel({
     }),
     [isZh],
   );
+  const visibleSources = useMemo(() => {
+    if (!data) return [];
+    const seen = new Set<string>();
+    return data.sources.filter((source) => {
+      const key = sourceIdentity(source);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [data]);
 
   const fetchGuidance = useCallback(
     async (nextQuestion?: string) => {
@@ -204,18 +218,30 @@ export function FieldGuidancePanel({
     void fetchGuidance();
   }, [fetchGuidance]);
 
-  const handleAsk = () => {
+  const handleAsk = useCallback(() => {
     const trimmed = question.trim();
     if (!trimmed || questionLoading) return;
     setLastQuestion(trimmed);
     void fetchGuidance(trimmed);
     setQuestion("");
-  };
+  }, [fetchGuidance, question, questionLoading]);
+
+  const handleQuestionKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+      if (event.shiftKey && !event.ctrlKey && !event.metaKey) return;
+
+      event.preventDefault();
+      handleAsk();
+    },
+    [handleAsk],
+  );
 
   return (
     <div
-      className="rounded-lg border border-[#dbe7f5] bg-[#f8fbff] p-4 shadow-sm"
+      className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-[#dbe7f5] bg-[#f8fbff] p-4 shadow-sm sm:p-5"
       onClick={(event) => event.stopPropagation()}
+      data-field-guidance-panel={field.fieldName}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
@@ -274,112 +300,120 @@ export function FieldGuidancePanel({
       )}
 
       {data && !loading && (
-        <div className="mt-4 flex flex-col gap-4">
-          <div className={cn("flex items-start gap-2 rounded-lg border p-3 text-[13px]", severityClasses(data.validation.severity))}>
-            <SeverityIcon severity={data.validation.severity} />
-            <div className="flex flex-col gap-1">
-              {data.validation.messages.map((message) => (
-                <span key={message}>{message}</span>
-              ))}
+        <div className="mt-4 grid min-w-0 gap-5">
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className={cn("flex items-start gap-2 rounded-lg border p-3 text-[13px]", severityClasses(data.validation.severity))}>
+              <SeverityIcon severity={data.validation.severity} />
+              <div className="flex flex-col gap-1">
+                {data.validation.messages.map((message, index) => (
+                  <span className="min-w-0 break-words" key={`${message}-${index}`}>{message}</span>
+                ))}
+              </div>
+            </div>
+
+            <p className="min-w-0 break-words text-[13px] leading-5 text-[#3f4652]">
+              {renderPlainText(data.guidance.summary)}
+            </p>
+
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+              <SectionList title={labels.examples} items={data.guidance.examples} compact />
+              <SectionList title={labels.format} items={data.guidance.formatHints} compact />
+              <SectionList title={labels.hints} items={data.guidance.hints} />
+              <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
             </div>
           </div>
 
-          <p className="text-[13px] leading-5 text-[#3f4652]">
-            {renderPlainText(data.guidance.summary)}
-          </p>
-
-          <SectionList title={labels.examples} items={data.guidance.examples} compact />
-          <SectionList title={labels.hints} items={data.guidance.hints} />
-          <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
-          <SectionList title={labels.format} items={data.guidance.formatHints} compact />
-
-          {(lastQuestion || data.reply || questionLoading) && (
-            <section className="rounded-xl border border-[#d8e2ef] bg-white p-3">
-              <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-[#03346E]">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </span>
-                VIZA AI
-              </div>
-              <div className="flex flex-col gap-3">
-                {lastQuestion && (
-                  <div className="flex justify-end">
-                    <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
-                      {renderPlainText(lastQuestion)}
+          <div className="flex min-w-0 flex-col gap-4">
+            {(lastQuestion || data.reply || questionLoading) && (
+              <section className="rounded-xl border border-[#d8e2ef] bg-white p-3">
+                <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-[#03346E]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </span>
+                  VIZA AI
+                </div>
+                <div className="flex flex-col gap-3">
+                  {lastQuestion && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
+                        {renderPlainText(lastQuestion)}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
+                      <Bot className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
+                      {questionLoading ? (
+                        <span className="inline-flex items-center gap-2 text-[#697386]">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {isZh ? "正在回答..." : "Replying..."}
+                        </span>
+                      ) : data.reply ? (
+                        renderPlainText(data.reply)
+                      ) : (
+                        <span className="text-[#697386]">
+                          {isZh ? "可以继续问我这个字段怎么填。" : "Ask me anything about this field."}
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
-                    <Bot className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="max-w-[86%] rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
-                    {questionLoading ? (
-                      <span className="inline-flex items-center gap-2 text-[#697386]">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        {isZh ? "正在回答..." : "Replying..."}
-                      </span>
-                    ) : data.reply ? (
-                      renderPlainText(data.reply)
-                    ) : (
-                      <span className="text-[#697386]">
-                        {isZh ? "可以继续问我这个字段怎么填。" : "Ask me anything about this field."}
-                      </span>
-                    )}
-                  </div>
                 </div>
-              </div>
-            </section>
-          )}
+              </section>
+            )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-              {labels.ask}
-            </label>
-            <Textarea
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder={labels.askPlaceholder}
-              className="min-h-[72px] resize-none rounded-lg border-[#d8e2ef] bg-white text-[13px] focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]"
-            />
-            <Button
-              type="button"
-              onClick={handleAsk}
-              size="sm"
-              disabled={!question.trim() || questionLoading}
-              className="self-end bg-[#03346E] hover:bg-[#022a5a]"
-            >
-              {questionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              {labels.send}
-            </Button>
+            <div className="flex flex-col gap-2">
+              <label className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+                {labels.ask}
+              </label>
+              <Textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={handleQuestionKeyDown}
+                placeholder={labels.askPlaceholder}
+                aria-keyshortcuts="Enter Control+Enter Meta+Enter"
+                className="min-h-[92px] resize-none rounded-lg border-[#d8e2ef] bg-white text-[13px] focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]"
+              />
+              <Button
+                type="button"
+                onClick={handleAsk}
+                size="sm"
+                disabled={!question.trim() || questionLoading}
+                className="self-end bg-[#03346E] hover:bg-[#022a5a]"
+              >
+                {questionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                {labels.send}
+              </Button>
+            </div>
+
+            {visibleSources.length > 0 && (
+              <section className="flex flex-col gap-2 border-t border-[#e3edf8] pt-3">
+                <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+                  {labels.sources}
+                </h4>
+                <div className="flex min-w-0 flex-col gap-2">
+                  {visibleSources.map((source, index) => (
+                    <div key={`${sourceIdentity(source)}-${index}`} className="min-w-0 break-words text-[12px] leading-5 text-[#697386]">
+                      {source.url ? (
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="break-words font-medium text-[#03346E] hover:underline"
+                        >
+                          {source.title}
+                        </a>
+                      ) : (
+                        <span className="break-words font-medium text-[#3f4652]">{source.title}</span>
+                      )}
+                      <p className="min-w-0 break-words">{renderPlainText(source.excerpt)}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
-
-          {data.sources.length > 0 && (
-            <section className="flex flex-col gap-2 border-t border-[#e3edf8] pt-3">
-              <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-                {labels.sources}
-              </h4>
-              <div className="flex flex-col gap-2">
-                {data.sources.map((source) => (
-                  <div key={`${source.title}-${source.url ?? source.excerpt}`} className="text-[12px] leading-5 text-[#697386]">
-                    {source.url ? (
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-medium text-[#03346E] hover:underline"
-                      >
-                        {source.title}
-                      </a>
-                    ) : (
-                      <span className="font-medium text-[#3f4652]">{source.title}</span>
-                    )}
-                    <p>{renderPlainText(source.excerpt)}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       )}
     </div>

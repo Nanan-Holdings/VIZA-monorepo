@@ -72,13 +72,20 @@ describe("legacy application step copilot coverage", () => {
       "state_of_birth",
       "city_of_birth",
     ]);
+    expect(container.querySelector('[data-copilot-panel-frame="surname"]')).toHaveClass(
+      "md:col-span-2",
+    );
   });
 
   it("opens legacy field guidance only from the copilot trigger", () => {
     const { container } = render(<TravelInfoStep onComplete={vi.fn()} />);
+    const arrivalCityFrame = container.querySelector<HTMLElement>(
+      '[data-copilot-panel-frame="arrival_city"]',
+    );
 
     fireEvent.focus(screen.getByPlaceholderText("e.g. John F. Kennedy International Airport"));
     expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
+    expect(arrivalCityFrame).toHaveClass("md:col-span-2");
 
     const arrivalCityTrigger = container.querySelector<HTMLElement>(
       '[data-copilot-trigger="arrival_city"]',
