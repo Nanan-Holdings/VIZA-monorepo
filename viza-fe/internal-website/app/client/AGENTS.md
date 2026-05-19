@@ -28,6 +28,8 @@ applicant info, and help pages.
   workflow.
 - `settings/**`: account settings plus privacy export/deletion request surface.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
+- `support/**`: customer service help center, self-service support bot, and
+  human/email handoff. This must remain separate from the visa/travel AI chat.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
 - `universal-info/page.tsx`: reusable applicant profile editor.
@@ -75,6 +77,7 @@ accessible component state.
 - `viza-fe/internal-website/app/client/billing/AGENTS.md`
 - `viza-fe/internal-website/app/client/consent/AGENTS.md`
 - `viza-fe/internal-website/app/client/settings/AGENTS.md`
+- `viza-fe/internal-website/app/client/support/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
 - `viza-fe/internal-website/app/actions/client-auth.ts`

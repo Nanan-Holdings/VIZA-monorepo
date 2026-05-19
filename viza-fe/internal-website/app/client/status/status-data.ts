@@ -517,7 +517,7 @@ function buildActions(
   const firstOpenStep = steps.find((step) => step.state !== "complete");
   if (!firstOpenStep) {
     if (resultFile?.href) actions.push({ key: "downloadResult", href: resultFile.href, primary: true });
-    else actions.push({ key: "contactSupport", href: "/client/chat", primary: true });
+    else actions.push({ key: "contactSupport", href: "/client/support", primary: true });
     return actions;
   }
 
@@ -525,7 +525,7 @@ function buildActions(
     if (firstOpenStep.key === "documents") {
       actions.push({ key: "uploadDocuments", href: "/client/documents", primary: true });
     } else {
-      actions.push({ key: "contactSupport", href: "/client/chat", primary: true });
+      actions.push({ key: "contactSupport", href: "/client/support", primary: true });
     }
     return actions;
   }
@@ -545,7 +545,7 @@ function buildActions(
   } else if (resultFile?.href) {
     actions.push({ key: "downloadResult", href: resultFile.href, primary: true });
   } else {
-    actions.push({ key: "contactSupport", href: "/client/chat", primary: true });
+    actions.push({ key: "contactSupport", href: "/client/support", primary: true });
   }
 
   if (!actions.some((action) => action.key === "continueForm")) {

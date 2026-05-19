@@ -62,6 +62,18 @@ interface ApplicationRow {
   updated_at: string | null;
 }
 
+type QueryErrorLike = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+};
+
+type QueryResultLike<T> = {
+  data: T[] | null;
+  error: QueryErrorLike | null;
+};
+
 export interface ApplicantProfileRow {
   id: string;
   auth_user_id: string | null;
@@ -281,6 +293,50 @@ export interface AdminApplicationModel {
   governmentFeeMode: string | null;
 }
 
+export interface AdminPackageAssignmentSummary {
+  id: string;
+  status: string;
+  assignedAt: string | null;
+  completedAt: string | null;
+  expiresAt: string | null;
+  applicationId: string | null;
+  visaPackageId: string | null;
+  packageName: string;
+  countryLabel: string;
+  visaTypeLabel: string;
+  priceLabel: string;
+}
+
+export interface AdminApplicantOverview {
+  applicantId: string;
+  profile: ApplicantProfileRow | null;
+  applications: AdminApplicationModel[];
+  packages: AdminPackageAssignmentSummary[];
+  latestApplication: AdminApplicationModel | null;
+  latestUpdatedAt: string | null;
+  earliestExpiryAt: string | null;
+  applicationCount: number;
+  activePackageCount: number;
+  needsSupportCount: number;
+  completionPercent: number;
+  lifecycleState: LifecycleState;
+  missingItems: string[];
+  countries: string[];
+  packageNames: string[];
+}
+
+interface UserPackageAssignmentQueryRow {
+  id: string;
+  auth_user_id: string;
+  visa_package_id: string | null;
+  application_id: string | null;
+  status: string;
+  assigned_at: string | null;
+  completed_at: string | null;
+  expires_at?: string | null;
+  visa_packages: VisaPackageRow | VisaPackageRow[] | null;
+}
+
 interface RelatedData {
   profilesById: Map<string, ApplicantProfileRow>;
   packagesById: Map<string, VisaPackageRow>;
@@ -377,8 +433,68 @@ const RESULT_DELIVERED_STATUSES = new Set(["delivered", "sent_to_customer"]);
 const RESULT_RECEIVED_STATUSES = new Set(["received", "available", "ready"]);
 const RESULT_PENDING_STATUSES = new Set(["pending", "processing"]);
 
+const APPLICATION_BASE_SELECT =
+  "id, applicant_id, country, visa_type, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, created_at, updated_at";
+
+const APPLICATION_AUTOMATION_SELECT = `${APPLICATION_BASE_SELECT}, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes, government_fee_cents, government_fee_currency, government_fee_mode`;
+
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
+}
+
+function isSchemaMissingError(error: QueryErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+  return (
+    code === "PGRST204" ||
+    code === "PGRST205" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("could not find the table") ||
+    (message.includes("could not find the") && message.includes("column"))
+  );
+}
+
+function getQueryErrorMessage(error: QueryErrorLike): string {
+  return error.message ?? error.details ?? error.hint ?? "Unknown query error";
+}
+
+function withApplicationDefaults(row: Partial<ApplicationRow> & Pick<
+  ApplicationRow,
+  | "id"
+  | "applicant_id"
+  | "country"
+  | "visa_type"
+  | "status"
+>): ApplicationRow {
+  return {
+    id: row.id,
+    applicant_id: row.applicant_id,
+    country: row.country,
+    visa_type: row.visa_type,
+    status: row.status,
+    arrival_date: row.arrival_date ?? null,
+    departure_date: row.departure_date ?? null,
+    confirmation_number: row.confirmation_number ?? null,
+    submitted_at: row.submitted_at ?? null,
+    visa_package_id: row.visa_package_id ?? null,
+    packet_status: row.packet_status ?? null,
+    packet_manifest: row.packet_manifest ?? null,
+    packet_storage_path: row.packet_storage_path ?? null,
+    packet_ready_at: row.packet_ready_at ?? null,
+    external_status: row.external_status ?? null,
+    external_reference: row.external_reference ?? null,
+    external_status_updated_at: row.external_status_updated_at ?? null,
+    result_status: row.result_status ?? null,
+    result_storage_path: row.result_storage_path ?? null,
+    result_notes: row.result_notes ?? null,
+    government_fee_cents: row.government_fee_cents ?? null,
+    government_fee_currency: row.government_fee_currency ?? null,
+    government_fee_mode: row.government_fee_mode ?? null,
+    created_at: row.created_at ?? null,
+    updated_at: row.updated_at ?? null,
+  };
 }
 
 function compact<T>(items: Array<T | null | undefined>): T[] {
@@ -414,6 +530,249 @@ function sortByCreatedAt<T extends { created_at?: string | null }>(rows: T[]): T
     const bTime = new Date(b.created_at ?? 0).getTime();
     return bTime - aTime;
   });
+}
+
+function unwrapVisaPackage(value: VisaPackageRow | VisaPackageRow[] | null): VisaPackageRow | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
+function groupApplicationsByApplicant(rows: AdminApplicationModel[]): Map<string, AdminApplicationModel[]> {
+  const groups = new Map<string, AdminApplicationModel[]>();
+
+  for (const row of rows) {
+    const existing = groups.get(row.applicantId) ?? [];
+    existing.push(row);
+    groups.set(row.applicantId, existing);
+  }
+
+  return groups;
+}
+
+export function getLifecycleProgressPercent(application: AdminApplicationModel): number {
+  const progressByState: Record<LifecycleState, number> = {
+    intake: 8,
+    payment_pending: 18,
+    consent_pending: 32,
+    document_collection: 48,
+    packet_generation: 64,
+    ready_for_external_handoff: 76,
+    external_submission: 86,
+    result_delivery: 95,
+    completed: 100,
+    attention: 42,
+  };
+
+  return progressByState[application.lifecycleState];
+}
+
+function chooseApplicantLifecycle(applications: AdminApplicationModel[]): LifecycleState {
+  if (applications.some((application) => application.lifecycleState === "attention")) return "attention";
+  if (applications.length > 0 && applications.every((application) => application.lifecycleState === "completed")) {
+    return "completed";
+  }
+
+  const sorted = [...applications].sort((a, b) => getLifecycleProgressPercent(b) - getLifecycleProgressPercent(a));
+  return sorted[0]?.lifecycleState ?? "intake";
+}
+
+function getLatestApplication(applications: AdminApplicationModel[]): AdminApplicationModel | null {
+  return [...applications].sort((a, b) => {
+    const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+    const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+    return bTime - aTime;
+  })[0] ?? null;
+}
+
+function getEarliestExpiry(packages: AdminPackageAssignmentSummary[]): string | null {
+  const expiries = packages
+    .map((assignment) => assignment.expiresAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+  return expiries[0] ?? null;
+}
+
+function getUniqueStrings(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function toPackageAssignmentSummary(
+  assignment: UserPackageAssignmentQueryRow,
+): AdminPackageAssignmentSummary {
+  const visaPackage = unwrapVisaPackage(assignment.visa_packages);
+
+  return {
+    id: assignment.id,
+    status: assignment.status,
+    assignedAt: assignment.assigned_at,
+    completedAt: assignment.completed_at,
+    expiresAt: assignment.expires_at ?? null,
+    applicationId: assignment.application_id,
+    visaPackageId: assignment.visa_package_id,
+    packageName: visaPackage?.name ?? "Unknown package",
+    countryLabel: visaPackage ? getDestinationDisplayName(visaPackage.country) : "Unknown country",
+    visaTypeLabel: visaPackage ? getVisaTypeDisplayName(getFormVisaType(visaPackage.visa_type)) : "Unknown visa type",
+    priceLabel: visaPackage ? formatMoney(visaPackage.price_cents, visaPackage.currency) : "Not set",
+  };
+}
+
+function derivePackageSummariesFromApplications(
+  applications: AdminApplicationModel[],
+): AdminPackageAssignmentSummary[] {
+  const summaries = new Map<string, AdminPackageAssignmentSummary>();
+
+  for (const application of applications) {
+    if (!application.visaPackage) continue;
+    const key = application.visaPackage.id;
+    if (summaries.has(key)) continue;
+
+    summaries.set(key, {
+      id: `application-package-${key}`,
+      status: "linked",
+      assignedAt: application.createdAt,
+      completedAt: null,
+      expiresAt: null,
+      applicationId: application.id,
+      visaPackageId: application.visaPackage.id,
+      packageName: application.visaPackage.name,
+      countryLabel: getDestinationDisplayName(application.visaPackage.country),
+      visaTypeLabel: getVisaTypeDisplayName(getFormVisaType(application.visaPackage.visa_type)),
+      priceLabel: formatMoney(application.visaPackage.price_cents, application.visaPackage.currency),
+    });
+  }
+
+  return [...summaries.values()];
+}
+
+async function loadPackageAssignmentsByApplicant(
+  rows: AdminApplicationModel[],
+): Promise<Map<string, AdminPackageAssignmentSummary[]>> {
+  const authToApplicant = new Map<string, string>();
+  for (const row of rows) {
+    if (row.profile?.auth_user_id) {
+      authToApplicant.set(row.profile.auth_user_id, row.applicantId);
+    }
+  }
+
+  const authUserIds = [...authToApplicant.keys()];
+  if (authUserIds.length === 0) return new Map();
+
+  const adminClient = createAdminClient();
+  const baseSelect =
+    "id, auth_user_id, visa_package_id, application_id, status, assigned_at, completed_at, visa_packages(id, name, country, visa_type, price_cents, currency, metadata)";
+  const fullResult = await adminClient
+    .from("user_packages")
+    .select(`${baseSelect}, expires_at`)
+    .in("auth_user_id", authUserIds)
+    .order("assigned_at", { ascending: false });
+
+  const { data, error } = fullResult.error && isSchemaMissingError(fullResult.error)
+    ? await adminClient
+        .from("user_packages")
+        .select(baseSelect)
+        .in("auth_user_id", authUserIds)
+        .order("assigned_at", { ascending: false })
+    : fullResult;
+
+  if (error) return new Map();
+
+  const grouped = new Map<string, AdminPackageAssignmentSummary[]>();
+  for (const assignment of (data ?? []) as UserPackageAssignmentQueryRow[]) {
+    const applicantId = authToApplicant.get(assignment.auth_user_id);
+    if (!applicantId) continue;
+    const existing = grouped.get(applicantId) ?? [];
+    existing.push(toPackageAssignmentSummary(assignment));
+    grouped.set(applicantId, existing);
+  }
+
+  return grouped;
+}
+
+function buildApplicantOverview(
+  applicantId: string,
+  applications: AdminApplicationModel[],
+  assignedPackages: AdminPackageAssignmentSummary[],
+): AdminApplicantOverview {
+  const latestApplication = getLatestApplication(applications);
+  const packages = assignedPackages.length > 0
+    ? assignedPackages
+    : derivePackageSummariesFromApplications(applications);
+  const missingItems = getUniqueStrings(applications.flatMap((application) => application.missingItems));
+  const completionPercent =
+    applications.length === 0
+      ? 0
+      : Math.round(
+          applications.reduce((sum, application) => sum + getLifecycleProgressPercent(application), 0) /
+            applications.length,
+        );
+
+  return {
+    applicantId,
+    profile: latestApplication?.profile ?? applications[0]?.profile ?? null,
+    applications,
+    packages,
+    latestApplication,
+    latestUpdatedAt: latestApplication?.updatedAt ?? latestApplication?.createdAt ?? null,
+    earliestExpiryAt: getEarliestExpiry(packages),
+    applicationCount: applications.length,
+    activePackageCount: packages.filter((pkg) => pkg.status === "active").length,
+    needsSupportCount: applications.filter(
+      (application) => application.lifecycleState === "attention" || application.missingItems.length > 0,
+    ).length,
+    completionPercent,
+    lifecycleState: chooseApplicantLifecycle(applications),
+    missingItems,
+    countries: getUniqueStrings(applications.map((application) => application.countryLabel)),
+    packageNames: getUniqueStrings(packages.map((pkg) => pkg.packageName)),
+  };
+}
+
+function sortApplicantOverviews(applicants: AdminApplicantOverview[]): AdminApplicantOverview[] {
+  return [...applicants].sort((a, b) => {
+    const aNeedsSupport = a.needsSupportCount > 0 ? 1 : 0;
+    const bNeedsSupport = b.needsSupportCount > 0 ? 1 : 0;
+    if (aNeedsSupport !== bNeedsSupport) return bNeedsSupport - aNeedsSupport;
+
+    const aTime = new Date(a.latestUpdatedAt ?? 0).getTime();
+    const bTime = new Date(b.latestUpdatedAt ?? 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+async function loadApplicationDocumentRows(
+  applicationIds: string[],
+): Promise<QueryResultLike<ApplicationDocumentRow>> {
+  if (applicationIds.length === 0) return { data: [], error: null };
+
+  const adminClient = createAdminClient();
+  const fullResult = await adminClient
+    .from("application_documents")
+    .select("id, application_id, document_type, requirement_key, required, filename, storage_path, status, rejection_reason, review_notes, reviewed_at, updated_at, created_at")
+    .in("application_id", applicationIds);
+
+  if (!fullResult.error || !isSchemaMissingError(fullResult.error)) {
+    return fullResult as QueryResultLike<ApplicationDocumentRow>;
+  }
+
+  const legacyResult = await adminClient
+    .from("application_documents")
+    .select("id, application_id, document_type, filename, storage_path, status, rejection_reason, updated_at, created_at")
+    .in("application_id", applicationIds);
+
+  if (legacyResult.error) {
+    return legacyResult as QueryResultLike<ApplicationDocumentRow>;
+  }
+
+  const legacyRows = (legacyResult.data ?? []).map((document) => ({
+    ...(document as Omit<ApplicationDocumentRow, "requirement_key" | "required" | "review_notes" | "reviewed_at">),
+    requirement_key: null,
+    required: true,
+    review_notes: null,
+    reviewed_at: null,
+  }));
+
+  return { data: legacyRows, error: null };
 }
 
 function formatRequirementLabel(requirement: DocumentRequirementRow): string {
@@ -851,12 +1210,7 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
           .in("visa_type", visaTypes)
           .is("visa_package_id", null)
       : Promise.resolve({ data: [], error: null }),
-    applicationIds.length > 0
-      ? adminClient
-          .from("application_documents")
-          .select("id, application_id, document_type, requirement_key, required, filename, storage_path, status, rejection_reason, review_notes, reviewed_at, updated_at, created_at")
-          .in("application_id", applicationIds)
-      : Promise.resolve({ data: [], error: null }),
+    loadApplicationDocumentRows(applicationIds),
     applicationIds.length > 0
       ? adminClient
           .from("visa_application_answers")
@@ -921,10 +1275,10 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     packetRes.error,
     eventRes.error,
     notificationRes.error,
-  ].find(Boolean);
+  ].find((error) => Boolean(error) && !isSchemaMissingError(error));
 
   if (firstError) {
-    throw new Error(firstError.message);
+    throw new Error(getQueryErrorMessage(firstError));
   }
 
   const requirements = [
@@ -960,17 +1314,25 @@ export async function fetchAdminApplicationQueue(): Promise<{
 }> {
   try {
     const adminClient = createAdminClient();
-    const { data, error } = await adminClient
+    const fullResult = await adminClient
       .from("applications")
-      .select(
-        "id, applicant_id, country, visa_type, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes, government_fee_cents, government_fee_currency, government_fee_mode, created_at, updated_at",
-      )
+      .select(APPLICATION_AUTOMATION_SELECT)
       .order("updated_at", { ascending: false, nullsFirst: false })
       .limit(250);
 
+    const { data, error } = fullResult.error && isSchemaMissingError(fullResult.error)
+      ? await adminClient
+          .from("applications")
+          .select(APPLICATION_BASE_SELECT)
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .limit(250)
+      : fullResult;
+
     if (error) throw new Error(error.message);
 
-    const rows = await buildModels((data ?? []) as ApplicationRow[]);
+    const applicationRows = ((data ?? []) as Array<Partial<ApplicationRow> & Pick<ApplicationRow, "id" | "applicant_id" | "country" | "visa_type" | "status">>)
+      .map(withApplicationDefaults);
+    const rows = await buildModels(applicationRows);
     rows.sort((a, b) => {
       const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
       const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
@@ -986,24 +1348,76 @@ export async function fetchAdminApplicationQueue(): Promise<{
   }
 }
 
+export async function fetchAdminApplicantQueue(): Promise<{
+  applicants: AdminApplicantOverview[];
+  applications: AdminApplicationModel[];
+  error: string | null;
+}> {
+  const { rows, error } = await fetchAdminApplicationQueue();
+  if (error) return { applicants: [], applications: rows, error };
+
+  const packageAssignmentsByApplicant = await loadPackageAssignmentsByApplicant(rows);
+  const applicationGroups = groupApplicationsByApplicant(rows);
+  const applicants = [...applicationGroups.entries()].map(([applicantId, applications]) =>
+    buildApplicantOverview(
+      applicantId,
+      applications,
+      packageAssignmentsByApplicant.get(applicantId) ?? [],
+    ),
+  );
+
+  return {
+    applicants: sortApplicantOverviews(applicants),
+    applications: rows,
+    error: null,
+  };
+}
+
+export async function fetchAdminApplicantDetail(id: string): Promise<{
+  applicant: AdminApplicantOverview | null;
+  error: string | null;
+}> {
+  const { applicants, applications, error } = await fetchAdminApplicantQueue();
+  if (error) return { applicant: null, error };
+
+  const directMatch = applicants.find((applicant) => applicant.applicantId === id);
+  if (directMatch) return { applicant: directMatch, error: null };
+
+  const applicationMatch = applications.find((application) => application.id === id);
+  if (!applicationMatch) return { applicant: null, error: null };
+
+  return {
+    applicant: applicants.find((applicant) => applicant.applicantId === applicationMatch.applicantId) ?? null,
+    error: null,
+  };
+}
+
 export async function fetchAdminApplicationDetail(id: string): Promise<{
   application: AdminApplicationModel | null;
   error: string | null;
 }> {
   try {
     const adminClient = createAdminClient();
-    const { data, error } = await adminClient
+    const fullResult = await adminClient
       .from("applications")
-      .select(
-        "id, applicant_id, country, visa_type, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes, government_fee_cents, government_fee_currency, government_fee_mode, created_at, updated_at",
-      )
+      .select(APPLICATION_AUTOMATION_SELECT)
       .eq("id", id)
       .maybeSingle();
+
+    const { data, error } = fullResult.error && isSchemaMissingError(fullResult.error)
+      ? await adminClient
+          .from("applications")
+          .select(APPLICATION_BASE_SELECT)
+          .eq("id", id)
+          .maybeSingle()
+      : fullResult;
 
     if (error) throw new Error(error.message);
     if (!data) return { application: null, error: null };
 
-    const models = await buildModels([data as ApplicationRow]);
+    const models = await buildModels([
+      withApplicationDefaults(data as Partial<ApplicationRow> & Pick<ApplicationRow, "id" | "applicant_id" | "country" | "visa_type" | "status">),
+    ]);
     return { application: models[0] ?? null, error: null };
   } catch (error) {
     return {
