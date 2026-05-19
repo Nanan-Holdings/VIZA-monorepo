@@ -11,8 +11,8 @@ application workflow.
 
 ## Key Responsibilities
 
-- Render `/admin/applications` as the operations monitoring queue.
-- Render `/admin/applications/[id]` as an application watch detail page.
+- Render `/admin/applications` as a user-card monitoring queue.
+- Render `/admin/applications/[id]` as a user overview with related applications.
 - Show applicant profile, package, payment, consent, signatures, documents,
   packet status, external status, result delivery, and event timeline.
 - Provide customer-service context for chat/support escalation.
@@ -20,11 +20,12 @@ application workflow.
 
 ## Local Files
 
-- `page.tsx`: monitoring queue with lifecycle, payment, consent, document,
-  packet, external, and result filters.
-- `[id]/page.tsx`: watch detail with applicant/package context, evidence,
-  packet handoff, events, notifications, result file references, and support
-  actions.
+- `page.tsx`: user-card monitoring queue with package, expiry, application
+  count, lifecycle progress, and lifecycle/payment/consent/document/packet/
+  external/result filters.
+- `[id]/page.tsx`: user overview with profile/package context, related
+  applications, progress, missing support items, events, notifications, result
+  file references, and support actions.
 - `data.ts`: server-side admin data loader and lifecycle derivation helpers.
 - `actions.ts`: audited support-only server actions for this route.
 - `support-actions.tsx`: client-side copy/email helper controls.
