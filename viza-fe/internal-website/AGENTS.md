@@ -15,6 +15,17 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
   `components/application-steps/**`.
+- Website internal automation client routes under `app/client/status/**`,
+  `app/client/documents/**`, `app/client/checkout/**`,
+  `app/client/billing/**`, and `app/client/consent/**`.
+- Staff monitoring and coverage routes under
+  `app/admin/(dashboard)/applications/**`,
+  `app/admin/(dashboard)/packages/**`, and
+  `app/admin/(dashboard)/billing/**`.
+- Website automation server actions under
+  `app/actions/internal-automation/**`.
+- Payment, OCR, and external status API boundaries under `app/api/stripe/**`,
+  `app/api/passport-ocr/**`, and `app/api/external-submission/**`.
 - VIZA AI chat under `app/client/chat/**` and
   `components/client/companion/**`.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
@@ -44,6 +55,9 @@ comments.
 - Keep `components/ui/**` as shadcn-style primitives; do not hide feature logic
   there.
 - Do not expose service-role Supabase keys in client components.
+- Do not implement official portal submission runners, CAPTCHA/proxy/browser
+  fingerprint code, or calls into `viza-be/submission-service` from website
+  internal automation modules.
 
 ## Validation
 
@@ -62,9 +76,17 @@ Smoke URLs:
 - `/client/home`
 - `/client/application`
 - `/client/application?country=indonesia&visaType=B211A`
+- `/client/status`
+- `/client/documents`
+- `/client/checkout`
+- `/client/billing`
+- `/client/consent`
 - `/client/chat`
 - `/client/travel-chat`
 - `/admin`
+- `/admin/applications`
+- `/admin/packages`
+- `/admin/billing`
 
 ## Important Files
 
@@ -74,6 +96,10 @@ Smoke URLs:
 - `app/client/layout.tsx`
 - `app/admin/admin-layout-content.tsx`
 - `app/actions/*`
+- `app/actions/internal-automation/*`
+- `app/api/external-submission/*`
+- `app/api/passport-ocr/*`
+- `app/api/stripe/*`
 - `app/api/travel/*`
 - `components/ui/*`
 - `components/client/*`

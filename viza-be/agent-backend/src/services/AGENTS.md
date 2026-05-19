@@ -13,6 +13,9 @@ conversation state, and other cross-route behavior.
   document-type targeting, fallback retrieval, and knowledge context formatting.
 - `visa-conversation-state.service.ts`: extracts, merges, persists, and
   summarizes VIZA conversation route state.
+- `internal-automation/**`: lifecycle status mapping, external status
+  normalization, packet handoff payload shaping, and notification payload
+  helpers for website-owned automation.
 
 ## Ownership Boundaries
 
@@ -23,6 +26,8 @@ conversation state, and other cross-route behavior.
   a reusable service or registry.
 - Hidden state marker rows in `visa_chat_messages` must not become visible to
   users or LLM context.
+- Keep official portal runner logic out of services unless the user explicitly
+  reopens `submission-service` scope.
 
 ## Validation
 
@@ -41,6 +46,7 @@ one Schengen multi-country prompt.
 
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
 - `viza-be/agent-backend/src/socket/visa-namespace.ts`
+- `viza-be/agent-backend/src/services/internal-automation/AGENTS.md`
 - `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
 - `knowledge-base/visa-rag-seeds/README.md`
