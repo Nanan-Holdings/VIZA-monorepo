@@ -15,6 +15,15 @@ ingestion.
 - Upsert `payment_records` idempotently by Stripe session/payment id.
 - Trigger internal lifecycle advancement after successful payment.
 
+## Route Handlers
+
+- `checkout/route.ts`: authenticated `POST /api/stripe/checkout` for creating
+  Stripe Checkout sessions for a user's own application and agency fee only.
+- `webhook/route.ts`: signature-verified `POST /api/stripe/webhook` for
+  Checkout, PaymentIntent, charge, refund, and invoice events.
+- `_shared.ts`: server-only Stripe/Supabase helpers for payment-record
+  idempotency, application advancement, and event/notification inserts.
+
 ## Environment
 
 - `STRIPE_SECRET_KEY`

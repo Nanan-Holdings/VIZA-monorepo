@@ -419,6 +419,140 @@
       "remove": "删除"
     }
   },
+  "clientStatus": {
+    "eyebrow": "自动化进度",
+    "title": "状态中心",
+    "subtitle": "在一个页面查看付款、授权、表单答案、材料、申请包准备、外部交接和官方结果交付。",
+    "chooseDestination": "选择其他目的地",
+    "partialData": "部分自动化详情暂时不可用。当前显示的状态仍然只包含适合客户查看的信息。",
+    "progress": "进度",
+    "updated": "更新时间",
+    "metric": "数据",
+    "status": "状态",
+    "download": "下载",
+    "secureFileStored": "已安全存储",
+    "officialReference": "官方参考号",
+    "vizaReference": "VIZA 参考号",
+    "timelineTitle": "申请时间线",
+    "timelineSubtitle": "每一步都来自 VIZA 网站状态以及已接入的外部提交或结果更新。",
+    "nextActionsTitle": "下一步",
+    "referencesTitle": "参考信息",
+    "filesTitle": "回执与结果文件",
+    "filesSubtitle": "仅当 VIZA 已有回执、申请包、批准、签证、拒签或结果引用时才显示链接。",
+    "filesEmpty": "生成或收到回执和结果文件后，会显示在这里。",
+    "activityTitle": "最近更新",
+    "activityEmpty": "暂无可向客户展示的自动化更新。",
+    "applicationsTitle": "申请",
+    "notCreated": "尚未创建",
+    "notStarted": "未开始",
+    "notAssigned": "暂未分配",
+    "empty": {
+      "title": "暂无进行中的申请",
+      "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示付款、授权、材料、申请包、交接和结果状态。",
+      "cta": "选择目的地"
+    },
+    "stats": {
+      "applications": "申请数量",
+      "averageProgress": "平均进度",
+      "nextActions": "待处理步骤",
+      "files": "可用文件"
+    },
+    "states": {
+      "not_started": "未开始",
+      "needs_payment": "待付款",
+      "needs_consent": "待授权",
+      "in_progress": "进行中",
+      "needs_documents": "待补材料",
+      "packet_pending": "申请包准备中",
+      "external_pending": "等待外部交接",
+      "submitted": "已提交或等待中",
+      "needs_attention": "需要处理",
+      "approved": "已批准",
+      "rejected": "已拒签"
+    },
+    "stepStates": {
+      "complete": "已完成",
+      "current": "当前步骤",
+      "attention": "需要处理",
+      "blocked": "受阻",
+      "upcoming": "待开始"
+    },
+    "steps": {
+      "payment": {
+        "title": "付款",
+        "description": "确认 VIZA 服务费付款后，才会继续准备申请流程。"
+      },
+      "consent": {
+        "title": "授权与同意",
+        "description": "VIZA 处理材料或申请包前，需要先记录您的同意和代理授权。"
+      },
+      "form": {
+        "title": "表单答案",
+        "description": "这里跟踪已保存的申请答案和官方格式字段。"
+      },
+      "documents": {
+        "title": "材料",
+        "description": "检查护照、照片、行程、资金以及该签证类型所需文件的上传状态。"
+      },
+      "packet": {
+        "title": "申请包生成",
+        "description": "核心要求准备好后，VIZA 会生成适合客户查看的申请包。"
+      },
+      "handoff": {
+        "title": "外部交接",
+        "description": "如已接入外部提交状态或官方参考号，会在这里显示。"
+      },
+      "result": {
+        "title": "结果交付",
+        "description": "只有在已有官方结果数据时，才会显示批准、签证、拒签或结果文件。"
+      }
+    },
+    "metrics": {
+      "signed": "已签署",
+      "accepted": "已同意",
+      "answerCount": "已保存 {count} 个答案",
+      "fileReady": "文件已准备"
+    },
+    "actions": {
+      "startApplication": "开始申请",
+      "pay": "支付服务费",
+      "giveConsent": "查看授权",
+      "continueForm": "继续填写",
+      "uploadDocuments": "上传材料",
+      "waitPacket": "查看申请包状态",
+      "waitExternal": "查看交接状态",
+      "downloadResult": "下载结果",
+      "contactSupport": "联系客服"
+    },
+    "details": {
+      "applicationId": "申请 ID",
+      "payment": "付款",
+      "agencyFee": "VIZA 服务费",
+      "governmentFee": "政府费用",
+      "formAnswers": "已保存答案",
+      "documents": "已收到材料",
+      "externalStatus": "外部状态",
+      "resultStatus": "结果状态",
+      "notifications": "已发送更新"
+    },
+    "files": {
+      "applicationReceipt": "申请回执",
+      "paymentReceipt": "付款回执",
+      "packet": "已准备申请包",
+      "approvedResult": "批准信 / 已签发签证 PDF",
+      "rejectionLetter": "拒签信",
+      "resultFile": "结果文件"
+    },
+    "events": {
+      "payment_completed": "付款已完成",
+      "consent_accepted": "授权已同意",
+      "document_uploaded": "材料已上传",
+      "packet_generated": "申请包已生成",
+      "external_status_updated": "外部状态已更新",
+      "result_received": "已收到结果",
+      "notification_sent": "通知已发送"
+    }
+  },
   "applicationSteps": {
     "continue": "继续",
     "submit": "提交",

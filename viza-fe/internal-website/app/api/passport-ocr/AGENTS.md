@@ -25,6 +25,14 @@ it updates profile or application answers.
 - Do not send documents to a provider unless the environment is explicitly
   configured for it.
 
+## Important Files
+
+- `route.ts`: authenticated POST boundary, ownership validation, storage
+  download, audit metadata, and structured responses.
+- `provider.ts`: server-only OCR adapter. Default provider is `openai_vision`
+  and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`.
+- `types.ts`: response, proposal, provider, and error contracts.
+
 ## Validation
 
 Run from `viza-fe/internal-website`:

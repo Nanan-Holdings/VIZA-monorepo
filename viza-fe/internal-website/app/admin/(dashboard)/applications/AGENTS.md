@@ -18,6 +18,18 @@ application workflow.
 - Provide customer-service context for chat/support escalation.
 - Allow admin-safe state corrections only when explicitly scoped and audited.
 
+## Local Files
+
+- `page.tsx`: monitoring queue with lifecycle, payment, consent, document,
+  packet, external, and result filters.
+- `[id]/page.tsx`: watch detail with applicant/package context, evidence,
+  packet handoff, events, notifications, result file references, and support
+  actions.
+- `data.ts`: server-side admin data loader and lifecycle derivation helpers.
+- `actions.ts`: audited support-only server actions for this route.
+- `support-actions.tsx`: client-side copy/email helper controls.
+- `ui.tsx`: route-local admin display primitives.
+
 ## Data Sources
 
 - `applicant_profiles`

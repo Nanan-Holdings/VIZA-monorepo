@@ -56,3 +56,14 @@ npm run lint
 
 Smoke `/client/checkout`; without Stripe env vars, verify the page fails
 gracefully.
+
+## Important Files
+
+- `page.tsx`: `/client/checkout` route UI, return-state rendering, package
+  summary, fee disclosure, and next-step routing.
+- `actions.ts`: server action that creates Stripe-hosted Checkout sessions for
+  agency fees only.
+- `data.ts`: server-only checkout data loading, payment-state reconciliation,
+  government-fee disclosure helpers, and scoped Supabase typing.
+- `submit-button.tsx`: client submit button with pending state for the Stripe
+  Checkout form.

@@ -10,6 +10,7 @@ import profilePrefillRouter from './routes/profile-prefill.routes.js';
 import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import translationRouter from './routes/translation.routes.js';
 import fieldGuidanceRouter from './routes/field-guidance.routes.js';
+import internalAutomationRouter from './routes/internal-automation/index.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -44,6 +45,9 @@ app.use('/api/chat/save-block', chatSaveBlockRouter);
 
 // User package routes
 app.use('/api/user/package', userPackagesRouter);
+
+// Internal website automation routes
+app.use('/api/internal-automation', internalAutomationRouter);
 
 // Application answers routes
 app.use('/api/applications', applicationAnswersRouter);

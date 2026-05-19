@@ -22,6 +22,15 @@ by visa package requirements.
   user-confirmed before writing profile/application answers.
 - Allow Travel AI outputs to satisfy the `travel_itinerary` requirement.
 
+## Current Files
+
+- `page.tsx`: server route entry that resolves query params and redirects
+  unauthenticated users through the client login flow.
+- `actions.ts`: documents-local server actions for authorized checklist reads,
+  upload record upserts, and applicant-confirmed passport OCR persistence.
+- `document-center-client.tsx`: checklist UI, upload/re-upload controls, photo
+  compliance state, OCR confirmation UX, and Travel AI itinerary save entry.
+
 ## Data Sources
 
 - `applications`
