@@ -4,6 +4,7 @@ import {
   CheckIcon,
   ChevronsUpDownIcon,
   ExternalLinkIcon,
+  Globe2Icon,
   Loader2Icon,
   MapPinIcon,
   MessageSquareTextIcon,
@@ -12,6 +13,7 @@ import {
   PhoneIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CircleFlag } from "react-circle-flags";
 import { toast } from "sonner";
 import {
   DEFAULT_CITY_DAYS,
@@ -49,7 +51,15 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 
-type Option = { value: string; label: string; keywords?: string[] };
+type Option = {
+  value: string;
+  label: string;
+  keywords?: string[];
+  flagCode?: string;
+  featured?: boolean;
+  sortLabel?: string;
+  secondaryLabel?: string;
+};
 type CountryApiOption = {
   value?: string;
   label?: string;
@@ -74,6 +84,23 @@ type IpLocation = {
 
 const OTHER_COUNTRY_VALUE = "__country_other__";
 const OTHER_CITY_VALUE = "__city_other__";
+const POPULAR_COUNTRY_CODES = [
+  "JP",
+  "KR",
+  "SG",
+  "TH",
+  "ID",
+  "MY",
+  "AU",
+  "FR",
+  "IT",
+  "GB",
+  "US",
+  "CN",
+] as const;
+const POPULAR_COUNTRY_CODE_ORDER: ReadonlyMap<string, number> = new Map(
+  POPULAR_COUNTRY_CODES.map((code, index) => [code, index])
+);
 
 function normalizeToken(value: string): string {
   return value.trim();
@@ -156,6 +183,68 @@ function withOtherOption(
   ];
 }
 
+function getOptionGroups(options: Option[]): Array<{ heading?: string; options: Option[] }> {
+  const featuredOptions = options.filter((option) => option.featured);
+  if (!featuredOptions.length) {
+    return [{ options }];
+  }
+
+  const regularOptions = options.filter((option) => !option.featured);
+  return [
+    { heading: "热门目的地", options: featuredOptions },
+    { heading: "其他国家", options: regularOptions },
+  ].filter((group) => group.options.length > 0);
+}
+
+function OptionFlagIcon({ option }: { option: Option }) {
+  if (option.flagCode) {
+    return (
+      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+        <CircleFlag countryCode={option.flagCode.toLowerCase()} height={20} />
+      </span>
+    );
+  }
+
+  if (option.value === OTHER_COUNTRY_VALUE) {
+    return <Globe2Icon className="h-4 w-4 shrink-0 text-slate-400" />;
+  }
+
+  return null;
+}
+
+function SelectOptionContent({
+  option,
+  selected,
+}: {
+  option: Option;
+  selected: boolean;
+}) {
+  return (
+    <>
+      <OptionFlagIcon option={option} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{option.label}</span>
+        {option.secondaryLabel && (
+          <span className="block truncate text-xs text-slate-400">
+            {option.secondaryLabel}
+          </span>
+        )}
+      </span>
+      {option.featured && (
+        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+          热门
+        </span>
+      )}
+      <CheckIcon
+        className={cn(
+          "ml-auto size-3.5 shrink-0",
+          selected ? "opacity-100" : "opacity-0"
+        )}
+      />
+    </>
+  );
+}
+
 function buildOptionKeywords(...parts: Array<string | undefined>): string[] {
   const seen = new Set<string>();
   const keywords: string[] = [];
@@ -195,9 +284,10 @@ function SearchableSingleSelect({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value);
   const selectedLabel =
-    options.find((option) => option.value === value)?.label ??
-    (value ? getLocalLocationDisplayName(value) : "");
+    selectedOption?.label ?? (value ? getLocalLocationDisplayName(value) : "");
+  const optionGroups = getOptionGroups(options);
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -208,38 +298,47 @@ function SearchableSingleSelect({
           size="sm"
           variant="outline"
         >
-          <span className={cn("truncate", !selectedLabel && "text-muted-foreground")}>
-            {selectedLabel || placeholder}
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-2 truncate",
+              !selectedLabel && "text-muted-foreground"
+            )}
+          >
+            {selectedOption && <OptionFlagIcon option={selectedOption} />}
+            <span className="truncate">{selectedLabel || placeholder}</span>
           </span>
           <ChevronsUpDownIcon className="size-3.5 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[360px] p-0">
+      <PopoverContent
+        align="start"
+        className="min-w-[--radix-popper-anchor-width] max-w-[calc(100vw-2rem)] p-0"
+      >
         <Command>
           <CommandInput placeholder="搜索..." />
-          <CommandList>
+          <CommandList className="max-h-[280px]">
             <CommandEmpty>没有匹配项</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  keywords={option.keywords}
-                  onSelect={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
-                  value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
-                >
-                  <CheckIcon
-                    className={cn(
-                      "size-3.5",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <span className="truncate">{option.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {optionGroups.map((group) => (
+              <CommandGroup heading={group.heading} key={group.heading ?? "options"}>
+                {group.options.map((option) => (
+                  <CommandItem
+                    className="flex w-full items-center gap-2 py-2 [&_svg]:size-auto"
+                    key={option.value}
+                    keywords={option.keywords}
+                    onSelect={() => {
+                      onChange(option.value);
+                      setOpen(false);
+                    }}
+                    value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
+                  >
+                    <SelectOptionContent
+                      option={option}
+                      selected={value === option.value}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -262,6 +361,11 @@ function SearchableMultiSelect({
 }) {
   const [open, setOpen] = useState(false);
 
+  const selectedOptions = useMemo(() => {
+    const optionMap = new Map(options.map((option) => [option.value, option]));
+    return values.map((value) => optionMap.get(value)).filter(Boolean) as Option[];
+  }, [options, values]);
+
   const summary = useMemo(() => {
     if (!values.length) return "";
     const optionMap = new Map(options.map((option) => [option.value, option.label]));
@@ -270,6 +374,7 @@ function SearchableMultiSelect({
     );
     return labels.join(" / ");
   }, [options, values]);
+  const optionGroups = getOptionGroups(options);
 
   const toggleValue = (value: string) => {
     if (values.includes(value)) {
@@ -288,37 +393,52 @@ function SearchableMultiSelect({
           size="sm"
           variant="outline"
         >
-          <span className={cn("truncate", !summary && "text-muted-foreground")}>
-            {summary || placeholder}
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-2 truncate",
+              !summary && "text-muted-foreground"
+            )}
+          >
+            {selectedOptions.some((option) => option.flagCode) && (
+              <span className="-space-x-1.5 flex shrink-0">
+                {selectedOptions.slice(0, 3).map((option) => (
+                  <OptionFlagIcon key={option.value} option={option} />
+                ))}
+              </span>
+            )}
+            <span className="truncate">{summary || placeholder}</span>
           </span>
           <ChevronsUpDownIcon className="size-3.5 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[360px] p-0">
+      <PopoverContent
+        align="start"
+        className="min-w-[--radix-popper-anchor-width] max-w-[calc(100vw-2rem)] p-0"
+      >
         <Command>
           <CommandInput placeholder="搜索..." />
-          <CommandList>
+          <CommandList className="max-h-[280px]">
             <CommandEmpty>没有匹配项</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  keywords={option.keywords}
-                  onSelect={() => {
-                    toggleValue(option.value);
-                  }}
-                  value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
-                >
-                  <CheckIcon
-                    className={cn(
-                      "size-3.5",
-                      values.includes(option.value) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <span className="truncate">{option.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {optionGroups.map((group) => (
+              <CommandGroup heading={group.heading} key={group.heading ?? "options"}>
+                {group.options.map((option) => (
+                  <CommandItem
+                    className="flex w-full items-center gap-2 py-2 [&_svg]:size-auto"
+                    key={option.value}
+                    keywords={option.keywords}
+                    onSelect={() => {
+                      toggleValue(option.value);
+                    }}
+                    value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
+                  >
+                    <SelectOptionContent
+                      option={option}
+                      selected={values.includes(option.value)}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -460,15 +580,38 @@ function coerceCountryOptions(raw: unknown): Option[] {
     const search = typeof option.search === "string" ? option.search.trim() : "";
     const displayLabel = getOptionDisplayLabel(option);
     if (!value || !displayLabel) continue;
+    const normalizedCode = code.toUpperCase();
+    const isFeatured = POPULAR_COUNTRY_CODE_ORDER.has(normalizedCode);
 
     options.push({
       value,
       label: displayLabel,
+      flagCode: normalizedCode || undefined,
+      featured: isFeatured,
+      secondaryLabel: labelEn && labelEn !== displayLabel ? labelEn : undefined,
+      sortLabel: labelEn || displayLabel,
       keywords: buildOptionKeywords(search, label, value, labelEn, labelZh, code),
     });
   }
 
-  return options;
+  return options.sort((a, b) => {
+    const aFeaturedIndex = a.flagCode
+      ? POPULAR_COUNTRY_CODE_ORDER.get(a.flagCode.toUpperCase())
+      : undefined;
+    const bFeaturedIndex = b.flagCode
+      ? POPULAR_COUNTRY_CODE_ORDER.get(b.flagCode.toUpperCase())
+      : undefined;
+
+    if (aFeaturedIndex !== undefined || bFeaturedIndex !== undefined) {
+      if (aFeaturedIndex === undefined) return 1;
+      if (bFeaturedIndex === undefined) return -1;
+      return aFeaturedIndex - bFeaturedIndex;
+    }
+
+    return (a.sortLabel ?? a.label).localeCompare(b.sortLabel ?? b.label, "en", {
+      sensitivity: "base",
+    });
+  });
 }
 
 function coerceCitiesByCountry(raw: unknown): Record<string, Option[]> {
