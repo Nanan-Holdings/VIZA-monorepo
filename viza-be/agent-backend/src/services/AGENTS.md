@@ -1,0 +1,46 @@
+# Agent Backend Services Guide
+
+Scope: this file applies to `viza-be/agent-backend/src/services/**`.
+
+## Purpose
+
+Services contain reusable backend business logic for RAG retrieval, structured
+conversation state, and other cross-route behavior.
+
+## Key Services
+
+- `visa-knowledge.service.ts`: embeddings, Supabase RPC retrieval,
+  document-type targeting, fallback retrieval, and knowledge context formatting.
+- `visa-conversation-state.service.ts`: extracts, merges, persists, and
+  summarizes VIZA conversation route state.
+
+## Ownership Boundaries
+
+- Keep retrieval grounded in `visa_documents` and `visa_chunks`.
+- Use `src/config/visa-destination-registry.ts` for supported country aliases,
+  Schengen membership, and default visitor visa types.
+- Do not hardcode one-off routing logic in Socket.IO handlers when it belongs in
+  a reusable service or registry.
+- Hidden state marker rows in `visa_chat_messages` must not become visible to
+  users or LLM context.
+
+## Validation
+
+Run from `viza-be/agent-backend`:
+
+```powershell
+npm run type-check
+npm run test:visa-agent-evals
+npm run test:field-guidance-copilot
+```
+
+If RAG document selection changes, also test at least one country-specific and
+one Schengen multi-country prompt.
+
+## Related Files
+
+- `viza-be/agent-backend/src/config/visa-destination-registry.ts`
+- `viza-be/agent-backend/src/socket/visa-namespace.ts`
+- `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
+- `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
+- `knowledge-base/visa-rag-seeds/README.md`

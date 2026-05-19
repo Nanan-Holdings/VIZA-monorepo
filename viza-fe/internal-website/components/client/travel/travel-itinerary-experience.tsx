@@ -38,6 +38,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
+  FlightLegResult,
+  FlightOptionResult,
+  HotelOptionResult,
+  HotelStayResult,
   ItineraryDay,
   SelectedFlightOption,
   SelectedHotelOption,
@@ -52,6 +56,12 @@ import {
   buildTravelItinerarySharePayload,
   encodeTravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
+import {
+  findTravelAttraction,
+  getTravelAttractionNamesForCity,
+  getTravelAttractionsForCity,
+  type TravelAttractionKnowledgeItem,
+} from "@/components/client/travel/travel-attraction-knowledge";
 
 type ItineryTableRow = {
   time?: string;
@@ -164,6 +174,9 @@ const CITY_IMAGE_BY_KEY: Record<string, string> = {
   sydney: "/globe/sydney.jpg",
   london: "/globe/london.jpg",
   paris: "/globe/paris.jpg",
+  lyon: "/globe/paris.jpg",
+  marseille: "/globe/paris.jpg",
+  nice: "/globe/paris.jpg",
   newyork: "/globe/nyc.jpg",
   nyc: "/globe/nyc.jpg",
   beijing: "/globe/beijing.jpg",
@@ -181,6 +194,9 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   sydney: "悉尼",
   london: "伦敦",
   paris: "巴黎",
+  lyon: "里昂",
+  marseille: "马赛",
+  nice: "尼斯",
   newyork: "纽约",
   nyc: "纽约",
   beijing: "北京",
@@ -227,6 +243,30 @@ const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
     "巴黎圣母院与西岱岛",
     "蒙马特高地与圣心大教堂",
     "凯旋门与香榭丽舍大街",
+  ],
+  lyon: [
+    "富维耶圣母圣殿",
+    "里昂老城与圣让街区",
+    "白莱果广场",
+    "金头公园",
+    "里昂美术馆",
+    "特拉布勒隐秘通道",
+  ],
+  marseille: [
+    "马赛老港",
+    "守护圣母圣殿",
+    "卡朗格国家公园",
+    "欧洲及地中海文明博物馆 Mucem",
+    "伊夫堡",
+    "勒帕尼耶老城区",
+  ],
+  nice: [
+    "英国人漫步大道",
+    "城堡山公园",
+    "尼斯老城",
+    "马塞纳广场",
+    "萨雷雅市场",
+    "马蒂斯美术馆",
   ],
   singapore: [
     "滨海湾金沙空中花园",
@@ -329,6 +369,9 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   sydney: [-33.8688, 151.2093],
   london: [51.5072, -0.1276],
   paris: [48.8566, 2.3522],
+  lyon: [45.764, 4.8357],
+  marseille: [43.2965, 5.3698],
+  nice: [43.7102, 7.262],
   newyork: [40.7128, -74.006],
   nyc: [40.7128, -74.006],
   beijing: [39.9042, 116.4074],
@@ -373,6 +416,21 @@ function getCityCoordinates(city: string): [number, number] {
   const direct = CITY_COORDINATES[key];
   if (direct) return direct;
 
+  const attractions = getTravelAttractionsForCity(city);
+  if (attractions.length) {
+    const total = attractions.reduce(
+      (sum, item) => ({
+        lat: sum.lat + item.lat,
+        lng: sum.lng + item.lng,
+      }),
+      { lat: 0, lng: 0 }
+    );
+    return [
+      Number((total.lat / attractions.length).toFixed(6)),
+      Number((total.lng / attractions.length).toFixed(6)),
+    ];
+  }
+
   const seed = hashString(city);
   const lat = (seed % 110) - 45;
   const lng = ((seed * 7) % 260) - 130;
@@ -412,16 +470,6 @@ function formatMonthDay(value: string): string {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return `${parsed.getMonth() + 1}月${parsed.getDate()}日`;
-}
-
-function addDays(value: string, days: number): string {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  parsed.setDate(parsed.getDate() + days);
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function getDepartureDate(travelState: TravelState): string {
@@ -703,7 +751,11 @@ function getCityIntro(segment: CitySegment, days: ItineraryDay[]): string {
 }
 
 function getCityGalleryImages(segment: CitySegment, days: ItineraryDay[]): string[] {
+  const attractionImages = getTravelAttractionsForCity(segment.city).map(
+    (item) => item.imageSrc
+  );
   const images = [
+    ...attractionImages,
     segment.imageSrc,
     ...days.map((day, index) => getDayImage(day, index)),
   ];
@@ -724,11 +776,94 @@ function getHotelDisplayPrice(hotel: SelectedHotelOption): string {
   return `${currencyLabel}${priceText}`;
 }
 
+function getFlightNumber(flight: SelectedFlightOption): string {
+  const route = `${flight.from} → ${flight.to}`;
+  return flight.option?.flight_number ?? getFlightNumberFallback(route);
+}
+
+function getFlightDisplayPrice(flight: SelectedFlightOption): string {
+  const price = flight.option?.price;
+  if (!price) return "API 默认";
+  const currency = flight.option?.currency?.trim();
+  if (!currency || price.includes(currency)) return price;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${price}`;
+}
+
+function getSegmentFlights(
+  flights: SelectedFlightOption[],
+  segment: CitySegment
+): SelectedFlightOption[] {
+  const cityKey = normalizeLookupKey(segment.city);
+  return flights.filter((flight) => {
+    if (flight.skip || !flight.option) return false;
+    return (
+      normalizeLookupKey(flight.from) === cityKey ||
+      normalizeLookupKey(flight.to) === cityKey
+    );
+  });
+}
+
+function getFlightDirectionLabel(
+  flight: SelectedFlightOption,
+  segment: CitySegment
+): string {
+  const cityKey = normalizeLookupKey(segment.city);
+  if (normalizeLookupKey(flight.to) === cityKey) return "抵达航班";
+  if (normalizeLookupKey(flight.from) === cityKey) return "离开航班";
+  return "相关航班";
+}
+
+type DayTimelineItem = {
+  time: string;
+  label: string;
+  value: string;
+};
+
+function buildDayTimelineItems(day: ItineraryDay, dayIndex: number): DayTimelineItem[] {
+  const morningActivity = isVagueActivityName(day.activities[0] ?? "")
+    ? getSpecificAttraction(day.city, dayIndex, 0)
+    : day.activities[0] ?? getSpecificAttraction(day.city, dayIndex, 0);
+  const afternoonActivity = isVagueActivityName(day.activities[1] ?? "")
+    ? getSpecificAttraction(day.city, dayIndex, 1)
+    : day.activities[1] ?? getSpecificAttraction(day.city, dayIndex, 1);
+
+  return [
+    {
+      time: "09:00",
+      label: "上午",
+      value: morningActivity,
+    },
+    {
+      time: "12:30",
+      label: "午餐",
+      value: day.food[0] ?? `${getLocalCityLabel(day.city)}本地餐厅`,
+    },
+    {
+      time: "14:30",
+      label: "下午",
+      value: afternoonActivity,
+    },
+    {
+      time: "18:30",
+      label: "晚餐",
+      value: day.food[1] ?? day.food[0] ?? `${getLocalCityLabel(day.city)}晚餐`,
+    },
+  ];
+}
+
 function isVagueActivityName(value: string): boolean {
   return !value.trim() || VAGUE_ACTIVITY_RE.test(value);
 }
 
 function getSpecificAttraction(city: string, dayIndex: number, activityIndex: number): string {
+  const knowledgeAttractions = getTravelAttractionNamesForCity(city);
+  if (knowledgeAttractions.length) {
+    return knowledgeAttractions[
+      (dayIndex * 2 + activityIndex) % knowledgeAttractions.length
+    ];
+  }
+
   const key = normalizeLookupKey(city);
   const attractions = SPECIFIC_ATTRACTIONS_BY_KEY[key];
   if (!attractions?.length) {
@@ -789,15 +924,20 @@ function buildAttractionMapPoints(
         ];
 
   return pointNames.slice(0, 8).map((activity, index) => {
-    const [lat, lng] = offsetCoordinate(center, `${seedPrefix}-${city}-${activity}`, 0.05);
+    const attraction = findTravelAttraction(city, activity);
+    const [lat, lng] = attraction
+      ? [attraction.lat, attraction.lng]
+      : offsetCoordinate(center, `${seedPrefix}-${city}-${activity}`, 0.05);
     return {
       id: `${seedPrefix}-${cityKey}-${index}`,
       kind: "hotspot",
       label: activity,
       subtitle: `${cityLabel}第 ${index + 1} 站`,
       localName: cityLabel,
-      intro: `${activity} 是 ${cityLabel} 行程中的具体停靠点，地图路线会按行程顺序串联这些景点。`,
-      imageSrc: getCityImage(city, `${seedPrefix}-${index}`),
+      intro: attraction
+        ? `${activity} 位于 ${attraction.location}，地图路线会按当天顺序串联这些景点。`
+        : `${activity} 是 ${cityLabel} 行程中的具体停靠点，地图路线会按行程顺序串联这些景点。`,
+      imageSrc: attraction?.imageSrc ?? getCityImage(city, `${seedPrefix}-${index}`),
       lat,
       lng,
       city,
@@ -895,36 +1035,6 @@ function buildAttractionRows(itinerary: ItineraryDay[]): TimedItineryRow[] {
   });
 }
 
-function buildDefaultHotelRows(
-  segments: CitySegment[],
-  travelState: TravelState,
-  modulePatch?: Record<string, unknown>
-): TimedItineryRow[] {
-  const startDate = getDepartureDate(travelState);
-  const preferFourStar = shouldPreferFourStarHotel(modulePatch);
-
-  return segments.map((segment) => {
-    const checkIn = addDays(startDate, segment.dayStart - 1);
-    const nights = Math.max(1, segment.dayEnd - segment.dayStart);
-    const checkOut = addDays(startDate, segment.dayStart - 1 + nights);
-    const cityLabel = segment.label;
-
-    return createTimedItineryRow(
-        {
-          time: "15:00 入住",
-          type: "酒店",
-        date: `${formatMonthDay(checkIn)} - ${formatMonthDay(checkOut)}`,
-        route: cityLabel,
-        name: `${cityLabel}${preferFourStar ? "4星" : "默认"}酒店（可编辑）`,
-        details: `${nights}晚；地址：${cityLabel}市中心区域；${preferFourStar ? "偏好：4星级酒店；" : ""}价格：待酒店 API 确认；入住 15:00，退房 11:00。`,
-        contact: "请通过预订平台确认",
-      },
-      segment.dayStart,
-      "15:00"
-    );
-  });
-}
-
 function buildSelectedHotelRows(
   hotels: SelectedHotelOption[],
   travelState: TravelState,
@@ -958,83 +1068,6 @@ function buildSelectedHotelRows(
       checkInTime
     );
   });
-}
-
-function buildDefaultFlightRows(
-  segments: CitySegment[],
-  travelState: TravelState
-): TimedItineryRow[] {
-  const firstCity = segments[0]?.city;
-  const lastCity = segments[segments.length - 1]?.city ?? firstCity;
-  if (!firstCity || !lastCity) return [];
-
-  const origin = travelState.origin_city?.trim() || firstCity;
-  const returnCity = travelState.return_city?.trim() || origin;
-  const startDate = getDepartureDate(travelState);
-  const rows: TimedItineryRow[] = [];
-
-  if (normalizeLookupKey(origin) !== normalizeLookupKey(firstCity)) {
-    const route = `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`;
-    rows.push(
-      createTimedItineryRow(
-        {
-          time: "08:00 出发",
-          type: "航班",
-          date: formatMonthDay(startDate),
-          route,
-          name: "默认航班（可编辑）",
-          details: "出发 08:00；预计经济舱；用户可修改时间、价格和航司。",
-          contact: getFlightNumberFallback(route),
-        },
-        1,
-        "08:00"
-      )
-    );
-  }
-
-  if (normalizeLookupKey(lastCity) !== normalizeLookupKey(returnCity)) {
-    const returnDate = addDays(
-      startDate,
-      Math.max(0, segments[segments.length - 1].dayEnd - 1)
-    );
-    const route = `${getLocalCityLabel(lastCity)} → ${getLocalCityLabel(returnCity)}`;
-    rows.push(
-      createTimedItineryRow(
-        {
-          time: "18:00 出发",
-          type: "航班",
-          date: formatMonthDay(returnDate),
-          route,
-          name: "默认航班（可编辑）",
-          details: "出发 18:00；预计经济舱；用户可修改时间、价格和航司。",
-          contact: getFlightNumberFallback(route),
-        },
-        segments[segments.length - 1].dayEnd,
-        "18:00"
-      )
-    );
-  }
-
-  if (!rows.length) {
-    const route = `${getLocalCityLabel(origin)} → ${getLocalCityLabel(firstCity)}`;
-    rows.push(
-      createTimedItineryRow(
-        {
-          time: "08:00 出发",
-          type: "航班",
-          date: formatMonthDay(startDate),
-          route,
-          name: "默认航班（可编辑）",
-          details: "出发 08:00；预计经济舱；用户可修改出发/到达城市和航班号。",
-          contact: getFlightNumberFallback(route),
-        },
-        1,
-        "08:00"
-      )
-    );
-  }
-
-  return rows;
 }
 
 function buildSelectedFlightRows(
@@ -1089,22 +1122,19 @@ function buildSelectedFlightRows(
 function buildItineryTableRows(
   itinerary: ItineraryDay[],
   travelState: TravelState,
-  segments: CitySegment[],
   modulePatch?: Record<string, unknown>
 ): ItineryTableRow[] {
   const attractionRows = buildAttractionRows(itinerary);
   const hotelRows = travelState.selected_hotels.length
     ? buildSelectedHotelRows(travelState.selected_hotels, travelState, modulePatch)
-    : buildDefaultHotelRows(segments, travelState, modulePatch);
+    : [];
   const selectedFlightRows = buildSelectedFlightRows(
     travelState.selected_flights,
     travelState
   );
   const flightRows = shouldSuppressFlights(modulePatch)
     ? []
-    : selectedFlightRows.length
-      ? selectedFlightRows
-      : buildDefaultFlightRows(segments, travelState);
+    : selectedFlightRows;
 
   return finalizeTimedRows([...flightRows, ...hotelRows, ...attractionRows]);
 }
@@ -1150,6 +1180,242 @@ function buildTravelExportPayload(
   };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
+}
+
+function numberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function coerceFlightOption(value: unknown): FlightOptionResult {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  const stops = numberField(record, "stops");
+  return {
+    provider: stringField(record, "provider"),
+    airline: stringField(record, "airline"),
+    price: stringField(record, "price"),
+    currency: stringField(record, "currency"),
+    departure: stringField(record, "departure"),
+    arrival: stringField(record, "arrival"),
+    from: stringField(record, "from"),
+    to: stringField(record, "to"),
+    from_id: stringField(record, "from_id"),
+    to_id: stringField(record, "to_id"),
+    offer_token: stringField(record, "offer_token"),
+    departure_airport: stringField(record, "departure_airport"),
+    arrival_airport: stringField(record, "arrival_airport"),
+    duration: stringField(record, "duration"),
+    stops,
+    cabin_class: stringField(record, "cabin_class"),
+    booking_url: stringField(record, "booking_url"),
+    flight_number: stringField(record, "flight_number"),
+    aircraft: stringField(record, "aircraft"),
+  };
+}
+
+function coerceHotelOption(value: unknown): HotelOptionResult {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  const adults = numberField(record, "adults");
+  const ratingValue = record.rating;
+  const rating =
+    typeof ratingValue === "number" || typeof ratingValue === "string"
+      ? ratingValue
+      : undefined;
+  const latitudeValue = record.latitude;
+  const longitudeValue = record.longitude;
+
+  return {
+    provider: stringField(record, "provider"),
+    city: stringField(record, "city"),
+    name: stringField(record, "name"),
+    hotel_id: stringField(record, "hotel_id") ?? numberField(record, "hotel_id"),
+    price_per_night: stringField(record, "price_per_night"),
+    taxes_and_fees: stringField(record, "taxes_and_fees"),
+    currency: stringField(record, "currency"),
+    check_in: stringField(record, "check_in"),
+    check_out: stringField(record, "check_out"),
+    adults,
+    rating,
+    average_price_per_night: stringField(record, "average_price_per_night"),
+    total_price: stringField(record, "total_price"),
+    address: stringField(record, "address"),
+    latitude:
+      typeof latitudeValue === "number" || typeof latitudeValue === "string"
+        ? latitudeValue
+        : undefined,
+    longitude:
+      typeof longitudeValue === "number" || typeof longitudeValue === "string"
+        ? longitudeValue
+        : undefined,
+    contact_phone: stringField(record, "contact_phone"),
+    contact_email: stringField(record, "contact_email"),
+    website: stringField(record, "website"),
+    review_text: stringField(record, "review_text"),
+    check_in_time: stringField(record, "check_in_time"),
+    check_out_time: stringField(record, "check_out_time"),
+    distance_to_center: stringField(record, "distance_to_center"),
+  };
+}
+
+function coerceApiFlightLegs(payload: unknown): FlightLegResult[] {
+  const record = asRecord(payload);
+  const rawLegs = Array.isArray(record?.legs) ? record.legs : [];
+
+  return rawLegs
+    .map((rawLeg) => {
+      const leg = asRecord(rawLeg);
+      if (!leg) return null;
+      const from = stringField(leg, "from");
+      const to = stringField(leg, "to");
+      const departureDate = stringField(leg, "departure_date");
+      if (!from || !to || !departureDate) return null;
+
+      const options = Array.isArray(leg.options)
+        ? leg.options.map(coerceFlightOption)
+        : [];
+      return {
+        from,
+        to,
+        departure_date: departureDate,
+        options,
+      };
+    })
+    .filter((leg): leg is FlightLegResult => leg !== null);
+}
+
+function coerceApiHotelStays(payload: unknown): HotelStayResult[] {
+  const record = asRecord(payload);
+  const rawStays = Array.isArray(record?.stays) ? record.stays : [];
+
+  return rawStays
+    .map((rawStay): HotelStayResult | null => {
+      const stay = asRecord(rawStay);
+      if (!stay) return null;
+      const city = stringField(stay, "city");
+      const checkIn = stringField(stay, "check_in");
+      const checkOut = stringField(stay, "check_out");
+      const nights = numberField(stay, "nights") ?? 1;
+      if (!city || !checkIn || !checkOut) return null;
+
+      const adults = numberField(stay, "adults");
+      const options = Array.isArray(stay.options)
+        ? stay.options.map(coerceHotelOption)
+        : [];
+      return {
+        city,
+        check_in: checkIn,
+        check_out: checkOut,
+        nights,
+        ...(adults === undefined ? {} : { adults }),
+        options,
+      };
+    })
+    .filter((stay): stay is HotelStayResult => stay !== null);
+}
+
+function selectApiDefaultFlights(legs: FlightLegResult[]): SelectedFlightOption[] {
+  return legs
+    .map((leg, index): SelectedFlightOption | null => {
+      const option = leg.options[0];
+      if (!option) return null;
+      return {
+        leg_index: index + 1,
+        from: leg.from,
+        to: leg.to,
+        departure_date: leg.departure_date,
+        skip: false,
+        option_index: 1,
+        option,
+      };
+    })
+    .filter((flight): flight is SelectedFlightOption => flight !== null);
+}
+
+function selectApiDefaultHotels(stays: HotelStayResult[]): SelectedHotelOption[] {
+  return stays
+    .map((stay, index): SelectedHotelOption | null => {
+      const option = stay.options[0];
+      if (!option) return null;
+      return {
+        stay_index: index + 1,
+        city: stay.city,
+        check_in: stay.check_in,
+        check_out: stay.check_out,
+        nights: stay.nights,
+        option_index: 1,
+        option,
+      };
+    })
+    .filter((hotel): hotel is SelectedHotelOption => hotel !== null);
+}
+
+function hasSelectedFlightOption(flights: SelectedFlightOption[]): boolean {
+  return flights.some((flight) => !flight.skip && Boolean(flight.option));
+}
+
+function hasSelectedHotelOption(hotels: SelectedHotelOption[]): boolean {
+  return hotels.some((hotel) => {
+    const provider = hotel.option.provider ?? "";
+    const name = hotel.option.name ?? "";
+    return provider !== "self-arranged" && name !== "自行安排";
+  });
+}
+
+function buildApiOptionsPayload(
+  travelState: TravelState,
+  orderedCities: string[]
+): Omit<TravelExportPayload, "itinerary" | "itinery_rows" | "export_language"> {
+  const cities =
+    travelState.cities.length > 0
+      ? travelState.cities
+      : orderedCities.length > 0
+        ? orderedCities
+        : travelState.travel_order;
+  const travelOrder =
+    travelState.travel_order.length > 0 ? travelState.travel_order : cities;
+
+  return {
+    country: travelState.country ?? travelState.countries[0] ?? "",
+    countries: travelState.countries,
+    cities,
+    city_days: travelState.city_days,
+    departure_date: travelState.departure_date ?? undefined,
+    date_flexibility: travelState.date_flexibility ?? undefined,
+    travel_days: travelState.travel_days ?? Math.max(1, cities.length),
+    travelers: travelState.travelers ?? 1,
+    budget: travelState.budget ?? 1,
+    travel_order: travelOrder,
+    origin_country: travelState.origin_country ?? undefined,
+    origin_city: travelState.origin_city ?? undefined,
+    return_country: travelState.return_country ?? undefined,
+    return_city: travelState.return_city ?? undefined,
+    selected_flights: [],
+    selected_hotels: [],
+    final_note: travelState.final_note ?? "",
+    attached_files: travelState.attached_files,
+  };
+}
+
 async function downloadBlob(
   endpoint: TravelDownloadEndpoint,
   payload: TravelExportPayload,
@@ -1187,7 +1453,6 @@ export function TravelItineraryExperience({
   routeCoordinates,
   mapPoints,
   activePointId,
-  initialItineryRows,
   modulePatch,
   versionOptions = [],
   activeVersionId,
@@ -1209,17 +1474,62 @@ export function TravelItineraryExperience({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isSharingLink, setIsSharingLink] = useState(false);
   const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
+  const [apiDefaultFlights, setApiDefaultFlights] = useState<
+    SelectedFlightOption[]
+  >([]);
+  const [apiDefaultHotels, setApiDefaultHotels] = useState<
+    SelectedHotelOption[]
+  >([]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const apiOptionsPayload = useMemo(
+    () => buildApiOptionsPayload(travelState, orderedCities),
+    [orderedCities, travelState]
+  );
+  const apiOptionsPayloadKey = useMemo(
+    () => JSON.stringify(apiOptionsPayload),
+    [apiOptionsPayload]
+  );
+  const needsApiFlightDefaults =
+    !shouldSuppressFlights(modulePatch) &&
+    !hasSelectedFlightOption(travelState.selected_flights) &&
+    apiOptionsPayload.cities.length > 0;
+  const needsApiHotelDefaults =
+    !hasSelectedHotelOption(travelState.selected_hotels) &&
+    apiOptionsPayload.cities.length > 0;
+
+  const effectiveSelectedFlights = useMemo(
+    () =>
+      hasSelectedFlightOption(travelState.selected_flights)
+        ? travelState.selected_flights
+        : apiDefaultFlights,
+    [apiDefaultFlights, travelState.selected_flights]
+  );
+  const effectiveSelectedHotels = useMemo(
+    () =>
+      hasSelectedHotelOption(travelState.selected_hotels)
+        ? travelState.selected_hotels
+        : apiDefaultHotels,
+    [apiDefaultHotels, travelState.selected_hotels]
+  );
+  const effectiveTravelState = useMemo(
+    () => ({
+      ...travelState,
+      selected_flights: effectiveSelectedFlights,
+      selected_hotels: effectiveSelectedHotels,
+    }),
+    [effectiveSelectedFlights, effectiveSelectedHotels, travelState]
+  );
+
   const segments = useMemo(
-    () => buildCitySegments(editableItinerary, orderedCities, travelState),
-    [editableItinerary, orderedCities, travelState]
+    () => buildCitySegments(editableItinerary, orderedCities, effectiveTravelState),
+    [editableItinerary, effectiveTravelState, orderedCities]
   );
   const routeNodes = useMemo(
-    () => createRouteNodes(travelState, segments),
-    [segments, travelState]
+    () => createRouteNodes(effectiveTravelState, segments),
+    [effectiveTravelState, segments]
   );
   const title = useMemo(
     () =>
@@ -1230,13 +1540,21 @@ export function TravelItineraryExperience({
     [editableItinerary.length, segments]
   );
   const activeDay = editableItinerary[activeDayIndex] ?? editableItinerary[0];
+  const activeDayTimeline = useMemo(
+    () => (activeDay ? buildDayTimelineItems(activeDay, activeDayIndex) : []),
+    [activeDay, activeDayIndex]
+  );
+  const activeDayAttractionChoices = useMemo(
+    () => (activeDay ? getTravelAttractionsForCity(activeDay.city) : []),
+    [activeDay]
+  );
   const heroImage = segments[0]?.imageSrc ?? getDayImage(editableItinerary[0], 0);
   const totalExperiences = editableItinerary.reduce(
     (sum, day) => sum + day.activities.length,
     0
   );
   const hotelDisplayCount = Math.max(
-    travelState.selected_hotels.length,
+    effectiveTravelState.selected_hotels.length,
     segments.length
   );
   const preferFourStarHotel = shouldPreferFourStarHotel(modulePatch);
@@ -1254,9 +1572,9 @@ export function TravelItineraryExperience({
   const resolvedRouteCoordinates = useMemo(
     () =>
       segments.length
-        ? buildFallbackRouteCoordinates(travelState, segments)
+        ? buildFallbackRouteCoordinates(effectiveTravelState, segments)
         : routeCoordinates,
-    [routeCoordinates, segments, travelState]
+    [effectiveTravelState, routeCoordinates, segments]
   );
   const essentialMapPoints = useMemo(
     () => filterEssentialMapPoints(resolvedMapPoints),
@@ -1339,21 +1657,18 @@ export function TravelItineraryExperience({
     : null;
   const defaultItineryRows = useMemo(
     () =>
-      initialItineryRows?.length
-        ? initialItineryRows
-        : buildItineryTableRows(
-            editableItinerary,
-            travelState,
-            segments,
-            modulePatch
-          ),
-    [editableItinerary, initialItineryRows, modulePatch, segments, travelState]
+      buildItineryTableRows(
+        editableItinerary,
+        effectiveTravelState,
+        modulePatch
+      ),
+    [editableItinerary, effectiveTravelState, modulePatch]
   );
   const exportPayload = useMemo(
     () =>
       buildTravelExportPayload(
         editableItinerary,
-        travelState,
+        effectiveTravelState,
         orderedCities,
         editableItineryRows,
         exportLanguage
@@ -1363,7 +1678,7 @@ export function TravelItineraryExperience({
       editableItineryRows,
       exportLanguage,
       orderedCities,
-      travelState,
+      effectiveTravelState,
     ]
   );
   const sharePayload = useMemo(
@@ -1371,10 +1686,10 @@ export function TravelItineraryExperience({
       buildTravelItinerarySharePayload(
         title,
         editableItinerary,
-        travelState,
+        effectiveTravelState,
         editableItineryRows
       ),
-    [editableItinerary, editableItineryRows, title, travelState]
+    [editableItinerary, editableItineryRows, effectiveTravelState, title]
   );
   const exportFilenameSuffix =
     exportLanguage === "zh" ? "" : `-${exportLanguage}`;
@@ -1383,6 +1698,66 @@ export function TravelItineraryExperience({
     setEditableItinerary(itinerary);
     setActiveDayIndex(0);
   }, [itinerary]);
+
+  useEffect(() => {
+    if (!needsApiFlightDefaults) {
+      setApiDefaultFlights([]);
+      return;
+    }
+
+    let disposed = false;
+    fetch("/api/travel/flights", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: apiOptionsPayloadKey,
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({ legs: [] }))) as unknown;
+        return response.ok ? payload : { legs: [] };
+      })
+      .then((payload) => {
+        if (disposed) return;
+        setApiDefaultFlights(selectApiDefaultFlights(coerceApiFlightLegs(payload)));
+      })
+      .catch(() => {
+        if (disposed) return;
+        setApiDefaultFlights([]);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [apiOptionsPayloadKey, needsApiFlightDefaults]);
+
+  useEffect(() => {
+    if (!needsApiHotelDefaults) {
+      setApiDefaultHotels([]);
+      return;
+    }
+
+    let disposed = false;
+    fetch("/api/travel/hotels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: apiOptionsPayloadKey,
+    })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({ stays: [] }))) as unknown;
+        return response.ok ? payload : { stays: [] };
+      })
+      .then((payload) => {
+        if (disposed) return;
+        setApiDefaultHotels(selectApiDefaultHotels(coerceApiHotelStays(payload)));
+      })
+      .catch(() => {
+        if (disposed) return;
+        setApiDefaultHotels([]);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [apiOptionsPayloadKey, needsApiHotelDefaults]);
 
   useEffect(() => {
     setEditableItineryRows(defaultItineryRows);
@@ -1517,6 +1892,24 @@ export function TravelItineraryExperience({
                   ...day.activities,
                   getSpecificAttraction(day.city, dayIndex, day.activities.length),
                 ],
+              }
+            : day
+        )
+      );
+    },
+    [updateItineraryList]
+  );
+
+  const addKnowledgeAttractionToDay = useCallback(
+    (dayIndex: number, attraction: TravelAttractionKnowledgeItem) => {
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                activities: day.activities.includes(attraction.name)
+                  ? day.activities
+                  : [...day.activities, attraction.name],
               }
             : day
         )
@@ -1858,12 +2251,15 @@ export function TravelItineraryExperience({
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Car className="h-5 w-5" />
-                    {Math.max(routeNodes.length - 1, travelState.selected_flights.length)} 运输
+                    {Math.max(
+                      routeNodes.length - 1,
+                      effectiveTravelState.selected_flights.length
+                    )} 运输
                   </span>
-                  {travelState.travelers ? (
+                  {effectiveTravelState.travelers ? (
                     <span className="inline-flex items-center gap-2">
                       <Users className="h-5 w-5" />
-                      {travelState.travelers} 旅行者
+                      {effectiveTravelState.travelers} 旅行者
                     </span>
                   ) : null}
                 </div>
@@ -2181,12 +2577,19 @@ export function TravelItineraryExperience({
               {segments.map((segment, segmentIndex) => {
                 const cityKey = getCitySectionKey(segment.city);
                 const days = getSegmentDays(editableItinerary, segment);
-                const hotel = findHotelForCity(travelState.selected_hotels, segment.city);
+                const hotel = findHotelForCity(
+                  effectiveTravelState.selected_hotels,
+                  segment.city
+                );
                 const nextSegment = segments[segmentIndex + 1];
                 const galleryImages = getCityGalleryImages(segment, days);
                 const firstDayIndex = days[0]
                   ? Math.max(0, editableItinerary.indexOf(days[0]))
                   : 0;
+                const segmentFlights = getSegmentFlights(
+                  effectiveTravelState.selected_flights,
+                  segment
+                );
 
                 return (
                   <section
@@ -2290,6 +2693,76 @@ export function TravelItineraryExperience({
                         </div>
                       </div>
 
+                      {segmentFlights.length ? (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {segmentFlights.map((flight) => (
+                            <article
+                              className="rounded-[24px] bg-white p-4 shadow-[0_14px_42px_rgba(32,20,43,0.08)]"
+                              data-testid={`travel-itinerary-flight-card-${cityKey}-${flight.leg_index}`}
+                              key={`${cityKey}-flight-${flight.leg_index}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#6f40cc]">
+                                    <Plane className="h-4 w-4" />
+                                    {getFlightDirectionLabel(flight, segment)}
+                                  </p>
+                                  <h4 className="mt-2 truncate text-lg font-bold text-[#2d1635]">
+                                    {flight.option?.airline ?? "API 推荐航班"}{" "}
+                                    {getFlightNumber(flight)}
+                                  </h4>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                                  {getFlightDisplayPrice(flight)}
+                                </span>
+                              </div>
+                              <div className="mt-4 grid gap-3 text-sm font-semibold text-[#5f5166] sm:grid-cols-2">
+                                <span>
+                                  <span className="block text-xs text-[#8d8391]">
+                                    航线
+                                  </span>
+                                  {getLocalCityLabel(flight.from)} →{" "}
+                                  {getLocalCityLabel(flight.to)}
+                                </span>
+                                <span>
+                                  <span className="block text-xs text-[#8d8391]">
+                                    时间
+                                  </span>
+                                  {extractClockTime(
+                                    flight.option?.departure,
+                                    "08:00"
+                                  )}{" "}
+                                  出发
+                                  {flight.option?.arrival
+                                    ? ` · ${extractClockTime(
+                                        flight.option.arrival,
+                                        ""
+                                      )} 到达`
+                                    : ""}
+                                </span>
+                                <span>
+                                  <span className="block text-xs text-[#8d8391]">
+                                    日期
+                                  </span>
+                                  {formatMonthDay(flight.departure_date)}
+                                </span>
+                                <span>
+                                  <span className="block text-xs text-[#8d8391]">
+                                    时长/经停
+                                  </span>
+                                  {flight.option?.duration ?? "待确认"} ·{" "}
+                                  {flight.option?.stops === 0
+                                    ? "直飞"
+                                    : typeof flight.option?.stops === "number"
+                                      ? `${flight.option.stops} 次中转`
+                                      : "经停待确认"}
+                                </span>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
+
                       {hotel ? (
                         <article className="grid gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_42px_rgba(32,20,43,0.08)] md:grid-cols-[180px_minmax(0,1fr)_auto]">
                           <div className="relative h-36 overflow-hidden rounded-[18px] bg-slate-200 md:h-full">
@@ -2352,6 +2825,10 @@ export function TravelItineraryExperience({
                         {days.map((day) => {
                           const dayIndex = editableItinerary.indexOf(day);
                           const safeDayIndex = dayIndex >= 0 ? dayIndex : 0;
+                          const timelineItems = buildDayTimelineItems(
+                            day,
+                            safeDayIndex
+                          );
 
                           return (
                             <article
@@ -2379,6 +2856,21 @@ export function TravelItineraryExperience({
                                 <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-[#5f5166]">
                                   {getLocalCityLabel(day.city)}
                                 </p>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  {timelineItems.map((item) => (
+                                    <div
+                                      className="rounded-2xl bg-[#f8f3ff] px-3 py-2"
+                                      key={`${cityKey}-${day.day}-${item.time}-${item.label}`}
+                                    >
+                                      <p className="text-xs font-bold text-[#8d5df7]">
+                                        {item.time} · {item.label}
+                                      </p>
+                                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-[#2d1635]">
+                                        {item.value}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                               <div className="flex items-center justify-end gap-2 self-center">
                                 <Button
@@ -2537,6 +3029,69 @@ export function TravelItineraryExperience({
                       </p>
                     </div>
 
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {activeDayTimeline.map((item) => (
+                        <div
+                          className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3"
+                          key={`detail-timeline-${item.time}-${item.label}`}
+                        >
+                          <p className="text-xs font-bold text-[#8d5df7]">
+                            {item.time} · {item.label}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#2d1635]">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {activeDayAttractionChoices.length ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                            <MapPinned className="h-4 w-4 text-[#6f40cc]" />
+                            景点库
+                          </p>
+                          <span className="text-xs font-semibold text-[#8d8391]">
+                            点击加入当天行程
+                          </span>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {activeDayAttractionChoices.map((attraction) => (
+                            <button
+                              className="grid min-h-28 grid-cols-[88px_1fr] gap-3 rounded-2xl border border-[#eadfff] bg-[#fbf8ff] p-2 text-left transition-colors hover:border-[#b990ff] hover:bg-white"
+                              key={`${activeDay.city}-${attraction.name}`}
+                              onClick={() =>
+                                addKnowledgeAttractionToDay(
+                                  activeDayIndex,
+                                  attraction
+                                )
+                              }
+                              type="button"
+                            >
+                              <span className="relative h-full min-h-24 overflow-hidden rounded-xl bg-slate-200">
+                                <Image
+                                  alt={attraction.name}
+                                  className="h-full w-full object-cover"
+                                  height={140}
+                                  src={attraction.imageSrc}
+                                  width={140}
+                                />
+                              </span>
+                              <span className="min-w-0 py-1">
+                                <span className="line-clamp-2 text-sm font-bold text-[#2d1635]">
+                                  {attraction.name}
+                                </span>
+                                <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
+                                  {attraction.location}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="space-y-4">
                       {activeDay.activities.map((activity, index) => (
                         <div
@@ -2549,7 +3104,11 @@ export function TravelItineraryExperience({
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-semibold text-[#756a7b]">
-                                景点
+                                {index === 0
+                                  ? "09:00 · 上午景点"
+                                  : index === 1
+                                    ? "14:30 · 下午景点"
+                                    : "加选景点"}
                               </p>
                               <input
                                 aria-label={`景点 ${index + 1}`}

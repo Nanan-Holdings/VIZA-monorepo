@@ -474,11 +474,9 @@ def build_itinery_rows(itinerary, state):
 
     rows = []
     rows.extend(_build_selected_flight_rows(state))
-    if not rows:
-        rows.extend(_build_default_flight_rows(state))
 
     hotel_rows = _build_selected_hotel_rows(state)
-    rows.extend(hotel_rows if hotel_rows else _build_default_hotel_rows(state))
+    rows.extend(hotel_rows)
     rows.extend(_build_activity_rows(itinerary))
 
     rows.sort(key=lambda item: item.get("_sort", 0))

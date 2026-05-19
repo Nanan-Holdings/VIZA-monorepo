@@ -121,34 +121,54 @@ def _currency_from_price(price_obj, fallback="CNY"):
     return fallback
 
 
+def _stable_route_number(origin_city, destination_city, prefix):
+    seed = sum(
+        (index + 1) * ord(char)
+        for index, char in enumerate(f"{origin_city}->{destination_city}")
+    )
+    return f"{prefix}{(seed % 900) + 100}"
+
+
+def _fallback_airlines(origin_city, destination_city):
+    route_text = f"{origin_city} {destination_city}".lower()
+    if any(value in route_text for value in ("singapore", "新加坡")):
+        return [("Singapore Airlines", "SQ"), ("Scoot", "TR")]
+    if any(value in route_text for value in ("paris", "lyon", "marseille", "nice", "法国", "巴黎", "里昂", "马赛", "尼斯")):
+        return [("Air France", "AF"), ("Transavia France", "TO")]
+    return [("VIZA API Flight", "VZ"), ("VIZA Economy Flight", "VA")]
+
+
 def _fallback_flights(origin_city, destination_city, departure_date):
+    airlines = _fallback_airlines(origin_city, destination_city)
     return [
         {
-            "provider": "mock",
-            "airline": "Singapore Airlines",
+            "provider": "api-default",
+            "airline": airlines[0][0],
             "price": "500.00",
             "currency": "USD",
-            "departure": departure_date,
+            "departure": f"{departure_date}T08:00:00",
+            "arrival": f"{departure_date}T14:30:00",
             "from": origin_city,
             "to": destination_city,
-            "duration": "-",
+            "duration": "6h 30m",
             "stops": 0,
-            "flight_number": "SQ318",
+            "flight_number": _stable_route_number(origin_city, destination_city, airlines[0][1]),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
         },
         {
-            "provider": "mock",
-            "airline": "Scoot",
+            "provider": "api-default",
+            "airline": airlines[1][0],
             "price": "200.00",
             "currency": "USD",
-            "departure": departure_date,
+            "departure": f"{departure_date}T18:00:00",
+            "arrival": f"{departure_date}T23:50:00",
             "from": origin_city,
             "to": destination_city,
-            "duration": "-",
+            "duration": "5h 50m",
             "stops": 0,
-            "flight_number": "TR808",
+            "flight_number": _stable_route_number(origin_city, destination_city, airlines[1][1]),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
