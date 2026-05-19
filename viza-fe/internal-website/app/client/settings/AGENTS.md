@@ -23,6 +23,13 @@ privacy/data-rights controls.
 - `data_privacy_requests`
 - Existing settings/about-me actions
 
+## Local Files
+
+- `actions.ts`: settings-local server actions for authenticated data-rights
+  request reads and writes.
+- `components/privacy-tab.tsx`: client privacy/data-rights controls and request
+  history.
+
 ## Guardrails
 
 - Do not delete applicant PII directly from client UI. Create a request record

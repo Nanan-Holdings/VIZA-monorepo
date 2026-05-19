@@ -18,6 +18,26 @@ generation, lifecycle advancement, notifications, and external status display.
 - Use `application_events` for significant mutations.
 - Return typed result objects; do not throw raw provider errors into client UI.
 
+## Module Map
+
+- `types.ts`: shared typed action results and customer/admin summary contracts.
+- `db.ts`: server-only authenticated user, applicant ownership, admin role, and
+  internal Supabase helpers.
+- `read-model.ts`: server-only row-to-summary builders for lifecycle, payment,
+  consent, document readiness, packets, notifications, coverage, and data
+  rights.
+- `lifecycle.ts`: customer lifecycle summaries and customer status summaries.
+- `documents.ts`: customer document checklist/readiness reads.
+- `payments.ts`: customer payment state, invoice requests, and refund requests.
+- `consent.ts`: customer consent acceptance and signature persistence.
+- `packets.ts`: customer packet/external/result state reads.
+- `notifications.ts`: customer notification reads and admin notification event
+  recording.
+- `coverage.ts`: customer coverage reads for assigned applications/packages.
+- `data-rights.ts`: customer and admin data-rights request actions.
+- `admin-summaries.ts`: admin application, billing, package coverage, and
+  customer status summary reads.
+
 ## Data Sources
 
 - `applications`

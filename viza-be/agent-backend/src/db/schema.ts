@@ -8,6 +8,8 @@
 	integer,
 	jsonb,
 	customType,
+	index,
+	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // =============================================================================
@@ -100,9 +102,31 @@ export const applications = pgTable("applications", {
 	governmentFeeCents: integer("government_fee_cents"),
 	governmentFeeCurrency: text("government_fee_currency").default("USD"),
 	governmentFeeMode: text("government_fee_mode").default("display_only"),
+	automationStatus: text("automation_status").default("not_started"),
+	automationStage: text("automation_stage").default("intake"),
+	automationStatusReason: text("automation_status_reason"),
+	automationUpdatedAt: timestamp("automation_updated_at", { withTimezone: true }),
+	paymentStatus: text("payment_status").default("not_started"),
+	consentStatus: text("consent_status").default("not_started"),
+	documentsStatus: text("documents_status").default("not_started"),
+	signatureStatus: text("signature_status").default("not_started"),
+	notificationStatus: text("notification_status").default("not_started"),
+	coverageSnapshot: jsonb("coverage_snapshot"),
+	staffReviewStatus: text("staff_review_status").default("not_started"),
+	staffReviewedAt: timestamp("staff_reviewed_at", { withTimezone: true }),
+	staffReviewedBy: uuid("staff_reviewed_by"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+	applicantStatusIdx: index("applications_applicant_status_idx").on(table.applicantId, table.status),
+	visaPackageIdx: index("applications_visa_package_idx").on(table.visaPackageId),
+	automationStatusIdx: index("applications_automation_status_idx").on(table.automationStatus),
+	automationStageIdx: index("applications_automation_stage_idx").on(table.automationStage),
+	paymentStatusIdx: index("applications_payment_status_idx").on(table.paymentStatus),
+	packetStatusIdx: index("applications_packet_status_idx").on(table.packetStatus),
+	externalStatusIdx: index("applications_external_status_idx").on(table.externalStatus),
+	staffReviewStatusIdx: index("applications_staff_review_status_idx").on(table.staffReviewStatus),
+}));
 
 // =============================================================================
 // APPLICATION DOCUMENTS
@@ -125,9 +149,25 @@ export const applicationDocuments = pgTable("application_documents", {
 	reviewNotes: text("review_notes"),
 	reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 	reviewedBy: uuid("reviewed_by"),
+	automationStatus: text("automation_status").default("pending"),
+	automationNotes: text("automation_notes"),
+	requiredByVisaPackageId: uuid("required_by_visa_package_id"),
+	latestOcrExtractionId: uuid("latest_ocr_extraction_id"),
+	documentHash: text("document_hash"),
+	uploadedBy: uuid("uploaded_by"),
+	uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+	metadata: jsonb("metadata"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+	appTypeIdx: uniqueIndex("application_documents_app_type_idx").on(table.applicationId, table.documentType),
+	applicationStatusIdx: index("application_documents_application_status_idx").on(table.applicationId, table.status),
+	requirementIdx: index("application_documents_requirement_idx").on(table.applicationId, table.requirementKey),
+	automationStatusIdx: index("application_documents_automation_status_idx").on(table.automationStatus),
+	requiredPackageIdx: index("application_documents_required_package_idx").on(table.requiredByVisaPackageId),
+	hashIdx: index("application_documents_hash_idx").on(table.documentHash),
+}));
 
 // =============================================================================
 // SUBMISSION QUEUE
@@ -497,75 +537,152 @@ export const paymentRecords = pgTable("payment_records", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id"),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
   visaPackageId: uuid("visa_package_id"),
   provider: text("provider").notNull().default("stripe"),
   providerSessionId: text("provider_session_id"),
   providerPaymentId: text("provider_payment_id"),
+  providerCustomerId: text("provider_customer_id"),
+  providerEventId: text("provider_event_id"),
+  idempotencyKey: text("idempotency_key"),
+  providerPayloadDigest: text("provider_payload_digest"),
   amountCents: integer("amount_cents").notNull(),
   currency: text("currency").notNull().default("USD"),
   status: text("status").notNull().default("pending"),
   feeType: text("fee_type").notNull().default("agency_fee"),
   receiptUrl: text("receipt_url"),
   metadata: jsonb("metadata"),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("payment_records_application_idx").on(table.applicationId),
+  applicantIdx: index("payment_records_applicant_idx").on(table.applicantId),
+  authUserIdx: index("payment_records_auth_user_idx").on(table.authUserId),
+  statusIdx: index("payment_records_status_idx").on(table.status),
+  providerSessionIdx: uniqueIndex("payment_records_provider_session_idx").on(table.providerSessionId),
+  providerPaymentIdx: index("payment_records_provider_payment_idx").on(table.providerPaymentId),
+  providerEventIdx: index("payment_records_provider_event_idx").on(table.providerEventId),
+  appStatusIdx: index("payment_records_app_status_idx").on(table.applicationId, table.status),
+  idempotencyKeyIdx: uniqueIndex("payment_records_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const invoiceRequests = pgTable("invoice_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentRecordId: uuid("payment_record_id"),
   applicationId: uuid("application_id"),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
+  requestReference: text("request_reference"),
+  requestedBy: uuid("requested_by"),
+  reviewedBy: uuid("reviewed_by"),
   invoiceName: text("invoice_name"),
   taxIdentifier: text("tax_identifier"),
   billingEmail: text("billing_email"),
+  invoiceNumber: text("invoice_number"),
+  invoiceStoragePath: text("invoice_storage_path"),
   status: text("status").notNull().default("requested"),
   notes: text("notes"),
+  metadata: jsonb("metadata"),
+  issuedAt: timestamp("issued_at", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("invoice_requests_application_idx").on(table.applicationId),
+  applicantIdx: index("invoice_requests_applicant_idx").on(table.applicantId),
+  authUserIdx: index("invoice_requests_auth_user_idx").on(table.authUserId),
+  paymentRecordIdx: index("invoice_requests_payment_record_idx").on(table.paymentRecordId),
+  statusIdx: index("invoice_requests_status_idx").on(table.status),
+  referenceIdx: uniqueIndex("invoice_requests_reference_idx").on(table.requestReference),
+}));
 
 export const refundRecords = pgTable("refund_records", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentRecordId: uuid("payment_record_id"),
   applicationId: uuid("application_id"),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
+  requestReference: text("request_reference"),
+  providerRefundId: text("provider_refund_id"),
+  requestedBy: uuid("requested_by"),
+  reviewedBy: uuid("reviewed_by"),
   amountCents: integer("amount_cents").notNull(),
   currency: text("currency").notNull().default("USD"),
   status: text("status").notNull().default("requested"),
   reason: text("reason"),
+  rejectionReason: text("rejection_reason"),
   policySnapshot: jsonb("policy_snapshot"),
+  metadata: jsonb("metadata"),
+  idempotencyKey: text("idempotency_key"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  refundedAt: timestamp("refunded_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("refund_records_application_idx").on(table.applicationId),
+  applicantIdx: index("refund_records_applicant_idx").on(table.applicantId),
+  authUserIdx: index("refund_records_auth_user_idx").on(table.authUserId),
+  paymentRecordIdx: index("refund_records_payment_record_idx").on(table.paymentRecordId),
+  statusIdx: index("refund_records_status_idx").on(table.status),
+  providerRefundIdx: index("refund_records_provider_refund_idx").on(table.providerRefundId),
+  referenceIdx: uniqueIndex("refund_records_reference_idx").on(table.requestReference),
+  idempotencyKeyIdx: uniqueIndex("refund_records_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const consentEvents = pgTable("consent_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id").notNull(),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
   consentType: text("consent_type").notNull(),
   version: text("version").notNull(),
   accepted: boolean("accepted").notNull().default(true),
+  consentScope: jsonb("consent_scope"),
+  source: text("source").default("website"),
+  idempotencyKey: text("idempotency_key"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   documentHash: text("document_hash"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("consent_events_application_idx").on(table.applicationId),
+  applicantIdx: index("consent_events_applicant_idx").on(table.applicantId),
+  authUserIdx: index("consent_events_auth_user_idx").on(table.authUserId),
+  lookupIdx: index("consent_events_lookup_idx").on(table.applicationId, table.consentType, table.version),
+  idempotencyKeyIdx: uniqueIndex("consent_events_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const applicationSignatures = pgTable("application_signatures", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id").notNull(),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
   signatureType: text("signature_type").notNull().default("agency_authorisation"),
   signerName: text("signer_name").notNull(),
   signatureText: text("signature_text"),
+  signatureScope: jsonb("signature_scope"),
+  source: text("source").default("website"),
+  idempotencyKey: text("idempotency_key"),
   signedDocumentPath: text("signed_document_path"),
   documentHash: text("document_hash"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   signedAt: timestamp("signed_at", { withTimezone: true }).defaultNow(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("application_signatures_application_idx").on(table.applicationId),
+  applicantIdx: index("application_signatures_applicant_idx").on(table.applicantId),
+  authUserIdx: index("application_signatures_auth_user_idx").on(table.authUserId),
+  lookupIdx: index("application_signatures_lookup_idx").on(table.applicationId, table.signatureType),
+  idempotencyKeyIdx: uniqueIndex("application_signatures_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const documentRequirements = pgTable("document_requirements", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -581,7 +698,10 @@ export const documentRequirements = pgTable("document_requirements", {
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  packageKeyIdx: uniqueIndex("document_requirements_package_key_idx").on(table.visaPackageId, table.requirementKey),
+  countryVisaIdx: index("document_requirements_country_visa_idx").on(table.country, table.visaType, table.sortOrder),
+}));
 
 export const applicationPackets = pgTable("application_packets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -589,38 +709,81 @@ export const applicationPackets = pgTable("application_packets", {
   applicantId: uuid("applicant_id"),
   status: text("status").notNull().default("ready"),
   manifest: jsonb("manifest").notNull().default({}),
+  manifestVersion: integer("manifest_version").notNull().default(1),
   storagePath: text("storage_path"),
   handoffToken: text("handoff_token"),
+  handoffTokenHash: text("handoff_token_hash"),
+  handoffTokenExpiresAt: timestamp("handoff_token_expires_at", { withTimezone: true }),
+  generatedBy: uuid("generated_by"),
   generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  supersededAt: timestamp("superseded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("application_packets_application_idx").on(table.applicationId),
+  applicantIdx: index("application_packets_applicant_idx").on(table.applicantId),
+  statusIdx: index("application_packets_status_idx").on(table.status),
+  appStatusIdx: index("application_packets_app_status_idx").on(table.applicationId, table.status),
+  handoffHashIdx: uniqueIndex("application_packets_handoff_hash_idx").on(table.handoffTokenHash),
+}));
 
 export const applicationEvents = pgTable("application_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id").notNull(),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
   eventType: text("event_type").notNull(),
   actorType: text("actor_type").notNull().default("system"),
   actorId: uuid("actor_id"),
+  source: text("source").default("website_automation"),
+  visibility: text("visibility").default("staff"),
+  idempotencyKey: text("idempotency_key"),
   message: text("message"),
   metadata: jsonb("metadata"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("application_events_application_idx").on(table.applicationId),
+  applicantIdx: index("application_events_applicant_idx").on(table.applicantId),
+  authUserIdx: index("application_events_auth_user_idx").on(table.authUserId),
+  typeIdx: index("application_events_type_idx").on(table.eventType),
+  lookupIdx: index("application_events_lookup_idx").on(table.applicationId, table.eventType, table.createdAt),
+  visibilityIdx: index("application_events_visibility_idx").on(table.visibility),
+  idempotencyKeyIdx: uniqueIndex("application_events_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const notificationEvents = pgTable("notification_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id"),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
   channel: text("channel").notNull().default("email"),
   templateKey: text("template_key").notNull(),
   recipient: text("recipient"),
   status: text("status").notNull().default("queued"),
+  provider: text("provider"),
+  providerMessageId: text("provider_message_id"),
+  providerEventId: text("provider_event_id"),
+  idempotencyKey: text("idempotency_key"),
+  errorMessage: text("error_message"),
   payload: jsonb("payload"),
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("notification_events_application_idx").on(table.applicationId),
+  applicantIdx: index("notification_events_applicant_idx").on(table.applicantId),
+  authUserIdx: index("notification_events_auth_user_idx").on(table.authUserId),
+  statusIdx: index("notification_events_status_idx").on(table.status),
+  appStatusIdx: index("notification_events_app_status_idx").on(table.applicationId, table.status),
+  templateStatusIdx: index("notification_events_template_status_idx").on(table.templateKey, table.status),
+  providerMessageIdx: index("notification_events_provider_message_idx").on(table.providerMessageId),
+  idempotencyKeyIdx: uniqueIndex("notification_events_idempotency_key_idx").on(table.idempotencyKey),
+}));
 
 export const ocrExtractions = pgTable("ocr_extractions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -634,18 +797,135 @@ export const ocrExtractions = pgTable("ocr_extractions", {
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("ocr_extractions_application_idx").on(table.applicationId),
+  applicantIdx: index("ocr_extractions_applicant_idx").on(table.applicantId),
+  documentIdx: index("ocr_extractions_document_idx").on(table.documentId),
+  statusIdx: index("ocr_extractions_status_idx").on(table.status),
+  appStatusIdx: index("ocr_extractions_app_status_idx").on(table.applicationId, table.status),
+}));
 
 export const dataPrivacyRequests = pgTable("data_privacy_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
+  applicationId: uuid("application_id"),
+  requestReference: text("request_reference"),
   requestType: text("request_type").notNull(),
   status: text("status").notNull().default("requested"),
+  requestedPayload: jsonb("requested_payload"),
   notes: text("notes"),
+  identityVerifiedAt: timestamp("identity_verified_at", { withTimezone: true }),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  assignedTo: uuid("assigned_to"),
+  decision: text("decision"),
+  decisionNotes: text("decision_notes"),
+  rejectionReason: text("rejection_reason"),
+  exportStoragePath: text("export_storage_path"),
+  legalHold: boolean("legal_hold").notNull().default(false),
+  retentionNotes: text("retention_notes"),
   fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+  applicationIdx: index("data_privacy_requests_application_idx").on(table.applicationId),
+  applicantIdx: index("data_privacy_requests_applicant_idx").on(table.applicantId),
+  authUserIdx: index("data_privacy_requests_auth_user_idx").on(table.authUserId),
+  statusIdx: index("data_privacy_requests_status_idx").on(table.status),
+  typeStatusIdx: index("data_privacy_requests_type_status_idx").on(table.requestType, table.status),
+  referenceIdx: uniqueIndex("data_privacy_requests_reference_idx").on(table.requestReference),
+}));
+
+export const coverageMatrix = pgTable("coverage_matrix", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id"),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  schemaStatus: text("schema_status").notNull().default("unsupported"),
+  documentChecklistStatus: text("document_checklist_status").notNull().default("unsupported"),
+  paymentStatus: text("payment_status").notNull().default("unsupported"),
+  packetStatus: text("packet_status").notNull().default("unsupported"),
+  externalHandoffStatus: text("external_handoff_status").notNull().default("unsupported"),
+  resultIngestStatus: text("result_ingest_status").notNull().default("unsupported"),
+  statusUiStatus: text("status_ui_status").notNull().default("unsupported"),
+  customerVisible: boolean("customer_visible").notNull().default(false),
+  promiseLabel: text("promise_label"),
+  notes: text("notes"),
+  metadata: jsonb("metadata"),
+  lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+  createdBy: uuid("created_by"),
+  updatedBy: uuid("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  packageIdx: uniqueIndex("coverage_matrix_package_uidx").on(table.visaPackageId),
+  countryVisaIdx: index("coverage_matrix_country_visa_idx").on(table.country, table.visaType),
+  customerVisibleIdx: index("coverage_matrix_customer_visible_idx").on(table.customerVisible),
+  statusLookupIdx: index("coverage_matrix_status_lookup_idx").on(
+    table.schemaStatus,
+    table.documentChecklistStatus,
+    table.paymentStatus,
+    table.packetStatus,
+  ),
+}));
+
+export const governmentFeeRules = pgTable("government_fee_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id"),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  feeType: text("fee_type").notNull().default("government_fee"),
+  mode: text("mode").notNull().default("display_only"),
+  amountCents: integer("amount_cents").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
+  label: text("label"),
+  payer: text("payer").notNull().default("applicant"),
+  collectionMethod: text("collection_method").notNull().default("official_portal"),
+  effectiveFrom: date("effective_from").notNull(),
+  effectiveTo: date("effective_to"),
+  sourceUrl: text("source_url"),
+  notes: text("notes"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  packageIdx: index("government_fee_rules_package_idx").on(table.visaPackageId),
+  countryVisaIdx: index("government_fee_rules_country_visa_idx").on(table.country, table.visaType),
+  modeIdx: index("government_fee_rules_mode_idx").on(table.mode),
+  effectiveLookupIdx: index("government_fee_rules_effective_lookup_idx").on(
+    table.country,
+    table.visaType,
+    table.feeType,
+    table.effectiveFrom,
+    table.effectiveTo,
+  ),
+}));
+
+export const piiRetentionJobs = pgTable("pii_retention_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dataPrivacyRequestId: uuid("data_privacy_request_id"),
+  applicantId: uuid("applicant_id"),
+  authUserId: uuid("auth_user_id"),
+  applicationId: uuid("application_id"),
+  jobType: text("job_type").notNull(),
+  status: text("status").notNull().default("queued"),
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  retentionReason: text("retention_reason"),
+  scope: jsonb("scope").notNull().default({}),
+  resultSummary: text("result_summary"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  requestIdx: index("pii_retention_jobs_request_idx").on(table.dataPrivacyRequestId),
+  applicantIdx: index("pii_retention_jobs_applicant_idx").on(table.applicantId),
+  authUserIdx: index("pii_retention_jobs_auth_user_idx").on(table.authUserId),
+  applicationIdx: index("pii_retention_jobs_application_idx").on(table.applicationId),
+  statusIdx: index("pii_retention_jobs_status_idx").on(table.status),
+  scheduleIdx: index("pii_retention_jobs_schedule_idx").on(table.status, table.scheduledFor),
+}));
 
 export type PaymentRecord = typeof paymentRecords.$inferSelect;
 export type NewPaymentRecord = typeof paymentRecords.$inferInsert;
@@ -669,6 +949,15 @@ export type OcrExtraction = typeof ocrExtractions.$inferSelect;
 export type NewOcrExtraction = typeof ocrExtractions.$inferInsert;
 export type DataPrivacyRequest = typeof dataPrivacyRequests.$inferSelect;
 export type NewDataPrivacyRequest = typeof dataPrivacyRequests.$inferInsert;
+export const dataRightsRequests = dataPrivacyRequests;
+export type DataRightsRequest = typeof dataPrivacyRequests.$inferSelect;
+export type NewDataRightsRequest = typeof dataPrivacyRequests.$inferInsert;
+export type CoverageMatrix = typeof coverageMatrix.$inferSelect;
+export type NewCoverageMatrix = typeof coverageMatrix.$inferInsert;
+export type GovernmentFeeRule = typeof governmentFeeRules.$inferSelect;
+export type NewGovernmentFeeRule = typeof governmentFeeRules.$inferInsert;
+export type PiiRetentionJob = typeof piiRetentionJobs.$inferSelect;
+export type NewPiiRetentionJob = typeof piiRetentionJobs.$inferInsert;
 
 // =============================================================================
 // USER CHAT SESSIONS

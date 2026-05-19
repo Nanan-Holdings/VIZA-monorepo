@@ -42,3 +42,7 @@ npm run lint
 ```
 
 Smoke `/admin/packages`.
+
+## Related Files
+
+- `page.tsx`: admin package coverage matrix for active visa packages.

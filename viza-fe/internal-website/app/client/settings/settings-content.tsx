@@ -4,16 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { LogOut, Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { geist } from "../../fonts";
 import { BillingTab } from "./components/billing-tab";
+import { PrivacyTab } from "./components/privacy-tab";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type Tab = "billing" | "account";
+type Tab = "billing" | "account" | "privacy";
 
 // =============================================================================
 // Account Tab (inline — email, display name, sign out)
@@ -154,6 +155,7 @@ function AccountTab({
 export function SettingsContent() {
   const router = useRouter();
   const t = useTranslations("settings");
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<Tab>("billing");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -165,6 +167,7 @@ export function SettingsContent() {
   const TABS: { id: Tab; label: string }[] = [
     { id: "billing", label: t("tabs.billing") },
     { id: "account", label: t("tabs.account") },
+    { id: "privacy", label: locale.toLowerCase().startsWith("zh") ? "隐私" : "Privacy" },
   ];
 
   useEffect(() => {
@@ -227,14 +230,14 @@ export function SettingsContent() {
         </div>
 
         {/* Tab bar */}
-        <div className="inline-flex items-center gap-[6px] rounded-[12px] bg-[rgba(239,239,239,0.65)] p-[5px] mb-8 sm:mb-10">
+        <div className="mb-8 flex w-full max-w-full items-center gap-[6px] overflow-x-auto rounded-[12px] bg-[rgba(239,239,239,0.65)] p-[5px] sm:mb-10 sm:w-fit">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={[
-                "relative rounded-[8px] px-6 sm:px-8 py-[10px] text-[15px] sm:text-[16px] font-medium tracking-[-0.24px] transition-all duration-200",
+                "relative min-h-11 flex-1 whitespace-nowrap rounded-[8px] px-4 py-[10px] text-[15px] font-medium tracking-[-0.24px] transition-all duration-200 sm:flex-none sm:px-8 sm:text-[16px]",
                 activeTab === tab.id
                   ? "bg-white text-[#3d3d3d]"
                   : "text-[#989898] hover:text-[#3d3d3d]",
@@ -255,6 +258,7 @@ export function SettingsContent() {
             transition={{ duration: 0.2 }}
           >
             {activeTab === "billing" && <BillingTab />}
+            {activeTab === "privacy" && <PrivacyTab />}
             {activeTab === "account" && (
               <AccountTab
                 email={email}

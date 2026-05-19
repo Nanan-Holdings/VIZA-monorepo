@@ -16,6 +16,8 @@ refund records, and payment-related customer support context.
 - Show government-fee mode from package/application metadata, but do not process
   official government payments here.
 - Link from payment rows to `/admin/applications/[id]`.
+- Keep `page.tsx` as the server data loader and
+  `billing-support-workspace.tsx` as the interactive staff support surface.
 
 ## Data Sources
 

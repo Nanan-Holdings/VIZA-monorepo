@@ -17,6 +17,19 @@ payload construction, and external status normalization.
 - Keep notification payloads JSON-friendly.
 - Keep services independent from Express request/response objects.
 
+## Service Files
+
+- `status.ts`: canonical lifecycle status values and aliases.
+- `external-status.ts`: external status/result allowlists, normalization, and
+  lifecycle mapping.
+- `lifecycle.ts`: readiness checks and lifecycle summary derivation.
+- `packet-handoff.ts`: safe packet handoff payload shaping.
+- `notifications.ts`: notification template/event payload construction.
+- `refunds.ts`: deterministic refund eligibility decisions.
+- `index.ts`: public service exports.
+- `internal-automation.test.ts`: focused tests for status/readiness/payload
+  behavior.
+
 ## Guardrails
 
 - Do not place database connection setup here; use existing DB/Supabase helpers.
