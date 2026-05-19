@@ -19,6 +19,15 @@ It must not implement browser automation or official portal submission.
 - Insert `application_events` for every state mutation.
 - Return packet handoff payloads without leaking secrets.
 
+## Local Files
+
+- `index.ts`: Express router for lifecycle/status summaries, packet handoff,
+  and external status/result ingest.
+- `auth.ts`: service-token middleware for internal and external callers.
+- `validation.ts`: Zod request schemas and status allowlists.
+- `internal-automation.service.ts`: route-owned service helpers that keep
+  request/response handling separate from data shaping and Supabase writes.
+
 ## Data Sources
 
 - `applications`

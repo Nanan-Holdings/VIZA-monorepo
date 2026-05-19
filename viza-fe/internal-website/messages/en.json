@@ -401,6 +401,140 @@
       "remove": "Remove"
     }
   },
+  "clientStatus": {
+    "eyebrow": "Automation progress",
+    "title": "Status Center",
+    "subtitle": "Track payment, consent, form answers, documents, packet preparation, external handoff, and official result delivery in one place.",
+    "chooseDestination": "Choose another destination",
+    "partialData": "Some automation details are temporarily unavailable. Visible statuses are still limited to customer-safe information.",
+    "progress": "Progress",
+    "updated": "Updated",
+    "metric": "Metric",
+    "status": "Status",
+    "download": "Download",
+    "secureFileStored": "Stored securely",
+    "officialReference": "Official reference",
+    "vizaReference": "VIZA reference",
+    "timelineTitle": "Application timeline",
+    "timelineSubtitle": "Each step reflects VIZA website state and externally ingested submission or result updates.",
+    "nextActionsTitle": "Next actions",
+    "referencesTitle": "References",
+    "filesTitle": "Receipts and result files",
+    "filesSubtitle": "Links appear only when VIZA has a receipt, packet, approval, issued visa, rejection, or result reference.",
+    "filesEmpty": "Receipts and result files will appear here after they are created or received.",
+    "activityTitle": "Recent updates",
+    "activityEmpty": "No customer-visible automation updates have been recorded yet.",
+    "applicationsTitle": "Applications",
+    "notCreated": "Not created yet",
+    "notStarted": "Not started",
+    "notAssigned": "Not assigned",
+    "empty": {
+      "title": "No active applications yet",
+      "description": "Choose a destination from Home to start a visa workflow. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",
+      "cta": "Choose destination"
+    },
+    "stats": {
+      "applications": "Applications",
+      "averageProgress": "Average progress",
+      "nextActions": "Open next actions",
+      "files": "Available files"
+    },
+    "states": {
+      "not_started": "Not started",
+      "needs_payment": "Payment needed",
+      "needs_consent": "Consent needed",
+      "in_progress": "In progress",
+      "needs_documents": "Documents needed",
+      "packet_pending": "Packet in preparation",
+      "external_pending": "External handoff pending",
+      "submitted": "Submitted or waiting",
+      "needs_attention": "Needs attention",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "stepStates": {
+      "complete": "Complete",
+      "current": "Current",
+      "attention": "Needs attention",
+      "blocked": "Blocked",
+      "upcoming": "Upcoming"
+    },
+    "steps": {
+      "payment": {
+        "title": "Payment",
+        "description": "Agency-fee payment is confirmed before VIZA prepares the application workflow."
+      },
+      "consent": {
+        "title": "Consent and authorisation",
+        "description": "Your consent and agency authorisation are captured before VIZA handles documents or packets."
+      },
+      "form": {
+        "title": "Form answers",
+        "description": "Saved application answers and official-format fields are tracked here."
+      },
+      "documents": {
+        "title": "Documents",
+        "description": "Passport, photo, travel, finance, and visa-specific supporting files are checked for upload state."
+      },
+      "packet": {
+        "title": "Packet generation",
+        "description": "VIZA prepares a customer-safe application packet after core requirements are ready."
+      },
+      "handoff": {
+        "title": "External handoff",
+        "description": "Externally ingested submission status and official references appear when available."
+      },
+      "result": {
+        "title": "Result delivery",
+        "description": "Approval, issued visa, rejection, or result files appear only when official outcome data exists."
+      }
+    },
+    "metrics": {
+      "signed": "Signed",
+      "accepted": "Accepted",
+      "answerCount": "{count} saved answers",
+      "fileReady": "File ready"
+    },
+    "actions": {
+      "startApplication": "Start application",
+      "pay": "Pay agency fee",
+      "giveConsent": "Review consent",
+      "continueForm": "Continue form",
+      "uploadDocuments": "Upload documents",
+      "waitPacket": "View packet status",
+      "waitExternal": "View handoff status",
+      "downloadResult": "Download result",
+      "contactSupport": "Contact support"
+    },
+    "details": {
+      "applicationId": "Application ID",
+      "payment": "Payment",
+      "agencyFee": "Agency fee",
+      "governmentFee": "Government fee",
+      "formAnswers": "Saved answers",
+      "documents": "Documents received",
+      "externalStatus": "External status",
+      "resultStatus": "Result status",
+      "notifications": "Updates sent"
+    },
+    "files": {
+      "applicationReceipt": "Application receipt",
+      "paymentReceipt": "Payment receipt",
+      "packet": "Prepared packet",
+      "approvedResult": "Approval letter / issued visa PDF",
+      "rejectionLetter": "Rejection letter",
+      "resultFile": "Result file"
+    },
+    "events": {
+      "payment_completed": "Payment completed",
+      "consent_accepted": "Consent accepted",
+      "document_uploaded": "Document uploaded",
+      "packet_generated": "Packet generated",
+      "external_status_updated": "External status updated",
+      "result_received": "Result received",
+      "notification_sent": "Notification sent"
+    }
+  },
   "applicationSteps": {
     "continue": "Continue",
     "submit": "Submit",

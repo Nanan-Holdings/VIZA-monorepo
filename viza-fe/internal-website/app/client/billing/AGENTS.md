@@ -24,6 +24,14 @@ requests, refund eligibility, and government-fee display notes.
 - `applications`
 - `visa_packages`
 
+## Key Files
+
+- `page.tsx`: authenticated applicant billing route with agency-fee history,
+  receipts, invoice/refund visibility, and government-fee disclosure.
+- `data.ts`: billing-only server reads through authenticated applicant context.
+- `actions.ts`: billing-local server mutations such as invoice requests.
+- `invoice-request-form.tsx`: client dialog for request-based invoice intake.
+
 ## Guardrails
 
 - Do not show raw Stripe event payloads or provider IDs unless useful as a

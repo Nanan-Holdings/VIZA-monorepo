@@ -32,6 +32,17 @@ The website automation loop uses:
 - `notification_events`
 - `ocr_extractions`
 - `data_privacy_requests`
+- `coverage_matrix`
+- `government_fee_rules`
+- `pii_retention_jobs`
+
+The current internal automation migrations are:
+
+- `0013_internal_automation_loop.sql`: first website automation tables and
+  application/application document columns.
+- `0014_internal_automation_db_refinements.sql`: coverage matrix,
+  government-fee rules, retention jobs, data-rights columns, and lookup
+  indexes.
 
 ## Guardrails
 

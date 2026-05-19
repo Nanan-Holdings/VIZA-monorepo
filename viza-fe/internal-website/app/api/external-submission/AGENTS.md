@@ -18,6 +18,13 @@ automation itself.
   `result_status`, and result file references.
 - Insert `application_events` and queue `notification_events`.
 
+## Current Route
+
+- `route.ts`: `POST /api/external-submission` service-to-service ingest. It is
+  token-gated by `EXTERNAL_SUBMISSION_TOKEN`, validates strict allowlists for
+  external/result statuses and update sources, updates application
+  external/result fields, and writes audit/notification rows.
+
 ## Guardrails
 
 - Do not accept updates for unknown application ids.

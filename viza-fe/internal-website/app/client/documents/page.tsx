@@ -1,19 +1,34 @@
-"use client";
+import { redirect } from "next/navigation";
+import { DocumentCenterClient } from "./document-center-client";
+import { loadDocumentCenterData } from "./actions";
 
-import { useSearchParams } from "next/navigation";
-import { ApplicationStatusHub } from "@/components/client/application/application-status-hub";
+export const dynamic = "force-dynamic";
 
-export default function DocumentsPage() {
-  const searchParams = useSearchParams();
-  const mode = searchParams.get("view") === "detail" ? "detail" : "overview";
+type DocumentsSearchParams =
+  | Record<string, string | string[] | undefined>
+  | Promise<Record<string, string | string[] | undefined>>;
 
-  return (
-    <ApplicationStatusHub
-      mode={mode}
-      applicationId={searchParams.get("applicationId")}
-      country={searchParams.get("country")}
-      visaType={searchParams.get("visaType")}
-      basePath="/client/documents"
-    />
-  );
+function readParam(params: Record<string, string | string[] | undefined>, key: string): string | null {
+  const value = params[key];
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams?: DocumentsSearchParams;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const result = await loadDocumentCenterData({
+    applicationId: readParam(resolvedSearchParams, "applicationId"),
+    country: readParam(resolvedSearchParams, "country"),
+    visaType: readParam(resolvedSearchParams, "visaType") ?? readParam(resolvedSearchParams, "visa_type"),
+  });
+
+  if (!result.ok && result.code === "not_authenticated") {
+    redirect("/client/login");
+  }
+
+  return <DocumentCenterClient initialData={result.ok ? result.data : null} initialError={result.ok ? null : result.error} />;
 }

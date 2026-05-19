@@ -25,6 +25,20 @@ authorisation before application packet generation or external handoff.
 - `application_signatures`
 - `application_events`
 
+## Key Files
+
+- `page.tsx`: authenticated route entry. Loads the applicant's application
+  list, selected application consent state, signature state, and next-step
+  routing hints.
+- `consent-client.tsx`: explicit consent checkboxes, signed/unsigned display,
+  typed or drawn e-signature capture, and continue UX.
+- `actions.ts`: route-scoped server persistence for consent events,
+  application signatures, audit metadata, and application events.
+- `consent-config.ts`: current ToS, Privacy, and agency authorisation versions
+  and document hashes.
+- `session.ts`: applicant session resolution for normal and impersonated
+  client sessions.
+
 ## Guardrails
 
 - Do not make legal claims beyond the approved ToS/Privacy/authorisation copy.
