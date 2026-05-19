@@ -389,8 +389,12 @@ function BilingualRow({
           {requiredMark}
         </span>
         {enControl}
-        {copilot && <BilingualFieldCopilot config={copilot} />}
       </div>
+      {copilot && (
+        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={copilot.fieldName}>
+          <BilingualFieldCopilot config={copilot} />
+        </div>
+      )}
     </div>
   );
 }

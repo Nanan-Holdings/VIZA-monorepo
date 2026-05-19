@@ -1539,8 +1539,8 @@ function ApplicationFormPage() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px]">
-        <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
+      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5">
+        <div className="mx-auto max-w-xl sm:max-w-2xl md:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
