@@ -1459,11 +1459,6 @@ export function TripRouteMap({
   const activeFocusKey = useMemo(() => {
     if (!activePointId) return "";
 
-    const hasSelectedDestination = points.some(
-      (point) => point.kind === "city" || point.kind === "hotel"
-    );
-    if (!hasSelectedDestination) return "";
-
     const activePoint = points.find((point) => point.id === activePointId);
     if (!activePoint) return "";
 
@@ -2124,7 +2119,7 @@ export function TripRouteMap({
       }, 260);
     } else if (coordinateCount === 1 && points.length > 0 && shouldFit) {
       map.setCenter({ lat: points[0].lat, lng: points[0].lng });
-      map.setZoom(6);
+      map.setZoom(points[0].kind === "hotspot" ? 13 : 6);
       fittedOnceRef.current = true;
       fitKeyRef.current = fitKey;
     } else if (!fittedOnceRef.current) {

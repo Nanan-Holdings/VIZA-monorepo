@@ -49,6 +49,7 @@ Read the nearest source before making changes:
 - Application forms: `docs/application/DG.md`
 - VIZA AI chat: `docs/viza-ai-chat-development-guide.md`
 - Travel AI: `docs/travel-agent-development-guide.md`
+- Website internal automation: `docs/internal-automation/AGENTS.md`
 - Visa schema process: `docs/visa-schema-playbook.md`
 - RAG seeds: `knowledge-base/visa-rag-seeds/README.md`
 - Product/story queue: `prd.json`
@@ -98,9 +99,22 @@ guides include:
 - `viza-fe/internal-website/AGENTS.md`
 - `viza-fe/internal-website/app/client/AGENTS.md`
 - `viza-fe/internal-website/app/client/application/AGENTS.md`
+- `viza-fe/internal-website/app/client/billing/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/AGENTS.md`
+- `viza-fe/internal-website/app/client/checkout/AGENTS.md`
+- `viza-fe/internal-website/app/client/consent/AGENTS.md`
+- `viza-fe/internal-website/app/client/documents/AGENTS.md`
+- `viza-fe/internal-website/app/client/settings/AGENTS.md`
+- `viza-fe/internal-website/app/client/status/AGENTS.md`
 - `viza-fe/internal-website/app/admin/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/applications/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/packages/AGENTS.md`
 - `viza-fe/internal-website/app/actions/AGENTS.md`
+- `viza-fe/internal-website/app/actions/internal-automation/AGENTS.md`
+- `viza-fe/internal-website/app/api/external-submission/AGENTS.md`
+- `viza-fe/internal-website/app/api/passport-ocr/AGENTS.md`
+- `viza-fe/internal-website/app/api/stripe/AGENTS.md`
 - `viza-fe/internal-website/app/api/travel/AGENTS.md`
 - `viza-fe/internal-website/components/application-steps/AGENTS.md`
 - `viza-fe/internal-website/components/client/companion/AGENTS.md`
@@ -109,16 +123,20 @@ guides include:
 - `viza-fe/internal-website/lib/travel/AGENTS.md`
 - `viza-be/AGENTS.md`
 - `viza-be/agent-backend/AGENTS.md`
+- `viza-be/agent-backend/drizzle/AGENTS.md`
 - `viza-be/agent-backend/src/db/AGENTS.md`
 - `viza-be/agent-backend/src/routes/AGENTS.md`
+- `viza-be/agent-backend/src/routes/internal-automation/AGENTS.md`
 - `viza-be/agent-backend/src/socket/AGENTS.md`
 - `viza-be/agent-backend/src/services/AGENTS.md`
+- `viza-be/agent-backend/src/services/internal-automation/AGENTS.md`
 - `viza-be/submission-service/AGENTS.md`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/travel-service/AGENTS.md`
 - `knowledge-base/AGENTS.md`
 - `knowledge-base/visa-rag-seeds/AGENTS.md`
 - `docs/AGENTS.md`
+- `docs/internal-automation/AGENTS.md`
 
 When a file is added, deleted, moved, or renamed, update the nearest relevant
 module `AGENTS.md`. If no module file exists and the change completes a coherent
@@ -206,6 +224,12 @@ checks:
 - VIZA AI user-facing answers should be plain text by default.
 - RAG answers must not invent official requirements. State uncertainty and point
   to official sources when data is missing.
+- Website internal automation covers payment, consent, documents, OCR, packet
+  generation, status display, notifications, staff monitoring, and external
+  status ingestion only.
+- Do not add official portal runners, CAPTCHA solving, proxy/browser
+  fingerprinting, or Playwright submission automation unless the user
+  explicitly reopens `viza-be/submission-service` scope.
 - DS-160 CEAC automation must stop before final sign/submit.
 - Travel AI required-field order is deterministic and lives in
   `viza-fe/internal-website/lib/travel/planner.ts`.

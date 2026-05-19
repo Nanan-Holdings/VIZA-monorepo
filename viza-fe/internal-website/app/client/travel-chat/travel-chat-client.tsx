@@ -91,6 +91,31 @@ type MapTarget = {
   city?: string;
 };
 
+type GoogleGeocodeCoordinate = {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+};
+
+type GoogleGeocodeResult = {
+  key: string;
+  query: string;
+  lat?: number;
+  lng?: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+  status: string;
+  error?: string;
+};
+
+type GoogleGeocodeRequestItem = {
+  key: string;
+  query: string;
+};
+
 type TravelAgentChatResponse = {
   reply?: string;
   mode?: string;
@@ -241,27 +266,6 @@ const WORLD_CITY_SUGGESTIONS = [
   "Pisa",
 ] as const;
 
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  tokyo: [35.6762, 139.6503],
-  singapore: [1.3521, 103.8198],
-  sydney: [-33.8688, 151.2093],
-  newyork: [40.7128, -74.006],
-  nyc: [40.7128, -74.006],
-  beijing: [39.9042, 116.4074],
-  sanfrancisco: [37.7749, -122.4194],
-  sf: [37.7749, -122.4194],
-  pisa: [43.7228, 10.4017],
-  rome: [41.9028, 12.4964],
-  paris: [48.8566, 2.3522],
-  london: [51.5072, -0.1276],
-  dubai: [25.2048, 55.2708],
-  seoul: [37.5665, 126.978],
-  osaka: [34.6937, 135.5023],
-  kyoto: [35.0116, 135.7681],
-  bangkok: [13.7563, 100.5018],
-  hongkong: [22.3193, 114.1694],
-};
-
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   japan: "日本",
   china: "中国",
@@ -301,6 +305,9 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   osaka: "大阪",
   kyoto: "京都",
   phuket: "普吉",
+  chiangmai: "清迈",
+  pattaya: "芭提雅",
+  krabi: "甲米",
   bali: "巴厘岛",
   bangkok: "曼谷",
   hongkong: "香港",
@@ -334,6 +341,14 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
 function normalizePlaceLookupKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, "");
 }
+
+const CANONICAL_PLACE_KEY_ALIASES: Record<string, string> = {
+  pattayacity: "pattaya",
+  chiangmaicity: "chiangmai",
+  phuketcity: "phuket",
+  krungthepmahanakhon: "bangkok",
+  bangkokmetropolis: "bangkok",
+};
 
 const CANONICAL_PLACE_KEY_BY_LOCAL_NAME = Object.entries(LOCAL_NAME_BY_KEY).reduce<
   Record<string, string>
@@ -377,6 +392,9 @@ const PLACE_TEXT_REPLACEMENTS = [
   ["Osaka", "大阪"],
   ["Kyoto", "京都"],
   ["Bangkok", "曼谷"],
+  ["Chiang Mai", "清迈"],
+  ["Pattaya", "芭提雅"],
+  ["Krabi", "甲米"],
   ["Bali", "巴厘岛"],
 ] as const;
 
@@ -412,6 +430,36 @@ const CITY_CONTEXT: Record<
     countryZh: "新加坡",
     days: "2-4 days",
     intro: "滨海湾夜景和多元美食非常集中，城市交通高效，适合轻松城市度假。",
+  },
+  bangkok: {
+    countryEn: "Thailand",
+    countryZh: "泰国",
+    days: "3-5 days",
+    intro: "曼谷寺庙、夜市和河岸体验密集，适合把美食、购物和文化景点串起来。",
+  },
+  phuket: {
+    countryEn: "Thailand",
+    countryZh: "泰国",
+    days: "3-5 days",
+    intro: "普吉适合海岛度假、出海和海滩夜生活，节奏可以比城市行程更放松。",
+  },
+  chiangmai: {
+    countryEn: "Thailand",
+    countryZh: "泰国",
+    days: "2-4 days",
+    intro: "清迈适合古城寺庙、咖啡小店和山地自然体验，整体节奏更慢。",
+  },
+  pattaya: {
+    countryEn: "Thailand",
+    countryZh: "泰国",
+    days: "1-3 days",
+    intro: "芭提雅适合海滨短停、夜市和周边岛屿体验，适合从曼谷顺路延伸。",
+  },
+  krabi: {
+    countryEn: "Thailand",
+    countryZh: "泰国",
+    days: "2-4 days",
+    intro: "甲米以石灰岩海岸和跳岛路线为主，适合喜欢自然景观和轻户外的行程。",
   },
   sydney: {
     countryEn: "Australia",
@@ -1362,7 +1410,7 @@ function withLocalCandidateDisplay(
 
 function normalizeCityKey(city: string): string {
   const key = normalizePlaceLookupKey(city);
-  return CANONICAL_PLACE_KEY_BY_LOCAL_NAME[key] ?? key;
+  return CANONICAL_PLACE_KEY_BY_LOCAL_NAME[key] ?? CANONICAL_PLACE_KEY_ALIASES[key] ?? key;
 }
 
 function getLocalDisplayName(value: string): string {
@@ -1446,15 +1494,61 @@ function getCityImage(city: string, seed: string = "default"): string {
   return getRemoteCityImage(city);
 }
 
-function getCityCoordinates(city: string): [number, number] {
+function getGoogleCityCoordinates(
+  city: string,
+  lookup: Record<string, GoogleGeocodeCoordinate>
+): [number, number] | null {
   const key = normalizeCityKey(city);
-  const direct = CITY_COORDINATES[key];
-  if (direct) return direct;
+  const coordinate = lookup[key];
+  if (!coordinate) return null;
+  return [coordinate.lat, coordinate.lng];
+}
 
-  const seed = hashString(city);
-  const lat = (seed % 140) - 60;
-  const lng = ((seed * 7) % 320) - 160;
-  return [lat, lng];
+function buildGoogleGeocodeItem(city: string): GoogleGeocodeRequestItem | null {
+  const trimmedCity = city.trim();
+  if (!trimmedCity) return null;
+
+  const key = normalizeCityKey(trimmedCity);
+  const localName = getLocalDisplayName(trimmedCity);
+  const context = getCityContext(trimmedCity);
+  const query = context
+    ? `${localName}, ${context.countryZh}`
+    : localName !== trimmedCity
+      ? `${localName}, ${trimmedCity}`
+      : trimmedCity;
+
+  return { key, query };
+}
+
+function buildRouteCityNames(
+  originCity: string | null,
+  orderedCities: string[],
+  returnCity: string | null
+): string[] {
+  if (orderedCities.length === 0) return [];
+
+  const routeCities: string[] = [];
+  const origin = originCity?.trim();
+  const destination = returnCity?.trim();
+
+  if (origin) routeCities.push(origin);
+  routeCities.push(...orderedCities);
+  if (destination && routeCities[routeCities.length - 1] !== destination) {
+    routeCities.push(destination);
+  }
+
+  return routeCities;
+}
+
+function buildGoogleRouteCoordinates(
+  routeCities: string[],
+  lookup: Record<string, GoogleGeocodeCoordinate>
+): Array<[number, number]> {
+  const coordinates = routeCities
+    .map((city) => getGoogleCityCoordinates(city, lookup))
+    .filter((coordinate): coordinate is [number, number] => Boolean(coordinate));
+
+  return coordinates.length === routeCities.length ? coordinates : [];
 }
 
 function withOffset(
@@ -1468,26 +1562,6 @@ function withOffset(
   const lat = center[0] + Math.sin(angle) * radius;
   const lng = center[1] + Math.cos(angle) * radius;
   return [lat, lng];
-}
-
-function buildRouteCoordinates(
-  originCity: string | null,
-  orderedCities: string[],
-  returnCity: string | null
-): Array<[number, number]> {
-  if (orderedCities.length === 0) return [];
-
-  const routeCities: string[] = [];
-  const origin = originCity?.trim();
-  const destination = returnCity?.trim();
-
-  if (origin) routeCities.push(origin);
-  routeCities.push(...orderedCities);
-  if (destination && routeCities[routeCities.length - 1] !== destination) {
-    routeCities.push(destination);
-  }
-
-  return routeCities.map((city) => getCityCoordinates(city));
 }
 
 function toCoordinate(value: string | number | undefined): number | null {
@@ -1578,11 +1652,15 @@ export function TravelChatClient({
   const [prefetchedIpLocationError, setPrefetchedIpLocationError] =
     useState<string | null>(null);
   const [isPrefetchingIpLocation, setIsPrefetchingIpLocation] = useState(false);
+  const [googleCityCoordinates, setGoogleCityCoordinates] = useState<
+    Record<string, GoogleGeocodeCoordinate>
+  >({});
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
   const scrollDragOffsetRef = useRef(0);
   const lastAutoScrolledMessageIdRef = useRef<string | null>(null);
   const selectedCityFocusKeyRef = useRef("");
+  const failedGeocodeKeysRef = useRef<Set<string>>(new Set());
   const [scrollThumb, setScrollThumb] = useState<ScrollThumbState>({
     top: 0,
     height: 0,
@@ -1706,6 +1784,49 @@ export function TravelChatClient({
     () => travelState.cities.map((city) => normalizeCityKey(city)).join("|"),
     [travelState.cities]
   );
+  const routeCityNames = useMemo(
+    () =>
+      buildRouteCityNames(travelState.origin_city, orderedCities, travelState.return_city),
+    [orderedCities, travelState.origin_city, travelState.return_city]
+  );
+  const displayItineraryRouteCityNames = useMemo(
+    () =>
+      buildRouteCityNames(
+        displayTravelState.origin_city,
+        displayOrderedCities,
+        displayTravelState.return_city
+      ),
+    [
+      displayOrderedCities,
+      displayTravelState.origin_city,
+      displayTravelState.return_city,
+    ]
+  );
+  const cityNamesForGoogleGeocoding = useMemo(() => {
+    const cityByKey = new Map<string, string>();
+    const addCity = (city: string | null | undefined) => {
+      const trimmedCity = city?.trim();
+      if (!trimmedCity) return;
+      cityByKey.set(normalizeCityKey(trimmedCity), trimmedCity);
+    };
+
+    WORLD_CITY_SUGGESTIONS.forEach(addCity);
+    routeCityNames.forEach(addCity);
+    displayItineraryRouteCityNames.forEach(addCity);
+    orderedCities.forEach(addCity);
+    displayOrderedCities.forEach(addCity);
+    travelState.selected_hotels.forEach((hotel) => addCity(hotel.city));
+    displayTravelState.selected_hotels.forEach((hotel) => addCity(hotel.city));
+
+    return Array.from(cityByKey.values());
+  }, [
+    displayItineraryRouteCityNames,
+    displayOrderedCities,
+    orderedCities,
+    routeCityNames,
+    travelState.selected_hotels,
+    displayTravelState.selected_hotels,
+  ]);
 
   const progressItems = useMemo(
     () => buildProgressItems(progressPercent, travelState),
@@ -1716,10 +1837,80 @@ export function TravelChatClient({
     [progressItems]
   );
 
+  useEffect(() => {
+    const pendingItems = cityNamesForGoogleGeocoding
+      .map(buildGoogleGeocodeItem)
+      .filter((item): item is GoogleGeocodeRequestItem => {
+        if (!item) return false;
+        if (googleCityCoordinates[item.key]) return false;
+        return !failedGeocodeKeysRef.current.has(item.key);
+      });
+
+    if (pendingItems.length === 0) return;
+
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/travel/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: pendingItems }),
+        });
+        const payload = (await response.json()) as {
+          results?: GoogleGeocodeResult[];
+          error?: string;
+        };
+
+        if (!response.ok) {
+          console.warn("Google geocoding request failed", payload.error);
+          return;
+        }
+
+        const nextCoordinates: Record<string, GoogleGeocodeCoordinate> = {};
+        payload.results?.forEach((result) => {
+          if (
+            typeof result.lat === "number" &&
+            Number.isFinite(result.lat) &&
+            typeof result.lng === "number" &&
+            Number.isFinite(result.lng)
+          ) {
+            nextCoordinates[result.key] = {
+              lat: result.lat,
+              lng: result.lng,
+              formattedAddress: result.formattedAddress,
+              placeId: result.placeId,
+              locationType: result.locationType,
+            };
+            return;
+          }
+
+          failedGeocodeKeysRef.current.add(result.key);
+          console.warn(
+            `Google geocoding did not return coordinates for ${result.query}`,
+            result.error ?? result.status
+          );
+        });
+
+        if (!disposed && Object.keys(nextCoordinates).length > 0) {
+          setGoogleCityCoordinates((current) => ({
+            ...current,
+            ...nextCoordinates,
+          }));
+        }
+      } catch (error) {
+        console.warn("Failed to resolve Google geocoding coordinates", error);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [cityNamesForGoogleGeocoding, googleCityCoordinates]);
+
   const routeCoordinates = useMemo(
-    () =>
-      buildRouteCoordinates(travelState.origin_city, orderedCities, travelState.return_city),
-    [orderedCities, travelState.origin_city, travelState.return_city]
+    () => buildGoogleRouteCoordinates(routeCityNames, googleCityCoordinates),
+    [googleCityCoordinates, routeCityNames]
   );
 
   const shouldShowRouteLine = useMemo(() => {
@@ -1736,16 +1927,11 @@ export function TravelChatClient({
   );
   const displayItineraryRouteCoordinates = useMemo(
     () =>
-      buildRouteCoordinates(
-        displayTravelState.origin_city,
-        displayOrderedCities,
-        displayTravelState.return_city
+      buildGoogleRouteCoordinates(
+        displayItineraryRouteCityNames,
+        googleCityCoordinates
       ),
-    [
-      displayOrderedCities,
-      displayTravelState.origin_city,
-      displayTravelState.return_city,
-    ]
+    [displayItineraryRouteCityNames, googleCityCoordinates]
   );
 
   const selectedCityKeys = useMemo(
@@ -1754,13 +1940,16 @@ export function TravelChatClient({
   );
 
   const citySuggestionTargets = useMemo<MapTarget[]>(
-    () =>
+    () => {
+      const targets: MapTarget[] = [];
       WORLD_CITY_SUGGESTIONS.filter(
         (city) => !selectedCityKeys.has(normalizeCityKey(city))
-      ).map((city, index) => {
-        const [lat, lng] = getCityCoordinates(city);
+      ).forEach((city, index) => {
+        const coordinate = getGoogleCityCoordinates(city, googleCityCoordinates);
+        if (!coordinate) return;
+        const [lat, lng] = coordinate;
         const context = getCityContext(city);
-        return {
+        targets.push({
           id: `city-suggestion-${normalizeCityKey(city)}`,
           kind: "city",
           label: city,
@@ -1773,9 +1962,11 @@ export function TravelChatClient({
           lat,
           lng,
           city,
-        };
-      }),
-    [selectedCityKeys]
+        });
+      });
+      return targets;
+    },
+    [googleCityCoordinates, selectedCityKeys]
   );
 
   const baseMapTargets = useMemo(() => {
@@ -1801,7 +1992,9 @@ export function TravelChatClient({
 
     orderedCities.forEach((city, index) => {
       const days = travelState.city_days[city];
-      const [lat, lng] = getCityCoordinates(city);
+      const coordinate = getGoogleCityCoordinates(city, googleCityCoordinates);
+      if (!coordinate) return;
+      const [lat, lng] = coordinate;
       const context = getCityContext(city);
       targets.push({
         id: `city-${normalizeCityKey(city)}-${index}`,
@@ -1824,14 +2017,13 @@ export function TravelChatClient({
       const lng = toCoordinate(hotel.option.longitude);
       const hotelName = hotel.option.name ?? `Hotel ${hotel.stay_index}`;
       const city = hotel.city;
-      const cityCenter = getCityCoordinates(city);
-      const [fallbackLat, fallbackLng] = withOffset(
-        cityCenter,
-        `hotel-${hotel.stay_index}-${city}`,
-        0.12
-      );
-      const finalLat = lat ?? fallbackLat;
-      const finalLng = lng ?? fallbackLng;
+      const cityCenter = getGoogleCityCoordinates(city, googleCityCoordinates);
+      const fallbackCoordinate = cityCenter
+        ? withOffset(cityCenter, `hotel-${hotel.stay_index}-${city}`, 0.12)
+        : null;
+      const finalLat = lat ?? fallbackCoordinate?.[0] ?? null;
+      const finalLng = lng ?? fallbackCoordinate?.[1] ?? null;
+      if (finalLat === null || finalLng === null) return;
 
       targets.push({
         id: `hotel-${hotel.stay_index}-${normalizeCityKey(city)}`,
@@ -1859,6 +2051,7 @@ export function TravelChatClient({
   }, [
     orderedCities,
     displayRouteCoordinates,
+    googleCityCoordinates,
     travelState.city_days,
     travelState.origin_city,
     travelState.return_city,
@@ -1879,7 +2072,12 @@ export function TravelChatClient({
   const hotspotMapTargets = useMemo(() => {
     if (!destinationSelectionLocked || !activeCityForHotspots) return [];
 
-    const cityCenter = getCityCoordinates(activeCityForHotspots);
+    const cityCenter = getGoogleCityCoordinates(
+      activeCityForHotspots,
+      googleCityCoordinates
+    );
+    if (!cityCenter) return [];
+
     return getHotspotsForCity(activeCityForHotspots).map((spot, index) => ({
       id: `hotspot-${activeCityForHotspots}-${index}`,
       kind: "hotspot" as const,
@@ -1906,7 +2104,7 @@ export function TravelChatClient({
       })(),
       city: activeCityForHotspots,
     }));
-  }, [activeCityForHotspots, destinationSelectionLocked]);
+  }, [activeCityForHotspots, destinationSelectionLocked, googleCityCoordinates]);
 
   const allMapTargets = useMemo(
     () => [...baseMapTargets, ...citySuggestionTargets, ...hotspotMapTargets],

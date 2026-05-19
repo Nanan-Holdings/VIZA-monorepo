@@ -6,6 +6,7 @@ import {
   BedDouble,
   CalendarDays,
   Car,
+  Check,
   ChevronRight,
   Clock3,
   Compass,
@@ -14,6 +15,7 @@ import {
   MapPin,
   MapPinned,
   Pause,
+  Pencil,
   Plane,
   Play,
   Plus,
@@ -60,7 +62,6 @@ import {
   findTravelAttraction,
   getTravelAttractionNamesForCity,
   getTravelAttractionsForCity,
-  type TravelAttractionKnowledgeItem,
 } from "@/components/client/travel/travel-attraction-knowledge";
 
 type ItineryTableRow = {
@@ -72,6 +73,41 @@ type ItineryTableRow = {
   details: string;
   contact: string;
 };
+
+type GoogleGeocodeCoordinate = {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+};
+
+type GoogleGeocodeResult = {
+  key: string;
+  query: string;
+  lat?: number;
+  lng?: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+  status: string;
+  error?: string;
+};
+
+type GoogleGeocodeRequestItem = {
+  key: string;
+  query: string;
+};
+
+type AttractionChoiceCard = {
+  name: string;
+  location: string;
+  imageSrc: string;
+  lat?: number;
+  lng?: number;
+};
+
+type DetailResourceTab = "attractions" | "flights" | "hotels";
 
 type TravelItineraryExperienceProps = {
   itinerary: ItineraryDay[];
@@ -184,6 +220,15 @@ const CITY_IMAGE_BY_KEY: Record<string, string> = {
   sf: "/globe/sf.jpg",
   pisa: "/globe/pisa.jpg",
   rome: "/globe/pisa.jpg",
+  bangkok: "/globe/singapore.jpg",
+  "曼谷": "/globe/singapore.jpg",
+  phuket: "/globe/singapore.jpg",
+  "普吉岛": "/globe/singapore.jpg",
+  chiangmai: "/globe/singapore.jpg",
+  "清迈": "/globe/singapore.jpg",
+  pattaya: "/globe/singapore.jpg",
+  "芭提雅": "/globe/singapore.jpg",
+  "芭堤雅": "/globe/singapore.jpg",
 };
 
 const LOCAL_CITY_LABELS: Record<string, string> = {
@@ -206,6 +251,14 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   rome: "罗马",
   seoul: "首尔",
   bangkok: "曼谷",
+  "曼谷": "曼谷",
+  phuket: "普吉岛",
+  "普吉岛": "普吉岛",
+  chiangmai: "清迈",
+  "清迈": "清迈",
+  pattaya: "芭提雅",
+  "芭提雅": "芭提雅",
+  "芭堤雅": "芭提雅",
   hongkong: "香港",
 };
 
@@ -316,6 +369,70 @@ const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
     "唐人街耀华力路",
     "ICONSIAM",
   ],
+  "曼谷": [
+    "大皇宫与玉佛寺",
+    "卧佛寺",
+    "郑王庙",
+    "乍都乍周末市场",
+    "唐人街耀华力路",
+    "ICONSIAM",
+  ],
+  phuket: [
+    "普吉老镇与彩色骑楼",
+    "查龙寺",
+    "普吉大佛",
+    "卡塔海滩",
+    "神仙半岛观景台",
+    "班赞海鲜市场",
+  ],
+  "普吉岛": [
+    "普吉老镇与彩色骑楼",
+    "查龙寺",
+    "普吉大佛",
+    "卡塔海滩",
+    "神仙半岛观景台",
+    "班赞海鲜市场",
+  ],
+  chiangmai: [
+    "契迪龙寺",
+    "帕辛寺",
+    "素贴山双龙寺",
+    "清迈古城塔佩门",
+    "宁曼路咖啡街区",
+    "清迈夜间动物园",
+  ],
+  "清迈": [
+    "契迪龙寺",
+    "帕辛寺",
+    "素贴山双龙寺",
+    "清迈古城塔佩门",
+    "宁曼路咖啡街区",
+    "清迈夜间动物园",
+  ],
+  pattaya: [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
+  "芭提雅": [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
+  "芭堤雅": [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
   hongkong: [
     "太平山顶凌霄阁",
     "中环半山扶梯",
@@ -381,6 +498,14 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   rome: [41.9028, 12.4964],
   seoul: [37.5665, 126.978],
   bangkok: [13.7563, 100.5018],
+  "曼谷": [13.7563, 100.5018],
+  phuket: [7.8804, 98.3923],
+  "普吉岛": [7.8804, 98.3923],
+  chiangmai: [18.7883, 98.9853],
+  "清迈": [18.7883, 98.9853],
+  pattaya: [12.9236, 100.8825],
+  "芭提雅": [12.9236, 100.8825],
+  "芭堤雅": [12.9236, 100.8825],
   hongkong: [22.3193, 114.1694],
 };
 
@@ -722,6 +847,66 @@ function getCitySectionKey(city: string): string {
   return normalizeLookupKey(city) || city;
 }
 
+function getAttractionCoordinateKey(city: string, attraction: string): string {
+  return `${normalizeLookupKey(city)}:${normalizeLookupKey(attraction)}`;
+}
+
+function isFiniteCoordinate(
+  coordinate: GoogleGeocodeCoordinate | undefined
+): coordinate is GoogleGeocodeCoordinate {
+  return Boolean(
+    coordinate &&
+      Number.isFinite(coordinate.lat) &&
+      Number.isFinite(coordinate.lng)
+  );
+}
+
+function buildAttractionGeocodeItems(
+  city: string,
+  attractionNames: string[]
+): GoogleGeocodeRequestItem[] {
+  const cityLabel = getLocalCityLabel(city);
+  const seen = new Set<string>();
+
+  return attractionNames
+    .map((name) => name.trim())
+    .filter((name) => {
+      const key = getAttractionCoordinateKey(city, name);
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 14)
+    .map((name) => ({
+      key: getAttractionCoordinateKey(city, name),
+      query: `${name}, ${cityLabel}`,
+    }));
+}
+
+function getAttractionChoicesForCity(city: string): AttractionChoiceCard[] {
+  const cityKey = normalizeLookupKey(city);
+  const knowledgeChoices = getTravelAttractionsForCity(city).map((item) => ({
+    name: item.name,
+    location: item.location,
+    imageSrc: item.imageSrc,
+    lat: item.lat,
+    lng: item.lng,
+  }));
+  const knownKeys = new Set(
+    knowledgeChoices.map((item) => normalizeLookupKey(item.name))
+  );
+  const fallbackNames = SPECIFIC_ATTRACTIONS_BY_KEY[cityKey] ?? [];
+  const fallbackChoices = fallbackNames
+    .filter((name) => !knownKeys.has(normalizeLookupKey(name)))
+    .map((name, index) => ({
+      name,
+      location: `${getLocalCityLabel(city)} · Google Maps 精准定位`,
+      imageSrc: getCityImage(city, `attraction-choice-${name}-${index}`),
+    }));
+
+  return [...knowledgeChoices, ...fallbackChoices].slice(0, 10);
+}
+
 function getSegmentDays(
   itinerary: ItineraryDay[],
   segment: CitySegment
@@ -802,6 +987,147 @@ function getSegmentFlights(
       normalizeLookupKey(flight.to) === cityKey
     );
   });
+}
+
+function getSegmentFlightLegs(
+  legs: FlightLegResult[],
+  segment: CitySegment
+): Array<{ leg: FlightLegResult; legIndex: number }> {
+  const cityKey = normalizeLookupKey(segment.city);
+  return legs
+    .map((leg, index) => ({ leg, legIndex: index + 1 }))
+    .filter(({ leg }) => {
+      return (
+        normalizeLookupKey(leg.from) === cityKey ||
+        normalizeLookupKey(leg.to) === cityKey
+      );
+    });
+}
+
+function findHotelStayForCity(
+  stays: HotelStayResult[],
+  city: string
+): { stay: HotelStayResult; stayIndex: number } | null {
+  const cityKey = normalizeLookupKey(city);
+  const stayIndex = stays.findIndex(
+    (stay) => normalizeLookupKey(stay.city) === cityKey
+  );
+  if (stayIndex < 0) return null;
+  return {
+    stay: stays[stayIndex],
+    stayIndex: stayIndex + 1,
+  };
+}
+
+function getSelectedFlightForLeg(
+  flights: SelectedFlightOption[],
+  legIndex: number
+): SelectedFlightOption | null {
+  return (
+    flights.find((flight) => flight.leg_index === legIndex && !flight.skip) ?? null
+  );
+}
+
+function getSelectedHotelForStay(
+  hotels: SelectedHotelOption[],
+  stayIndex: number
+): SelectedHotelOption | null {
+  return hotels.find((hotel) => hotel.stay_index === stayIndex) ?? null;
+}
+
+function createSelectedFlightFromOption(
+  leg: FlightLegResult,
+  legIndex: number,
+  option: FlightOptionResult,
+  optionIndex: number
+): SelectedFlightOption {
+  return {
+    leg_index: legIndex,
+    from: leg.from,
+    to: leg.to,
+    departure_date: leg.departure_date,
+    skip: false,
+    option_index: optionIndex,
+    option,
+  };
+}
+
+function createSelectedHotelFromOption(
+  stay: HotelStayResult,
+  stayIndex: number,
+  option: HotelOptionResult,
+  optionIndex: number
+): SelectedHotelOption {
+  return {
+    stay_index: stayIndex,
+    city: stay.city,
+    check_in: stay.check_in,
+    check_out: stay.check_out,
+    nights: stay.nights,
+    option_index: optionIndex,
+    option,
+  };
+}
+
+function getFlightOptionDisplayPrice(option: FlightOptionResult): string {
+  const price = option.price;
+  if (!price) return "API 推荐";
+  const currency = option.currency?.trim();
+  if (!currency || price.includes(currency)) return price;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${price}`;
+}
+
+function getHotelOptionDisplayPrice(option: HotelOptionResult): string {
+  const rawPrice =
+    option.total_price ?? option.average_price_per_night ?? option.price_per_night;
+  if (!rawPrice) return "API 推荐";
+  const currency = option.currency?.trim();
+  if (!currency || rawPrice.includes(currency)) return rawPrice;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${rawPrice}`;
+}
+
+function getHotelContactLabel(option: HotelOptionResult): string {
+  return (
+    option.contact_phone ??
+    option.contact_email ??
+    option.website ??
+    "联系电话请通过预订平台确认"
+  );
+}
+
+function getFlightOptionKey(
+  legIndex: number,
+  option: FlightOptionResult,
+  optionIndex: number
+): string {
+  return [
+    legIndex,
+    optionIndex,
+    option.flight_number,
+    option.airline,
+    option.departure,
+    option.arrival,
+  ]
+    .filter(Boolean)
+    .join(":");
+}
+
+function getHotelOptionKey(
+  stayIndex: number,
+  option: HotelOptionResult,
+  optionIndex: number
+): string {
+  return [
+    stayIndex,
+    optionIndex,
+    option.hotel_id,
+    option.name,
+    option.address,
+  ]
+    .filter(Boolean)
+    .join(":");
 }
 
 function getFlightDirectionLabel(
@@ -897,7 +1223,8 @@ function shouldPreferFourStarHotel(modulePatch?: Record<string, unknown>): boole
 function buildAttractionMapPoints(
   days: ItineraryDay[],
   city: string,
-  seedPrefix: string
+  seedPrefix: string,
+  googleCoordinates: Record<string, GoogleGeocodeCoordinate> = {}
 ): TripMapPoint[] {
   const cityKey = normalizeLookupKey(city);
   const cityLabel = getLocalCityLabel(city);
@@ -925,18 +1252,21 @@ function buildAttractionMapPoints(
 
   return pointNames.slice(0, 8).map((activity, index) => {
     const attraction = findTravelAttraction(city, activity);
-    const [lat, lng] = attraction
+    const googleCoordinate = googleCoordinates[getAttractionCoordinateKey(city, activity)];
+    const [lat, lng] = isFiniteCoordinate(googleCoordinate)
+      ? [googleCoordinate.lat, googleCoordinate.lng]
+      : attraction
       ? [attraction.lat, attraction.lng]
       : offsetCoordinate(center, `${seedPrefix}-${city}-${activity}`, 0.05);
+    const locationText =
+      googleCoordinate?.formattedAddress ?? attraction?.location ?? cityLabel;
     return {
       id: `${seedPrefix}-${cityKey}-${index}`,
       kind: "hotspot",
       label: activity,
       subtitle: `${cityLabel}第 ${index + 1} 站`,
       localName: cityLabel,
-      intro: attraction
-        ? `${activity} 位于 ${attraction.location}，地图路线会按当天顺序串联这些景点。`
-        : `${activity} 是 ${cityLabel} 行程中的具体停靠点，地图路线会按行程顺序串联这些景点。`,
+      intro: `${activity} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`,
       imageSrc: attraction?.imageSrc ?? getCityImage(city, `${seedPrefix}-${index}`),
       lat,
       lng,
@@ -1046,11 +1376,7 @@ function buildSelectedHotelRows(
     const checkInTime = extractClockTime(hotel.option.check_in_time, "15:00");
     const checkOutTime = hotel.option.check_out_time ?? "11:00";
     const address = hotel.option.address ?? `${cityLabel}市中心区域`;
-    const contact =
-      hotel.option.contact_phone ??
-      hotel.option.website ??
-      hotel.option.contact_email ??
-      "请通过预订平台确认";
+    const contact = getHotelContactLabel(hotel.option);
 
     return createTimedItineryRow(
       {
@@ -1474,15 +1800,30 @@ export function TravelItineraryExperience({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isSharingLink, setIsSharingLink] = useState(false);
   const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
+  const [detailResourceTab, setDetailResourceTab] =
+    useState<DetailResourceTab>("attractions");
+  const [customizeDayEditor, setCustomizeDayEditor] = useState(false);
+  const [apiFlightLegs, setApiFlightLegs] = useState<FlightLegResult[]>([]);
+  const [apiHotelStays, setApiHotelStays] = useState<HotelStayResult[]>([]);
   const [apiDefaultFlights, setApiDefaultFlights] = useState<
     SelectedFlightOption[]
   >([]);
   const [apiDefaultHotels, setApiDefaultHotels] = useState<
     SelectedHotelOption[]
   >([]);
+  const [localSelectedFlights, setLocalSelectedFlights] = useState<
+    SelectedFlightOption[] | null
+  >(null);
+  const [localSelectedHotels, setLocalSelectedHotels] = useState<
+    SelectedHotelOption[] | null
+  >(null);
+  const [googleAttractionCoordinates, setGoogleAttractionCoordinates] = useState<
+    Record<string, GoogleGeocodeCoordinate>
+  >({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failedAttractionGeocodeKeysRef = useRef<Set<string>>(new Set());
 
   const apiOptionsPayload = useMemo(
     () => buildApiOptionsPayload(travelState, orderedCities),
@@ -1492,27 +1833,27 @@ export function TravelItineraryExperience({
     () => JSON.stringify(apiOptionsPayload),
     [apiOptionsPayload]
   );
-  const needsApiFlightDefaults =
-    !shouldSuppressFlights(modulePatch) &&
-    !hasSelectedFlightOption(travelState.selected_flights) &&
-    apiOptionsPayload.cities.length > 0;
-  const needsApiHotelDefaults =
-    !hasSelectedHotelOption(travelState.selected_hotels) &&
-    apiOptionsPayload.cities.length > 0;
+  const baseSelectedFlights = localSelectedFlights ?? travelState.selected_flights;
+  const baseSelectedHotels = localSelectedHotels ?? travelState.selected_hotels;
+  const shouldLoadApiFlightOptions =
+    !shouldSuppressFlights(modulePatch) && apiOptionsPayload.cities.length > 0;
+  const shouldLoadApiHotelOptions = apiOptionsPayload.cities.length > 0;
+  const shouldUseApiFlightDefaults = !hasSelectedFlightOption(baseSelectedFlights);
+  const shouldUseApiHotelDefaults = !hasSelectedHotelOption(baseSelectedHotels);
 
   const effectiveSelectedFlights = useMemo(
     () =>
-      hasSelectedFlightOption(travelState.selected_flights)
-        ? travelState.selected_flights
+      hasSelectedFlightOption(baseSelectedFlights)
+        ? baseSelectedFlights
         : apiDefaultFlights,
-    [apiDefaultFlights, travelState.selected_flights]
+    [apiDefaultFlights, baseSelectedFlights]
   );
   const effectiveSelectedHotels = useMemo(
     () =>
-      hasSelectedHotelOption(travelState.selected_hotels)
-        ? travelState.selected_hotels
+      hasSelectedHotelOption(baseSelectedHotels)
+        ? baseSelectedHotels
         : apiDefaultHotels,
-    [apiDefaultHotels, travelState.selected_hotels]
+    [apiDefaultHotels, baseSelectedHotels]
   );
   const effectiveTravelState = useMemo(
     () => ({
@@ -1545,7 +1886,7 @@ export function TravelItineraryExperience({
     [activeDay, activeDayIndex]
   );
   const activeDayAttractionChoices = useMemo(
-    () => (activeDay ? getTravelAttractionsForCity(activeDay.city) : []),
+    () => (activeDay ? getAttractionChoicesForCity(activeDay.city) : []),
     [activeDay]
   );
   const heroImage = segments[0]?.imageSrc ?? getDayImage(editableItinerary[0], 0);
@@ -1587,6 +1928,22 @@ export function TravelItineraryExperience({
       ) ?? segments[0],
     [activeCityKey, segments]
   );
+  const activeDaySegment = useMemo(() => {
+    if (!activeDay) return activeSegment;
+    const activeDayNumber = getDayNumber(activeDay);
+    return (
+      segments.find(
+        (segment) =>
+          activeDayNumber >= segment.dayStart &&
+          activeDayNumber <= segment.dayEnd
+      ) ??
+      segments.find(
+        (segment) =>
+          normalizeLookupKey(segment.city) === normalizeLookupKey(activeDay.city)
+      ) ??
+      activeSegment
+    );
+  }, [activeDay, activeSegment, segments]);
   const activeCityDays = useMemo(
     () =>
       activeSegment
@@ -1600,10 +1957,11 @@ export function TravelItineraryExperience({
         ? buildAttractionMapPoints(
             activeCityDays,
             activeSegment.city,
-            "itinerary-attraction"
+            "itinerary-attraction",
+            googleAttractionCoordinates
           )
         : [],
-    [activeCityDays, activeSegment]
+    [activeCityDays, activeSegment, googleAttractionCoordinates]
   );
   const activeCityHotelPoints = useMemo(
     () =>
@@ -1634,10 +1992,42 @@ export function TravelItineraryExperience({
   const activeDayMapPoints = useMemo(
     () =>
       activeDay
-        ? buildAttractionMapPoints([activeDay], activeDay.city, "detail-attraction")
+        ? buildAttractionMapPoints(
+            [activeDay],
+            activeDay.city,
+            "detail-attraction",
+            googleAttractionCoordinates
+          )
         : [],
-    [activeDay]
+    [activeDay, googleAttractionCoordinates]
   );
+  const activeDayFlightLegs = useMemo(
+    () =>
+      activeDaySegment ? getSegmentFlightLegs(apiFlightLegs, activeDaySegment) : [],
+    [activeDaySegment, apiFlightLegs]
+  );
+  const activeDayHotelStay = useMemo(
+    () =>
+      activeDaySegment
+        ? findHotelStayForCity(apiHotelStays, activeDaySegment.city)
+        : null,
+    [activeDaySegment, apiHotelStays]
+  );
+  const activeDayHotel = useMemo(
+    () =>
+      activeDaySegment
+        ? findHotelForCity(effectiveSelectedHotels, activeDaySegment.city)
+        : null,
+    [activeDaySegment, effectiveSelectedHotels]
+  );
+  const attractionGeocodeItems = useMemo(() => {
+    const city = activeDay?.city ?? activeSegment?.city ?? "";
+    if (!city) return [];
+    const activeNames = activeDay
+      ? [...activeDay.activities, ...activeDayAttractionChoices.map((item) => item.name)]
+      : activeCityDays.flatMap((day) => day.activities);
+    return buildAttractionGeocodeItems(city, activeNames);
+  }, [activeDay, activeDayAttractionChoices, activeCityDays, activeSegment]);
   const detailMapPoints = activeDayMapPoints.length
     ? activeDayMapPoints
     : cityFocusedMapPoints;
@@ -1697,10 +2087,15 @@ export function TravelItineraryExperience({
   useEffect(() => {
     setEditableItinerary(itinerary);
     setActiveDayIndex(0);
+    setLocalSelectedFlights(null);
+    setLocalSelectedHotels(null);
+    setDetailResourceTab("attractions");
+    setCustomizeDayEditor(false);
   }, [itinerary]);
 
   useEffect(() => {
-    if (!needsApiFlightDefaults) {
+    if (!shouldLoadApiFlightOptions) {
+      setApiFlightLegs([]);
       setApiDefaultFlights([]);
       return;
     }
@@ -1717,20 +2112,30 @@ export function TravelItineraryExperience({
       })
       .then((payload) => {
         if (disposed) return;
-        setApiDefaultFlights(selectApiDefaultFlights(coerceApiFlightLegs(payload)));
+        const legs = coerceApiFlightLegs(payload);
+        setApiFlightLegs(legs);
+        setApiDefaultFlights(
+          shouldUseApiFlightDefaults ? selectApiDefaultFlights(legs) : []
+        );
       })
       .catch(() => {
         if (disposed) return;
+        setApiFlightLegs([]);
         setApiDefaultFlights([]);
       });
 
     return () => {
       disposed = true;
     };
-  }, [apiOptionsPayloadKey, needsApiFlightDefaults]);
+  }, [
+    apiOptionsPayloadKey,
+    shouldLoadApiFlightOptions,
+    shouldUseApiFlightDefaults,
+  ]);
 
   useEffect(() => {
-    if (!needsApiHotelDefaults) {
+    if (!shouldLoadApiHotelOptions) {
+      setApiHotelStays([]);
       setApiDefaultHotels([]);
       return;
     }
@@ -1747,21 +2152,105 @@ export function TravelItineraryExperience({
       })
       .then((payload) => {
         if (disposed) return;
-        setApiDefaultHotels(selectApiDefaultHotels(coerceApiHotelStays(payload)));
+        const stays = coerceApiHotelStays(payload);
+        setApiHotelStays(stays);
+        setApiDefaultHotels(
+          shouldUseApiHotelDefaults ? selectApiDefaultHotels(stays) : []
+        );
       })
       .catch(() => {
         if (disposed) return;
+        setApiHotelStays([]);
         setApiDefaultHotels([]);
       });
 
     return () => {
       disposed = true;
     };
-  }, [apiOptionsPayloadKey, needsApiHotelDefaults]);
+  }, [
+    apiOptionsPayloadKey,
+    shouldLoadApiHotelOptions,
+    shouldUseApiHotelDefaults,
+  ]);
+
+  useEffect(() => {
+    const pendingItems = attractionGeocodeItems.filter((item) => {
+      if (googleAttractionCoordinates[item.key]) return false;
+      return !failedAttractionGeocodeKeysRef.current.has(item.key);
+    });
+
+    if (pendingItems.length === 0) return;
+
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/travel/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: pendingItems }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          results?: GoogleGeocodeResult[];
+          error?: string;
+        };
+
+        if (!response.ok) {
+          pendingItems.forEach((item) =>
+            failedAttractionGeocodeKeysRef.current.add(item.key)
+          );
+          console.warn("Google attraction geocoding failed", payload.error);
+          return;
+        }
+
+        const nextCoordinates: Record<string, GoogleGeocodeCoordinate> = {};
+        payload.results?.forEach((result) => {
+          if (
+            typeof result.lat === "number" &&
+            Number.isFinite(result.lat) &&
+            typeof result.lng === "number" &&
+            Number.isFinite(result.lng)
+          ) {
+            nextCoordinates[result.key] = {
+              lat: result.lat,
+              lng: result.lng,
+              formattedAddress: result.formattedAddress,
+              placeId: result.placeId,
+              locationType: result.locationType,
+            };
+            return;
+          }
+
+          failedAttractionGeocodeKeysRef.current.add(result.key);
+        });
+
+        if (!disposed && Object.keys(nextCoordinates).length > 0) {
+          setGoogleAttractionCoordinates((current) => ({
+            ...current,
+            ...nextCoordinates,
+          }));
+        }
+      } catch (error) {
+        pendingItems.forEach((item) =>
+          failedAttractionGeocodeKeysRef.current.add(item.key)
+        );
+        console.warn("Google attraction geocoding request failed", error);
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [attractionGeocodeItems, googleAttractionCoordinates]);
 
   useEffect(() => {
     setEditableItineryRows(defaultItineryRows);
   }, [defaultItineryRows]);
+
+  useEffect(() => {
+    setDetailResourceTab("attractions");
+    setCustomizeDayEditor(false);
+  }, [activeDayIndex, detailOpen]);
 
   useEffect(() => {
     const firstCityKey = segments[0] ? getCitySectionKey(segments[0].city) : "";
@@ -1901,7 +2390,7 @@ export function TravelItineraryExperience({
   );
 
   const addKnowledgeAttractionToDay = useCallback(
-    (dayIndex: number, attraction: TravelAttractionKnowledgeItem) => {
+    (dayIndex: number, attraction: AttractionChoiceCard) => {
       updateItineraryList((days) =>
         days.map((day, index) =>
           index === dayIndex
@@ -1916,6 +2405,56 @@ export function TravelItineraryExperience({
       );
     },
     [updateItineraryList]
+  );
+
+  const selectFlightOption = useCallback(
+    (
+      leg: FlightLegResult,
+      legIndex: number,
+      option: FlightOptionResult,
+      optionIndex: number
+    ) => {
+      const nextFlight = createSelectedFlightFromOption(
+        leg,
+        legIndex,
+        option,
+        optionIndex
+      );
+      setLocalSelectedFlights((current) => {
+        const seed = current ?? effectiveSelectedFlights;
+        const withoutLeg = seed.filter((flight) => flight.leg_index !== legIndex);
+        return [...withoutLeg, nextFlight].sort(
+          (first, second) => first.leg_index - second.leg_index
+        );
+      });
+      toast.success("已更新这段航班。");
+    },
+    [effectiveSelectedFlights]
+  );
+
+  const selectHotelOption = useCallback(
+    (
+      stay: HotelStayResult,
+      stayIndex: number,
+      option: HotelOptionResult,
+      optionIndex: number
+    ) => {
+      const nextHotel = createSelectedHotelFromOption(
+        stay,
+        stayIndex,
+        option,
+        optionIndex
+      );
+      setLocalSelectedHotels((current) => {
+        const seed = current ?? effectiveSelectedHotels;
+        const withoutStay = seed.filter((hotel) => hotel.stay_index !== stayIndex);
+        return [...withoutStay, nextHotel].sort(
+          (first, second) => first.stay_index - second.stay_index
+        );
+      });
+      toast.success("已更新这段住宿。");
+    },
+    [effectiveSelectedHotels]
   );
 
   const removeItineraryActivity = useCallback(
@@ -2590,6 +3129,11 @@ export function TravelItineraryExperience({
                   effectiveTravelState.selected_flights,
                   segment
                 );
+                const segmentFlightLegs = getSegmentFlightLegs(apiFlightLegs, segment);
+                const segmentHotelStay = findHotelStayForCity(
+                  apiHotelStays,
+                  segment.city
+                );
 
                 return (
                   <section
@@ -2763,6 +3307,103 @@ export function TravelItineraryExperience({
                         </div>
                       ) : null}
 
+                      {segmentFlightLegs.length ? (
+                        <div className="rounded-[24px] bg-white p-5 shadow-[0_14px_42px_rgba(32,20,43,0.08)]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                              <Plane className="h-4 w-4 text-[#6f40cc]" />
+                              可选航班
+                            </p>
+                            <span className="text-xs font-semibold text-[#8d8391]">
+                              来自 API，点击卡片替换默认选择
+                            </span>
+                          </div>
+                          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            {segmentFlightLegs.map(({ leg, legIndex }) => {
+                              const selectedFlight = getSelectedFlightForLeg(
+                                effectiveTravelState.selected_flights,
+                                legIndex
+                              );
+
+                              return leg.options.slice(0, 3).map((option, optionIndex) => {
+                                const displayOptionIndex = optionIndex + 1;
+                                const selected =
+                                  selectedFlight?.option_index === displayOptionIndex ||
+                                  getFlightOptionKey(
+                                    legIndex,
+                                    selectedFlight?.option ?? {},
+                                    selectedFlight?.option_index ?? 0
+                                  ) ===
+                                    getFlightOptionKey(
+                                      legIndex,
+                                      option,
+                                      displayOptionIndex
+                                    );
+
+                                return (
+                                  <button
+                                    className={cn(
+                                      "rounded-2xl border p-4 text-left transition-colors",
+                                      selected
+                                        ? "border-[#b990ff] bg-[#f7efff]"
+                                        : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                                    )}
+                                    key={`${cityKey}-flight-option-${getFlightOptionKey(
+                                      legIndex,
+                                      option,
+                                      displayOptionIndex
+                                    )}`}
+                                    onClick={() =>
+                                      selectFlightOption(
+                                        leg,
+                                        legIndex,
+                                        option,
+                                        displayOptionIndex
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    <span className="flex items-start justify-between gap-3">
+                                      <span className="min-w-0">
+                                        <span className="block text-xs font-bold text-[#8d5df7]">
+                                          {getLocalCityLabel(leg.from)} →{" "}
+                                          {getLocalCityLabel(leg.to)}
+                                        </span>
+                                        <span className="mt-1 block truncate text-base font-bold text-[#2d1635]">
+                                          {option.airline ?? "API 推荐航司"}{" "}
+                                          {option.flight_number ?? "航班号待补充"}
+                                        </span>
+                                      </span>
+                                      {selected ? (
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                                          <Check className="h-4 w-4" />
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                    <span className="mt-3 grid gap-2 text-xs font-semibold text-[#5f5166] sm:grid-cols-2">
+                                      <span>
+                                        {extractClockTime(option.departure, "08:00")} 出发
+                                      </span>
+                                      <span>{option.duration ?? "时长待确认"}</span>
+                                      <span>
+                                        {option.stops === 0
+                                          ? "直飞"
+                                          : typeof option.stops === "number"
+                                            ? `${option.stops} 次中转`
+                                            : "经停待确认"}
+                                      </span>
+                                      <span className="font-bold text-[#2d1635]">
+                                        {getFlightOptionDisplayPrice(option)}
+                                      </span>
+                                    </span>
+                                  </button>
+                                );
+                              });
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+
                       {hotel ? (
                         <article className="grid gap-4 rounded-[24px] bg-white p-4 shadow-[0_14px_42px_rgba(32,20,43,0.08)] md:grid-cols-[180px_minmax(0,1fr)_auto]">
                           <div className="relative h-36 overflow-hidden rounded-[18px] bg-slate-200 md:h-full">
@@ -2802,6 +3443,9 @@ export function TravelItineraryExperience({
                                 {hotel.option.address}
                               </p>
                             ) : null}
+                            <p className="mt-1 line-clamp-1 text-sm text-[#756a7b]">
+                              联系电话：{getHotelContactLabel(hotel.option)}
+                            </p>
                           </div>
                           <div className="flex items-end justify-between gap-3 md:flex-col">
                             {hotel.option.rating ? (
@@ -2819,6 +3463,94 @@ export function TravelItineraryExperience({
                             </span>
                           </div>
                         </article>
+                      ) : null}
+
+                      {segmentHotelStay ? (
+                        <div className="rounded-[24px] bg-white p-5 shadow-[0_14px_42px_rgba(32,20,43,0.08)]">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                              <BedDouble className="h-4 w-4 text-[#6f40cc]" />
+                              可选酒店
+                            </p>
+                            <span className="text-xs font-semibold text-[#8d8391]">
+                              地址和电话随选择同步到 itinerary
+                            </span>
+                          </div>
+                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {segmentHotelStay.stay.options
+                              .slice(0, 4)
+                              .map((option, optionIndex) => {
+                                const displayOptionIndex = optionIndex + 1;
+                                const selectedHotel = getSelectedHotelForStay(
+                                  effectiveTravelState.selected_hotels,
+                                  segmentHotelStay.stayIndex
+                                );
+                                const selected =
+                                  selectedHotel?.option_index === displayOptionIndex ||
+                                  getHotelOptionKey(
+                                    segmentHotelStay.stayIndex,
+                                    selectedHotel?.option ?? {},
+                                    selectedHotel?.option_index ?? 0
+                                  ) ===
+                                    getHotelOptionKey(
+                                      segmentHotelStay.stayIndex,
+                                      option,
+                                      displayOptionIndex
+                                    );
+
+                                return (
+                                  <button
+                                    className={cn(
+                                      "rounded-2xl border p-4 text-left transition-colors",
+                                      selected
+                                        ? "border-[#b990ff] bg-[#f7efff]"
+                                        : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                                    )}
+                                    key={`${cityKey}-hotel-option-${getHotelOptionKey(
+                                      segmentHotelStay.stayIndex,
+                                      option,
+                                      displayOptionIndex
+                                    )}`}
+                                    onClick={() =>
+                                      selectHotelOption(
+                                        segmentHotelStay.stay,
+                                        segmentHotelStay.stayIndex,
+                                        option,
+                                        displayOptionIndex
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    <span className="flex items-start justify-between gap-3">
+                                      <span className="min-w-0">
+                                        <span className="block truncate text-base font-bold text-[#2d1635]">
+                                          {option.name ?? `${segment.label} API 酒店`}
+                                        </span>
+                                        <span className="mt-1 line-clamp-1 block text-xs font-semibold text-[#756a7b]">
+                                          {option.address ?? "地址由 API 返回后显示"}
+                                        </span>
+                                      </span>
+                                      {selected ? (
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                                          <Check className="h-4 w-4" />
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                    <span className="mt-3 grid gap-2 text-xs font-semibold text-[#5f5166] sm:grid-cols-2">
+                                      <span>{segmentHotelStay.stay.nights} 晚</span>
+                                      <span>{option.rating ? `${option.rating} 分` : "评分待补充"}</span>
+                                      <span className="line-clamp-1">
+                                        {getHotelContactLabel(option)}
+                                      </span>
+                                      <span className="font-bold text-[#2d1635]">
+                                        {getHotelOptionDisplayPrice(option)}
+                                      </span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
                       ) : null}
 
                       <div className="space-y-3">
@@ -2994,23 +3726,15 @@ export function TravelItineraryExperience({
                         <div className="flex flex-wrap gap-2">
                           <Button
                             className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                            onClick={() => addItineraryActivity(activeDayIndex)}
+                            onClick={() =>
+                              setCustomizeDayEditor((current) => !current)
+                            }
                             size="sm"
                             type="button"
                             variant="outline"
                           >
-                            <Plus className="h-4 w-4" />
-                            景点
-                          </Button>
-                          <Button
-                            className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
-                            onClick={() => addItineraryFood(activeDayIndex)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Plus className="h-4 w-4" />
-                            餐饮
+                            <Pencil className="h-4 w-4" />
+                            自定义
                           </Button>
                           <Button
                             className="rounded-full border-[#f2c7d0] text-[#b42348] hover:bg-[#fff1f3]"
@@ -3045,6 +3769,62 @@ export function TravelItineraryExperience({
                       ))}
                     </div>
 
+                    <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#efe5ff] p-1">
+                      {(
+                        [
+                          ["attractions", "景点"],
+                          ["flights", "航班"],
+                          ["hotels", "酒店"],
+                        ] as const
+                      ).map(([tab, label]) => (
+                        <button
+                          className={cn(
+                            "rounded-[18px] px-3 py-2 text-sm font-bold transition-colors",
+                            detailResourceTab === tab
+                              ? "bg-white text-[#2d1635] shadow-sm"
+                              : "text-[#6f40cc] hover:bg-white/55"
+                          )}
+                          key={`detail-resource-tab-${tab}`}
+                          onClick={() => setDetailResourceTab(tab)}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {customizeDayEditor ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#eadfff] bg-white p-4 text-sm font-semibold text-[#5f5166]">
+                        <span>
+                          自定义模式已开启。常规修改优先通过下面的候选卡片完成；只有需要临时补充时再手动输入。
+                        </span>
+                        <span className="flex gap-2">
+                          <Button
+                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => addItineraryActivity(activeDayIndex)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="h-4 w-4" />
+                            景点
+                          </Button>
+                          <Button
+                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => addItineraryFood(activeDayIndex)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="h-4 w-4" />
+                            餐饮
+                          </Button>
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {detailResourceTab === "attractions" ? (
+                      <>
                     {activeDayAttractionChoices.length ? (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
                         <div className="flex items-center justify-between gap-3">
@@ -3095,9 +3875,21 @@ export function TravelItineraryExperience({
                     <div className="space-y-4">
                       {activeDay.activities.map((activity, index) => (
                         <div
-                          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]"
-                          key={`${activeDay.city}-activity-${activity}`}
+                          className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_36px_rgba(32,20,43,0.08)] sm:grid-cols-[96px_1fr]"
+                          key={`${activeDay.city}-activity-${activity}-${index}`}
                         >
+                          <div className="relative h-24 overflow-hidden rounded-xl bg-slate-200">
+                            <Image
+                              alt={activity}
+                              className="h-full w-full object-cover"
+                              height={120}
+                              src={
+                                findTravelAttraction(activeDay.city, activity)?.imageSrc ??
+                                getCityImage(activeDay.city, activity)
+                              }
+                              width={140}
+                            />
+                          </div>
                           <div className="flex items-start gap-4">
                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] font-bold text-[#6f40cc]">
                               {index + 1}
@@ -3110,18 +3902,38 @@ export function TravelItineraryExperience({
                                     ? "14:30 · 下午景点"
                                     : "加选景点"}
                               </p>
-                              <input
-                                aria-label={`景点 ${index + 1}`}
-                                className="mt-1 w-full rounded-xl border border-transparent bg-transparent px-0 py-1 text-lg font-bold text-[#2d1635] outline-none transition-colors hover:border-[#e6dff0] hover:bg-white hover:px-3 focus:border-[#b990ff] focus:bg-white focus:px-3"
-                                onChange={(event) =>
-                                  updateItineraryActivity(
-                                    activeDayIndex,
-                                    index,
-                                    event.target.value
-                                  )
-                                }
-                                value={activity}
-                              />
+                              {customizeDayEditor ? (
+                                <input
+                                  aria-label={`景点 ${index + 1}`}
+                                  className="mt-1 w-full rounded-xl border border-[#eadfff] bg-white px-3 py-2 text-lg font-bold text-[#2d1635] outline-none transition-colors focus:border-[#b990ff]"
+                                  onChange={(event) =>
+                                    updateItineraryActivity(
+                                      activeDayIndex,
+                                      index,
+                                      event.target.value
+                                    )
+                                  }
+                                  value={activity}
+                                />
+                              ) : (
+                                <p className="mt-1 text-lg font-bold text-[#2d1635]">
+                                  {activity}
+                                </p>
+                              )}
+                              {googleAttractionCoordinates[
+                                getAttractionCoordinateKey(activeDay.city, activity)
+                              ]?.formattedAddress ? (
+                                <p className="mt-1 line-clamp-1 text-xs font-semibold text-[#8d8391]">
+                                  {
+                                    googleAttractionCoordinates[
+                                      getAttractionCoordinateKey(
+                                        activeDay.city,
+                                        activity
+                                      )
+                                    ]?.formattedAddress
+                                  }
+                                </p>
+                              ) : null}
                             </div>
                             <Button
                               aria-label={`删除景点 ${index + 1}`}
@@ -3142,28 +3954,48 @@ export function TravelItineraryExperience({
 
                     {activeDay.food.length ? (
                       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
-                        <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
-                          <Utensils className="h-4 w-4 text-[#6f40cc]" />
-                          今日餐厅
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                            <Utensils className="h-4 w-4 text-[#6f40cc]" />
+                            今日餐厅
+                          </p>
+                          {customizeDayEditor ? (
+                            <Button
+                              className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                              onClick={() => addItineraryFood(activeDayIndex)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Plus className="h-4 w-4" />
+                              餐饮
+                            </Button>
+                          ) : null}
+                        </div>
                         <div className="mt-3 grid gap-2">
                           {activeDay.food.map((food, index) => (
                             <div
                               className="flex items-center gap-2 rounded-2xl bg-[#f6efff] px-3 py-2"
                               key={`${activeDay.city}-food-${food}-${index}`}
                             >
-                              <input
-                                aria-label={`餐饮 ${index + 1}`}
-                                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#6f40cc] outline-none"
-                                onChange={(event) =>
-                                  updateItineraryFood(
-                                    activeDayIndex,
-                                    index,
-                                    event.target.value
-                                  )
-                                }
-                                value={food}
-                              />
+                              {customizeDayEditor ? (
+                                <input
+                                  aria-label={`餐饮 ${index + 1}`}
+                                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#6f40cc] outline-none"
+                                  onChange={(event) =>
+                                    updateItineraryFood(
+                                      activeDayIndex,
+                                      index,
+                                      event.target.value
+                                    )
+                                  }
+                                  value={food}
+                                />
+                              ) : (
+                                <span className="min-w-0 flex-1 text-sm font-semibold text-[#6f40cc]">
+                                  {food}
+                                </span>
+                              )}
                               <Button
                                 aria-label={`删除餐饮 ${index + 1}`}
                                 className="h-8 w-8 rounded-full text-[#b42348] hover:bg-white"
@@ -3179,6 +4011,228 @@ export function TravelItineraryExperience({
                             </div>
                           ))}
                         </div>
+                      </div>
+                    ) : null}
+                      </>
+                    ) : null}
+
+                    {detailResourceTab === "flights" ? (
+                      <div className="space-y-4">
+                        {activeDayFlightLegs.length ? (
+                          activeDayFlightLegs.map(({ leg, legIndex }) => {
+                            const selectedFlight = getSelectedFlightForLeg(
+                              effectiveTravelState.selected_flights,
+                              legIndex
+                            );
+
+                            return (
+                              <div
+                                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]"
+                                key={`detail-flight-leg-${legIndex}`}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                    <Plane className="h-4 w-4 text-[#6f40cc]" />
+                                    {getLocalCityLabel(leg.from)} →{" "}
+                                    {getLocalCityLabel(leg.to)}
+                                  </p>
+                                  <span className="text-xs font-semibold text-[#8d8391]">
+                                    {formatMonthDay(leg.departure_date)}
+                                  </span>
+                                </div>
+                                <div className="mt-4 grid gap-3">
+                                  {leg.options.slice(0, 5).map((option, optionIndex) => {
+                                    const displayOptionIndex = optionIndex + 1;
+                                    const selected =
+                                      selectedFlight?.option_index ===
+                                        displayOptionIndex ||
+                                      getFlightOptionKey(
+                                        legIndex,
+                                        selectedFlight?.option ?? {},
+                                        selectedFlight?.option_index ?? 0
+                                      ) ===
+                                        getFlightOptionKey(
+                                          legIndex,
+                                          option,
+                                          displayOptionIndex
+                                        );
+
+                                    return (
+                                      <button
+                                        className={cn(
+                                          "rounded-2xl border p-4 text-left transition-colors",
+                                          selected
+                                            ? "border-[#b990ff] bg-[#f7efff]"
+                                            : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                                        )}
+                                        key={`detail-flight-option-${getFlightOptionKey(
+                                          legIndex,
+                                          option,
+                                          displayOptionIndex
+                                        )}`}
+                                        onClick={() =>
+                                          selectFlightOption(
+                                            leg,
+                                            legIndex,
+                                            option,
+                                            displayOptionIndex
+                                          )
+                                        }
+                                        type="button"
+                                      >
+                                        <span className="flex items-start justify-between gap-3">
+                                          <span className="min-w-0">
+                                            <span className="block text-base font-bold text-[#2d1635]">
+                                              {option.airline ?? "API 推荐航司"}{" "}
+                                              {option.flight_number ?? "航班号待补充"}
+                                            </span>
+                                            <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
+                                              {extractClockTime(
+                                                option.departure,
+                                                "08:00"
+                                              )}{" "}
+                                              出发 ·{" "}
+                                              {option.duration ?? "时长待确认"} ·{" "}
+                                              {option.stops === 0
+                                                ? "直飞"
+                                                : typeof option.stops === "number"
+                                                  ? `${option.stops} 次中转`
+                                                  : "经停待确认"}
+                                            </span>
+                                          </span>
+                                          <span className="flex shrink-0 items-center gap-2">
+                                            <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                                              {getFlightOptionDisplayPrice(option)}
+                                            </span>
+                                            {selected ? (
+                                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                                                <Check className="h-4 w-4" />
+                                              </span>
+                                            ) : null}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
+                            这个城市暂时没有 API 航班候选。若这是陆路移动城市，地图会继续显示景点动线。
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {detailResourceTab === "hotels" ? (
+                      <div className="space-y-4">
+                        {activeDayHotel ? (
+                          <div className="rounded-2xl border border-[#d8c5ff] bg-[#fbf8ff] p-5">
+                            <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                              <BedDouble className="h-4 w-4 text-[#6f40cc]" />
+                              当前住宿
+                            </p>
+                            <h4 className="mt-3 text-lg font-bold text-[#2d1635]">
+                              {activeDayHotel.option.name ?? "API 默认酒店"}
+                            </h4>
+                            <p className="mt-1 text-sm font-semibold text-[#756a7b]">
+                              {activeDayHotel.option.address ?? "地址待补充"} ·{" "}
+                              {getHotelContactLabel(activeDayHotel.option)}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {activeDayHotelStay ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                <BedDouble className="h-4 w-4 text-[#6f40cc]" />
+                                酒店候选
+                              </p>
+                              <span className="text-xs font-semibold text-[#8d8391]">
+                                {formatMonthDay(activeDayHotelStay.stay.check_in)} -{" "}
+                                {formatMonthDay(activeDayHotelStay.stay.check_out)}
+                              </span>
+                            </div>
+                            <div className="mt-4 grid gap-3">
+                              {activeDayHotelStay.stay.options
+                                .slice(0, 6)
+                                .map((option, optionIndex) => {
+                                  const displayOptionIndex = optionIndex + 1;
+                                  const selectedHotel = getSelectedHotelForStay(
+                                    effectiveTravelState.selected_hotels,
+                                    activeDayHotelStay.stayIndex
+                                  );
+                                  const selected =
+                                    selectedHotel?.option_index ===
+                                      displayOptionIndex ||
+                                    getHotelOptionKey(
+                                      activeDayHotelStay.stayIndex,
+                                      selectedHotel?.option ?? {},
+                                      selectedHotel?.option_index ?? 0
+                                    ) ===
+                                      getHotelOptionKey(
+                                        activeDayHotelStay.stayIndex,
+                                        option,
+                                        displayOptionIndex
+                                      );
+
+                                  return (
+                                    <button
+                                      className={cn(
+                                        "rounded-2xl border p-4 text-left transition-colors",
+                                        selected
+                                          ? "border-[#b990ff] bg-[#f7efff]"
+                                          : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                                      )}
+                                      key={`detail-hotel-option-${getHotelOptionKey(
+                                        activeDayHotelStay.stayIndex,
+                                        option,
+                                        displayOptionIndex
+                                      )}`}
+                                      onClick={() =>
+                                        selectHotelOption(
+                                          activeDayHotelStay.stay,
+                                          activeDayHotelStay.stayIndex,
+                                          option,
+                                          displayOptionIndex
+                                        )
+                                      }
+                                      type="button"
+                                    >
+                                      <span className="flex items-start justify-between gap-3">
+                                        <span className="min-w-0">
+                                          <span className="block text-base font-bold text-[#2d1635]">
+                                            {option.name ?? "API 推荐酒店"}
+                                          </span>
+                                          <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
+                                            {option.address ?? "地址待补充"} ·{" "}
+                                            {getHotelContactLabel(option)}
+                                          </span>
+                                        </span>
+                                        <span className="flex shrink-0 items-center gap-2">
+                                          <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                                            {getHotelOptionDisplayPrice(option)}
+                                          </span>
+                                          {selected ? (
+                                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                                              <Check className="h-4 w-4" />
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
+                            这个城市暂时没有 API 酒店候选。系统会继续保留当前 itinerary。
+                          </div>
+                        )}
                       </div>
                     ) : null}
 

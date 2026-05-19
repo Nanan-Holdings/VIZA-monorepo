@@ -87,6 +87,19 @@ export const applications = pgTable("applications", {
 	ds160ApplicationId: text("ds160_application_id"),
 	ds160RetrievalUrl: text("ds160_retrieval_url"),
 	ds160DatStoragePath: text("ds160_dat_storage_path"),
+	packetStatus: text("packet_status").default("not_started"),
+	packetManifest: jsonb("packet_manifest"),
+	packetStoragePath: text("packet_storage_path"),
+	packetReadyAt: timestamp("packet_ready_at", { withTimezone: true }),
+	externalStatus: text("external_status"),
+	externalReference: text("external_reference"),
+	externalStatusUpdatedAt: timestamp("external_status_updated_at", { withTimezone: true }),
+	resultStatus: text("result_status"),
+	resultStoragePath: text("result_storage_path"),
+	resultNotes: text("result_notes"),
+	governmentFeeCents: integer("government_fee_cents"),
+	governmentFeeCurrency: text("government_fee_currency").default("USD"),
+	governmentFeeMode: text("government_fee_mode").default("display_only"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -103,10 +116,15 @@ export const applicationDocuments = pgTable("application_documents", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),
 	documentType: text("document_type").notNull(),
+	requirementKey: text("requirement_key"),
 	storagePath: text("storage_path"),
 	filename: text("filename"),
 	status: text("status").default("uploaded").notNull(),
 	rejectionReason: text("rejection_reason"),
+	required: boolean("required").default(true),
+	reviewNotes: text("review_notes"),
+	reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+	reviewedBy: uuid("reviewed_by"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -467,6 +485,190 @@ export const sharedProfileFields = pgTable("shared_profile_fields", {
 
 export type SharedProfileField = typeof sharedProfileFields.$inferSelect;
 export type NewSharedProfileField = typeof sharedProfileFields.$inferInsert;
+
+// =============================================================================
+// INTERNAL WEBSITE AUTOMATION
+// Website-owned payment, consent, document, packet, external status, and
+// notification records. Official portal runners intentionally live outside this
+// scope.
+// =============================================================================
+
+export const paymentRecords = pgTable("payment_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id"),
+  applicantId: uuid("applicant_id"),
+  visaPackageId: uuid("visa_package_id"),
+  provider: text("provider").notNull().default("stripe"),
+  providerSessionId: text("provider_session_id"),
+  providerPaymentId: text("provider_payment_id"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: text("status").notNull().default("pending"),
+  feeType: text("fee_type").notNull().default("agency_fee"),
+  receiptUrl: text("receipt_url"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const invoiceRequests = pgTable("invoice_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentRecordId: uuid("payment_record_id"),
+  applicationId: uuid("application_id"),
+  applicantId: uuid("applicant_id"),
+  invoiceName: text("invoice_name"),
+  taxIdentifier: text("tax_identifier"),
+  billingEmail: text("billing_email"),
+  status: text("status").notNull().default("requested"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const refundRecords = pgTable("refund_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentRecordId: uuid("payment_record_id"),
+  applicationId: uuid("application_id"),
+  applicantId: uuid("applicant_id"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: text("status").notNull().default("requested"),
+  reason: text("reason"),
+  policySnapshot: jsonb("policy_snapshot"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const consentEvents = pgTable("consent_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id"),
+  consentType: text("consent_type").notNull(),
+  version: text("version").notNull(),
+  accepted: boolean("accepted").notNull().default(true),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  documentHash: text("document_hash"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const applicationSignatures = pgTable("application_signatures", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id"),
+  signatureType: text("signature_type").notNull().default("agency_authorisation"),
+  signerName: text("signer_name").notNull(),
+  signatureText: text("signature_text"),
+  signedDocumentPath: text("signed_document_path"),
+  documentHash: text("document_hash"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  signedAt: timestamp("signed_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const documentRequirements = pgTable("document_requirements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id"),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  requirementKey: text("requirement_key").notNull(),
+  labelEn: text("label_en").notNull(),
+  labelZh: text("label_zh").notNull(),
+  description: text("description"),
+  required: boolean("required").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const applicationPackets = pgTable("application_packets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id"),
+  status: text("status").notNull().default("ready"),
+  manifest: jsonb("manifest").notNull().default({}),
+  storagePath: text("storage_path"),
+  handoffToken: text("handoff_token"),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const applicationEvents = pgTable("application_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id"),
+  eventType: text("event_type").notNull(),
+  actorType: text("actor_type").notNull().default("system"),
+  actorId: uuid("actor_id"),
+  message: text("message"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const notificationEvents = pgTable("notification_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id"),
+  applicantId: uuid("applicant_id"),
+  channel: text("channel").notNull().default("email"),
+  templateKey: text("template_key").notNull(),
+  recipient: text("recipient"),
+  status: text("status").notNull().default("queued"),
+  payload: jsonb("payload"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ocrExtractions = pgTable("ocr_extractions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id"),
+  documentId: uuid("document_id"),
+  provider: text("provider").notNull().default("openai_vision"),
+  status: text("status").notNull().default("pending"),
+  extractedFields: jsonb("extracted_fields").notNull().default({}),
+  errorMessage: text("error_message"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const dataPrivacyRequests = pgTable("data_privacy_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id"),
+  requestType: text("request_type").notNull(),
+  status: text("status").notNull().default("requested"),
+  notes: text("notes"),
+  fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PaymentRecord = typeof paymentRecords.$inferSelect;
+export type NewPaymentRecord = typeof paymentRecords.$inferInsert;
+export type InvoiceRequest = typeof invoiceRequests.$inferSelect;
+export type NewInvoiceRequest = typeof invoiceRequests.$inferInsert;
+export type RefundRecord = typeof refundRecords.$inferSelect;
+export type NewRefundRecord = typeof refundRecords.$inferInsert;
+export type ConsentEvent = typeof consentEvents.$inferSelect;
+export type NewConsentEvent = typeof consentEvents.$inferInsert;
+export type ApplicationSignature = typeof applicationSignatures.$inferSelect;
+export type NewApplicationSignature = typeof applicationSignatures.$inferInsert;
+export type DocumentRequirement = typeof documentRequirements.$inferSelect;
+export type NewDocumentRequirement = typeof documentRequirements.$inferInsert;
+export type ApplicationPacket = typeof applicationPackets.$inferSelect;
+export type NewApplicationPacket = typeof applicationPackets.$inferInsert;
+export type ApplicationEvent = typeof applicationEvents.$inferSelect;
+export type NewApplicationEvent = typeof applicationEvents.$inferInsert;
+export type NotificationEvent = typeof notificationEvents.$inferSelect;
+export type NewNotificationEvent = typeof notificationEvents.$inferInsert;
+export type OcrExtraction = typeof ocrExtractions.$inferSelect;
+export type NewOcrExtraction = typeof ocrExtractions.$inferInsert;
+export type DataPrivacyRequest = typeof dataPrivacyRequests.$inferSelect;
+export type NewDataPrivacyRequest = typeof dataPrivacyRequests.$inferInsert;
 
 // =============================================================================
 // USER CHAT SESSIONS

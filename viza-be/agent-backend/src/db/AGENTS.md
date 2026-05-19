@@ -16,6 +16,8 @@ Supabase service-role client setup for the agent backend.
 - `supabase-client.ts`: service-role Supabase client and connection check.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
 - `../../drizzle/*.sql`: sequential SQL migrations.
+- `../../drizzle/0013_internal_automation_loop.sql`: website automation
+  payment, consent, packet, notification, refund, and data-rights schema.
 
 ## Ownership Boundaries
 
@@ -51,3 +53,15 @@ For schema changes, also run any affected route/eval tests.
 - `user_packages`
 - `visa_application_answers`
 - `application_translations`
+- `payment_records`
+- `consent_events`
+- `application_signatures`
+- `application_packets`
+- `application_events`
+- `notification_events`
+- `refund_requests`
+- `invoice_requests`
+- `government_fee_rules`
+- `coverage_matrix`
+- `data_rights_requests`
+- `pii_retention_jobs`

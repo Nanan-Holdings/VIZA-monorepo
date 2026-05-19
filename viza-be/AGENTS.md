@@ -5,12 +5,14 @@ Scope: this file applies to `viza-be/**`.
 ## Purpose
 
 `viza-be` owns the backend services for VIZA: AI visa assistance, RAG
-retrieval, application APIs, submission automation, and Travel AI planning.
+retrieval, application APIs, website automation support, submission automation,
+and Travel AI planning.
 
 ## Components
 
 - `agent-backend`: Express REST API, Socket.IO `/visa`, Drizzle migrations, RAG
-  retrieval, form guidance, translations, validation, and seed scripts.
+  retrieval, form guidance, translations, validation, website automation
+  support, and seed scripts.
 - `submission-service`: Playwright queue worker for official visa portal
   automation and DS-160 CEAC prefill.
 - `travel-service`: Python FastAPI service for travel itineraries, travel chat,
@@ -21,7 +23,11 @@ retrieval, application APIs, submission automation, and Travel AI planning.
 - Do not share runtime assumptions across services without documenting the
   boundary in `viza-be/README.md`.
 - Database schema/migrations live in `agent-backend`.
+- Website internal automation state, external status ingestion, packet handoff,
+  OCR metadata, consent, and notification support live in `agent-backend`.
 - Queue processing and browser automation live in `submission-service`.
+- Do not put new official portal runners, CAPTCHA solving, proxy rotation, or
+  Playwright submission logic in `agent-backend` or the frontend.
 - Travel generation and external travel APIs live in `travel-service`.
 - Frontend proxy/UI changes live in `viza-fe/internal-website`.
 

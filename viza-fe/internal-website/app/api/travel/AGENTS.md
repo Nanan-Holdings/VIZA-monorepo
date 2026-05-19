@@ -15,6 +15,8 @@ service URL off the client.
 - `chat/route.ts`: Travel chat response endpoint.
 - `flights/route.ts`: flight option search.
 - `hotels/route.ts`: hotel option search.
+- `geocode/route.ts`: server-side Google Geocoding API lookup for city,
+  attraction, and map marker coordinates.
 - `download-word/route.ts` and `download-pdf/route.ts`: document export proxy.
 - `locations/countries/route.ts` and `locations/cities/route.ts`: location
   options.
@@ -23,8 +25,9 @@ service URL off the client.
 ## Ownership Boundaries
 
 - Use `lib/travel/backend.ts` for backend URL and JSON forwarding.
-- Do not duplicate itinerary generation or external API logic in Next route
-  handlers. That belongs in `viza-be/travel-service`.
+- Do not duplicate itinerary generation in Next route handlers. External lookup
+  proxying is allowed here when it protects API keys from client-side itinerary
+  UI code.
 - Validate payload shape lightly at the boundary; keep business state rules in
   `lib/travel/planner.ts`.
 
@@ -44,5 +47,6 @@ With `travel-service` running, smoke the changed route through
 
 - `viza-fe/internal-website/lib/travel/backend.ts`
 - `viza-fe/internal-website/lib/travel/planner.ts`
+- `viza-fe/internal-website/app/api/travel/geocode/route.ts`
 - `viza-be/travel-service/main.py`
 - `docs/travel-agent-development-guide.md`

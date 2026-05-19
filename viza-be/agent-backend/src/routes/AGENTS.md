@@ -16,6 +16,8 @@ and internal admin flows.
 - `application-answers.routes.ts`: application answer persistence helpers.
 - `profile-prefill.routes.ts`: profile prefill APIs.
 - `user-packages.routes.ts`: package/destination APIs.
+- `internal-automation/**`: external status ingest, packet handoff, lifecycle
+  summaries, and website automation admin/customer APIs.
 - `chat-save-block.routes.ts`: chat block persistence.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.
@@ -30,6 +32,8 @@ and internal admin flows.
   routes.
 - Keep Socket.IO event handling in `src/socket/**`, not REST routes.
 - Do not log PII or secrets.
+- Do not implement official portal automation, CAPTCHA solving, proxy handling,
+  or browser runner behavior in route handlers.
 
 ## Validation
 
@@ -53,6 +57,7 @@ that consumes it.
 
 - `viza-be/agent-backend/src/app.ts`
 - `viza-be/agent-backend/src/services/*`
+- `viza-be/agent-backend/src/routes/internal-automation/AGENTS.md`
 - `viza-be/agent-backend/src/db/supabase-client.ts`
 - `viza-be/agent-backend/src/utils/logger.ts`
 - `viza-fe/internal-website/components/field-guidance-panel.tsx`

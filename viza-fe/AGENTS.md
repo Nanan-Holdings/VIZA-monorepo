@@ -18,6 +18,11 @@ frontend work.
   components.
 - `viza-fe/internal-website/lib`: Supabase clients, travel state, auth helpers,
   utility logic.
+- Website-owned automation UI lives under
+  `viza-fe/internal-website/app/client/**`,
+  `viza-fe/internal-website/app/admin/(dashboard)/**`,
+  `viza-fe/internal-website/app/actions/internal-automation/**`, and selected
+  `app/api/**` route handlers.
 - `viza-fe/internal-website/messages`: next-intl copy.
 - `viza-fe/internal-website/types`: frontend shared types.
 

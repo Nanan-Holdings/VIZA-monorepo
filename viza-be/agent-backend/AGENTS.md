@@ -21,6 +21,9 @@ form/RAG seed scripts.
 - Field guidance: `src/routes/field-guidance.routes.ts`.
 - Application translation/validation: `src/routes/translation.routes.ts` and
   `src/routes/validate-application.ts`.
+- Website internal automation: `src/routes/internal-automation/**`,
+  `src/services/internal-automation/**`, `src/db/schema.ts`, and
+  `drizzle/0013_internal_automation_loop.sql`.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 
@@ -32,8 +35,9 @@ form/RAG seed scripts.
 - Keep user-facing AI answers plain text by default.
 - RAG claims must come from official/authorized seed sources or be framed as
   uncertain.
-- Do not move browser automation into this service; it belongs in
-  `submission-service`.
+- Do not move browser automation into this service; official portal automation,
+  CAPTCHA handling, proxy/fingerprint handling, and runner artifacts belong
+  outside this website automation scope.
 - Do not move frontend route logic here; Next.js route/UI code belongs in
   `viza-fe/internal-website`.
 
@@ -66,6 +70,8 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/socket/visa-namespace.ts`
 - `src/db/schema.ts`
 - `src/db/supabase-client.ts`
+- `src/routes/internal-automation/*`
+- `src/services/internal-automation/*`
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`
