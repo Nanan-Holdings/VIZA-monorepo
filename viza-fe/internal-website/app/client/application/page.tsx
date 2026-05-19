@@ -233,7 +233,7 @@ function VerticalStepSidebar({
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   return (
-    <aside className="w-[360px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="w-[260px] shrink-0 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="relative">
       <div
         className="absolute top-4 bottom-0 border-l-2 border-dashed border-gray-200"
@@ -251,7 +251,7 @@ function VerticalStepSidebar({
               key={step.id}
               onClick={() => onStepClick(step.id)}
               className={cn(
-                "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
+                "rounded-xl border border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
                 isSelected
                   ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                   : "hover:border-gray-300",
@@ -399,7 +399,7 @@ function GroupedStepSidebar({
   }, []);
 
   return (
-    <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
+    <aside className="w-[260px] shrink-0 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="space-y-3">
         {sections.map((section) => {
           if (section.steps.length === 1) {
@@ -414,7 +414,7 @@ function GroupedStepSidebar({
                 key={section.key}
                 onClick={() => onStepClick(step.id)}
                 className={cn(
-                  "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
+                  "rounded-xl border border-[#efefef] bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
                   isSelected
                     ? "ring-[1.5px] ring-[#03346E] border-[#03346E] shadow-[0_2px_12px_rgba(3,52,110,0.08)]"
                     : "hover:border-gray-300",
@@ -468,7 +468,7 @@ function GroupedStepSidebar({
               <button
                 type="button"
                 onClick={() => toggleSection(section.key)}
-                className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer"
               >
                 {/* Circle badge — matches single-step card */}
                 <div
@@ -1632,7 +1632,7 @@ function ApplicationFormPage() {
     : t("title");
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-[1090px] gap-4 pt-3 lg:gap-6">
+    <div className="mx-auto flex min-h-0 w-full max-w-[1090px] gap-4 pt-3">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar
