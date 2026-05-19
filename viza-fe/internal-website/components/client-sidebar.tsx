@@ -5,14 +5,22 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, FolderOpen, LogOut } from "lucide-react";
+import { ClipboardList, FileText, FolderOpen, Headphones, Home, LogOut } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { useState } from "react";
 
 const navigation = [
+  { name: "Home", href: "/client/home", icon: Home },
   { name: "Application", href: "/client/application", icon: FolderOpen },
-  { name: "Status", href: "/client/documents", icon: FileText },
+  { name: "Status", href: "/client/status", icon: ClipboardList },
+  { name: "Documents", href: "/client/documents", icon: FileText },
+  { name: "Support", href: "/client/support", icon: Headphones },
 ];
+
+function isActiveRoute(pathname: string, href: string): boolean {
+  const routePath = href.split("?")[0];
+  return pathname === routePath || (routePath !== "/client/home" && pathname.startsWith(routePath));
+}
 
 export function ClientSidebar() {
   const pathname = usePathname();
@@ -40,12 +48,12 @@ export function ClientSidebar() {
           {navigation.map((route, index) => (
             <Link key={route.href} href={route.href} className="block group">
               <Button
-                variant={pathname === route.href ? "secondary" : "ghost"}
+                variant={isActiveRoute(pathname, route.href) ? "secondary" : "ghost"}
                 className={cn(
                   "w-full justify-start transition-all duration-200 relative",
-                  pathname === route.href &&
+                  isActiveRoute(pathname, route.href) &&
                     "bg-brand-50 text-brand hover:bg-brand-100 hover:text-brand shadow-sm",
-                  !pathname.includes(route.href) &&
+                  !isActiveRoute(pathname, route.href) &&
                     "hover:bg-accent/50 hover:translate-x-1"
                 )}
                 style={{
@@ -55,13 +63,13 @@ export function ClientSidebar() {
                 <route.icon
                   className={cn(
                     "mr-3 h-5 w-5",
-                    pathname === route.href ? "" : "group-hover:text-brand"
+                    isActiveRoute(pathname, route.href) ? "" : "group-hover:text-brand"
                   )}
                 />
                 <span className="transition-all duration-200 group-hover:font-medium">
                   {route.name}
                 </span>
-                {pathname === route.href && (
+                {isActiveRoute(pathname, route.href) && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full animate-in slide-in-from-left-2 duration-300" />
                 )}
               </Button>

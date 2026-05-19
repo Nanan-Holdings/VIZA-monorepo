@@ -11,6 +11,7 @@ import type {
   PassportOcrError,
   PassportOcrFailureResponse,
   PassportOcrFile,
+  PassportOcrProposedFields,
   PassportOcrResponse,
   PassportOcrSuccessResponse,
   SupportedPassportMimeType,
@@ -105,6 +106,25 @@ function safeExtractedFieldMetadata(
   };
 }
 
+function serializeProposedFields(fields: PassportOcrProposedFields) {
+  return {
+    full_name: fields.fullName,
+    given_names: fields.givenNames,
+    surname: fields.surname,
+    passport_number: fields.passportNumber,
+    date_of_birth: fields.dateOfBirth,
+    nationality: fields.nationality,
+    passport_issuing_country: fields.issuingCountry,
+    issuing_country: fields.issuingCountry,
+    passport_issue_date: fields.issueDate,
+    issue_date: fields.issueDate,
+    passport_expiry_date: fields.expiryDate,
+    expiry_date: fields.expiryDate,
+    gender: fields.gender,
+    proposed_fields: fields,
+  };
+}
+
 async function createOcrAttempt(params: {
   adminClient: ReturnType<typeof createAdminClient>;
   applicationId: string;
@@ -134,15 +154,17 @@ async function updateOcrAttempt(params: {
   extractionId: string | null;
   status: "succeeded" | "failed";
   metadata: OcrAttemptMetadata;
+  fields?: PassportOcrProposedFields;
   errorMessage?: string;
 }) {
   if (!params.extractionId) return;
 
+  const metadata = safeExtractedFieldMetadata(params.status, params.metadata);
   await params.adminClient
     .from("ocr_extractions")
     .update({
       status: params.status,
-      extracted_fields: safeExtractedFieldMetadata(params.status, params.metadata),
+      extracted_fields: params.fields ? { ...metadata, ...serializeProposedFields(params.fields) } : metadata,
       error_message: params.errorMessage ?? null,
       updated_at: new Date().toISOString(),
     })
@@ -419,6 +441,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<PassportO
       extractionId,
       status: "succeeded",
       metadata,
+      fields: result.fields,
     });
 
     const body: PassportOcrSuccessResponse = {

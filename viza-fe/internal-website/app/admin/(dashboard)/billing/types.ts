@@ -12,6 +12,13 @@ export interface BillingStatusSummary {
   collectedCurrency: string;
 }
 
+export interface BillingDataNotice {
+  tone: "warning" | "error";
+  title: string;
+  description: string;
+  details?: string[];
+}
+
 export interface BillingReference {
   id: string;
   label: string;

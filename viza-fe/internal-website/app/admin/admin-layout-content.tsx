@@ -8,7 +8,10 @@ import {
   LayoutDashboard,
   Users,
   Calendar,
+  ClipboardList,
+  CreditCard,
   LogOut,
+  Map,
   Menu,
   ChevronDown,
   Package,
@@ -46,6 +49,21 @@ const adminRoutes: Route[] = [
     label: "Accounts",
     icon: Users,
     href: "/admin/users",
+  },
+  {
+    label: "Applications",
+    icon: ClipboardList,
+    href: "/admin/applications",
+  },
+  {
+    label: "Coverage",
+    icon: Map,
+    href: "/admin/packages",
+  },
+  {
+    label: "Billing",
+    icon: CreditCard,
+    href: "/admin/billing",
   },
   {
     label: "Orders",
@@ -97,7 +115,7 @@ function AdminSidebar() {
 
   const isMenuExpanded = (href: string) => expandedMenus.includes(href);
 
-  const renderNavItem = (route: Route, index: number) => {
+  const renderNavItem = (route: Route, _index: number) => {
     const hasChildren = route.children && route.children.length > 0;
     const isExpanded = isMenuExpanded(route.href);
     const isActive =
@@ -223,7 +241,9 @@ function AdminTopBar() {
   const pathname = usePathname();
 
   const getPageTitle = () => {
-    const route = adminRoutes.find(r => pathname === r.href);
+    const route = adminRoutes.find(
+      (r) => pathname === r.href || (r.href !== "/admin" && pathname.startsWith(`${r.href}/`))
+    );
     return route?.label || "Dashboard";
   };
 

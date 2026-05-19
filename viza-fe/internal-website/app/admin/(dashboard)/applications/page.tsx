@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Filter, RotateCcw } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  FileText,
+  Filter,
+  PackageCheck,
+  RotateCcw,
+  UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/rbac";
 import {
@@ -11,6 +19,7 @@ import {
   PACKET_LABELS,
   PAYMENT_LABELS,
   RESULT_LABELS,
+  type AdminApplicantOverview,
   type AdminApplicationModel,
   type ConsentState,
   type DocumentState,
@@ -19,10 +28,9 @@ import {
   type PacketState,
   type PaymentState,
   type ResultState,
-  fetchAdminApplicationQueue,
+  fetchAdminApplicantQueue,
   formatDateTime,
-  formatMoney,
-  shortenId,
+  getLifecycleProgressPercent,
 } from "./data";
 import { EmptyState, ErrorPanel, MetricTile, StatusPill, getToneForState } from "./ui";
 
@@ -76,7 +84,7 @@ function parseFilters(searchParams: SearchParams): ActiveFilters {
   };
 }
 
-function matchesFilters(row: AdminApplicationModel, filters: ActiveFilters): boolean {
+function matchesApplicationFilters(row: AdminApplicationModel, filters: ActiveFilters): boolean {
   return (
     (filters.lifecycle === "all" || row.lifecycleState === filters.lifecycle) &&
     (filters.payment === "all" || row.payment.state === filters.payment) &&
@@ -88,8 +96,15 @@ function matchesFilters(row: AdminApplicationModel, filters: ActiveFilters): boo
   );
 }
 
-function countRows(rows: AdminApplicationModel[], predicate: (row: AdminApplicationModel) => boolean): number {
-  return rows.filter(predicate).length;
+function matchesApplicantFilters(applicant: AdminApplicantOverview, filters: ActiveFilters): boolean {
+  return applicant.applications.some((application) => matchesApplicationFilters(application, filters));
+}
+
+function averageProgress(applicants: AdminApplicantOverview[]): number {
+  if (applicants.length === 0) return 0;
+  return Math.round(
+    applicants.reduce((sum, applicant) => sum + applicant.completionPercent, 0) / applicants.length,
+  );
 }
 
 function FilterSelect<T extends string>({
@@ -129,7 +144,7 @@ function QueueFilters({ filters }: { filters: ActiveFilters }) {
     <form className="rounded-lg border border-[#efefef] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 text-sm font-semibold text-[#232323]">
         <Filter className="h-4 w-4 text-brand-500" />
-        Queue filters
+        User filters
       </div>
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <FilterSelect
@@ -197,85 +212,118 @@ function QueueFilters({ filters }: { filters: ActiveFilters }) {
   );
 }
 
-function QueueRow({ row }: { row: AdminApplicationModel }) {
-  const lifecycleTone = getToneForState(row.lifecycleState);
-  const missing = row.missingItems.slice(0, 2);
+function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
+  const profile = applicant.profile;
+  const primaryPackage = applicant.packages[0] ?? null;
+  const latestApplication = applicant.latestApplication;
+  const visibleMissingItems = applicant.missingItems.slice(0, 3);
 
   return (
-    <tr className="border-b transition-colors hover:bg-[#fafafa]">
-      <td className="px-4 py-4 align-top">
-        <div className="min-w-[220px]">
-          <Link href={`/admin/applications/${row.id}`} className="font-semibold text-brand-500 hover:underline">
-            {row.profile?.full_name || "Unnamed applicant"}
-          </Link>
-          <p className="mt-1 text-xs text-[#6b6b6b]">{row.profile?.email || "No email"}</p>
-          <p className="mt-1 font-mono text-xs text-[#9ca3af]">{shortenId(row.id)}</p>
+    <Link
+      href={`/admin/applications/${applicant.applicantId}`}
+      className="group block rounded-lg border border-[#efefef] bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+    >
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 space-y-4 xl:w-[28%]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+              <UserRound className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold text-brand-500 group-hover:underline">
+                {profile?.full_name || "Unnamed applicant"}
+              </h2>
+              <p className="mt-1 truncate text-sm text-[#6b6b6b]">{profile?.email || "No email recorded"}</p>
+              <p className="mt-1 text-xs text-[#9ca3af]">{applicant.applicantId.slice(0, 8)}...</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <StatusPill tone={getToneForState(applicant.lifecycleState)}>
+              {LIFECYCLE_LABELS[applicant.lifecycleState]}
+            </StatusPill>
+            {applicant.needsSupportCount > 0 && (
+              <StatusPill tone="warning">{applicant.needsSupportCount} needs support</StatusPill>
+            )}
+          </div>
         </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <div className="min-w-[180px]">
-          <p className="text-sm font-medium text-[#232323]">{row.countryLabel}</p>
-          <p className="mt-1 text-xs text-[#6b6b6b]">{row.visaPackage?.name || row.visaTypeLabel}</p>
+
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
+              <PackageCheck className="h-4 w-4" />
+              Package
+            </div>
+            <p className="mt-2 truncate text-sm font-semibold text-[#232323]">
+              {primaryPackage?.packageName || "No package assigned"}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
+              {applicant.activePackageCount} active / {applicant.packages.length} total
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
+              Expires: {applicant.earliestExpiryAt ? formatDateTime(applicant.earliestExpiryAt) : "No expiry set"}
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
+              <FileText className="h-4 w-4" />
+              Applications
+            </div>
+            <p className="mt-2 text-sm font-semibold text-[#232323]">
+              {applicant.applicationCount} application{applicant.applicationCount === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
+              {applicant.countries.join(", ") || "No destination"}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
+              Latest: {latestApplication?.countryLabel || "No application"}
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
+              <CalendarClock className="h-4 w-4" />
+              Progress
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
+              <div
+                className="h-full rounded-full bg-brand-500"
+                style={{ width: `${applicant.completionPercent}%` }}
+              />
+            </div>
+            <p className="mt-2 text-sm font-semibold text-[#232323]">{applicant.completionPercent}% complete</p>
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
+              Best app: {latestApplication ? getLifecycleProgressPercent(latestApplication) : 0}%
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">Support notes</p>
+            {visibleMissingItems.length > 0 ? (
+              <ul className="mt-2 space-y-1 text-xs leading-5 text-[#6b6b6b]">
+                {visibleMissingItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+                {applicant.missingItems.length > visibleMissingItems.length && (
+                  <li>{applicant.missingItems.length - visibleMissingItems.length} more</li>
+                )}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs font-medium text-emerald-700">No blocking support items</p>
+            )}
+            <p className="mt-3 text-xs text-[#9ca3af]">
+              Updated {formatDateTime(applicant.latestUpdatedAt)}
+            </p>
+          </div>
         </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <StatusPill tone={lifecycleTone}>{LIFECYCLE_LABELS[row.lifecycleState]}</StatusPill>
-        {row.lifecycleState === "ready_for_external_handoff" && (
-          <p className="mt-2 max-w-[210px] text-xs leading-5 text-[#6b6b6b]">
-            Automated handoff state; no staff approval is required.
-          </p>
-        )}
-      </td>
-      <td className="px-4 py-4 align-top">
-        <div className="flex flex-col gap-2">
-          <StatusPill tone={getToneForState(row.payment.state)}>{PAYMENT_LABELS[row.payment.state]}</StatusPill>
-          <span className="text-xs text-[#6b6b6b]">
-            {row.payment.latest
-              ? formatMoney(row.payment.latest.amount_cents, row.payment.latest.currency)
-              : "No agency fee record"}
-          </span>
+
+        <div className="flex shrink-0 items-center justify-end text-sm font-semibold text-brand-500">
+          View overview
+          <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
         </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <div className="flex flex-col gap-2">
-          <StatusPill tone={getToneForState(row.consent.state)}>{CONSENT_LABELS[row.consent.state]}</StatusPill>
-          <StatusPill tone={getToneForState(row.documents.state)}>{DOCUMENT_LABELS[row.documents.state]}</StatusPill>
-        </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <div className="flex flex-col gap-2">
-          <StatusPill tone={getToneForState(row.packet.state)}>{PACKET_LABELS[row.packet.state]}</StatusPill>
-          <StatusPill tone={getToneForState(row.external.state)}>{EXTERNAL_LABELS[row.external.state]}</StatusPill>
-          <StatusPill tone={getToneForState(row.result.state)}>{RESULT_LABELS[row.result.state]}</StatusPill>
-        </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        {missing.length > 0 ? (
-          <ul className="max-w-[250px] space-y-1 text-xs leading-5 text-[#6b6b6b]">
-            {missing.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-            {row.missingItems.length > missing.length && <li>{row.missingItems.length - missing.length} more</li>}
-          </ul>
-        ) : (
-          <span className="text-xs font-medium text-emerald-700">No blocking support items</span>
-        )}
-      </td>
-      <td className="px-4 py-4 align-top">
-        <div className="min-w-[170px] text-xs text-[#6b6b6b]">
-          <p>{formatDateTime(row.updatedAt ?? row.createdAt)}</p>
-          <p className="mt-1 truncate">{row.latestEvent?.message || row.latestEvent?.event_type || "No events yet"}</p>
-        </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <Button asChild variant="outline" size="sm" className="border-[#d7d7d7]">
-          <Link href={`/admin/applications/${row.id}`}>
-            Open
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </td>
-    </tr>
+      </div>
+    </Link>
   );
 }
 
@@ -285,24 +333,20 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = parseFilters(resolvedSearchParams);
-  const { rows, error } = await fetchAdminApplicationQueue();
-  const filteredRows = rows.filter((row) => matchesFilters(row, filters));
+  const { applicants, applications, error } = await fetchAdminApplicantQueue();
+  const filteredApplicants = applicants.filter((applicant) => matchesApplicantFilters(applicant, filters));
 
   const metrics = [
-    { label: "Total", value: rows.length, tone: "neutral" as const },
+    { label: "Users", value: applicants.length, tone: "neutral" as const },
+    { label: "Applications", value: applications.length, tone: "brand" as const },
     {
-      label: "Needs support",
-      value: countRows(rows, (row) => row.lifecycleState === "attention" || row.missingItems.length > 0),
+      label: "Need support",
+      value: applicants.filter((applicant) => applicant.needsSupportCount > 0).length,
       tone: "warning" as const,
     },
     {
-      label: "Ready for external",
-      value: countRows(rows, (row) => row.lifecycleState === "ready_for_external_handoff"),
-      tone: "brand" as const,
-    },
-    {
-      label: "Completed",
-      value: countRows(rows, (row) => row.lifecycleState === "completed"),
+      label: "Avg progress",
+      value: `${averageProgress(applicants)}%`,
       tone: "success" as const,
     },
   ];
@@ -313,7 +357,7 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
         <div>
           <h1 className="text-2xl font-semibold text-[#232323]">Application Monitoring</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#6b6b6b]">
-            Staff visibility for customer support, packet readiness, external handoff state, and result delivery.
+            One card per user with package, expiry, application count, progress, and support status.
           </p>
         </div>
         <p className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
@@ -333,55 +377,34 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
 
           <QueueFilters filters={filters} />
 
-          <div className="rounded-lg border border-[#efefef] bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-[#efefef] px-5 py-4">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[#232323]">Monitoring queue</h2>
+                <h2 className="text-base font-semibold text-[#232323]">User overview cards</h2>
                 <p className="mt-1 text-sm text-[#6b6b6b]">
-                  Showing {filteredRows.length} of {rows.length} application records
+                  Showing {filteredApplicants.length} of {applicants.length} users
                 </p>
               </div>
             </div>
 
-            {rows.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No applications found"
-                  body="Applications will appear here once applicants start a visa workflow."
-                />
-              </div>
-            ) : filteredRows.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No matching applications"
-                  body="Adjust the filters to see more monitoring records."
-                />
-              </div>
+            {applicants.length === 0 ? (
+              <EmptyState
+                title="No users with applications"
+                body="Users will appear here once an applicant starts a visa workflow."
+              />
+            ) : filteredApplicants.length === 0 ? (
+              <EmptyState
+                title="No matching users"
+                body="Adjust the filters to see more user overview cards."
+              />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-[#fafafa]">
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Applicant</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Package</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Lifecycle</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Payment</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Consent / Docs</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Packet / External / Result</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Missing items</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Last update</th>
-                      <th className="px-4 py-3 text-left font-medium text-[#6b6b6b]">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRows.map((row) => (
-                      <QueueRow key={row.id} row={row} />
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {filteredApplicants.map((applicant) => (
+                  <UserCard key={applicant.applicantId} applicant={applicant} />
+                ))}
               </div>
             )}
-          </div>
+          </section>
         </>
       )}
     </div>

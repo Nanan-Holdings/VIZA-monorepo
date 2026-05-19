@@ -105,6 +105,18 @@ function getDocumentKey(requirement: DocumentRequirement): string {
   return `${requirement.key}:${requirement.documentType}`;
 }
 
+function isPassportRequirement(requirement: DocumentRequirement): boolean {
+  return ["passport_copy", "passport", "passport_bio_page"].includes(requirement.documentType) || requirement.key === "passport_copy";
+}
+
+function readOcrErrorMessage(payload: unknown): string {
+  if (!isRecord(payload)) return "Passport OCR did not return a readable response.";
+  const error = payload.error;
+  if (isRecord(error) && typeof error.message === "string") return error.message;
+  if (typeof payload.message === "string") return payload.message;
+  return "Passport OCR could not process this upload.";
+}
+
 function isRejectedStatus(status: string): boolean {
   return ["rejected", "needs_replacement", "replacement_requested", "failed"].includes(status.toLowerCase());
 }
@@ -197,13 +209,13 @@ function getLatestPassportOcr(extractions: PassportOcrExtraction[]): PassportOcr
 function getOcrDisplayFields(extraction: PassportOcrExtraction | null) {
   if (!extraction) return [];
   const labels: Array<[string, string[]]> = [
-    ["Full name", ["full_name", "name", "passport_full_name", "holder_name"]],
-    ["Passport number", ["passport_number", "document_number", "passport_no"]],
-    ["Date of birth", ["date_of_birth", "birth_date", "dob"]],
+    ["Full name", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
+    ["Passport number", ["passport_number", "passportNumber", "document_number", "passport_no"]],
+    ["Date of birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
     ["Nationality", ["nationality", "citizenship"]],
-    ["Issuing country", ["passport_issuing_country", "issuing_country", "country_of_issue"]],
-    ["Issue date", ["passport_issue_date", "issue_date", "date_of_issue"]],
-    ["Expiry date", ["passport_expiry_date", "expiry_date", "expiration_date", "date_of_expiry"]],
+    ["Issuing country", ["passport_issuing_country", "issuingCountry", "issuing_country", "country_of_issue"]],
+    ["Issue date", ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"]],
+    ["Expiry date", ["passport_expiry_date", "expiryDate", "expiry_date", "expiration_date", "date_of_expiry"]],
   ];
 
   return labels
@@ -459,11 +471,13 @@ function OcrPanel({
   passportView,
   extraction,
   busy,
+  onRun,
   onConfirm,
 }: {
   passportView: DocumentViewState | null;
   extraction: PassportOcrExtraction | null;
   busy: boolean;
+  onRun: () => void;
   onConfirm: () => void;
 }) {
   const fields = getOcrDisplayFields(extraction);
@@ -488,6 +502,12 @@ function OcrPanel({
           {pending && <p className="text-sm text-blue-700">OCR is in progress. Refresh this page after the extraction finishes.</p>}
           {failed && <p className="text-sm text-red-700">{extraction?.errorMessage ?? "OCR could not read the passport clearly."}</p>}
           {confirmed && <p className="text-sm text-emerald-700">Passport fields were confirmed by the applicant.</p>}
+          {hasPassport && (
+            <Button type="button" variant="outline" onClick={onRun} disabled={busy || pending}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
+              Run passport OCR
+            </Button>
+          )}
         </div>
 
         {fields.length > 0 && (
@@ -679,9 +699,59 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
       });
 
       if (!result.ok) throw new Error(result.error);
+      if (source === "manual_upload" && isPassportRequirement(requirement)) {
+        const ocrResult = await runPassportOcr({ storagePath }, key);
+        if (!ocrResult.ok) {
+          setError(`Passport uploaded, but OCR did not complete: ${ocrResult.error}`);
+        }
+      }
       await refreshData();
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Document upload failed.");
+      setBusyTarget(null);
+    }
+  }
+
+  async function runPassportOcr(
+    target: { documentId?: string; storagePath?: string },
+    key = passportView ? getDocumentKey(passportView.requirement) : "passport",
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!selectedApplication) return { ok: false, error: "No application selected." };
+    setBusyTarget({ type: "ocr", key });
+
+    try {
+      const response = await fetch("/api/passport-ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: selectedApplication.id, ...target }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok || !isRecord(payload) || payload.success !== true) {
+        return { ok: false, error: readOcrErrorMessage(payload) };
+      }
+
+      return { ok: true };
+    } catch (ocrError) {
+      return {
+        ok: false,
+        error: ocrError instanceof Error ? ocrError.message : "Passport OCR failed.",
+      };
+    }
+  }
+
+  async function handleRunPassportOcr() {
+    if (!passportView?.document) {
+      setError("Upload a passport bio page before running OCR.");
+      return;
+    }
+
+    setError(null);
+    const result = await runPassportOcr({ documentId: passportView.document.id });
+    if (result.ok) {
+      await refreshData();
+    } else {
+      setError(result.error);
       setBusyTarget(null);
     }
   }
@@ -897,6 +967,7 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
             passportView={passportView}
             extraction={latestOcr}
             busy={busyTarget?.type === "ocr"}
+            onRun={handleRunPassportOcr}
             onConfirm={handleConfirmOcr}
           />
           <TravelAiPanel

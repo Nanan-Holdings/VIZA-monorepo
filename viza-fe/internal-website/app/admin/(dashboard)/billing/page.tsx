@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/rbac";
 import { BillingSupportWorkspace } from "./billing-support-workspace";
 import type {
+  BillingDataNotice,
   BillingReference,
   BillingStatusSummary,
   BillingSupportRecord,
@@ -21,6 +22,7 @@ type JsonRecord = Record<string, JsonValue>;
 
 interface QueryError {
   message: string;
+  code?: string;
 }
 
 interface QueryResult<T> {
@@ -199,11 +201,13 @@ export default async function AdminBillingPage() {
       .limit(100),
   ]);
 
-  const errors = collectErrors([
+  const billingQueryIssues = [
     ["payment_records", paymentsResult.error],
     ["invoice_requests", invoicesResult.error],
     ["refund_records", refundsResult.error],
-  ]);
+  ] satisfies Array<[string, QueryError | null]>;
+
+  const notices = collectBillingNotices(billingQueryIssues);
 
   const payments = paymentsResult.data ?? [];
   const invoices = invoicesResult.data ?? [];
@@ -231,8 +235,8 @@ export default async function AdminBillingPage() {
           .in("id", initialApplicationIds)
       : emptyResult<ApplicationRow>();
 
-  errors.push(
-    ...collectErrors([["applications", applicationResult.error]])
+  notices.push(
+    ...collectQueryNotices([["applications", applicationResult.error]])
   );
 
   const applications = applicationResult.data ?? [];
@@ -249,8 +253,8 @@ export default async function AdminBillingPage() {
           .in("id", applicantIds)
       : emptyResult<ApplicantProfileRow>();
 
-  errors.push(
-    ...collectErrors([["applicant_profiles", profileResult.error]])
+  notices.push(
+    ...collectQueryNotices([["applicant_profiles", profileResult.error]])
   );
 
   const packageIds = uniqueStrings([
@@ -266,7 +270,7 @@ export default async function AdminBillingPage() {
           .in("id", packageIds)
       : emptyResult<VisaPackageRow>();
 
-  errors.push(...collectErrors([["visa_packages", packageResult.error]]));
+  notices.push(...collectQueryNotices([["visa_packages", packageResult.error]]));
 
   const records = buildBillingRecords({
     payments,
@@ -284,7 +288,7 @@ export default async function AdminBillingPage() {
       records={records}
       summary={summary}
       generatedAt={new Date().toISOString()}
-      errors={errors}
+      notices={notices}
     />
   );
 }
@@ -848,10 +852,71 @@ function buildSummary(records: BillingSupportRecord[]): BillingStatusSummary {
   };
 }
 
-function collectErrors(entries: Array<[string, QueryError | null]>) {
-  return entries.flatMap(([label, error]) =>
-    error ? [`${label}: ${error.message}`] : []
+function collectBillingNotices(
+  entries: Array<[string, QueryError | null]>
+): BillingDataNotice[] {
+  const missingSchemaTables = entries
+    .filter(([, error]) => isMissingSchemaTableError(error))
+    .map(([label]) => label);
+  const notices: BillingDataNotice[] = [];
+
+  if (missingSchemaTables.length > 0) {
+    notices.push({
+      tone: "warning",
+      title: "Billing data store is not provisioned yet.",
+      description:
+        "The admin UI is ready, but this Supabase project does not currently expose the payment, invoice, and refund tables required for billing support.",
+      details: [
+        "Apply viza-be/agent-backend/drizzle/0013_internal_automation_loop.sql.",
+        "Apply viza-be/agent-backend/drizzle/0014_internal_automation_db_refinements.sql if it has not already run.",
+        "Refresh the Supabase/PostgREST schema cache after the migration.",
+      ],
+    });
+  }
+
+  notices.push(
+    ...collectQueryNotices(
+      entries.filter(([, error]) => error && !isMissingSchemaTableError(error))
+    )
   );
+
+  return notices;
+}
+
+function collectQueryNotices(
+  entries: Array<[string, QueryError | null]>
+): BillingDataNotice[] {
+  return entries.flatMap(([label, error]) =>
+    error
+      ? [
+          {
+            tone: "error" as const,
+            title: "Some billing data could not be loaded.",
+            description:
+              "A support data query failed. The page is showing the records that could be loaded.",
+            details: [`${label}: ${sanitizeQueryError(error)}`],
+          },
+        ]
+      : []
+  );
+}
+
+function isMissingSchemaTableError(error: QueryError | null) {
+  if (!error) return false;
+
+  return (
+    error.code === "PGRST205" ||
+    (error.message.includes("Could not find the table") &&
+      error.message.includes("schema cache"))
+  );
+}
+
+function sanitizeQueryError(error: QueryError) {
+  if (isMissingSchemaTableError(error)) {
+    return "Required billing table is not available in the schema cache.";
+  }
+
+  return error.message.replace(/'public\.([^']+)'/g, "$1");
 }
 
 function emptyResult<T>(): QueryResult<T> {

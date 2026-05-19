@@ -68,6 +68,13 @@ interface QueryIssue {
   message: string;
 }
 
+type QueryErrorLike = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+};
+
 const FIRST_BATCH_TARGETS = [
   {
     label: "US DS-160",
@@ -121,7 +128,10 @@ export default async function AdminPackagesPage() {
   const issues = collectIssues([
     ["visa_packages", packagesResult.error],
     ["visa_form_fields", fieldsResult.error],
-    ["document_requirements", documentsResult.error],
+    [
+      "document_requirements",
+      isSchemaMissingError(documentsResult.error) ? null : documentsResult.error,
+    ],
   ]);
 
   const packages = (packagesResult.data ?? []) as VisaPackageRow[];
@@ -786,6 +796,23 @@ function collectIssues(entries: Array<[string, unknown]>): QueryIssue[] {
   return entries
     .filter((entry): entry is [string, unknown] => Boolean(entry[1]))
     .map(([source, error]) => ({ source, message: getErrorMessage(error) }));
+}
+
+function isSchemaMissingError(error: unknown): boolean {
+  const record = asRecord(error) as QueryErrorLike | null;
+  if (!record) return false;
+
+  const code = record.code ?? "";
+  const message = `${record.message ?? ""} ${record.details ?? ""} ${record.hint ?? ""}`.toLowerCase();
+
+  return (
+    code === "PGRST204" ||
+    code === "PGRST205" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("could not find the table") ||
+    (message.includes("could not find the") && message.includes("column"))
+  );
 }
 
 function getErrorMessage(error: unknown) {

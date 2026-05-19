@@ -1,11 +1,7 @@
 "use client";
 
-import { ClientSidebar } from "@/components/client-sidebar";
 import { NavBar } from "@/components/client/navbar";
-import Link from "next/link";
-import { motion } from "motion/react";
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
-import { svgPaths } from "@/components/client/constants";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { userSignOut } from "@/app/actions/client-auth";
 import {
@@ -13,26 +9,9 @@ import {
   createFirstLoginFormRequestIfNeeded,
 } from "@/app/actions/form-requests";
 import { getAuthenticatedUserId } from "@/lib/auth/get-authenticated-user";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { AnimatedMenu } from "@/components/client/animated-menu";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
-
-const tabs = ["Home", "Application", "Chat", "Documents"];
-
-// Tab to path mapping
-const tabPaths: Record<string, string> = {
-  Home: "/client/home",
-  Application: "/client/application",
-  Chat: "/client/chat",
-  Documents: "/client/documents",
-  Settings: "/client/settings",
-};
 
 // sessionStorage keys for tracking impersonation session state
 const SESSION_USER_KEY = "impersonation_user_id";
@@ -301,16 +280,20 @@ function ClientLayoutContent({
       setActiveTab("Home");
     } else if (pathname.startsWith("/client/application")) {
       setActiveTab("Application");
-    } else if (pathname.startsWith("/client/chat")) {
-      setActiveTab("Chat");
+    } else if (pathname.startsWith("/client/status")) {
+      setActiveTab("Status");
     } else if (pathname.startsWith("/client/documents")) {
       setActiveTab("Documents");
+    } else if (pathname.startsWith("/client/chat")) {
+      setActiveTab("Chat");
+    } else if (pathname.startsWith("/client/support") || pathname.startsWith("/client/help")) {
+      setActiveTab("Support");
     } else if (pathname.startsWith("/client/settings")) {
       setActiveTab("Settings");
     } else {
       setActiveTab(null);
     }
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   // Don't render layout wrapper for auth pages (login, signup) or about-me form (immersive)
   const isAuthPage =

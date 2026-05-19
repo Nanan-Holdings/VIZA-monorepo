@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ClipboardList, FileText, Headphones } from "lucide-react";
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -164,6 +165,9 @@ export function AnimatedMenu({
   const isInSettings = pathname.startsWith("/client/settings");
   const isInInviteFriends = pathname.startsWith("/client/invite-friends");
   const isInHelp = pathname.startsWith("/client/help");
+  const isInStatus = pathname.startsWith("/client/status");
+  const isInDocuments = pathname.startsWith("/client/documents");
+  const isInSupport = pathname.startsWith("/client/support");
 
   const handleSettings = () => {
     router.push("/client/settings");
@@ -177,6 +181,21 @@ export function AnimatedMenu({
 
   const handleHelp = () => {
     router.push("/client/help");
+    onClose?.();
+  };
+
+  const handleStatus = () => {
+    router.push("/client/status");
+    onClose?.();
+  };
+
+  const handleDocuments = () => {
+    router.push("/client/documents");
+    onClose?.();
+  };
+
+  const handleSupport = () => {
+    router.push("/client/support");
     onClose?.();
   };
 
@@ -207,10 +226,34 @@ export function AnimatedMenu({
       )}
 
       <MenuItem
+        icon={<ClipboardList className="h-4 w-4" />}
+        label={t("status")}
+        backgroundColor={isInStatus ? "bg-[#efefef]" : "bg-white"}
+        index={menuItemBaseIndex}
+        onClick={handleStatus}
+      />
+
+      <MenuItem
+        icon={<FileText className="h-4 w-4" />}
+        label={t("documents")}
+        backgroundColor={isInDocuments ? "bg-[#efefef]" : "bg-white"}
+        index={menuItemBaseIndex + 1}
+        onClick={handleDocuments}
+      />
+
+      <MenuItem
+        icon={<Headphones className="h-4 w-4" />}
+        label={t("support")}
+        backgroundColor={isInSupport ? "bg-[#efefef]" : "bg-white"}
+        index={menuItemBaseIndex + 2}
+        onClick={handleSupport}
+      />
+
+      <MenuItem
         icon={<LucideSettings />}
         label={t("settings")}
         backgroundColor={isInSettings ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex}
+        index={menuItemBaseIndex + 3}
         onClick={handleSettings}
       />
 
@@ -218,7 +261,7 @@ export function AnimatedMenu({
         icon={<LucideInfo />}
         label={t("help")}
         backgroundColor={isInHelp ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex + 1}
+        index={menuItemBaseIndex + 4}
         onClick={handleHelp}
       />
 
@@ -228,7 +271,7 @@ export function AnimatedMenu({
         icon={<LucideLogOut />}
         label={isLoggingOut ? t("loggingOut") : t("logout")}
         backgroundColor="bg-white"
-        index={menuItemBaseIndex + 2}
+        index={menuItemBaseIndex + 5}
         onClick={onLogout}
         textColor="text-red-500"
       />

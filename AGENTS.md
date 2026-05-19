@@ -14,6 +14,23 @@ Current workspace:
 D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 ```
 
+## Local Test Admin
+
+Use this admin account for local portal smoke testing:
+
+```text
+Email: admin@viza.test
+Login URL: http://127.0.0.1:3000/admin/login
+```
+
+Do not store the plaintext admin password in this repo guide. To reset the
+local test password before a test run:
+
+```powershell
+cd viza-fe\internal-website
+npm run init:admin -- --email admin@viza.test --password "<temporary-password>"
+```
+
 ## Repository Map
 
 ```text
@@ -106,6 +123,7 @@ guides include:
 - `viza-fe/internal-website/app/client/documents/AGENTS.md`
 - `viza-fe/internal-website/app/client/settings/AGENTS.md`
 - `viza-fe/internal-website/app/client/status/AGENTS.md`
+- `viza-fe/internal-website/app/client/support/AGENTS.md`
 - `viza-fe/internal-website/app/admin/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/applications/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`

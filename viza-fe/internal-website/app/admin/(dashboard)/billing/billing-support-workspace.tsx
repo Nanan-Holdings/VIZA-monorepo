@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type {
+  BillingDataNotice,
   BillingStatusSummary,
   BillingSupportRecord,
   RefundEligibilityStatus,
@@ -21,14 +22,14 @@ interface BillingSupportWorkspaceProps {
   records: BillingSupportRecord[];
   summary: BillingStatusSummary;
   generatedAt: string;
-  errors: string[];
+  notices: BillingDataNotice[];
 }
 
 export function BillingSupportWorkspace({
   records,
   summary,
   generatedAt,
-  errors,
+  notices,
 }: BillingSupportWorkspaceProps) {
   const [selectedRecordId, setSelectedRecordId] = useState(
     records[0]?.id ?? ""
@@ -55,14 +56,11 @@ export function BillingSupportWorkspace({
         </p>
       </div>
 
-      {errors.length > 0 && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-medium">Some billing data could not be loaded.</p>
-          <ul className="mt-2 space-y-1">
-            {errors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
+      {notices.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {notices.map((notice) => (
+            <DataNotice key={`${notice.tone}-${notice.title}`} notice={notice} />
+          ))}
         </div>
       )}
 
@@ -207,7 +205,9 @@ export function BillingSupportWorkspace({
                       colSpan={7}
                       className="px-4 py-12 text-center text-sm text-[#9ca3af]"
                     >
-                      No billing records found
+                      {notices.some((notice) => notice.tone === "warning")
+                        ? "Billing records will appear after the billing data store is provisioned"
+                        : "No billing records found"}
                     </td>
                   </tr>
                 )}
@@ -218,6 +218,27 @@ export function BillingSupportWorkspace({
 
         <SupportPanel record={selectedRecord} />
       </div>
+    </div>
+  );
+}
+
+function DataNotice({ notice }: { notice: BillingDataNotice }) {
+  const classes =
+    notice.tone === "warning"
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : "border-red-200 bg-red-50 text-red-700";
+
+  return (
+    <div className={`rounded-lg border p-4 text-sm ${classes}`}>
+      <p className="font-medium">{notice.title}</p>
+      <p className="mt-1">{notice.description}</p>
+      {notice.details && notice.details.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {notice.details.map((detail) => (
+            <li key={detail}>{detail}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

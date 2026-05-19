@@ -8,14 +8,19 @@
   "nav": {
     "home": "首页",
     "application": "申请",
+    "status": "状态",
     "chat": "聊天",
-    "documents": "状态",
+    "documents": "材料",
+    "support": "客服",
     "visaConsultant": "签证顾问",
     "travelAgent": "旅行顾问",
     "inviteFriends": "邀请朋友"
   },
   "menu": {
     "inviteFriends": "邀请朋友",
+    "status": "状态",
+    "documents": "材料",
+    "support": "客服",
     "settings": "设置",
     "help": "帮助",
     "logout": "退出登录",
@@ -1220,6 +1225,78 @@
       "title": "账单",
       "noPaymentMethods": "没有付款方式",
       "noPaymentDescription": "账单和付款管理即将推出。如需更新账单信息，请联系客服。"
+    }
+  },
+  "supportCenter": {
+    "eyebrow": "客户服务",
+    "title": "需要什么帮助？",
+    "subtitle": "告诉 VIZA 客服机器人你遇到的问题，选择一个主题，先走最快的自助处理路径。需要真人时，也可以随时转人工或发邮件。",
+    "humanCard": {
+      "title": "需要人工吗？",
+      "description": "点击下方人工客服选项，或发邮件到 support@viza.com。请附上账户邮箱和申请编号，方便我们快速定位。"
+    },
+    "questionLabel": "你遇到了什么问题？",
+    "questionPlaceholder": "退款、材料缺失、申请状态...",
+    "send": "发送",
+    "topicsTitle": "常见问题",
+    "topicsHint": "请选择",
+    "botName": "VIZA 客服机器人",
+    "botSubtitle": "先自助处理，必要时转人工",
+    "greeting": "你好，我可以帮你找到正确的客服路径。请选择一个主题，或用一句话描述你的问题。",
+    "requestHuman": "转人工客服",
+    "emailSupport": "邮件联系客服",
+    "copyEmail": "复制邮箱",
+    "copied": "已复制",
+    "human": {
+      "title": "人工客服"
+    },
+    "handoff": {
+      "title": "人工客服选项",
+      "description": "如果是账号相关问题、退款、支付异常或特殊申请情况，人工客服可以继续处理。请在邮件里写明账户邮箱和申请编号，我们会更快找到你的案例。"
+    },
+    "topics": {
+      "refund": {
+        "title": "退款或取消",
+        "description": "退款资格、取消申请、重复付款或退款规则问题。",
+        "answerTitle": "退款处理路径",
+        "answer": "请先打开账单页面查看付款状态、收据、发票申请和可见的退款资格。如果申请包或外部交接已经开始，可能需要人工客服进一步审核。",
+        "action": "打开账单"
+      },
+      "status": {
+        "title": "申请状态",
+        "description": "查看签证申请到了哪一步，以及下一步要做什么。",
+        "answerTitle": "状态查询路径",
+        "answer": "状态中心会展示付款、授权、表单、材料、申请包、外部交接和结果交付。如果状态看起来卡住或不准确，请带上申请编号联系人工客服。",
+        "action": "打开状态"
+      },
+      "documents": {
+        "title": "材料或 OCR",
+        "description": "缺失文件、护照 OCR、照片检查或重新上传材料。",
+        "answerTitle": "材料处理路径",
+        "answer": "请打开材料中心查看必传/选传材料、重新上传文件、运行护照 OCR，并检查照片合规状态。如果文件被拒但原因不清楚，可以转人工客服。",
+        "action": "打开材料"
+      },
+      "payment": {
+        "title": "付款、收据或发票",
+        "description": "服务费、收据下载、发票申请或付款失败。",
+        "answerTitle": "付款处理路径",
+        "answer": "账单页面集中展示收据、发票申请、付款记录和退款可见状态。如果 Stripe 付款失败或收据缺失，请把付款日期和账户邮箱发给客服。",
+        "action": "打开账单"
+      },
+      "account": {
+        "title": "账号或登录",
+        "description": "邮箱访问、个人资料、隐私请求或账号设置。",
+        "answerTitle": "账号处理路径",
+        "answer": "请先打开设置页面更新账号资料或管理隐私请求。登录、邮箱访问等问题需要验证身份，建议联系人工客服处理。",
+        "action": "打开设置"
+      },
+      "human": {
+        "title": "联系人工客服",
+        "description": "自助路径无法解决时，转给客服团队。",
+        "answerTitle": "人工处理路径",
+        "answer": "请发邮件到 support@viza.com，并写上账户邮箱、目的地和申请编号。客服同事会查看案例并回复下一步。",
+        "action": "邮件联系客服"
+      }
     }
   },
   "help": {

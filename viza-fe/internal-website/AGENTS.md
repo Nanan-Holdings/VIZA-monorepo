@@ -17,7 +17,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `components/application-steps/**`.
 - Website internal automation client routes under `app/client/status/**`,
   `app/client/documents/**`, `app/client/checkout/**`,
-  `app/client/billing/**`, and `app/client/consent/**`.
+  `app/client/billing/**`, `app/client/consent/**`, and
+  `app/client/support/**`.
 - Staff monitoring and coverage routes under
   `app/admin/(dashboard)/applications/**`,
   `app/admin/(dashboard)/packages/**`, and
@@ -28,11 +29,15 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, and `app/api/external-submission/**`.
 - VIZA AI chat under `app/client/chat/**` and
   `components/client/companion/**`.
+- Customer service support center under `app/client/support/**`; keep it
+  separate from `/client/chat`.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, and `lib/impersonation-session.ts`.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
+- Local admin test-account bootstrap through
+  `scripts/init-admin-account.mjs`.
 
 ## Source Of Truth
 
@@ -82,6 +87,7 @@ Smoke URLs:
 - `/client/billing`
 - `/client/consent`
 - `/client/chat`
+- `/client/support`
 - `/client/travel-chat`
 - `/admin`
 - `/admin/applications`

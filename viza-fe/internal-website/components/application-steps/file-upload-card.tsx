@@ -2,10 +2,11 @@
 
 import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { UploadCloud, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { UploadCloud, CheckCircle2, Loader2, ScanLine, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { recordDocumentUpload } from "@/app/client/documents/actions";
 
 export type DocumentType =
   | "passport_copy"
@@ -21,7 +22,26 @@ export interface FileUploadCardProps {
   label: string;
   secondaryLabel?: string;
   description?: string;
+  required?: boolean;
   onComplete?: (storagePath: string) => void;
+}
+
+type OcrStatus = "idle" | "running" | "succeeded" | "failed";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getOcrErrorMessage(payload: unknown): string {
+  if (!isRecord(payload)) return "Passport OCR did not return a readable response.";
+  const error = payload.error;
+  if (isRecord(error) && typeof error.message === "string") return error.message;
+  if (typeof payload.message === "string") return payload.message;
+  return "Passport OCR could not process this upload.";
+}
+
+function isPassportUpload(documentType: DocumentType): boolean {
+  return documentType === "passport_copy";
 }
 
 export function FileUploadCard({
@@ -30,17 +50,54 @@ export function FileUploadCard({
   label,
   secondaryLabel,
   description,
+  required = true,
   onComplete,
 }: FileUploadCardProps) {
   const t = useTranslations("applicationSteps");
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [storagePath, setStoragePath] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>("idle");
+  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const supportsPassportOcr = isPassportUpload(documentType);
+
+  const runPassportOcr = async (path: string) => {
+    if (!supportsPassportOcr) return;
+
+    setOcrStatus("running");
+    setOcrMessage("Reading passport fields...");
+
+    try {
+      const response = await fetch("/api/passport-ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, storagePath: path }),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok || !isRecord(payload) || payload.success !== true) {
+        throw new Error(getOcrErrorMessage(payload));
+      }
+
+      setOcrStatus("succeeded");
+      setOcrMessage("Passport OCR completed. Confirm the proposed fields in Documents.");
+    } catch (ocrError) {
+      setOcrStatus("failed");
+      setOcrMessage(
+        ocrError instanceof Error
+          ? `Uploaded. OCR did not complete: ${ocrError.message}`
+          : "Uploaded. OCR did not complete.",
+      );
+    }
+  };
 
   const handleFile = async (file: File) => {
     setStatus("uploading");
     setErrorMsg(null);
+    setOcrStatus("idle");
+    setOcrMessage(null);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -53,9 +110,28 @@ export function FileUploadCard({
 
       if (error) throw error;
 
+      const recordResult = await recordDocumentUpload({
+        applicationId,
+        documentType,
+        requirementKey: documentType,
+        filename: file.name,
+        storagePath: path,
+        required,
+      });
+
+      if (!recordResult.ok && supportsPassportOcr) {
+        setOcrStatus("failed");
+        setOcrMessage(`Uploaded. OCR is waiting because the document record was not saved: ${recordResult.error}`);
+      }
+
       setFileName(file.name);
+      setStoragePath(path);
       setStatus("done");
       onComplete?.(path);
+
+      if (recordResult.ok && supportsPassportOcr) {
+        await runPassportOcr(path);
+      }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : t("uploadFailed"));
       setStatus("error");
@@ -86,18 +162,38 @@ export function FileUploadCard({
           {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
           {fileName && <p className="text-xs text-muted-foreground truncate">{fileName}</p>}
           {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
+          {supportsPassportOcr && ocrMessage && (
+            <p className={ocrStatus === "failed" ? "text-xs text-amber-700" : "text-xs text-brand-600"}>
+              {ocrMessage}
+            </p>
+          )}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          disabled={status === "uploading"}
-          className="shrink-0"
-        >
-          {status === "done" ? `${t("replace")} / Replace` : `${t("upload")} / Upload`}
-        </Button>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          {supportsPassportOcr && storagePath && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => runPassportOcr(storagePath)}
+              disabled={ocrStatus === "running" || status === "uploading"}
+              className="shrink-0"
+            >
+              {ocrStatus === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
+              OCR
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={status === "uploading"}
+            className="shrink-0"
+          >
+            {status === "done" ? `${t("replace")} / Replace` : `${t("upload")} / Upload`}
+          </Button>
+        </div>
 
         <input
           ref={inputRef}

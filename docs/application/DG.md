@@ -2,6 +2,96 @@
 
 This guide explains where the application-form content lives and how the current form, RAG, and field-AI pieces connect.
 
+## Local Startup And Page Entry
+
+Start the VIZA portal from the Next.js app directory, not from the monorepo
+root:
+
+```powershell
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
+.\scripts\start-viza-dev.ps1
+```
+
+This starts the frontend, agent backend, and Travel service when its Python
+`.venv` already exists. It writes logs to `.dev-logs` and opens
+`/client/login`. To stop services started by this script:
+
+```powershell
+.\scripts\start-viza-dev.ps1 -Stop
+```
+
+Manual frontend-only startup is:
+
+```powershell
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-fe\internal-website
+npm run dev
+```
+
+Open the URL printed by Next.js, normally:
+
+```text
+http://localhost:3000/client/login
+```
+
+After login, the main client dashboard is:
+
+```text
+http://localhost:3000/client/home
+```
+
+If port `3000` is already used by another local app or an old Next process,
+start this app on a different port and use that port in the browser:
+
+```powershell
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-fe\internal-website
+npm run dev -- -p 3001
+```
+
+Then open:
+
+```text
+http://localhost:3001/client/login
+```
+
+For AI chat, field guidance, and backend-backed application flows, also start
+the agent backend:
+
+```powershell
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\agent-backend
+npm run dev
+```
+
+The frontend expects this backend at `NEXT_PUBLIC_AGENT_BACKEND_URL`, normally
+`http://localhost:3002`. Travel AI pages also need the Python travel service:
+
+```powershell
+cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\travel-service
+.\.venv\Scripts\activate
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### If `/client/home` Shows 404
+
+`/client/home` exists at
+`viza-fe/internal-website/app/client/home/page.tsx`. A 404 usually means the
+browser is pointed at a different server than the current `internal-website`
+app, or the Next dev server was not restarted after route files were added.
+
+Check in this order:
+
+1. Confirm the terminal running Next.js is in
+   `D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-fe\internal-website`.
+2. Confirm the browser URL uses the same port printed by Next.js.
+3. Stop the dev server with `Ctrl+C`, then run `npm run dev` again.
+4. If port `3000` is occupied, run `npm run dev -- -p 3001` and open
+   `http://localhost:3001/client/home`.
+5. If the route still 404s after a restart, clear the generated Next cache:
+
+   ```powershell
+   Remove-Item -Recurse -Force .next
+   npm run dev
+   ```
+
 ## High-Level Map
 
 Frontend application route:
@@ -9,6 +99,14 @@ Frontend application route:
 - `viza-fe/internal-website/app/client/application/page.tsx`
 - `viza-fe/internal-website/app/actions/visa-form-fields.ts`
 - `viza-fe/internal-website/app/actions/application-lifecycle.ts`
+- `viza-fe/internal-website/app/client/status/page.tsx`
+- `viza-fe/internal-website/app/client/documents/page.tsx`
+- `viza-fe/internal-website/app/client/checkout/page.tsx`
+- `viza-fe/internal-website/app/client/billing/page.tsx`
+- `viza-fe/internal-website/app/client/consent/page.tsx`
+- `viza-fe/internal-website/app/admin/(dashboard)/applications/page.tsx`
+- `viza-fe/internal-website/app/admin/(dashboard)/packages/page.tsx`
+- `viza-fe/internal-website/app/admin/(dashboard)/billing/page.tsx`
 
 Shared form components:
 
@@ -45,7 +143,56 @@ Database and migrations:
 
 - `viza-be/agent-backend/drizzle/0001_viza_initial.sql`
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
-- Supabase tables: `applications`, `application_answers`, `visa_packages`, `visa_form_fields`, `visa_documents`, `visa_chunks`
+- `viza-be/agent-backend/drizzle/0013_internal_automation_loop.sql`
+- Supabase tables: `applications`, `application_answers`,
+  `visa_application_answers`, `application_documents`, `visa_packages`,
+  `visa_form_fields`, `visa_documents`, `visa_chunks`, `payment_records`,
+  `consent_events`, `application_signatures`, `application_packets`,
+  `application_events`, `notification_events`, `coverage_matrix`,
+  `government_fee_rules`, `invoice_requests`, `refund_requests`,
+  `data_rights_requests`, `pii_retention_jobs`
+
+## Website Automation Page Map
+
+The internal automation work adds pages around the application form. These pages
+stay inside the VIZA website and do not run official portal automation.
+
+Client routes:
+
+- `/client/login`: applicant login.
+- `/client/home`: dashboard and destination/application entry.
+- `/client/application`: application lifecycle hub or direct form route when
+  `country` and `visaType` query params are present.
+- `/client/status`: canonical customer status center for payment, consent,
+  documents, packet, external handoff, submitted/result states, and downloads.
+- `/client/documents`: package-aware document checklist and upload center.
+- `/client/checkout`: Stripe Checkout entry for VIZA agency fee only.
+- `/client/billing`: receipts, invoice request, payment history, and refund
+  visibility.
+- `/client/consent`: ToS, Privacy, agency authorisation, and e-sign workflow.
+- `/client/settings`: profile, billing settings, privacy export/delete
+  requests.
+- `/client/chat`: VIZA AI and Travel AI chat.
+- `/client/travel-chat`: dedicated Travel AI route.
+
+Admin routes:
+
+- `/admin/login`: staff login.
+- `/admin`: admin dashboard.
+- `/admin/applications`: monitoring queue for website automation cases.
+- `/admin/applications/[id]`: watch detail for support and status visibility.
+- `/admin/packages`: country/package coverage matrix.
+- `/admin/billing`: payment, invoice, and refund support workspace.
+
+API/action boundaries:
+
+- `app/actions/internal-automation/**`: trusted server actions for lifecycle,
+  payment, consent, documents, packet, notifications, coverage, billing, and
+  data-rights reads/mutations.
+- `app/api/stripe/**`: Stripe Checkout and webhook route handlers.
+- `app/api/passport-ocr/**`: server-side passport OCR proposal route.
+- `app/api/external-submission/**`: status/result ingest from the external
+  official-submission owner.
 
 ## Runtime Flow
 
@@ -174,7 +321,17 @@ npm run test:field-guidance-copilot
 
 Smoke routes:
 
+- `/client/login`
 - `/client/home`
+- `/client/status`
+- `/client/documents`
+- `/client/checkout`
+- `/client/billing`
+- `/client/consent`
+- `/admin/login`
+- `/admin/applications`
+- `/admin/packages`
+- `/admin/billing`
 - `/client/application?country=indonesia&visaType=B211A`
 - `/client/application?country=germany&visaType=schengen_c`
 - `/client/application?country=us&visaType=b1_b2`
@@ -189,4 +346,3 @@ Manual checks:
 - AI guidance has no Markdown formatting artifacts
 - photo upload copy is country-specific where RAG/source data exists
 - review is read-only and complete
-

@@ -13,7 +13,7 @@ import {
 import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -577,6 +577,7 @@ export function ChatClient({
   travelApplicationStatus,
 }: ChatClientProps) {
   const t = useTranslations("chat");
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedChatMode = parseRequestedChatMode(searchParams.get("agent"));
 
@@ -1480,8 +1481,8 @@ export function ChatClient({
   }, [selectChatMode]);
 
   const handleSupportTeamClick = useCallback(() => {
-    toast.info(t("supportComingSoon"));
-  }, []);
+    router.push("/client/support");
+  }, [router]);
 
   // ==========================================================================
   // Render messages with dividers

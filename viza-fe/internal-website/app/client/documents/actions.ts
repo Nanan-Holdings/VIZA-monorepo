@@ -105,6 +105,8 @@ interface ApplicantContext {
 
 interface ApplicantProfileRow {
   id: string;
+  auth_user_id?: string | null;
+  email?: string | null;
 }
 
 interface ApplicationRow {
@@ -126,6 +128,14 @@ interface VisaPackageRow {
   name: string | null;
   description: string | null;
   metadata: unknown;
+}
+
+interface UserPackageRow {
+  id: string;
+  visa_package_id: string | null;
+  application_id: string | null;
+  assigned_at: string | null;
+  visa_packages: VisaPackageRow | VisaPackageRow[] | null;
 }
 
 interface DocumentRequirementRow {
@@ -506,27 +516,37 @@ async function getApplicantContext(): Promise<
   if (impersonation) {
     const { data: profileById } = await adminClient
       .from("applicant_profiles")
-      .select("id")
+      .select("id, auth_user_id, email")
       .eq("id", impersonation.userId)
       .maybeSingle();
 
     if (profileById) {
+      const profile = profileById as ApplicantProfileRow;
       return {
         ok: true,
-        context: { applicantId: (profileById as ApplicantProfileRow).id, authUserId: null, email: impersonation.userEmail },
+        context: {
+          applicantId: profile.id,
+          authUserId: profile.auth_user_id ?? null,
+          email: profile.email ?? impersonation.userEmail,
+        },
       };
     }
 
     const { data: profileByEmail } = await adminClient
       .from("applicant_profiles")
-      .select("id")
+      .select("id, auth_user_id, email")
       .eq("email", impersonation.userEmail)
       .maybeSingle();
 
     if (profileByEmail) {
+      const profile = profileByEmail as ApplicantProfileRow;
       return {
         ok: true,
-        context: { applicantId: (profileByEmail as ApplicantProfileRow).id, authUserId: null, email: impersonation.userEmail },
+        context: {
+          applicantId: profile.id,
+          authUserId: profile.auth_user_id ?? null,
+          email: profile.email ?? impersonation.userEmail,
+        },
       };
     }
 
@@ -539,20 +559,25 @@ async function getApplicantContext(): Promise<
 
   const { data: profileByAuthUser } = await adminClient
     .from("applicant_profiles")
-    .select("id")
+    .select("id, auth_user_id, email")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
   if (profileByAuthUser) {
+    const profile = profileByAuthUser as ApplicantProfileRow;
     return {
       ok: true,
-      context: { applicantId: (profileByAuthUser as ApplicantProfileRow).id, authUserId: user.id, email: user.email },
+      context: {
+        applicantId: profile.id,
+        authUserId: profile.auth_user_id ?? user.id,
+        email: profile.email ?? user.email,
+      },
     };
   }
 
   const { data: profileByEmail } = await adminClient
     .from("applicant_profiles")
-    .select("id")
+    .select("id, auth_user_id, email")
     .eq("email", user.email)
     .maybeSingle();
 
@@ -603,6 +628,91 @@ async function loadApplications(applicantId: string): Promise<ApplicationRow[]> 
 
   if (error || !data) return [];
   return data as ApplicationRow[];
+}
+
+async function loadActiveUserPackages(authUserId: string | null): Promise<UserPackageRow[]> {
+  if (!authUserId) return [];
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("user_packages")
+    .select("id, visa_package_id, application_id, assigned_at, visa_packages(id, country, visa_type, name, description, metadata)")
+    .eq("auth_user_id", authUserId)
+    .eq("status", "active")
+    .order("assigned_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data as UserPackageRow[];
+}
+
+function findApplicationForPackage(applications: ApplicationRow[], userPackage: UserPackageRow): ApplicationRow | null {
+  const packageRow = unwrapVisaPackage(userPackage.visa_packages);
+  if (!packageRow) return null;
+
+  return (
+    applications.find((application) => userPackage.application_id && application.id === userPackage.application_id) ??
+    applications.find((application) => application.visa_package_id && application.visa_package_id === packageRow.id) ??
+    applications.find(
+      (application) =>
+        application.country.toLowerCase() === packageRow.country.toLowerCase() &&
+        getFormVisaType(application.visa_type).toLowerCase() === getFormVisaType(packageRow.visa_type).toLowerCase(),
+    ) ??
+    null
+  );
+}
+
+async function ensureApplicationsForActivePackages(
+  applicantId: string,
+  userPackages: UserPackageRow[],
+  applicationRows: ApplicationRow[],
+): Promise<ApplicationRow[]> {
+  if (userPackages.length === 0) return applicationRows;
+
+  const adminClient = createAdminClient();
+  const applications = [...applicationRows];
+
+  for (const userPackage of userPackages) {
+    const packageRow = unwrapVisaPackage(userPackage.visa_packages);
+    if (!packageRow) continue;
+
+    const existingApplication = findApplicationForPackage(applications, userPackage);
+    if (existingApplication) {
+      if (userPackage.application_id !== existingApplication.id) {
+        await adminClient
+          .from("user_packages")
+          .update({ application_id: existingApplication.id, updated_at: new Date().toISOString() })
+          .eq("id", userPackage.id);
+      }
+      continue;
+    }
+
+    const { data: newApplication, error } = await adminClient
+      .from("applications")
+      .insert({
+        applicant_id: applicantId,
+        status: "draft",
+        country: packageRow.country,
+        visa_type: packageRow.visa_type,
+        visa_package_id: packageRow.id,
+      })
+      .select("id, country, visa_type, status, created_at, updated_at, submitted_at, visa_package_id")
+      .single();
+
+    if (error || !newApplication) continue;
+
+    const application = {
+      ...(newApplication as ApplicationRow),
+      visa_packages: packageRow,
+    };
+
+    applications.push(application);
+    await adminClient
+      .from("user_packages")
+      .update({ application_id: application.id, updated_at: new Date().toISOString() })
+      .eq("id", userPackage.id);
+  }
+
+  return applications;
 }
 
 async function resolvePackage(application: ApplicationRow): Promise<VisaPackageRow | null> {
@@ -755,8 +865,12 @@ export async function loadDocumentCenterData(params: LoadDocumentCenterParams = 
     const contextResult = await getApplicantContext();
     if (!contextResult.ok) return contextResult;
 
-    const { applicantId } = contextResult.context;
-    const applicationRows = await loadApplications(applicantId);
+    const { applicantId, authUserId } = contextResult.context;
+    const [rawApplicationRows, activeUserPackages] = await Promise.all([
+      loadApplications(applicantId),
+      loadActiveUserPackages(authUserId),
+    ]);
+    const applicationRows = await ensureApplicationsForActivePackages(applicantId, activeUserPackages, rawApplicationRows);
     const applications = applicationRows.map(normalizeApplication);
     const selectedApplication =
       applications.find((application) => matchesRequestedApplication(application, params)) ?? applications[0] ?? null;
@@ -896,13 +1010,13 @@ function pickExtractedField(fields: JsonRecord, keys: string[]): string | null {
 function buildPassportProfileUpdates(fields: JsonRecord) {
   const updates: Record<string, string> = {};
   const mappings: Array<[string, string[]]> = [
-    ["full_name", ["full_name", "name", "passport_full_name", "holder_name"]],
-    ["date_of_birth", ["date_of_birth", "birth_date", "dob"]],
+    ["full_name", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
+    ["date_of_birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
     ["nationality", ["nationality", "citizenship"]],
-    ["passport_number", ["passport_number", "document_number", "passport_no"]],
-    ["passport_issue_date", ["passport_issue_date", "issue_date", "date_of_issue"]],
-    ["passport_expiry_date", ["passport_expiry_date", "expiry_date", "expiration_date", "date_of_expiry"]],
-    ["passport_issuing_country", ["passport_issuing_country", "issuing_country", "country_of_issue"]],
+    ["passport_number", ["passport_number", "passportNumber", "document_number", "passport_no"]],
+    ["passport_issue_date", ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"]],
+    ["passport_expiry_date", ["passport_expiry_date", "expiryDate", "expiry_date", "expiration_date", "date_of_expiry"]],
+    ["passport_issuing_country", ["passport_issuing_country", "issuingCountry", "issuing_country", "country_of_issue"]],
   ];
 
   for (const [target, keys] of mappings) {
