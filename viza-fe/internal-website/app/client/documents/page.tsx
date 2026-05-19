@@ -13,7 +13,6 @@ export default function DocumentsPage() {
       applicationId={searchParams.get("applicationId")}
       country={searchParams.get("country")}
       visaType={searchParams.get("visaType")}
-      startedOnly
       basePath="/client/documents"
     />
   );

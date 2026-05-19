@@ -208,11 +208,11 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
   };
 
   return (
-    <div className="mt-3 flex w-full flex-col gap-3">
-      <div className="flex items-center justify-end gap-3">
+    <div className="mt-2 flex w-full flex-col gap-2">
+      <div className="flex items-center justify-end gap-2">
         {config.required && (
-          <span className="text-[13px] font-medium text-[#03346E]">
-            Required field
+          <span className="text-[12px] font-medium text-[#03346E]">
+            必填项
           </span>
         )}
         <button
@@ -220,11 +220,11 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
           onClick={() => setOpen((current) => !current)}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
           aria-expanded={open}
-          aria-label={`${open ? "Hide AI help" : "Ask AI"}: ${config.label}`}
+          aria-label={`${open ? "收起 AI 帮助" : "问 AI"}: ${config.label}`}
           data-copilot-trigger={config.fieldName}
         >
           <Bot className="h-3.5 w-3.5" />
-          {open ? (locale.startsWith("zh") ? "收起 AI 帮助" : "Hide AI help") : locale.startsWith("zh") ? "问 AI" : "Ask AI"}
+          {open ? "收起 AI 帮助" : "问 AI"}
         </button>
       </div>
       {open && (
@@ -259,16 +259,16 @@ export function BilingualRow({
   const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
 
   return (
-    <div className="grid min-w-0 gap-6 px-4 py-6 md:grid-cols-2">
+    <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
       <div className="min-w-0">
-        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.zh}
           {requiredMark}
         </span>
         {zhControl}
       </div>
       <div className="min-w-0">
-        <span className="mb-3 block text-[16px] font-medium leading-tight text-[#1f2f46]">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
           {labels.en}
           {requiredMark}
         </span>

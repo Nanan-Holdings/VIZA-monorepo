@@ -41,6 +41,8 @@ describe("legacy application step copilot coverage", () => {
       "us_address_state",
       "us_address_zip",
     ]);
+    expect(screen.getAllByText("必填项").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Required field")).not.toBeInTheDocument();
   });
 
   it("renders one copilot trigger for every passport field", () => {

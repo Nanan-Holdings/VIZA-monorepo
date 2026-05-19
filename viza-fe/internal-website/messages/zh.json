@@ -220,6 +220,10 @@
     "title": "印度尼西亚旅游签证 B211A",
     "saving": "保存中...",
     "edit": "编辑",
+    "findingRecentApplication": "正在打开最近的申请表单...",
+    "noRecentStartedTitle": "还没有选择申请",
+    "noRecentStartedBody": "请先从首页选择目的地；之后点击申请会直接回到最近开启的表单。",
+    "chooseDestination": "从首页选择目的地",
     "stepOf": "第 {current} 步，共 {total} 步：{name}",
     "steps": {
       "personalInfo": {
