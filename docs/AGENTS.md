@@ -1,0 +1,46 @@
+# Documentation Agent Guide
+
+Scope: this file applies to `docs/**`.
+
+## Purpose
+
+`docs` contains product requirements, developer guides, schema playbooks, gap
+reports, and workflow documentation for VIZA.
+
+## Key Documents
+
+- `client-portal-prd.md`: client portal product requirements.
+- `prd-backend-data-schema.md`: backend data model requirements.
+- `application/DG.md`: application form developer guide.
+- `application/UG.md`: application form user guide.
+- `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
+- `travel-agent-development-guide.md`: Travel AI guide.
+- `visa-schema-playbook.md`: adding/maintaining country visa schemas.
+- `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
+- `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
+- `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
+  scope and gaps.
+- `_templates/*`: templates for future visa scope/gap docs.
+
+## Ownership Boundaries
+
+- Keep docs truthful about current implementation status.
+- Do not claim official-source parity unless source artifacts and schema
+  coverage support it.
+- When code adds/moves/deletes important files, update the affected module
+  `AGENTS.md` as well as docs that function as source maps.
+- Keep user guides user-facing and developer guides implementation-facing.
+
+## Validation
+
+Docs-only changes do not need type-checks. For docs that describe code paths,
+spot-check referenced files with `rg --files` or direct reads before finalizing.
+
+## Related Files
+
+- `AGENTS.md`
+- `prd.json`
+- `progress.txt`
+- `viza-fe/README.md`
+- `viza-be/README.md`
+- `knowledge-base/visa-rag-seeds/README.md`

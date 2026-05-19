@@ -1,96 +1,231 @@
-# Ralph Agent Instructions - VIZA Monorepo
+# VIZA Monorepo Agent Guide
 
-You are an autonomous coding agent working on the VIZA visa application platform.
+Scope: this file applies to the whole repository.
 
-## Your Task
+## Project
 
-1. Read the PRD at `prd.json` (in the repo root - this is the authoritative file)
-2. Read `progress.txt` if it exists (check Codebase Patterns section first)
-3. Pick the **highest priority** user story where `passes: false`
-4. Implement that single user story
-5. Run quality checks (typecheck, lint)
-6. If checks pass, commit ALL changes with message: `feat(US-XXX): [Story Title]`
-7. Update `prd.json` to set `passes: true` for the completed story
-8. Append progress to `progress.txt`
-9. If ALL stories pass: output `<promise>COMPLETE</promise>`
+VIZA is a visa application platform. It combines an applicant portal, admin
+portal, AI visa assistant, official-source RAG knowledge, dynamic visa forms,
+browser automation for official submissions, and a Travel AI planner.
 
-## Progress Report Format
+Current workspace:
 
-APPEND to progress.txt (never replace):
+```text
+D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 ```
-## [Date] - [Story ID]
+
+## Repository Map
+
+```text
+viza-fe/
+  internal-website/       Next.js 16 app: client portal, admin portal, forms,
+                          VIZA AI chat, Travel AI UI
+
+viza-be/
+  agent-backend/          Express + Socket.IO + Drizzle + Supabase service,
+                          VIZA AI, RAG, field guidance, seeds/migrations
+  submission-service/     Playwright worker for e-visa and DS-160 CEAC prefill
+  travel-service/         Python FastAPI travel planner and export service
+
+knowledge-base/
+  visa-rag-seeds/         Country-level visa RAG source JSON files
+
+docs/                     PRDs, developer guides, user guides, gap reports,
+                          schema playbook, Travel/VIZA AI docs
+
+shared/                   Shared placeholder/types area
+scripts/                  Local runners, Ralph runner, Playwright smoke scripts
+prd.json                  Current PRD/story queue for autonomous story work
+progress.txt              Append-only implementation log
+```
+
+## Source Of Truth
+
+Read the nearest source before making changes:
+
+- Frontend overview: `viza-fe/README.md`
+- Backend overview: `viza-be/README.md`
+- Client UI rules: `viza-fe/internal-website/frontend.md`
+- Application forms: `docs/application/DG.md`
+- VIZA AI chat: `docs/viza-ai-chat-development-guide.md`
+- Travel AI: `docs/travel-agent-development-guide.md`
+- Visa schema process: `docs/visa-schema-playbook.md`
+- RAG seeds: `knowledge-base/visa-rag-seeds/README.md`
+- Product/story queue: `prd.json`
+- Build/progress history: `progress.txt`
+
+Prefer code and current module `AGENTS.md` files over stale comments or old
+README sections when they conflict.
+
+## Work Modes
+
+### Direct User Request
+
+If the user asks for a specific change, do that change. Keep edits scoped, read
+the relevant code first, and update docs/AGENTS when the module map changes.
+
+### PRD Story Queue
+
+When explicitly working the PRD queue/Ralph workflow:
+
+1. Read `prd.json` in the repo root.
+2. Read `progress.txt` if it exists, especially recent learnings.
+3. Pick the highest-priority user story with `passes: false`.
+4. Implement one story only.
+5. Run quality checks for modified packages.
+6. If checks pass, update `prd.json` to set that story `passes: true`.
+7. Append to `progress.txt`.
+8. Commit all intended changes with `feat(US-XXX): Story Title` if the task
+   requires a Ralph-style commit.
+9. If all stories pass, output exactly `<promise>COMPLETE</promise>`.
+
+Progress format:
+
+```text
+## YYYY-MM-DD - STORY-ID
 - What was implemented
 - Files changed
 - Learnings for future iterations
 ---
 ```
 
-## Codebase Overview
+## Module AGENTS
 
-**VIZA** is a visa application platform. Monorepo at `D:\Coding-Files\GitHub\VIZA-monorepo`.
+Read the closest `AGENTS.md` before changing a module. Important current module
+guides include:
 
-```
-viza-fe/internal-website/    - Next.js 16 App Router (client portal + admin)
-viza-be/agent-backend/       - Express + Socket.IO (AI chat backend, port 3002)
-viza-be/submission-service/  - Playwright DS-160 automation
-```
+- `viza-fe/AGENTS.md`
+- `viza-fe/internal-website/AGENTS.md`
+- `viza-fe/internal-website/app/client/AGENTS.md`
+- `viza-fe/internal-website/app/client/application/AGENTS.md`
+- `viza-fe/internal-website/app/client/chat/AGENTS.md`
+- `viza-fe/internal-website/app/admin/AGENTS.md`
+- `viza-fe/internal-website/app/actions/AGENTS.md`
+- `viza-fe/internal-website/app/api/travel/AGENTS.md`
+- `viza-fe/internal-website/components/application-steps/AGENTS.md`
+- `viza-fe/internal-website/components/client/companion/AGENTS.md`
+- `viza-fe/internal-website/components/client/travel/AGENTS.md`
+- `viza-fe/internal-website/components/ui/AGENTS.md`
+- `viza-fe/internal-website/lib/travel/AGENTS.md`
+- `viza-be/AGENTS.md`
+- `viza-be/agent-backend/AGENTS.md`
+- `viza-be/agent-backend/src/db/AGENTS.md`
+- `viza-be/agent-backend/src/routes/AGENTS.md`
+- `viza-be/agent-backend/src/socket/AGENTS.md`
+- `viza-be/agent-backend/src/services/AGENTS.md`
+- `viza-be/submission-service/AGENTS.md`
+- `viza-be/submission-service/src/ceac/AGENTS.md`
+- `viza-be/travel-service/AGENTS.md`
+- `knowledge-base/AGENTS.md`
+- `knowledge-base/visa-rag-seeds/AGENTS.md`
+- `docs/AGENTS.md`
 
-## Tech Stack
-
-- **Frontend**: Next.js 16, TypeScript, Tailwind, shadcn/ui, Supabase client
-- **Backend**: Express, Socket.IO, Drizzle ORM, Supabase (postgres)
-- **Auth**: Supabase Auth (JWT)
-- **DB**: Supabase (PostgreSQL), Drizzle for migrations
+When a file is added, deleted, moved, or renamed, update the nearest relevant
+module `AGENTS.md`. If no module file exists and the change completes a coherent
+module, create one.
 
 ## Quality Checks
 
-Run from the relevant package directory:
-```bash
-# Frontend
-cd viza-fe/internal-website && npm run type-check
+Run checks only for packages you modify.
 
-# Backend
-cd viza-be/agent-backend && npm run type-check
+Frontend:
 
-# Submission service
-cd viza-be/submission-service && npm run type-check
+```powershell
+cd viza-fe\internal-website
+npm run type-check
+npm run lint
 ```
 
-Only run type-check for packages you modified. Do NOT run `npm install` unless a new dependency is required.
+Agent backend:
 
-## Completion Verification
+```powershell
+cd viza-be\agent-backend
+npm run type-check
+npm run lint
+```
 
-Every user-facing feature or bug fix must be self-tested before reporting completion. Run the relevant automated checks and at least one route/component smoke test that exercises the changed behavior. If a full authenticated flow cannot be tested in the current environment, run the closest possible Playwright route smoke and clearly report the remaining authenticated/manual verification gap.
+Submission service:
 
-## Module AGENTS.md Maintenance
+```powershell
+cd viza-be\submission-service
+npm run type-check
+```
 
-- When a module or major feature area is completed, create or update an `AGENTS.md` inside that module directory so future agents can continue safely from local context.
-- Each module-level `AGENTS.md` must include the module scope, purpose, key flows, ownership boundaries, validation commands, and all related files with their repo-relative paths.
-- At minimum, list every important source file, route, action/API handler, component, test, migration, seed/config file, and documentation file that the module depends on.
-- Whenever a file is added, deleted, moved, or renamed, update the nearest relevant module-level `AGENTS.md` in the same change. If no module-level file exists yet and the change completes a coherent module, create it.
-- Whenever a new important cross-module rule is introduced, update this root `AGENTS.md` and any affected module-level `AGENTS.md`.
-- After finishing any user-facing feature, run automated checks plus Playwright or direct browser verification before reporting completion. If browser verification cannot cover the full authenticated flow, run the closest available route/component smoke and explicitly report the remaining gap.
+Travel service:
+
+```powershell
+cd viza-be\travel-service
+.\.venv\Scripts\activate
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Then smoke the changed endpoint or frontend route. Docs-only changes usually do
+not need type-checks.
+
+## Required Smoke Testing
+
+Every user-facing feature or bug fix needs at least one self-test beyond static
+checks:
+
+- Frontend UI: Playwright/browser route smoke at the changed route.
+- Authenticated flows: test the closest available redirect or component state if
+  no authenticated session is available, and report the gap.
+- Chat changes: verify `/client/chat` and backend `/health` when possible.
+- Travel changes: verify `/client/travel-chat` or a direct `/api/travel/*`
+  request with `travel-service` running.
+- Submission/CEAC changes: follow the nearest service smoke doc and preserve
+  diagnostics on failure.
 
 ## Key Conventions
 
-- Supabase service role client: use `getSupabaseClient()` from `src/db/supabase-client.ts` in agent-backend
-- Frontend Supabase: use `createClient()` from `@/lib/supabase/client` (client-side) or `@/lib/supabase/server` (server-side)
-- Admin operations: use `createAdminClient()` from `@/lib/supabase/admin`
-- Socket.IO namespace: `/visa` - all chat events go through here
-- Drizzle migrations: SQL files in `viza-be/agent-backend/drizzle/` - name sequentially (0008_, 0009_, etc.)
-- Server actions: in `viza-fe/internal-website/app/actions/`
-- No `any` types. No unused imports.
-- Follow existing file/component patterns - look at neighbouring files before writing new ones
+- Frontend Supabase client-side: `createClient()` from
+  `viza-fe/internal-website/lib/supabase/client.ts`.
+- Frontend Supabase server-side: `createClient()` from
+  `viza-fe/internal-website/lib/supabase/server.ts`.
+- Frontend admin operations: `createAdminClient()` from
+  `viza-fe/internal-website/lib/supabase/admin.ts`.
+- Agent backend Supabase service role: `getSupabaseClient()` from
+  `viza-be/agent-backend/src/db/supabase-client.ts`.
+- Socket.IO namespace: `/visa`.
+- Drizzle migrations: `viza-be/agent-backend/drizzle/*.sql`, sequentially
+  numbered.
+- Server actions: `viza-fe/internal-website/app/actions/*`.
+- RAG country seeds: `knowledge-base/visa-rag-seeds/countries/*.json`.
+- No new `any` types. No unused imports.
+- Do not run `npm install` unless dependencies are missing or a new dependency
+  is intentionally required.
+- Never commit `.env`, `.env.local`, service-role keys, API keys, screenshots
+  with secrets, or downloaded applicant documents.
+
+## Product Guardrails
+
+- Dynamic visa forms must preserve the bilingual Chinese/English two-column
+  contract.
+- VIZA AI must not collect detailed application form fields in chat. It should
+  redirect users to `/client/application` once the route is clear.
+- VIZA AI user-facing answers should be plain text by default.
+- RAG answers must not invent official requirements. State uncertainty and point
+  to official sources when data is missing.
+- DS-160 CEAC automation must stop before final sign/submit.
+- Travel AI required-field order is deterministic and lives in
+  `viza-fe/internal-website/lib/travel/planner.ts`.
+
+## Dirty Worktrees
+
+This repo often has ongoing work. Before editing, check `git status --short`.
+Never revert changes you did not make unless the user explicitly asks. If you
+must edit a file that is already modified, read it carefully and preserve the
+existing work.
 
 ## Commit Format
 
+When asked to commit, use the story or feature identifier when available:
+
+```text
 feat(US-XXX): Story title
+
 - What changed
 - Why
+```
 
-## Stop Condition
-
-If ALL stories in prd.json have `passes: true`, output exactly:
-<promise>COMPLETE</promise>
-
-Work on ONE story per iteration. Keep changes minimal and focused.
+Use conventional commits for non-story changes when no story ID exists.

@@ -40,6 +40,7 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
 - `travel-itinerary-data.ts`: shared itinerary extraction/export payload helpers for final itinerary views.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
+- `travel-attraction-knowledge.ts`: curated attraction knowledge base with city aliases, exact map coordinates, image URLs, and source URLs for itinerary editing and route maps.
 - `travel-itinerary-share-renderer.tsx`: public share-page renderer for standalone itinery cards, tables, and downloads.
 - `app/api/travel/ip-location/route.ts`: resolves the user's approximate IP city for the origin/return confirmation step.
 
