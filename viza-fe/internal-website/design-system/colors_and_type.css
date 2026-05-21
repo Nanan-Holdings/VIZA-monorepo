@@ -1,0 +1,251 @@
+/* =============================================================
+   VIZA Design System -- Colors & Typography tokens
+   Sourced from: viza-fe/internal-website/tailwind.config.ts
+                 viza-fe/internal-website/app/globals.css
+                 docs/marketing-site-prd.md
+   Primary brand: Deep Navy #03346E
+   ============================================================= */
+
+/* ---- Fonts ----
+   Switzer: headings (loaded locally from ./fonts/).
+   Geist Sans: body / UI (loaded locally from ./fonts/ -- mirrors the
+   `geist` npm package shipped in production).
+*/
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Thin.woff2") format("woff2"); font-weight: 100; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-UltraLight.woff2") format("woff2"); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Light.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-Black.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("./fonts/Geist-UltraBlack.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
+
+@font-face {
+  font-family: "Switzer";
+  src: url("./fonts/Switzer-Variable.woff2") format("woff2-variations"),
+       url("./fonts/Switzer-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Switzer";
+  src: url("./fonts/Switzer-VariableItalic.woff2") format("woff2-variations"),
+       url("./fonts/Switzer-VariableItalic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ------- Brand scale (navy) ------- */
+  --brand-50:  #EEF3FA;
+  --brand-100: #D4E0F0;
+  --brand-200: #AABFDF;
+  --brand-300: #7A9DCE;
+  --brand-400: #3D6DAD;
+  --brand-500: #03346E;   /* PRIMARY  -- CTAs, active states, links */
+  --brand-600: #022B5C;   /* Hover / pressed */
+  --brand-700: #01214A;
+  --brand-800: #011737;
+  --brand-900: #000D21;
+
+  /* ------- Shell / neutrals ------- */
+  --shell-bg:         #fafafa; /* client portal shell */
+  --page-bg:          #ffffff;
+  --card-bg:          #ffffff;
+  --surface-subtle:   #fbfbfb; /* hover on cards */
+  --surface-locked:   rgba(239,239,239,0.5); /* locked stage card */
+  --border-hairline:  #efefef; /* card border */
+  --border-input:     #e8e8e8; /* BrandInput border */
+  --divider:          hsl(20 5.9% 90%);
+
+  /* ------- Text ------- */
+  --fg-1:  #3d3d3d;          /* primary heading color on white */
+  --fg-2:  rgba(0,0,0,0.45); /* secondary body */
+  --fg-3:  #989898;          /* disabled / locked label */
+  --fg-label: #374151;       /* form labels (gray-700) */
+  --fg-on-brand: #ffffff;
+  --fg-on-brand-dim: rgba(255,255,255,0.65);
+
+  /* ------- Semantic ------- */
+  --success:     #16a34a;
+  --warning-bg:  #fef3c7;   /* amber-100 */
+  --warning-fg:  #d97706;   /* amber-600 */
+  --destructive: hsl(0 84.2% 60.2%);
+
+  /* ------- Radius (source of truth) ------- */
+  --radius:        0.25rem;   /* lg -- buttons default */
+  --radius-sm:     calc(var(--radius) - 4px);
+  --radius-md:     calc(var(--radius) - 2px);
+  --radius-lg:     var(--radius);
+  --radius-xl:     0.75rem;   /* cards */
+  --radius-2xl:    16px;      /* stage cards */
+  --radius-pill:   999px;
+
+  /* ------- Shadow ------- */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow:     0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 8px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+
+  /* ------- Spacing scale (Tailwind 4pt) ------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ------- Fonts ------- */
+  --font-heading: "Switzer", "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+  --font-sans:    "Geist", "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+  --font-cn:      "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+
+  /* ------- Type scale (semantic) ------- */
+  --fs-display: 48px;   /* hero headings */
+  --fs-h1:      32px;
+  --fs-h2:      30px;   /* section headlines on dashboard */
+  --fs-h3:      20px;   /* card titles */
+  --fs-h4:      18px;
+  --fs-body:    16px;   /* default body */
+  --fs-control: 15px;   /* input text + flow button */
+  --fs-label:   14px;
+  --fs-caption: 12px;
+
+  --lh-tight:   1.1;
+  --lh-snug:    1.3;
+  --lh-body:    1.5;
+  --lh-relaxed: 1.625;
+
+  --tracking-tight:   -0.96px; /* big headings */
+  --tracking-heading: -0.6px;
+  --tracking-body:    -0.011em;
+  --tracking-label:   -0.2px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast:  150ms;
+  --dur-base:  250ms;
+  --dur-slow:  400ms;
+  --dur-nav:   600ms; /* nav color transitions */
+}
+
+/* =============== Semantic element styles =============== */
+html, body {
+  background: var(--page-bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+  letter-spacing: var(--tracking-heading);
+  margin: 0;
+}
+h1 { font-size: var(--fs-h1); letter-spacing: var(--tracking-tight); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); }
+h4 { font-size: var(--fs-h4); }
+
+p {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+  margin: 0;
+}
+
+small, .caption { font-size: var(--fs-caption); color: var(--fg-2); }
+
+a { color: var(--brand-500); text-decoration: none; }
+a:hover { color: var(--brand-600); }
+
+/* Button baseline (BrandActionButton proportions) */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 48px; padding: 0 24px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--fs-control); font-weight: 500;
+  transition: background var(--dur-fast) var(--ease-standard),
+              color var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard);
+  cursor: pointer; border: 1px solid transparent;
+}
+.btn--primary  { background: var(--brand-500); color: #fff; }
+.btn--primary:hover { background: var(--brand-600); }
+.btn--secondary {
+  background: transparent; color: var(--brand-500); border-color: var(--brand-500);
+}
+.btn--secondary:hover { background: rgba(3,52,110,0.05); }
+.btn--ghost {
+  background: transparent; color: var(--fg-1); height: 40px; padding: 0 16px;
+  border-radius: var(--radius-md);
+}
+.btn--ghost:hover { background: var(--brand-50); color: var(--brand-500); }
+
+/* Inputs (BrandInput) */
+.input {
+  height: 48px; padding: 0 14px;
+  border-radius: 8px; /* rounded-lg */
+  border: 1px solid var(--border-input);
+  font-size: var(--fs-control); font-family: var(--font-sans);
+  background: #fff; color: var(--fg-1);
+  transition: border-color var(--dur-fast) var(--ease-standard),
+              box-shadow var(--dur-fast) var(--ease-standard);
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 1px var(--brand-500);
+}
+.input::placeholder { color: var(--fg-2); }
+
+/* Card */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Glass panel (hero stat cards on dashboard) */
+.glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.20);
+  border-radius: 12px;
+}
+
+/* Pill badge */
+.badge {
+  display: inline-flex; align-items: center;
+  height: 24px; padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-caption); font-weight: 500;
+  background: var(--brand-50); color: var(--brand-500);
+}
+.badge--on-glass {
+  background: rgba(255,255,255,0.20); color: #fff;
+  border: 1px solid rgba(255,255,255,0.30);
+}
+.badge--locked { background: #dcdcdc; color: var(--fg-3); }
+
+/* Focus ring utility */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(3,52,110,0.40);
+}

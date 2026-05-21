@@ -135,7 +135,7 @@ export {
   TwoCaptchaSolveTimeoutError,
   type CaptchaSolveResult,
   type CaptchaSolveTelemetry,
-} from "./captcha-solver";
+} from "../captcha";
 
 export {
   solveStartPageCaptcha,
@@ -154,3 +154,9 @@ export {
   type HandoffReadyOutcome,
   type StopAtSignOptions,
 } from "./stop-at-sign";
+
+export {
+  handleConfirmApplicationPage,
+  type ConfirmApplicationOptions,
+  type ConfirmApplicationResult,
+} from "./confirm-application";

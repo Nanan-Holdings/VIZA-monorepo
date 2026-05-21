@@ -12,6 +12,7 @@ import { getAuthenticatedUserId } from "@/lib/auth/get-authenticated-user";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
+import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
 
 // sessionStorage keys for tracking impersonation session state
 const SESSION_USER_KEY = "impersonation_user_id";
@@ -24,13 +25,15 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
-      </div>
-    }>
-      <ClientLayoutContent>{children}</ClientLayoutContent>
-    </Suspense>
+    <SimplifiedFormProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
+        </div>
+      }>
+        <ClientLayoutContent>{children}</ClientLayoutContent>
+      </Suspense>
+    </SimplifiedFormProvider>
   );
 }
 

@@ -207,19 +207,48 @@ Live-portal QA must happen before production.
 ## 8. Next Recommended Actions
 
 ### Immediate (before production)
-1. **Live-portal QA pass** — walk the schema against at least one member-state portal (France-Visas is the most accessible English-language preview) and record every discrepancy in the gap report.
-2. **Confirm `||` and cross-step conditionals still work** — the UK v2 playbook fixed both; Schengen uses both (`COST_SELF`/`COST_SPONSOR` gates, `IS_EVENT` combined purpose gate). Verify `evaluateShowIf` and `DynamicStepForm` value-state seeding are intact.
-3. **Document the insurance carve-out in the review step** — the declaration page should remind applicants that travel medical insurance (min €30k, Schengen-wide) is a Visa Code requirement handled as a supporting document upload, not a form field.
+1. **Live-portal QA against a member-state consulate portal** — source-verification
+   against the authoritative Annex I PDF is complete (see §9); the remaining open
+   item is walking France-Visas (or whichever portal the specific consulate uses)
+   and recording any UX-level drift in the gap report.
+2. ~~Confirm `||` and cross-step conditionals still work~~ — CLOSED v1.1/v1.2.
+   Both operators are exercised by the schema's `COST_SELF`, `COST_SPONSOR`,
+   `IS_EVENT`, and `IS_ATV_NATIONAL` gates.
+3. ~~Document the insurance carve-out in the review step~~ — CLOSED v1.2.
+   Annex I Field 37's multi-entry insurance-awareness clause is now captured
+   as `declaration_insurance_multi_entry_awareness` (gated on
+   `number_of_entries_requested === multiple`).
 
-### Short-term (v1.1)
-4. **Nationality-gated Airport Transit Visa (ATV) fields** — Annex IV lists nationalities that require an ATV even for airside transit. Add a user-declared radio until `in` operator support lands in `evaluateShowIf`.
-5. **Previous Schengen visa repeatable group** — verify the `previous_schengen_visas` group renders correctly with add/remove for the common case of frequent travellers (5+ prior visas).
-6. **Hotel confirmation number field** — several member-state portals ask for the hotel booking reference. Evaluate whether to add it to Step 9 or keep it document-only.
+### Short-term (v1.1–v1.3, all closed)
+4. ~~Nationality-gated Airport Transit Visa (ATV) fields~~ — CLOSED v1.1 via
+   `in` operator + `IS_ATV_NATIONAL` gate.
+5. ~~Previous Schengen visa repeatable group verification~~ — OBSOLETE v1.2.
+   2019/1155 amendment merged the pre-2020 field into Field 28 fingerprints.
+   Removed.
+6. ~~Hotel confirmation number field~~ — CLOSED v1.3. Added optional
+   `hotel_confirmation_number` in Step 9.
+7. ~~Directive 2004/38 fast-track acknowledgment~~ — CLOSED v1.3. Added
+   `directive_2004_38_acknowledged` in Step 4 (gated on
+   `has_eu_family_member === yes`).
+8. ~~Starred-field exemption for UK Withdrawal Agreement beneficiaries~~ —
+   CLOSED v1.3 via `required_unless` operator + 44 starred-field annotations.
 
-### Medium-term (v2)
-7. **Schengen Type D long-stay packages** — Italy (`IT_TYPE_D`), France (`FR_TYPE_D`), Germany (`DE_TYPE_D`) are the highest-demand starting set. Each needs its own seed keyed to the national form.
-8. **Per-portal submission automation** — if volume justifies it, Playwright shims for France-Visas / VFS / TLS (each as a separate submission-service adapter, DS-160 is the architectural reference).
-9. **Visa sticker parsing & fingerprint exemption helper** — OCR a previously-issued visa sticker to auto-fill the "fingerprints collected previously" block and flag the 59-month exemption window.
+### Medium-term (v2, open)
+9. **Schengen Type D long-stay packages** — Italy (`IT_TYPE_D`), France
+   (`FR_TYPE_D`), Germany (`DE_TYPE_D`) are the highest-demand starting set.
+   Each needs its own seed keyed to the national form.
+10. **Per-portal submission automation** — if volume justifies it, Playwright
+    shims for France-Visas / VFS / TLS (each as a separate submission-service
+    adapter, DS-160 is the architectural reference).
+11. **Visa sticker parsing & fingerprint 59-month exemption helper** — OCR a
+    previously-issued visa sticker to auto-fill the "fingerprints collected
+    previously" block and flag the Visa Code Art. 13 exemption window.
+    Schema-external; lives in the submission service.
+12. **Multi-select purpose (Field 23 checkbox set)** — Annex I allows ticking
+    multiple purposes. Our single-select captures primary purpose + textarea
+    for secondary. Full checkbox-group support needs a new `field_type` in
+    `DynamicStepForm` and re-expressing every `IS_BUSINESS`-style gate with
+    the `in` operator against a comma-separated value.
 
 ---
 

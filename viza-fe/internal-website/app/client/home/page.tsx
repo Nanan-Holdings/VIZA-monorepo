@@ -12,19 +12,14 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
-import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
-import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
 import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
+import { VisaOverviewCard } from "@/components/client/home/VisaOverviewCard";
+import { NextActionCard } from "@/components/client/home/NextActionCard";
+import { VisaJourneyTimeline } from "@/components/client/home/VisaJourneyTimeline";
 import {
-  PopularDestinationsSection,
-  type DestinationApplicationProgress,
-} from "@/components/client/home/PopularDestinationsSection";
-import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
-import {
-  getVisaDestinationKey,
-  getVisaPackageTitleZh,
-} from "@/lib/visa-destinations";
+  getApplicationJourney,
+  type ApplicationJourneyPayload,
+} from "@/app/actions/application-journey";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -59,7 +54,7 @@ function ErrorState({ message }: { message: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Types
+// Interfaces
 // ---------------------------------------------------------------------------
 
 interface ApplicationRow {
@@ -74,197 +69,25 @@ interface ApplicationRow {
 
 interface DocumentRow {
   id: string;
-  application_id: string;
   document_type: string;
   status: string;
   created_at: string;
   updated_at: string;
 }
 
-interface AnswerRow {
-  application_id: string;
-  field_name: string;
-  value_text: string | null;
-  updated_at: string | null;
-}
-
-interface ApplicantProfileSummary {
-  full_name: string | null;
-  date_of_birth: string | null;
-  place_of_birth: string | null;
-  gender: string | null;
-  nationality: string | null;
-  occupation: string | null;
-  address: string | null;
-  passport_number: string | null;
-  passport_issue_date: string | null;
-  passport_expiry_date: string | null;
-  passport_issuing_country: string | null;
-  email: string | null;
-  phone: string | null;
-  wechat: string | null;
-}
-
-interface UniversalInfoProgress {
-  completedCount: number;
-  totalCount: number;
-}
-
-const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
-  "full_name",
-  "date_of_birth",
-  "place_of_birth",
-  "gender",
-  "nationality",
-  "occupation",
-  "address",
-  "passport_number",
-  "passport_issue_date",
-  "passport_expiry_date",
-  "passport_issuing_country",
-  "email",
-  "phone",
-  "wechat",
-];
-
-function buildUniversalInfoProgress(
-  profile: ApplicantProfileSummary | null,
-  authEmail?: string | null,
-): UniversalInfoProgress {
-  const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
-    if (field === "email" && !profile?.email && authEmail) return true;
-    return Boolean(profile?.[field]?.trim());
-  }).length;
-
-  return {
-    completedCount,
-    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
-  };
-}
-
-function getProgressLabel(status: string, percent: number): string {
-  if (status === "approved") return "已批准";
-  if (status === "submitted") return "已提交";
-  if (status === "rejected") return "需要处理";
-  if (percent >= 70) return "接近完成";
-  if (percent >= 30) return "填写中";
-  return "已开始";
-}
-
-function buildApplicationProgress(
-  applications: ApplicationRow[],
-  documents: DocumentRow[],
-  answers: AnswerRow[],
-): Record<string, DestinationApplicationProgress> {
-  const docsByApplication = new Map<string, DocumentRow[]>();
-  const answersByApplication = new Map<string, AnswerRow[]>();
-
-  for (const document of documents) {
-    const existing = docsByApplication.get(document.application_id) ?? [];
-    existing.push(document);
-    docsByApplication.set(document.application_id, existing);
-  }
-
-  for (const answer of answers) {
-    if (!answer.value_text?.trim()) continue;
-    const existing = answersByApplication.get(answer.application_id) ?? [];
-    existing.push(answer);
-    answersByApplication.set(answer.application_id, existing);
-  }
-
-  return applications.reduce<Record<string, DestinationApplicationProgress>>((progress, application) => {
-    const appAnswers = answersByApplication.get(application.id) ?? [];
-    const appDocs = docsByApplication.get(application.id) ?? [];
-    const hasPhoto = appAnswers.some((answer) => answer.field_name === "photo_path");
-    const answeredFieldCount = new Set(appAnswers.map((answer) => answer.field_name)).size;
-    const documentCount = appDocs.filter((document) => document.status !== "missing").length;
-
-    let percent = 10;
-    if (application.status === "submitted" || application.status === "approved") {
-      percent = 100;
-    } else if (application.status === "rejected") {
-      percent = 85;
-    } else {
-      percent += Math.min(55, answeredFieldCount * 3);
-      if (hasPhoto) percent += 10;
-      percent += Math.min(20, documentCount * 5);
-      percent = Math.min(95, Math.max(10, percent));
-    }
-
-    progress[getVisaDestinationKey(application.country, application.visa_type)] = {
-      applicationId: application.id,
-      status: application.status,
-      percent,
-      label: getProgressLabel(application.status, percent),
-      updatedAt: application.updated_at ?? application.submitted_at ?? application.created_at,
-    };
-    return progress;
-  }, {});
-}
-
 // ---------------------------------------------------------------------------
-// Page
+// Main Dashboard Component
 // ---------------------------------------------------------------------------
 
 export default function HomePage() {
   const t = useTranslations("home");
   const PAGE_SCALE = 1;
   const [applicantName, setApplicantName] = useState<string | null>(null);
-  const [applications, setApplications] = useState<ApplicationRow[]>([]);
-  const [applicationProgress, setApplicationProgress] = useState<Record<string, DestinationApplicationProgress>>({});
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
-  const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
-    completedCount: 0,
-    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
-  });
+  const [journey, setJourney] = useState<ApplicationJourneyPayload | null>(null);
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-
-  function buildActivityEvents(
-    applications: ApplicationRow[],
-    documents: DocumentRow[]
-  ): ActivityEvent[] {
-    const events: ActivityEvent[] = [];
-
-    for (const application of applications) {
-      const applicationName = getVisaPackageTitleZh(application.country, application.visa_type);
-      if (application.submitted_at) {
-        events.push({
-          id: `app-submitted-${application.id}`,
-          eventType: "status_change",
-          label: t("activity.applicationSubmitted"),
-          sublabel: applicationName,
-          timestamp: application.submitted_at,
-          icon: "check",
-        });
-      }
-      events.push({
-        id: `app-created-${application.id}`,
-        eventType: "application_created",
-        label: t("activity.applicationCreated"),
-        sublabel: applicationName,
-        timestamp: application.created_at,
-        icon: "clock",
-      });
-    }
-
-    for (const doc of documents) {
-      const docLabel = t(`docLabels.${doc.document_type}`);
-      events.push({
-        id: `doc-${doc.id}`,
-        eventType: "document_upload",
-        label: t("activity.documentUploaded", { docType: docLabel }),
-        sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
-        timestamp: doc.updated_at,
-        icon: doc.status === "rejected" ? "alert" : "upload",
-      });
-    }
-
-    events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    return events.slice(0, 5);
-  }
 
   // Handle magic link auth callback
   useEffect(() => {
@@ -298,10 +121,8 @@ export default function HomePage() {
     }
   }, [t]);
 
-  // Fetch VIZA dashboard data once auth is confirmed
   useEffect(() => {
     if (!authChecked) return;
-
     let isMounted = true;
 
     async function fetchData() {
@@ -310,7 +131,6 @@ export default function HomePage() {
 
       try {
         const supabase = createClient();
-
         const { data: { user } } = await supabase.auth.getUser();
         if (!isMounted) return;
 
@@ -319,63 +139,53 @@ export default function HomePage() {
           return;
         }
 
-        // Fetch all assigned visa packages so users can run multiple applications at once.
-        const packages = await getUserVisaPackages();
-        if (!isMounted) return;
-        setVisaPackages(packages);
+        // 先拉起后端的综合核心状态流数据封装包
+        const journeyPromise = getApplicationJourney();
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
-          .select("id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
+          .select("id, full_name")
           .eq("auth_user_id", user.id)
           .maybeSingle();
-
         if (!isMounted) return;
 
         const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
-        setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
-        );
-
-        if (profile) {
-          setApplicantName((profile as { full_name: string | null }).full_name || authName);
-
-          const { data: appRows } = await supabase
-            .from("applications")
-            .select("id, status, country, visa_type, submitted_at, created_at, updated_at")
-            .eq("applicant_id", (profile as { id: string }).id)
-            .order("created_at", { ascending: false });
-
-          if (!isMounted) return;
-
-          const loadedApplications = (appRows ?? []) as ApplicationRow[];
-          setApplications(loadedApplications);
-
-          if (loadedApplications.length > 0) {
-            const applicationIds = loadedApplications.map((application) => application.id);
-            const [{ data: docs }, { data: answers }] = await Promise.all([
-              supabase
-              .from("application_documents")
-                .select("id, application_id, document_type, status, created_at, updated_at")
-                .in("application_id", applicationIds),
-              supabase
-                .from("visa_application_answers")
-                .select("application_id, field_name, value_text, updated_at")
-                .in("application_id", applicationIds),
-            ]);
-
-            if (!isMounted) return;
-            const loadedDocuments = (docs ?? []) as DocumentRow[];
-            const loadedAnswers = (answers ?? []) as AnswerRow[];
-            setDocuments(loadedDocuments);
-            setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers));
-          } else {
-            setDocuments([]);
-            setApplicationProgress({});
-          }
+        const profileTyped = profile as { id: string; full_name: string | null } | null;
+        
+        if (profileTyped) {
+          setApplicantName(profileTyped.full_name || authName);
         } else if (authName) {
           setApplicantName(authName);
         }
+
+        let app: ApplicationRow | null = null;
+        let documents: DocumentRow[] = [];
+
+        if (profileTyped) {
+          const { data: appRow } = await supabase
+            .from("applications")
+            .select("id, status, country, visa_type, submitted_at, created_at")
+            .eq("applicant_id", profileTyped.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (!isMounted) return;
+          app = (appRow as ApplicationRow) ?? null;
+
+          if (app) {
+            const { data: docs } = await supabase
+              .from("application_documents")
+              .select("id, document_type, status, created_at, updated_at")
+              .eq("application_id", app.id);
+            if (!isMounted) return;
+            documents = (docs as DocumentRow[] | null) ?? [];
+          }
+        }
+
+        const journeyResult = await journeyPromise;
+        if (!isMounted) return;
+        setJourney(journeyResult);
+        setActivityEvents(buildActivityEvents(app, documents, journeyResult.visaPackage?.name ?? null));
       } catch {
         if (isMounted) setError(t("dashboardError"));
       } finally {
@@ -383,8 +193,55 @@ export default function HomePage() {
       }
     }
 
+    function buildActivityEvents(
+      application: ApplicationRow | null,
+      documents: DocumentRow[],
+      packageName: string | null
+    ): ActivityEvent[] {
+      const events: ActivityEvent[] = [];
+      const visaLabel = packageName ?? t("activity.visaType");
+
+      if (application) {
+        if (application.submitted_at) {
+          events.push({
+            id: `app-submitted-${application.id}`,
+            eventType: "status_change",
+            label: t("activity.applicationSubmitted"),
+            sublabel: visaLabel,
+            timestamp: application.submitted_at,
+            icon: "check",
+          });
+        }
+        events.push({
+          id: `app-created-${application.id}`,
+          eventType: "application_created",
+          label: t("activity.applicationCreated"),
+          sublabel: visaLabel,
+          timestamp: application.created_at,
+          icon: "clock",
+        });
+      }
+
+      for (const doc of documents) {
+        const docLabel = t(`docLabels.${doc.document_type}`);
+        events.push({
+          id: `doc-${doc.id}`,
+          eventType: "document_upload",
+          label: t("activity.documentUploaded", { docType: docLabel }),
+          sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
+          timestamp: doc.updated_at,
+          icon: doc.status === "rejected" ? "alert" : "upload",
+        });
+      }
+
+      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return events.slice(0, 5);
+    }
+
     fetchData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [authChecked, t]);
 
   // Nav color changes based on scroll (hero is navy, content below is white)
@@ -402,8 +259,6 @@ export default function HomePage() {
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
-
-  const activityEvents = buildActivityEvents(applications, documents);
 
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -450,24 +305,36 @@ export default function HomePage() {
           <p>{t("vizaApplication")}</p>
         </motion.div>
 
-        {/* Glass Panel */}
-        <motion.div
-          className="w-full max-w-[1090px] mt-4 xl:mt-[41px]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-        >
-          <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            <SubscriptionPlanCard />
-            <UniversalInfoCard {...universalInfoProgress} />
-            <QuickActionsCard />
-          </div>
-        </motion.div>
+        {/* Glass Panel - 2 cards */}
+        {journey ? (
+          <motion.div
+            className="w-full max-w-[1090px] mt-4 xl:mt-[41px]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          >
+            <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
+              <VisaOverviewCard
+                visaPackage={journey.visaPackage}
+                overview={journey.overview}
+                hasApplication={journey.hasApplication}
+              />
+              <NextActionCard
+                nextAction={journey.nextAction}
+                hasApplication={journey.hasApplication}
+              />
+            </div>
+          </motion.div>
+        ) : null}
 
-        <PopularDestinationsSection
-          selectedPackages={visaPackages}
-          applicationProgress={applicationProgress}
-        />
+        {/* Per-visa journey timeline */}
+        {journey ? (
+          <VisaJourneyTimeline
+            visaPackage={journey.visaPackage}
+            overview={journey.overview}
+            phases={journey.phases}
+          />
+        ) : null}
 
         {/* Recent Activity Heading */}
         <motion.p

@@ -1,72 +1,113 @@
-﻿# VIZA
+﻿# VIZA Monorepo
 
-VIZA is an AI-powered visa agency offering end-to-end visa application services for non-immigration visas — tourist, business, work, student, and long-term stays. Human visa consultants work alongside AI technology to guide and process applications on behalf of clients.
+VIZA is an AI-powered visa operations platform. This repository contains the core product surfaces used by clients and operations teams, plus backend services for dynamic visa-form generation and submission workflows.
 
-**Target market (Phase 1):** Chinese nationals (B2C individuals + B2B companies)  
-**Demo scope:** Indonesian tourist visa B211A, via evisa.imigrasi.go.id  
-**Headquarters:** Singapore
+## Repository scope
 
----
+This monorepo currently includes:
 
-## What this repo is
+- Client, staff, and admin web portals (Next.js app with role-based surfaces) — `viza-fe/internal-website`
+- Public marketing website — `viza-fe/marketing-website` (Next.js, SEO-first, deploys to `viza.com`)
+- Agent backend (chat, data APIs, form schema services)
+- Submission service (Playwright automation and runtime validation tooling)
+- Knowledge-base ingestion and research artifacts
+- Country visa schema playbooks, scope docs, and gap reports
 
-This monorepo contains the internal client portal — the web app where applicants log in, interact with the AI visa assistant, track their application status, and upload documents. The portal submits completed applications automatically via browser automation.
+## Current highlights
 
-The external marketing website (Framer, zh-CN first) lives outside this repo.
+- Frontend upgraded to Next.js 16 + React 19
+- Dynamic visa-form pipeline expanded beyond DS-160 to:
+  - UK Standard Visitor
+  - EU Schengen Type C (short-stay)
+  - Vietnam E-Visa (live-portal alignment pass completed)
+- Country rollout pattern standardized: seed script + package migration + scope/gap docs
+- DS-160 CEAC runtime-validation and CAPTCHA solve path documented and implemented in submission-service
 
----
-
-## Structure
+## Monorepo structure
 
 ```
-viza-fe/                  Client portal frontend
-  internal-website/       Next.js 15, React 19, Tailwind, Supabase auth
-                          /client subtree: home, application, chat, documents, settings
+viza-fe/
+  internal-website/           Next.js 16 app (client + staff + admin surfaces) — deploys to app.viza.com
+  marketing-website/          Next.js 16 marketing site (public, SEO-first)     — deploys to viza.com
 
 viza-be/                  Backend services
-  agent-backend/          AI chat server — Express, Socket.io, Claude, pgvector RAG
-  submission-service/     Queue worker — polls submission_queue and runs DS-160 automation
+  agent-backend/          AI chat server — Express, Socket.io, pgvector RAG，Express + Socket.IO + Drizzle + Supabase
+  submission-service/     Playwright-based submission and runtime validation tools
   travel-service/         FastAPI travel planner backend for travel chatbot
 
-knowledge-base/           Visa knowledge ingestion scripts (Node.js, pgvector embeddings)
-
-shared/                   Shared types and utilities (placeholder)
-
-docs/                     Product documentation
-  client-portal-prd.md    Full PRD for the internal client portal (this repo)
-  marketing-site-prd.md   PRD for the external Framer marketing site
-  prd.json                Ralph agent user stories (auto-managed by build pipeline)
-  progress.md             Build log
-
-research/                 Competitor and domain research
-  competitors/            Boundless.com full site scrape (600+ pages)
-  immigration-law/        Immigration law references
-
-scripts/                  Build automation
-  run-ralph.sh            Ralph autonomous agent runner
-  ralph-runner.mjs        Ralph Node.js runner
-  .ralph-prompt.md        Ralph system prompt
+knowledge-base/               Ingestion and scraping utilities
+research/                     Competitor + immigration research
+shared/                       Shared assets/utilities
+docs/                         PRDs, scope docs, gap reports, QA notes, playbooks
+scripts/                      Runner scripts and automation helpers
+vietnam-visa-helper-v1/       Vietnam form helper extension research artifact
 ```
 
----
-
-## Stack
+## Tech stack
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 15, React 19, Tailwind CSS, Shadcn UI |
-| Auth | Supabase (OTP email) |
-| AI chat backend | Express, TypeScript, Socket.io, Claude claude-sonnet-4-5 |
-| Embeddings / RAG | OpenAI text-embedding-3-small (1536d), Supabase pgvector |
-| Database | Supabase (Postgres + Storage) |
-| ORM | Drizzle |
-| Submission service | Node.js + Playwright (automates evisa.imigrasi.go.id) |
-| Frontend hosting | Vercel |
-| Backend hosting | Railway |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind |
+| Backend | Node.js, Express, Socket.IO, TypeScript |
+| Database | Supabase Postgres + Storage |
+| ORM/Migrations | Drizzle |
+| Automation | Playwright (+ stealth tooling where needed) |
+| AI/LLM integrations | Anthropic + other provider SDKs in backend workflows |
 
----
+## Getting started
 
-## Local development
+### Prerequisites
+
+- Node.js 20+
+- npm
+- Supabase project credentials (service and client envs)
+
+### 1) Frontend — internal portal
+
+```bash
+cd viza-fe/internal-website
+cp .env.template .env.local
+npm install
+npm run dev
+```
+
+### 1b) Frontend — public marketing site
+
+```bash
+cd viza-fe/marketing-website
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+### 2) Agent backend
+
+```bash
+cd viza-be/agent-backend
+cp .env.template .env
+npm install
+npm run dev
+```
+
+### 3) Submission service (optional local run)
+
+```bash
+cd viza-be/submission-service
+cp .env.template .env
+npm install
+npm run dev
+```
+
+For browser automation setup:
+
+```bash
+cd viza-be/submission-service
+npm run install-browsers
+```
+
+## Quality checks
+
+Run checks in packages you changed:
 
 ```bash
 # 0) Prerequisites
@@ -76,10 +117,10 @@ scripts/                  Build automation
 
 # Frontend
 cd viza-fe/internal-website
-cp .env.template .env.local
-npm install && npm run dev        # http://localhost:3000
+npm run type-check
+npm run lint
 
-# Backend
+# Agent backend
 cd viza-be/agent-backend
 cp .env.template .env
 npm install && npm run dev        # http://localhost:3002
@@ -115,3 +156,47 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
   - If `Resolve-DnsName <your-project>.supabase.co` fails, fix DNS/network first.
 
 Never commit `.env` or `.env.local`. See `.env.template` in each service for required variables.
+npm run type-check
+npm run lint
+
+# Submission service
+cd viza-be/submission-service
+npm run type-check
+```
+
+## Dynamic visa schema workflow
+
+The current country rollout pattern is:
+
+1. Define canonical source scope in docs
+2. Add or update seed script in `viza-be/agent-backend/scripts/`
+3. Register visa package via Drizzle migration in `viza-be/agent-backend/drizzle/`
+4. Validate dynamic rendering path in frontend
+5. Publish scope and gap reports in `docs/`
+
+Reference playbook: `docs/visa-schema-playbook.md`
+
+## Key documentation map
+
+- Product and roadmap:
+  - `prd.json`
+  - `progress.txt`
+- DS-160 and CEAC:
+  - `docs/prd-ds160-ceac-runtime-validation.md`
+  - `viza-be/submission-service/docs/ceac-smoke-test.md`
+- UK visa:
+  - `docs/uk-visa-scope.md`
+  - `docs/uk-visa-gap-report.md`
+- Schengen visa:
+  - `docs/schengen-visa-scope.md`
+  - `docs/schengen-visa-gap-report.md`
+- Vietnam visa:
+  - `docs/vietnam-visa-scope.md`
+  - `docs/vietnam-visa-gap-report.md`
+  - `docs/vietnam-visa-qa-report-2026-04-24.md`
+
+## Notes
+
+- Do not commit `.env` files.
+- Keep schema parity claims truthful; document gaps explicitly in `docs/*-gap-report.md`.
+- Prefer extending dynamic schema flow over hardcoded country-specific frontend forms.

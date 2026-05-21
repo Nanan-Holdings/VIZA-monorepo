@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .group{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+  .group:last-child{margin:0}
+  .group h4{font:500 11px "Geist", system-ui, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);margin:0 0 2px}
+  .row{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+
+  .tog{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font:400 15px "Geist", "PingFang SC", system-ui, sans-serif;color:#3d3d3d}
+  .tog input{position:absolute;opacity:0;pointer-events:none}
+  .track{width:36px;height:20px;border-radius:999px;background:#e5e7eb;position:relative;transition:background .2s cubic-bezier(.4,0,.2,1)}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .2s cubic-bezier(.4,0,.2,1)}
+  .tog input:checked + .track{background:#03346E}
+  .tog input:checked + .track::after{transform:translateX(16px)}
+  .tog.disabled{opacity:.45;cursor:not-allowed}
+
+  /* Row with description (settings pattern) */
+  .srow{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid #efefef;border-radius:12px;background:#fff;margin-bottom:8px}
+  .srow:last-child{margin:0}
+  .srow .meta{display:flex;flex-direction:column;gap:2px;padding-right:16px}
+  .srow .ttl{font:500 15px "Geist", system-ui, sans-serif;color:#3d3d3d;letter-spacing:-.011em}
+  .srow .sub{font:400 13px "Geist", "PingFang SC", system-ui, sans-serif;color:rgba(0,0,0,.45);line-height:1.4}
+</style></head>
+<body><div class="stage">
+
+<div class="group">
+  <h4>Switch · states</h4>
+  <div class="row">
+    <label class="tog"><input type="checkbox"/><span class="track"></span>Off</label>
+    <label class="tog"><input type="checkbox" checked/><span class="track"></span>On</label>
+    <label class="tog disabled"><input type="checkbox" disabled/><span class="track"></span>Disabled</label>
+    <label class="tog disabled"><input type="checkbox" checked disabled/><span class="track"></span>Disabled on</label>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Settings row · primary pattern</h4>
+  <div class="srow">
+    <div class="meta">
+      <div class="ttl">Email notifications</div>
+      <div class="sub">Application status, consultant messages, and document review updates</div>
+    </div>
+    <label class="tog"><input type="checkbox" checked/><span class="track"></span></label>
+  </div>
+  <div class="srow">
+    <div class="meta">
+      <div class="ttl">WeChat notifications · 微信通知</div>
+      <div class="sub">Real-time alerts through the VIZA service account</div>
+    </div>
+    <label class="tog"><input type="checkbox" checked/><span class="track"></span></label>
+  </div>
+  <div class="srow">
+    <div class="meta">
+      <div class="ttl">Marketing updates</div>
+      <div class="sub">New country coverage, policy changes, and seasonal offers</div>
+    </div>
+    <label class="tog"><input type="checkbox"/><span class="track"></span></label>
+  </div>
+</div>
+
+</div></body></html>

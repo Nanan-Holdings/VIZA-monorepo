@@ -1,0 +1,37 @@
+# gitleaks config — VIZA monorepo (SECRETS-004)
+#
+# Run locally:  gitleaks detect --source . --config .gitleaks.toml --redact
+# Run on a commit: gitleaks protect --staged --config .gitleaks.toml --redact
+#
+# The config extends the default ruleset and adds project-specific
+# allowlists for placeholder values that legitimately appear in
+# documentation and `.env.example` files.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "VIZA placeholder values + docs/test fixtures that aren't real secrets"
+
+# Filename patterns we never want gitleaks to flag.
+paths = [
+  '''(.*/)?\.env\.example$''',
+  '''(.*/)?\.env\.sample$''',
+  '''(.*/)?\.env\.template$''',
+  '''SECURITY\.md$''',
+  '''\.gitleaks\.toml$''',
+  '''docs/manual-qa-prompt\.md$''',
+]
+
+# Inline placeholder strings.
+regexes = [
+  '''your-[a-z0-9-]*-?(?:key|secret|password|token|url)''',
+  '''re_your_resend_api_key''',
+  '''your-project\.supabase\.co''',
+  '''your-throwaway@gmail\.com''',
+  '''your-16-char-app-password''',
+  '''SUBMISSION_RESULT_SECRET_KEY''',
+  '''TWOCAPTCHA_API_KEY''',
+  # Placeholder UUIDs in seed scripts (e.g., Edward dev applicant)
+  '''f8e36807-36b1-432c-ae1b-c34fb01f053a''',
+]

@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .tile{background:#fff;border-radius:12px;padding:18px;min-height:80px;display:flex;flex-direction:column;gap:4px}
+  .t-name{font:600 13px var(--font-sans);color:#3d3d3d}
+  .t-use{font:400 11px var(--font-sans);color:rgba(0,0,0,.5)}
+  .e0{box-shadow:none;border:1px solid #efefef}
+  .e1{box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .e2{box-shadow:0 1px 2px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04)}
+  .e3{box-shadow:0 4px 8px rgba(0,0,0,.06),0 2px 4px rgba(0,0,0,.04)}
+  .e4{box-shadow:0 12px 24px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.04)}
+  .e5{box-shadow:0 24px 60px rgba(0,0,0,.18),0 4px 8px rgba(0,0,0,.06)}
+  .z-list{background:#fff;border:1px solid #efefef;border-radius:12px;padding:8px 0;font:400 13px ui-monospace,"SF Mono",Menlo,monospace}
+  .z-list .row{display:grid;grid-template-columns:120px 60px 1fr;padding:8px 18px;color:#3d3d3d;align-items:center}
+  .z-list .row+.row{border-top:1px solid #f3f4f6}
+  .z-list .k{color:#03346E;font-weight:600}
+  .z-list .v{color:rgba(0,0,0,.45)}
+  .z-list .n{color:rgba(0,0,0,.6)}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Elevation scale · 6 levels</div>
+    <div class="grid">
+      <div class="tile e0"><span class="t-name">e0 · flat</span><span class="t-use">Inline items, list rows</span></div>
+      <div class="tile e1"><span class="t-name">e1 · card-rest</span><span class="t-use">Default card</span></div>
+      <div class="tile e2"><span class="t-name">e2 · card-hover</span><span class="t-use">Clickable card on hover</span></div>
+      <div class="tile e3"><span class="t-name">e3 · dropdown</span><span class="t-use">Menus, popovers, tooltips</span></div>
+      <div class="tile e4"><span class="t-name">e4 · toast</span><span class="t-use">Toasts, floating pills</span></div>
+      <div class="tile e5"><span class="t-name">e5 · modal</span><span class="t-use">Dialogs, sheets, lightbox</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Z-index scale</div>
+    <div class="z-list">
+      <div class="row"><span class="k">base</span><span class="v">0</span><span class="n">Page content</span></div>
+      <div class="row"><span class="k">dropdown</span><span class="v">10</span><span class="n">Select, autocomplete</span></div>
+      <div class="row"><span class="k">sticky</span><span class="v">20</span><span class="n">Nav bar, table header</span></div>
+      <div class="row"><span class="k">banner</span><span class="v">30</span><span class="n">System messages</span></div>
+      <div class="row"><span class="k">overlay</span><span class="v">40</span><span class="n">Scrim behind modal</span></div>
+      <div class="row"><span class="k">modal</span><span class="v">50</span><span class="n">Dialog, sheet</span></div>
+      <div class="row"><span class="k">popover</span><span class="v">60</span><span class="n">Menus inside modals</span></div>
+      <div class="row"><span class="k">tooltip</span><span class="v">70</span><span class="n">Always-on-top hints</span></div>
+      <div class="row"><span class="k">toast</span><span class="v">100</span><span class="n">Toast viewport</span></div>
+    </div>
+  </div>
+</div></body></html>

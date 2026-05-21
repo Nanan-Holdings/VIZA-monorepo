@@ -1,0 +1,3 @@
+# Per-account screenshots may include PII (passport scans, addresses) —
+# keep field-shape JSON, ignore PNG screenshots.
+*.png

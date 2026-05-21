@@ -1,0 +1,2994 @@
+{
+  "common": {
+    "loading": "[ES] Loading your dashboard...",
+    "error": "[ES] An error occurred",
+    "searchLanguage": "[ES] Search language...",
+    "noLanguagesFound": "[ES] No languages found"
+  },
+  "nav": {
+    "home": "[ES] Home",
+    "application": "[ES] Application",
+    "chat": "[ES] Chat",
+    "documents": "[ES] Documents",
+    "inviteFriends": "[ES] Invite Friends"
+  },
+  "menu": {
+    "inviteFriends": "[ES] Invite Friends",
+    "settings": "[ES] Settings",
+    "help": "[ES] Help",
+    "logout": "[ES] Logout",
+    "loggingOut": "[ES] Logging out..."
+  },
+  "session": {
+    "invalidatedTitle": "[ES] Session No Longer Active",
+    "invalidatedBody": "[ES] Another user view was opened in a different tab. This session has been invalidated for security.",
+    "invalidatedHint": "[ES] Please close this tab and use the new user view tab."
+  },
+  "home": {
+    "welcomeBack": "[ES] Welcome back, {name}.",
+    "vizaApplication": "[ES] Here is your VIZA Application",
+    "recentActivity": "[ES] Recent Activity",
+    "noRecentActivity": "[ES] No recent activity yet. Start your application to see updates here.",
+    "loadingDashboard": "[ES] Loading your dashboard...",
+    "authError": "[ES] Authentication failed. Please try clicking the link again.",
+    "dashboardError": "[ES] An error occurred while loading your dashboard",
+    "application": "[ES] Application",
+    "indonesia": "[ES] Indonesia",
+    "touristVisaB211A": "[ES] Tourist Visa B211A",
+    "notStarted": "[ES] Not started",
+    "submitted": "[ES] Submitted {date}",
+    "documentsTitle": "[ES] Documents",
+    "ofRequired": "[ES] of {total} required",
+    "percentComplete": "[ES] {pct}% complete",
+    "quickActions": {
+      "title": "[ES] Quick Actions",
+      "continueWithAI": "[ES] Continue with AI",
+      "uploadDocuments": "[ES] Upload Documents",
+      "viewApplication": "[ES] View Application"
+    },
+    "emptyApplication": {
+      "noActiveApplication": "[ES] No active application",
+      "subtitle": "[ES] Start your Indonesian tourist visa application today.",
+      "cta": "[ES] Start your Indonesia visa application"
+    },
+    "statusLabels": {
+      "draft": "[ES] Draft",
+      "in_progress": "[ES] In Progress",
+      "submitted": "[ES] Submitted",
+      "approved": "[ES] Approved",
+      "rejected": "[ES] Rejected"
+    },
+    "docLabels": {
+      "passport_copy": "[ES] Passport Copy",
+      "photo": "[ES] Photo",
+      "flight_booking": "[ES] Flight Booking",
+      "hotel_booking": "[ES] Hotel Booking",
+      "travel_itinerary": "[ES] Travel Itinerary",
+      "bank_statement": "[ES] Bank Statement"
+    },
+    "activity": {
+      "applicationSubmitted": "[ES] Application submitted",
+      "applicationCreated": "[ES] Application created",
+      "visaType": "[ES] Indonesia Tourist Visa B211A",
+      "documentUploaded": "[ES] {docType} uploaded",
+      "documentRejected": "[ES] Document rejected — please re-upload",
+      "documentReceived": "[ES] Document received",
+      "justNow": "[ES] Just now",
+      "minutesAgo": "[ES] {count}m ago",
+      "hoursAgo": "[ES] {count}h ago",
+      "daysAgo": "[ES] {count}d ago"
+    },
+    "visaTimeline": {
+      "heading": "[ES] Indonesia Tourist Visa B211A",
+      "subheading": "[ES] Complete each step to submit your visa application",
+      "stages": {
+        "application": {
+          "title": "[ES] Complete your application",
+          "subtitle": "[ES] Fill in personal info, passport and travel details",
+          "badge": "[ES] Start"
+        },
+        "documents": {
+          "title": "[ES] Upload your documents",
+          "subtitle": "[ES] 6 documents required for the B211A tourist visa",
+          "badge": "[ES] Not yet"
+        },
+        "submit": {
+          "title": "[ES] Submit application",
+          "subtitle": "[ES] Review everything and submit to our processing team",
+          "badge": "[ES] Not yet"
+        },
+        "review": {
+          "title": "[ES] Under review",
+          "subtitle": "[ES] Typically processed within 3 business days",
+          "badge": "[ES] Awaiting"
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] Visa approved and e-visa document sent to you",
+          "badge": "[ES] Awaiting"
+        }
+      }
+    },
+    "overview": {
+      "phaseOfTotal": "[ES] Phase {current} of {total}",
+      "notStartedYet": "[ES] Not started yet",
+      "etaLabel": "[ES] Expected decision",
+      "estimatedTotal": "[ES] Estimated total"
+    },
+    "nextAction": {
+      "title": "[ES] Next action",
+      "allDone": "[ES] All done",
+      "allDoneSub": "[ES] Awaiting decision from the consulate.",
+      "getStarted": "[ES] Get started",
+      "getStartedSub": "[ES] Pick up where you left off when you're ready.",
+      "cta": {
+        "start": "[ES] Start",
+        "continue": "[ES] Continue",
+        "payNow": "[ES] Pay now",
+        "signDeclaration": "[ES] Sign your declaration",
+        "uploadDocs": "[ES] Upload documents",
+        "bookAppointment": "[ES] Book appointment",
+        "bookInterview": "[ES] Book interview",
+        "viewDetails": "[ES] View details"
+      }
+    },
+    "duration": {
+      "day1": "[ES] Day 1",
+      "daysOneToThree": "[ES] 1–3 days",
+      "daysThreeToFive": "[ES] 3–5 days",
+      "sameDay": "[ES] Same day",
+      "withinOneWeek": "[ES] Within 1 week",
+      "aboutOneWeek": "[ES] ~1 week",
+      "oneToTwoWeeks": "[ES] 1–2 weeks",
+      "aboutThreeWeeks": "[ES] ~3 weeks",
+      "threeToSixWeeks": "[ES] 3–6 weeks",
+      "aboutFifteenWorkingDays": "[ES] ~15 working days",
+      "aboutThreeWorkingDays": "[ES] ~3 working days",
+      "aboutFiveWorkingDays": "[ES] ~5 working days",
+      "dayOf": "[ES] Day of",
+      "varies": "[ES] Varies"
+    },
+    "realWorld": {
+      "in_person": "[ES] In person",
+      "mail": "[ES] Mail",
+      "online": "[ES] Online"
+    },
+    "phase": {
+      "doneOn": "[ES] Done · {date}",
+      "startedOn": "[ES] Started · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "[ES] Here's how the rest of your application unfolds. Estimated time:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "[ES] Create UKVI account",
+          "subtitle": "[ES] Sign up for a UK Visas & Immigration account to start your application."
+        },
+        "form": {
+          "title": "[ES] Online application",
+          "subtitle": "[ES] Fill out the 44-page Standard Visitor application."
+        },
+        "pay": {
+          "title": "[ES] Pay visa fee",
+          "subtitle": "[ES] Pay the UK visa application fee online."
+        },
+        "documents": {
+          "title": "[ES] Supporting documents",
+          "subtitle": "[ES] Upload bank statements, travel plans, and proof of accommodation."
+        },
+        "ukvcas": {
+          "title": "[ES] UKVCAS biometrics",
+          "subtitle": "[ES] Book and attend a biometrics appointment at a UKVCAS centre."
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] UKVI reviews your application and returns a decision."
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "[ES] Schengen application",
+          "subtitle": "[ES] Complete the harmonized Schengen short-stay application."
+        },
+        "documents": {
+          "title": "[ES] Supporting documents",
+          "subtitle": "[ES] Travel insurance, accommodation, financials, and itinerary."
+        },
+        "vfs_appointment": {
+          "title": "[ES] VFS appointment",
+          "subtitle": "[ES] Book an appointment at the relevant VFS Global centre."
+        },
+        "biometrics": {
+          "title": "[ES] Biometrics",
+          "subtitle": "[ES] Provide fingerprints and a photo at your appointment."
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] The consulate decides on your short-stay visa."
+        },
+        "passport_pickup": {
+          "title": "[ES] Passport pickup",
+          "subtitle": "[ES] Collect your passport from the VFS centre once ready."
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "[ES] Pick visitor stream",
+          "subtitle": "[ES] Choose between Tourist, Business, Sponsored Family, ADS, or Frequent Traveller."
+        },
+        "form": {
+          "title": "[ES] Online application",
+          "subtitle": "[ES] Complete the Subclass 600 ImmiAccount application."
+        },
+        "signing": {
+          "title": "[ES] Sign your declaration",
+          "subtitle": "[ES] Review your character and health declarations and sign them before submission."
+        },
+        "pay": {
+          "title": "[ES] Pay visa fee",
+          "subtitle": "[ES] Pay the visa application charge in ImmiAccount."
+        },
+        "submit_online": {
+          "title": "[ES] Submit online",
+          "subtitle": "[ES] Submit your application through ImmiAccount."
+        },
+        "biometrics_optional": {
+          "title": "[ES] Biometrics (if required)",
+          "subtitle": "[ES] Some nationalities must provide biometrics at a VAC."
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] Home Affairs assesses and issues a decision."
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "[ES] E-Visa form",
+          "subtitle": "[ES] Fill out the Vietnam e-Visa application online."
+        },
+        "pay": {
+          "title": "[ES] Pay visa fee",
+          "subtitle": "[ES] Pay the e-Visa fee online."
+        },
+        "wait_email": {
+          "title": "[ES] Wait for email",
+          "subtitle": "[ES] Vietnam Immigration emails the e-Visa PDF when approved."
+        },
+        "print_and_travel": {
+          "title": "[ES] Print and travel",
+          "subtitle": "[ES] Print the e-Visa PDF and present it on arrival."
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "[ES] Application",
+          "subtitle": "[ES] Complete your visa application."
+        },
+        "documents": {
+          "title": "[ES] Documents",
+          "subtitle": "[ES] Upload required supporting documents."
+        },
+        "submit": {
+          "title": "[ES] Submit",
+          "subtitle": "[ES] Submit your application for review."
+        },
+        "review": {
+          "title": "[ES] Review",
+          "subtitle": "[ES] Your application is being reviewed."
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] Awaiting a decision."
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "[ES] DS-160 form",
+          "subtitle": "[ES] Complete the online DS-160 nonimmigrant visa application."
+        },
+        "pay": {
+          "title": "[ES] Pay MRV fee",
+          "subtitle": "[ES] Pay the visa application fee at a designated bank or online."
+        },
+        "schedule_interview": {
+          "title": "[ES] Schedule interview",
+          "subtitle": "[ES] Book your visa interview at the U.S. embassy or consulate."
+        },
+        "documents": {
+          "title": "[ES] Supporting documents",
+          "subtitle": "[ES] Gather passport, photo, financials, and travel evidence."
+        },
+        "interview": {
+          "title": "[ES] Consular interview",
+          "subtitle": "[ES] Attend your interview at the U.S. consulate or embassy."
+        },
+        "passport_pickup": {
+          "title": "[ES] Passport return",
+          "subtitle": "[ES] Your passport is mailed or returned for pickup with the visa."
+        },
+        "decision": {
+          "title": "[ES] Decision",
+          "subtitle": "[ES] The consular officer issues a decision after the interview."
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "[ES] Application form",
+          "subtitle": "[ES] Complete the Indonesia tourist visa B211A form."
+        },
+        "submit": {
+          "title": "[ES] Submit application",
+          "subtitle": "[ES] Submit through the Indonesia immigration portal."
+        },
+        "pay": {
+          "title": "[ES] Pay visa fee",
+          "subtitle": "[ES] Pay the B211A application fee."
+        },
+        "email_visa": {
+          "title": "[ES] E-Visa email",
+          "subtitle": "[ES] Receive your B211A approval by email."
+        }
+      }
+    }
+  },
+  "client": {
+    "signing": {
+      "loading": "[ES] Loading your declaration…",
+      "errorTitle": "[ES] We couldn't load this signing page",
+      "notAuApplication": "[ES] Signing is only required for Australian Subclass 600 visa applications.",
+      "alreadySignedTitle": "[ES] Declaration already signed",
+      "alreadySignedBody": "[ES] Your signature is on file. The submission service is taking it from here.",
+      "submittedTitle": "[ES] Signature submitted",
+      "submittedBody": "[ES] We've queued your application for the final submit step.",
+      "backToHome": "[ES] Back to dashboard",
+      "pageTitle": "[ES] Sign your declaration",
+      "pageSubtitle": "[ES] Review the answers below and sign at the bottom. Your signature is rendered onto the official Subclass 600 declaration before submission.",
+      "healthHeading": "[ES] Health declarations",
+      "characterHeading": "[ES] Character declarations",
+      "finalHeading": "[ES] Final acknowledgements",
+      "yes": "[ES] Yes",
+      "no": "[ES] No",
+      "unanswered": "[ES] Not answered",
+      "signHeading": "[ES] Sign here",
+      "signSubtitle": "[ES] Use your finger, stylus, or mouse. Tap Clear to retry.",
+      "padAriaLabel": "[ES] Signature pad",
+      "clear": "[ES] Clear",
+      "submit": "[ES] Submit signature",
+      "submitting": "[ES] Submitting…"
+    }
+  },
+  "services": {
+    "title": "[ES] Services",
+    "scheduled": "[ES] Scheduled",
+    "yourHistory": "[ES] Your history",
+    "reschedule": "[ES] Reschedule",
+    "cancel": "[ES] Cancel",
+    "cancelling": "[ES] Cancelling...",
+    "cannotReschedule": "[ES] Cannot reschedule within 24 hours",
+    "comingSoon": "[ES] Coming Soon",
+    "noScheduledServices": "[ES] No scheduled services",
+    "noScheduledDescription": "[ES] You don't have any upcoming services. Browse our recommended tests below to get started.",
+    "noServiceHistory": "[ES] No service history",
+    "noHistoryDescription": "[ES] You haven't completed any services yet. Your history will appear here.",
+    "cancelDialog": {
+      "title": "[ES] Cancel scheduled service?",
+      "keep": "[ES] Keep"
+    },
+    "recommended": {
+      "heading": "[ES] Recommended for you",
+      "subheading": "[ES] Our top test recommendations"
+    },
+    "personalized": {
+      "heading": "[ES] Personalized recommendations",
+      "subheading": "[ES] Tests based on your profile and health data"
+    },
+    "upcoming": {
+      "heading": "[ES] Upcoming tests",
+      "subheading": "[ES] New tests we're working on"
+    },
+    "marketplace": {
+      "supplement": {
+        "title": "[ES] Supplement Marketplace",
+        "description": "[ES] Insider prices on 300+ curated longevity products"
+      },
+      "service": {
+        "title": "[ES] Service Marketplace",
+        "description": "[ES] Access to curated RX's like documents or peptides"
+      }
+    },
+    "cards": {
+      "bloodPanel": {
+        "title": "[ES] Blood Panel",
+        "description": "[ES] 40+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "[ES] Included in your plan"
+      },
+      "advancedBloodPanel": {
+        "title": "[ES] Advanced Blood Panel",
+        "description": "[ES] 130+ metrics tested in a fully comprehensive blood panel.",
+        "cta": "[ES] Get Started",
+        "badge": "[ES] Recommended"
+      },
+      "glp1": {
+        "title": "[ES] GLP-1 Treatment",
+        "description": "[ES] You may be a candidate for GLP-1 service. See how it could help you.",
+        "cta": "[ES] Get Started"
+      },
+      "allergyTesting": {
+        "title": "[ES] Food & Environmental Allergy Testing",
+        "description": "[ES] Determine your specific food and environmental allergies.",
+        "cta": "[ES] Coming Soon"
+      },
+      "cancerTest": {
+        "title": "[ES] Grail Galleri Multi Cancer Test",
+        "description": "[ES] Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
+        "cta": "[ES] Coming Soon"
+      },
+      "dexaScan": {
+        "title": "[ES] DEXA Bone Density Scan",
+        "description": "[ES] Measure your bone density and risk of osteoporosis.",
+        "cta": "[ES] Coming Soon"
+      },
+      "gutMicrobiome": {
+        "title": "[ES] Gut Microbiome Testing",
+        "description": "[ES] Analyze your gut microbiome to understand your digestive health.",
+        "cta": "[ES] Coming Soon"
+      },
+      "toxicology": {
+        "title": "[ES] Environmental Toxicology Testing",
+        "description": "[ES] Analyze your environmental toxins and exposure.",
+        "cta": "[ES] Coming Soon"
+      }
+    }
+  },
+  "application": {
+    "title": "[ES] Indonesia Tourist Visa B211A",
+    "saving": "[ES] Saving...",
+    "edit": "[ES] Edit",
+    "stepOf": "[ES] Step {current} of {total}: {name}",
+    "steps": {
+      "personalInfo": {
+        "name": "[ES] Personal Info",
+        "description": "[ES] Full name, date of birth, nationality"
+      },
+      "passport": {
+        "name": "[ES] Passport",
+        "description": "[ES] Passport number, dates, issuing country"
+      },
+      "travelDetails": {
+        "name": "[ES] Travel Details",
+        "description": "[ES] Arrival, departure, accommodation"
+      },
+      "documents": {
+        "name": "[ES] Documents",
+        "description": "[ES] Upload all 6 required documents"
+      },
+      "review": {
+        "name": "[ES] Review",
+        "description": "[ES] Confirm your details are correct"
+      },
+      "status": {
+        "name": "[ES] Status",
+        "description": "[ES] Application submitted"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "[ES] Not authenticated",
+      "failedToSave": "[ES] Failed to save",
+      "failedToSubmit": "[ES] Failed to submit",
+      "profileNotFound": "[ES] Profile not found",
+      "noApplicationFound": "[ES] No application found"
+    },
+    "dynamicSteps": {
+      "Personal Information": "[ES] Personal Information",
+      "Personal Information 1": "[ES] Personal Information 1",
+      "Personal Information 2": "[ES] Personal Information 2",
+      "Personal Information II": "[ES] Personal Information II",
+      "Travel Information": "[ES] Travel Information",
+      "Travel Companions": "[ES] Travel Companions",
+      "Previous US Travel": "[ES] Previous U.S. Travel",
+      "Address and Phone": "[ES] Address and Phone",
+      "Address and Phone Information": "[ES] Address and Phone Information",
+      "Passport Information": "[ES] Passport Information",
+      "US Contact Information": "[ES] U.S. Contact Information",
+      "US Point of Contact": "[ES] US Point of Contact",
+      "Family Information": "[ES] Family Information",
+      "Family Information: Relatives": "[ES] Family Information: Relatives",
+      "Family Information: Spouse": "[ES] Family Information: Spouse",
+      "Family Information: Partner": "[ES] Family Information: Partner",
+      "Family Information: Deceased Spouse": "[ES] Family Information: Deceased Spouse",
+      "Family Information: Former Spouse": "[ES] Family Information: Former Spouse",
+      "Work/Education/Training": "[ES] Work/Education/Training",
+      "Work/Education/Training: Present": "[ES] Work/Education/Training: Present",
+      "Work/Education/Training: Previous": "[ES] Work/Education/Training: Previous",
+      "Work/Education/Training: Additional": "[ES] Work/Education/Training: Additional",
+      "Work and Education": "[ES] Work and Education",
+      "Security and Background": "[ES] Security and Background",
+      "Security and Background: Part 1": "[ES] Security and Background: Part 1",
+      "Security and Background: Part 2": "[ES] Security and Background: Part 2",
+      "Security and Background: Part 3": "[ES] Security and Background: Part 3",
+      "Security and Background: Part 4": "[ES] Security and Background: Part 4",
+      "Security and Background: Part 5": "[ES] Security and Background: Part 5",
+      "Upload Photo": "[ES] Upload Photo",
+      "Review": "[ES] Review Application",
+      "Confirmation": "[ES] Confirmation"
+    },
+    "dynamicSections": {
+      "personal": "[ES] Personal",
+      "travel": "[ES] Travel",
+      "travelCompanions": "[ES] Travel Companions",
+      "previousTravel": "[ES] Previous U.S. Travel",
+      "addressAndPhone": "[ES] Address and Phone",
+      "passport": "[ES] Passport",
+      "usContact": "[ES] U.S. Contact",
+      "family": "[ES] Family",
+      "workEducationTraining": "[ES] Work / Education / Training",
+      "securityAndBackground": "[ES] Security and Background",
+      "photo": "[ES] Upload Photo",
+      "review": "[ES] Review",
+      "confirmation": "[ES] Confirmation"
+    },
+    "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
+    "photoStepDescription": "[ES] Upload your passport-style photo",
+    "reviewStepDescription": "[ES] Review and confirm your details",
+    "statusStepDescription": "[ES] Application submitted",
+    "dynamicButtons": {
+      "continue": "[ES] Continue",
+      "saving": "[ES] Saving...",
+      "selectFallback": "[ES] Select…",
+      "addAnother": "[ES] Add another",
+      "remove": "[ES] Remove"
+    }
+  },
+  "applicationSteps": {
+    "continue": "[ES] Continue",
+    "submit": "[ES] Submit",
+    "confirm": "[ES] Confirm",
+    "cancel": "[ES] Cancel",
+    "edit": "[ES] Edit",
+    "select": "[ES] Select...",
+    "uploadFailed": "[ES] Upload failed",
+    "upload": "[ES] Upload",
+    "replace": "[ES] Replace",
+    "personalInfo": {
+      "fullName": "[ES] Full name (as on passport)",
+      "fullNamePlaceholder": "[ES] John Smith",
+      "dateOfBirth": "[ES] Date of birth",
+      "dateOfBirthPlaceholder": "[ES] Select date of birth",
+      "placeOfBirth": "[ES] Place of birth",
+      "placeOfBirthPlaceholder": "[ES] City, Country",
+      "gender": "[ES] Gender",
+      "male": "[ES] Male",
+      "female": "[ES] Female",
+      "other": "[ES] Other",
+      "nationality": "[ES] Nationality",
+      "nationalityPlaceholder": "[ES] e.g. Australian",
+      "occupation": "[ES] Occupation",
+      "occupationPlaceholder": "[ES] e.g. Software Engineer",
+      "currentAddress": "[ES] Current address",
+      "currentAddressPlaceholder": "[ES] Street, City, Country"
+    },
+    "passport": {
+      "passportNumber": "[ES] Passport number",
+      "passportNumberPlaceholder": "[ES] PA1234567",
+      "issueDate": "[ES] Issue date",
+      "issueDatePlaceholder": "[ES] Select issue date",
+      "expiryDate": "[ES] Expiry date",
+      "expiryDatePlaceholder": "[ES] Select expiry date",
+      "issuingCountry": "[ES] Issuing country",
+      "issuingCountryPlaceholder": "[ES] e.g. Australia",
+      "issuingAuthority": "[ES] Issuing authority",
+      "issuingAuthorityPlaceholder": "[ES] e.g. Department of Home Affairs"
+    },
+    "travel": {
+      "arrivalDate": "[ES] Arrival date",
+      "arrivalDatePlaceholder": "[ES] Select arrival date",
+      "departureDate": "[ES] Departure date",
+      "departureDatePlaceholder": "[ES] Select departure date",
+      "portOfEntry": "[ES] Port of entry",
+      "portOfEntryPlaceholder": "[ES] e.g. Ngurah Rai International Airport (Bali)",
+      "purposeOfVisit": "[ES] Purpose of visit",
+      "selectPurpose": "[ES] Select purpose...",
+      "tourism": "[ES] Tourism",
+      "business": "[ES] Business",
+      "socialCultural": "[ES] Social / Cultural",
+      "familyVisit": "[ES] Family Visit",
+      "accommodationName": "[ES] Accommodation name",
+      "accommodationNamePlaceholder": "[ES] Hotel / Airbnb name",
+      "accommodationAddress": "[ES] Accommodation address",
+      "accommodationAddressPlaceholder": "[ES] Full address in Indonesia"
+    },
+    "documentUpload": {
+      "title": "[ES] Document Upload",
+      "description": "[ES] Upload all required documents for your Indonesia B211A tourist visa application.",
+      "uploadAllToContinue": "[ES] Upload all {count} documents to continue.",
+      "docs": {
+        "passport_copy": "[ES] Passport bio page (scan or photo)",
+        "photo": "[ES] Recent passport-size photo",
+        "flight_booking": "[ES] Flight booking confirmation",
+        "hotel_booking": "[ES] Hotel / accommodation booking",
+        "travel_itinerary": "[ES] Travel itinerary",
+        "bank_statement": "[ES] Bank statement (last 3 months)"
+      }
+    },
+    "dynamicField": {
+      "selectCountry": "[ES] Select a country",
+      "doNotKnow": "[ES] Do Not Know",
+      "doesNotApply": "[ES] Does Not Apply",
+      "usSocialSecurityNumber": "[ES] U.S. Social Security Number"
+    },
+    "review": {
+      "title": "[ES] Review Your Application",
+      "personalInformation": "[ES] Personal Information",
+      "fullName": "[ES] Full name",
+      "dateOfBirth": "[ES] Date of birth",
+      "placeOfBirth": "[ES] Place of birth",
+      "gender": "[ES] Gender",
+      "nationality": "[ES] Nationality",
+      "occupation": "[ES] Occupation",
+      "address": "[ES] Address",
+      "passportDetails": "[ES] Passport Details",
+      "passportNumber": "[ES] Passport number",
+      "issueDate": "[ES] Issue date",
+      "expiryDate": "[ES] Expiry date",
+      "issuingCountry": "[ES] Issuing country",
+      "issuingAuthority": "[ES] Issuing authority",
+      "travelInformation": "[ES] Travel Information",
+      "arrivalDate": "[ES] Arrival date",
+      "departureDate": "[ES] Departure date",
+      "portOfEntry": "[ES] Port of entry",
+      "purpose": "[ES] Purpose",
+      "accommodation": "[ES] Accommodation",
+      "accommodationAddress": "[ES] Accommodation address",
+      "reviewMessage": "[ES] Please review your details carefully before submitting.",
+      "confirmAndSubmit": "[ES] Confirm & Submit",
+      "validation": {
+        "failed": "[ES] Validation failed",
+        "hasErrors": "[ES] Application has errors — please fix before submitting",
+        "hasWarnings": "[ES] Warnings — review before submitting",
+        "allGood": "[ES] Application validated — ready to submit",
+        "errorFallback": "[ES] ⚠️ {error} — you can still submit below.",
+        "validating": "[ES] Validating…",
+        "validateButton": "[ES] Validate Application",
+        "submitWithWarnings": "[ES] Submit (with warnings)"
+      }
+    },
+    "photoUpload": {
+      "title": "[ES] Upload Photo",
+      "prepareTitle": "[ES] Prepare Photo for Submission",
+      "instructions": "[ES] Please refer to the Department of State's image requirements. Your photo must be in JPEG format (.jpg), 240KB or less, and taken within the last 6 months.",
+      "cropToolTitle": "[ES] Photo Cropping Tool",
+      "cropToolDescription": "[ES] Use this tool to resize and crop your photo to meet the Department of State's head-size and digital image submission requirements.",
+      "startCropTool": "[ES] Start Photo Tool",
+      "selectPhoto": "[ES] Select Your Photo",
+      "browse": "[ES] Browse",
+      "formatHint": "[ES] Choose a JPEG format image (.jpg file type) that is 240KB or less in file size.",
+      "qualityTitle": "[ES] Photo Quality Standards",
+      "qualityDescription": "[ES] To ensure the highest quality photos will be used in the final printed travel document: color photo, plain white or off-white background, full-face view directly facing the camera, neutral facial expression, both eyes open, taken within the last 6 months.",
+      "resultTitle": "[ES] Photo Quality Standards Result",
+      "passed": "[ES] Photo passed quality standards. Your photo has successfully been uploaded and passed all quality checks.",
+      "failed": "[ES] The submitted photo did not meet the image quality requirements.",
+      "reasonsTitle": "[ES] Reasons why photo failed:",
+      "backSelect": "[ES] Back: Select a Different Photo",
+      "nextWithPhoto": "[ES] Next: Continue Using this Photo",
+      "nextWithoutPhoto": "[ES] Next: Continue Without a Photo",
+      "confirmTitle": "[ES] Confirm Photo",
+      "confirmNotice": "[ES] Please note that you may be required to bring a passport-like photo to your interview.",
+      "uploadNew": "[ES] Upload New Photo",
+      "continue": "[ES] Continue",
+      "uploading": "[ES] Uploading photo...",
+      "uploadError": "[ES] Failed to upload photo. Please try again.",
+      "noPhoto": "[ES] No Photo Provided",
+      "photoProvided": "[ES] Photo Provided",
+      "formatSpec": "[ES] JPEG (.jpg) · Max 240KB",
+      "notAuthenticated": "[ES] Not authenticated",
+      "failures": {
+        "file_too_large": "[ES] File size exceeds the 240KB maximum",
+        "wrong_format": "[ES] File must be in JPEG format (.jpg)",
+        "dimensions_too_small": "[ES] Image must be at least 600x600 pixels",
+        "not_square": "[ES] Image must have a square (1:1) aspect ratio",
+        "poor_illumination": "[ES] Illumination appears to be poor"
+      },
+      "applyCrop": "[ES] Apply Crop",
+      "cancelCrop": "[ES] Cancel",
+      "zoom": "[ES] Zoom"
+    },
+    "translation": {
+      "tabOriginal": "[ES] 中文 (Original)",
+      "tabEnglish": "[ES] English Translation",
+      "aiTranslated": "[ES] Auto Translated",
+      "userEdited": "[ES] Edited",
+      "translating": "[ES] Translating your application...",
+      "translationFailed": "[ES] Translation could not be completed automatically.",
+      "retryTranslation": "[ES] Retry",
+      "editTranslation": "[ES] Edit",
+      "saveTranslation": "[ES] Save",
+      "sectionPersonal": "[ES] Personal Information",
+      "sectionPassport": "[ES] Passport Details",
+      "sectionTravel": "[ES] Travel Information",
+      "sectionDynamic": "[ES] Application Questions"
+    },
+    "status": {
+      "title": "[ES] Application Submitted",
+      "confirmationNumber": "[ES] Confirmation number",
+      "submittedOn": "[ES] Submitted on",
+      "estimatedProcessing": "[ES] Estimated processing",
+      "businessDays": "[ES] business days",
+      "message": "[ES] Your application has been submitted to the Indonesian e-visa portal. You will receive an email confirmation once your visa is approved. Keep your confirmation number for reference.",
+      "viewReceipt": "[ES] View Receipt",
+      "done": "[ES] Done"
+    },
+    "documentChecklist": {
+      "missingDocuments": "[ES] Missing Documents ({count})",
+      "missingDescription": "[ES] The following documents are still required before your application can be submitted:",
+      "uploadNow": "[ES] Got it, I'll upload them now",
+      "docs": {
+        "passport_copy": "[ES] Passport bio page",
+        "photo": "[ES] Passport-size photo",
+        "flight_booking": "[ES] Flight booking confirmation",
+        "hotel_booking": "[ES] Hotel booking confirmation",
+        "travel_itinerary": "[ES] Travel itinerary",
+        "bank_statement": "[ES] Bank statement (3 months)"
+      }
+    },
+    "statusCard": {
+      "applicationStatus": "[ES] Application Status",
+      "draft": "[ES] Draft",
+      "inProgress": "[ES] In Progress",
+      "submitted": "[ES] Submitted",
+      "approved": "[ES] Approved",
+      "rejected": "[ES] Rejected"
+    }
+  },
+  "simplifiedForm": {
+    "shared": {
+      "loading": "[ES] Getting your intake form ready…",
+      "progress": "[ES] Step {current} of {total} · {name}",
+      "back": "[ES] Back",
+      "continue": "[ES] Continue",
+      "submitting": "[ES] Saving your answers…",
+      "edit": "[ES] Edit",
+      "yes": "[ES] Yes",
+      "no": "[ES] No",
+      "openLongFormLead": "[ES] Need to fill the detailed form?",
+      "openLongFormLink": "[ES] Open the full version",
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your answers",
+        "subtitle": "[ES] Check each section and submit when everything looks right.",
+        "submit": "[ES] Looks good — submit",
+        "empty": "[ES] Nothing entered yet.",
+        "notProvided": "[ES] —"
+      },
+      "tripDates": {
+        "duration": "[ES] Trip length: {days} days",
+        "invalid": "[ES] Departure date must be after arrival date."
+      }
+    },
+    "us": {
+      "steps": {
+        "identity": "[ES] Identity",
+        "contact": "[ES] Contact",
+        "passport": "[ES] Passport",
+        "travel": "[ES] Travel",
+        "usStay": "[ES] U.S. stay",
+        "work": "[ES] Work & education",
+        "usContact": "[ES] U.S. Contact",
+        "family": "[ES] Family",
+        "background": "[ES] Background"
+      },
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your DS-160 answers",
+        "subtitle": "[ES] Edit anything that's wrong before submitting.",
+        "identity": "[ES] Identity",
+        "contact": "[ES] Contact",
+        "passport": "[ES] Passport",
+        "travel": "[ES] Travel",
+        "work": "[ES] Work & education",
+        "usContact": "[ES] U.S. contact",
+        "family": "[ES] Family",
+        "background": "[ES] Background"
+      }
+    },
+    "uk": {
+      "steps": {
+        "purpose": {
+          "label": "[ES] Purpose",
+          "title": "[ES] Why are you visiting the UK?",
+          "subtitle": "[ES] Pick the option that best matches your main reason for travel."
+        },
+        "personal": {
+          "label": "[ES] Personal",
+          "title": "[ES] Personal details",
+          "subtitle": "[ES] From your passport — exactly as it appears."
+        },
+        "passport": {
+          "label": "[ES] Passport",
+          "title": "[ES] Passport",
+          "subtitle": "[ES] Travel-document details for the visa."
+        },
+        "contact": {
+          "label": "[ES] Contact",
+          "title": "[ES] Contact & residence",
+          "subtitle": "[ES] How UKVI can reach you."
+        },
+        "ukvi": {
+          "label": "[ES] UKVI",
+          "title": "[ES] UKVI account",
+          "subtitle": "[ES] Link the UKVI account you'll apply with."
+        },
+        "tripDates": {
+          "label": "[ES] Dates",
+          "title": "[ES] When are you visiting?",
+          "subtitle": "[ES] Standard Visitor visas typically allow stays of up to 6 months per visit."
+        },
+        "uk_address": {
+          "label": "[ES] UK address",
+          "title": "[ES] Where you'll stay in the UK",
+          "subtitle": "[ES] First UK address and host details if any."
+        },
+        "employment": {
+          "label": "[ES] Work",
+          "title": "[ES] Employment & income",
+          "subtitle": "[ES] Where you work and what you earn."
+        },
+        "history": {
+          "label": "[ES] History",
+          "title": "[ES] Travel & visa history",
+          "subtitle": "[ES] Past UK visits and any prior visa refusals."
+        },
+        "funding": {
+          "label": "[ES] Funds",
+          "title": "[ES] Trip funding",
+          "subtitle": "[ES] How the trip is paid for."
+        },
+        "declaration": {
+          "label": "[ES] Declare",
+          "title": "[ES] Declarations",
+          "subtitle": "[ES] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your UK Standard Visitor answers",
+        "subtitle": "[ES] Edit anything that's wrong before submitting.",
+        "purpose": "[ES] Purpose",
+        "personal": "[ES] Personal",
+        "passport": "[ES] Passport",
+        "contact": "[ES] Contact",
+        "ukvi": "[ES] UKVI account",
+        "tripDates": "[ES] Trip dates",
+        "ukAddress": "[ES] UK address",
+        "employment": "[ES] Employment",
+        "history": "[ES] History",
+        "funding": "[ES] Funds",
+        "declaration": "[ES] Declarations"
+      },
+      "tripDates": {
+        "over180Hint": "[ES] Standard Visitor visa is limited to 6 months per visit."
+      },
+      "fields": {
+        "givenNames": "[ES] Given name(s)",
+        "givenNamesPlaceholder": "[ES] e.g. John Michael",
+        "surname": "[ES] Surname",
+        "surnamePlaceholder": "[ES] e.g. Smith",
+        "anyOtherNames": "[ES] Have you been known by any other names?",
+        "otherNames": "[ES] Other names used",
+        "dob": "[ES] Date of birth",
+        "sex": "[ES] Sex",
+        "nationality": "[ES] Nationality",
+        "hasOtherNationalities": "[ES] Do you hold any other nationalities?",
+        "countryOfBirth": "[ES] Country of birth",
+        "placeOfBirth": "[ES] Town/city of birth",
+        "placeOfBirthPlaceholder": "[ES] e.g. Manchester",
+        "maritalStatus": "[ES] Marital status",
+        "passportNumber": "[ES] Passport number",
+        "passportNumberPlaceholder": "[ES] e.g. 123456789",
+        "passportIssuingCountry": "[ES] Issuing country",
+        "passportPlaceOfIssue": "[ES] Place of issue",
+        "passportIssueDate": "[ES] Date of issue",
+        "passportExpiryDate": "[ES] Date of expiry",
+        "email": "[ES] Email",
+        "emailPlaceholder": "[ES] name@example.com",
+        "phone": "[ES] Phone",
+        "phonePlaceholder": "[ES] +44 20 …",
+        "homeAddressLine1": "[ES] Home address",
+        "homeAddressLine1Placeholder": "[ES] Street and number",
+        "homeAddressCity": "[ES] City",
+        "postalCode": "[ES] Postal code",
+        "homeCountry": "[ES] Country of residence",
+        "ownsHome": "[ES] Do you own your home?",
+        "hasUkviAccount": "[ES] Do you already have a UKVI account?",
+        "ukviEmail": "[ES] UKVI account email",
+        "ukviEmailPlaceholder": "[ES] Your UKVI email",
+        "ukAddress": "[ES] UK address",
+        "ukAddressPlaceholder": "[ES] Hotel name, street and number",
+        "ukCity": "[ES] UK city",
+        "ukPostcode": "[ES] UK postcode",
+        "ukContactPhone": "[ES] UK contact phone",
+        "stayingWithSomeone": "[ES] Will you be staying with someone in the UK?",
+        "hostName": "[ES] Host name",
+        "hostRelationship": "[ES] Relationship to host",
+        "arrivalDate": "[ES] Intended arrival",
+        "departureDate": "[ES] Intended departure",
+        "numberOfEntries": "[ES] Type of visa requested",
+        "employmentStatus": "[ES] Employment status",
+        "employerName": "[ES] Employer name",
+        "jobTitle": "[ES] Job title",
+        "employerAddress": "[ES] Employer address",
+        "employerPhone": "[ES] Employer phone",
+        "monthlyIncome": "[ES] Monthly income",
+        "monthlyIncomePlaceholder": "[ES] Net amount, in GBP",
+        "hasVisitedUkBefore": "[ES] Have you visited the UK before?",
+        "previousUkVisitDates": "[ES] Approximate dates of previous visits",
+        "hasBeenRefusedUkVisa": "[ES] Have you ever been refused a UK visa?",
+        "ukRefusalExplanation": "[ES] Briefly explain the refusal",
+        "hasBeenRefusedOtherVisa": "[ES] Have you been refused a visa for any other country?",
+        "fundingSource": "[ES] Trip funding source",
+        "sponsorName": "[ES] Sponsor name",
+        "sponsorNamePlaceholder": "[ES] Full legal name",
+        "sponsorRelationship": "[ES] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[ES] e.g. parent, employer",
+        "estimatedTripCost": "[ES] Estimated trip cost",
+        "estimatedTripCostPlaceholder": "[ES] e.g. 3000",
+        "fundsAmount": "[ES] Estimated trip cost",
+        "fundsAmountPlaceholder": "[ES] e.g. 3000",
+        "fundsCurrency": "[ES] Currency",
+        "hasSavings": "[ES] Do you have savings to support the trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[ES] Male",
+          "female": "[ES] Female"
+        },
+        "marital": {
+          "single": "[ES] Single",
+          "married": "[ES] Married",
+          "civilPartnership": "[ES] Civil partnership",
+          "unmarriedPartner": "[ES] Unmarried partner",
+          "divorced": "[ES] Divorced",
+          "widowed": "[ES] Widowed",
+          "separated": "[ES] Separated"
+        },
+        "purpose": {
+          "tourism": "[ES] Tourism",
+          "business": "[ES] Business",
+          "visitingFamily": "[ES] Visiting family",
+          "study": "[ES] Short study",
+          "medical": "[ES] Medical",
+          "wedding": "[ES] Wedding/civil partnership",
+          "transit": "[ES] Transit",
+          "other": "[ES] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[ES] Holiday or sightseeing",
+          "business": "[ES] Meetings, conferences, contracts",
+          "family": "[ES] Visiting relatives or close friends",
+          "study": "[ES] Course or training under 6 months",
+          "medical": "[ES] Medical treatment in the UK",
+          "wedding": "[ES] Attending or having a wedding/civil partnership",
+          "transit": "[ES] Transit through the UK",
+          "other": "[ES] Other reason"
+        },
+        "entries": {
+          "single": "[ES] Single visit",
+          "multi2y": "[ES] 2-year multi-visit",
+          "multi5y": "[ES] 5-year multi-visit",
+          "multi10y": "[ES] 10-year multi-visit"
+        },
+        "employment": {
+          "employed": "[ES] Employed",
+          "selfEmployed": "[ES] Self-employed",
+          "student": "[ES] Student",
+          "retired": "[ES] Retired",
+          "unemployed": "[ES] Unemployed"
+        },
+        "funding": {
+          "self": "[ES] Myself",
+          "family": "[ES] Family",
+          "employer": "[ES] Employer",
+          "sponsor": "[ES] Sponsor"
+        },
+        "currency": {
+          "gbp": "[ES] GBP",
+          "usd": "[ES] USD",
+          "eur": "[ES] EUR",
+          "cny": "[ES] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[ES] Briefly explain the circumstances",
+        "informationCorrect": "[ES] All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "[ES] Do you have any criminal convictions in any country?",
+        "noWarCrimes": "[ES] Have you ever been involved in war crimes, crimes against humanity, or genocide?",
+        "noTerrorism": "[ES] Have you ever been involved in, or supported, terrorism?",
+        "willLeaveBeforeExpiry": "[ES] I undertake to leave the UK before my visa expires."
+      }
+    },
+    "schengen": {
+      "steps": {
+        "purpose": {
+          "label": "[ES] Purpose",
+          "title": "[ES] Why are you travelling?",
+          "subtitle": "[ES] Pick the option that best matches the main reason for your trip."
+        },
+        "personal": {
+          "label": "[ES] Personal",
+          "title": "[ES] Personal details",
+          "subtitle": "[ES] From your passport — exactly as it appears."
+        },
+        "document": {
+          "label": "[ES] Document",
+          "title": "[ES] Travel document",
+          "subtitle": "[ES] Passport or other accepted travel document."
+        },
+        "contact": {
+          "label": "[ES] Contact",
+          "title": "[ES] Contact & residence",
+          "subtitle": "[ES] How the consulate can reach you."
+        },
+        "tripDates": {
+          "label": "[ES] Dates",
+          "title": "[ES] Trip dates",
+          "subtitle": "[ES] Schengen Type C lets you stay up to 90 days within any 180-day period."
+        },
+        "trip_destination": {
+          "label": "[ES] Where",
+          "title": "[ES] Where you're going",
+          "subtitle": "[ES] Main destination and the first Schengen country you'll enter."
+        },
+        "accommodation": {
+          "label": "[ES] Stay",
+          "title": "[ES] Where you'll stay",
+          "subtitle": "[ES] Accommodation details for your time in Schengen."
+        },
+        "occupation": {
+          "label": "[ES] Work",
+          "title": "[ES] Your occupation",
+          "subtitle": "[ES] Employer or school details."
+        },
+        "family_eu": {
+          "label": "[ES] EU family",
+          "title": "[ES] EU/EEA/CH family member",
+          "subtitle": "[ES] Only fill in if you're travelling as the family member of an EU/EEA/Swiss citizen."
+        },
+        "travel_history": {
+          "label": "[ES] History",
+          "title": "[ES] Travel history",
+          "subtitle": "[ES] Past Schengen visas, fingerprints, and onward entry permits."
+        },
+        "funding": {
+          "label": "[ES] Funds",
+          "title": "[ES] Trip funding",
+          "subtitle": "[ES] How the trip is paid for and whether you have travel insurance."
+        },
+        "declaration": {
+          "label": "[ES] Declare",
+          "title": "[ES] Declarations",
+          "subtitle": "[ES] Confirm each statement before submitting your answers."
+        }
+      },
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your Schengen Type C answers",
+        "subtitle": "[ES] Edit anything that's wrong before submitting.",
+        "purpose": "[ES] Purpose",
+        "personal": "[ES] Personal",
+        "document": "[ES] Travel document",
+        "contact": "[ES] Contact",
+        "tripDates": "[ES] Trip dates",
+        "tripDestination": "[ES] Destination",
+        "accommodation": "[ES] Accommodation",
+        "occupation": "[ES] Occupation",
+        "familyEu": "[ES] EU family member",
+        "travelHistory": "[ES] Travel history",
+        "funding": "[ES] Funds",
+        "declaration": "[ES] Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "[ES] Schengen Type C is limited to 90 days within any 180-day period."
+      },
+      "fields": {
+        "surname": "[ES] Surname (family name)",
+        "surnameAtBirthDifferent": "[ES] Is your surname at birth different from your current surname?",
+        "surnameAtBirth": "[ES] Surname at birth",
+        "givenNames": "[ES] Given name(s)",
+        "dob": "[ES] Date of birth",
+        "placeOfBirth": "[ES] Place of birth",
+        "countryOfBirth": "[ES] Country of birth",
+        "nationality": "[ES] Current nationality",
+        "nationalityAtBirth": "[ES] Nationality at birth (if different)",
+        "nationalIdNumber": "[ES] National identity number",
+        "sex": "[ES] Sex",
+        "civilStatus": "[ES] Civil status",
+        "passportType": "[ES] Type of travel document",
+        "passportNumber": "[ES] Travel document number",
+        "passportIssueDate": "[ES] Date of issue",
+        "passportExpiryDate": "[ES] Valid until",
+        "passportIssuingCountry": "[ES] Issued by (country)",
+        "homeAddress": "[ES] Home address",
+        "city": "[ES] City",
+        "postalCode": "[ES] Postal code",
+        "countryOfResidence": "[ES] Country of residence",
+        "email": "[ES] Email",
+        "phone": "[ES] Phone",
+        "mainDestination": "[ES] Main destination (Schengen state)",
+        "firstEntry": "[ES] First Schengen state of entry",
+        "arrivalDate": "[ES] Intended arrival date",
+        "departureDate": "[ES] Intended departure date",
+        "numberOfEntries": "[ES] Number of entries requested",
+        "accommodationType": "[ES] Type of accommodation",
+        "accommodationName": "[ES] Hotel name or accommodation label",
+        "accommodationAddress": "[ES] Accommodation address",
+        "accommodationCity": "[ES] City",
+        "accommodationCountry": "[ES] Country",
+        "accommodationPhone": "[ES] Accommodation phone",
+        "occupation": "[ES] Current occupation",
+        "employerName": "[ES] Employer or school name",
+        "employerAddress": "[ES] Employer or school address",
+        "employerPhone": "[ES] Employer or school phone",
+        "isFamilyMemberOfEu": "[ES] Are you the family member of an EU/EEA/Swiss citizen?",
+        "euFamilySurname": "[ES] Family member surname",
+        "euFamilyGivenNames": "[ES] Family member given names",
+        "euFamilyDob": "[ES] Family member date of birth",
+        "euFamilyNationality": "[ES] Family member nationality",
+        "euFamilyRelationship": "[ES] Relationship to you",
+        "hadPreviousSchengenVisas": "[ES] Have you held a Schengen visa in the last 3 years?",
+        "previousSchengenVisaDates": "[ES] Dates of previous Schengen visas",
+        "fingerprintsCollectedPreviously": "[ES] Have your fingerprints been collected for a Schengen visa before?",
+        "fingerprintsCollectedDate": "[ES] Approximate date of collection",
+        "hasOnwardEntryPermit": "[ES] Do you hold an entry permit for any country after Schengen?",
+        "costsCoveredBy": "[ES] Cost of travel and living covered by",
+        "sponsorName": "[ES] Sponsor name",
+        "sponsorNamePlaceholder": "[ES] Full legal name",
+        "sponsorRelationship": "[ES] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[ES] e.g. parent, employer",
+        "fundsAmount": "[ES] Available funds",
+        "fundsAmountPlaceholder": "[ES] e.g. 2000",
+        "fundsCurrency": "[ES] Currency",
+        "hasInsurance": "[ES] Do you have travel medical insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[ES] Male",
+          "female": "[ES] Female"
+        },
+        "civil": {
+          "single": "[ES] Single",
+          "married": "[ES] Married",
+          "registeredPartnership": "[ES] Registered partnership",
+          "separated": "[ES] Separated",
+          "divorced": "[ES] Divorced",
+          "widowed": "[ES] Widowed"
+        },
+        "passport": {
+          "ordinary": "[ES] Ordinary",
+          "diplomatic": "[ES] Diplomatic",
+          "service": "[ES] Service",
+          "official": "[ES] Official",
+          "special": "[ES] Special",
+          "other": "[ES] Other"
+        },
+        "purpose": {
+          "tourism": "[ES] Tourism",
+          "business": "[ES] Business",
+          "family": "[ES] Visiting family or friends",
+          "cultural": "[ES] Cultural",
+          "sports": "[ES] Sports",
+          "official": "[ES] Official visit",
+          "medical": "[ES] Medical",
+          "study": "[ES] Short study",
+          "transit": "[ES] Airport transit",
+          "other": "[ES] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[ES] Holiday or sightseeing",
+          "business": "[ES] Meetings, conferences, contracts",
+          "family": "[ES] Visiting relatives or close friends in Schengen",
+          "cultural": "[ES] Festivals, exhibitions, performances",
+          "sports": "[ES] Tournaments, training, sporting events",
+          "official": "[ES] Government or diplomatic delegation",
+          "medical": "[ES] Medical treatment in Schengen",
+          "study": "[ES] Short course or training (under 90 days)",
+          "transit": "[ES] Connecting flight via a Schengen airport",
+          "other": "[ES] Other reason — explain on the next steps"
+        },
+        "entries": {
+          "single": "[ES] Single entry",
+          "two": "[ES] Two entries",
+          "multiple": "[ES] Multiple entries"
+        },
+        "accommodation": {
+          "hotel": "[ES] Hotel",
+          "private": "[ES] Private home",
+          "rental": "[ES] Short-term rental",
+          "other": "[ES] Other"
+        },
+        "funding": {
+          "self": "[ES] Myself",
+          "sponsor": "[ES] Sponsor",
+          "employer": "[ES] Employer",
+          "both": "[ES] Both myself and a sponsor"
+        },
+        "currency": {
+          "eur": "[ES] EUR",
+          "usd": "[ES] USD",
+          "gbp": "[ES] GBP",
+          "cny": "[ES] CNY"
+        },
+        "relationship": {
+          "spouse": "[ES] Spouse",
+          "child": "[ES] Child",
+          "grandchild": "[ES] Grandchild",
+          "dependentAscendant": "[ES] Dependent ascendant",
+          "registeredPartner": "[ES] Registered partner"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[ES] Briefly explain the circumstances",
+        "informationCorrect": "[ES] I confirm that all information provided is true and complete to the best of my knowledge.",
+        "willLeaveBeforeExpiry": "[ES] I undertake to leave the Schengen territory before the visa expires.",
+        "understandsNoEntryGuarantee": "[ES] I understand that the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "[ES] I am aware that my personal data will be processed by Schengen consular and border authorities."
+      }
+    },
+    "vn": {
+      "steps": {
+        "purpose": {
+          "label": "[ES] Purpose",
+          "title": "[ES] Why are you entering Vietnam?",
+          "subtitle": "[ES] Pick the option that best matches your trip."
+        },
+        "personal": {
+          "label": "[ES] Personal",
+          "title": "[ES] Personal details",
+          "subtitle": "[ES] From your passport."
+        },
+        "passport": {
+          "label": "[ES] Passport",
+          "title": "[ES] Passport details",
+          "subtitle": "[ES] Travel document used for entry."
+        },
+        "contact": {
+          "label": "[ES] Contact",
+          "title": "[ES] Contact & residence",
+          "subtitle": "[ES] How we can reach you."
+        },
+        "tripDates": {
+          "label": "[ES] Dates",
+          "title": "[ES] Trip dates",
+          "subtitle": "[ES] Vietnam e-visa allows stays of up to 90 days."
+        },
+        "vn_destination": {
+          "label": "[ES] Where",
+          "title": "[ES] Where you're going",
+          "subtitle": "[ES] Address in Vietnam and entry/exit gates."
+        },
+        "host": {
+          "label": "[ES] Host",
+          "title": "[ES] Local contact in Vietnam",
+          "subtitle": "[ES] Who will host you, if applicable."
+        },
+        "occupation": {
+          "label": "[ES] Work",
+          "title": "[ES] Occupation",
+          "subtitle": "[ES] Employer or school details."
+        },
+        "companions": {
+          "label": "[ES] Family",
+          "title": "[ES] Accompanying family",
+          "subtitle": "[ES] Travelling with minors or family members."
+        },
+        "funding": {
+          "label": "[ES] Funds",
+          "title": "[ES] Trip funding",
+          "subtitle": "[ES] How the trip is paid for."
+        },
+        "declaration": {
+          "label": "[ES] Declare",
+          "title": "[ES] Declarations",
+          "subtitle": "[ES] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your Vietnam e-visa answers",
+        "subtitle": "[ES] Edit anything that's wrong before submitting.",
+        "purpose": "[ES] Purpose",
+        "personal": "[ES] Personal",
+        "passport": "[ES] Passport",
+        "contact": "[ES] Contact",
+        "tripDates": "[ES] Trip dates",
+        "vnDestination": "[ES] Destination",
+        "host": "[ES] Local contact",
+        "occupation": "[ES] Occupation",
+        "companions": "[ES] Family",
+        "funding": "[ES] Funds",
+        "declaration": "[ES] Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "[ES] Vietnam e-visa is limited to 90 days per stay."
+      },
+      "fields": {
+        "surname": "[ES] Surname",
+        "givenName": "[ES] Given name",
+        "otherNamesUsed": "[ES] Any other names used",
+        "dob": "[ES] Date of birth",
+        "sex": "[ES] Sex",
+        "nationality": "[ES] Nationality",
+        "nationalityAtBirth": "[ES] Nationality at birth",
+        "countryOfBirth": "[ES] Country of birth",
+        "placeOfBirth": "[ES] Place of birth",
+        "nationalIdNumber": "[ES] National identity number",
+        "religion": "[ES] Religion",
+        "maritalStatus": "[ES] Marital status",
+        "passportNumber": "[ES] Passport number",
+        "passportType": "[ES] Type of passport",
+        "passportIssuing": "[ES] Issuing authority",
+        "passportIssueDate": "[ES] Date of issue",
+        "passportExpiryDate": "[ES] Date of expiry",
+        "hasOtherPassports": "[ES] Do you hold other passports?",
+        "permanentAddress": "[ES] Permanent residential address",
+        "contactAddress": "[ES] Contact address",
+        "city": "[ES] City",
+        "country": "[ES] Country",
+        "phone": "[ES] Phone",
+        "email": "[ES] Email",
+        "emergencyContactName": "[ES] Emergency contact name",
+        "emergencyContactPhone": "[ES] Emergency contact phone",
+        "intendedAddress": "[ES] Intended address in Vietnam",
+        "borderGateEntry": "[ES] Entry border gate",
+        "borderGateExit": "[ES] Exit border gate",
+        "hasVnContact": "[ES] Do you have a contact/host in Vietnam?",
+        "vnContactName": "[ES] Contact name",
+        "vnContactRelationship": "[ES] Relationship",
+        "vnContactPhone": "[ES] Contact phone",
+        "vnContactAddress": "[ES] Contact address",
+        "occupation": "[ES] Occupation",
+        "employerOrSchool": "[ES] Employer or school name",
+        "employerAddress": "[ES] Employer address",
+        "position": "[ES] Position",
+        "employerPhone": "[ES] Employer phone",
+        "isAccompaniedByMinor": "[ES] Are you travelling with a minor?",
+        "accompanyingMinorCount": "[ES] Number of accompanying minors",
+        "parentOrGuardianName": "[ES] Parent or legal guardian name",
+        "entryDate": "[ES] Intended entry date",
+        "exitDate": "[ES] Intended exit date",
+        "requestedVisaType": "[ES] Visa type",
+        "tripPayer": "[ES] Trip paid by",
+        "sponsorName": "[ES] Sponsor name",
+        "sponsorNamePlaceholder": "[ES] Full legal name",
+        "sponsorRelationship": "[ES] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[ES] e.g. parent, employer",
+        "fundsAmount": "[ES] Trip budget",
+        "fundsAmountPlaceholder": "[ES] e.g. 1500",
+        "fundsCurrency": "[ES] Currency",
+        "hasInsurance": "[ES] Do you have travel insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "[ES] Male",
+          "female": "[ES] Female"
+        },
+        "marital": {
+          "single": "[ES] Single",
+          "married": "[ES] Married",
+          "divorced": "[ES] Divorced",
+          "widowed": "[ES] Widowed"
+        },
+        "religion": {
+          "none": "[ES] None",
+          "buddhism": "[ES] Buddhism",
+          "christianity": "[ES] Christianity",
+          "islam": "[ES] Islam",
+          "hinduism": "[ES] Hinduism",
+          "other": "[ES] Other"
+        },
+        "passport": {
+          "ordinary": "[ES] Ordinary",
+          "diplomatic": "[ES] Diplomatic",
+          "official": "[ES] Official"
+        },
+        "purpose": {
+          "tourism": "[ES] Tourism",
+          "business": "[ES] Business",
+          "relatives": "[ES] Visiting relatives",
+          "investment": "[ES] Investment",
+          "study": "[ES] Study",
+          "work": "[ES] Work",
+          "press": "[ES] Press",
+          "other": "[ES] Other"
+        },
+        "purposeDesc": {
+          "tourism": "[ES] Holiday or sightseeing",
+          "business": "[ES] Meetings, contracts",
+          "relatives": "[ES] Visiting family in Vietnam",
+          "investment": "[ES] Investment-related visit",
+          "study": "[ES] Course or training",
+          "work": "[ES] Short-term work",
+          "press": "[ES] Journalism or press",
+          "other": "[ES] Other reason"
+        },
+        "visa": {
+          "single": "[ES] Single entry (up to 90 days)",
+          "multiple": "[ES] Multiple entry (up to 90 days)"
+        },
+        "gates": {
+          "noiBai": "[ES] Noi Bai (Hanoi)",
+          "tanSonNhat": "[ES] Tan Son Nhat (HCMC)",
+          "daNang": "[ES] Da Nang",
+          "camRanh": "[ES] Cam Ranh (Nha Trang)",
+          "phuQuoc": "[ES] Phu Quoc",
+          "landBorder": "[ES] Land border",
+          "other": "[ES] Other"
+        },
+        "funding": {
+          "self": "[ES] Myself",
+          "family": "[ES] Family",
+          "employer": "[ES] Employer",
+          "host": "[ES] Host in Vietnam"
+        },
+        "currency": {
+          "usd": "[ES] USD",
+          "vnd": "[ES] VND",
+          "eur": "[ES] EUR",
+          "cny": "[ES] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[ES] Briefly explain the circumstances",
+        "informationCorrect": "[ES] All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "[ES] Do you have any criminal convictions in any country?",
+        "noCommunicableDisease": "[ES] Do you currently have a communicable disease of public health concern?",
+        "noDrugAddiction": "[ES] Do you have any history of drug addiction?",
+        "willObeyLocalLaws": "[ES] I undertake to obey Vietnamese laws during my stay."
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": {
+          "label": "[ES] Stream",
+          "title": "[ES] Which Subclass 600 stream?",
+          "subtitle": "[ES] Pick the stream that best matches your purpose of visit."
+        },
+        "personal": {
+          "label": "[ES] Personal",
+          "title": "[ES] Personal details",
+          "subtitle": "[ES] From your passport."
+        },
+        "passport": {
+          "label": "[ES] Passport",
+          "title": "[ES] Passport",
+          "subtitle": "[ES] Travel document for the visa."
+        },
+        "contact": {
+          "label": "[ES] Contact",
+          "title": "[ES] Contact & residence",
+          "subtitle": "[ES] How Home Affairs can reach you."
+        },
+        "application_context": {
+          "label": "[ES] Context",
+          "title": "[ES] Application context",
+          "subtitle": "[ES] Where you are applying from and the nature of your visit."
+        },
+        "tripDates": {
+          "label": "[ES] Dates",
+          "title": "[ES] When are you visiting?",
+          "subtitle": "[ES] Subclass 600 streams allow stays of 3, 6, or 12 months depending on the stream."
+        },
+        "visit": {
+          "label": "[ES] Visit",
+          "title": "[ES] Visit details",
+          "subtitle": "[ES] Reason, port of arrival, prior travel."
+        },
+        "companions": {
+          "label": "[ES] Family",
+          "title": "[ES] Accompanying family",
+          "subtitle": "[ES] Family travelling with you, if any."
+        },
+        "funding": {
+          "label": "[ES] Funds",
+          "title": "[ES] Trip funding",
+          "subtitle": "[ES] How the trip is paid for."
+        },
+        "health": {
+          "label": "[ES] Health",
+          "title": "[ES] Health declarations",
+          "subtitle": "[ES] Confirm each health-related question."
+        },
+        "character": {
+          "label": "[ES] Character",
+          "title": "[ES] Character declarations",
+          "subtitle": "[ES] Confirm each character-related question."
+        },
+        "declaration": {
+          "label": "[ES] Declare",
+          "title": "[ES] Final declarations",
+          "subtitle": "[ES] Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "[ES] Review",
+        "title": "[ES] Review your Subclass 600 answers",
+        "subtitle": "[ES] Edit anything that's wrong before submitting.",
+        "stream": "[ES] Stream",
+        "personal": "[ES] Personal",
+        "passport": "[ES] Passport",
+        "contact": "[ES] Contact",
+        "applicationContext": "[ES] Application context",
+        "tripDates": "[ES] Trip dates",
+        "visit": "[ES] Visit",
+        "companions": "[ES] Family",
+        "funding": "[ES] Funds",
+        "health": "[ES] Health",
+        "character": "[ES] Character",
+        "declaration": "[ES] Declarations"
+      },
+      "tripDates": {
+        "over12mHint": "[ES] Subclass 600 stays are typically capped at 3, 6, or 12 months depending on stream."
+      },
+      "fields": {
+        "givenNames": "[ES] Given name(s)",
+        "familyName": "[ES] Family name",
+        "anyOtherNames": "[ES] Have you been known by any other names?",
+        "otherNames": "[ES] Other names",
+        "dob": "[ES] Date of birth",
+        "sex": "[ES] Sex",
+        "nationality": "[ES] Nationality",
+        "countryOfBirth": "[ES] Country of birth",
+        "placeOfBirth": "[ES] Town/city of birth",
+        "relationshipStatus": "[ES] Relationship status",
+        "hasNationalId": "[ES] Do you have a national identity card?",
+        "nationalIdNumber": "[ES] National ID number",
+        "pacificAustraliaCardHolder": "[ES] Are you a Pacific-Australia Card holder?",
+        "passportNumber": "[ES] Passport number",
+        "passportIssuing": "[ES] Issuing country",
+        "passportIssueDate": "[ES] Date of issue",
+        "passportExpiryDate": "[ES] Date of expiry",
+        "passportPlaceOfIssue": "[ES] Place of issue",
+        "chineseCommercialCodeNumber": "[ES] Chinese commercial code number (PRC only)",
+        "email": "[ES] Email",
+        "phoneMobile": "[ES] Mobile phone",
+        "phoneHome": "[ES] Home phone",
+        "phoneBusiness": "[ES] Business phone",
+        "residentialAddress": "[ES] Residential address",
+        "city": "[ES] City",
+        "postcode": "[ES] Postcode",
+        "country": "[ES] Country",
+        "applyingAllOutside": "[ES] Will all applicants be outside Australia when the application is decided?",
+        "currentLocationLegalStatus": "[ES] What is your legal status in your current country?",
+        "purposeOfStayInitial": "[ES] Primary purpose of your initial stay",
+        "significantDatesInAustralia": "[ES] Any significant dates in Australia (events, ceremonies, deadlines)?",
+        "eventInvitedByOrganisation": "[ES] Have you been invited by an Australian organisation for an event?",
+        "eventPaidByAustralianOrganisation": "[ES] Will an Australian organisation pay for any part of your visit?",
+        "applyingAsPartOfGroup": "[ES] Are you applying as part of a group of applications?",
+        "arrivalDate": "[ES] Intended arrival",
+        "departureDate": "[ES] Intended departure",
+        "mainReason": "[ES] Main reason for visit",
+        "portOfArrival": "[ES] Port of arrival",
+        "previousAuTravel": "[ES] Have you previously travelled to Australia?",
+        "previousAuVisaGrantDates": "[ES] Approximate dates of previous Australian visas",
+        "hasAccompanyingFamily": "[ES] Are family members travelling with you?",
+        "accompanyingFamilyCount": "[ES] Number of accompanying family members",
+        "hasNonAccompanyingFamily": "[ES] Do you have non-accompanying family members?",
+        "fundingSource": "[ES] Trip funding source",
+        "sponsorName": "[ES] Sponsor name",
+        "sponsorNamePlaceholder": "[ES] Full legal name",
+        "sponsorRelationship": "[ES] Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "[ES] e.g. parent, employer",
+        "fundsAmount": "[ES] Available funds",
+        "fundsAmountPlaceholder": "[ES] e.g. 5000",
+        "fundsCurrency": "[ES] Currency"
+      },
+      "options": {
+        "sex": {
+          "male": "[ES] Male",
+          "female": "[ES] Female",
+          "indeterminate": "[ES] Indeterminate"
+        },
+        "rel": {
+          "never": "[ES] Never married",
+          "married": "[ES] Married",
+          "deFacto": "[ES] De facto",
+          "engaged": "[ES] Engaged",
+          "separated": "[ES] Separated",
+          "divorced": "[ES] Divorced",
+          "widowed": "[ES] Widowed"
+        },
+        "stream": {
+          "tourist": "[ES] Tourist",
+          "business": "[ES] Business Visitor",
+          "sponsored": "[ES] Sponsored Family",
+          "frequent": "[ES] Frequent Traveller"
+        },
+        "streamDesc": {
+          "tourist": "[ES] Holiday, sightseeing, visiting family or friends",
+          "business": "[ES] Short business activities — meetings, conferences, negotiations",
+          "sponsored": "[ES] Family-sponsored visits where a relative supports the application",
+          "frequent": "[ES] Long-validity visa for eligible passport holders making multiple short visits"
+        },
+        "locStatus": {
+          "citizen": "[ES] Citizen",
+          "pr": "[ES] Permanent resident",
+          "temporary": "[ES] Temporary visa holder",
+          "visitor": "[ES] Visitor",
+          "other": "[ES] Other"
+        },
+        "initial": {
+          "business": "[ES] Business",
+          "tourism": "[ES] Tourism",
+          "family": "[ES] Family visit",
+          "study": "[ES] Study",
+          "religious": "[ES] Religious event",
+          "other": "[ES] Other"
+        },
+        "port": {
+          "sydney": "[ES] Sydney",
+          "melbourne": "[ES] Melbourne",
+          "brisbane": "[ES] Brisbane",
+          "perth": "[ES] Perth",
+          "adelaide": "[ES] Adelaide",
+          "goldCoast": "[ES] Gold Coast",
+          "cairns": "[ES] Cairns",
+          "darwin": "[ES] Darwin",
+          "hobart": "[ES] Hobart",
+          "other": "[ES] Other"
+        },
+        "funding": {
+          "self": "[ES] Myself",
+          "family": "[ES] Family",
+          "employer": "[ES] Employer",
+          "sponsor": "[ES] Sponsor"
+        },
+        "currency": {
+          "aud": "[ES] AUD",
+          "usd": "[ES] USD",
+          "eur": "[ES] EUR",
+          "gbp": "[ES] GBP",
+          "cny": "[ES] CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "[ES] Briefly explain the circumstances",
+        "healthLivedOutsidePassport": "[ES] Have you lived outside your passport country for more than 5 years (or 3 months in the last year)?",
+        "healthVisitedFacility": "[ES] Have you been an inpatient at a hospital or health facility in the last 5 years?",
+        "healthHealthcareWorker": "[ES] Are you a healthcare worker (doctor, nurse, paramedic, etc.)?",
+        "healthAgedOrChildcare": "[ES] Have you worked in aged-care or childcare in the last 5 years?",
+        "healthClassroom3Months": "[ES] Have you spent 3+ consecutive months in a classroom (as student or teacher) in the last 5 years?",
+        "healthTbOrChestXray": "[ES] Have you had tuberculosis, an abnormal chest X-ray, or close contact with a TB patient?",
+        "hasHealthInsurance": "[ES] Do you have health insurance covering your stay in Australia?",
+        "charCriminalConvictions": "[ES] Have you been charged with or convicted of any criminal offence anywhere?",
+        "charWarCrimes": "[ES] Have you been involved in war crimes, crimes against humanity, or genocide?",
+        "charSexualOffence": "[ES] Have you been charged with or convicted of a sexual offence (including against a child)?",
+        "charTerrorism": "[ES] Have you been involved in, or supported, terrorism?",
+        "charPeopleSmuggling": "[ES] Have you been involved in people smuggling or human trafficking?",
+        "charMilitaryTraining": "[ES] Have you received specialised military, paramilitary, or weapons/explosives training?",
+        "charVisaRefused": "[ES] Have you ever been refused a visa for any country, or had a visa cancelled?",
+        "informationCorrect": "[ES] All information provided is true and complete to the best of my knowledge.",
+        "understandsNoEntryGuarantee": "[ES] I understand the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "[ES] I am aware that my personal data will be processed by Australian authorities.",
+        "willLeaveBeforeExpiry": "[ES] I undertake to leave Australia before my visa expires.",
+        "genuineVisitor": "[ES] I confirm that I am a genuine visitor and intend to stay temporarily for the purpose stated."
+      }
+    },
+    "loading": "[ES] Getting your intake form ready…",
+    "progress": "[ES] Step {current} of {total} · {name}",
+    "steps": {
+      "0": "[ES] Identity",
+      "1": "[ES] Contact",
+      "2": "[ES] Passport",
+      "3": "[ES] Travel",
+      "usStay": "[ES] U.S. stay",
+      "usContact": "[ES] U.S. Contact",
+      "4": "[ES] Family",
+      "5": "[ES] Background",
+      "6": "[ES] Work & education"
+    },
+    "common": {
+      "continue": "[ES] Continue",
+      "back": "[ES] Back",
+      "submitting": "[ES] Saving your answers…",
+      "yes": "[ES] Yes",
+      "no": "[ES] No"
+    },
+    "identity": {
+      "scanTitle": "[ES] Let's start with your identity",
+      "scanSubtitle": "[ES] Scan your passport to auto-fill, or type the details yourself.",
+      "scanOption": "[ES] Scan passport",
+      "scanOptionHint": "[ES] Auto-fills your details from a photo",
+      "scanComingSoon": "[ES] Coming soon — use manual entry for now",
+      "scanUploadTitle": "[ES] Upload your passport",
+      "scanInstructions": "[ES] Lay the data page flat under good light. We need to read the photo, MRZ, and all printed text.",
+      "scanBrowse": "[ES] Choose a file",
+      "scanBrowseHint": "[ES] JPG, PNG, or WEBP — up to 8 MB",
+      "scanTakePhoto": "[ES] Take a photo",
+      "scanTakePhotoHint": "[ES] Use your camera (mobile)",
+      "scanExtracting": "[ES] Reading your passport…",
+      "scanExtractError": "[ES] We couldn't read this photo. Try a clearer shot or type it manually.",
+      "scanResultTitle": "[ES] Confirm what we found",
+      "scanResultSubtitle": "[ES] Edit anything that looks wrong before continuing.",
+      "scanUseDetails": "[ES] Use these details",
+      "scanRetry": "[ES] Try another photo",
+      "scanFallbackManual": "[ES] Type it manually instead",
+      "scanPrivacyNote": "[ES] Your scan is encrypted in transit, used only for extraction, and removed after submission.",
+      "scanNoDraft": "[ES] Couldn't start a draft application. Reload the page and try again.",
+      "scanWrongFormat": "[ES] Please upload a JPG, PNG, or WEBP image.",
+      "scanTooLarge": "[ES] Image is too large — please use one under 8 MB.",
+      "scanNotAuthenticated": "[ES] Please sign in again to scan your passport.",
+      "scanPassportNumber": "[ES] Passport number",
+      "scanPassportType": "[ES] Passport type",
+      "scanIssuingCountry": "[ES] Issuing country",
+      "scanIssueDate": "[ES] Issue date",
+      "scanExpiryDate": "[ES] Expiry date",
+      "scanWarningsTitle": "[ES] Heads up",
+      "scanConfidence": {
+        "high": "[ES] High confidence",
+        "medium": "[ES] Medium confidence — please double-check",
+        "low": "[ES] Low confidence — please review every field"
+      },
+      "manualOption": "[ES] Type it in",
+      "manualDescription": "[ES] Enter your details manually",
+      "title": "[ES] Your details",
+      "subtitle": "[ES] Enter these exactly as they appear on your passport.",
+      "firstName": "[ES] First name",
+      "firstNamePlaceholder": "[ES] e.g. Edward",
+      "lastName": "[ES] Last name",
+      "lastNamePlaceholder": "[ES] e.g. Zhang",
+      "dateOfBirth": "[ES] Date of birth",
+      "dateOfBirthPlaceholder": "[ES] Select your date of birth",
+      "gender": "[ES] Gender",
+      "male": "[ES] Male",
+      "female": "[ES] Female",
+      "countryOfBirth": "[ES] Country of birth",
+      "countryOfBirthPlaceholder": "[ES] Select country",
+      "cityOfBirth": "[ES] City of birth",
+      "cityOfBirthPlaceholder": "[ES] e.g. Shanghai",
+      "stateOfBirth": "[ES] State/Province of birth",
+      "stateOfBirthPlaceholder": "[ES] e.g. Guangdong",
+      "noStateProvince": "[ES] My country of birth has no states/provinces",
+      "nationality": "[ES] Nationality",
+      "nationalityPlaceholder": "[ES] Select nationality",
+      "maritalStatus": "[ES] Marital status",
+      "maritalStatusPlaceholder": "[ES] Select marital status",
+      "single": "[ES] Single",
+      "married": "[ES] Married",
+      "commonLawMarriage": "[ES] Common Law Marriage",
+      "civilUnion": "[ES] Civil Union / Domestic Partnership",
+      "legallySeparated": "[ES] Legally Separated",
+      "divorced": "[ES] Divorced",
+      "widowed": "[ES] Widowed",
+      "other": "[ES] Other",
+      "maritalStatusOtherExplain": "[ES] Please describe your marital status",
+      "maritalStatusOtherExplainPlaceholder": "[ES] Describe your marital status",
+      "hasOtherName": "[ES] Have you gone by a different name?",
+      "hasOtherNameTooltip": "[ES] This includes maiden names, religious names, professional names or any other name previously used on official documents. For example: Former name: Wang Xiaohong → Li Xiaohong (after marriage)",
+      "otherFirstName": "[ES] Other first name",
+      "otherFirstNamePlaceholder": "[ES] Previous or alternate first name",
+      "otherLastName": "[ES] Other last name",
+      "otherLastNamePlaceholder": "[ES] Previous or alternate last name",
+      "hasNativeAlphabet": "[ES] Does your name use non-English characters?",
+      "hasNativeAlphabetTooltip": "[ES] If your passport shows your name in Chinese characters, select 'Yes' and enter it as shown. For example: 张伟 or 李明",
+      "nativeAlphabetName": "[ES] Full name in native alphabet",
+      "nativeAlphabetNamePlaceholder": "[ES] e.g. 张泽华",
+      "hasTelecode": "[ES] Do you have a telecode for your name?",
+      "hasTelecodeTooltip": "[ES] A telecode is a 4-digit number representing a Chinese character. If you know your telecode, select 'Yes' and enter the number. For example: 张 = 1728, 伟 = 0251, 李 = 2621, 明 = 2494",
+      "telecodeFirstName": "[ES] Telecode given names",
+      "telecodeFirstNamePlaceholder": "[ES] Telecode given names",
+      "telecodeLastName": "[ES] Telecode surname",
+      "telecodeLastNamePlaceholder": "[ES] Telecode surname",
+      "spouseTitle": "[ES] Spouse's details",
+      "spouseFirstName": "[ES] Spouse's given names",
+      "spouseLastName": "[ES] Spouse's surname",
+      "spouseDob": "[ES] Spouse's date of birth",
+      "spouseNationality": "[ES] Spouse's nationality",
+      "spouseCityOfBirth": "[ES] Spouse's city of birth",
+      "spouseCountryOfBirth": "[ES] Spouse's country of birth"
+    },
+    "contact": {
+      "title": "[ES] How can the embassy reach you?",
+      "subtitle": "[ES] Primary contact, home address, and any social profiles required by DS-160.",
+      "email": "[ES] Email",
+      "emailPlaceholder": "[ES] you@example.com",
+      "phone": "[ES] Phone",
+      "phonePlaceholder": "[ES] +1 555 000 0000",
+      "secondaryPhone": "[ES] Other phone (optional)",
+      "secondaryPhoneHint": "[ES] A second number the embassy can reach you at",
+      "secondaryPhonePlaceholder": "[ES] Additional phone number",
+      "secondaryEmail": "[ES] Other email (optional)",
+      "secondaryEmailHint": "[ES] A second email you use",
+      "secondaryEmailPlaceholder": "[ES] another@example.com",
+      "homeAddressTitle": "[ES] Home address",
+      "homeCountry": "[ES] Country",
+      "homeCountryPlaceholder": "[ES] Select country",
+      "street": "[ES] Street address",
+      "streetPlaceholder": "[ES] Street and number",
+      "city": "[ES] City",
+      "cityPlaceholder": "[ES] City",
+      "state": "[ES] State / Province",
+      "statePlaceholder": "[ES] State or province (optional)",
+      "postalCode": "[ES] Postal code",
+      "postalCodePlaceholder": "[ES] Postal code",
+      "mailingSame": "[ES] Is your mailing address the same?",
+      "socialMedia": "[ES] Social media",
+      "socialMediaHint": "[ES] DS-160 requires disclosing the platforms you use. Pick any that apply.",
+      "useSocialMedia": "[ES] Do you use social media?",
+      "socialHandlePlaceholder": "[ES] {platform} username or handle",
+      "otherPlatforms": "[ES] Other platforms",
+      "otherPlatformsPlaceholder": "[ES] Select a platform",
+      "customPlatformLabel": "[ES] Platform",
+      "customPlatformPlaceholder": "[ES] e.g. WeChat",
+      "customUsernameLabel": "[ES] Username",
+      "customUsernamePlaceholder": "[ES] @username",
+      "addAnotherPlatform": "[ES] Add other platform"
+    },
+    "passport": {
+      "title": "[ES] Passport & identification",
+      "subtitle": "[ES] Match what's printed on your passport exactly.",
+      "type": "[ES] Passport type",
+      "typeRegular": "[ES] Regular",
+      "typeRegularHint": "[ES] Most common",
+      "typeOfficial": "[ES] Official",
+      "typeDiplomatic": "[ES] Diplomatic",
+      "typePermit": "[ES] Permit",
+      "typeOther": "[ES] Other",
+      "number": "[ES] Passport number",
+      "numberPlaceholder": "[ES] e.g. E12345678",
+      "numberHint": "[ES] On the passport information page. Usually 8-9 characters.",
+      "bookNumber": "[ES] Passport book number",
+      "bookNumberQuestion": "[ES] Does your passport have a separate book number?",
+      "bookNumberHint": "[ES] Only if your passport has a separate book number",
+      "bookNumberHelp": "[ES] Some passports include an extra number on the inside cover page. Most do not. If unsure, choose \"No\".",
+      "bookNumberPlaceholder": "[ES] Book number",
+      "issuingCountry": "[ES] Issuing country",
+      "issuingCountryPlaceholder": "[ES] Select country",
+      "issuedInAnotherCountry": "[ES] Was it issued in another country?",
+      "issuedInAnotherCountryCountry": "[ES] Country where passport was issued",
+      "issuanceCity": "[ES] City",
+      "issuanceCityPlaceholder": "[ES] City",
+      "issuanceProvince": "[ES] State / Province",
+      "issuanceProvincePlaceholder": "[ES] State / Province",
+      "extraQuestionsTitle": "[ES] A few extra questions",
+      "extraOtherCitizenship": "[ES] Do you hold citizenship of another country?",
+      "extraOtherCountryPermanentResidence": "[ES] Are you a permanent resident of another country?",
+      "extraUsSocialSecurityOrTaxId": "[ES] Have you ever had a U.S. social security number or taxpayer ID?",
+      "extraNationalityCardTitle": "[ES] Nationality {index}",
+      "extraNationalityCountry": "[ES] Country",
+      "extraNationalityCountryPlaceholder": "[ES] Select",
+      "extraNationalityHasPassport": "[ES] Do you hold that country's passport?",
+      "extraNationalityPassportNumber": "[ES] Passport number",
+      "extraNationalityPassportNumberPlaceholder": "[ES] Passport number",
+      "extraAddNationality": "[ES] Add nationality",
+      "extraAddCountry": "[ES] Add country",
+      "extraSsnLabel": "[ES] Social Security Number (SSN)",
+      "extraSsnInputLabel": "[ES] SSN",
+      "extraSsnPlaceholder": "[ES] •••-••-••••",
+      "extraSsnHint": "[ES] Only fill this if you had one before (for example, if you previously worked in the U.S.).",
+      "extraItinLabel": "[ES] Taxpayer Identification Number (ITIN)",
+      "extraItinInputLabel": "[ES] ITIN",
+      "extraItinPlaceholder": "[ES] 9XX-XX-XXXX",
+      "extraItinHint": "[ES] IRS-issued tax number. Only fill this if you previously filed U.S. taxes.",
+      "nationalIdSectionTitle": "[ES] National ID",
+      "nationalIdInputLabel": "[ES] Resident ID Number",
+      "nationalIdHelp": "[ES] Your 18-digit Chinese Resident Identity Card number.",
+      "nationalIdPlaceholderLong": "[ES] e.g. 110101199001011234",
+      "nationalIdNone": "[ES] I do not have one",
+      "lostPassportSectionTitle": "[ES] Lost or Stolen Passport",
+      "lostPassportQuestion": "[ES] Have you ever lost a passport or had one stolen?",
+      "lostPassportCardTitle": "[ES] Lost passport 1",
+      "lostPassportKnowNumber": "[ES] Do you know the passport number?",
+      "lostPassportNumber": "[ES] Passport number",
+      "lostPassportCountry": "[ES] Country / issuing authority",
+      "lostPassportExplanationPlaceholderLong": "[ES] Describe what happened...",
+      "issueDate": "[ES] Issue date",
+      "issueDatePlaceholder": "[ES] Select issue date",
+      "expiryDate": "[ES] Expiration date",
+      "expiryDatePlaceholder": "[ES] Select expiry date",
+      "additionalNationality": "[ES] Are you a citizen of any other country?",
+      "additionalNationalityPlaceholder": "[ES] Select additional nationality",
+      "nationalId": "[ES] Do you have a national ID from your country?",
+      "nationalIdHint": "[ES] e.g. China Resident ID, Indian Aadhaar",
+      "nationalIdPlaceholder": "[ES] National ID number",
+      "lostPassport": "[ES] Have you ever lost a passport or had one stolen?",
+      "lostPassportExplanation": "[ES] What happened?",
+      "lostPassportExplanationPlaceholder": "[ES] Briefly describe the circumstances"
+    },
+    "travel": {
+      "title": "[ES] Your trip & U.S. visa history",
+      "subtitle": "[ES] Rough dates are fine. Most answers here are simple yes/no.",
+      "specificPlanTitle": "[ES] Travel dates",
+      "estimatedPlanTitle": "[ES] Estimated trip details",
+      "usAddressTitle": "[ES] Address where you'll stay in the U.S.",
+      "usStayPageTitle": "[ES] Where will you stay in the U.S.?",
+      "usStayPageSubtitle": "[ES] Please provide your accommodation details while in the U.S.",
+      "accomTypeTitle": "[ES] Accommodation type",
+      "accomHotel": "[ES] Hotel/Resort",
+      "accomAirbnb": "[ES] Airbnb/Short-term",
+      "accomFriends": "[ES] Friends/Family",
+      "accomBusiness": "[ES] Business",
+      "accomSchool": "[ES] School/University",
+      "accomOther": "[ES] Other",
+      "accomHotelNameTitle": "[ES] Hotel/Resort name",
+      "accomHostNameTitle": "[ES] Host's name",
+      "accomFriendsContactTitle": "[ES] Contact's name",
+      "accomBusinessTitle": "[ES] Company name",
+      "accomSchoolTitle": "[ES] School/University name",
+      "accomOtherContactTitle": "[ES] Contact person",
+      "accomContactSubtitle": "[ES] Who or where will you be staying with",
+      "hotelHint": "[ES] You can find the hotel address and phone number in your booking confirmation email or on the hotel's website.",
+      "airbnbHint": "[ES] Please use the host's name and property address from your Airbnb booking.",
+      "howKnowThem": "[ES] How do you know them?",
+      "relative": "[ES] Relative",
+      "friend": "[ES] Friend",
+      "accomHotelAddressTitle": "[ES] Hotel address",
+      "accomAirbnbAddressTitle": "[ES] Rental address",
+      "accomFriendsAddressTitle": "[ES] Their U.S. address",
+      "accomBusinessAddressTitle": "[ES] Company address",
+      "accomSchoolAddressTitle": "[ES] School address",
+      "accomOtherAddressTitle": "[ES] Contact address",
+      "accomAddressSubtitle": "[ES] The full address of your U.S. accommodation",
+      "schoolName": "[ES] School name",
+      "schoolNamePlaceholder": "[ES] School or university name",
+      "hostFirstNamePlaceholder": "[ES] e.g. John",
+      "hostLastNamePlaceholder": "[ES] e.g. Smith",
+      "contactFirstNamePlaceholder": "[ES] e.g. John",
+      "contactLastNamePlaceholder": "[ES] e.g. Doe",
+      "usStreet2": "[ES] Address line 2",
+      "usStreet2Placeholder": "[ES] e.g. Apt 4B",
+      "usStateLabel": "[ES] State",
+      "usCityPlaceholderUs": "[ES] e.g. New York",
+      "usStatePlaceholderUs": "[ES] e.g. New York",
+      "usZipPlaceholderUs": "[ES] e.g. 10001",
+      "contactInfoHotel": "[ES] Hotel contact info",
+      "contactInfoAirbnb": "[ES] Host contact info",
+      "contactInfoFriends": "[ES] Your contact's phone & email",
+      "contactInfoBusiness": "[ES] Company contact info",
+      "contactInfoSchool": "[ES] School contact info",
+      "contactInfoOther": "[ES] Contact person info",
+      "contactInfoHotelSubtitle": "[ES] The hotel's phone and email — not yours",
+      "contactInfoFriendsSubtitle": "[ES] Your friend or relative's phone and email — not yours",
+      "contactInfoDefaultSubtitle": "[ES] Their phone and email — not yours",
+      "contactEmailHotelPlaceholder": "[ES] e.g. hotel@example.com",
+      "contactEmailPlaceholder": "[ES] e.g. contact@example.com",
+      "unknownContactEmail": "[ES] I don't know their email",
+      "plans": "[ES] Do you have specific travel plans?",
+      "plansYes": "[ES] Yes",
+      "plansYesHint": "[ES] Dates & address confirmed",
+      "plansIdea": "[ES] Have an idea",
+      "plansIdeaHint": "[ES] Approximate dates",
+      "plansUnsure": "[ES] Not sure yet",
+      "plansUnsureHint": "[ES] Skip these details",
+      "arrivalDate": "[ES] Arrival date",
+      "arrivalDatePlaceholder": "[ES] Select arrival date",
+      "departureDate": "[ES] Departure date",
+      "departureDatePlaceholder": "[ES] Select departure date",
+      "arrivalCity": "[ES] Arrival city",
+      "arrivalCityPlaceholder": "[ES] e.g. New York",
+      "arrivalFlight": "[ES] Arrival flight (if known)",
+      "arrivalFlightPlaceholder": "[ES] e.g. AA1234",
+      "departureCity": "[ES] Departure city",
+      "departureCityPlaceholder": "[ES] e.g. Los Angeles",
+      "departureFlight": "[ES] Departure flight (if known)",
+      "departureFlightPlaceholder": "[ES] e.g. UA5678",
+      "placesToVisit": "[ES] Places you plan to visit in the U.S.",
+      "placeToVisitPlaceholder": "[ES] e.g. New York",
+      "addPlace": "[ES] Add place",
+      "estimatedArrivalDate": "[ES] Approximate arrival date",
+      "lengthOfStay": "[ES] Length of stay",
+      "lengthOfStayPlaceholder": "[ES] 14",
+      "lengthUnit": "[ES] Duration",
+      "days": "[ES] Days",
+      "weeks": "[ES] Weeks",
+      "months": "[ES] Months",
+      "years": "[ES] Years",
+      "lessThan24Hours": "[ES] Less than 24 hours",
+      "accommodationPlaceholder": "[ES] Select accommodation type",
+      "accommodation": "[ES] Where will you stay?",
+      "hotelMotel": "[ES] Hotel/Motel",
+      "privateHome": "[ES] Private home",
+      "shortTermRental": "[ES] Short-term rental",
+      "other": "[ES] Other",
+      "hotelName": "[ES] Hotel name",
+      "hotelNamePlaceholder": "[ES] e.g. Hilton Garden Inn",
+      "usStreet": "[ES] U.S. street address",
+      "usStreetPlaceholder": "[ES] e.g. 350 Fifth Avenue",
+      "usCity": "[ES] City",
+      "usCityPlaceholder": "[ES] City",
+      "usState": "[ES] State",
+      "usStatePlaceholder": "[ES] State",
+      "usZip": "[ES] ZIP",
+      "usZipPlaceholder": "[ES] ZIP",
+      "companionsTitle": "[ES] Travel companions",
+      "payer": "[ES] Who is paying for this trip?",
+      "payerSelf": "[ES] Self",
+      "payerFamily": "[ES] Family",
+      "payerEmployer": "[ES] Employer",
+      "payerOther": "[ES] Other",
+      "embassyLocation": "[ES] Embassy / consulate where you'll interview",
+      "embassyLocationHint": "[ES] Usually the U.S. embassy closest to where you live",
+      "embassyLocationPlaceholder": "[ES] e.g. China — Beijing",
+      "tripPaymentTitle": "[ES] Trip payment",
+      "payerPlaceholder": "[ES] Select payer",
+      "payerOtherPerson": "[ES] Other person",
+      "payerCurrentEmployer": "[ES] Current employer",
+      "payerUsEmployer": "[ES] U.S. employer",
+      "payerOtherCompany": "[ES] Other company/organization",
+      "payerOtherPersonDetails": "[ES] Other person details",
+      "firstName": "[ES] First name",
+      "firstNamePlaceholder": "[ES] e.g. Zhang",
+      "lastName": "[ES] Last name",
+      "lastNamePlaceholder": "[ES] e.g. Wei",
+      "phone": "[ES] Phone number",
+      "phonePlaceholder": "[ES] 11-digit number",
+      "dialCode": "[ES] Dial code",
+      "email": "[ES] Email",
+      "emailPlaceholder": "[ES] e.g. email@example.com",
+      "unknownPayerEmail": "[ES] I don't know their email",
+      "yourRelationship": "[ES] Your relationship",
+      "relationshipPlaceholder": "[ES] Select relationship",
+      "payerAddressSameAsYou": "[ES] Is their address the same as yours?",
+      "street1": "[ES] Street address (line 1)",
+      "street1Placeholder": "[ES] e.g. 123 Main St",
+      "street2": "[ES] Street address (line 2)",
+      "street2Placeholder": "[ES] e.g. Apt 4B",
+      "city": "[ES] City",
+      "cityPlaceholder": "[ES] e.g. Beijing",
+      "stateProvince": "[ES] State/Province",
+      "stateProvincePlaceholder": "[ES] State/Province",
+      "noStateProvince": "[ES] This country has no state/province",
+      "postalCode": "[ES] Postal code",
+      "postalCodePlaceholder": "[ES] Postal code",
+      "noPostalCode": "[ES] This country has no postal code",
+      "country": "[ES] Country",
+      "payerOrgDetails": "[ES] Company/organization details",
+      "orgName": "[ES] Company/organization name",
+      "orgNamePlaceholder": "[ES] e.g. Acme Corp",
+      "orgRelationshipPlaceholder": "[ES] e.g. Sponsor, Employer",
+      "visaHistoryTitle": "[ES] U.S. visa history",
+      "previousVisa": "[ES] Have you ever been issued a U.S. visa?",
+      "previousVisaNumber": "[ES] Visa number",
+      "previousVisaNumberPlaceholder": "[ES] Previous U.S. visa number",
+      "previousVisaExpiry": "[ES] Visa expiry",
+      "previousVisaExpiryPlaceholder": "[ES] Expiration date",
+      "previousRefusal": "[ES] Have you ever been refused a U.S. visa or admission?",
+      "refusalExplanation": "[ES] Briefly explain",
+      "refusalExplanationPlaceholder": "[ES] Share the date and circumstances",
+      "estaDenied": "[ES] Have you ever been denied ESTA?",
+      "petitionFiled": "[ES] Has anyone filed an immigration petition for you?",
+      "hasCompanions": "[ES] Are there other people traveling with you?",
+      "companionGroupTravel": "[ES] Are you traveling as part of a group or organization?",
+      "companionGroupName": "[ES] Group/organization name",
+      "companionGroupNamePlaceholder": "[ES] Group or organization name",
+      "travelerN": "[ES] Traveler {index}",
+      "hasCompanionsHint": "[ES] Family, friends, or colleagues",
+      "companionFirstName": "[ES] Companion's given names",
+      "companionFirstNamePlaceholder": "[ES] e.g. Jane",
+      "companionLastName": "[ES] Companion's surname",
+      "companionLastNamePlaceholder": "[ES] e.g. Doe",
+      "companionRelationship": "[ES] Relationship",
+      "companionRelationshipPlaceholder": "[ES] Please select...",
+      "relationshipChild": "[ES] Child",
+      "relationshipParent": "[ES] Parent",
+      "relationshipSpouse": "[ES] Spouse",
+      "relationshipRelative": "[ES] Relative",
+      "relationshipFriend": "[ES] Friend",
+      "relationshipBusinessPartner": "[ES] Business partner",
+      "addTraveler": "[ES] Add traveler",
+      "internationalTravelTitle": "[ES] International travel history",
+      "hasVisitedOtherCountriesLast5Years": "[ES] In the last five years, have you visited any other countries?",
+      "visitedCountries": "[ES] Countries visited",
+      "countryPlaceholder": "[ES] Select",
+      "addCountry": "[ES] Add country",
+      "previousUsTravelTitle": "[ES] Previous U.S. travel",
+      "previousVisits": "[ES] Previous visits",
+      "visitN": "[ES] Visit {index}",
+      "unit": "[ES] Unit",
+      "addVisit": "[ES] Add visit",
+      "licenseN": "[ES] License {index}",
+      "unknownLicenseNumber": "[ES] I don't know the license number",
+      "addLicense": "[ES] Add license",
+      "previousUsVisaTitle": "[ES] Previous U.S. visa",
+      "visaIssueCountry": "[ES] Visa issuing country",
+      "visaIssueDate": "[ES] Issue date",
+      "visaValidUntil": "[ES] Valid until",
+      "unknownVisaNumber": "[ES] I don't know the visa number",
+      "sameVisaType": "[ES] Are you applying for the same visa class?",
+      "sameCountryApply": "[ES] Are you applying in the same country where it was issued?",
+      "tenPrinted": "[ES] Have your ten fingerprints been taken?",
+      "visaLostStolen": "[ES] Has your visa ever been lost or stolen?",
+      "visaLostStolenYear": "[ES] Year lost",
+      "visaCancelledRevoked": "[ES] Has your visa ever been cancelled or revoked?",
+      "received221g": "[ES] Have you ever received a 221(g) notice?",
+      "explanation": "[ES] Explanation",
+      "explanationPlaceholder": "[ES] Brief explanation",
+      "explanationDetailPlaceholder": "[ES] Describe the situation...",
+      "refusalDateKnown": "[ES] Refusal date (if known)",
+      "refusalDatePlaceholder": "[ES] Select refusal date",
+      "hasBeenInUs": "[ES] Have you ever been to the U.S. before?",
+      "hasBeenInUsHint": "[ES] Even a short tourist trip counts",
+      "previousVisitDate": "[ES] Date of last visit",
+      "previousVisitDatePlaceholder": "[ES] Date of last visit",
+      "previousVisitLength": "[ES] Length of stay",
+      "previousVisitLengthPlaceholder": "[ES] 14",
+      "hasUsDriversLicense": "[ES] Do you hold a U.S. driver's license?",
+      "driversLicenseNumber": "[ES] Driver's license number",
+      "driversLicenseNumberPlaceholder": "[ES] License number",
+      "driversLicenseState": "[ES] State that issued it",
+      "driversLicenseStatePlaceholder": "[ES] e.g. California"
+    },
+    "work": {
+      "title": "[ES] Work & education",
+      "subtitle": "[ES] What you do day-to-day — used for the DS-160 employment / study section.",
+      "primaryOccupation": "[ES] Primary occupation",
+      "primaryOccupationPlaceholder": "[ES] Select your occupation",
+      "occupations": {
+        "business": "[ES] Business",
+        "education": "[ES] Education",
+        "engineering": "[ES] Engineering",
+        "computerScience": "[ES] Computer Science",
+        "medical": "[ES] Medical / Health",
+        "government": "[ES] Government",
+        "artist": "[ES] Artist / Performer",
+        "student": "[ES] Student",
+        "homemaker": "[ES] Homemaker",
+        "retired": "[ES] Retired",
+        "notEmployed": "[ES] Not Employed",
+        "other": "[ES] Other"
+      },
+      "occupationOtherExplain": "[ES] Describe your occupation",
+      "occupationOtherExplainPlaceholder": "[ES] e.g. Freelance translator",
+      "employerTitle": "[ES] Current employer / school",
+      "employerName": "[ES] Employer or school name",
+      "employerNamePlaceholder": "[ES] e.g. Tencent",
+      "jobTitle": "[ES] Job title",
+      "jobTitlePlaceholder": "[ES] e.g. Software Engineer",
+      "employmentStartDate": "[ES] Start date",
+      "employmentStartDatePlaceholder": "[ES] Select start date",
+      "monthlySalary": "[ES] Monthly salary (local currency)",
+      "monthlySalaryPlaceholder": "[ES] e.g. 30000",
+      "jobDuties": "[ES] Brief description of duties",
+      "jobDutiesPlaceholder": "[ES] e.g. Backend development for ad platform",
+      "employerPhone": "[ES] Employer phone",
+      "employerPhonePlaceholder": "[ES] +86 10 0000 0000",
+      "employerStreet": "[ES] Employer street address",
+      "employerStreetPlaceholder": "[ES] Street and number",
+      "employerCity": "[ES] City",
+      "employerCityPlaceholder": "[ES] City",
+      "employerState": "[ES] State / Province",
+      "employerStatePlaceholder": "[ES] State or province",
+      "employerPostal": "[ES] Postal code",
+      "employerPostalPlaceholder": "[ES] Postal code",
+      "employerCountry": "[ES] Country",
+      "employerCountryPlaceholder": "[ES] Select country",
+      "hasPreviousEmployer": "[ES] Have you had a previous employer?",
+      "prevEmployerTitle": "[ES] Previous employer",
+      "prevEmployerName": "[ES] Previous employer name",
+      "prevEmployerNamePlaceholder": "[ES] e.g. Alibaba",
+      "prevJobTitle": "[ES] Previous job title",
+      "prevJobTitlePlaceholder": "[ES] e.g. Junior Engineer",
+      "prevEmploymentStart": "[ES] Started",
+      "prevEmploymentEnd": "[ES] Ended",
+      "hasAttendedEducation": "[ES] Have you attended any school past secondary?",
+      "educationTitle": "[ES] Education",
+      "educationInstitution": "[ES] Institution name",
+      "educationInstitutionPlaceholder": "[ES] e.g. Tsinghua University",
+      "educationCourse": "[ES] Course of study",
+      "educationCoursePlaceholder": "[ES] e.g. Computer Science",
+      "educationStart": "[ES] Started",
+      "educationEnd": "[ES] Ended",
+      "educationCity": "[ES] City",
+      "educationCityPlaceholder": "[ES] City",
+      "educationCountry": "[ES] Country",
+      "educationCountryPlaceholder": "[ES] Select country"
+    },
+    "usContact": {
+      "title": "[ES] Your U.S. contact",
+      "subtitle": "[ES] A person or organization in the U.S. that knows you. Required for every DS-160.",
+      "contactType": "[ES] Type of contact",
+      "typePerson": "[ES] Person",
+      "typeOrganization": "[ES] Organization",
+      "organizationName": "[ES] Organization name",
+      "organizationNamePlaceholder": "[ES] e.g. ABC Corporation",
+      "contactFirstName": "[ES] First name",
+      "contactFirstNamePlaceholder": "[ES] e.g. Jane",
+      "contactLastName": "[ES] Last name",
+      "contactLastNamePlaceholder": "[ES] e.g. Smith",
+      "relationship": "[ES] Relationship to you",
+      "relationshipPlaceholder": "[ES] Select relationship",
+      "relationships": {
+        "relative": "[ES] Relative",
+        "spouse": "[ES] Spouse",
+        "friend": "[ES] Friend",
+        "businessAssociate": "[ES] Business associate",
+        "employer": "[ES] Employer",
+        "schoolOfficial": "[ES] School official",
+        "other": "[ES] Other"
+      },
+      "street1": "[ES] Street address",
+      "street1Placeholder": "[ES] Street and number",
+      "street2": "[ES] Address line 2 (optional)",
+      "street2Placeholder": "[ES] Apartment, suite, etc.",
+      "city": "[ES] City",
+      "cityPlaceholder": "[ES] City",
+      "state": "[ES] State",
+      "statePlaceholder": "[ES] Select state",
+      "zip": "[ES] ZIP code",
+      "zipPlaceholder": "[ES] e.g. 10001",
+      "phone": "[ES] Phone",
+      "phonePlaceholder": "[ES] +1 555 000 0000",
+      "email": "[ES] Email",
+      "emailPlaceholder": "[ES] contact@example.com"
+    },
+    "family": {
+      "title": "[ES] Family & background",
+      "subtitle": "[ES] A few questions about your family — standard for all visa applications.",
+      "fatherTitle": "[ES] Father's information",
+      "motherTitle": "[ES] Mother",
+      "parentSubtitle": "[ES] As shown on ID or as best you know",
+      "fatherUnknown": "[ES] I don't know my father's information",
+      "fatherMarkedUnknown": "[ES] Father's information is marked as unknown",
+      "motherUnknown": "[ES] I don't know my mother's information",
+      "motherMarkedUnknown": "[ES] Mother's information is marked as unknown",
+      "givenName": "[ES] Given name",
+      "givenNamePlaceholder": "[ES] e.g. Wei",
+      "surname": "[ES] Surname",
+      "surnamePlaceholder": "[ES] e.g. Zhang",
+      "noGivenName": "[ES] No given name (single name only)",
+      "notApplicable": "[ES] Not applicable",
+      "required": "[ES] Required",
+      "wrongStatus": "[ES] Wrong status? Go back",
+      "spouseTitle": "[ES] Spouse information",
+      "spouseSubtitle": "[ES] Legal name and basic details",
+      "deceasedSpouseTitle": "[ES] Deceased spouse",
+      "formerSpouseTitle": "[ES] Former spouses",
+      "formerSpouseSubtitle": "[ES] Provide info for each former spouse (max 5)",
+      "formerSpouseN": "[ES] Former spouse {n}",
+      "addFormerSpouse": "[ES] Add former spouse",
+      "addAnotherFormerSpouse": "[ES] Add another former spouse",
+      "dateOfBirth": "[ES] Date of birth",
+      "dateOfBirthPlaceholder": "[ES] Select date",
+      "nationality": "[ES] Nationality",
+      "cityOfBirth": "[ES] City of birth",
+      "cityOfBirthPlaceholder": "[ES] e.g. Beijing",
+      "countryOfBirth": "[ES] Country of birth",
+      "countryPlaceholder": "[ES] Select",
+      "datePlaceholder": "[ES] Select date",
+      "spouseAddressType": "[ES] Spouse address type",
+      "spouseAddressTypePlaceholder": "[ES] Select address type",
+      "addressHome": "[ES] Same as home address",
+      "addressWork": "[ES] Same as work address",
+      "addressOther": "[ES] Other address",
+      "street1": "[ES] Street address (line 1)",
+      "street1Placeholder": "[ES] e.g. 123 Main St",
+      "street2": "[ES] Street address (line 2)",
+      "street2Placeholder": "[ES] e.g. Apt 4B",
+      "city": "[ES] City",
+      "cityPlaceholder": "[ES] e.g. Beijing",
+      "stateProvince": "[ES] State/Province",
+      "stateProvincePlaceholder": "[ES] State/Province",
+      "noStateProvince": "[ES] This country has no state/province",
+      "postalCode": "[ES] Postal code",
+      "postalCodePlaceholder": "[ES] Postal code",
+      "noPostalCode": "[ES] This country has no postal code",
+      "country": "[ES] Country",
+      "marriageDate": "[ES] Marriage date",
+      "divorceDate": "[ES] Marriage end date",
+      "howEnded": "[ES] How did the marriage end?",
+      "howEndedHint": "[ES] Free text — max 200 characters",
+      "howEndedPlaceholder": "[ES] e.g. Mutual divorce",
+      "divorceCountry": "[ES] Country where marriage ended",
+      "fatherKnown": "[ES] Father known?",
+      "fatherFirstName": "[ES] Father first name",
+      "fatherLastName": "[ES] Father last name",
+      "motherKnown": "[ES] Mother known?",
+      "motherFirstName": "[ES] Mother first name",
+      "motherLastName": "[ES] Mother last name",
+      "iKnow": "[ES] I know",
+      "iDontKnow": "[ES] I don't know",
+      "firstNamePlaceholder": "[ES] First name",
+      "lastNamePlaceholder": "[ES] Last name",
+      "relativesInUs": "[ES] Do you have immediate relatives in the U.S.?",
+      "relativesInUsHint": "[ES] Spouse, fiancé(e), children, siblings, or parents",
+      "relativeN": "[ES] Relative {n}",
+      "relativeFirstName": "[ES] Given names",
+      "relativeFirstNamePlaceholder": "[ES] Given names",
+      "relativeLastName": "[ES] Surname",
+      "relativeLastNamePlaceholder": "[ES] Surname",
+      "relativeRelationship": "[ES] Relationship",
+      "relationSpouse": "[ES] Spouse",
+      "relationFiance": "[ES] Fiancé(e)",
+      "relationChild": "[ES] Child",
+      "relationSibling": "[ES] Sibling",
+      "relativeStatus": "[ES] Their status in the U.S.",
+      "statusCitizen": "[ES] Citizen",
+      "statusLpr": "[ES] Permanent resident",
+      "statusNonimmigrant": "[ES] Nonimmigrant",
+      "statusOther": "[ES] Other / unknown",
+      "hasOtherRelatives": "[ES] Do you have any other relatives in the U.S.?",
+      "hasOtherRelativesHint": "[ES] Cousins, aunts/uncles, in-laws — most select No",
+      "addAnotherRelative": "[ES] Add another relative",
+      "removeRelative": "[ES] Remove relative",
+      "clanTribe": "[ES] Do you belong to a clan or tribe?",
+      "clanTribeHint": "[ES] Most applicants select No",
+      "clanTribeName": "[ES] Clan or tribe name",
+      "clanTribeNamePlaceholder": "[ES] Clan or tribe name",
+      "languages": "[ES] Languages you speak",
+      "languagesHint": "[ES] Pick all that apply — add more if needed",
+      "recommendedLanguages": "[ES] Recommended for you",
+      "languageN": "[ES] Language {n}",
+      "languageEnglish": "[ES] English",
+      "languageSpanish": "[ES] Spanish",
+      "languageFrench": "[ES] French",
+      "languageArabic": "[ES] Arabic",
+      "languageChineseMandarin": "[ES] Chinese (Mandarin)",
+      "languageChineseCantonese": "[ES] Chinese (Cantonese)",
+      "languageHindi": "[ES] Hindi",
+      "languagePortuguese": "[ES] Portuguese",
+      "languageRussian": "[ES] Russian",
+      "languageJapanese": "[ES] Japanese",
+      "languageKorean": "[ES] Korean",
+      "languageGerman": "[ES] German",
+      "languageItalian": "[ES] Italian",
+      "languageTurkish": "[ES] Turkish",
+      "languageVietnamese": "[ES] Vietnamese",
+      "languageThai": "[ES] Thai",
+      "languageMalay": "[ES] Malay",
+      "languageTamil": "[ES] Tamil",
+      "addLanguage": "[ES] Add another language",
+      "addLanguagePlaceholder": "[ES] Another language",
+      "removeLanguage": "[ES] Remove {lang}"
+    },
+    "background": {
+      "title": "[ES] Background & embassy account",
+      "subtitle": "[ES] Most applicants select \"none apply\". The three security questions at the bottom are required by every DS-160.",
+      "grounds": "[ES] Do any of these apply to you?",
+      "noneApply": "[ES] None apply to me",
+      "noneApplyHint": "[ES] Health, criminal, security, immigration — all set to No",
+      "someApply": "[ES] One or more apply",
+      "someApplyHint": "[ES] You'll be prompted in the full form",
+      "addMoreInFullForm": "[ES] We'll set the obvious questions to No for now. You can edit any of them in the full form review.",
+      "needAnswer": "[ES] Yes, I need to answer",
+      "needAnswerHint": "[ES] Choose categories and answer the detailed questions",
+      "categoryPrompt": "[ES] Which categories apply to you? Select all that apply:",
+      "categoryHealth": "[ES] Health",
+      "categoryHealthSubtitle": "[ES] Communicable disease, physical or mental disorder, drug abuse",
+      "categoryCriminal": "[ES] Criminal record",
+      "categoryCriminalSubtitle": "[ES] Arrests, convictions, controlled substance and related violations",
+      "categorySecurity": "[ES] Security and terrorism",
+      "categorySecuritySubtitle": "[ES] Espionage, sabotage, terrorism, and related activity",
+      "categoryPolitical": "[ES] Political and social affiliations",
+      "categoryPoliticalSubtitle": "[ES] Party membership, Nazi involvement, or persecution",
+      "categoryImmigration": "[ES] Immigration violations",
+      "categoryImmigrationSubtitle": "[ES] Visa fraud, removal, unlawful presence, and custody issues",
+      "categoryOther": "[ES] Other issues",
+      "categoryOtherSubtitle": "[ES] Public charge, withheld custody, and other grounds",
+      "detailPlaceholder": "[ES] Please provide details...",
+      "questions": {
+        "has_communicable_disease": "[ES] Do you have a communicable disease of public health significance?",
+        "has_physical_mental_disorder": "[ES] Do you have a mental or physical disorder that may pose a threat to the safety or welfare of yourself or others?",
+        "has_drug_abuse": "[ES] Have you ever been a drug abuser or addict?",
+        "has_been_arrested": "[ES] Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar action?",
+        "has_violated_substance_law": "[ES] Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?",
+        "has_prostitution_involvement": "[ES] Are you coming to the United States to engage in prostitution or unlawful commercialized vice, or have you been engaged in prostitution or procuring prostitutes within the past 10 years?",
+        "has_money_laundering": "[ES] Have you ever been involved in, or do you seek to engage in, money laundering?",
+        "has_human_trafficking": "[ES] Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?",
+        "has_supported_trafficking": "[ES] Have you ever knowingly aided, abetted, assisted, or colluded with an individual who has committed or conspired to commit a severe human trafficking offense?",
+        "is_trafficking_relative": "[ES] Are you the child, spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense, and have you knowingly benefited from the trafficking activities in the last five years?",
+        "has_been_detained": "[ES] Have you ever been detained, retained, or confined by any country?",
+        "intends_espionage": "[ES] Do you seek to engage in espionage, sabotage, export control violations, or any other illegal activity while in the United States?",
+        "intends_terrorism": "[ES] Do you seek to engage in terrorist activities while in the United States, or have you ever engaged in terrorist activities?",
+        "will_support_terrorists": "[ES] Have you ever or do you intend to provide financial assistance or other support to terrorists or terrorist organizations?",
+        "is_terrorist_organization_member": "[ES] Are you a member or representative of a terrorist organization?",
+        "is_terrorist_relative": "[ES] Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity that caused harm to another person?",
+        "has_committed_genocide": "[ES] Have you ever ordered, incited, committed, assisted, or otherwise participated in genocide?",
+        "has_committed_torture": "[ES] Have you ever committed, ordered, incited, assisted, or otherwise participated in torture?",
+        "has_committed_extrajudicial_killings": "[ES] Have you committed, ordered, incited, assisted, or otherwise participated in extrajudicial killings, political killings, or other acts of violence?",
+        "has_used_child_soldiers": "[ES] Have you ever engaged in the recruitment or the use of child soldiers?",
+        "violated_religious_freedom": "[ES] Have you, while serving as a government official, been responsible for or directly carried out particularly severe violations of religious freedom?",
+        "involved_population_control": "[ES] Have you ever ordered, incited, committed, assisted, or otherwise participated in forced sterilization?",
+        "involved_organ_trafficking": "[ES] Have you ever been directly involved in the coercive transplantation of human organs or bodily tissue?",
+        "obtained_visa_by_fraud": "[ES] Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?",
+        "has_been_removed": "[ES] Have you ever been removed or deported from any country?",
+        "subject_to_removal_order": "[ES] Have you ever been subject to a removal or deportation order from the United States?",
+        "failed_removal_hearing": "[ES] Have you ever failed to attend a removal or deportation hearing in the United States?",
+        "has_overstayed": "[ES] Have you ever been unlawfully present in the United States or violated the terms of entry?",
+        "withheld_child_custody": "[ES] Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court?",
+        "voted_illegally": "[ES] Have you voted in the United States in violation of any law or regulation?",
+        "renounced_citizenship": "[ES] Have you ever renounced United States citizenship for the purposes of avoiding taxation?",
+        "practicing_polygamy": "[ES] Are you practicing polygamy?"
+      },
+      "embassyTitle": "[ES] Embassy account security",
+      "embassySubtitle": "[ES] Used to create your embassy account. Pick answers you'll remember.",
+      "birthCity": "[ES] What city were you born in?",
+      "birthCityPlaceholder": "[ES] e.g. London",
+      "favoriteFood": "[ES] What is your least favorite food?",
+      "favoriteFoodPlaceholder": "[ES] e.g. Broccoli",
+      "childhoodHero": "[ES] Who is your childhood hero?",
+      "childhoodHeroPlaceholder": "[ES] e.g. Superman",
+      "submit": "[ES] Continue to review"
+    },
+    "workEducation": {
+      "title": "[ES] Work & education",
+      "subtitle": "[ES] Tell us about your current work, studies, and recent history.",
+      "currentTitle": "[ES] Current work or studies",
+      "currentSubtitle": "[ES] Used for the DS-160 work/education/training section.",
+      "educationDetailsTitle": "[ES] Education details",
+      "educationDetailsSubtitle": "[ES] Add your current school or university information.",
+      "primaryOccupation": "[ES] Primary occupation",
+      "primaryOccupationPlaceholder": "[ES] Select primary occupation",
+      "occupation": {
+        "AGRICULTURE": "[ES] Agriculture",
+        "ARTIST/PERFORMER": "[ES] Artist/performer",
+        "BUSINESS": "[ES] Business",
+        "COMMUNICATIONS": "[ES] Communications",
+        "COMPUTER SCIENCE": "[ES] Computer science",
+        "CULINARY/FOOD SERVICES": "[ES] Culinary/food services",
+        "EDUCATION": "[ES] Education",
+        "ENGINEERING": "[ES] Engineering",
+        "GOVERNMENT": "[ES] Government",
+        "LEGAL PROFESSION": "[ES] Legal profession",
+        "MEDICAL/HEALTH": "[ES] Medical/health",
+        "MILITARY": "[ES] Military",
+        "NATURAL SCIENCE": "[ES] Natural science",
+        "PHYSICAL SCIENCES": "[ES] Physical sciences",
+        "RELIGIOUS VOCATION": "[ES] Religious vocation",
+        "RESEARCH": "[ES] Research",
+        "SOCIAL SCIENCE": "[ES] Social science",
+        "STUDENT": "[ES] Student",
+        "HOMEMAKER": "[ES] Homemaker",
+        "RETIRED": "[ES] Retired",
+        "NOT EMPLOYED": "[ES] Not employed",
+        "OTHER": "[ES] Other"
+      },
+      "occupationOtherExplain": "[ES] Please explain",
+      "occupationOtherExplainPlaceholder": "[ES] Please explain your occupation or situation...",
+      "employerName": "[ES] Employer/company name",
+      "employerNamePlaceholder": "[ES] e.g. Acme Corp",
+      "schoolName": "[ES] School name",
+      "schoolNamePlaceholder": "[ES] e.g. Peking University",
+      "jobTitle": "[ES] Job title",
+      "jobTitlePlaceholder": "[ES] e.g. Product manager",
+      "courseOfStudy": "[ES] Course of study",
+      "courseOfStudyPlaceholder": "[ES] e.g. Computer science",
+      "employmentStartDate": "[ES] Start date",
+      "datePlaceholder": "[ES] Select date",
+      "monthlySalary": "[ES] Monthly salary",
+      "monthlySalaryPlaceholder": "[ES] e.g. 5000",
+      "monthlySalaryHint": "[ES] Currency is for reference. Only submit the number.",
+      "noMonthlySalary": "[ES] I do not have a fixed monthly income",
+      "salaryCurrency": "[ES] Salary currency",
+      "employerPhone": "[ES] Work phone",
+      "schoolPhone": "[ES] School phone",
+      "dialCode": "[ES] Dial code",
+      "phonePlaceholder": "[ES] Phone number",
+      "employerCountry": "[ES] Country",
+      "countryPlaceholder": "[ES] Select country",
+      "employerStreet": "[ES] Employer address",
+      "schoolStreet": "[ES] School address",
+      "streetPlaceholder": "[ES] e.g. 123 Main St",
+      "employerCity": "[ES] City",
+      "cityPlaceholder": "[ES] e.g. Beijing",
+      "employerState": "[ES] State/Province",
+      "statePlaceholder": "[ES] State/Province",
+      "employerPostal": "[ES] Postal code",
+      "postalPlaceholder": "[ES] Postal code",
+      "jobDuties": "[ES] Briefly describe your duties",
+      "jobDutiesPlaceholder": "[ES] e.g. Manage client accounts and prepare reports",
+      "previousEmployerTitle": "[ES] Any other work in the last 5 years?",
+      "previousEmployerSubtitle": "[ES] Add 1-2 recent jobs and fill what you remember.",
+      "hasPreviousEmployer": "[ES] Have you had a previous employer?",
+      "previousEmployerN": "[ES] Previous job {n}",
+      "addPreviousEmployer": "[ES] Add another job",
+      "removePreviousEmployer": "[ES] Remove previous job",
+      "prevEmployerName": "[ES] Previous employer name",
+      "prevJobTitle": "[ES] Previous job title",
+      "prevJobDuties": "[ES] What did you do there?",
+      "prevJobDutiesPlaceholder": "[ES] Briefly describe duties (optional)",
+      "supervisorFirstName": "[ES] Supervisor given names",
+      "supervisorFirstNamePlaceholder": "[ES] Given names (optional)",
+      "supervisorLastName": "[ES] Supervisor surname",
+      "supervisorLastNamePlaceholder": "[ES] Surname (optional)",
+      "prevEmploymentStart": "[ES] Start date",
+      "prevEmploymentEnd": "[ES] End date",
+      "educationTitle": "[ES] Education history",
+      "educationSubtitle": "[ES] If you attended school beyond elementary level, add it here.",
+      "educationHistoryTitle": "[ES] Tell us about your education",
+      "educationHistorySubtitle": "[ES] We only need your highest or most recent schooling. Keep it simple.",
+      "hasAttendedEducation": "[ES] Have you attended school?",
+      "educationN": "[ES] Education {n}",
+      "addEducation": "[ES] Add another (optional)",
+      "removeEducation": "[ES] Remove education",
+      "educationHistoryFootnote": "[ES] Most applicants only need 1-2 schools",
+      "noEducationHint": "[ES] No education history to report? Select No and continue.",
+      "educationLevel": "[ES] Education level",
+      "educationLevelPlaceholder": "[ES] Select level (optional)",
+      "educationLevelSecondary": "[ES] High school",
+      "educationLevelCollege": "[ES] University/college",
+      "educationLevelVocationalOther": "[ES] Vocational/other",
+      "educationInstitution": "[ES] School/institution name",
+      "educationInstitutionPlaceholder": "[ES] School or institution name",
+      "educationCourse": "[ES] Course of study",
+      "educationStart": "[ES] Start date",
+      "educationEnd": "[ES] End date",
+      "educationCity": "[ES] City",
+      "educationCountry": "[ES] Country",
+      "organizationTitle": "[ES] Any clubs, groups, or organizations?",
+      "organizationSubtitle": "[ES] Professional, social, or charitable organizations. Names are enough.",
+      "organizationN": "[ES] Organization {n}",
+      "organizationName": "[ES] Organization name",
+      "organizationNamePlaceholder": "[ES] Organization name",
+      "addOrganization": "[ES] Add another organization",
+      "removeOrganization": "[ES] Remove organization",
+      "militaryTitle": "[ES] Have you ever served in the military?",
+      "militarySubtitle": "[ES] Any country, any branch, including reserve service.",
+      "militaryServiceN": "[ES] Military service {n}",
+      "militaryCountry": "[ES] Country served",
+      "militaryBranch": "[ES] Branch of service",
+      "militaryBranchPlaceholder": "[ES] Branch of service",
+      "militaryRank": "[ES] Rank/position",
+      "militaryRankPlaceholder": "[ES] Rank/position",
+      "militarySpecialty": "[ES] Military specialty",
+      "militarySpecialtyPlaceholder": "[ES] Military specialty",
+      "militaryStartDate": "[ES] Start date",
+      "militaryEndDate": "[ES] End date",
+      "addMilitaryService": "[ES] Add another service record",
+      "removeMilitaryService": "[ES] Remove service record",
+      "specializedSkillsTitle": "[ES] Any specialized skills or training?",
+      "specializedSkillsSubtitle": "[ES] For example firearms, explosives, nuclear, biological, or chemical experience.",
+      "specializedSkillsExplain": "[ES] Please explain",
+      "specializedSkillsExplainPlaceholder": "[ES] Describe your specialized skills or training...",
+      "submit": "[ES] Continue to review"
+    }
+  },
+  "documents": {
+    "title": "[ES] Documents",
+    "loading": "[ES] Loading documents...",
+    "documentsUploaded": "[ES] {count} of {total} documents uploaded",
+    "percentComplete": "[ES] {pct}% complete",
+    "rejected": "[ES] Rejected: ",
+    "upload": "[ES] Upload",
+    "uploading": "[ES] Uploading...",
+    "reupload": "[ES] Re-upload",
+    "replace": "[ES] Replace",
+    "statusLabels": {
+      "uploaded": "[ES] Uploaded",
+      "validated": "[ES] Validated",
+      "missing": "[ES] Missing",
+      "rejected": "[ES] Rejected"
+    },
+    "requiredDocs": {
+      "passport_copy": {
+        "label": "[ES] Passport Copy",
+        "description": "[ES] Bio-data page of your passport"
+      },
+      "photo": {
+        "label": "[ES] Photo",
+        "description": "[ES] Recent passport-size photo, white background"
+      },
+      "flight_booking": {
+        "label": "[ES] Flight Booking",
+        "description": "[ES] Return flight booking confirmation"
+      },
+      "hotel_booking": {
+        "label": "[ES] Hotel Booking",
+        "description": "[ES] Accommodation confirmation"
+      },
+      "travel_itinerary": {
+        "label": "[ES] Travel Itinerary",
+        "description": "[ES] Detailed travel plan"
+      },
+      "bank_statement": {
+        "label": "[ES] Bank Statement",
+        "description": "[ES] Last 3 months, showing sufficient funds"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "[ES] Not authenticated. Please log in.",
+      "noProfile": "[ES] No applicant profile found. Please complete onboarding.",
+      "noApplication": "[ES] No application found. Please start your application.",
+      "uploadFailed": "[ES] Upload failed: {message}",
+      "completeApplicationFirst": "[ES] Please complete your application first before uploading documents."
+    }
+  },
+  "chat": {
+    "searchChats": "[ES] Search chats",
+    "searchPlaceholder": "[ES] Search chats...",
+    "noResults": "[ES] No results found",
+    "sessionHistory": "[ES] Session History",
+    "noConversations": "[ES] No conversations yet",
+    "chatWith": "[ES] Chat with",
+    "vizaAI": "[ES] VIZA AI",
+    "vizaAIDescription": "[ES] Visa guidance, document help, and Q&A",
+    "immediate": "[ES] Immediate",
+    "askSupportTeam": "[ES] Ask the Support Team",
+    "supportDescription": "[ES] Complex topics and customer service",
+    "supportResponseTime": "[ES] <24h on weekdays",
+    "inputPlaceholder": "[ES] Ask about your visa application...",
+    "supportComingSoon": "[ES] Support team chat coming soon",
+    "connectionReconnecting": "[ES] Connection issue - reconnecting...",
+    "connectedSending": "[ES] Connected - sending queued messages",
+    "agentNotified": "[ES] Your visa agent has been notified about this conversation",
+    "failedToStart": "[ES] Failed to start conversation",
+    "willSendWhenConnected": "[ES] Message will be sent when connected"
+  },
+  "inviteFriends": {
+    "heroTitle": "[ES] Refer your friends",
+    "heroSubtitle": "[ES] Earn rewards",
+    "referHeading": "[ES] Refer your friends and earn ₱9,999",
+    "referDescription": "[ES] Share your unique referral link with friends and family. When they sign up, you'll each receive ₱9,999 to spend in VIZA Services.",
+    "referralLink": "[ES] Referral link",
+    "loadingLink": "[ES] Loading your link...",
+    "copyLink": "[ES] Copy link",
+    "copied": "[ES] Copied!",
+    "orInviteViaEmail": "[ES] or invite via email",
+    "emailPlaceholder": "[ES] Your friend's email",
+    "sendInvite": "[ES] Send invite",
+    "sending": "[ES] Sending...",
+    "howItWorks": "[ES] How it works",
+    "steps": {
+      "share": {
+        "title": "[ES] Share your unique link",
+        "description": "[ES] Invite your friends to join VIZA using your unique referral link"
+      },
+      "give": {
+        "title": "[ES] Give ₱9,999 to your friends",
+        "description": "[ES] When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services"
+      },
+      "earn": {
+        "title": "[ES] Earn ₱9,999 in credit",
+        "description": "[ES] You'll also receive ₱9,999 for every friend who signs up with your link."
+      },
+      "redeem": {
+        "title": "[ES] Redeem your credits",
+        "description": "[ES] Use your credits in the VIZA Services page."
+      }
+    },
+    "faqTitle": "[ES] Frequently Asked Questions",
+    "faqs": {
+      "whenReward": {
+        "question": "[ES] When do I get my reward?",
+        "answer": "[ES] Your reward will be credited to your account within 24 hours after your friend completes their first purchase."
+      },
+      "howUseCredit": {
+        "question": "[ES] How do I use the credit?",
+        "answer": "[ES] Credits can be applied at checkout when purchasing any service from VIZA Services page."
+      },
+      "whoEligible": {
+        "question": "[ES] Who's eligible?",
+        "answer": "[ES] New members only. One discount per new member."
+      }
+    }
+  },
+  "settings": {
+    "title": "[ES] Settings",
+    "loading": "[ES] Loading your settings...",
+    "tabs": {
+      "billing": "[ES] Billing",
+      "account": "[ES] Account"
+    },
+    "account": {
+      "title": "[ES] Account",
+      "email": "[ES] Email",
+      "displayName": "[ES] Display Name",
+      "namePlaceholder": "[ES] Your full name",
+      "saveChanges": "[ES] Save changes",
+      "saving": "[ES] Saving...",
+      "failedToSave": "[ES] Failed to save.",
+      "saved": "[ES] Saved."
+    },
+    "signOut": {
+      "title": "[ES] Sign Out",
+      "description": "[ES] Sign out of your account on this device.",
+      "button": "[ES] Sign out"
+    },
+    "billing": {
+      "title": "[ES] Billing",
+      "noPaymentMethods": "[ES] No payment methods",
+      "noPaymentDescription": "[ES] Billing and payment management will be available here soon. Contact support if you need to update your billing details."
+    }
+  },
+  "help": {
+    "heroTitle": "[ES] Help Center",
+    "heroSubtitle": "[ES] Find answers, guides, and support for your account.",
+    "quickLinks": {
+      "title": "[ES] Quick links",
+      "accountProfile": {
+        "title": "[ES] Account & Profile",
+        "description": "[ES] Update your profile details, password, and preferences."
+      },
+      "referrals": {
+        "title": "[ES] Referrals",
+        "description": "[ES] Invite friends and track your rewards."
+      },
+      "payments": {
+        "title": "[ES] Payments & Credits",
+        "description": "[ES] View transactions, credits, and receipts."
+      }
+    },
+    "guides": {
+      "title": "[ES] Guides",
+      "gettingStarted": {
+        "title": "[ES] Getting started",
+        "completeProfile": "[ES] Complete your profile",
+        "addPayment": "[ES] Add a payment method",
+        "exploreServices": "[ES] Explore services"
+      },
+      "usingCredits": {
+        "title": "[ES] Using your credits",
+        "whereApply": "[ES] Where credits apply",
+        "expiration": "[ES] Expiration rules",
+        "troubleshooting": "[ES] Troubleshooting"
+      },
+      "privacy": {
+        "title": "[ES] Privacy & security",
+        "dataUsage": "[ES] Data usage",
+        "securityTips": "[ES] Account security tips",
+        "twoFactor": "[ES] Two-factor support"
+      }
+    },
+    "faqTitle": "[ES] Frequently Asked Questions",
+    "faqs": {
+      "resetPassword": {
+        "question": "[ES] How do I reset my password?",
+        "answer": "[ES] Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
+      },
+      "seeCredits": {
+        "question": "[ES] Where can I see my credits?",
+        "answer": "[ES] Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
+      },
+      "referrals": {
+        "question": "[ES] How do referrals work?",
+        "answer": "[ES] Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
+      },
+      "bookBloodTest": {
+        "question": "[ES] How do I book a blood test?",
+        "answer": "[ES] Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
+      },
+      "labResults": {
+        "question": "[ES] When will I receive my results?",
+        "answer": "[ES] Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+      },
+      "updateInfo": {
+        "question": "[ES] How do I update my personal information?",
+        "answer": "[ES] Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes."
+      },
+      "updatePayment": {
+        "question": "[ES] How do I add or update a payment method?",
+        "answer": "[ES] Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
+      },
+      "cancelReschedule": {
+        "question": "[ES] Can I cancel or reschedule a booked service?",
+        "answer": "[ES] Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
+      },
+      "dataPrivate": {
+        "question": "[ES] Is my health data private?",
+        "answer": "[ES] Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+      },
+      "contactSupport": {
+        "question": "[ES] How do I contact support?",
+        "answer": "[ES] You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "[ES] Login to your account",
+      "noAccount": "[ES] Don't have an account?",
+      "signUp": "[ES] Sign up",
+      "emailPlaceholder": "[ES] Enter your email",
+      "sendingCode": "[ES] Sending code...",
+      "loginButton": "[ES] Login",
+      "noAccountFound": "[ES] No account found with this email. Please contact support.",
+      "failedToSendCode": "[ES] Failed to send code",
+      "noAccountWithEmail": "[ES] No account found with this email",
+      "notRegistered": "[ES] This email is not registered as an applicant.",
+      "authFailed": "[ES] Authentication failed. Please try again.",
+      "unexpectedError": "[ES] An unexpected error occurred. Please try again.",
+      "failedToResend": "[ES] Failed to resend code.",
+      "checkEmail": "[ES] Check your email",
+      "sentCodeTo": "[ES] We sent an 8-digit code to",
+      "clickLink": "[ES] Click the link in your email to sign in.",
+      "resendIn": "[ES] Resend in {seconds}s",
+      "resendCode": "[ES] Resend code",
+      "privacyPolicy": "[ES] Privacy Policy",
+      "termsOfService": "[ES] Terms of Service"
+    },
+    "signup": {
+      "title": "[ES] Request your account",
+      "subtitle": "[ES] Enter your email and our team will send an invite if you are eligible.",
+      "emailPlaceholder": "[ES] Enter your email",
+      "invalidEmail": "[ES] Please enter a valid email address.",
+      "submitting": "[ES] Submitting...",
+      "requestInvite": "[ES] Request Invite",
+      "thankYou": "[ES] Thanks. We will email you if you are eligible for access.",
+      "urgentAccess": "[ES] For urgent access, contact support at support@viza.com.",
+      "backToLogin": "[ES] Back to Login",
+      "privacyPolicy": "[ES] Privacy Policy",
+      "termsOfService": "[ES] Terms of Service"
+    },
+    "register": {
+      "accountCreated": "[ES] Account Created!",
+      "accountCreatedMessage": "[ES] Your account has been created successfully. You can now log in to start using VIZA.",
+      "goToLogin": "[ES] Go to Login",
+      "validatingReferral": "[ES] Validating referral...",
+      "referredBy": "[ES] Referred by {name} — you'll get ₱9,999 credit!",
+      "noReferralCode": "[ES] No referral code found. Please use a valid referral link to sign up.",
+      "invalidReferralCode": "[ES] Invalid referral code. Please check your link and try again.",
+      "createAccount": "[ES] Create your account",
+      "alreadyHaveAccount": "[ES] Already have an account?",
+      "logIn": "[ES] Log in",
+      "fullNamePlaceholder": "[ES] Enter Full Name",
+      "emailPlaceholder": "[ES] Enter your email",
+      "creatingAccount": "[ES] Creating account...",
+      "signUpButton": "[ES] Sign Up",
+      "agreeToTerms": "[ES] I agree to the",
+      "termsOfService": "[ES] Terms of Service",
+      "and": "[ES] and",
+      "privacyPolicy": "[ES] Privacy Policy",
+      "pleaseAgree": "[ES] Please agree to the Terms of Service and Privacy Policy",
+      "invalidReferralLink": "[ES] Invalid referral link",
+      "registrationFailed": "[ES] Registration failed",
+      "unexpectedError": "[ES] An unexpected error occurred. Please try again."
+    },
+    "loginForm": {
+      "email": "[ES] Email address",
+      "emailPlaceholder": "[ES] you@example.com",
+      "password": "[ES] Password",
+      "forgotPassword": "[ES] Forgot password?",
+      "passwordPlaceholder": "[ES] Enter your password",
+      "signingIn": "[ES] Signing in...",
+      "signIn": "[ES] Sign in"
+    },
+    "polaroids": {
+      "sanFrancisco": "[ES] San Francisco",
+      "newYork": "[ES] New York",
+      "tokyo": "[ES] Tokyo",
+      "sydney": "[ES] Sydney",
+      "beijing": "[ES] Beijing",
+      "egypt": "[ES] Egypt",
+      "pisa": "[ES] Pisa",
+      "singapore": "[ES] Singapore"
+    }
+  },
+  "terms": {
+    "title": "[ES] Terms of Service",
+    "subtitle": "[ES] The rules and guidelines that govern your use of our platform.",
+    "sections": {
+      "acceptance": {
+        "title": "[ES] Acceptance of terms",
+        "p1": "[ES] By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
+        "p2": "[ES] These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
+      },
+      "services": {
+        "title": "[ES] Our services",
+        "intro": "[ES] VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
+        "item1": "[ES] Online visa consultations with licensed consultants.",
+        "item2": "[ES] Blood panel bookings and lab result delivery.",
+        "item3": "[ES] Supplement and product purchases through the Services marketplace.",
+        "item4": "[ES] Personalized action plans and health recommendations.",
+        "item5": "[ES] Concierge support for your health journey.",
+        "disclaimer": "[ES] Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
+      },
+      "eligibility": {
+        "title": "[ES] Eligibility",
+        "intro": "[ES] To use our services, you must:",
+        "item1": "[ES] Be at least 18 years of age, or have parental or guardian consent.",
+        "item2": "[ES] Provide accurate, current, and complete information when registering.",
+        "item3": "[ES] Maintain the security of your account credentials.",
+        "item4": "[ES] Reside in a location where our services are available."
+      },
+      "responsibilities": {
+        "title": "[ES] User responsibilities",
+        "intro": "[ES] When using our platform, you agree to:",
+        "item1": "[ES] Provide truthful and complete health information during consultations and questionnaires.",
+        "item2": "[ES] Follow visa advice provided by our licensed professionals responsibly.",
+        "item3": "[ES] Not share your account credentials with any other person.",
+        "item4": "[ES] Not use the platform for any unlawful or unauthorized purpose.",
+        "item5": "[ES] Notify us promptly if you suspect any unauthorized access to your account."
+      },
+      "visa": {
+        "title": "[ES] Visa disclaimer",
+        "p1": "[ES] The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
+        "p2": "[ES] Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
+      },
+      "payments": {
+        "title": "[ES] Payments and credits",
+        "p1": "[ES] By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
+        "p2": "[ES] Credits earned through referrals or promotions have no cash value and cannot be transferred.",
+        "p3": "[ES] Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
+        "p4": "[ES] Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
+      },
+      "ip": {
+        "title": "[ES] Intellectual property",
+        "p1": "[ES] All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
+      },
+      "liability": {
+        "title": "[ES] Limitation of liability",
+        "p1": "[ES] To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
+      },
+      "termination": {
+        "title": "[ES] Termination",
+        "p1": "[ES] We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
+        "p2": "[ES] You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
+      },
+      "changes": {
+        "title": "[ES] Changes to these terms",
+        "p1": "[ES] We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
+      },
+      "law": {
+        "title": "[ES] Governing law",
+        "p1": "[ES] These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
+      },
+      "contact": {
+        "title": "[ES] Contact us",
+        "p1": "[ES] If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.com."
+      }
+    }
+  },
+  "privacy": {
+    "title": "[ES] Privacy Policy",
+    "subtitle": "[ES] How we collect, use, and protect your personal information.",
+    "sections": {
+      "introduction": {
+        "title": "[ES] Introduction",
+        "p1": "[ES] VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
+        "p2": "[ES] By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
+      },
+      "collect": {
+        "title": "[ES] Information we collect",
+        "intro": "[ES] We collect information that you provide directly to us and information generated through your use of our services.",
+        "item1": "[ES] Personal identifiers such as your name, email address, phone number, and date of birth.",
+        "item2": "[ES] Health and visa information including results, profile data, visa history, allergies, and current documents.",
+        "item3": "[ES] Payment information processed securely through our payment providers.",
+        "item4": "[ES] Communications between you and our visa team, including consultation notes and messages.",
+        "item5": "[ES] Device and usage data such as IP address, browser type, and pages visited."
+      },
+      "use": {
+        "title": "[ES] How we use your information",
+        "intro": "[ES] We use the information we collect to deliver and improve our services, including:",
+        "item1": "[ES] Providing visa services consultations, lab bookings, and service services.",
+        "item2": "[ES] Communicating with you about your health, appointments, and orders.",
+        "item3": "[ES] Processing payments and fulfilling orders through our platform.",
+        "item4": "[ES] Improving the accuracy and quality of our health assessments.",
+        "item5": "[ES] Complying with applicable laws, regulations, and visa standards.",
+        "noSell": "[ES] We never sell your personal or health information to third parties for marketing purposes."
+      },
+      "sharing": {
+        "title": "[ES] Sharing your information",
+        "intro": "[ES] We may share your information only in the following limited circumstances:",
+        "item1": "[ES] With licensed visa professionals involved in your care.",
+        "item2": "[ES] With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
+        "item3": "[ES] With payment processors to complete transactions securely.",
+        "item4": "[ES] When required by law, court order, or applicable regulation.",
+        "item5": "[ES] With your explicit consent for any other purpose."
+      },
+      "security": {
+        "title": "[ES] Data security",
+        "p1": "[ES] We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
+        "p2": "[ES] While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
+      },
+      "rights": {
+        "title": "[ES] Your rights",
+        "intro": "[ES] You have the following rights regarding your personal information:",
+        "access": "[ES] Access: Request a copy of the personal information we hold about you.",
+        "correction": "[ES] Correction: Request that inaccurate or incomplete information be corrected.",
+        "deletion": "[ES] Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
+        "portability": "[ES] Portability: Request your data in a machine-readable format where applicable.",
+        "withdrawal": "[ES] Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
+      },
+      "retention": {
+        "title": "[ES] Data retention",
+        "p1": "[ES] We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
+      },
+      "changes": {
+        "title": "[ES] Changes to this policy",
+        "p1": "[ES] We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
+      },
+      "contact": {
+        "title": "[ES] Contact us",
+        "p1": "[ES] If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+      }
+    }
+  }
+}

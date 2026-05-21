@@ -10,12 +10,134 @@ export interface SubmissionQueueItem {
     | "ds160_prefill_processing"
     | "ds160_prefilled"
     | "ds160_prefill_failed"
-    | "ds160_blocked";
+    | "ds160_blocked"
+    | "fv_prefill_pending"
+    | "fv_prefill_processing"
+    | "fv_prefilled"
+    | "fv_prefill_failed"
+    | "fv_blocked"
+    | "uk_prefill_pending"
+    | "uk_prefill_processing"
+    | "uk_prefilled"
+    | "uk_prefill_failed"
+    | "uk_blocked"
+    | "vn_prefill_pending"
+    | "vn_prefill_processing"
+    | "vn_prefilled"
+    | "vn_prefill_failed"
+    | "vn_blocked"
+    | "au_prefill_pending"
+    | "au_prefill_processing"
+    | "au_prefilled"
+    | "au_prefill_failed"
+    | "au_blocked";
   attempts: number;
   last_error: string | null;
   /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
    *  or blocked outcome metadata for operator diagnostics. */
   ceac_result_payload: Record<string, unknown> | null;
+  /** Structured France-Visas run result payload (JSON). */
+  fv_result_payload: Record<string, unknown> | null;
+  /** France-Visas-assigned application reference (FRA-format after finalize). */
+  fv_application_reference: string | null;
+  /** Supabase Storage path to the downloaded CERFA PDF. */
+  fv_pdf_storage_path: string | null;
+  /** Structured UK Standard Visitor run result payload (JSON). */
+  uk_result_payload: Record<string, unknown> | null;
+  /** UKVI-assigned application reference once registered. */
+  uk_application_reference: string | null;
+  /** Structured AU Subclass 600 RunResult payload (JSON). */
+  au_result_payload: Record<string, unknown> | null;
+  /** ImmiAccount-assigned Transaction Reference Number for the draft. */
+  au_trn: string | null;
+  /** submission-artifacts bucket path for the captured Review-page screenshot. */
+  au_review_screenshot_storage_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * ImmiAccount credentials row from the `au_accounts` table for the AU
+ * Subclass 600 runner. password_encrypted + totp_secret_encrypted decrypted
+ * at runtime via secret-cipher.
+ */
+export interface AuAccount {
+  id: string;
+  applicant_id: string;
+  username: string;
+  password_encrypted: string;
+  totp_secret_encrypted: string | null;
+  resume_trn: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * UK Standard Visitor account credentials row from the `uk_accounts` table.
+ * Mirrors FvAccount; password_encrypted decrypted at runtime via secret-cipher.
+ */
+export interface UkAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  resume_url: string;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Egypt e-Visa account credentials row from the `eg_accounts` table.
+ * password_encrypted decrypted at runtime via secret-cipher.
+ */
+export interface EgAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  vistk_token: string | null;
+  resume_url: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Italy Schengen VFS-CN appointment portal credentials row from the
+ * `it_vfs_cn_accounts` table. Used for VFS appointment booking only — the
+ * visa application form itself is the paper Annex I PDF.
+ */
+export interface ItVfsCnAccount {
+  id: string;
+  applicant_id: string;
+  username: string;
+  password_encrypted: string;
+  preferred_centre: string | null;
+  appointment_reference: string | null;
+  appointment_at: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * France-Visas account credentials row from the `fv_accounts` table.
+ * `password_encrypted` is stored encrypted at rest; callers must decrypt
+ * before passing to `signInWithPassword()`.
+ */
+export interface FvAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
   created_at: string;
   updated_at: string;
 }

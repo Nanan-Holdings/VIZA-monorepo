@@ -1,0 +1,27 @@
+{
+  "countryCode": "lk",
+  "baseUrl": "https://www.eta.gov.lk",
+  "walks": [
+    {
+      "slug": "01-landing",
+      "url": "https://www.eta.gov.lk/slvisa/",
+      "title": "Online Visa Application",
+      "status": "ok",
+      "fields": 0
+    },
+    {
+      "slug": "02-visainfo-center",
+      "url": "https://www.eta.gov.lk/slvisa/visainfo/center.jsp?locale=en_US",
+      "title": "Online Visa Application",
+      "status": "ok",
+      "fields": 0
+    },
+    {
+      "slug": "03-apply",
+      "url": "https://www.eta.gov.lk/slvisa/visainfo/apply.jsp?locale=en_US",
+      "title": "Online Visa Application",
+      "status": "ok",
+      "fields": 0
+    }
+  ]
+}

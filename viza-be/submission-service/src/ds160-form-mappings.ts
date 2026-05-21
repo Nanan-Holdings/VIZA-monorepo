@@ -43,10 +43,30 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "select",
     label: "Marital Status",
   },
-  date_of_birth: {
-    selector: 'input[id*="tbxAPP_DOB"]',
-    type: "date",
-    label: "Date of Birth",
+  date_of_birth_day: {
+    selector: 'select[id*="ddlDOBDay"], select[id*="DOBDay"]',
+    type: "select",
+    label: "Date of Birth Day",
+  },
+  date_of_birth_month: {
+    selector: 'select[id*="ddlDOBMonth"], select[id*="DOBMonth"]',
+    type: "select",
+    label: "Date of Birth Month",
+  },
+  date_of_birth_year: {
+    selector: 'input[id*="tbxDOBYear"], input[id*="DOBYear"]',
+    type: "text",
+    label: "Date of Birth Year",
+  },
+  has_other_names: {
+    selector: 'input[name*="rblOtherNames"], input[id*="rblOtherNames"]',
+    type: "radio",
+    label: "Has used other names",
+  },
+  has_telecode: {
+    selector: 'input[name*="rblTelecodeQuestion"], input[id*="rblTelecodeQuestion"]',
+    type: "radio",
+    label: "Has telecode",
   },
   city_of_birth: {
     selector: 'input[id*="tbxAPP_POB_CITY"]',
@@ -63,61 +83,90 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "select",
     label: "Country of Birth",
   },
-  nationality_country: {
-    selector: 'select[id*="ddlAPP_NATL"]',
-    type: "select",
-    label: "Nationality",
-  },
-  national_id_number: {
-    selector: 'input[id*="tbxAPP_NATIONAL_ID"]',
-    type: "text",
-    label: "National ID Number",
-  },
-  us_social_security_number: {
-    selector: 'input[id*="tbxAPP_SSN"]',
-    type: "text",
-    label: "US SSN",
-  },
-  us_taxpayer_id: {
-    selector: 'input[id*="tbxAPP_TAX_ID"]',
-    type: "text",
-    label: "US Taxpayer ID",
-  },
+  // Note: nationality_country, national_id_number, us_social_security_number,
+  // us_taxpayer_id live on Personal Information 2 (ds160PersonalInfo2Mappings),
+  // NOT Personal Information 1. Including them here causes spurious
+  // "Could not fill" warnings on PI1 and leaves PI2's versions unfilled if
+  // the PAGE_FILL_MAP ever points this group at PI2.
 };
 
 export const ds160TravelMappings: Record<string, FormFieldMapping> = {
+  // "Have you made specific travel plans?" — Yes/No radio. Gates the
+  // remainder of the page: when "N", several fields (arrival date,
+  // length of stay, US address) collapse into a simpler intended-stay
+  // format. Answering this first is required.
+  has_specific_travel_plans: {
+    selector: 'input[name*="rblSpecificTravel"], input[id*="rblSpecificTravel"]',
+    type: "radio",
+    label: "Have specific travel plans",
+  },
   purpose_of_trip: {
-    selector: 'select[id*="ddlTRAVEL_PURPOSE"]',
+    // Live DOM: `dlPrincipalAppTravel$ctl00$ddlPurposeOfTrip`. The
+    // `ddlTRAVEL_PURPOSE` pattern is from an older CEAC revision.
+    selector: 'select[id*="ddlPurposeOfTrip"], select[id*="ddlTRAVEL_PURPOSE"]',
     type: "select",
     label: "Purpose of Trip",
   },
-  intended_arrival_date: {
-    selector: 'input[id*="tbxTRAVEL_ARRIVAL_DATE"]',
-    type: "date",
-    label: "Intended Arrival Date",
+  purpose_of_trip_specify: {
+    // Sub-purpose dropdown (e.g. B1-B2) that appears after `purpose_of_trip`
+    // is selected. Named `ddlOtherPurpose` in live CEAC DOM.
+    selector: 'select[id*="ddlOtherPurpose"]',
+    type: "select",
+    label: "Specify Purpose",
+  },
+  who_is_paying: {
+    // Live DOM: `ddlWhoIsPaying`. Older mapping used `ddlTRAVEL_WHO_PAY`.
+    selector: 'select[id*="ddlWhoIsPaying"], select[id*="ddlTRAVEL_WHO_PAY"]',
+    type: "select",
+    label: "Who is paying for your trip",
+  },
+  // Intended Arrival Date is three separate CEAC controls (live DOM):
+  //   ddlTRAVEL_DTEDay (select), ddlTRAVEL_DTEMonth (select), tbxTRAVEL_DTEYear (text)
+  intended_arrival_date_day: {
+    selector: 'select[id*="ddlTRAVEL_DTEDay"]',
+    type: "select",
+    label: "Intended Arrival Day",
+  },
+  intended_arrival_date_month: {
+    selector: 'select[id*="ddlTRAVEL_DTEMonth"]',
+    type: "select",
+    label: "Intended Arrival Month",
+  },
+  intended_arrival_date_year: {
+    selector: 'input[id*="tbxTRAVEL_DTEYear"]',
+    type: "text",
+    label: "Intended Arrival Year",
   },
   intended_length_of_stay: {
     selector: 'input[id*="tbxTRAVEL_LOS"]',
     type: "text",
     label: "Length of Stay",
   },
+  intended_length_of_stay_unit: {
+    selector: 'select[id*="ddlTRAVEL_LOS_CD"]',
+    type: "select",
+    label: "Length of Stay Unit",
+  },
+  // Live CEAC (Travel Information) uses `tbxStreetAddress1`, `tbxCity`,
+  // `ddlTravelState`, `tbZIPCode`. Older mapping names (`TRAVEL_ADDR_*`)
+  // don't match current CEAC markup.
   us_address_street: {
-    selector: 'input[id*="tbxTRAVEL_ADDR_LN1"]',
+    selector: 'input[id*="tbxStreetAddress1"], input[id*="tbxTRAVEL_ADDR_LN1"]',
     type: "text",
     label: "US Address Street",
   },
   us_address_city: {
-    selector: 'input[id*="tbxTRAVEL_ADDR_CITY"]',
+    selector: 'input[id*="tbxCity"], input[id*="tbxTRAVEL_ADDR_CITY"]',
     type: "text",
     label: "US Address City",
   },
   us_address_state: {
-    selector: 'select[id*="ddlTRAVEL_ADDR_STATE"]',
+    selector: 'select[id*="ddlTravelState"], select[id*="ddlTRAVEL_ADDR_STATE"]',
     type: "select",
     label: "US Address State",
   },
   us_address_zip: {
-    selector: 'input[id*="tbxTRAVEL_ADDR_ZIP"]',
+    selector: 'input[id*="tbZIPCode"], input[id*="tbxZIPCode"], input[id*="tbxTRAVEL_ADDR_ZIP"]',
     type: "text",
     label: "US Address ZIP",
   },
@@ -165,20 +214,78 @@ export const ds160PassportMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Passport Number",
   },
+  passport_book_number: {
+    selector: 'input[id*="tbxPPT_BOOK_NUM"]',
+    type: "text",
+    label: "Passport Book Number",
+  },
+  passport_book_number_na: {
+    selector: 'input[id*="cbexPPT_BOOK_NUM_NA"], input[id*="cbxPPT_BOOK_NUM_NA"]',
+    type: "checkbox",
+    label: "Passport Book Number Does Not Apply",
+  },
   passport_issuing_country: {
     selector: 'select[id*="ddlPPT_ISSUED_CNTRY"]',
     type: "select",
     label: "Passport Issuing Country",
   },
-  passport_issuance_date: {
-    selector: 'input[id*="tbxPPT_ISSUED_DTH"]',
-    type: "date",
-    label: "Passport Issuance Date",
+  // Issued In — city / state / country are separate fields
+  passport_issuance_city: {
+    selector: 'input[id*="tbxPPT_ISSUED_IN_CITY"]',
+    type: "text",
+    label: "Passport Issuance City",
   },
-  passport_expiration_date: {
-    selector: 'input[id*="tbxPPT_EXPIRE_DTH"]',
-    type: "date",
-    label: "Passport Expiration Date",
+  passport_issuance_state: {
+    selector: 'input[id*="tbxPPT_ISSUED_IN_STATE"]',
+    type: "text",
+    label: "Passport Issuance State",
+  },
+  passport_issuance_country: {
+    selector: 'select[id*="ddlPPT_ISSUED_IN_CNTRY"]',
+    type: "select",
+    label: "Passport Issuance Country",
+  },
+  // Issuance date: split into day (select), month (select), year (text)
+  passport_issue_day: {
+    selector: 'select[id*="ddlPPT_ISSUED_DTEDay"]',
+    type: "select",
+    label: "Passport Issue Day",
+  },
+  passport_issue_month: {
+    selector: 'select[id*="ddlPPT_ISSUED_DTEMonth"]',
+    type: "select",
+    label: "Passport Issue Month",
+  },
+  passport_issue_year: {
+    selector: 'input[id*="tbxPPT_ISSUEDYear"]',
+    type: "text",
+    label: "Passport Issue Year",
+  },
+  // Expiration date: split the same way
+  passport_expiry_day: {
+    selector: 'select[id*="ddlPPT_EXPIRE_DTEDay"]',
+    type: "select",
+    label: "Passport Expiry Day",
+  },
+  passport_expiry_month: {
+    selector: 'select[id*="ddlPPT_EXPIRE_DTEMonth"]',
+    type: "select",
+    label: "Passport Expiry Month",
+  },
+  passport_expiry_year: {
+    selector: 'input[id*="tbxPPT_EXPIREYear"]',
+    type: "text",
+    label: "Passport Expiry Year",
+  },
+  passport_has_expiry: {
+    selector: 'input[id*="cbxPPT_EXPIRE_NA"]',
+    type: "checkbox",
+    label: "Passport No Expiration",
+  },
+  passport_lost_or_stolen: {
+    selector: 'input[name*="rblLOST_PPT_IND"], input[id*="rblLOST_PPT_IND"]',
+    type: "radio",
+    label: "Passport ever lost or stolen",
   },
 };
 
@@ -188,41 +295,120 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Home Address Line 1",
   },
+  home_address_line2: {
+    selector: 'input[id*="tbxAPP_ADDR_LN2"]',
+    type: "text",
+    label: "Home Address Line 2",
+  },
   home_address_city: {
     selector: 'input[id*="tbxAPP_ADDR_CITY"]',
     type: "text",
     label: "Home City",
   },
+  home_address_state: {
+    selector: 'input[id*="tbxAPP_ADDR_STATE"]',
+    type: "text",
+    label: "Home State/Province",
+  },
+  home_address_state_na: {
+    selector: 'input[id*="cbexAPP_ADDR_STATE_NA"]',
+    type: "checkbox",
+    label: "Home State Does Not Apply",
+  },
+  home_address_postal: {
+    selector: 'input[id*="tbxAPP_ADDR_POSTAL_CD"]',
+    type: "text",
+    label: "Home Postal Code",
+  },
+  home_address_postal_na: {
+    selector: 'input[id*="cbexAPP_ADDR_POSTAL_CD_NA"]',
+    type: "checkbox",
+    label: "Home Postal Does Not Apply",
+  },
   home_address_country: {
-    selector: 'select[id*="ddlAPP_ADDR_CNTRY"]',
+    // Live CEAC uses `ddlCountry` for the home-address country on this
+    // page, not the older `ddlAPP_ADDR_CNTRY` name.
+    selector: 'select[id*="ddlCountry"], select[id*="ddlAPP_ADDR_CNTRY"]',
     type: "select",
     label: "Home Country",
+  },
+  mailing_same_as_home: {
+    selector: 'input[name*="rblMailingAddrSame"], input[id*="rblMailingAddrSame"]',
+    type: "radio",
+    label: "Mailing address same as home",
   },
   primary_phone: {
     selector: 'input[id*="tbxAPP_HOME_TEL"]',
     type: "text",
     label: "Primary Phone",
   },
+  mobile_phone: {
+    selector: 'input[id*="tbxAPP_MOBILE_TEL"]',
+    type: "text",
+    label: "Mobile Phone",
+  },
+  mobile_phone_na: {
+    selector: 'input[id*="cbexAPP_MOBILE_TEL_NA"]',
+    type: "checkbox",
+    label: "Mobile Phone Does Not Apply",
+  },
+  work_phone: {
+    selector: 'input[id*="tbxAPP_BUS_TEL"]',
+    type: "text",
+    label: "Work Phone",
+  },
+  work_phone_na: {
+    selector: 'input[id*="cbexAPP_BUS_TEL_NA"]',
+    type: "checkbox",
+    label: "Work Phone Does Not Apply",
+  },
+  has_other_phone: {
+    selector: 'input[name*="rblAddPhone"], input[id*="rblAddPhone"]',
+    type: "radio",
+    label: "Has other phone numbers",
+  },
   email_address: {
     selector: 'input[id*="tbxAPP_EMAIL_ADDR"]',
     type: "text",
     label: "Email",
   },
+  has_other_email: {
+    selector: 'input[name*="rblAddEmail"], input[id*="rblAddEmail"]',
+    type: "radio",
+    label: "Has other email addresses",
+  },
+  has_social_media: {
+    selector: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
+    type: "radio",
+    label: "Has additional social media presence",
+  },
+  social_media_provider: {
+    selector: 'select[id*="dtlSocial"][id*="ddlSocialMedia"]',
+    type: "select",
+    label: "Social Media Provider",
+  },
+  social_media_identifier: {
+    selector: 'input[id*="dtlSocial"][id*="tbxSocialMediaIdent"]',
+    type: "text",
+    label: "Social Media Identifier",
+  },
 };
 
 export const ds160WorkMappings: Record<string, FormFieldMapping> = {
   primary_occupation: {
-    selector: 'select[id*="ddlWORK_EDUC_PRSNT_OCCP"]',
+    // Live CEAC: `ddlPresentOccupation`. Older `ddlWORK_EDUC_PRSNT_OCCP`
+    // is kept as a fallback for legacy deployments.
+    selector: 'select[id*="ddlPresentOccupation"], select[id*="ddlWORK_EDUC_PRSNT_OCCP"]',
     type: "select",
     label: "Occupation",
   },
   employer_name: {
-    selector: 'input[id*="tbxWORK_EDUC_PRSNT_EMPL"]',
+    selector: 'input[id*="tbxEmpSchName"], input[id*="tbxWORK_EDUC_PRSNT_EMPL"]',
     type: "text",
     label: "Employer Name",
   },
   job_title: {
-    selector: 'input[id*="tbxWORK_EDUC_PRSNT_JOB_TITLE"]',
+    selector: 'input[id*="tbxEmpSchJobTitle"], input[id*="tbxWORK_EDUC_PRSNT_JOB_TITLE"]',
     type: "text",
     label: "Job Title",
   },
@@ -241,30 +427,51 @@ export const ds160PersonalInfo2Mappings: Record<string, FormFieldMapping> = {
     type: "select",
     label: "Nationality",
   },
+  // Radios on CEAC — not dropdowns. RadioButtonList inputs have value="Y"/"N".
   other_nationality: {
-    selector: 'select[id*="ddlOTHER_NATL"], input[id*="rblOTHER_NATL"]',
-    type: "select",
-    label: "Other Nationality (Yes/No)",
+    // CEAC names this `rblAPP_OTH_NATL_IND` (confirmed via live DOM dump).
+    selector: 'input[name*="rblAPP_OTH_NATL_IND"], input[id*="rblAPP_OTH_NATL_IND"]',
+    type: "radio",
+    label: "Has other nationality",
   },
   permanent_resident_other_country: {
-    selector: 'select[id*="ddlPERM_RES_CNTRY"], input[id*="rblPERM_RES"]',
-    type: "select",
-    label: "Permanent Resident of Another Country (Yes/No)",
+    selector: 'input[name*="rblPermResOtherCntryInd"], input[id*="rblPERM_RES"]',
+    type: "radio",
+    label: "Permanent resident of another country",
   },
+  // "National ID Number" accepts A-Z, 0-9, spaces — NOT "N/A". For
+  // applicants without one, CEAC pairs each field with a "Does Not
+  // Apply" checkbox that greys out the text input. The checkbox
+  // mapping is what should be toggled, not the text field.
   national_id_number: {
     selector: 'input[id*="tbxAPP_NATIONAL_ID"]',
     type: "text",
     label: "National ID Number",
+  },
+  national_id_number_na: {
+    selector: 'input[id*="cbexAPP_NATIONAL_ID_NA"], input[id*="cbxAPP_NATIONAL_ID_NA"]',
+    type: "checkbox",
+    label: "National ID Does Not Apply",
   },
   us_social_security_number: {
     selector: 'input[id*="tbxAPP_SSN"]',
     type: "text",
     label: "US SSN",
   },
+  us_social_security_number_na: {
+    selector: 'input[id*="cbexAPP_SSN_NA"], input[id*="cbxAPP_SSN_NA"]',
+    type: "checkbox",
+    label: "US SSN Does Not Apply",
+  },
   us_taxpayer_id: {
     selector: 'input[id*="tbxAPP_TAX_ID"]',
     type: "text",
     label: "US Taxpayer ID",
+  },
+  us_taxpayer_id_na: {
+    selector: 'input[id*="cbexAPP_TAX_ID_NA"], input[id*="cbxAPP_TAX_ID_NA"]',
+    type: "checkbox",
+    label: "US Taxpayer ID Does Not Apply",
   },
 };
 
@@ -274,18 +481,19 @@ export const ds160PersonalInfo2Mappings: Record<string, FormFieldMapping> = {
 // radio and group name.
 // ---------------------------------------------------------------------------
 export const ds160TravelCompanionsMappings: Record<string, FormFieldMapping> = {
+  // Live CEAC: `rblOtherPersonsTravelingWithYou`.
   has_companions: {
-    selector: 'select[id*="ddlTRAVEL_COMPANION"], input[id*="rblTRAVEL_COMPANION"]',
-    type: "select",
-    label: "Are there other persons traveling with you?",
+    selector: 'input[name*="rblOtherPersonsTravelingWithYou"], input[id*="rblOtherPersonsTravelingWithYou"]',
+    type: "radio",
+    label: "Has travel companions",
   },
   companion_group_travel: {
-    selector: 'select[id*="ddlGROUP_TRAVEL"], input[id*="rblGROUP_TRAVEL"]',
-    type: "select",
-    label: "Traveling as part of a group?",
+    selector: 'input[name*="rblGroupTravel"], input[id*="rblGroupTravel"], input[id*="rblGROUP_TRAVEL"]',
+    type: "radio",
+    label: "Traveling as part of a group",
   },
   companion_group_name: {
-    selector: 'input[id*="tbxGROUP_NAME"]',
+    selector: 'input[id*="tbxGroupName"], input[id*="tbxGROUP_NAME"]',
     type: "text",
     label: "Group Name",
   },
@@ -296,15 +504,17 @@ export const ds160TravelCompanionsMappings: Record<string, FormFieldMapping> = {
 // Complex conditional section. Minimal mapping for top-level yes/no gates.
 // ---------------------------------------------------------------------------
 export const ds160PreviousUsTravelMappings: Record<string, FormFieldMapping> = {
+  // All radios on the live CEAC page; the older `ddl*` alternatives are
+  // kept as fallbacks for any legacy CEAC deployments.
   has_been_in_us: {
-    selector: 'select[id*="ddlPREV_US_VISIT"], input[id*="rblPREV_US_VISIT"]',
-    type: "select",
-    label: "Have you ever been in the U.S.?",
+    selector: 'input[name*="rblPREV_US_TRAVEL_IND"], input[id*="rblPREV_US_TRAVEL_IND"], input[id*="rblPREV_US_VISIT"]',
+    type: "radio",
+    label: "Has been in US",
   },
   has_us_visa: {
-    selector: 'select[id*="ddlPREV_VISA_IND"], input[id*="rblPREV_VISA_IND"]',
-    type: "select",
-    label: "Have you ever been issued a U.S. Visa?",
+    selector: 'input[name*="rblPREV_VISA_IND"], input[id*="rblPREV_VISA_IND"]',
+    type: "radio",
+    label: "Has previous US visa",
   },
   visa_number: {
     selector: 'input[id*="tbxPREV_VISA_FOIL_NUMBER"]',
@@ -312,14 +522,19 @@ export const ds160PreviousUsTravelMappings: Record<string, FormFieldMapping> = {
     label: "Visa Number",
   },
   has_been_refused: {
-    selector: 'select[id*="ddlPREV_VISA_REFUSED"], input[id*="rblPREV_VISA_REFUSED"]',
-    type: "select",
-    label: "Have you ever been refused a U.S. Visa?",
+    selector: 'input[name*="rblPREV_VISA_REFUSED_IND"], input[id*="rblPREV_VISA_REFUSED_IND"]',
+    type: "radio",
+    label: "Has been refused US visa",
+  },
+  vwp_denial: {
+    selector: 'input[name*="rblVWP_DENIAL_IND"], input[id*="rblVWP_DENIAL_IND"]',
+    type: "radio",
+    label: "Denied ESTA / travel authorization",
   },
   immigrant_petition_filed: {
-    selector: 'select[id*="ddlIV_PETITION"], input[id*="rblIV_PETITION"]',
-    type: "select",
-    label: "Has anyone filed an immigrant petition on your behalf?",
+    selector: 'input[name*="rblIV_PETITION_IND"], input[id*="rblIV_PETITION_IND"]',
+    type: "radio",
+    label: "Immigrant petition filed for you",
   },
 };
 
@@ -363,7 +578,10 @@ export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
     label: "US Contact State",
   },
   us_contact_zip: {
-    selector: 'input[id*="tbxUS_POC_ADDR_ZIP"]',
+    // CEAC's live ID is `tbxUS_POC_ADDR_POSTAL_CD` (matching the home
+    // address postal field's pattern). Older builds used `_ZIP` — keep
+    // it as a fallback.
+    selector: 'input[id*="tbxUS_POC_ADDR_POSTAL_CD"], input[id*="tbxUS_POC_ADDR_ZIP"]',
     type: "text",
     label: "US Contact ZIP",
   },
@@ -377,6 +595,11 @@ export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "US Contact Email",
   },
+  us_contact_organization_na: {
+    selector: 'input[id*="cbxUS_POC_ORG_NA_IND"]',
+    type: "checkbox",
+    label: "US Contact Organization Does Not Apply",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -388,25 +611,100 @@ export const ds160FamilyRelativesMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Father's Surname",
   },
+  father_surname_unknown: {
+    selector: 'input[id*="cbxFATHER_SURNAME_UNK_IND"]',
+    type: "checkbox",
+    label: "Father's Surname Unknown",
+  },
   father_given_names: {
     selector: 'input[id*="tbxFATHER_GIVEN_NAME"]',
     type: "text",
     label: "Father's Given Names",
+  },
+  father_given_names_unknown: {
+    selector: 'input[id*="cbxFATHER_GIVEN_NAME_UNK_IND"]',
+    type: "checkbox",
+    label: "Father's Given Unknown",
+  },
+  father_dob_day: {
+    selector: 'select[id*="ddlFathersDOBDay"]',
+    type: "select",
+    label: "Father DOB Day",
+  },
+  father_dob_month: {
+    selector: 'select[id*="ddlFathersDOBMonth"]',
+    type: "select",
+    label: "Father DOB Month",
+  },
+  father_dob_year: {
+    selector: 'input[id*="tbxFathersDOBYear"]',
+    type: "text",
+    label: "Father DOB Year",
+  },
+  father_dob_unknown: {
+    selector: 'input[id*="cbxFATHER_DOB_UNK_IND"]',
+    type: "checkbox",
+    label: "Father DOB Unknown",
+  },
+  father_in_us: {
+    selector: 'input[name*="rblFATHER_LIVE_IN_US_IND"], input[id*="rblFATHER_LIVE_IN_US_IND"]',
+    type: "radio",
+    label: "Father in US",
   },
   mother_surname: {
     selector: 'input[id*="tbxMOTHER_SURNAME"]',
     type: "text",
     label: "Mother's Surname",
   },
+  mother_surname_unknown: {
+    selector: 'input[id*="cbxMOTHER_SURNAME_UNK_IND"]',
+    type: "checkbox",
+    label: "Mother's Surname Unknown",
+  },
   mother_given_names: {
     selector: 'input[id*="tbxMOTHER_GIVEN_NAME"]',
     type: "text",
     label: "Mother's Given Names",
   },
-  has_immediate_us_relatives: {
-    selector: 'select[id*="ddlUS_RELS_IND"], input[id*="rblUS_RELS_IND"]',
+  mother_given_names_unknown: {
+    selector: 'input[id*="cbxMOTHER_GIVEN_NAME_UNK_IND"]',
+    type: "checkbox",
+    label: "Mother's Given Unknown",
+  },
+  mother_dob_day: {
+    selector: 'select[id*="ddlMothersDOBDay"]',
     type: "select",
-    label: "Immediate relatives in the U.S.?",
+    label: "Mother DOB Day",
+  },
+  mother_dob_month: {
+    selector: 'select[id*="ddlMothersDOBMonth"]',
+    type: "select",
+    label: "Mother DOB Month",
+  },
+  mother_dob_year: {
+    selector: 'input[id*="tbxMothersDOBYear"]',
+    type: "text",
+    label: "Mother DOB Year",
+  },
+  mother_dob_unknown: {
+    selector: 'input[id*="cbxMOTHER_DOB_UNK_IND"]',
+    type: "checkbox",
+    label: "Mother DOB Unknown",
+  },
+  mother_in_us: {
+    selector: 'input[name*="rblMOTHER_LIVE_IN_US_IND"], input[id*="rblMOTHER_LIVE_IN_US_IND"]',
+    type: "radio",
+    label: "Mother in US",
+  },
+  has_immediate_us_relatives: {
+    selector: 'input[name*="rblUS_IMMED_RELATIVE_IND"], input[id*="rblUS_IMMED_RELATIVE_IND"], input[id*="rblUS_RELS_IND"]',
+    type: "radio",
+    label: "Has immediate US relatives",
+  },
+  has_other_us_relatives: {
+    selector: 'input[name*="rblUS_OTHER_RELATIVE_IND"], input[id*="rblUS_OTHER_RELATIVE_IND"]',
+    type: "radio",
+    label: "Has other US relatives",
   },
 };
 
@@ -447,12 +745,17 @@ export const ds160FamilySpouseMappings: Record<string, FormFieldMapping> = {
 // ---------------------------------------------------------------------------
 export const ds160WorkPreviousMappings: Record<string, FormFieldMapping> = {
   has_previous_employer: {
-    selector: 'select[id*="ddlPREV_EMPL_IND"], input[id*="rblPREV_EMPL"]',
-    type: "select",
-    label: "Were you previously employed?",
+    selector: 'input[name*="rblPreviouslyEmployed"], input[id*="rblPreviouslyEmployed"], input[id*="rblPREV_EMPL"]',
+    type: "radio",
+    label: "Previously employed",
+  },
+  has_other_education: {
+    selector: 'input[name*="rblOtherEduc"], input[id*="rblOtherEduc"]',
+    type: "radio",
+    label: "Attended other educational institutions",
   },
   prev_employer_name: {
-    selector: 'input[id*="tbxPREV_EMPL_NAME"]',
+    selector: 'input[id*="tbxPREV_EMPL_NAME"], input[id*="tbEmployerName"]',
     type: "text",
     label: "Previous Employer Name",
   },
@@ -464,29 +767,39 @@ export const ds160WorkPreviousMappings: Record<string, FormFieldMapping> = {
 // ---------------------------------------------------------------------------
 export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
   has_clan_tribe: {
-    selector: 'select[id*="ddlCLAN_TRIBE_IND"], input[id*="rblCLAN_TRIBE"]',
-    type: "select",
-    label: "Do you belong to a clan or tribe?",
+    selector: 'input[name*="rblCLAN_TRIBE_IND"], input[id*="rblCLAN_TRIBE_IND"]',
+    type: "radio",
+    label: "Belongs to clan/tribe",
   },
   language_name: {
     selector: 'input[id*="tbxLANGUAGE_NAME"]',
     type: "text",
     label: "Language Name",
   },
-  has_traveled_last_five_years: {
-    selector: 'select[id*="ddlTRAVELED_IND"], input[id*="rblTRAVELED"]',
-    type: "select",
-    label: "Traveled in last 5 years?",
+  has_countries_visited: {
+    selector: 'input[name*="rblCOUNTRIES_VISITED_IND"], input[id*="rblCOUNTRIES_VISITED_IND"]',
+    type: "radio",
+    label: "Visited countries in last 5 years",
+  },
+  has_organization: {
+    selector: 'input[name*="rblORGANIZATION_IND"], input[id*="rblORGANIZATION_IND"]',
+    type: "radio",
+    label: "Belonged to any organization",
   },
   has_specialized_skills: {
-    selector: 'select[id*="ddlSPECIALIZED_SKILLS_IND"], input[id*="rblSPECIALIZED_SKILLS"]',
-    type: "select",
-    label: "Specialized skills (firearms, explosives, etc.)?",
+    selector: 'input[name*="rblSPECIALIZED_SKILLS_IND"], input[id*="rblSPECIALIZED_SKILLS_IND"]',
+    type: "radio",
+    label: "Specialized skills",
   },
   has_served_military: {
-    selector: 'select[id*="ddlMILITARY_SERVICE_IND"], input[id*="rblMILITARY_SERVICE"]',
-    type: "select",
-    label: "Have you ever served in the military?",
+    selector: 'input[name*="rblMILITARY_SERVICE_IND"], input[id*="rblMILITARY_SERVICE_IND"]',
+    type: "radio",
+    label: "Served military",
+  },
+  has_served_insurgent: {
+    selector: 'input[name*="rblINSURGENT_ORG_IND"], input[id*="rblINSURGENT_ORG_IND"]',
+    type: "radio",
+    label: "Served in insurgent org",
   },
 };
 
@@ -498,17 +811,17 @@ export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
 
 export const ds160SecurityBackground1Mappings: Record<string, FormFieldMapping> = {
   has_communicable_disease: {
-    selector: 'input[id*="rblSECURITY_PART1_Q1"]',
+    selector: 'input[name*="rblDisease"], input[id*="rblDisease"], input[id*="rblSECURITY_PART1_Q1"]',
     type: "radio",
     label: "Communicable Disease",
   },
   has_physical_mental_disorder: {
-    selector: 'input[id*="rblSECURITY_PART1_Q2"]',
+    selector: 'input[name*="rblDisorder"], input[id*="rblDisorder"], input[id*="rblSECURITY_PART1_Q2"]',
     type: "radio",
     label: "Physical/Mental Disorder",
   },
   is_drug_abuser: {
-    selector: 'input[id*="rblSECURITY_PART1_Q3"]',
+    selector: 'input[name*="rblDruguser"], input[id*="rblDruguser"], input[id*="rblSECURITY_PART1_Q3"]',
     type: "radio",
     label: "Drug Abuser",
   },
@@ -516,100 +829,100 @@ export const ds160SecurityBackground1Mappings: Record<string, FormFieldMapping> 
 
 export const ds160SecurityBackground2Mappings: Record<string, FormFieldMapping> = {
   has_arrest_conviction: {
-    selector: 'input[id*="rblSECURITY_PART2_Q1"]',
+    selector: 'input[name*="rblArrested"], input[id*="rblArrested"], input[id*="rblSECURITY_PART2_Q1"]',
     type: "radio",
     label: "Arrest/Conviction",
   },
   has_violated_controlled_substance: {
-    selector: 'input[id*="rblSECURITY_PART2_Q2"]',
+    selector: 'input[name*="rblControlledSubstances"], input[id*="rblControlledSubstances"], input[id*="rblSECURITY_PART2_Q2"]',
     type: "radio",
     label: "Controlled Substance Violation",
   },
   has_prostitution: {
-    selector: 'input[id*="rblSECURITY_PART2_Q3"]',
+    selector: 'input[name*="rblProstitution"], input[id*="rblProstitution"], input[id*="rblSECURITY_PART2_Q3"]',
     type: "radio",
     label: "Prostitution",
   },
   has_money_laundering: {
-    selector: 'input[id*="rblSECURITY_PART2_Q4"]',
+    selector: 'input[name*="rblMoneyLaundering"], input[id*="rblMoneyLaundering"], input[id*="rblSECURITY_PART2_Q4"]',
     type: "radio",
     label: "Money Laundering",
   },
   has_human_trafficking: {
-    selector: 'input[id*="rblSECURITY_PART2_Q5"]',
+    selector: 'input[name*="rblHumanTrafficking_"], input[id*="rblHumanTrafficking_"], input[id*="rblSECURITY_PART2_Q5"]',
     type: "radio",
     label: "Human Trafficking",
   },
   has_aided_human_trafficking: {
-    selector: 'input[id*="rblSECURITY_PART2_Q6"]',
+    selector: 'input[name*="rblAssistedSevereTrafficking"], input[id*="rblAssistedSevereTrafficking"], input[id*="rblSECURITY_PART2_Q6"]',
     type: "radio",
     label: "Aided Human Trafficking",
   },
   has_trafficking_beneficiary: {
-    selector: 'input[id*="rblSECURITY_PART2_Q7"]',
+    selector: 'input[name*="rblHumanTraffickingRelated"], input[id*="rblHumanTraffickingRelated"], input[id*="rblSECURITY_PART2_Q7"]',
     type: "radio",
     label: "Trafficking Beneficiary",
   },
 };
 
 export const ds160SecurityBackground3Mappings: Record<string, FormFieldMapping> = {
-  intend_espionage: {
-    selector: 'input[id*="rblSECURITY_PART3_Q1"]',
+  intend_illegal_activity: {
+    selector: 'input[name*="rblIllegalActivity"], input[id*="rblIllegalActivity"], input[id*="rblSECURITY_PART3_Q1"]',
     type: "radio",
-    label: "Intend Espionage",
+    label: "Illegal Activity",
   },
   intend_terrorist_activity: {
-    selector: 'input[id*="rblSECURITY_PART3_Q2"]',
+    selector: 'input[name*="rblTerroristActivity"], input[id*="rblTerroristActivity"], input[id*="rblSECURITY_PART3_Q2"]',
     type: "radio",
-    label: "Intend Terrorist Activity",
+    label: "Terrorist Activity",
   },
   has_provided_terrorist_support: {
-    selector: 'input[id*="rblSECURITY_PART3_Q3"]',
+    selector: 'input[name*="rblTerroristSupport"], input[id*="rblTerroristSupport"], input[id*="rblSECURITY_PART3_Q3"]',
     type: "radio",
-    label: "Provided Terrorist Support",
+    label: "Terrorist Support",
   },
   is_terrorist_member: {
-    selector: 'input[id*="rblSECURITY_PART3_Q4"]',
+    selector: 'input[name*="rblTerroristOrg"], input[id*="rblTerroristOrg"], input[id*="rblSECURITY_PART3_Q4"]',
     type: "radio",
     label: "Terrorist Organization Member",
   },
   is_terrorist_family: {
-    selector: 'input[id*="rblSECURITY_PART3_Q5"]',
+    selector: 'input[name*="rblTerroristRel"], input[id*="rblTerroristRel"], input[id*="rblSECURITY_PART3_Q5"]',
     type: "radio",
-    label: "Terrorist Family Member",
+    label: "Terrorist Family",
   },
   has_genocide: {
-    selector: 'input[id*="rblSECURITY_PART3_Q6"]',
+    selector: 'input[name*="rblGenocide"], input[id*="rblGenocide"], input[id*="rblSECURITY_PART3_Q6"]',
     type: "radio",
     label: "Genocide",
   },
   has_torture: {
-    selector: 'input[id*="rblSECURITY_PART3_Q7"]',
+    selector: 'input[name*="rblTorture"], input[id*="rblTorture"], input[id*="rblSECURITY_PART3_Q7"]',
     type: "radio",
     label: "Torture",
   },
   has_extrajudicial_killings: {
-    selector: 'input[id*="rblSECURITY_PART3_Q8"]',
+    selector: 'input[name*="rblExViolence"], input[id*="rblExViolence"], input[id*="rblSECURITY_PART3_Q8"]',
     type: "radio",
-    label: "Extrajudicial Killings",
+    label: "Extrajudicial Violence",
   },
   has_child_soldier: {
-    selector: 'input[id*="rblSECURITY_PART3_Q9"]',
+    selector: 'input[name*="rblChildSoldier"], input[id*="rblChildSoldier"], input[id*="rblSECURITY_PART3_Q9"]',
     type: "radio",
     label: "Child Soldier",
   },
   has_religious_freedom_violation: {
-    selector: 'input[id*="rblSECURITY_PART3_Q10"]',
+    selector: 'input[name*="rblReligiousFreedom"], input[id*="rblReligiousFreedom"], input[id*="rblSECURITY_PART3_Q10"]',
     type: "radio",
     label: "Religious Freedom Violation",
   },
   has_population_control: {
-    selector: 'input[id*="rblSECURITY_PART3_Q11"]',
+    selector: 'input[name*="rblPopulationControls"], input[id*="rblPopulationControls"], input[id*="rblSECURITY_PART3_Q11"]',
     type: "radio",
     label: "Population Control",
   },
   has_coercive_transplant: {
-    selector: 'input[id*="rblSECURITY_PART3_Q12"]',
+    selector: 'input[name*="rblTransplant"], input[id*="rblTransplant"], input[id*="rblSECURITY_PART3_Q12"]',
     type: "radio",
     label: "Coercive Transplant",
   },
@@ -617,30 +930,30 @@ export const ds160SecurityBackground3Mappings: Record<string, FormFieldMapping> 
 
 export const ds160SecurityBackground4Mappings: Record<string, FormFieldMapping> = {
   has_immigration_fraud: {
-    selector: 'input[id*="rblSECURITY_PART4_Q1"]',
+    selector: 'input[name*="rblImmigrationFraud"], input[id*="rblImmigrationFraud"], input[id*="rblSECURITY_PART4_Q1"]',
     type: "radio",
     label: "Immigration Fraud",
   },
   has_removal_order: {
-    selector: 'input[id*="rblSECURITY_PART4_Q2"]',
+    selector: 'input[name*="rblDeport"], input[id*="rblDeport"], input[id*="rblSECURITY_PART4_Q2"]',
     type: "radio",
-    label: "Removal/Deportation Order",
+    label: "Deportation Order",
   },
 };
 
 export const ds160SecurityBackground5Mappings: Record<string, FormFieldMapping> = {
   has_withheld_child_custody: {
-    selector: 'input[id*="rblSECURITY_PART5_Q1"]',
+    selector: 'input[name*="rblChildCustody"], input[id*="rblChildCustody"], input[id*="rblSECURITY_PART5_Q1"]',
     type: "radio",
     label: "Withheld Child Custody",
   },
   has_voted_illegally: {
-    selector: 'input[id*="rblSECURITY_PART5_Q2"]',
+    selector: 'input[name*="rblVotingViolation"], input[id*="rblVotingViolation"], input[id*="rblSECURITY_PART5_Q2"]',
     type: "radio",
     label: "Voted Illegally",
   },
   has_renounced_citizenship: {
-    selector: 'input[id*="rblSECURITY_PART5_Q3"]',
+    selector: 'input[name*="rblRenounceExp"], input[id*="rblRenounceExp"], input[id*="rblSECURITY_PART5_Q3"]',
     type: "radio",
     label: "Renounced Citizenship",
   },

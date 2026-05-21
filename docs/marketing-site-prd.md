@@ -1,10 +1,14 @@
 # VIZA — External Website PRD
 
-**Version:** 2.0
-**Status:** Draft
-**Platform:** Framer (standalone, separate from monorepo)
-**Primary Language:** zh-CN (Phase 1; English Phase 2)
+**Version:** 2.1
+**Status:** Draft — implementation in progress
+**Platform:** Next.js 16 (App Router) in `viza-fe/marketing-website/`, deployed to `viza.com`. _Earlier drafts proposed Framer; that direction has been replaced by in-repo code-first integration so the marketing site can share brand tokens with the portal (`app.viza.com`) and live alongside it in CI._
+**Primary Language:** English at v1 (matches designed pages); zh-CN at v2 (route slot `/zh-CN/*` already provisioned via `next-intl`)
 **Site Type:** Full marketing + conversion website for a live visa agency
+
+> **v1 scope (shipping):** Home, Apply, Visa/[country] (Indonesia only), Careers, Contact, Security, Status, Refunds — 8 routes total. Implemented in `viza-fe/marketing-website/app/[locale]/`.
+>
+> **v2 backlog (not yet built):** /about, /solutions overview + 6 sub-pages, /blog (+ CMS), full zh-CN copy translation.
 
 ---
 

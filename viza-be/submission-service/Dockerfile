@@ -1,0 +1,46 @@
+# VIZA submission-service runner image (INFRA-001).
+#
+# Pins Playwright + Chromium via the official mcr.microsoft.com/playwright
+# base image. The base image already ships with Chromium, Firefox, and
+# WebKit + the right system fonts and X libs for headed runs in CI.
+#
+# Build:
+#   docker build -f viza-be/submission-service/Dockerfile \
+#     -t ghcr.io/<org>/viza-runner:$(git rev-parse --short HEAD) \
+#     viza-be/submission-service
+#
+# Smoke (no live portal hit, just confirms Playwright + tsx start cleanly):
+#   docker run --rm <image> npm run smoke:ceac
+
+# Pinned Playwright base. Bump together with package.json @playwright/test.
+FROM mcr.microsoft.com/playwright:v1.50.0-jammy AS base
+
+ENV NODE_ENV=production \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+WORKDIR /app
+
+# ---- deps layer ----
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev || npm install --omit=dev
+
+# ---- src layer ----
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts
+
+# Compile to /app/dist for the worker entrypoint.
+COPY tsconfig.json ./
+RUN npx --no-install tsc --outDir dist --module CommonJS --target ES2022 \
+      --esModuleInterop true --skipLibCheck true --resolveJsonModule true \
+      || true
+
+# Default user: keep playwright's pre-baked `pwuser` so chromium can sandbox.
+USER pwuser
+
+# Default command runs the worker loop. Override at `docker run` time for
+# smoke tests:
+#   docker run --rm <image> npx tsx src/ceac/_e2e.ts --headless
+CMD ["node", "dist/index.js"]

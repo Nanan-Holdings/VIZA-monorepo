@@ -1,0 +1,171 @@
+/* Shared site nav — extracted from explore page nav so subpages match home 1:1 */
+.site-nav {
+  position: sticky; top: 0; z-index: 50;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.site-nav .nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 18px 40px;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px;
+}
+.site-nav .nav-left { display: flex; align-items: center; gap: 24px; }
+.site-nav .nav-logo { display: flex; align-items: center; gap: 10px; }
+.site-nav .nav-logo img { height: 22px; }
+
+.site-nav .passport-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px 6px 6px;
+  background: #fff; border: 1px solid var(--border-hairline);
+  border-radius: 999px;
+  font-size: 13px; line-height: 1.2; color: var(--fg-1);
+  cursor: pointer; position: relative;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.site-nav .passport-pill:hover { border-color: var(--brand-300); }
+.site-nav .passport-pill.open {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 1px var(--brand-500);
+}
+.site-nav .passport-pill .ball {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: var(--brand-50);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; line-height: 1; flex: 0 0 auto;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(3,52,110,0.08);
+}
+.site-nav .passport-pill .ball img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.site-nav .passport-pill .lab-key {
+  font-size: 11px; color: var(--fg-2);
+  text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;
+  display: block; margin-bottom: 1px;
+}
+.site-nav .passport-pill .lab-val {
+  font: 500 14px/1.1 var(--font-sans); color: var(--fg-1);
+  display: flex; align-items: center; gap: 6px;
+}
+.site-nav .passport-pill .chev { color: var(--fg-2); }
+
+.site-nav .passport-pop {
+  position: absolute; top: 100%; left: 0; margin-top: 8px;
+  width: 360px;
+  background: #fff;
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.04),
+    0 12px 24px -4px rgba(3, 52, 110, 0.10),
+    0 32px 64px -16px rgba(3, 52, 110, 0.16);
+  padding: 16px;
+  z-index: 200;
+}
+.site-nav .passport-pop h4 {
+  font: 500 13px/1.2 var(--font-sans);
+  color: var(--fg-2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.site-nav .passport-pop .pp-search {
+  display: flex; align-items: center; gap: 10px;
+  height: 42px; padding: 0 14px;
+  background: #fafafa; border: 1px solid var(--border-input);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.site-nav .passport-pop .pp-search:focus-within {
+  border-color: var(--brand-500);
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--brand-500);
+}
+.site-nav .passport-pop .pp-search input {
+  border: 0; outline: none; flex: 1;
+  background: transparent; font-size: 14px; color: var(--fg-1);
+}
+.site-nav .passport-pop .pp-list {
+  max-height: 260px; overflow-y: auto;
+  margin: 0 -8px; padding: 0 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.site-nav .passport-pop .pp-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: 8px;
+  cursor: pointer; transition: background .12s;
+  border: 0; background: transparent; width: 100%; text-align: left;
+}
+.site-nav .passport-pop .pp-row:hover { background: var(--brand-50); }
+.site-nav .passport-pop .pp-row.sel { background: var(--brand-50); }
+.site-nav .passport-pop .pp-row .pp-flag {
+  width: 28px; height: 28px; border-radius: 999px;
+  background: #f0f0f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+.site-nav .passport-pop .pp-row .pp-flag img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.site-nav .passport-pop .pp-row .pp-name {
+  font: 500 14px/1.2 var(--font-sans); color: var(--fg-1); flex: 1;
+}
+.site-nav .passport-pop .pp-row .pp-meta {
+  font-size: 11px; color: var(--fg-2);
+}
+.site-nav .passport-pop .pp-row .pp-check { color: var(--brand-500); opacity: 0; }
+.site-nav .passport-pop .pp-row.sel .pp-check { opacity: 1; }
+.site-nav .passport-pop .pp-foot {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border-hairline);
+  font-size: 11px; color: var(--fg-2);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.site-nav .nav-tabs {
+  display: flex; align-items: center; gap: 4px;
+  position: relative; background: transparent; padding: 4px;
+}
+.site-nav .nav-tab {
+  position: relative; padding: 9px 22px;
+  font: 500 15px/1 var(--font-heading); letter-spacing: -0.2px;
+  color: var(--fg-2); cursor: pointer;
+  transition: color .2s; z-index: 1; background: transparent; border: 0;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.site-nav .nav-tab.active { color: var(--brand-500); }
+.site-nav .pill-indicator {
+  position: absolute; top: 4px; height: calc(100% - 8px);
+  background: var(--brand-50);
+  border-radius: 999px;
+  transition: left .35s cubic-bezier(.4,0,.2,1), width .35s cubic-bezier(.4,0,.2,1);
+  z-index: 0; pointer-events: none;
+}
+
+.site-nav .nav-right { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.site-nav .search {
+  display: flex; align-items: center; gap: 10px;
+  width: 280px; height: 44px; padding: 0 16px;
+  background: #fff; border: 1px solid var(--border-input);
+  border-radius: 999px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.site-nav .search:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 1px var(--brand-500); }
+.site-nav .search input { border: 0; outline: none; flex: 1; font-size: 14px; background: transparent; color: var(--fg-1); }
+.site-nav .search svg { color: var(--fg-2); flex: 0 0 auto; }
+.site-nav .icon-btn {
+  width: 40px; height: 40px; border-radius: 999px;
+  border: 1px solid var(--border-hairline); background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fg-1); transition: background .15s, color .15s;
+  cursor: pointer;
+}
+.site-nav .icon-btn:hover { background: var(--brand-50); color: var(--brand-500); }
+.site-nav .avatar {
+  width: 40px; height: 40px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-400), var(--brand-600));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font: 600 14px/1 var(--font-sans); letter-spacing: 0;
+  border: 2px solid #fff;
+  box-shadow:
+    0 1px 2px rgba(3, 52, 110, 0.10),
+    0 4px 12px -2px rgba(3, 52, 110, 0.18);
+  cursor: pointer;
+}

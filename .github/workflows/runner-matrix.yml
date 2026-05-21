@@ -1,0 +1,94 @@
+name: runner-matrix
+
+on:
+  schedule:
+    # 02:00 UTC nightly
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    name: stress (${{ matrix.country }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        country: [kh, la, lk, za, in]
+    defaults:
+      run:
+        working-directory: viza-be/submission-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: viza-be/submission-service/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run stress (10 applicants)
+        env:
+          NODE_ENV: staging
+        run: npx ts-node scripts/runner-stress.ts ${{ matrix.country }} 10
+      - name: Upload failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-failures-${{ matrix.country }}
+          path: |
+            viza-be/submission-service/stress-out/${{ matrix.country }}/**
+            viza-be/submission-service/jobs/**
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload run summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-summary-${{ matrix.country }}
+          path: viza-be/submission-service/stress-out/${{ matrix.country }}/**/summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  digest:
+    name: digest
+    needs: stress
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: viza-be/submission-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: viza-be/submission-service/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Pull all summaries
+        uses: actions/download-artifact@v4
+        with:
+          path: viza-be/submission-service/stress-out
+          pattern: runner-summary-*
+          merge-multiple: false
+      - name: Reorganise summaries by country
+        run: |
+          set -e
+          mkdir -p stress-out-flat
+          for d in stress-out/runner-summary-*; do
+            country=$(basename "$d" | sed 's/^runner-summary-//')
+            mkdir -p "stress-out-flat/$country"
+            cp -r "$d"/* "stress-out-flat/$country/" || true
+          done
+      - name: Emit digest
+        env:
+          STRESS_SLACK_WEBHOOK: ${{ secrets.STRESS_SLACK_WEBHOOK }}
+        run: npx ts-node scripts/runner-stress-digest.ts stress-out-flat

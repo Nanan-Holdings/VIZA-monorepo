@@ -136,6 +136,255 @@
           "badge": "等待中"
         }
       }
+    },
+    "overview": {
+      "phaseOfTotal": "第 {current} 步,共 {total} 步",
+      "notStartedYet": "尚未开始",
+      "etaLabel": "预计出签",
+      "estimatedTotal": "预计总用时"
+    },
+    "nextAction": {
+      "title": "下一步",
+      "allDone": "已全部完成",
+      "allDoneSub": "等待领事馆出签结果。",
+      "getStarted": "开始申请",
+      "getStartedSub": "准备好后即可继续。",
+      "cta": {
+        "start": "开始",
+        "continue": "继续",
+        "payNow": "立即支付",
+        "signDeclaration": "签署声明",
+        "uploadDocs": "上传材料",
+        "bookAppointment": "预约",
+        "bookInterview": "预约面签",
+        "viewDetails": "查看详情"
+      }
+    },
+    "duration": {
+      "day1": "第 1 天",
+      "daysOneToThree": "1–3 天",
+      "daysThreeToFive": "3–5 天",
+      "sameDay": "当日",
+      "withinOneWeek": "1 周内",
+      "aboutOneWeek": "约 1 周",
+      "oneToTwoWeeks": "1–2 周",
+      "aboutThreeWeeks": "约 3 周",
+      "threeToSixWeeks": "3–6 周",
+      "aboutFifteenWorkingDays": "约 15 个工作日",
+      "aboutThreeWorkingDays": "约 3 个工作日",
+      "aboutFiveWorkingDays": "约 5 个工作日",
+      "dayOf": "当天",
+      "varies": "不定"
+    },
+    "realWorld": {
+      "in_person": "现场",
+      "mail": "邮寄",
+      "online": "线上"
+    },
+    "phase": {
+      "doneOn": "完成 · {date}",
+      "startedOn": "开始 · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "申请的后续步骤如下。预计用时:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "创建 UKVI 账户",
+          "subtitle": "注册英国签证与移民局账户以开始申请。"
+        },
+        "form": {
+          "title": "在线申请",
+          "subtitle": "填写 44 页的英国标准访客签证申请表。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在线支付英国签证申请费。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "上传银行流水、行程及住宿证明。"
+        },
+        "ukvcas": {
+          "title": "UKVCAS 生物信息采集",
+          "subtitle": "在 UKVCAS 中心预约并完成生物信息采集。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "UKVI 完成审理并发出结果。"
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "申根申请",
+          "subtitle": "完成统一的申根短期签证申请表。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "保险、住宿、财力与行程证明。"
+        },
+        "vfs_appointment": {
+          "title": "VFS 预约",
+          "subtitle": "在 VFS Global 中心预约递签时间。"
+        },
+        "biometrics": {
+          "title": "生物信息采集",
+          "subtitle": "在预约时间提供指纹与照片。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "领事馆作出短期签证决定。"
+        },
+        "passport_pickup": {
+          "title": "领取护照",
+          "subtitle": "审理完成后到 VFS 中心领取护照。"
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "选择访客流",
+          "subtitle": "在旅游、商务、担保亲属、ADS 或常旅客之间选择。"
+        },
+        "form": {
+          "title": "在线申请",
+          "subtitle": "在 ImmiAccount 完成 600 类签证申请。"
+        },
+        "signing": {
+          "title": "签署声明",
+          "subtitle": "提交前请确认品行与健康声明并签署。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在 ImmiAccount 缴纳签证申请费。"
+        },
+        "submit_online": {
+          "title": "线上递交",
+          "subtitle": "通过 ImmiAccount 递交申请。"
+        },
+        "biometrics_optional": {
+          "title": "生物信息(如需)",
+          "subtitle": "部分国籍需在 VAC 录入生物信息。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "内政部完成审核并出具结果。"
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "电子签证表格",
+          "subtitle": "在线填写越南电子签证申请。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在线支付电子签证费用。"
+        },
+        "wait_email": {
+          "title": "等待邮件",
+          "subtitle": "越南移民局通过邮件发送电子签证 PDF。"
+        },
+        "print_and_travel": {
+          "title": "打印出行",
+          "subtitle": "打印电子签证 PDF,入境时出示。"
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "申请",
+          "subtitle": "完成签证申请。"
+        },
+        "documents": {
+          "title": "材料",
+          "subtitle": "上传必要的辅助材料。"
+        },
+        "submit": {
+          "title": "递交",
+          "subtitle": "提交申请进入审理。"
+        },
+        "review": {
+          "title": "审核",
+          "subtitle": "申请正在审核中。"
+        },
+        "decision": {
+          "title": "结果",
+          "subtitle": "等待最终结果。"
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "DS-160 表格",
+          "subtitle": "在线完成 DS-160 非移民签证申请。"
+        },
+        "pay": {
+          "title": "缴纳 MRV 费用",
+          "subtitle": "在指定银行或线上缴纳签证费。"
+        },
+        "schedule_interview": {
+          "title": "预约面签",
+          "subtitle": "在美国大使馆或领事馆预约面签时间。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "准备护照、照片、财力与行程证明。"
+        },
+        "interview": {
+          "title": "领事面签",
+          "subtitle": "前往美国领事馆完成面签。"
+        },
+        "passport_pickup": {
+          "title": "护照寄回",
+          "subtitle": "签证贴签后护照将寄回或自取。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "领事官在面签后做出决定。"
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "申请表",
+          "subtitle": "完成印尼旅游签证 B211A 申请表。"
+        },
+        "submit": {
+          "title": "递交申请",
+          "subtitle": "通过印尼移民门户递交申请。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "缴纳 B211A 签证申请费。"
+        },
+        "email_visa": {
+          "title": "电子签证邮件",
+          "subtitle": "通过邮件接收 B211A 批准函。"
+        }
+      }
+    }
+  },
+  "client": {
+    "signing": {
+      "loading": "正在加载您的声明…",
+      "errorTitle": "无法加载签名页面",
+      "notAuApplication": "仅澳大利亚 600 类访客签证需要签署声明。",
+      "alreadySignedTitle": "声明已完成签署",
+      "alreadySignedBody": "您的签名已保存,后续提交由系统处理。",
+      "submittedTitle": "签名已提交",
+      "submittedBody": "我们已将您的申请加入最终提交队列。",
+      "backToHome": "返回主页",
+      "pageTitle": "签署您的声明",
+      "pageSubtitle": "请核对以下回答,并在下方完成签名。系统会将您的签名渲染到正式的 600 类声明文件,再提交至 ImmiAccount。",
+      "healthHeading": "健康声明",
+      "characterHeading": "品行声明",
+      "finalHeading": "最终确认",
+      "yes": "是",
+      "no": "否",
+      "unanswered": "未回答",
+      "signHeading": "在此签名",
+      "signSubtitle": "使用手指、触控笔或鼠标签名。需要重写请点「清除」。",
+      "padAriaLabel": "签名板",
+      "clear": "清除",
+      "submit": "提交签名",
+      "submitting": "正在提交…"
     }
   },
   "services": {
@@ -819,8 +1068,11 @@
       "1": "联系方式",
       "2": "护照",
       "3": "行程",
+      "usStay": "在美住宿",
+      "usContact": "美国联系人",
       "4": "家庭",
-      "5": "背景"
+      "5": "背景",
+      "6": "工作与教育"
     },
     "common": {
       "continue": "继续",
@@ -833,7 +1085,37 @@
       "scanTitle": "先从您的身份开始",
       "scanSubtitle": "扫描护照自动填充,或手动输入。",
       "scanOption": "扫描护照",
+      "scanOptionHint": "通过照片自动填充您的信息",
       "scanComingSoon": "即将推出 — 请先手动输入",
+      "scanUploadTitle": "上传您的护照",
+      "scanInstructions": "请将护照资料页平整放置,光线充足。我们需要清晰读取照片、机读区和所有印刷文字。",
+      "scanBrowse": "选择文件",
+      "scanBrowseHint": "JPG、PNG 或 WEBP — 最大 8 MB",
+      "scanTakePhoto": "拍照",
+      "scanTakePhotoHint": "使用您的相机(手机)",
+      "scanExtracting": "正在读取您的护照…",
+      "scanExtractError": "无法识别此照片。请重新拍摄清晰照片或手动输入。",
+      "scanResultTitle": "确认识别结果",
+      "scanResultSubtitle": "如有不正确的字段,请在继续前修改。",
+      "scanUseDetails": "使用这些信息",
+      "scanRetry": "重新拍摄",
+      "scanFallbackManual": "改为手动输入",
+      "scanPrivacyNote": "扫描件经加密传输,仅用于识别,提交后即删除。",
+      "scanNoDraft": "无法启动草稿申请。请刷新页面后重试。",
+      "scanWrongFormat": "请上传 JPG、PNG 或 WEBP 格式图片。",
+      "scanTooLarge": "图片过大 — 请使用小于 8 MB 的图片。",
+      "scanNotAuthenticated": "请重新登录以扫描护照。",
+      "scanPassportNumber": "护照号码",
+      "scanPassportType": "护照类型",
+      "scanIssuingCountry": "签发国家",
+      "scanIssueDate": "签发日期",
+      "scanExpiryDate": "有效期至",
+      "scanWarningsTitle": "注意",
+      "scanConfidence": {
+        "high": "识别可信度高",
+        "medium": "识别可信度中等 — 请仔细核对",
+        "low": "识别可信度低 — 请逐字核对"
+      },
       "manualOption": "手动输入",
       "manualDescription": "手动输入您的信息",
       "title": "您的信息",
@@ -851,31 +1133,39 @@
       "countryOfBirthPlaceholder": "选择国家",
       "cityOfBirth": "出生城市",
       "cityOfBirthPlaceholder": "例如:上海",
+      "stateOfBirth": "出生州/省",
+      "stateOfBirthPlaceholder": "例如 广东省",
+      "noStateProvince": "我的出生国家没有州/省",
       "nationality": "国籍",
       "nationalityPlaceholder": "选择国籍",
       "maritalStatus": "婚姻状况",
+      "maritalStatusPlaceholder": "选择婚姻状况",
       "single": "未婚",
       "married": "已婚",
+      "commonLawMarriage": "事实婚姻",
+      "civilUnion": "民事结合/家庭伴侣",
+      "legallySeparated": "合法分居",
       "divorced": "离异",
       "widowed": "丧偶",
+      "other": "其他",
+      "maritalStatusOtherExplain": "请说明您的婚姻状况",
+      "maritalStatusOtherExplainPlaceholder": "请描述您的婚姻状况",
       "hasOtherName": "您曾用过其他名字吗?",
+      "hasOtherNameTooltip": "这包括婚前姓名、宗教名、职业名或官方文件上使用过的任何其他姓名。例如：曾用名：王小红 → 李小红 (婚后)",
       "otherFirstName": "其他名",
       "otherFirstNamePlaceholder": "曾用名或别名(名)",
       "otherLastName": "其他姓",
       "otherLastNamePlaceholder": "曾用名或别名(姓)",
       "hasNativeAlphabet": "您的姓名是否使用非英文字符?",
-      "hasNativeAlphabetHint": "例如中文、阿拉伯文、西里尔文",
+      "hasNativeAlphabetTooltip": "如果您的护照上显示中文姓名，请选择'是'并按原样输入。例如：张伟 或 李明",
       "nativeAlphabetName": "母语字母的完整姓名",
       "nativeAlphabetNamePlaceholder": "例如:张泽华",
       "hasTelecode": "您是否有代表您姓名的电码?",
-      "hasTelecodeHint": "大多数申请人选择「否」",
+      "hasTelecodeTooltip": "电码是代表汉字的4位数字。如果您知道您的电码，请选择'是'并输入数字。例如：张 = 1728, 伟 = 0251, 李 = 2621, 明 = 2494",
       "telecodeFirstName": "电码名",
       "telecodeFirstNamePlaceholder": "电码名",
       "telecodeLastName": "电码姓",
       "telecodeLastNamePlaceholder": "电码姓",
-      "hasPermanentResidence": "您是否在其他国家长期居住?",
-      "hasPermanentResidenceHint": "指国籍以外的常住国",
-      "permanentResidenceCountryPlaceholder": "常住国家/地区",
       "spouseTitle": "配偶信息",
       "spouseFirstName": "配偶名",
       "spouseLastName": "配偶姓",
@@ -911,7 +1201,15 @@
       "mailingSame": "邮寄地址与家庭住址相同吗?",
       "socialMedia": "社交媒体",
       "socialMediaHint": "DS-160 要求申报您使用的平台。选择所有适用项。",
-      "socialHandlePlaceholder": "{platform} 用户名或账号"
+      "useSocialMedia": "您使用社交媒体吗?",
+      "socialHandlePlaceholder": "{platform} 用户名或账号",
+      "otherPlatforms": "更多平台",
+      "otherPlatformsPlaceholder": "选择平台",
+      "customPlatformLabel": "平台",
+      "customPlatformPlaceholder": "例如 微信",
+      "customUsernameLabel": "用户名",
+      "customUsernamePlaceholder": "@用户名",
+      "addAnotherPlatform": "添加其他平台（自行输入）"
     },
     "passport": {
       "title": "护照与身份证明",
@@ -921,14 +1219,56 @@
       "typeRegularHint": "最常见",
       "typeOfficial": "公务",
       "typeDiplomatic": "外交",
+      "typePermit": "通行证",
       "typeOther": "其他",
       "number": "护照号码",
       "numberPlaceholder": "例如:E12345678",
-      "bookNumber": "护照簿号(可选)",
+      "numberHint": "在护照的护照页上。通常为8-9个字符。",
+      "bookNumber": "护照本号",
+      "bookNumberQuestion": "您的护照是否有单独的本号?",
       "bookNumberHint": "仅当您的护照有独立簿号时填写",
+      "bookNumberHelp": "部分护照在封面内页有额外号码。大多数没有 — 如果不确定，请选择「否」。",
       "bookNumberPlaceholder": "护照簿号",
       "issuingCountry": "签发国家",
       "issuingCountryPlaceholder": "选择国家",
+      "issuedInAnotherCountry": "您是否在另一个国家领取的?",
+      "issuedInAnotherCountryCountry": "领取护照的国家",
+      "issuanceCity": "城市",
+      "issuanceCityPlaceholder": "城市",
+      "issuanceProvince": "省",
+      "issuanceProvincePlaceholder": "省",
+      "extraQuestionsTitle": "几个额外问题",
+      "extraOtherCitizenship": "您是否拥有其他国家的公民身份?",
+      "extraOtherCountryPermanentResidence": "您是否在其他国家永久居住?",
+      "extraUsSocialSecurityOrTaxId": "您是否曾拥有美国社会安全号码或税务编号?",
+      "extraNationalityCardTitle": "国籍 {index}",
+      "extraNationalityCountry": "国家",
+      "extraNationalityCountryPlaceholder": "Select",
+      "extraNationalityHasPassport": "您是否持有该国护照?",
+      "extraNationalityPassportNumber": "护照号码",
+      "extraNationalityPassportNumberPlaceholder": "护照号码",
+      "extraAddNationality": "添加国籍",
+      "extraAddCountry": "添加国家",
+      "extraSsnLabel": "社会安全号码（SSN）",
+      "extraSsnInputLabel": "SSN",
+      "extraSsnPlaceholder": "•••-••-••••",
+      "extraSsnHint": "仅在您之前有过的情况下填写（例如曾在美国工作）。",
+      "extraItinLabel": "纳税人识别号（ITIN）",
+      "extraItinInputLabel": "ITIN",
+      "extraItinPlaceholder": "9XX-XX-XXXX",
+      "extraItinHint": "IRS 签发的税务号码 — 仅在您之前报过美国税的情况下填写。",
+      "nationalIdSectionTitle": "国民身份证明",
+      "nationalIdInputLabel": "Resident ID Number (身份证号)",
+      "nationalIdHelp": "您的18位中国居民身份证号码。",
+      "nationalIdPlaceholderLong": "e.g. 110101199001011234",
+      "nationalIdNone": "我没有",
+      "lostPassportSectionTitle": "遗失或被盗的护照",
+      "lostPassportQuestion": "您是否曾遗失护照或护照被盗?",
+      "lostPassportCardTitle": "遗失的护照 1",
+      "lostPassportKnowNumber": "您是否知道护照号码?",
+      "lostPassportNumber": "护照号码",
+      "lostPassportCountry": "国家/签发机构",
+      "lostPassportExplanationPlaceholderLong": "描述发生了什么...",
       "issueDate": "签发日期",
       "issueDatePlaceholder": "选择签发日期",
       "expiryDate": "到期日期",
@@ -945,6 +1285,61 @@
     "travel": {
       "title": "您的行程与美签历史",
       "subtitle": "大致日期即可。下方问题多为是/否。",
+      "specificPlanTitle": "旅行日期",
+      "estimatedPlanTitle": "大致旅行详情",
+      "usAddressTitle": "您将在美国的地址",
+      "usStayPageTitle": "您在美国将住在哪里？",
+      "usStayPageSubtitle": "请填写您在美国停留期间的住宿地址信息。",
+      "accomTypeTitle": "住宿类型",
+      "accomHotel": "酒店/度假村",
+      "accomAirbnb": "Airbnb/短租",
+      "accomFriends": "亲友",
+      "accomBusiness": "商务",
+      "accomSchool": "学校/大学",
+      "accomOther": "其他",
+      "accomHotelNameTitle": "酒店/度假村名称",
+      "accomHostNameTitle": "房东姓名",
+      "accomFriendsContactTitle": "联系人姓名",
+      "accomBusinessTitle": "公司名称",
+      "accomSchoolTitle": "学校/大学名称",
+      "accomOtherContactTitle": "联系人",
+      "accomContactSubtitle": "您将住在谁那里或什么地方",
+      "hotelHint": "您可以在预订确认邮件或酒店网站上找到酒店的地址和电话。",
+      "airbnbHint": "请使用Airbnb预订中的房东姓名和房产地址。",
+      "howKnowThem": "您是如何认识他们的？",
+      "relative": "亲属",
+      "friend": "朋友",
+      "accomHotelAddressTitle": "酒店地址",
+      "accomAirbnbAddressTitle": "租赁地址",
+      "accomFriendsAddressTitle": "对方在美国的地址",
+      "accomBusinessAddressTitle": "公司地址",
+      "accomSchoolAddressTitle": "学校地址",
+      "accomOtherAddressTitle": "联系地址",
+      "accomAddressSubtitle": "您在美国住宿的完整地址",
+      "schoolName": "学校名称",
+      "schoolNamePlaceholder": "学校或大学名称",
+      "hostFirstNamePlaceholder": "例如 John",
+      "hostLastNamePlaceholder": "例如 Smith",
+      "contactFirstNamePlaceholder": "例如 John",
+      "contactLastNamePlaceholder": "例如 Doe",
+      "usStreet2": "地址第2行",
+      "usStreet2Placeholder": "例如 Apt 4B",
+      "usStateLabel": "州",
+      "usCityPlaceholderUs": "例如 New York",
+      "usStatePlaceholderUs": "例如 New York",
+      "usZipPlaceholderUs": "例如 10001",
+      "contactInfoHotel": "酒店联系信息",
+      "contactInfoAirbnb": "房东联系信息",
+      "contactInfoFriends": "您联系人的电话和邮箱",
+      "contactInfoBusiness": "公司联系信息",
+      "contactInfoSchool": "学校联系信息",
+      "contactInfoOther": "联系人信息",
+      "contactInfoHotelSubtitle": "酒店的电话和邮箱——不是您的",
+      "contactInfoFriendsSubtitle": "您的亲友的电话和邮箱——不是您的",
+      "contactInfoDefaultSubtitle": "对方的电话和邮箱——不是您的",
+      "contactEmailHotelPlaceholder": "例如 hotel@example.com",
+      "contactEmailPlaceholder": "例如 contact@example.com",
+      "unknownContactEmail": "我不知道对方的邮箱",
       "plans": "您是否有具体的旅行计划?",
       "plansYes": "有",
       "plansYesHint": "日期和地址已确定",
@@ -954,16 +1349,36 @@
       "plansUnsureHint": "跳过这些细节",
       "arrivalDate": "抵达日期",
       "arrivalDatePlaceholder": "选择抵达日期",
+      "departureDate": "离开日期",
+      "departureDatePlaceholder": "选择离开日期",
+      "arrivalCity": "到达城市",
+      "arrivalCityPlaceholder": "例如 纽约",
+      "arrivalFlight": "到达航班（如已知）",
+      "arrivalFlightPlaceholder": "例如 AA1234",
+      "departureCity": "离开城市",
+      "departureCityPlaceholder": "例如 洛杉矶",
+      "departureFlight": "离开航班（如已知）",
+      "departureFlightPlaceholder": "例如 UA5678",
+      "placesToVisit": "您计划在美国访问的地方",
+      "placeToVisitPlaceholder": "例如 纽约",
+      "addPlace": "添加地点",
+      "estimatedArrivalDate": "大约到达日期",
       "lengthOfStay": "停留时间",
       "lengthOfStayPlaceholder": "14",
       "lengthUnit": "时长",
       "days": "天",
       "weeks": "周",
       "months": "月",
+      "years": "年",
+      "lessThan24Hours": "不到24小时",
+      "accommodationPlaceholder": "选择住宿类型",
       "accommodation": "您将在哪里住宿?",
-      "hotel": "酒店",
+      "hotelMotel": "酒店/汽车旅馆",
       "privateHome": "私人住宅",
+      "shortTermRental": "短期租赁",
       "other": "其他",
+      "hotelName": "酒店名称",
+      "hotelNamePlaceholder": "例如 希尔顿花园酒店",
       "usStreet": "美国街道地址",
       "usStreetPlaceholder": "例如:350 Fifth Avenue",
       "usCity": "城市",
@@ -972,6 +1387,7 @@
       "usStatePlaceholder": "州",
       "usZip": "邮编",
       "usZipPlaceholder": "邮编",
+      "companionsTitle": "同行人员",
       "payer": "谁支付此次旅行费用?",
       "payerSelf": "本人",
       "payerFamily": "家人",
@@ -980,6 +1396,43 @@
       "embassyLocation": "面签的使领馆",
       "embassyLocationHint": "通常是距离您最近的美国使领馆",
       "embassyLocationPlaceholder": "例如:中国 — 北京",
+      "tripPaymentTitle": "旅费支付",
+      "payerPlaceholder": "选择付款方",
+      "payerOtherPerson": "其他人",
+      "payerCurrentEmployer": "现任雇主",
+      "payerUsEmployer": "美国雇主",
+      "payerOtherCompany": "其他公司/组织",
+      "payerOtherPersonDetails": "其他人详情",
+      "firstName": "名",
+      "firstNamePlaceholder": "例如 张",
+      "lastName": "姓",
+      "lastNamePlaceholder": "例如 伟",
+      "phone": "电话号码",
+      "phonePlaceholder": "11位数字号码",
+      "dialCode": "区号",
+      "email": "电子邮箱",
+      "emailPlaceholder": "例如 email@example.com",
+      "unknownPayerEmail": "我不知道对方的电子邮箱",
+      "yourRelationship": "与您的关系",
+      "relationshipPlaceholder": "选择关系",
+      "payerAddressSameAsYou": "对方的地址与您相同吗?",
+      "street1": "街道地址（第1行）",
+      "street1Placeholder": "例如 123 Main St",
+      "street2": "街道地址（第2行）",
+      "street2Placeholder": "例如 Apt 4B",
+      "city": "城市",
+      "cityPlaceholder": "例如 北京",
+      "stateProvince": "州/省",
+      "stateProvincePlaceholder": "州/省",
+      "noStateProvince": "该国没有州/省",
+      "postalCode": "邮政编码",
+      "postalCodePlaceholder": "邮政编码",
+      "noPostalCode": "该国没有邮政编码",
+      "country": "国家",
+      "payerOrgDetails": "公司/组织详情",
+      "orgName": "公司/组织名称",
+      "orgNamePlaceholder": "例如 Acme Corp",
+      "orgRelationshipPlaceholder": "例如 赞助方、雇主",
       "visaHistoryTitle": "美签历史",
       "previousVisa": "您是否曾获发美签?",
       "previousVisaNumber": "签证号码",
@@ -991,14 +1444,55 @@
       "refusalExplanationPlaceholder": "请说明日期和具体情况",
       "estaDenied": "您是否曾被 ESTA 拒绝?",
       "petitionFiled": "是否有人为您递交过移民申请?",
-      "hasCompanions": "是否有其他人与您一同旅行?",
+      "hasCompanions": "是否有其他人与您同行?",
+      "companionGroupTravel": "您是否作为团组或组织的一部分旅行?",
+      "companionGroupName": "团组/组织名称",
+      "companionGroupNamePlaceholder": "团组或组织名称",
+      "travelerN": "旅客 {index}",
       "hasCompanionsHint": "家人、朋友或同事",
       "companionFirstName": "同行者名",
       "companionFirstNamePlaceholder": "例如:Jane",
       "companionLastName": "同行者姓",
       "companionLastNamePlaceholder": "例如:Doe",
       "companionRelationship": "关系",
-      "companionRelationshipPlaceholder": "例如:配偶、朋友、子女",
+      "companionRelationshipPlaceholder": "请选择...",
+      "relationshipChild": "子女",
+      "relationshipParent": "父母",
+      "relationshipSpouse": "配偶",
+      "relationshipRelative": "亲属",
+      "relationshipFriend": "朋友",
+      "relationshipBusinessPartner": "商业伙伴",
+      "addTraveler": "添加旅客",
+      "internationalTravelTitle": "国际旅行记录",
+      "hasVisitedOtherCountriesLast5Years": "过去五年内您是否去过其他国家?",
+      "visitedCountries": "访问过的国家",
+      "countryPlaceholder": "Select",
+      "addCountry": "添加国家",
+      "previousUsTravelTitle": "以前的美国旅行",
+      "previousVisits": "以前的访问",
+      "visitN": "访问 {index}",
+      "unit": "单位",
+      "addVisit": "添加访问",
+      "licenseN": "驾照 {index}",
+      "unknownLicenseNumber": "我不知道驾照号码",
+      "addLicense": "添加驾照",
+      "previousUsVisaTitle": "以前的美国签证",
+      "visaIssueCountry": "签证签发国家",
+      "visaIssueDate": "签发日期",
+      "visaValidUntil": "有效期",
+      "unknownVisaNumber": "我不知道签证号码",
+      "sameVisaType": "您是否申请同一类型的签证?",
+      "sameCountryApply": "您是否在签发签证的同一国家申请?",
+      "tenPrinted": "您是否曾采集过十指指纹?",
+      "visaLostStolen": "您的签证是否曾遗失或被盗?",
+      "visaLostStolenYear": "遗失年份",
+      "visaCancelledRevoked": "您的签证是否曾被取消或撤销?",
+      "received221g": "您是否曾收到过221(g)行政处理通知?",
+      "explanation": "说明",
+      "explanationPlaceholder": "简要说明",
+      "explanationDetailPlaceholder": "描述情况...",
+      "refusalDateKnown": "拒签日期（如已知）",
+      "refusalDatePlaceholder": "选择拒签日期",
       "hasBeenInUs": "您以前是否去过美国?",
       "hasBeenInUsHint": "哪怕只是短期旅游也算",
       "previousVisitDate": "上次入境日期",
@@ -1011,14 +1505,170 @@
       "driversLicenseState": "签发州",
       "driversLicenseStatePlaceholder": "例如:加利福尼亚"
     },
+    "work": {
+      "title": "工作与教育",
+      "subtitle": "您日常的工作或学习情况 — 用于DS-160就业/学习栏目。",
+      "primaryOccupation": "主要职业",
+      "primaryOccupationPlaceholder": "请选择职业",
+      "occupations": {
+        "business": "商务",
+        "education": "教育",
+        "engineering": "工程",
+        "computerScience": "计算机科学",
+        "medical": "医疗 / 卫生",
+        "government": "政府",
+        "artist": "艺术家 / 表演者",
+        "student": "学生",
+        "homemaker": "家庭主妇 / 主夫",
+        "retired": "已退休",
+        "notEmployed": "无业",
+        "other": "其他"
+      },
+      "occupationOtherExplain": "请描述您的职业",
+      "occupationOtherExplainPlaceholder": "例如:自由翻译",
+      "employerTitle": "当前雇主 / 学校",
+      "employerName": "雇主或学校名称",
+      "employerNamePlaceholder": "例如:腾讯",
+      "jobTitle": "职位",
+      "jobTitlePlaceholder": "例如:软件工程师",
+      "employmentStartDate": "入职日期",
+      "employmentStartDatePlaceholder": "选择入职日期",
+      "monthlySalary": "月薪(本币)",
+      "monthlySalaryPlaceholder": "例如:30000",
+      "jobDuties": "工作职责简述",
+      "jobDutiesPlaceholder": "例如:广告平台后端开发",
+      "employerPhone": "雇主电话",
+      "employerPhonePlaceholder": "+86 10 0000 0000",
+      "employerStreet": "雇主地址",
+      "employerStreetPlaceholder": "街道与门牌号",
+      "employerCity": "城市",
+      "employerCityPlaceholder": "城市",
+      "employerState": "省份",
+      "employerStatePlaceholder": "省份",
+      "employerPostal": "邮政编码",
+      "employerPostalPlaceholder": "邮政编码",
+      "employerCountry": "国家",
+      "employerCountryPlaceholder": "选择国家",
+      "hasPreviousEmployer": "是否曾有过其他雇主?",
+      "prevEmployerTitle": "前雇主",
+      "prevEmployerName": "前雇主名称",
+      "prevEmployerNamePlaceholder": "例如:阿里巴巴",
+      "prevJobTitle": "前职位",
+      "prevJobTitlePlaceholder": "例如:初级工程师",
+      "prevEmploymentStart": "起始日期",
+      "prevEmploymentEnd": "结束日期",
+      "hasAttendedEducation": "您是否就读过中学以上的学校?",
+      "educationTitle": "教育",
+      "educationInstitution": "学校名称",
+      "educationInstitutionPlaceholder": "例如:清华大学",
+      "educationCourse": "专业",
+      "educationCoursePlaceholder": "例如:计算机科学",
+      "educationStart": "起始日期",
+      "educationEnd": "结束日期",
+      "educationCity": "城市",
+      "educationCityPlaceholder": "城市",
+      "educationCountry": "国家",
+      "educationCountryPlaceholder": "选择国家"
+    },
+    "usContact": {
+      "title": "您的美国联系人",
+      "subtitle": "美国境内认识您的人或机构。每份DS-160均需填写。",
+      "contactType": "联系人类型",
+      "typePerson": "个人",
+      "typeOrganization": "机构",
+      "organizationName": "机构名称",
+      "organizationNamePlaceholder": "例如:ABC公司",
+      "contactFirstName": "名",
+      "contactFirstNamePlaceholder": "例如:Jane",
+      "contactLastName": "姓",
+      "contactLastNamePlaceholder": "例如:Smith",
+      "relationship": "与您的关系",
+      "relationshipPlaceholder": "选择关系",
+      "relationships": {
+        "relative": "亲戚",
+        "spouse": "配偶",
+        "friend": "朋友",
+        "businessAssociate": "商业伙伴",
+        "employer": "雇主",
+        "schoolOfficial": "学校负责人",
+        "other": "其他"
+      },
+      "street1": "街道地址",
+      "street1Placeholder": "街道与门牌号",
+      "street2": "地址第二行(可选)",
+      "street2Placeholder": "公寓、套房等",
+      "city": "城市",
+      "cityPlaceholder": "城市",
+      "state": "州",
+      "statePlaceholder": "选择州",
+      "zip": "邮政编码",
+      "zipPlaceholder": "例如:10001",
+      "phone": "电话",
+      "phonePlaceholder": "+1 555 000 0000",
+      "email": "邮箱",
+      "emailPlaceholder": "contact@example.com"
+    },
     "family": {
-      "title": "家庭与语言",
-      "subtitle": "DS-160 必须填写的基本背景信息。",
-      "fatherTitle": "父亲",
+      "title": "家庭与背景",
+      "subtitle": "关于您家庭的几个问题——这是所有签证申请的标准要求",
+      "fatherTitle": "父亲信息",
+      "motherTitle": "母亲",
+      "parentSubtitle": "按照身份证上显示的或您所知的信息填写",
+      "fatherUnknown": "我不知道父亲的信息",
+      "fatherMarkedUnknown": "Father的信息标记为未知",
+      "motherUnknown": "我不知道母亲的信息",
+      "motherMarkedUnknown": "Mother的信息标记为未知",
+      "givenName": "名",
+      "givenNamePlaceholder": "例如 张",
+      "surname": "姓",
+      "surnamePlaceholder": "例如 伟",
+      "noGivenName": "没有名（仅单名）",
+      "notApplicable": "不适用",
+      "required": "必填",
+      "wrongStatus": "状态不对？返回修改",
+      "spouseTitle": "配偶信息",
+      "spouseSubtitle": "法定姓名和基本详情",
+      "deceasedSpouseTitle": "已故配偶",
+      "formerSpouseTitle": "前配偶",
+      "formerSpouseSubtitle": "请提供每位前配偶的信息（最多5位）",
+      "formerSpouseN": "前配偶 {n}",
+      "addFormerSpouse": "添加前配偶",
+      "addAnotherFormerSpouse": "添加另一位前配偶",
+      "dateOfBirth": "出生日期",
+      "dateOfBirthPlaceholder": "选择日期",
+      "nationality": "国籍",
+      "cityOfBirth": "出生城市",
+      "cityOfBirthPlaceholder": "例如 北京",
+      "countryOfBirth": "出生国家",
+      "countryPlaceholder": "选择",
+      "datePlaceholder": "选择日期",
+      "spouseAddressType": "配偶地址类型",
+      "spouseAddressTypePlaceholder": "选择地址类型",
+      "addressHome": "与家庭地址相同",
+      "addressWork": "与工作地址相同",
+      "addressOther": "其他地址",
+      "street1": "街道地址（第1行）",
+      "street1Placeholder": "例如 123 Main St",
+      "street2": "街道地址（第2行）",
+      "street2Placeholder": "例如 Apt 4B",
+      "city": "城市",
+      "cityPlaceholder": "例如 北京",
+      "stateProvince": "州/省",
+      "stateProvincePlaceholder": "州/省",
+      "noStateProvince": "该国没有州/省",
+      "postalCode": "邮政编码",
+      "postalCodePlaceholder": "邮政编码",
+      "noPostalCode": "该国没有邮政编码",
+      "country": "国家",
+      "marriageDate": "结婚日期",
+      "divorceDate": "婚姻结束日期",
+      "howEnded": "婚姻如何结束？",
+      "howEndedHint": "自由文本——最多200个字符",
+      "howEndedPlaceholder": "例如 协议离婚",
+      "divorceCountry": "婚姻结束的国家",
       "fatherKnown": "是否知道父亲信息",
       "fatherFirstName": "父亲名",
       "fatherLastName": "父亲姓",
-      "motherTitle": "母亲",
       "motherKnown": "是否知道母亲信息",
       "motherFirstName": "母亲名",
       "motherLastName": "母亲姓",
@@ -1028,6 +1678,7 @@
       "lastNamePlaceholder": "姓",
       "relativesInUs": "您在美国有直系亲属吗?",
       "relativesInUsHint": "配偶、未婚夫/妻、子女、兄弟姐妹或父母",
+      "relativeN": "亲属 {n}",
       "relativeFirstName": "名",
       "relativeFirstNamePlaceholder": "名",
       "relativeLastName": "姓",
@@ -1044,12 +1695,35 @@
       "statusOther": "其他/不详",
       "hasOtherRelatives": "您在美国还有其他亲属吗?",
       "hasOtherRelativesHint": "表亲、姻亲等 — 大多数人选择「否」",
+      "addAnotherRelative": "添加另一位亲属",
+      "removeRelative": "移除亲属",
       "clanTribe": "您是否属于某个部落或氏族?",
       "clanTribeHint": "大多数申请人选择「否」",
+      "clanTribeName": "部落/氏族名称",
       "clanTribeNamePlaceholder": "部落或氏族名称",
-      "languages": "您能讲的语言",
+      "languages": "您会说的语言",
       "languagesHint": "选择所有适用项,可添加更多",
-      "addLanguage": "添加",
+      "recommendedLanguages": "为您推荐",
+      "languageN": "语言 {n}",
+      "languageEnglish": "英语",
+      "languageSpanish": "西班牙语",
+      "languageFrench": "法语",
+      "languageArabic": "阿拉伯语",
+      "languageChineseMandarin": "中文（普通话）",
+      "languageChineseCantonese": "中文（粤语）",
+      "languageHindi": "印地语",
+      "languagePortuguese": "葡萄牙语",
+      "languageRussian": "俄语",
+      "languageJapanese": "日语",
+      "languageKorean": "韩语",
+      "languageGerman": "德语",
+      "languageItalian": "意大利语",
+      "languageTurkish": "土耳其语",
+      "languageVietnamese": "越南语",
+      "languageThai": "泰语",
+      "languageMalay": "马来语",
+      "languageTamil": "泰米尔语",
+      "addLanguage": "添加另一种语言",
       "addLanguagePlaceholder": "其他语言",
       "removeLanguage": "移除 {lang}"
     },
@@ -1062,6 +1736,56 @@
       "someApply": "有一项或多项适用",
       "someApplyHint": "完整表单会继续询问",
       "addMoreInFullForm": "我们会先将明显问题设为「否」。您可在完整表单审阅时修改。",
+      "needAnswer": "是，我需要回答",
+      "needAnswerHint": "选择适用类别后回答具体问题",
+      "categoryPrompt": "哪些类别适用于您？请选择所有适用的：",
+      "categoryHealth": "健康状况",
+      "categoryHealthSubtitle": "传染病、精神或身体疾病、药物滥用",
+      "categoryCriminal": "犯罪记录",
+      "categoryCriminalSubtitle": "逮捕、定罪、毒品违规及相关违法行为",
+      "categorySecurity": "安全与恐怖主义",
+      "categorySecuritySubtitle": "间谍、破坏、恐怖主义及相关活动",
+      "categoryPolitical": "政治与社会关联",
+      "categoryPoliticalSubtitle": "政党成员、纳粹参与或迫害",
+      "categoryImmigration": "移民违规",
+      "categoryImmigrationSubtitle": "签证欺诈、驱逐、非法居留及监护问题",
+      "categoryOther": "其他问题",
+      "categoryOtherSubtitle": "公共负担、扣留出席权、其他理由",
+      "detailPlaceholder": "请提供详情...",
+      "questions": {
+        "has_communicable_disease": "您是否患有具有重大公共卫生意义的传染病？",
+        "has_physical_mental_disorder": "您是否有可能对自己或他人的安全或福利构成威胁的精神或身体疾病？",
+        "has_drug_abuse": "您是否曾经是药物滥用者或吸毒成瘾者？",
+        "has_been_arrested": "您是否曾因任何违法行为或犯罪被逮捕或定罪，即使已获得赦免、大赦或类似行为？",
+        "has_violated_substance_law": "您是否曾违反或密谋违反有关管制物质的法律？",
+        "has_prostitution_involvement": "您是否前往美国从事卖淫或非法商业化恶行，或在过去10年内从事卖淫或拉客？",
+        "has_money_laundering": "您是否曾参与或试图参与洗钱活动？",
+        "has_human_trafficking": "您是否曾在美国境内或境外实施或密谋实施人口贩运罪行？",
+        "has_supported_trafficking": "您是否故意帮助、教唆、协助或勾结实施或密谋实施严重人口贩运的个人？",
+        "is_trafficking_relative": "您是否是实施或密谋实施人口贩运罪行者的子女、配偶、儿子或女儿，并在过去5年内故意从贩运活动中获益？",
+        "has_been_detained": "您是否曾被任何国家拘留、扣押或监禁？",
+        "intends_espionage": "您是否试图在美国从事间谍、破坏、出口管制违规或任何其他非法活动？",
+        "intends_terrorism": "您是否试图在美国从事恐怖活动，或曾经参与恐怖活动？",
+        "will_support_terrorists": "您是否曾经或打算向恐怖分子或恐怖组织提供资金援助或其他支持？",
+        "is_terrorist_organization_member": "您是否是恐怖组织的成员或代表？",
+        "is_terrorist_relative": "您是否是曾参与恐怖活动并对他人造成伤害的个人的配偶、儿子或女儿？",
+        "has_committed_genocide": "您是否曾命令、煽动、实施、协助或以其他方式参与种族灭绝？",
+        "has_committed_torture": "您是否曾实施、命令、煽动、协助或以其他方式参与酷刑？",
+        "has_committed_extrajudicial_killings": "您是否曾实施、命令、煽动、协助或以其他方式参与法外处决、政治杀害或其他暴力行为？",
+        "has_used_child_soldiers": "您是否曾参与招募或使用童兵？",
+        "violated_religious_freedom": "您在担任政府官员期间，是否曾负责或直接实施特别严重的侵犯宗教自由的行为？",
+        "involved_population_control": "您是否曾命令、煽动、实施、协助或以其他方式参与强制绝育？",
+        "involved_organ_trafficking": "您是否曾直接参与强制移植人体器官或身体组织？",
+        "obtained_visa_by_fraud": "您是否曾试图通过欺诈或故意虚假陈述获得或协助他人获得签证、进入美国或任何其他美国移民利益？",
+        "has_been_removed": "您是否曾被任何国家驱逐或遣返？",
+        "subject_to_removal_order": "您是否曾受到美国递解或驱逐令的约束？",
+        "failed_removal_hearing": "您是否未能参加美国递解或驱逐听证？",
+        "has_overstayed": "您是否曾在美国境内非法滞留或违反入境条件？",
+        "withheld_child_custody": "您是否曾在美国境外扣留美国法院授予合法监护权的美国公民儿童？",
+        "voted_illegally": "您是否曾违反任何法律或法规在美国投票？",
+        "renounced_citizenship": "您是否曾为逃避纳税而放弃美国公民身份？",
+        "practicing_polygamy": "您是否正在实行一夫多妻制？"
+      },
       "embassyTitle": "使馆账户安全问题",
       "embassySubtitle": "用于创建您的使馆账户。请选择您能记住的答案。",
       "birthCity": "您在哪个城市出生?",
@@ -1071,6 +1795,1043 @@
       "childhoodHero": "您童年的英雄是谁?",
       "childhoodHeroPlaceholder": "例如:超人",
       "submit": "继续审阅"
+    },
+    "workEducation": {
+      "title": "工作与教育",
+      "subtitle": "请填写您当前的工作、学习和过往经历。",
+      "currentTitle": "当前工作或学习",
+      "currentSubtitle": "用于 DS-160 的工作/教育/培训部分。",
+      "educationDetailsTitle": "教育详情",
+      "educationDetailsSubtitle": "请填写当前学校或大学信息。",
+      "primaryOccupation": "主要职业",
+      "primaryOccupationPlaceholder": "选择主要职业",
+      "occupation": {
+        "AGRICULTURE": "农业",
+        "ARTIST/PERFORMER": "艺术家/表演者",
+        "BUSINESS": "商业",
+        "COMMUNICATIONS": "传播/通讯",
+        "COMPUTER SCIENCE": "计算机科学",
+        "CULINARY/FOOD SERVICES": "烹饪/餐饮服务",
+        "EDUCATION": "教育",
+        "ENGINEERING": "工程",
+        "GOVERNMENT": "政府",
+        "LEGAL PROFESSION": "法律职业",
+        "MEDICAL/HEALTH": "医疗/健康",
+        "MILITARY": "军队",
+        "NATURAL SCIENCE": "自然科学",
+        "PHYSICAL SCIENCES": "物理科学",
+        "RELIGIOUS VOCATION": "宗教职业",
+        "RESEARCH": "研究",
+        "SOCIAL SCIENCE": "社会科学",
+        "STUDENT": "学生",
+        "HOMEMAKER": "家庭主妇/主夫",
+        "RETIRED": "退休",
+        "NOT EMPLOYED": "未就业",
+        "OTHER": "其他"
+      },
+      "occupationOtherExplain": "请说明",
+      "occupationOtherExplainPlaceholder": "请说明您的职业或情况...",
+      "employerName": "雇主/公司名称",
+      "employerNamePlaceholder": "例如 Acme Corp",
+      "schoolName": "学校名称",
+      "schoolNamePlaceholder": "例如 北京大学",
+      "jobTitle": "职位",
+      "jobTitlePlaceholder": "例如 产品经理",
+      "courseOfStudy": "专业/课程",
+      "courseOfStudyPlaceholder": "例如 计算机科学",
+      "employmentStartDate": "开始日期",
+      "datePlaceholder": "选择日期",
+      "monthlySalary": "月收入",
+      "monthlySalaryPlaceholder": "例如 5000",
+      "monthlySalaryHint": "货币仅供参考——仅提交数字。",
+      "noMonthlySalary": "我没有固定月收入",
+      "salaryCurrency": "收入币种",
+      "employerPhone": "工作电话",
+      "schoolPhone": "学校电话",
+      "dialCode": "电话区号",
+      "phonePlaceholder": "电话号码",
+      "employerCountry": "国家",
+      "countryPlaceholder": "选择国家",
+      "employerStreet": "雇主地址",
+      "schoolStreet": "学校地址",
+      "streetPlaceholder": "例如 123 Main St",
+      "employerCity": "城市",
+      "cityPlaceholder": "例如 北京",
+      "employerState": "州/省",
+      "statePlaceholder": "州/省",
+      "employerPostal": "邮政编码",
+      "postalPlaceholder": "邮政编码",
+      "jobDuties": "简要描述您的职责",
+      "jobDutiesPlaceholder": "例如 管理客户账户并准备报告",
+      "previousEmployerTitle": "过去5年内有其他工作吗？",
+      "previousEmployerSubtitle": "只需1-2份最近的工作——填写您记得的内容",
+      "hasPreviousEmployer": "您之前有其他雇主吗？",
+      "previousEmployerN": "以前的工作 {n}",
+      "addPreviousEmployer": "添加另一份工作",
+      "removePreviousEmployer": "移除以前的工作",
+      "prevEmployerName": "前雇主名称",
+      "prevJobTitle": "前职位",
+      "prevJobDuties": "您在那里做什么？",
+      "prevJobDutiesPlaceholder": "简要描述职责（可选）",
+      "supervisorFirstName": "主管名",
+      "supervisorFirstNamePlaceholder": "名（可选）",
+      "supervisorLastName": "主管姓",
+      "supervisorLastNamePlaceholder": "姓（可选）",
+      "prevEmploymentStart": "开始日期",
+      "prevEmploymentEnd": "结束日期",
+      "educationTitle": "教育经历",
+      "educationSubtitle": "如有中学以上教育经历，请填写。",
+      "educationHistoryTitle": "告诉我们您的教育经历",
+      "educationHistorySubtitle": "我们只需要您最高或最近的学历。保持简单。",
+      "hasAttendedEducation": "您是否上过学校？",
+      "educationN": "教育 {n}",
+      "addEducation": "添加另一个（可选）",
+      "removeEducation": "移除教育经历",
+      "educationHistoryFootnote": "大多数人只需填写1-2所学校",
+      "noEducationHint": "没有教育经历需要报告？直接选择“否”并继续。",
+      "educationLevel": "学历水平",
+      "educationLevelPlaceholder": "选择水平（可选）",
+      "educationLevelSecondary": "高中",
+      "educationLevelCollege": "大学/学院",
+      "educationLevelVocationalOther": "职业/其他",
+      "educationInstitution": "学校/机构名称",
+      "educationInstitutionPlaceholder": "学校或机构名称",
+      "educationCourse": "专业/课程",
+      "educationStart": "开始日期",
+      "educationEnd": "结束日期",
+      "educationCity": "城市",
+      "educationCountry": "国家",
+      "organizationTitle": "是否有俱乐部、团体或组织？",
+      "organizationSubtitle": "专业、社交或慈善组织——只需名称即可",
+      "organizationN": "组织 {n}",
+      "organizationName": "组织名称",
+      "organizationNamePlaceholder": "组织名称",
+      "addOrganization": "添加另一个组织",
+      "removeOrganization": "移除组织",
+      "militaryTitle": "您是否服过兵役？",
+      "militarySubtitle": "任何国家、任何军种——包括预备役",
+      "militaryServiceN": "兵役 {n}",
+      "militaryCountry": "服役国家",
+      "militaryBranch": "军种",
+      "militaryBranchPlaceholder": "军种",
+      "militaryRank": "军衔/职位",
+      "militaryRankPlaceholder": "军衔/职位",
+      "militarySpecialty": "军事专业",
+      "militarySpecialtyPlaceholder": "军事专业",
+      "militaryStartDate": "开始日期",
+      "militaryEndDate": "结束日期",
+      "addMilitaryService": "添加另一段服役记录",
+      "removeMilitaryService": "移除服役记录",
+      "specializedSkillsTitle": "是否有专门技能或培训？",
+      "specializedSkillsSubtitle": "例如 枪械、爆炸物、核能、生物或化学经验",
+      "specializedSkillsExplain": "请说明",
+      "specializedSkillsExplainPlaceholder": "描述您的专门技能或培训...",
+      "submit": "继续审阅"
+    },
+    "shared": {
+      "loading": "正在准备您的申请表…",
+      "progress": "第 {current} 步 / 共 {total} 步 · {name}",
+      "back": "返回",
+      "continue": "继续",
+      "submitting": "正在保存…",
+      "edit": "编辑",
+      "yes": "是",
+      "no": "否",
+      "openLongFormLead": "需要填写完整版表格?",
+      "openLongFormLink": "打开完整版",
+      "review": {
+        "label": "审核",
+        "title": "请确认您的回答",
+        "subtitle": "逐项检查无误后再提交。",
+        "submit": "确认提交",
+        "empty": "暂未填写。",
+        "notProvided": "—"
+      },
+      "tripDates": {
+        "duration": "行程长度: {days} 天",
+        "invalid": "离境日期必须晚于抵达日期。"
+      }
+    },
+    "schengen": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "出行目的",
+          "subtitle": "选择最贴合您本次出行主要原因的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "document": {
+          "label": "证件",
+          "title": "旅行证件",
+          "subtitle": "护照或其他申根接受的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "领事馆联系您的方式。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "行程日期",
+          "subtitle": "申根 C 签 180 天内最多停留 90 天。"
+        },
+        "trip_destination": {
+          "label": "地点",
+          "title": "目的地信息",
+          "subtitle": "主要目的地及首次入境的申根国家。"
+        },
+        "accommodation": {
+          "label": "住宿",
+          "title": "住宿信息",
+          "subtitle": "在申根停留期间的住宿安排。"
+        },
+        "occupation": {
+          "label": "工作",
+          "title": "职业信息",
+          "subtitle": "雇主或学校信息。"
+        },
+        "family_eu": {
+          "label": "欧盟亲属",
+          "title": "欧盟/欧经/瑞士公民亲属",
+          "subtitle": "仅当您以欧盟/欧经/瑞士公民亲属身份出行时填写。"
+        },
+        "travel_history": {
+          "label": "历史",
+          "title": "旅行历史",
+          "subtitle": "过往申根签证、指纹采集与后续入境许可。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方与是否持有旅行医疗保险。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的申根 C 签答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "document": "旅行证件",
+        "contact": "联系方式",
+        "tripDates": "行程日期",
+        "tripDestination": "目的地",
+        "accommodation": "住宿",
+        "occupation": "职业",
+        "familyEu": "欧盟亲属",
+        "travelHistory": "旅行历史",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over90Hint": "申根 C 签每 180 天内停留不得超过 90 天。"
+      },
+      "fields": {
+        "surname": "姓 (Family name)",
+        "surnameAtBirthDifferent": "出生时的姓与现在的姓是否不同?",
+        "surnameAtBirth": "出生时的姓",
+        "givenNames": "名 (Given names)",
+        "dob": "出生日期",
+        "placeOfBirth": "出生地 (城市/地区)",
+        "countryOfBirth": "出生国家",
+        "nationality": "现国籍",
+        "nationalityAtBirth": "出生时国籍 (如不同)",
+        "nationalIdNumber": "身份证号码",
+        "sex": "性别",
+        "civilStatus": "婚姻状况",
+        "passportType": "旅行证件类型",
+        "passportNumber": "证件号码",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "passportIssuingCountry": "签发国家",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家",
+        "email": "电子邮箱",
+        "phone": "电话号码",
+        "mainDestination": "主要目的地 (申根国)",
+        "firstEntry": "首次入境的申根国",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "numberOfEntries": "申请入境次数",
+        "accommodationType": "住宿类型",
+        "accommodationName": "酒店名称或住宿标识",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "城市",
+        "accommodationCountry": "国家",
+        "accommodationPhone": "住宿电话",
+        "occupation": "现职业",
+        "employerName": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "isFamilyMemberOfEu": "您是否为欧盟/欧经/瑞士公民的亲属?",
+        "euFamilySurname": "亲属姓",
+        "euFamilyGivenNames": "亲属名",
+        "euFamilyDob": "亲属出生日期",
+        "euFamilyNationality": "亲属国籍",
+        "euFamilyRelationship": "与您的关系",
+        "hadPreviousSchengenVisas": "近 3 年是否持有过申根签证?",
+        "previousSchengenVisaDates": "过往申根签证日期",
+        "fingerprintsCollectedPreviously": "是否曾被采集过申根签证指纹?",
+        "fingerprintsCollectedDate": "指纹采集大致日期",
+        "hasOnwardEntryPermit": "您是否持有申根之后任一国家的入境许可?",
+        "costsCoveredBy": "出行及生活费用由谁承担",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "可用资金金额",
+        "fundsAmountPlaceholder": "如 2000",
+        "fundsCurrency": "币种",
+        "hasInsurance": "您是否为本次行程购买了旅行医疗保险?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "civil": {
+          "single": "未婚",
+          "married": "已婚",
+          "registeredPartnership": "已登记伴侣关系",
+          "separated": "分居",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "service": "公务护照",
+          "official": "官员护照",
+          "special": "特别护照",
+          "other": "其他"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "family": "探亲访友",
+          "cultural": "文化",
+          "sports": "体育",
+          "official": "官方访问",
+          "medical": "就医",
+          "study": "短期学习",
+          "transit": "机场过境",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、洽谈、签约",
+          "family": "探望在申根的亲属或好友",
+          "cultural": "节庆、展览、演出",
+          "sports": "赛事、训练或体育活动",
+          "official": "政府或外交代表团",
+          "medical": "前往申根接受医疗",
+          "study": "90 天以内的短期课程或培训",
+          "transit": "经申根机场转机",
+          "other": "其他原因 — 后续步骤将进一步说明"
+        },
+        "entries": {
+          "single": "单次入境",
+          "two": "两次入境",
+          "multiple": "多次入境"
+        },
+        "accommodation": {
+          "hotel": "酒店",
+          "private": "私人住宅",
+          "rental": "短租",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "sponsor": "担保人",
+          "employer": "雇主",
+          "both": "本人与担保人"
+        },
+        "currency": {
+          "eur": "欧元",
+          "usd": "美元",
+          "gbp": "英镑",
+          "cny": "人民币"
+        },
+        "relationship": {
+          "spouse": "配偶",
+          "child": "子女",
+          "grandchild": "孙辈",
+          "dependentAscendant": "被赡养尊亲属",
+          "registeredPartner": "登记伴侣"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开申根领土。",
+        "understandsNoEntryGuarantee": "本人理解签证并不保证入境,边检官员仍有权拒绝入境。",
+        "awareDataProcessing": "本人知晓个人信息将由申根领事及边境机构处理。"
+      }
+    },
+    "uk": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "赴英目的",
+          "subtitle": "选择最贴合主要出行原因的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "用于本次签证的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "UKVI 联系您的方式。"
+        },
+        "ukvi": {
+          "label": "UKVI",
+          "title": "UKVI 账户",
+          "subtitle": "关联用于本次申请的 UKVI 账户。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "赴英时间",
+          "subtitle": "Standard Visitor 单次最多停留 6 个月。"
+        },
+        "uk_address": {
+          "label": "英国住址",
+          "title": "在英住址",
+          "subtitle": "首站英国住址及接待人 (如有)。"
+        },
+        "employment": {
+          "label": "工作",
+          "title": "职业 & 收入",
+          "subtitle": "工作单位与收入情况。"
+        },
+        "history": {
+          "label": "历史",
+          "title": "出行 & 签证历史",
+          "subtitle": "过往赴英记录及签证拒签情况。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 UK Standard Visitor 答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "ukvi": "UKVI 账户",
+        "tripDates": "行程日期",
+        "ukAddress": "英国住址",
+        "employment": "职业",
+        "history": "历史",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over180Hint": "Standard Visitor 单次入境最多 6 个月。"
+      },
+      "fields": {
+        "givenNames": "名 (Given names)",
+        "givenNamesPlaceholder": "如 John Michael",
+        "surname": "姓 (Surname)",
+        "surnamePlaceholder": "如 Smith",
+        "anyOtherNames": "是否曾用过其他姓名?",
+        "otherNames": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生城市",
+        "placeOfBirthPlaceholder": "如 Manchester",
+        "maritalStatus": "婚姻状况",
+        "passportNumber": "护照号码",
+        "passportNumberPlaceholder": "如 123456789",
+        "passportIssuingCountry": "签发国家",
+        "passportPlaceOfIssue": "签发地",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "email": "电子邮箱",
+        "emailPlaceholder": "name@example.com",
+        "phone": "电话号码",
+        "phonePlaceholder": "+44 20 …",
+        "homeAddressLine1": "家庭住址",
+        "homeAddressLine1Placeholder": "街道及门牌号",
+        "homeAddressCity": "城市",
+        "postalCode": "邮政编码",
+        "homeCountry": "居住国家",
+        "ownsHome": "是否拥有自有住房?",
+        "hasUkviAccount": "是否已有 UKVI 账户?",
+        "ukviEmail": "UKVI 账户邮箱",
+        "ukviEmailPlaceholder": "您的 UKVI 邮箱",
+        "ukAddress": "英国住址",
+        "ukAddressPlaceholder": "酒店名称、街道、门牌号",
+        "ukCity": "英国城市",
+        "ukPostcode": "英国邮编",
+        "ukContactPhone": "英国联系电话",
+        "stayingWithSomeone": "是否将寄住在英国某人家中?",
+        "hostName": "接待人姓名",
+        "hostRelationship": "与接待人关系",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "numberOfEntries": "申请签证类型",
+        "employmentStatus": "就业状况",
+        "employerName": "雇主名称",
+        "jobTitle": "职位",
+        "employerAddress": "雇主地址",
+        "employerPhone": "雇主电话",
+        "monthlyIncome": "月收入",
+        "monthlyIncomePlaceholder": "税后,英镑",
+        "hasVisitedUkBefore": "是否曾赴英?",
+        "previousUkVisitDates": "过往赴英大致日期",
+        "hasBeenRefusedUkVisa": "是否曾被拒签英国签证?",
+        "ukRefusalExplanation": "请简述拒签情况",
+        "hasBeenRefusedOtherVisa": "是否被任何其他国家拒签过?",
+        "fundingSource": "行程资金来源",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "estimatedTripCost": "预计行程花费",
+        "estimatedTripCostPlaceholder": "如 3000",
+        "fundsAmount": "预计行程花费",
+        "fundsAmountPlaceholder": "如 3000",
+        "fundsCurrency": "币种",
+        "hasSavings": "是否有储蓄支持本次行程?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "civilPartnership": "民事伴侣关系",
+          "unmarriedPartner": "未婚伴侣",
+          "divorced": "离异",
+          "widowed": "丧偶",
+          "separated": "分居"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "visitingFamily": "探亲",
+          "study": "短期学习",
+          "medical": "就医",
+          "wedding": "婚礼/民事伴侣登记",
+          "transit": "过境",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、洽谈、签约",
+          "family": "探望亲属或好友",
+          "study": "6 个月以内课程或培训",
+          "medical": "在英接受医疗",
+          "wedding": "参加或举办婚礼/民事伴侣登记",
+          "transit": "经英国过境",
+          "other": "其他原因"
+        },
+        "entries": {
+          "single": "单次访问",
+          "multi2y": "2 年多次",
+          "multi5y": "5 年多次",
+          "multi10y": "10 年多次"
+        },
+        "employment": {
+          "employed": "在职",
+          "selfEmployed": "自雇",
+          "student": "学生",
+          "retired": "退休",
+          "unemployed": "待业"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "sponsor": "担保人"
+        },
+        "currency": {
+          "gbp": "英镑",
+          "usd": "美元",
+          "eur": "欧元",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "noCriminalConvictions": "是否在任何国家有过犯罪定罪记录?",
+        "noWarCrimes": "是否曾涉及战争罪、反人类罪或种族灭绝?",
+        "noTerrorism": "是否曾参与或支持过恐怖主义活动?",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开英国。"
+      }
+    },
+    "vn": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "赴越目的",
+          "subtitle": "选择最贴合本次行程的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "入境所用旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "我们联系您的方式。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "行程日期",
+          "subtitle": "越南电子签最长停留 90 天。"
+        },
+        "vn_destination": {
+          "label": "地点",
+          "title": "目的地信息",
+          "subtitle": "在越住址及出入境口岸。"
+        },
+        "host": {
+          "label": "接待",
+          "title": "在越联系人",
+          "subtitle": "接待人 (如有)。"
+        },
+        "occupation": {
+          "label": "工作",
+          "title": "职业",
+          "subtitle": "雇主或学校信息。"
+        },
+        "companions": {
+          "label": "家属",
+          "title": "随行家属",
+          "subtitle": "是否随行未成年人或家属。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的越南电子签答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "tripDates": "行程日期",
+        "vnDestination": "目的地",
+        "host": "接待人",
+        "occupation": "职业",
+        "companions": "家属",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over90Hint": "越南电子签每次停留不得超过 90 天。"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenName": "名",
+        "otherNamesUsed": "曾用其他姓名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "nationalityAtBirth": "出生时国籍",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生地",
+        "nationalIdNumber": "身份证号",
+        "religion": "宗教",
+        "maritalStatus": "婚姻状况",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuing": "签发机关",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "hasOtherPassports": "是否持有其他护照?",
+        "permanentAddress": "长期居住地址",
+        "contactAddress": "通讯地址",
+        "city": "城市",
+        "country": "国家",
+        "phone": "电话",
+        "email": "邮箱",
+        "emergencyContactName": "紧急联系人姓名",
+        "emergencyContactPhone": "紧急联系人电话",
+        "intendedAddress": "在越拟住地址",
+        "borderGateEntry": "入境口岸",
+        "borderGateExit": "出境口岸",
+        "hasVnContact": "是否有越南本地联系人/接待人?",
+        "vnContactName": "联系人姓名",
+        "vnContactRelationship": "与您的关系",
+        "vnContactPhone": "联系人电话",
+        "vnContactAddress": "联系人地址",
+        "occupation": "职业",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主地址",
+        "position": "职位",
+        "employerPhone": "雇主电话",
+        "isAccompaniedByMinor": "是否随行未成年人?",
+        "accompanyingMinorCount": "随行未成年人数",
+        "parentOrGuardianName": "监护人姓名",
+        "entryDate": "预计入境日期",
+        "exitDate": "预计出境日期",
+        "requestedVisaType": "签证类型",
+        "tripPayer": "出行费用承担方",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "行程预算",
+        "fundsAmountPlaceholder": "如 1500",
+        "fundsCurrency": "币种",
+        "hasInsurance": "是否为本次行程购买了旅行保险?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "religion": {
+          "none": "无",
+          "buddhism": "佛教",
+          "christianity": "基督教",
+          "islam": "伊斯兰教",
+          "hinduism": "印度教",
+          "other": "其他"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "official": "公务护照"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "relatives": "探亲",
+          "investment": "投资",
+          "study": "学习",
+          "work": "工作",
+          "press": "新闻",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、签约",
+          "relatives": "探望在越亲属",
+          "investment": "投资相关",
+          "study": "课程或培训",
+          "work": "短期工作",
+          "press": "新闻采访",
+          "other": "其他原因"
+        },
+        "visa": {
+          "single": "单次入境 (最长 90 天)",
+          "multiple": "多次入境 (最长 90 天)"
+        },
+        "gates": {
+          "noiBai": "内排 (河内)",
+          "tanSonNhat": "新山一 (胡志明市)",
+          "daNang": "岘港",
+          "camRanh": "金兰 (芽庄)",
+          "phuQuoc": "富国",
+          "landBorder": "陆路口岸",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "host": "在越接待人"
+        },
+        "currency": {
+          "usd": "美元",
+          "vnd": "越南盾",
+          "eur": "欧元",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "noCriminalConvictions": "是否在任何国家有过犯罪定罪记录?",
+        "noCommunicableDisease": "目前是否患有公共卫生关注的传染病?",
+        "noDrugAddiction": "是否有药物成瘾历史?",
+        "willObeyLocalLaws": "本人承诺在越期间遵守越南法律。"
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": {
+          "label": "类别",
+          "title": "600 类下哪个 stream?",
+          "subtitle": "选择最贴合您出行目的的 stream。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "用于本次签证的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "内政部联系您的方式。"
+        },
+        "application_context": {
+          "label": "背景",
+          "title": "申请背景",
+          "subtitle": "申请所在地及本次出行性质。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "赴澳时间",
+          "subtitle": "600 类各 stream 单次停留可达 3、6 或 12 个月。"
+        },
+        "visit": {
+          "label": "访问",
+          "title": "访问信息",
+          "subtitle": "出行原因、入境口岸、过往访澳记录。"
+        },
+        "companions": {
+          "label": "家属",
+          "title": "随行家属",
+          "subtitle": "随行家属信息 (如有)。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "health": {
+          "label": "健康",
+          "title": "健康声明",
+          "subtitle": "逐题确认健康相关问题。"
+        },
+        "character": {
+          "label": "品行",
+          "title": "品行声明",
+          "subtitle": "逐题确认品行相关问题。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "最终声明",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 600 类答案",
+        "subtitle": "提交前可编辑修正。",
+        "stream": "类别",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "applicationContext": "申请背景",
+        "tripDates": "行程日期",
+        "visit": "访问",
+        "companions": "家属",
+        "funding": "资金",
+        "health": "健康",
+        "character": "品行",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over12mHint": "600 类签证单次停留通常上限为 3、6 或 12 个月。"
+      },
+      "fields": {
+        "givenNames": "名",
+        "familyName": "姓",
+        "anyOtherNames": "是否曾用过其他姓名?",
+        "otherNames": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生城市",
+        "relationshipStatus": "婚姻状况",
+        "hasNationalId": "是否有身份证?",
+        "nationalIdNumber": "身份证号",
+        "pacificAustraliaCardHolder": "是否持有 Pacific-Australia 卡?",
+        "passportNumber": "护照号码",
+        "passportIssuing": "签发国家",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "passportPlaceOfIssue": "签发地",
+        "chineseCommercialCodeNumber": "中国商业代码 (仅中国大陆)",
+        "email": "电子邮箱",
+        "phoneMobile": "手机",
+        "phoneHome": "家庭电话",
+        "phoneBusiness": "工作电话",
+        "residentialAddress": "居住地址",
+        "city": "城市",
+        "postcode": "邮编",
+        "country": "国家",
+        "applyingAllOutside": "决定本申请时所有申请人是否都在澳洲境外?",
+        "currentLocationLegalStatus": "您在所在国家的合法居留身份是?",
+        "purposeOfStayInitial": "初次停留的主要目的",
+        "significantDatesInAustralia": "在澳是否有重要日期 (活动、典礼、截止)?",
+        "eventInvitedByOrganisation": "是否由澳洲机构邀请参加活动?",
+        "eventPaidByAustralianOrganisation": "澳洲机构是否承担本次行程任何费用?",
+        "applyingAsPartOfGroup": "是否作为团体申请的一部分?",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "mainReason": "主要出行原因",
+        "portOfArrival": "入境口岸",
+        "previousAuTravel": "是否曾赴澳?",
+        "previousAuVisaGrantDates": "过往澳洲签证批准大致日期",
+        "hasAccompanyingFamily": "是否有家属随行?",
+        "accompanyingFamilyCount": "随行家属人数",
+        "hasNonAccompanyingFamily": "是否有不随行的家属?",
+        "fundingSource": "行程资金来源",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "可用资金",
+        "fundsAmountPlaceholder": "如 5000",
+        "fundsCurrency": "币种"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女",
+          "indeterminate": "未指定"
+        },
+        "rel": {
+          "never": "未婚",
+          "married": "已婚",
+          "deFacto": "事实婚",
+          "engaged": "已订婚",
+          "separated": "分居",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "stream": {
+          "tourist": "旅游",
+          "business": "商务访客",
+          "sponsored": "亲属担保",
+          "frequent": "频繁旅客"
+        },
+        "streamDesc": {
+          "tourist": "度假、观光、探亲访友",
+          "business": "短期商务活动 — 会议、洽谈",
+          "sponsored": "亲属担保探访",
+          "frequent": "特定护照持有人的长效多次签证"
+        },
+        "locStatus": {
+          "citizen": "公民",
+          "pr": "永久居民",
+          "temporary": "临签持有人",
+          "visitor": "访客",
+          "other": "其他"
+        },
+        "initial": {
+          "business": "商务",
+          "tourism": "旅游",
+          "family": "探亲",
+          "study": "学习",
+          "religious": "宗教活动",
+          "other": "其他"
+        },
+        "port": {
+          "sydney": "悉尼",
+          "melbourne": "墨尔本",
+          "brisbane": "布里斯班",
+          "perth": "珀斯",
+          "adelaide": "阿德莱德",
+          "goldCoast": "黄金海岸",
+          "cairns": "凯恩斯",
+          "darwin": "达尔文",
+          "hobart": "霍巴特",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "sponsor": "担保人"
+        },
+        "currency": {
+          "aud": "澳元",
+          "usd": "美元",
+          "eur": "欧元",
+          "gbp": "英镑",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "healthLivedOutsidePassport": "过去 5 年是否在护照国之外居住超过 5 年(或近一年内超过 3 个月)?",
+        "healthVisitedFacility": "过去 5 年是否曾以住院形式住进医院或医疗机构?",
+        "healthHealthcareWorker": "您是否为医疗工作者(医生、护士、急救员等)?",
+        "healthAgedOrChildcare": "过去 5 年是否从事过养老护理或儿童托管工作?",
+        "healthClassroom3Months": "过去 5 年是否在教室(作为学生或教师)连续待过 3 个月以上?",
+        "healthTbOrChestXray": "是否曾患结核病、胸片异常,或与结核患者密切接触?",
+        "hasHealthInsurance": "是否有覆盖在澳期间的医疗保险?",
+        "charCriminalConvictions": "是否在任何地方被指控或定罪过任何刑事罪?",
+        "charWarCrimes": "是否曾涉及战争罪、反人类罪或种族灭绝?",
+        "charSexualOffence": "是否曾被指控或定罪过性犯罪(含针对未成年人)?",
+        "charTerrorism": "是否曾参与或支持过恐怖主义?",
+        "charPeopleSmuggling": "是否曾涉及人口走私或贩运?",
+        "charMilitaryTraining": "是否接受过专门的军事、准军事或武器/爆炸物训练?",
+        "charVisaRefused": "是否曾被任何国家拒签或取消签证?",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "understandsNoEntryGuarantee": "本人理解签证并不保证入境,边检官员仍有权拒绝入境。",
+        "awareDataProcessing": "本人知晓个人信息将由澳洲相关机构处理。",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开澳洲。",
+        "genuineVisitor": "本人确认为真实访客,仅按所述目的临时停留。"
+      }
     }
   },
   "documents": {
@@ -1543,7 +3304,7 @@
     "sections": {
       "introduction": {
         "title": "简介",
-        "p1": "VIZA（\u201c我们\u201d）致力于保护您的隐私。本隐私政策说明了当您使用我们的平台和相关服务时，我们如何收集、使用、披露和保护您的信息。",
+        "p1": "VIZA（“我们”）致力于保护您的隐私。本隐私政策说明了当您使用我们的平台和相关服务时，我们如何收集、使用、披露和保护您的信息。",
         "p2": "访问或使用我们的服务即表示您同意按照本政策收集和使用信息。请在使用我们的平台之前仔细阅读。"
       },
       "collect": {

@@ -1,0 +1,88 @@
+{
+  "nav": {
+    "home": "Home",
+    "apply": "Apply",
+    "visas": "Visas",
+    "explore": "Explore",
+    "events": "Events",
+    "careers": "Careers",
+    "contact": "Contact",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "yourPassport": "Your passport",
+    "searchPlaceholder": "Search a country or visa…"
+  },
+  "footer": {
+    "product": "Products",
+    "company": "Company",
+    "legal": "Legal",
+    "offices": "Offices",
+    "askAi": "Ask AI about VIZA",
+    "security": "Security",
+    "status": "Status",
+    "refunds": "Refunds",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "pricing": "Pricing",
+    "rights": "All rights reserved.",
+    "tagline": "VIZA helps you plan, apply, and track visas seamlessly across the world."
+  },
+  "pages": {
+    "home": {
+      "title": "VIZA — Visa applications, handled.",
+      "description": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip.",
+      "heroTitle": "Where to next?",
+      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip."
+    },
+    "apply": {
+      "title": "Apply — VIZA",
+      "description": "Upload your passport. We auto-extract details. Confirm, check out, and your visa is delivered to your inbox.",
+      "saveBadge": "Saved · resume any time"
+    },
+    "careers": {
+      "title": "Careers at VIZA",
+      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations, and consulting roles in Singapore, San Francisco, Dubai, and London.",
+      "rightCta": "See roles"
+    },
+    "contact": {
+      "title": "Contact VIZA",
+      "description": "WhatsApp, WeChat, Phone, Email. Four channels, four desks, a real human within 5 minutes.",
+      "rightCta": "Write to us"
+    },
+    "refunds": {
+      "title": "Refunds policy — VIZA",
+      "description": "If we miss, you don't pay. Our service-fee refund policy, the matrix, and how to file a claim.",
+      "rightCta": "Open a refund claim"
+    },
+    "security": {
+      "title": "Security at VIZA",
+      "description": "Private. Transparent. Secure by default. How we protect customer data, our vulnerability disclosure program, and safe harbour.",
+      "rightCta": "Report a vulnerability"
+    },
+    "status": {
+      "title": "System status — VIZA",
+      "description": "Real-time status of VIZA and the government visa portals we file against.",
+      "navPill": "All systems operational"
+    },
+    "visa": {
+      "applyCta": "Apply now",
+      "applicationProcess": "Application process",
+      "documents": "Documents",
+      "rejectionReasons": "Rejection reasons",
+      "entryExit": "Entry & exit",
+      "extension": "Extension",
+      "reviews": "Reviews",
+      "nearby": "Nearby countries",
+      "faq": "FAQ",
+      "sources": "Official sources"
+    }
+  },
+  "common": {
+    "comingSoon": "Coming soon",
+    "learnMore": "Learn more",
+    "readMore": "Read more",
+    "applyNow": "Apply now",
+    "talkToHuman": "Talk to a human",
+    "viewAll": "View all"
+  }
+}

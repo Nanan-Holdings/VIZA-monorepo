@@ -58,6 +58,7 @@ export const applicantProfiles = pgTable("applicant_profiles", {
 	email: text("email"),
 	phone: text("phone"),
 	wechat: text("wechat"),
+	dependantOfUserId: uuid("dependant_of_user_id"),
 	languagePref: text("language_pref").default("en").notNull(),
 	onboardingDone: boolean("onboarding_done").default(false).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -115,6 +116,10 @@ export const applications = pgTable("applications", {
 	staffReviewStatus: text("staff_review_status").default("not_started"),
 	staffReviewedAt: timestamp("staff_reviewed_at", { withTimezone: true }),
 	staffReviewedBy: uuid("staff_reviewed_by"),
+	submissionResult: jsonb("submission_result"),
+	submissionResultStatus: text("submission_result_status"),
+	submissionResultUpdatedAt: timestamp("submission_result_updated_at", { withTimezone: true }),
+	groupId: uuid("group_id"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -175,12 +180,47 @@ export const applicationDocuments = pgTable("application_documents", {
 // status: pending | processing | done | failed
 // =============================================================================
 
+export const ukAccounts = pgTable("uk_accounts", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	email: text("email").notNull(),
+	passwordEncrypted: text("password_encrypted").notNull(),
+	resumeUrl: text("resume_url").notNull(),
+	storageStateJson: jsonb("storage_state_json"),
+	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const auAccounts = pgTable("au_accounts", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	username: text("username").notNull(),
+	passwordEncrypted: text("password_encrypted").notNull(),
+	totpSecretEncrypted: text("totp_secret_encrypted"),
+	resumeTrn: text("resume_trn"),
+	storageStateJson: jsonb("storage_state_json"),
+	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const submissionQueue = pgTable("submission_queue", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),
 	status: text("status").default("pending").notNull(),
 	attempts: integer("attempts").default(0).notNull(),
 	lastError: text("last_error"),
+	pausedReason: text("paused_reason"),
+	ceacResultPayload: jsonb("ceac_result_payload"),
+	fvResultPayload: jsonb("fv_result_payload"),
+	fvApplicationReference: text("fv_application_reference"),
+	fvPdfStoragePath: text("fv_pdf_storage_path"),
+	ukResultPayload: jsonb("uk_result_payload"),
+	ukApplicationReference: text("uk_application_reference"),
+	auResultPayload: jsonb("au_result_payload"),
+	auTrn: text("au_trn"),
+	auReviewScreenshotStoragePath: text("au_review_screenshot_storage_path"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -998,4 +1038,339 @@ export const applicationTranslations = pgTable("application_translations", {
 
 export type ApplicationTranslation = typeof applicationTranslations.$inferSelect;
 export type NewApplicationTranslation = typeof applicationTranslations.$inferInsert;
+
+// =============================================================================
+// QUESTION SETS (PROD-001)
+// Per (country, visa_type) version. Drives the answer-collection UI.
+// Derived from each country's CanonicalAnswers + form-recon walker.
+// =============================================================================
+
+export const questionSet = pgTable("question_set", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  version: text("version").notNull().default("v1"),
+  derivedFrom: text("derived_from"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type QuestionSet = typeof questionSet.$inferSelect;
+export type NewQuestionSet = typeof questionSet.$inferInsert;
+
+export const questionField = pgTable("question_field", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  questionSetId: uuid("question_set_id").notNull(),
+  fieldName: text("field_name").notNull(),
+  label: text("label").notNull(),
+  widgetType: text("widget_type").notNull(),
+  required: boolean("required").notNull().default(false),
+  options: jsonb("options"),
+  branch: jsonb("branch"),
+  ordinal: integer("ordinal").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type QuestionField = typeof questionField.$inferSelect;
+export type NewQuestionField = typeof questionField.$inferInsert;
+
+// =============================================================================
+// PHOTO SPEC (DOCUP-003)
+// Per (country, visa_type) photo dimensions consumed by lib/photo/crop.ts.
+// =============================================================================
+
+export const photoSpec = pgTable("photo_spec", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  visaType: text("visa_type").notNull(),
+  widthMm: text("width_mm").notNull(),
+  heightMm: text("height_mm").notNull(),
+  dpi: integer("dpi").notNull().default(300),
+  eyelineFromTop: text("eyeline_from_top"),
+  headHeightPct: text("head_height_pct"),
+  backgroundHex: text("background_hex"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PhotoSpec = typeof photoSpec.$inferSelect;
+export type NewPhotoSpec = typeof photoSpec.$inferInsert;
+
+// =============================================================================
+// FACE MATCH AUDIT (DOCUP-004)
+// =============================================================================
+
+export const faceMatchAudit = pgTable("face_match_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id"),
+  provider: text("provider").notNull(),
+  score: text("score").notNull(),
+  threshold: text("threshold").notNull(),
+  decision: text("decision").notNull(),
+  passportStoragePath: text("passport_storage_path"),
+  applicantStoragePath: text("applicant_storage_path"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type FaceMatchAudit = typeof faceMatchAudit.$inferSelect;
+export type NewFaceMatchAudit = typeof faceMatchAudit.$inferInsert;
+
+// =============================================================================
+// ACCOUNT RECOVERY AUDIT (AUTH-004)
+// =============================================================================
+
+export const accountRecoveryAudit = pgTable("account_recovery_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  targetUserId: uuid("target_user_id").notNull(),
+  performedBy: uuid("performed_by").notNull(),
+  reason: text("reason").notNull(),
+  identityChecks: jsonb("identity_checks").notNull(),
+  actionKind: text("action_kind").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type AccountRecoveryAudit = typeof accountRecoveryAudit.$inferSelect;
+export type NewAccountRecoveryAudit = typeof accountRecoveryAudit.$inferInsert;
+
+// =============================================================================
+// NOTIFICATION DLQ (NOTIFY-003)
+// =============================================================================
+
+export const notificationDlq = pgTable("notification_dlq", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceEventId: integer("source_event_id"),
+  applicantId: uuid("applicant_id"),
+  applicationId: uuid("application_id"),
+  templateKey: text("template_key").notNull(),
+  channel: text("channel").notNull(),
+  recipient: text("recipient"),
+  payload: jsonb("payload"),
+  error: text("error").notNull(),
+  retryCount: integer("retry_count").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  replayedAt: timestamp("replayed_at", { withTimezone: true }),
+});
+
+export type NotificationDlq = typeof notificationDlq.$inferSelect;
+export type NewNotificationDlq = typeof notificationDlq.$inferInsert;
+
+// =============================================================================
+// APPLICATION STATUS HISTORY (STATUS-002)
+// =============================================================================
+
+export const applicationStatusHistory = pgTable("application_status_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status").notNull(),
+  actorId: uuid("actor_id"),
+  actorKind: text("actor_kind").notNull().default("system"),
+  reason: text("reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ApplicationStatusHistory = typeof applicationStatusHistory.$inferSelect;
+export type NewApplicationStatusHistory = typeof applicationStatusHistory.$inferInsert;
+
+// =============================================================================
+// SUPPORT TICKETS + MESSAGES (SUPPORT-001 / SUPPORT-002)
+// =============================================================================
+
+export const supportTicket = pgTable("support_ticket", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("open"),
+  assignedTo: uuid("assigned_to"),
+  firstResponseAt: timestamp("first_response_at", { withTimezone: true }),
+  slaDueAt: timestamp("sla_due_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const supportMacro = pgTable("support_macro", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  country: text("country").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  locale: text("locale").notNull().default("en"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportMacro = typeof supportMacro.$inferSelect;
+export type NewSupportMacro = typeof supportMacro.$inferInsert;
+
+export const supportInternalNote = pgTable("support_internal_note", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull(),
+  authorId: uuid("author_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportInternalNote = typeof supportInternalNote.$inferSelect;
+export type NewSupportInternalNote = typeof supportInternalNote.$inferInsert;
+
+// =============================================================================
+// STRIPE IDENTITY (PRODUCT-007)
+// =============================================================================
+
+export const stripeIdentitySession = pgTable("stripe_identity_session", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id").notNull(),
+  sessionId: text("session_id").notNull().unique(),
+  status: text("status").notNull().default("requires_input"),
+  lastErrorCode: text("last_error_code"),
+  lastReportId: text("last_report_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type StripeIdentitySession = typeof stripeIdentitySession.$inferSelect;
+export type NewStripeIdentitySession = typeof stripeIdentitySession.$inferInsert;
+
+// =============================================================================
+// STORAGE BACKUP LOG (OBS-004)
+// =============================================================================
+
+export const storageBackupLog = pgTable("storage_backup_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bucket: text("bucket").notNull(),
+  target: text("target").notNull(),
+  status: text("status").notNull(),
+  bytes: integer("bytes"),
+  objectCount: integer("object_count"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  error: text("error"),
+  isDrill: boolean("is_drill").notNull().default(false),
+});
+
+export type StorageBackupLog = typeof storageBackupLog.$inferSelect;
+export type NewStorageBackupLog = typeof storageBackupLog.$inferInsert;
+
+export type SupportTicket = typeof supportTicket.$inferSelect;
+export type NewSupportTicket = typeof supportTicket.$inferInsert;
+
+export const supportMessage = pgTable("support_message", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull(),
+  authorKind: text("author_kind").notNull(),
+  authorId: uuid("author_id"),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type SupportMessage = typeof supportMessage.$inferSelect;
+export type NewSupportMessage = typeof supportMessage.$inferInsert;
+
+// =============================================================================
+// PROXY POOL (ANTIBOT-003)
+// =============================================================================
+
+export const proxyPool = pgTable("proxy_pool", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ip: text("ip").notNull(),
+  region: text("region"),
+  stickySessionId: text("sticky_session_id").notNull().unique(),
+  cooledUntil: timestamp("cooled_until", { withTimezone: true }),
+  lastChallengeAt: timestamp("last_challenge_at", { withTimezone: true }),
+  challengeStreak: integer("challenge_streak").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ProxyPool = typeof proxyPool.$inferSelect;
+export type NewProxyPool = typeof proxyPool.$inferInsert;
+
+// =============================================================================
+// PACKAGE PRICING (FEES-001 / FEES-002)
+// =============================================================================
+
+export const packagePricing = pgTable("package_pricing", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  governmentFeeCents: integer("government_fee_cents").notNull().default(0),
+  agencyFeeCents: integer("agency_fee_cents").notNull().default(0),
+  overrideUntil: timestamp("override_until", { withTimezone: true }),
+  overrideReason: text("override_reason"),
+  overrideBy: uuid("override_by"),
+  source: text("source").notNull().default("seed"),
+  scrapedAt: timestamp("scraped_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PackagePricing = typeof packagePricing.$inferSelect;
+export type NewPackagePricing = typeof packagePricing.$inferInsert;
+
+export const packagePricingHistory = pgTable("package_pricing_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  currency: text("currency").notNull(),
+  governmentFeeCents: integer("government_fee_cents").notNull(),
+  agencyFeeCents: integer("agency_fee_cents").notNull(),
+  source: text("source").notNull(),
+  changedBy: uuid("changed_by"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export type PackagePricingHistory = typeof packagePricingHistory.$inferSelect;
+export type NewPackagePricingHistory = typeof packagePricingHistory.$inferInsert;
+
+// =============================================================================
+// REFUND REQUESTS (PRODUCT-001)
+// =============================================================================
+
+export const refundRequest = pgTable("refund_request", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: uuid("applicant_id").notNull(),
+  applicationId: uuid("application_id").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("requested"),
+  staffNote: text("staff_note"),
+  decidedBy: uuid("decided_by"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  stripeRefundId: text("stripe_refund_id"),
+  stripeDisputeId: text("stripe_dispute_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type RefundRequest = typeof refundRequest.$inferSelect;
+export type NewRefundRequest = typeof refundRequest.$inferInsert;
+
+// =============================================================================
+// APPLICATION GROUP (PRODUCT-002)
+// =============================================================================
+
+export const applicationGroup = pgTable("application_group", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  payerUserId: uuid("payer_user_id").notNull(),
+  visaPackageId: uuid("visa_package_id").notNull(),
+  label: text("label"),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  totalAmountCents: integer("total_amount_cents"),
+  currency: text("currency").notNull().default("USD"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export type ApplicationGroup = typeof applicationGroup.$inferSelect;
+export type NewApplicationGroup = typeof applicationGroup.$inferInsert;
 

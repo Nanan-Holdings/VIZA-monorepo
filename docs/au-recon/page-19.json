@@ -1,0 +1,252 @@
+{
+  "pageMeta": "20/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Declarations",
+    "Have read and understood the information provided to them in this application.",
+    "Have provided complete and correct information in every detail on this form, and on any attachments to it.",
+    "Understand that if any fraudulent documents or false or misleading information has been provided with this application, or if any of the applicants fail to satisfy the Minister of their identity, the application may be refused and the applicant(s), and any member of their family unit, may become unable to be granted a visa for a specified period of time.",
+    "Understand that if documents are found to be fraudulent or information to be incorrect after the grant of a visa, the visa may subsequently be cancelled.",
+    "Understand that if this application is approved, any person not included in this application will not have automatic right of entry to Australia.",
+    "Will inform the Department in writing immediately as they become aware of a change in circumstances (including change of address) or if there is any change relating to information they have provided in or with this application, while it is being considered.",
+    "Will immediately notify the Department in writing about any changes to their email or residential address, course enrolment, or members of their family unit, or changes to any information they provided in their application, while this application is being considered.",
+    "Have read the information contained in the Privacy Notice (Form 1442i).",
+    "Understand that the department may collect, use and disclose the applicant's personal information (including biometric information and other sensitive information) as outlined in the Privacy Notice (Form 1442i).",
+    "Understand that if a no further stay 8503 condition is imposed on this visa, it will limit the ability to remain in Australia beyond the authorised period of stay of the visa.",
+    "Agree not to undertake study or training for more than three months.",
+    "Agree to leave Australia on or before the expiry of the period of stay of the visa.",
+    "Give consent to the collection of their fingerprints and facial image if required.",
+    "Provide fingerprints and facial image",
+    "Understand that, if required to provide their fingerprints and facial image, the applicant's fingerprints and facial image and biographical information held by the Department may be given to Australian law enforcement agencies to help identify the applicant and determine eligibility for grant of the visa being applied for, and for law enforcement purposes.",
+    "Give consent to Australian law enforcement agencies disclosing the applicant's biometric, biographical and criminal record information to the Department to help identify the applicant, to determine eligibility for grant of a visa and for law enforcement purposes.",
+    "Understand that the Visitor visa does not permit them to work in Australia."
+  ],
+  "fieldCount": 32,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1f1b0",
+      "id": "d215451290e98",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1f1b0",
+      "id": "d215451290e100",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1g1b0",
+      "id": "d215451290e113",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1g1b0",
+      "id": "d215451290e115",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1h1b0",
+      "id": "d215451290e128",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1h1b0",
+      "id": "d215451290e130",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1i1b0",
+      "id": "d215451290e143",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1i1b0",
+      "id": "d215451290e145",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1ba1b0",
+      "id": "d215451290e173",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1ba1b0",
+      "id": "d215451290e175",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1bd0b0",
+      "id": "d215451290e210",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1bd0b0",
+      "id": "d215451290e212",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1bf0b0",
+      "id": "d215451290e231",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a1bf0b0",
+      "id": "d215451290e233",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a2a1b0",
+      "id": "d215451290e248",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a2a1b0",
+      "id": "d215451290e250",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a3a1b0",
+      "id": "d215451290e265",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a3a1b0",
+      "id": "d215451290e267",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a4a1b0",
+      "id": "d215451290e282",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a4a1b0",
+      "id": "d215451290e284",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a5a1b0",
+      "id": "d215451290e299",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a5a1b0",
+      "id": "d215451290e301",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a6b1b0",
+      "id": "d215451290e321",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a6b1b0",
+      "id": "d215451290e323",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a7a1b0",
+      "id": "d215451290e338",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a7a1b0",
+      "id": "d215451290e340",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a8b1a",
+      "id": "d215451290e353",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a8b1a",
+      "id": "d215451290e355",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a9a1b0",
+      "id": "d215451290e370",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a9a1b0",
+      "id": "d215451290e372",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a10c1b0",
+      "id": "d215451290e398",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a19a10c1b0",
+      "id": "d215451290e400",
+      "label": "No",
+      "required": false
+    }
+  ]
+}

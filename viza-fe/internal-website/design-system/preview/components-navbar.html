@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{margin:0}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;background:#fff;border-bottom:1px solid #efefef}
+  .bar.dark{background:#03346E;border-bottom:0}
+  .ham{width:28px;height:28px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+  .ham i{height:2px;border-radius:2px;background:#000;display:block}
+  .ham.w i{background:#fff}
+  .tabs{display:flex;align-items:center;gap:12px}
+  .tab{font:500 17px "Switzer", system-ui, sans-serif;padding:6px 18px;letter-spacing:-.2px;color:rgba(0,0,0,.5);cursor:pointer}
+  .tab.active{color:#03346E}
+  .tab.dark{color:rgba(255,255,255,.5)}
+  .tab.dark.active{color:#fff}
+  .logo{height:22px;margin:0 4px}
+  .globe{width:26px;height:26px;border:1.5px solid currentColor;border-radius:50%;opacity:.7;color:#000}
+  .globe.w{color:#fff}
+</style></head>
+<body><div style="display:flex;flex-direction:column">
+  <div class="bar">
+    <div class="ham"><i></i><i></i><i></i></div>
+    <div class="tabs">
+      <div class="tab active">Home</div>
+      <div class="tab">Application</div>
+      <img class="logo" src="../assets/viza-logo-black.svg" alt="VIZA"/>
+      <div class="tab">Chat</div>
+      <div class="tab">Documents</div>
+    </div>
+    <div class="globe"></div>
+  </div>
+  <div class="bar dark">
+    <div class="ham w"><i></i><i></i><i></i></div>
+    <div class="tabs">
+      <div class="tab dark">Home</div>
+      <div class="tab dark">Application</div>
+      <img class="logo" src="../assets/viza-logo-white.svg" alt="VIZA"/>
+      <div class="tab dark active">Chat</div>
+      <div class="tab dark">Documents</div>
+    </div>
+    <div class="globe w"></div>
+  </div>
+</div></body></html>

@@ -41,10 +41,45 @@ export type CeacPageId =
   | "security_background_3"
   | "security_background_4"
   | "security_background_5"
+  | "upload_photo"
+  | "confirm_photo"
+  | "save_confirmation"
   | "review"
   | "sign_and_submit"
   | "confirmation"
   | "session_expired";
+
+/**
+ * URL-path patterns as a fallback when heading detection returns null
+ * (some CEAC pages render the section title as a `<span>` or inside a
+ * non-standard element). Order is not sensitive — URLs are unique per
+ * section.
+ */
+const PAGE_URL_PATTERNS: ReadonlyArray<[CeacPageId, RegExp]> = [
+  ["personal_information_1", /complete_personal\.aspx/i],
+  ["personal_information_2", /complete_personalcont\.aspx/i],
+  ["travel_information", /complete_travel\.aspx/i],
+  ["travel_companions", /complete_travelcompanions\.aspx/i],
+  ["previous_us_travel", /complete_previousustravel\.aspx/i],
+  ["address_and_phone", /complete_contact\.aspx/i],
+  ["passport", /Passport_Visa_Info\.aspx|complete_passport/i],
+  ["us_contact", /complete_uscontact\.aspx/i],
+  ["family_relatives", /complete_family1\.aspx|complete_relatives/i],
+  ["family_spouse", /complete_family2\.aspx|complete_spouse/i],
+  ["work_education_present", /complete_workeducation1\.aspx|node=WorkEducation1/i],
+  ["work_education_previous", /complete_workeducation2\.aspx|node=WorkEducationPrevious/i],
+  ["work_education_additional", /complete_workeducation3\.aspx|node=WorkEducationAddl/i],
+  ["security_background_1", /complete_securityandbackground1\.aspx/i],
+  ["security_background_2", /complete_securityandbackground2\.aspx/i],
+  ["security_background_3", /complete_securityandbackground3\.aspx/i],
+  ["security_background_4", /complete_securityandbackground4\.aspx/i],
+  ["security_background_5", /complete_securityandbackground5\.aspx/i],
+  ["confirm_photo", /photo_confirmphoto\.aspx|node=ConfirmPhoto/i],
+  ["upload_photo", /complete_uploadphoto\.aspx|photo_uploadthephoto\.aspx|node=UploadPhoto/i],
+  ["review", /Complete_Review\.aspx|complete_review|review_review|node=Review/i],
+  ["sign_and_submit", /complete_signandsubmit\.aspx|node=SignSubmit/i],
+  ["confirmation", /complete_confirmation\.aspx|Confirmation\.aspx/i],
+];
 
 /**
  * Regex patterns that match the H2 heading text for each page identity.
@@ -73,6 +108,9 @@ const PAGE_HEADING_PATTERNS: ReadonlyArray<[CeacPageId, RegExp]> = [
   ["security_background_3", /security and background:?\s*part\s*3/i],
   ["security_background_2", /security and background:?\s*part\s*2/i],
   ["security_background_1", /security and background(:?\s*part\s*1)?/i],
+  ["save_confirmation", /^save confirmation$/i],
+  ["confirm_photo", /^confirm photo$/i],
+  ["upload_photo", /upload photo/i],
   ["review", /review/i],
   ["sign_and_submit", CEAC_SIGN_AND_SUBMIT_MARKERS.headingPattern],
   ["confirmation", /thank you|confirmation|your application id is/i],
@@ -127,12 +165,38 @@ export async function detectPage(page: Page): Promise<PageIdentityResult> {
     return { id: "session_expired", heading, url };
   }
 
-  if (!heading) {
-    return { id: "unknown", heading: null, url };
+  // URL takes precedence for Review pages because their headings echo
+  // the original form-section names (e.g. "Personal, Address, Phone,
+  // and Passport Information") and would otherwise match earlier
+  // section patterns. Sign-and-submit and the photo subsystem also
+  // benefit from URL-first detection.
+  const REVIEW_URL_RE = /\/review\/review_|node=Review/i;
+  const PHOTO_URL_RE = /\/photo\/photo_|node=ConfirmPhoto|node=UploadPhoto/i;
+  const SIGN_URL_RE = /complete_signandsubmit|node=SignSubmit/i;
+  if (REVIEW_URL_RE.test(url)) {
+    return { id: "review", heading, url };
+  }
+  if (PHOTO_URL_RE.test(url)) {
+    if (/photo_confirmphoto/i.test(url)) return { id: "confirm_photo", heading, url };
+    return { id: "upload_photo", heading, url };
+  }
+  if (SIGN_URL_RE.test(url)) {
+    return { id: "sign_and_submit", heading, url };
   }
 
-  for (const [id, pattern] of PAGE_HEADING_PATTERNS) {
-    if (pattern.test(heading)) {
+  if (heading) {
+    for (const [id, pattern] of PAGE_HEADING_PATTERNS) {
+      if (pattern.test(heading)) {
+        return { id, heading, url };
+      }
+    }
+  }
+
+  // Heading missing or not recognized — fall back to URL-based ID. CEAC
+  // pages that render their title as a <span> (rather than <h2>) are
+  // indistinguishable via the heading locator; URL is authoritative.
+  for (const [id, pattern] of PAGE_URL_PATTERNS) {
+    if (pattern.test(url)) {
       return { id, heading, url };
     }
   }

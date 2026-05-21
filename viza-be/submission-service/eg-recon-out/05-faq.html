@@ -1,0 +1,369 @@
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head id="head"><link type="text/css" rel="stylesheet" href="/eVisa/javax.faces.resource/theme.css.evisa?ln=primefaces-aristo"><link type="text/css" rel="stylesheet" href="/eVisa/javax.faces.resource/components.css.evisa?ln=primefaces&amp;v=6.0"><script type="text/javascript" src="/eVisa/javax.faces.resource/jquery/jquery.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/core.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/components.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/jquery/jquery-plugins.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/validation/validation.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript" src="/eVisa/javax.faces.resource/validation/beanvalidation.js.evisa?ln=primefaces&amp;v=6.0"></script><script type="text/javascript">if(window.PrimeFaces){PrimeFaces.settings.locale='en';PrimeFaces.settings.validateEmptyFields=true;PrimeFaces.settings.considerEmptyStringNull=false;}</script>
+        <title>Egypt e-Visa Portal</title>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+        <link rel="stylesheet" href="plugins/revolution/css/settings.css">
+        <link rel="stylesheet" href="plugins/revolution/css/layers.css">
+        <link rel="stylesheet" href="plugins/revolution/css/navigation.css">
+        <link href="plugins/jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet">
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="css/responsive.css">
+        <link rel="shortcut icon" href="images/favicon.ico">
+        <link rel="stylesheet" href="plugins/font-awesome/css/font-awesome.min.css">
+        <style>
+            .countries-grid tr:nth-child(even) {background: #fefefe}
+            .countries-grid tr:nth-child(odd) {background: #ebeaea}
+            .countries-grid tr:nth-child(even):hover {background: #cecdcd}
+            .countries-grid tr:nth-child(odd):hover {background: #cecdcd}
+        </style></head><body id="body" elementname="body">
+    <style>
+        @media only screen and (max-width : 766px) {
+            .topbar-responsive {
+                min-width: 100% !important; 
+            }
+            .hidden-responsive {
+                display: none !important;
+            }
+        }
+
+    </style><div id="j_idt4" class="ui-outputpanel ui-widget">
+        <div id="top-bar" class="visible-sm visible-xs visible-md visible-lg home topbar-responsive">
+            <div style="max-width: 100%" class="zt-container">
+                <div class="social-top pull-left"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt6" class="hidden-responsive">
+                        <img src="images/logo.png" alt=""></a>
+                </div>
+                <div style="position: absolute !important; text-align: left;  color: #000;    font-weight: bold;margin-left: 90px" class=" hidden-responsive login pull-left">
+                    <h2 class="hidden-responsive" style="    font-size: 11px;                         line-height: 1px;">
+                        Arab Republic Of Egypt</h2>
+                    <br>
+                    <h2 class="hidden-responsive" style="line-height: 1px;margin-top: -38px;font-size: 21px;">
+                        Electronic Visa Portal</h2>
+                </div>
+                <div class="top-bar-wrap">
+
+                    <div style="padding:12px" class="login pull-right">
+                        <ul>
+                            <li><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt10">Sign In
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/SignUp?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt14" style="border-right: none;padding-left: 9px;">Sign Up
+                                    </a>
+                            </li>
+<form id="lang_frm" name="lang_frm" method="post" action="/eVisa/FAQ?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" enctype="application/x-www-form-urlencoded" style="display: inline-block">
+<input type="hidden" name="lang_frm" value="lang_frm" style="">
+<select name="lang_frm:j_idt21" class="selectone" size="1" style="background-image: none !important;background: black; color: #fff;border: none;padding: 7px;" onchange="submit();">	<option value="en" selected="selected">English</option>
+	<option value="ar">العربية</option>
+	<option value="fr">Français</option>
+	<option value="ru">Pусский</option>
+	<option value="zh">中文</option>
+	<option value="de">Deutsch</option>
+	<option value="it">Italiano</option>
+	<option value="es">Español</option>
+</select><input type="hidden" name="javax.faces.ViewState" id="j_id1:javax.faces.ViewState:0" value="-2250482292946654648:-4062802892988125100" autocomplete="off" style="">
+</form>                            
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+        </div></div>
+
+    <style>
+        @media only screen and (max-width : 425px) {
+            .lang-menu {
+                display: inline-block;  
+                padding: 8px !important;
+                float: right;
+            }
+            .lang-menu select {
+                height: 35px !important;
+            }
+        }
+
+        @media only screen and (min-width : 767px) {
+            .lang-menu {
+                display: none !important;  
+            }
+        }
+    </style>
+    <!--outofthedatepluginscript-->
+<script>function $buo_f(){var e=document.createElement("script");e.src="//browser-update.org/update.min.js",document.body.appendChild(e)}var $buoop={notify:{i:10,f:54,o:46,s:9,c:59},unsecure:!0,unsupported:!1,api:5};try{document.addEventListener("DOMContentLoaded",$buo_f,!1)}catch(e){window.attachEvent("onload",$buo_f)}</script>
+    <header id="header" class="stricky home-three slideIn animated">
+        <nav class="navbar navbar-inverse">
+            <div class="container-fluid">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+
+                    </button>
+                    <div style="float: left;border: none;width: 113px;padding-top: 0px; width: 84px" class="navbar-toggle collapsed" aria-expanded="false"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt64">
+                            <img src="images/logo.png" alt=""></a>
+
+                    </div>
+
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse no-r-p-l no-r-p-r" id="bs-example-navbar-collapse-1">
+
+                    <ul class="nav navbar-nav">
+
+
+                        <ul class="nav navbar-nav">
+                            <li style="margin-right: -14px;margin-top: 9px;"><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt68" onclick="return false;" style="pointer-events: none; cursor: default">
+                                    <img style="width: 21px" src="images/liicon.png" alt=""></a></li>
+                            <li><a href="/eVisa/Home?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt73">Home
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/About-Egypt?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt77">About Egypt
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/HowDoIApply?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt84">How to Apply
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/Disclaimer?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt90">Disclaimer
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt95">Apply Now
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/FAQ?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt99">FAQ
+                                    </a>
+                            </li>
+                            <li><a href="/eVisa/ContactUs?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt103">Contact Us
+                                    </a>
+                            </li>
+
+
+
+                        </ul>
+
+                    </ul>
+
+
+                </div><!-- /.navbar-collapse -->
+            </div><!-- /.container-fluid -->
+        </nav>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </header>
+
+<form id="j_idt109" name="j_idt109" method="post" action="/eVisa/FAQ?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="j_idt109" value="j_idt109" style="">
+<input type="hidden" name="javax.faces.ViewState" id="j_id1:javax.faces.ViewState:1" value="-2250482292946654648:-4062802892988125100" autocomplete="off" style="">
+</form>
+
+        <section class="inner-banner">
+            <div class="zt-container">
+                <div class="box clearfix">
+                    <h2 style="color: #000">.</h2>
+                </div>
+            </div>
+        </section>
+        <div class="sec-title">
+            <div style="padding-left:0px" class="col-md-4 col-sm-4 col-xs-12">
+
+                <h2 class="why">FAQ</h2>
+            </div>
+        </div>
+        <section style="padding:10px 0px;border-left: 2px solid #f0ad4e; margin-left: 70px" class="why-choose-us sec-padding">
+            <div class="zt-container">
+                <div class="row">
+
+                    <div class="col-md-12 col-sm-12 col-xs-12 pdl100">
+
+                        <div class="faq-accrodion ui-accordion ui-widget ui-helper-reset" role="tablist">
+                            <h3 class="ui-accordion-header ui-corner-top ui-accordion-header-collapsed ui-corner-all ui-state-default ui-accordion-icons" role="tab" id="ui-id-1" aria-controls="ui-id-2" aria-selected="false" aria-expanded="false" tabindex="0"><span class="ui-accordion-header-icon ui-icon ui-icon-plus"></span>What is an e-Visa?</h3>
+                            <div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" id="ui-id-2" aria-labelledby="ui-id-1" role="tabpanel" aria-hidden="true" style="display: none; height: 786px;">
+                                <p style="text-align:left">An e-Visa is an official document permitting entry into and travel from Egypt.</p>
+                                <p style="text-align:left">
+                                    The e-Visa is granted to citizens of the countries shown on the site.</p>
+                                <p style="text-align:left">
+                                    Applicants obtain their visas electronically after entering required information and making payments by a credit or debit card.
+                                </p>
+                                <p style="text-align:left">
+                                    A link to download your e-visa will be sent to you. Passport authorities at ports of arrival can check the validity of your e-Visa on their system.</p>
+                                <p style="text-align:left">
+                                    As is the case with other visas, Egyptian port authorities have the right to refuse entry to Egypt for an e-visa holder without any explanation.</p>
+                                <p style="text-align:left">
+                                    The visa fee is collected through the website using a credit card, after registering the foreigner's data.</p>
+                            </div>
+                            <h3 class="faq_countries ui-accordion-header ui-corner-top ui-accordion-header-collapsed ui-corner-all ui-state-default ui-accordion-icons" role="tab" id="ui-id-3" aria-controls="ui-id-4" aria-selected="false" aria-expanded="false" tabindex="-1"><span class="ui-accordion-header-icon ui-icon ui-icon-plus"></span>Who requires a visa?</h3>
+                            <div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" id="ui-id-4" aria-labelledby="ui-id-3" role="tabpanel" aria-hidden="true" style="display: none; height: 786px;">
+                                <p>Who requires a visa to enter The Arab Republic of Egypt?</p>
+                                <p>
+                                    A citizen of a foreign country, wishing to enter The Arab Republic of Egypt, generally must first obtain an e-Visa via the Egypt e-Visa Portal.</p>
+                                <p style="color:#fbad18;font-weight:bold">
+                                    Nationals of the countries listed below may be issued with an e-Visa upon application on the Egypt e-Visa Portal.</p><div id="j_idt112" class="ui-datagrid ui-widget countries-grid"><div id="j_idt112_content" class="ui-datagrid-content ui-widget-content"><table class="ui-datagrid-data"><tbody><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Albania</label></td><td class="ui-datagrid-column"><label>Argentina</label></td><td class="ui-datagrid-column"><label>Armenia</label></td><td class="ui-datagrid-column"><label>Australia</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Austria</label></td><td class="ui-datagrid-column"><label>Azerbaijan</label></td><td class="ui-datagrid-column"><label>Bahrain</label></td><td class="ui-datagrid-column"><label>Belarus</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Belgium</label></td><td class="ui-datagrid-column"><label>Bolivia</label></td><td class="ui-datagrid-column"><label>Bosnia and Herzegovina</label></td><td class="ui-datagrid-column"><label>Brazil</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Bulgaria</label></td><td class="ui-datagrid-column"><label>Canada</label></td><td class="ui-datagrid-column"><label>Chile</label></td><td class="ui-datagrid-column"><label>China</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>China/Taiwan</label></td><td class="ui-datagrid-column"><label>Colombia</label></td><td class="ui-datagrid-column"><label>Croatia</label></td><td class="ui-datagrid-column"><label>Cyprus</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Czech</label></td><td class="ui-datagrid-column"><label>Denmark</label></td><td class="ui-datagrid-column"><label>Ecuador</label></td><td class="ui-datagrid-column"><label>Estonia</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Finland</label></td><td class="ui-datagrid-column"><label>France</label></td><td class="ui-datagrid-column"><label>Georgia</label></td><td class="ui-datagrid-column"><label>Germany</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Greece</label></td><td class="ui-datagrid-column"><label>Hungary</label></td><td class="ui-datagrid-column"><label>Iceland</label></td><td class="ui-datagrid-column"><label>India</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Iraq</label></td><td class="ui-datagrid-column"><label>Ireland</label></td><td class="ui-datagrid-column"><label>Italy</label></td><td class="ui-datagrid-column"><label>Japan</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Korea (South)</label></td><td class="ui-datagrid-column"><label>Kuwait</label></td><td class="ui-datagrid-column"><label>Latvia</label></td><td class="ui-datagrid-column"><label>Lithuania</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Luxembourg</label></td><td class="ui-datagrid-column"><label>Macedonia</label></td><td class="ui-datagrid-column"><label>Malaysia</label></td><td class="ui-datagrid-column"><label>Malta</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Mexico</label></td><td class="ui-datagrid-column"><label>Moldova</label></td><td class="ui-datagrid-column"><label>Monaco</label></td><td class="ui-datagrid-column"><label>Montenegro</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Netherlands</label></td><td class="ui-datagrid-column"><label>New Zealand</label></td><td class="ui-datagrid-column"><label>Norway</label></td><td class="ui-datagrid-column"><label>Oman</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Paraguay</label></td><td class="ui-datagrid-column"><label>Peru</label></td><td class="ui-datagrid-column"><label>Poland</label></td><td class="ui-datagrid-column"><label>Portugal</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Qatar</label></td><td class="ui-datagrid-column"><label>Republic of Kosovo</label></td><td class="ui-datagrid-column"><label>Romania</label></td><td class="ui-datagrid-column"><label>Russian Federation</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>San Marino</label></td><td class="ui-datagrid-column"><label>Saudi Arabia</label></td><td class="ui-datagrid-column"><label>Serbia</label></td><td class="ui-datagrid-column"><label>Singapore</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Slovakia</label></td><td class="ui-datagrid-column"><label>Slovenia</label></td><td class="ui-datagrid-column"><label>South Africa</label></td><td class="ui-datagrid-column"><label>Spain</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Sweden</label></td><td class="ui-datagrid-column"><label>Switzerland</label></td><td class="ui-datagrid-column"><label>Ukraine</label></td><td class="ui-datagrid-column"><label>United Arab Emirates</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>United Kingdom (England, Northern Ireland, Scotland and Wales)</label></td><td class="ui-datagrid-column"><label>United States of America</label></td><td class="ui-datagrid-column"><label>Uruguay</label></td><td class="ui-datagrid-column"><label>Vatican</label></td></tr><tr class="ui-datagrid-row"><td class="ui-datagrid-column"><label>Venezuela</label></td><td class="ui-datagrid-column"></td><td class="ui-datagrid-column"></td><td class="ui-datagrid-column"></td></tr></tbody></table></div></div>
+
+                                
+                                <p style="text-align:left;color:#fbad18;font-weight:bold;margin-top: 10px;">
+                                    The visa fee is collected through the website using a credit card, after registering the foreigner's data.</p>
+
+                            </div>
+                            <h3 class="ui-accordion-header ui-corner-top ui-accordion-header-collapsed ui-corner-all ui-state-default ui-accordion-icons" role="tab" id="ui-id-5" aria-controls="ui-id-6" aria-selected="false" aria-expanded="false" tabindex="-1"><span class="ui-accordion-header-icon ui-icon ui-icon-plus"></span>Types of visa and fees</h3>
+                            <div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" id="ui-id-6" aria-labelledby="ui-id-5" role="tabpanel" aria-hidden="true" style="display: none; height: 786px;">
+                                <p>The type of visa you must have is defined by the Arab Republic of Egypt and Visa Regulations, and relates to the purpose of your travel.</p>
+                                <p>1. Tourism Visa: Issued for single or multiple entries to persons whose nationalities require visas to enter Egypt.</p>
+                                <table class="table table-condensed">
+                                    <tbody><tr class="active">
+                                        <td style="font-weight:bold">Visa type</td>
+                                        <td style="font-weight:bold">Visa fees</td>
+                                    </tr>
+                                    <tr class="info">
+                                        <td>Single entry visa (Tourism)</td>
+                                        <td>30$</td>
+                                    </tr>
+                                    <tr class="info">
+                                        <td>Multiple entries visa (Tourism)</td>
+                                        <td>65$</td>
+                                    </tr>
+<!--                                    &lt;tr class="info"&gt;
+                                        &lt;td&gt;Tourist multiple entry visa is valid for 5 years.&lt;/td&gt;
+                                        &lt;td&gt;100$&lt;/td&gt;
+                                    &lt;/tr&gt;-->
+                                </tbody></table>
+                            </div>
+                            <h3 class="ui-accordion-header ui-corner-top ui-accordion-header-collapsed ui-corner-all ui-state-default ui-accordion-icons" role="tab" id="ui-id-7" aria-controls="ui-id-8" aria-selected="false" aria-expanded="false" tabindex="-1"><span class="ui-accordion-header-icon ui-icon ui-icon-plus"></span>Requirements</h3>
+                            <div class="ui-accordion-content ui-corner-bottom ui-helper-reset ui-widget-content" id="ui-id-8" aria-labelledby="ui-id-7" role="tabpanel" aria-hidden="true" style="display: none; height: 786px;">
+                                <p style="font-weight:bold">Entry requirements (on arrival)</p>
+                                <p>- Passport valid for at least 6 months from arrival date.</p>
+                                <p>- e-Visa printout</p>
+                                <p>- Travel itinerary</p>
+                                <p>- Supporting letter e.g. letter from company or invitation letter for business/family visits.</p>
+                                <p>- Hotel bookings/details about places to visit if going as tourist.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-5 col-md-offset-4"><a href="/eVisa/SignIn?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt115" style="width: 100%" class="btn btn-warning btn-lg">Get your e-Visa now &nbsp;
+                            <i class="fa fa-chevron-right" aria-hidden="true"></i></a> 
+
+                    </div>
+                </div>
+            </div>
+        </section>
+        <footer style="background-image: url('images/bg_footer.jpg') 50% 50%;  background-size: 100% 100%; min-height: 350px;                  " id="footer" class="sec-padding">
+            <div class="zt-container">
+                <div class="row">
+
+
+
+
+                </div>
+            </div>
+        </footer>
+
+    <div class="footer-bottom text-white home-three">
+        <div class="zt-container">
+            <div class="row">
+
+                <div class="col-md-1 col-sm-12 col-xs-12">
+                    <img src="images/flag.png" width="54" height="50">
+
+                </div>
+
+                <div class="col-md-8 col-sm-12 col-xs-12">
+
+                    <p>©
+                        <script language="JavaScript" type="text/javascript">
+                            /* <![CDATA[ */
+                            now = new Date;
+                            theYear = now.getYear();
+
+                            if (theYear < 1900) {
+                                theYear = theYear + 1900;
+                            }
+                            document.write(theYear);
+                            /* ]]> */
+                        </script>2026- Ministry of Interior - Arab Republic of Egypt - All Rights Reserved</p>
+
+                </div>
+                <div class="col-md-2 col-sm-12 col-xs-12">
+                    <div class="right-text pull-right">
+                        <ul style="margin-top: 10px" class="menu-footer ">
+                            <li><a href="/eVisa/TermsOfUse?VISTK=X6B1-POB9-XYX4-BJCH-MU44-CIU7-ZEY4-62H8-C7WM-JBJP-GB9W-Y373-VZMU-BCRZ-FJHJ-4XUH" id="j_idt122">Terms of Use
+                                    </a> 
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+
+        <script src="plugins/jquery/jquery-1.12.4.min.js"></script>
+        <script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+        <script src="plugins/jquery-ui-1.12.1/jquery-ui.js"></script> 
+        <script src="plugins/bx-slider/jquery.bxslider.min.js"></script>
+        <script src="plugins/owl.carousel-2/owl.carousel.min.js"></script>
+        <script src="plugins/revolution/js/jquery.themepunch.tools.min.js"></script>
+        <script src="plugins/revolution/js/jquery.themepunch.revolution.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.layeranimation.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.migration.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.navigation.min.js"></script>
+        <script src="plugins/revolution/js/extensions/revolution.extension.slideanims.min.js"></script>
+        <script src="js/main.js"></script>
+
+        <script>
+            //<![CDATA[
+            $("#accordion").accordion({header: "h3", collapsible: false, active: false});
+
+            var active = getParameterByName('active');
+
+
+            if (active === "true") {
+                $(".faq-accrodion").accordion({active: 1});
+            }
+            function getParameterByName(name, url) {
+                if (!url)
+                    url = window.location.href;
+                name = name.replace(/[\[\]]/g, "\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                        results = regex.exec(url);
+                if (!results)
+                    return null;
+                if (!results[2])
+                    return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+            //]]>
+        </script>
+<div id="textarea_simulator" style="position: absolute; top: 0px; left: 0px; visibility: hidden;"></div><script src="//browser-update.org/update.min.js"></script></body></html>

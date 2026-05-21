@@ -1,5 +1,7 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
+import { mailReceiptOnPaid } from "@/app/actions/receipts";
+import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 import {
   AGENCY_FEE_TYPE,
   STRIPE_PROVIDER,
@@ -153,6 +155,7 @@ async function finalizePaidRecord(
   record: PaymentRecordRow,
   recipient: string | null,
 ) {
+  // 1. 执行 HEAD 原有的通知队列记录
   await queuePaymentOutcome(adminClient, {
     event,
     record,
@@ -162,6 +165,7 @@ async function finalizePaidRecord(
     recipient,
   });
 
+  // 2. 推进工作流状态
   const advancement = await advanceApplicationAfterConfirmedPayment(adminClient, {
     applicationId: record.application_id,
     applicantId: record.applicant_id,
@@ -187,6 +191,37 @@ async function finalizePaidRecord(
         application_status: advancement.status,
       },
     });
+  }
+
+  // 3. 发送系统收据邮件（使用 IIFE 异步自执行块 + try-catch 绕过 PromiseLike 局限）
+  (async () => {
+    try {
+      await mailReceiptOnPaid(record.id);
+    } catch (err: any) {
+      console.error("[receipts] mailReceiptOnPaid failed:", err);
+    }
+  })();
+
+  // 4. 彻底重构：弃用 .then().catch() 链，改用独立的 async IIFE 执行块，100% 解决 .catch 报错问题
+  const appId = record.application_id;
+  if (appId) {
+    (async () => {
+      try {
+        const { data: app } = await adminClient
+          .from("applications")
+          .select("country")
+          .eq("id", appId)
+          .maybeSingle();
+
+        if (app?.country) {
+          await enqueueRunnerJob(appId, app.country, {
+            correlationId: `stripe:${record.id}`,
+          });
+        }
+      } catch (err: any) {
+        console.error("[queue] asynchronous enqueueRunnerJob execution collapsed:", err);
+      }
+    })();
   }
 }
 
@@ -355,7 +390,7 @@ async function handleChargeEvent(
       event,
       metadata,
       sessionId: existingRecord?.provider_session_id,
-      paymentIntentId,
+      paymentIntentId: paymentIntentId,
       chargeId: charge.id,
       stripeStatus: charge.status,
     }),

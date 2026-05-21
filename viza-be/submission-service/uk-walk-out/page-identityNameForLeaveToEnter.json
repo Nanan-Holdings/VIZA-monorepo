@@ -1,0 +1,45 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.identityNameForLeaveToEnterList.0",
+  "title": "Application - Your name",
+  "heading": "Your name",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "givenName",
+      "name": "givenName",
+      "required": false,
+      "label": "Given name(s)"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "familyName",
+      "name": "familyName",
+      "required": false,
+      "label": "Family name"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "singleName",
+      "name": "singleName",
+      "required": false,
+      "label": "Enter your name(s)"
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}
