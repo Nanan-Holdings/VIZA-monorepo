@@ -66,8 +66,10 @@ export function NavBar({
   const tabLabels: Record<string, string> = {
     Home: t("home"),
     Application: t("application"),
+    Status: t("status"),
     Chat: t("chat"),
     Documents: t("documents"),
+    Support: t("support"),
   };
 
   useEffect(() => {
@@ -104,16 +106,14 @@ export function NavBar({
 
   const isDark = navColor.toLowerCase().startsWith("#fff") || navColor.toLowerCase().includes("255");
 
-  // ── Logo size controls ──────────────────────────────────────────────────
   const LOGO_DARK_DESKTOP  = { w: 144, h: 27 };
   const LOGO_WHITE_DESKTOP = { w: 144, h: 27 };
   const LOGO_DARK_MOBILE   = { w: 117, h: 23 };
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
 
-  // ── 融合配置：精简标签路径，将 Chat 独立作为高级弹窗渲染 ──────────────────────
-  const leftTabs = ["Home", "Application"];
-  const rightTabs = ["Documents"]; 
-  const mobileTabs = ["Home", "Application", "Documents"]; // 移动端简化平铺
+  const leftTabs = ["Home", "Application", "Status"];
+  const rightTabs = ["Documents", "Support"];
+  const mobileTabs = ["Home", "Application", "Status", "Documents", "Support"];
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
@@ -186,7 +186,7 @@ export function NavBar({
         <PopoverTrigger asChild>
           <motion.button
             className={cn(
-              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer",
+              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden",
               isMobile
                 ? cn(
                     "px-4 py-1.5 text-base rounded-full border border-solid",
@@ -221,14 +221,14 @@ export function NavBar({
     );
   };
 
-  // Desktop header
+  // Desktop Header
   const DesktopHeader = () => (
     <motion.header
       className="client-navbar hidden xl:block backdrop-blur backdrop-filter w-full fixed top-0 left-0 z-50"
     >
       <div className="mx-auto w-full px-4 sm:px-6 md:px-10 xl:px-20 py-4 md:py-7">
         <div className="flex items-center justify-between">
-          {/* Far left: Hamburger */}
+          {/* Hamburger */}
           <div className="shrink-0">
             {menuReady ? (
               <Popover>
@@ -249,54 +249,30 @@ export function NavBar({
                     </svg>
                   </motion.button>
                 </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  className="w-auto p-0 border-0 bg-transparent shadow-none"
-                >
-                  <AnimatedMenu
-                    onLogout={onLogout}
-                    isLoggingOut={isLoggingOut}
-                    showInviteFriends
-                  />
+                <PopoverContent align="start" className="w-auto p-0 border-0 bg-transparent shadow-none">
+                  <AnimatedMenu onLogout={onLogout} isLoggingOut={isLoggingOut} showInviteFriends />
                 </PopoverContent>
               </Popover>
             ) : (
               <motion.button
                 className="p-2.5 cursor-pointer rounded-md transition-all"
                 type="button"
-                 Ramos-opacity={{ opacity: 1 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: transitionDuration, ease: "easeInOut" }}
               >
                 <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                  <motion.path
-                    d={svgPaths.p2cedaac0}
-                    style={{ stroke: "var(--nav-stroke-color)" }}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
+                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </motion.button>
             )}
           </div>
 
-          {/* Center block: Left tabs + Logo + Chat Dropdown + Right tabs */}
-          <motion.div
-            className="flex items-center gap-1"
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.3 }}
-          >
-            <AnimatedTabPill
-              tabs={toItems(leftTabs)}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              isDark={isDark}
-            />
+          {/* Center links */}
+          <motion.div className="flex items-center gap-1" animate={{ opacity: 1 }} transition={{ duration: 1.3 }}>
+            <AnimatedTabPill tabs={toItems(leftTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
 
             {/* Logo */}
-            <Link
-              href="/client/home"
-              className="block transition-transform duration-200 ml-3 pr-[16px]"
-            >
+            <Link href="/client/home" className="block transition-transform duration-200 ml-3 pr-[16px]">
               <Image
                 src={isDark ? "/logo/viza-logo-white.svg" : "/logo/viza-logo-black.svg"}
                 alt="VIZA"
@@ -308,18 +284,13 @@ export function NavBar({
               />
             </Link>
 
-            {/* 融合核心：独立插入高级弹窗选单 */}
+            {/* Chat Trigger Popover */}
             {renderStandaloneChatTab(false)}
 
-            <AnimatedTabPill
-              tabs={toItems(rightTabs)}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              isDark={isDark}
-            />
+            <AnimatedTabPill tabs={toItems(rightTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
           </motion.div>
 
-          {/* Far right: Globe */}
+          {/* Globe */}
           <div className="shrink-0">
             <LanguageSelector size="desktop" />
           </div>
@@ -328,13 +299,12 @@ export function NavBar({
     </motion.header>
   );
 
-  // Mobile header - logo + hamburger top row, scrollable tab pills below
+  // Mobile Header
   const MobileHeader = () => (
     <motion.header
       className="client-navbar xl:hidden backdrop-blur backdrop-filter w-full fixed top-0 left-0 z-50"
     >
       <div className="flex flex-col pt-3 gap-4">
-        {/* Row 1: Logo + Hamburger */}
         <div className="px-4 flex items-center justify-between">
           <Link href="/client/home">
             <Image
@@ -348,79 +318,36 @@ export function NavBar({
             />
           </Link>
 
-          {/* Language Selector + Hamburger Menu */}
           <div className="flex items-center gap-1">
             <LanguageSelector size="mobile" />
-
-            {/* Hamburger Menu */}
             {menuReady ? (
               <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <PopoverTrigger asChild>
-                  <motion.button
-                    className="w-9 h-9 flex items-center justify-center cursor-pointer"
-                    type="button"
-                  >
+                  <motion.button className="w-9 h-9 flex items-center justify-center cursor-pointer" type="button">
                     <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                      <motion.path
-                        d={svgPaths.p2cedaac0}
-                        style={{ stroke: "var(--nav-stroke-color)" }}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
+                      <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                     </svg>
                   </motion.button>
                 </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  className="w-auto p-0 border-0 bg-transparent shadow-none"
-                >
-                  <AnimatedMenu
-                    onLogout={onLogout}
-                    isLoggingOut={isLoggingOut}
-                    showInviteFriends
-                    onClose={() => setMobileMenuOpen(false)}
-                  />
+                <PopoverContent align="end" className="w-auto p-0 border-0 bg-transparent shadow-none">
+                  <AnimatedMenu onLogout={onLogout} isLoggingOut={isLoggingOut} showInviteFriends onClose={() => setMobileMenuOpen(false)} />
                 </PopoverContent>
               </Popover>
             ) : (
-              <motion.button
-                className="w-9 h-9 flex items-center justify-center"
-                type="button"
-              >
+              <motion.button className="w-9 h-9 flex items-center justify-center" type="button">
                 <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                  <motion.path
-                    d={svgPaths.p2cedaac0}
-                    style={{ stroke: "var(--nav-stroke-color)" }}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
+                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </motion.button>
             )}
           </div>
         </div>
 
-        {/* Row 2: Scrollable tab pills with Popover insertion */}
-        <div className="overflow-x-auto pb-3 flex items-center gap-2">
-          <AnimatedTabPill
-            variant="pill"
-            tabs={toItems(mobileTabs.slice(0, 2))} // 渲染 Home, Application
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            isDark={isDark}
-            className="pl-4"
-          />
-          
-          {/* 移动端无缝插入 Chat 动态弹窗组件 */}
+        {/* Mobile Row 2: Scrollable Pills */}
+        <div className="overflow-x-auto pb-3 flex items-center gap-1.5 no-scrollbar">
+          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(0, 3))} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} className="pl-4" />
           {renderStandaloneChatTab(true)}
-
-          <AnimatedTabPill
-            variant="pill"
-            tabs={toItems(mobileTabs.slice(2))} // 渲染 Documents
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            isDark={isDark}
-          />
+          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(3))} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} className="pr-4" />
         </div>
       </div>
     </motion.header>
