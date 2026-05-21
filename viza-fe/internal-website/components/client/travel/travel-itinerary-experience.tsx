@@ -616,6 +616,17 @@ function getDayNumberForDate(value: string | null | undefined, travelState: Trav
   return Math.max(1, Math.round(diff / 86_400_000) + 1);
 }
 
+function getDayIndexForDate(
+  days: ItineraryDay[],
+  travelState: TravelState,
+  value: string | null | undefined,
+  fallbackIndex = 0
+): number {
+  const dayNumber = getDayNumberForDate(value, travelState);
+  const index = days.findIndex((day) => getDayNumber(day) === dayNumber);
+  return index >= 0 ? index : fallbackIndex;
+}
+
 function getDayNumber(day: ItineraryDay): number {
   if (typeof day.day === "number" && Number.isFinite(day.day)) {
     return Math.max(1, day.day);
@@ -1146,19 +1157,102 @@ type DayTimelineItem = {
   value: string;
 };
 
-function buildDayTimelineItems(day: ItineraryDay, dayIndex: number): DayTimelineItem[] {
+const MORNING_SLOT_TIME = "09:00";
+const AFTERNOON_SLOT_TIME = "14:30";
+const HOTEL_SLOT_TIME = "21:00";
+
+function getFlightsForDay(
+  flights: SelectedFlightOption[],
+  travelState: TravelState,
+  dayNumber: number
+): SelectedFlightOption[] {
+  return flights
+    .filter((flight) => !flight.skip && flight.option)
+    .filter(
+      (flight) =>
+        getDayNumberForDate(flight.departure_date, travelState) === dayNumber
+    )
+    .sort((first, second) => {
+      const firstTime = extractClockTime(first.option?.departure, MORNING_SLOT_TIME);
+      const secondTime = extractClockTime(second.option?.departure, MORNING_SLOT_TIME);
+      return timeToMinutes(firstTime) - timeToMinutes(secondTime);
+    });
+}
+
+function formatFlightTimelineValue(flight: SelectedFlightOption): string {
+  const airline = flight.option?.airline ?? flight.option?.provider ?? "航班";
+  const route = `${getLocalCityLabel(flight.from)} → ${getLocalCityLabel(flight.to)}`;
+  const flightNumber = getFlightNumber(flight);
+  const departureTime = extractClockTime(flight.option?.departure, "待确认");
+  return `${route} · ${airline} ${flightNumber} · ${departureTime}`;
+}
+
+function buildDayTimelineItems(
+  day: ItineraryDay,
+  dayIndex: number,
+  travelState: TravelState,
+  flights: SelectedFlightOption[],
+  hotels: SelectedHotelOption[]
+): DayTimelineItem[] {
   const morningActivity = isVagueActivityName(day.activities[0] ?? "")
     ? getSpecificAttraction(day.city, dayIndex, 0)
     : day.activities[0] ?? getSpecificAttraction(day.city, dayIndex, 0);
   const afternoonActivity = isVagueActivityName(day.activities[1] ?? "")
     ? getSpecificAttraction(day.city, dayIndex, 1)
     : day.activities[1] ?? getSpecificAttraction(day.city, dayIndex, 1);
+  const dayNumber = getDayNumber(day);
+  const dayFlights = getFlightsForDay(flights, travelState, dayNumber).slice(0, 2);
+  const hotel = findHotelForCity(hotels, day.city);
+  const hotelLabel = hotel?.option.name ?? "待选择酒店";
+  const hotelItem: DayTimelineItem = {
+    time: HOTEL_SLOT_TIME,
+    label: "住宿",
+    value: hotelLabel,
+  };
+
+  let morningItem: DayTimelineItem = {
+    time: MORNING_SLOT_TIME,
+    label: "上午",
+    value: morningActivity,
+  };
+  let afternoonItem: DayTimelineItem = {
+    time: AFTERNOON_SLOT_TIME,
+    label: "下午",
+    value: afternoonActivity,
+  };
+
+  if (dayFlights.length === 1) {
+    const flight = dayFlights[0];
+    const departureTime = extractClockTime(flight.option?.departure, MORNING_SLOT_TIME);
+    const isMorning = timeToMinutes(departureTime) < 13 * 60;
+    const flightItem: DayTimelineItem = {
+      time: isMorning ? MORNING_SLOT_TIME : AFTERNOON_SLOT_TIME,
+      label: "航班",
+      value: formatFlightTimelineValue(flight),
+    };
+    if (isMorning) {
+      morningItem = flightItem;
+    } else {
+      afternoonItem = flightItem;
+    }
+  } else if (dayFlights.length >= 2) {
+    morningItem = {
+      time: MORNING_SLOT_TIME,
+      label: "航班",
+      value: formatFlightTimelineValue(dayFlights[0]),
+    };
+    afternoonItem = {
+      time: AFTERNOON_SLOT_TIME,
+      label: "航班",
+      value: formatFlightTimelineValue(dayFlights[1]),
+    };
+  }
 
   return [
     {
-      time: "09:00",
-      label: "上午",
-      value: morningActivity,
+      time: morningItem.time,
+      label: morningItem.label,
+      value: morningItem.value,
     },
     {
       time: "12:30",
@@ -1166,15 +1260,16 @@ function buildDayTimelineItems(day: ItineraryDay, dayIndex: number): DayTimeline
       value: day.food[0] ?? `${getLocalCityLabel(day.city)}本地餐厅`,
     },
     {
-      time: "14:30",
-      label: "下午",
-      value: afternoonActivity,
+      time: afternoonItem.time,
+      label: afternoonItem.label,
+      value: afternoonItem.value,
     },
     {
       time: "18:30",
       label: "晚餐",
       value: day.food[1] ?? day.food[0] ?? `${getLocalCityLabel(day.city)}晚餐`,
     },
+    hotelItem,
   ];
 }
 
@@ -1882,8 +1977,23 @@ export function TravelItineraryExperience({
   );
   const activeDay = editableItinerary[activeDayIndex] ?? editableItinerary[0];
   const activeDayTimeline = useMemo(
-    () => (activeDay ? buildDayTimelineItems(activeDay, activeDayIndex) : []),
-    [activeDay, activeDayIndex]
+    () =>
+      activeDay
+        ? buildDayTimelineItems(
+            activeDay,
+            activeDayIndex,
+            effectiveTravelState,
+            effectiveSelectedFlights,
+            effectiveSelectedHotels
+          )
+        : [],
+    [
+      activeDay,
+      activeDayIndex,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+    ]
   );
   const activeDayAttractionChoices = useMemo(
     () => (activeDay ? getAttractionChoicesForCity(activeDay.city) : []),
@@ -3559,7 +3669,10 @@ export function TravelItineraryExperience({
                           const safeDayIndex = dayIndex >= 0 ? dayIndex : 0;
                           const timelineItems = buildDayTimelineItems(
                             day,
-                            safeDayIndex
+                            safeDayIndex,
+                            effectiveTravelState,
+                            effectiveSelectedFlights,
+                            effectiveSelectedHotels
                           );
 
                           return (
@@ -3767,6 +3880,35 @@ export function TravelItineraryExperience({
                           </p>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#8d8391]">当晚酒店</p>
+                          <p className="mt-1 truncate text-sm font-bold text-[#2d1635]">
+                            {activeDayHotel?.option.name ?? "待选择酒店"}
+                          </p>
+                          {activeDayHotel ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(activeDayHotel.check_in)} - {formatMonthDay(activeDayHotel.check_out)}
+                            </p>
+                          ) : activeDayHotelStay ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(activeDayHotelStay.stay.check_in)} - {formatMonthDay(activeDayHotelStay.stay.check_out)}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Button
+                          className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                          onClick={() => setDetailResourceTab("hotels")}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {activeDayHotel ? "修改酒店" : "选择酒店"}
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#efe5ff] p-1">

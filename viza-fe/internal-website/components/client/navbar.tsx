@@ -61,6 +61,7 @@ export function NavBar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
   const transitionDuration = 0.6;
 
   const tabLabels: Record<string, string> = {
@@ -71,6 +72,10 @@ export function NavBar({
     Documents: t("documents"),
     Support: t("support"),
   };
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     const readCssVar = (name: string, fallback: string) => {
@@ -147,6 +152,26 @@ export function NavBar({
     const isActive = activeTab === tab;
 
     if (tab === "Chat") {
+      if (!hasMounted) {
+        return (
+          <motion.button
+            key={tab}
+            onClick={() => openChatAgent(tabPaths.Chat)}
+            className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            type="button"
+          >
+            <motion.span
+              className="relative transition-colors duration-600"
+              style={{ color: isActive ? activeTabColor : inactiveColor }}
+            >
+              {tabLabels[tab] ?? tab}
+            </motion.span>
+          </motion.button>
+        );
+      }
+
       return (
         <Popover key={tab} open={chatMenuOpen} onOpenChange={setChatMenuOpen}>
           <PopoverTrigger asChild>
@@ -370,6 +395,26 @@ export function NavBar({
             {tabs.map((tab) => {
               const isActive = activeTab === tab;
               if (tab === "Chat") {
+                if (!hasMounted) {
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => openChatAgent(tabPaths.Chat)}
+                      className={clsx(
+                        "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
+                        isActive
+                          ? "bg-transparent border-transparent text-[#03346E]"
+                          : isDark
+                            ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
+                            : "bg-white border-[#ececec] text-black"
+                      )}
+                      type="button"
+                    >
+                      {tabLabels[tab] ?? tab}
+                    </button>
+                  );
+                }
+
                 return (
                   <Popover
                     key={tab}
