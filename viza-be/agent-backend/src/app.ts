@@ -7,10 +7,12 @@ import validateApplicationRouter from './routes/validate-application.js';
 import userPackagesRouter from './routes/user-packages.routes.js';
 import applicationAnswersRouter from './routes/application-answers.routes.js';
 import profilePrefillRouter from './routes/profile-prefill.routes.js';
-import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import translationRouter from './routes/translation.routes.js';
 import fieldGuidanceRouter from './routes/field-guidance.routes.js';
 import internalAutomationRouter from './routes/internal-automation/index.js';
+import submissionResultRouter from './routes/submission-result.routes.js';
+import passportScanRouter from './routes/passport-scan.routes.js';
+import ukAccountRouter from './routes/uk-account.routes.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -57,6 +59,15 @@ app.use('/api/profile/prefill', profilePrefillRouter);
 
 // Application translation routes
 app.use('/api/applications', translationRouter);
+
+// Submission result + per-application artifact endpoints
+app.use('/api/applications', submissionResultRouter);
+
+// UK account credential registration (for forceResume + post-auth walk)
+app.use('/api/applications', ukAccountRouter);
+
+// Passport scan / OCR extraction
+app.use('/api/passport-scan', passportScanRouter);
 
 // Error Handler Middleware
 app.use(errorHandler);

@@ -6,7 +6,7 @@ You are an autonomous coding agent working on the VIZA visa application platform
 
 1. Read the PRD at `prd.json` (in the repo root - this is the authoritative file)
 2. Read `progress.txt` if it exists (check Codebase Patterns section first)
-3. Pick the **highest priority** user story where `passes: false`
+3. Pick the **highest priority** user story where `passes: false` AND `onHold` is not `true` (skip on-hold stories — they're blocked on external info)
 4. Implement that single user story
 5. Run quality checks (typecheck, lint)
 6. If checks pass, commit ALL changes with message: `feat(US-XXX): [Story Title]`

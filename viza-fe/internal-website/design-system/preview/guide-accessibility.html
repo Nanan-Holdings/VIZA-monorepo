@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:22px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #efefef;border-radius:12px;overflow:hidden;font:400 13px var(--font-sans)}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid #f3f4f6}
+  thead th{font:500 11px var(--font-sans);color:rgba(0,0,0,.5);background:#fbfbfb;letter-spacing:.04em;text-transform:uppercase}
+  .pair{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:18px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,.08)}
+  .pass{color:#166534;font-weight:600}
+  .fail{color:hsl(0 72% 45%);font-weight:600}
+  .aa{color:#92400e;font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rule{background:#fff;border:1px solid #efefef;border-radius:12px;padding:14px 16px}
+  .rule h6{font:600 13px var(--font-sans);margin:0 0 4px;color:#3d3d3d}
+  .rule p{font:400 12px/1.5 var(--font-sans);color:rgba(0,0,0,.6);margin:0}
+  kbd{font:500 11px ui-monospace,Menlo;background:#f3f4f6;border:1px solid #e5e7eb;border-bottom-width:2px;padding:1px 6px;border-radius:4px;color:#3d3d3d}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Text contrast · foreground on background · WCAG AA 4.5 : 1 for body, 3 : 1 for large text</div>
+    <table>
+      <thead><tr><th>Pair</th><th>Ratio</th><th>Body (≥14px)</th><th>Large (≥18px bold)</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pair"><span class="sw" style="background:#3d3d3d"></span> <span class="sw" style="background:#fff"></span> fg-1 on white</span></td><td>10.7 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#03346E"></span> <span class="sw" style="background:#fff"></span> brand-500 on white</span></td><td>11.7 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#fff"></span> <span class="sw" style="background:#03346E"></span> white on brand-500</span></td><td>11.7 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:rgba(0,0,0,.45)"></span> <span class="sw" style="background:#fff"></span> fg-2 (45% black) on white</span></td><td>4.6 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#989898"></span> <span class="sw" style="background:#fff"></span> fg-3 on white</span></td><td>2.8 : 1</td><td class="fail">FAIL · decorative only</td><td class="aa">AA large</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#03346E"></span> <span class="sw" style="background:#EEF3FA"></span> brand-500 on brand-50</span></td><td>10.6 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#fff"></span> <span class="sw" style="background:#3D6DAD"></span> white on brand-400</span></td><td>4.5 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+        <tr><td><span class="pair"><span class="sw" style="background:#92400e"></span> <span class="sw" style="background:#fef3c7"></span> amber-800 on amber-100</span></td><td>8.3 : 1</td><td class="pass">PASS</td><td class="pass">PASS</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <div class="label">Keyboard & focus rules</div>
+    <div class="grid">
+      <div class="rule"><h6>Focus ring</h6><p>1px brand-500 ring via <kbd>focus-visible:ring-1</kbd>. Never removed — only repositioned.</p></div>
+      <div class="rule"><h6>Tab order</h6><p>DOM order matches visual order. Never use positive <kbd>tabindex</kbd>.</p></div>
+      <div class="rule"><h6>Esc closes overlays</h6><p>Dialog, sheet, popover, dropdown, tooltip — all dismiss on <kbd>Esc</kbd>. Returns focus to trigger.</p></div>
+      <div class="rule"><h6>Arrow keys in menus</h6><p>Dropdown, select, tabs, radio — <kbd>↑</kbd><kbd>↓</kbd> moves, <kbd>Enter</kbd> activates, <kbd>Home</kbd>/<kbd>End</kbd> jump.</p></div>
+      <div class="rule"><h6>Touch target · 44×44</h6><p>Minimum hit area on mobile. Flow CTA is 48×— meets it. Ghost button 40× uses padding extension.</p></div>
+      <div class="rule"><h6>Body ≥ 16px on mobile</h6><p>Prevents iOS auto-zoom on input focus. Labels can be 12px; body text cannot.</p></div>
+      <div class="rule"><h6>Screen-reader-only labels</h6><p>Icon-only buttons wrap their icon with <kbd>&lt;span class="sr-only"&gt;</kbd> text.</p></div>
+      <div class="rule"><h6>Reduced motion</h6><p>Motion's <kbd>useReducedMotion()</kbd> swaps y/scale animations for opacity-only fades.</p></div>
+    </div>
+  </div>
+</div></body></html>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .fam { border: 1px solid var(--border-hairline); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+  .fam:last-child { margin: 0; }
+  .fam .top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .fam .name { font-family: var(--font-heading); font-weight: 600; font-size: 18px; color: var(--fg-1); }
+  .fam .role { font-family: var(--font-sans); font-size: 12px; color: var(--fg-2); }
+  .fam .spec { font-family: var(--font-sans); font-size: 40px; font-weight: 500; letter-spacing: -0.9px; color: var(--fg-1); line-height: 1.1; }
+  .fam.switzer .spec { font-family: "Switzer", sans-serif; }
+  .fam.geist .spec { font-family: "Geist", sans-serif; font-weight: 400; letter-spacing: -0.011em; }
+  .wgt { display: flex; gap: 14px; margin-top: 8px; }
+  .wgt span { font-size: 13px; color: var(--fg-2); }
+  .wgt b { color: var(--fg-1); font-weight: inherit; }
+</style></head>
+<body><div class="stage">
+  <div class="fam switzer">
+    <div class="top"><div class="name">Switzer</div><div class="role">Headings · display · H1–H6</div></div>
+    <div class="spec">Aa — 你好 · 123</div>
+    <div class="wgt"><span style="font-family:"Switzer","PingFang SC","Noto Sans SC",sans-serif;font-weight:400">Regular 400</span><span style="font-family:"Switzer","PingFang SC","Noto Sans SC",sans-serif;font-weight:500">Medium 500</span><span style="font-family:"Switzer","PingFang SC","Noto Sans SC",sans-serif;font-weight:600">Semibold 600</span><span style="font-family:"Switzer","PingFang SC","Noto Sans SC",sans-serif;font-weight:700">Bold 700</span></div>
+  </div>
+  <div class="fam geist">
+    <div class="top"><div class="name">Geist Sans</div><div class="role">Body · UI · form controls (default)</div></div>
+    <div class="spec">Aa — Visa · 123</div>
+    <div class="wgt"><span style="font-family:"Geist","PingFang SC","Noto Sans SC",sans-serif;font-weight:400">Regular 400</span><span style="font-family:"Geist","PingFang SC","Noto Sans SC",sans-serif;font-weight:500">Medium 500</span><span style="font-family:"Geist","PingFang SC","Noto Sans SC",sans-serif;font-weight:600">Semibold 600</span><span style="font-family:"Geist","PingFang SC","Noto Sans SC",sans-serif;font-weight:700">Bold 700</span></div>
+  </div>
+</div></body></html>

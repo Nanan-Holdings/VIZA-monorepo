@@ -29,7 +29,7 @@ BrandInput.displayName = "BrandInput";
 
 interface BrandFieldProps {
   /** Visible label above the control. */
-  label: string;
+  label: React.ReactNode;
   /** Pass when wrapping an input that has a matching `id`. */
   htmlFor?: string;
   /** Shows a red asterisk next to the label. */

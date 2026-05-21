@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# VIZA monorepo pre-commit hook (SECRETS-004)
+#
+# Blocks staged changes that look like real credentials before they hit a
+# commit. Uses gitleaks when available; otherwise falls back to a small
+# regex sweep covering the high-frequency footguns we have actually seen.
+#
+# Install:  ./scripts/install-git-hooks.sh
+# Bypass:   git commit --no-verify   (refuse unless you have explicit
+#           sign-off from the maintainer; the hook exists for a reason)
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-commit] running gitleaks against staged changes"
+  if ! gitleaks protect --staged --config .gitleaks.toml --redact --no-banner; then
+    echo
+    echo "[pre-commit] gitleaks flagged a possible secret in staged changes."
+    echo "  - Move the value to env / Supabase Vault / applicant_secret"
+    echo "  - If this is a real false positive, extend .gitleaks.toml allowlist"
+    echo "  - Last resort: --no-verify (requires maintainer approval)"
+    exit 1
+  fi
+  exit 0
+fi
+
+# ---------------------------------------------------------------------
+# Fallback regex sweep when gitleaks is not installed locally.
+# Covers the credential families we have actually seen leak in this repo:
+#   - Supabase service-role JWTs (eyJ... starting with sb-)
+#   - Resend API keys (re_live_*, re_test_*)
+#   - 2captcha 32-char hex API keys when assigned literally
+#   - Generic ".+_PASSWORD=<nonempty>" / ".+_SECRET=<nonempty>" assignments
+# Add new patterns here as we encounter them.
+# ---------------------------------------------------------------------
+
+DIFF=$(git diff --cached -U0 --no-color)
+if [ -z "$DIFF" ]; then
+  exit 0
+fi
+
+declare -a PATTERNS=(
+  'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'
+  're_(live|test)_[A-Za-z0-9]{20,}'
+  '\b[a-f0-9]{32}\b'
+  '(_PASSWORD|_SECRET|_TOKEN|_API_KEY)=([^[:space:]]+)'
+)
+
+# Files we never scan in the fallback path. Mirrors the path allowlist
+# in .gitleaks.toml so contributors get the same answer either way.
+declare -a EXEMPT_PATHS=(
+  '.gitleaks.toml'
+  'SECURITY.md'
+  'scripts/git-hooks/pre-commit'
+  'docs/manual-qa-prompt.md'
+)
+
+current_file=""
+exempt=0
+found=0
+while IFS= read -r line; do
+  case "$line" in
+    "+++ b/"*)
+      current_file=${line#+++ b/}
+      exempt=0
+      for ef in "${EXEMPT_PATHS[@]}"; do
+        if [ "$current_file" = "$ef" ]; then
+          exempt=1
+          break
+        fi
+      done
+      case "$current_file" in
+        *.env.example|*.env.sample|*.env.template) exempt=1 ;;
+      esac
+      continue
+      ;;
+    +++*|+++) continue ;;
+    +*) ;;
+    *) continue ;;
+  esac
+  if [ "$exempt" -eq 1 ]; then
+    continue
+  fi
+  body=${line#+}
+  case "$body" in
+    *your-*|*re_your_*|*\${*\}*) continue ;;
+  esac
+  for re in "${PATTERNS[@]}"; do
+    if [[ $body =~ $re ]]; then
+      echo "[pre-commit] possible secret in $current_file matched /${re}/"
+      echo "  ${body}"
+      found=1
+    fi
+  done
+done <<< "$DIFF"
+
+if [ "$found" -eq 1 ]; then
+  echo
+  echo "[pre-commit] one or more lines look like credentials."
+  echo "  Install gitleaks for the full check: https://github.com/gitleaks/gitleaks"
+  exit 1
+fi
+
+exit 0

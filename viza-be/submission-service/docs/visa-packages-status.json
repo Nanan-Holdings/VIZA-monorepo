@@ -1,0 +1,370 @@
+{
+  "meta": {
+    "title": "Visa Packages — Continuous Progress Tracker",
+    "description": "Machine-readable tracker for Claude Code autonomous loop. Drives every country to its configured target phase. Mirror the human-readable status in visa-packages-status.md.",
+    "defaultTargetPhase": 3,
+    "phaseDefinitions": {
+      "0": "Not started — no wizard, no submission module",
+      "1": "Schema/recon scaffolded — selectors or scope docs only, no orchestrator",
+      "2": "Client wizard complete, backend stops pre-auth or absent",
+      "3": "Backend autofill operational, halts before submit/pay/sign — no application-ID callback",
+      "4": "End-to-end: wizard complete, backend submits or hands off, application reference returned to user"
+    },
+    "phase3Acceptance": [
+      "viza-be/submission-service/src/<country>/run.ts exports fillXApplication(credentials, answers) returning a typed result",
+      "Orchestrator walks every form page/step until immediately before submit/pay/sign",
+      "Result captures any pre-pay reference (TRN/registrationCode/draftReference) and lists fieldsFilled/fieldsSkipped",
+      "Errors typed in src/<country>/errors.ts: SESSION_EXPIRED, VALIDATION_FAILED, GATE_DETECTED at minimum",
+      "Wizard config exists at viza-fe/internal-website/components/client/wizards/<cc>/config.ts with steps + payload builder",
+      "npm run type-check passes in viza-be/submission-service and viza-fe/internal-website"
+    ],
+    "phase4Acceptance": [
+      "Phase 3 acceptance satisfied",
+      "Submission, signing, or external-pay handoff implemented; reference (TRN / VAF# / registrationCode) flows back to the applicant",
+      "Callback or polling captures the post-submit reference into submission_queue / application row"
+    ],
+    "lastUpdated": "2026-04-28",
+    "loopHaltedAt": "2026-04-28T20:00:00Z",
+    "loopHaltReason": "All remaining open stories require live recon against a real government portal (UK, EG-02, ID-01, IT, AU-08). VP-IT-02 (Annex I PDF) blocked separately on flat-PDF/no-AcroForm. Loop ran VP-INFRA-01, VP-INFRA-02, VP-EG-01, VP-AU-05/06/07 successfully.",
+    "progressLog": "viza-be/submission-service/docs/visa-packages-progress.txt",
+    "humanDoc": "viza-be/submission-service/docs/visa-packages-status.md"
+  },
+  "countries": {
+    "us": { "phase": 4, "targetPhase": 4, "atTarget": true, "note": "production" },
+    "fr": { "phase": 4, "targetPhase": 4, "atTarget": true, "note": "production" },
+    "au": { "phase": 3, "targetPhase": 4, "atTarget": false, "note": "Phase 4 = HTML signature pad + /signing route + post-Review submit; payment skipped" },
+    "vn": { "phase": 3, "targetPhase": 3, "atTarget": true, "note": "Phase 3→4 (external pay + email PDF ingestion) deferred — payment provider not configured" },
+    "uk": { "phase": 2, "targetPhase": 3, "atTarget": false },
+    "italy-vfs-cn": { "phase": 1, "targetPhase": 3, "atTarget": false, "note": "Scope = VFS appointment autofill + Annex I PDF pre-fill (paper form). NOT online form fill." },
+    "egypt": { "phase": 2, "targetPhase": 3, "atTarget": false, "note": "Wizard scaffolded (VP-EG-01). Backend recon (VP-EG-02) blocked on live recon run." },
+    "indonesia": { "phase": 2, "targetPhase": 3, "atTarget": false, "note": "Wizard scaffolded (VP-ID-02). Backend orchestrator (VP-ID-03) still needs live recon." },
+    "japan": { "phase": 0, "targetPhase": 3, "atTarget": false, "deferred": true, "deferReason": "deferred by product 2026-04-28" },
+    "korea": { "phase": 0, "targetPhase": 3, "atTarget": false, "deferred": true, "deferReason": "deferred by product 2026-04-28" }
+  },
+  "loopInstructions": {
+    "pickStrategy": "Pick the story with the lowest priority number where passes:false AND blocked:false AND every id in dependsOn is passes:true AND countries[story.country].deferred !== true. Ties broken by countries[story.country].targetPhase - countries[story.country].phase (smaller first).",
+    "perIterationSteps": [
+      "Read viza-packages-status.json and visa-packages-progress.txt",
+      "Pick next story per pickStrategy",
+      "Implement only that story; keep diff minimal",
+      "Run `npm run type-check` in any package modified",
+      "If checks pass: commit with message format `<type>(<scope>): <description>` per .claude/CLAUDE.md commit standards",
+      "Flip the story's passes:true and append a dated entry to progress log",
+      "If all story.passes === true OR all atTarget === true, output <promise>COMPLETE</promise>"
+    ],
+    "stopCondition": "Every non-deferred country has atTarget === true",
+    "outOfScope": [
+      "Country marked deferred:true (japan, korea) — skip entirely",
+      "Live recon that requires a preregistered government account that is not yet provisioned — escalate by setting story.blocked=true with reason instead of attempting"
+    ]
+  },
+  "stories": [
+    {
+      "id": "VP-INFRA-01",
+      "country": "_shared",
+      "title": "two-captcha solver extracted into shared module",
+      "priority": 5,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/captcha/two-captcha.ts (new — extract from src/ceac/)", "viza-be/submission-service/src/ceac/* (refactor to consume shared module)"],
+      "acceptance": [
+        "Generic solveCaptcha(siteKey, pageUrl, type) helper reading TWOCAPTCHA_API_KEY from env",
+        "CEAC orchestrator switched to use shared module — no behavior change",
+        "Module exported from src/captcha/index.ts for UK / EG / IT / ID consumers"
+      ]
+    },
+    {
+      "id": "VP-INFRA-02",
+      "country": "_shared",
+      "title": "per-applicant portal credential schema + Edward seed (UK + EG)",
+      "priority": 1,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": [],
+      "scope": [
+        "viza-be/agent-backend/drizzle/0024_eg_accounts.sql",
+        "viza-be/agent-backend/drizzle/0025_it_vfs_cn_accounts.sql",
+        "viza-be/submission-service/src/types.ts (EgAccount, ItVfsCnAccount)",
+        "viza-be/submission-service/src/account-loader.ts (loadUk/Au/Fv/Eg/ItVfsCn)",
+        "viza-be/submission-service/scripts/seed-edward-test-credentials.ts"
+      ],
+      "acceptance": ["Migrations applied", "Edward UK + EG rows seeded", "type-check passes"],
+      "note": "Done as a one-shot to unblock the loop. Italy + AU rows still empty pending creds."
+    },
+    {
+      "id": "VP-UK-01",
+      "country": "uk",
+      "title": "harvest post-auth UK Standard Visitor form selectors via authenticated recon",
+      "priority": 10,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "needs human-in-the-loop live recon run against gov.uk visa portal",
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/uk/form-recon.ts", "viza-be/submission-service/docs/uk-visa-recon-*.json"],
+      "acceptance": [
+        "form-recon.ts authenticates via uk_accounts row (loadUkAccount) and walks every form page after registration (~222 fields per gap report)",
+        "Output JSON committed under docs/uk-visa-recon-<date>.json with stable selector list keyed by page slug"
+      ]
+    },
+    {
+      "id": "VP-UK-02",
+      "country": "uk",
+      "title": "map UK post-auth selectors into UK_FIELD_MAPPINGS",
+      "priority": 11,
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["VP-UK-01"],
+      "scope": ["viza-be/submission-service/src/uk/form-mappings.ts (new)", "viza-be/submission-service/src/uk/index.ts"],
+      "acceptance": [
+        "UK_FIELD_MAPPINGS exported, typed against the wizard payload shape",
+        "Every required field in the recon JSON has a mapping; optional fields commented"
+      ]
+    },
+    {
+      "id": "VP-UK-03",
+      "country": "uk",
+      "title": "wire UK orchestrator past registration through to halt-before-pay",
+      "priority": 12,
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["VP-UK-02"],
+      "scope": ["viza-be/submission-service/src/uk/orchestrator.ts", "viza-be/submission-service/src/uk/run.ts (new)", "viza-be/submission-service/src/uk/errors.ts (new)"],
+      "acceptance": [
+        "fillUkApplication(credentials, answers) returns UkFillResult { status, applicationReference?, fieldsFilled, fieldsSkipped }",
+        "Halts on the payment / declaration page before charge",
+        "Errors: SESSION_EXPIRED, VALIDATION_FAILED, GATE_DETECTED"
+      ]
+    },
+    {
+      "id": "VP-UK-04",
+      "country": "uk",
+      "title": "fixture-driven UK orchestrator integration test",
+      "priority": 13,
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["VP-UK-03"],
+      "scope": ["viza-be/submission-service/src/uk/__tests__/run.test.ts (new)"],
+      "acceptance": [
+        "Test fills a fixture wizard payload and asserts halt page reached",
+        "Test runs under existing submission-service test runner"
+      ]
+    },
+    {
+      "id": "VP-IT-01",
+      "country": "italy-vfs-cn",
+      "title": "live recon walk for Italy VFS appointment booking flow",
+      "priority": 20,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "Requires it_vfs_cn_accounts row for Edward (creds not yet provisioned). Unblock once seeded.",
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/italy-vfs-cn/form-recon.ts (new)", "viza-be/submission-service/docs/italy-visa-recon-*.json"],
+      "acceptance": [
+        "Recon walk covers VFS login → centre selection → appointment slot picker → confirmation",
+        "Captures selectors against existing IT_VFS_*_FIELDS maps; mismatches reported"
+      ]
+    },
+    {
+      "id": "VP-IT-02",
+      "country": "italy-vfs-cn",
+      "title": "Italy Annex I (Schengen short-stay) PDF pre-fill generator",
+      "priority": 21,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "user-supplied /Users/gel/Desktop/visa-application-form-schengen-short-term.pdf has 0 AcroForm fields — pdf-lib field-filling impossible against a flat PDF. Needs either (a) an AcroForm-fillable source copy of the Annex I form, or (b) a human-approved pivot to coordinate-based text overlay (~90 fields by x/y coords).",
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/italy-vfs-cn/annex-i-pdf.ts (new)", "viza-be/submission-service/assets/visa-application-form-schengen-short-term.pdf (vendored from /Users/gel/Desktop/)"],
+      "acceptance": [
+        "fillAnnexIPdf(answers) returns a Buffer of the official Schengen Annex I PDF with applicant data overlaid via pdf-lib AcroForm fields",
+        "Reuses the shared schengen wizard payload shape — no Italy-specific input contract"
+      ]
+    },
+    {
+      "id": "VP-IT-03",
+      "country": "italy-vfs-cn",
+      "title": "Italy VFS appointment booking orchestrator (run.ts)",
+      "priority": 22,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "Depends on VP-IT-01 which is creds-blocked.",
+      "dependsOn": ["VP-IT-01", "VP-IT-02"],
+      "scope": ["viza-be/submission-service/src/italy-vfs-cn/run.ts (new)", "viza-be/submission-service/src/italy-vfs-cn/index.ts"],
+      "acceptance": [
+        "fillItalyVfsApplication(credentials, answers) logs into VFS, books appointment, captures appointment_reference, emits Annex I PDF artifact, halts before any payment",
+        "Honors LoginFailedError, CorridorIneligibleError"
+      ]
+    },
+    {
+      "id": "VP-IT-04",
+      "country": "italy-vfs-cn",
+      "title": "Italy VFS orchestrator integration test",
+      "priority": 23,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "Depends on VP-IT-03.",
+      "dependsOn": ["VP-IT-03"],
+      "scope": ["viza-be/submission-service/src/italy-vfs-cn/__tests__/run.test.ts (new)"],
+      "acceptance": ["Fixture-driven walk to halt boundary + asserts Annex I PDF generated"]
+    },
+    {
+      "id": "VP-EG-01",
+      "country": "egypt",
+      "title": "egypt wizard schema + payload builder",
+      "priority": 30,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": [],
+      "scope": ["viza-fe/internal-website/components/client/wizards/eg/config.ts (new)", "viza-fe/internal-website/components/client/wizards/eg/types.ts (new)", "viza-fe/internal-website/components/client/wizards/eg/payload.ts (new)"],
+      "acceptance": [
+        "Wizard config follows neighbouring au/ and vn/ shape",
+        "All fields keyed to visa2egypt.gov.eg page structure documented in docs/egypt-visa-scope.md"
+      ]
+    },
+    {
+      "id": "VP-EG-02",
+      "country": "egypt",
+      "title": "egypt phase-B authenticated recon",
+      "priority": 31,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "needs human-in-the-loop live recon run against visa2egypt.gov.eg",
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/egypt/form-recon-authed.ts (new)", "viza-be/submission-service/docs/egypt-visa-recon-*.json"],
+      "acceptance": ["Authenticated walk via loadEgAccount() captures every selector through halt-before-submit"]
+    },
+    {
+      "id": "VP-EG-03",
+      "country": "egypt",
+      "title": "egypt orchestrator halting before submit",
+      "priority": 32,
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["VP-EG-01", "VP-EG-02"],
+      "scope": ["viza-be/submission-service/src/egypt/run.ts (new)", "viza-be/submission-service/src/egypt/errors.ts (new)", "viza-be/submission-service/src/egypt/form-mappings.ts (new)"],
+      "acceptance": [
+        "fillEgyptApplication(credentials, answers) returns EgFillResult",
+        "Halts before payment",
+        "Typed errors"
+      ]
+    },
+    {
+      "id": "VP-ID-01",
+      "country": "indonesia",
+      "title": "indonesia phase-A recon walk + scope verification",
+      "priority": 40,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "passNote": "Schema reconstruction satisfied via viza-be/agent-backend/scripts/seed-id-c1-tourist-form-fields.ts (header documents source URLs and explicitly states `live-portal QA pass deferred per playbook`). Live recon still pending for VP-ID-03 (backend selectors).",
+      "blocked": false,
+      "blockedReason": "",
+      "dependsOn": [],
+      "scope": ["viza-be/submission-service/src/indonesia/form-recon.ts (new)", "viza-be/submission-service/docs/indonesia-visa-recon-*.json"],
+      "acceptance": ["Public-page recon committed; selector skeleton drafted; per-application UUID flow documented"]
+    },
+    {
+      "id": "VP-ID-02",
+      "country": "indonesia",
+      "title": "indonesia wizard config",
+      "priority": 41,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": ["VP-ID-01"],
+      "scope": ["viza-fe/internal-website/components/client/wizards/id/* (new)"],
+      "acceptance": ["Wizard mirrors vn/ shape; payload builder typed"]
+    },
+    {
+      "id": "VP-ID-03",
+      "country": "indonesia",
+      "title": "indonesia field mappings + orchestrator halt-before-pay",
+      "priority": 42,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "needs human-in-the-loop live recon run against evisa.imigrasi.go.id — per-application UUID URLs require a real session to enumerate selectors",
+      "dependsOn": ["VP-ID-02"],
+      "scope": ["viza-be/submission-service/src/indonesia/run.ts (new)", "viza-be/submission-service/src/indonesia/form-mappings.ts (new)", "viza-be/submission-service/src/indonesia/errors.ts (new)"],
+      "acceptance": ["fillIndonesiaApplication() returns typed result and halts before payment; per-app UUID URL accepted as input"]
+    },
+    {
+      "id": "VP-AU-05",
+      "country": "au",
+      "title": "client signature-pad component + Annex I-style declaration preview",
+      "priority": 50,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": [],
+      "scope": ["viza-fe/internal-website/components/client/signing/SignaturePad.tsx (new)", "viza-fe/internal-website/components/client/signing/DeclarationPreview.tsx (new)", "viza-fe/internal-website/components/client/signing/index.ts (new)"],
+      "acceptance": [
+        "Native HTML5 canvas signature pad (no third-party vendor)",
+        "Outputs PNG (transparent bg) at 600×200 px @ 2× DPR",
+        "Declaration preview renders the AU Visitor 600 character + health declarations the applicant is signing",
+        "Follows viza-fe/internal-website/frontend.md — brand-* tokens, shadcn primitives, no raw hex"
+      ]
+    },
+    {
+      "id": "VP-AU-06",
+      "country": "au",
+      "title": "add Signing step to /client journey timeline",
+      "priority": 51,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": ["VP-AU-05"],
+      "scope": ["viza-fe/internal-website/components/client/journey/timeline/* (existing)", "viza-fe/internal-website/components/client/home/* (next-action card)"],
+      "acceptance": [
+        "New step inserted between 'Application filled' and 'Submitted'",
+        "i18n strings added (en + zh)",
+        "Next-action card surfaces 'Sign your declaration' when application is filled but unsigned"
+      ]
+    },
+    {
+      "id": "VP-AU-07",
+      "country": "au",
+      "title": "/client/signing/[applicationId] route + submitSignature server action",
+      "priority": 52,
+      "passes": true,
+      "passedAt": "2026-04-28",
+      "blocked": false,
+      "dependsOn": ["VP-AU-05"],
+      "scope": ["viza-fe/internal-website/app/(client)/client/signing/[applicationId]/page.tsx (new)", "viza-fe/internal-website/app/actions/submit-signature.ts (new)"],
+      "acceptance": [
+        "Server action validates signature PNG, persists to applications table (signature_storage_path) + Supabase storage",
+        "Updates submission_queue.status to 'au_prefill_pending' on success",
+        "Page guards against non-AU applications + already-signed state"
+      ]
+    },
+    {
+      "id": "VP-AU-08",
+      "country": "au",
+      "title": "AU sign-and-submit: post-Review submit + TRN callback",
+      "priority": 53,
+      "passes": false,
+      "blocked": true,
+      "blockedReason": "needs human-in-the-loop live recon run — post-Review ImmiAccount selectors are not mapped (the existing au-visitor orchestrator deliberately halts at Review). Driving past Review requires live ImmiAccount session to harvest declaration / sign-and-submit selectors.",
+      "dependsOn": ["VP-AU-07"],
+      "scope": ["viza-be/submission-service/src/au-visitor/sign-and-submit.ts (new)", "viza-be/submission-service/src/au-visitor/orchestrator.ts (extend past Review)"],
+      "acceptance": [
+        "Loads signature PNG from Supabase storage (signature_storage_path on the application row)",
+        "Drives the AU declaration page to attach the signature image, submits, captures final TRN",
+        "Writes TRN to submission_queue.au_trn + updates application.confirmation_number",
+        "Halts gracefully on payment page (payment provider not yet configured)"
+      ]
+    },
+    {
+      "id": "VP-AU-09",
+      "country": "au",
+      "title": "AU sign-and-submit integration test",
+      "priority": 54,
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["VP-AU-08"],
+      "scope": ["viza-be/submission-service/src/au-visitor/__tests__/sign-and-submit.test.ts (new)"],
+      "acceptance": ["Fixture signature + fixture answers walk through to TRN capture (mocked Playwright pages)"]
+    }
+  ]
+}

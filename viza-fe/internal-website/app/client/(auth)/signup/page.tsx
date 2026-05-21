@@ -104,13 +104,28 @@ export default function ClientSignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [acceptTos, setAcceptTos] = useState(false)
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false)
+  const consentReady = acceptTos && acceptPrivacy
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     if (!isValidEmail(email)) { setError(t('invalidEmail')); return }
+    if (!consentReady) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setIsSubmitting(true)
-    setTimeout(() => { setIsSubmitting(false); setIsSubmitted(true) }, 800)
+    try {
+      const { recordSignupConsent } = await import('@/app/actions/consent')
+      await recordSignupConsent({ email })
+      setIsSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not record consent')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -169,6 +184,38 @@ export default function ClientSignupPage() {
                   disabled={isSubmitting}
                   className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
                 />
+                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
+                  <input
+                    type="checkbox"
+                    checked={acceptTos}
+                    onChange={(e) => setAcceptTos(e.target.checked)}
+                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
+                    required
+                  />
+                  <span>
+                    I accept the{' '}
+                    <Link href="/terms" className="underline hover:opacity-70">
+                      Terms of Service
+                    </Link>
+                    .
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
+                  <input
+                    type="checkbox"
+                    checked={acceptPrivacy}
+                    onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
+                    required
+                  />
+                  <span>
+                    I accept the{' '}
+                    <Link href="/privacy" className="underline hover:opacity-70">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
                 {error && (
                   <motion.p
                     className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
@@ -179,7 +226,7 @@ export default function ClientSignupPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !consentReady}
                   className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting

@@ -45,6 +45,10 @@ export async function updateSession(request: NextRequest) {
   // All paths that require an admin role in the `users` table
   const isAdminLogin = pathname === "/admin/login";
   const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin;
+  const isStaffPath = pathname.startsWith("/staff") || pathname.startsWith("/admin-v2");
+  // Both /admin/* (system admin) and /staff/* + /admin-v2/* (operations staff)
+  // must enroll MFA before they touch the console.
+  const isMfaRequiredPath = isProtectedPath || isStaffPath;
 
   // Protect authenticated routes - redirect to login if not authenticated
   if (!user && isProtectedPath) {
@@ -84,6 +88,26 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin";
       return NextResponse.redirect(url);
+    }
+
+    // Staff/admin roles are required to enroll TOTP. If they have no
+    // verified factor, push them through /account/security on first login.
+    // Excludes the security page itself + sign-out + the auth callback so
+    // we don't trap users in a redirect loop.
+    if (
+      (userRole === "admin" || userRole === "staff") &&
+      isMfaRequiredPath &&
+      !pathname.startsWith("/account/security")
+    ) {
+      const factorListResponse = await supabase.auth.mfa.listFactors();
+      const totpFactors = factorListResponse.data?.totp ?? [];
+      const hasVerifiedTotp = totpFactors.some((f) => f.status === "verified");
+      if (!hasVerifiedTotp) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/account/security";
+        url.searchParams.set("required", "1");
+        return NextResponse.redirect(url);
+      }
     }
   }
 

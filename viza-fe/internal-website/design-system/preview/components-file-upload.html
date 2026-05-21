@@ -1,0 +1,102 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .group{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+  .group:last-child{margin:0}
+  .group h4{font:500 11px "Geist", system-ui, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);margin:0 0 2px}
+
+  /* Drop zone */
+  .drop{border:1.5px dashed #e8e8e8;border-radius:12px;padding:28px 20px;text-align:center;background:#fff;transition:all .15s}
+  .drop .ic{width:44px;height:44px;border-radius:12px;background:#EEF3FA;color:#03346E;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px}
+  .drop h5{font:500 15px "Geist", "PingFang SC", system-ui, sans-serif;color:#3d3d3d;margin:0 0 4px;letter-spacing:-.011em}
+  .drop p{font:400 13px "Geist", "PingFang SC", system-ui, sans-serif;color:rgba(0,0,0,.45);margin:0}
+  .drop .link{color:#03346E;font-weight:500;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  .drop.hover{border-color:#03346E;background:#EEF3FA}
+  .drop.hover .ic{background:#03346E;color:#fff}
+  .drop.err{border-color:hsl(0 84% 60%);background:#fef2f2}
+  .drop.err .ic{background:#fee2e2;color:hsl(0 84% 60%)}
+
+  /* File chip / row */
+  .files{display:flex;flex-direction:column;gap:8px}
+  .file{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #efefef;border-radius:12px;background:#fff}
+  .file .thumb{width:40px;height:40px;border-radius:8px;background:#fafafa;border:1px solid #efefef;display:flex;align-items:center;justify-content:center;font:500 10px "Geist", system-ui, sans-serif;color:#03346E;letter-spacing:.04em;flex-shrink:0}
+  .file .meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+  .file .name{font:500 14px "Geist", system-ui, sans-serif;color:#3d3d3d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.011em}
+  .file .sub{font:400 12px "Geist", "PingFang SC", system-ui, sans-serif;color:rgba(0,0,0,.45)}
+  .file .status{font:500 12px "Geist", system-ui, sans-serif;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+  .file .status.ok{background:#dcfce7;color:#166534}
+  .file .status.rev{background:#fef3c7;color:#92400e}
+  .file .status.err{background:#fee2e2;color:#991b1b}
+  .file .remove{width:28px;height:28px;border-radius:50%;background:transparent;color:#989898;border:0;cursor:pointer;font-size:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .file .remove:hover{background:#f3f4f6;color:#3d3d3d}
+
+  /* Progress */
+  .file.uploading .meta{gap:6px}
+  .bar{height:4px;background:#EEF3FA;border-radius:999px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:#03346E;border-radius:999px;transition:width .3s}
+</style></head>
+<body><div class="stage">
+
+<div class="group">
+  <h4>Drop zone · idle / hover / error</h4>
+  <div class="drop">
+    <div class="ic">↑</div>
+    <h5>Upload passport scan</h5>
+    <p>Drag & drop or <span class="link">browse files</span> · PDF, JPG, PNG up to 10 MB</p>
+  </div>
+  <div class="drop hover">
+    <div class="ic">↑</div>
+    <h5>Drop to upload</h5>
+    <p>passport-scan.pdf · 2.1 MB</p>
+  </div>
+  <div class="drop err">
+    <div class="ic">!</div>
+    <h5>File too large</h5>
+    <p>selfie.heic exceeds the 10 MB limit · compress and try again</p>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Uploaded files · review states</h4>
+  <div class="files">
+    <div class="file">
+      <div class="thumb">PDF</div>
+      <div class="meta">
+        <div class="name">Passport_scan_Li_Wei.pdf</div>
+        <div class="sub">2.1 MB · uploaded 2 min ago</div>
+      </div>
+      <span class="status ok">✓ Approved</span>
+      <button class="remove" aria-label="Remove">×</button>
+    </div>
+    <div class="file uploading">
+      <div class="thumb">JPG</div>
+      <div class="meta">
+        <div class="name">Flight_itinerary_CGK_MAY12.jpg</div>
+        <div class="bar"><i style="width:66%"></i></div>
+        <div class="sub">1.4 of 2.1 MB · 66%</div>
+      </div>
+      <button class="remove" aria-label="Cancel">×</button>
+    </div>
+    <div class="file">
+      <div class="thumb">PDF</div>
+      <div class="meta">
+        <div class="name">Bank_statement_Mar_2026.pdf</div>
+        <div class="sub">顾问审核中 · Consultant reviewing</div>
+      </div>
+      <span class="status rev">◔ In review</span>
+      <button class="remove" aria-label="Remove">×</button>
+    </div>
+    <div class="file">
+      <div class="thumb">JPG</div>
+      <div class="meta">
+        <div class="name">Selfie_original.jpg</div>
+        <div class="sub">Face not centered · re-upload with face fully visible</div>
+      </div>
+      <span class="status err">✕ Rejected</span>
+      <button class="remove" aria-label="Remove">×</button>
+    </div>
+  </div>
+</div>
+
+</div></body></html>

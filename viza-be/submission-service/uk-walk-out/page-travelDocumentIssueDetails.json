@@ -1,0 +1,85 @@
+{
+  "url": "https://visas-immigration.service.gov.uk/edit/application.0.travelDocumentIssueDetails",
+  "title": "Application - Your passport",
+  "heading": "Your passport",
+  "fields": [
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "travelDocumentNumber",
+      "name": "travelDocumentNumber",
+      "required": false,
+      "label": "Passport number or travel document reference number"
+    },
+    {
+      "tag": "input",
+      "type": "text",
+      "id": "issuingCountry",
+      "name": "issuingCountry",
+      "required": false,
+      "label": "Issuing authority"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfIssue_day",
+      "name": "dateOfIssue.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfIssue_month",
+      "name": "dateOfIssue.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "dateOfIssue_year",
+      "name": "dateOfIssue.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "expiryDate_day",
+      "name": "expiryDate.day",
+      "required": false,
+      "label": "Day"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "expiryDate_month",
+      "name": "expiryDate.month",
+      "required": false,
+      "label": "Month"
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "id": "expiryDate_year",
+      "name": "expiryDate.year",
+      "required": false,
+      "label": "Year"
+    },
+    {
+      "tag": "input",
+      "type": "submit",
+      "id": "submit",
+      "name": "submit",
+      "required": false
+    }
+  ],
+  "submits": [
+    {
+      "name": "submit",
+      "value": "Save and continue",
+      "text": ""
+    }
+  ]
+}

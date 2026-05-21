@@ -183,6 +183,29 @@ router.post("/:id/translate", async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Mark the application as waiting for the per-country runner to pick up
+    // the queue row and produce a SubmissionResult. The frontend's existing
+    // realtime subscription on `applications` watches submission_result_status
+    // and transitions StatusStep into the WaitingCard.
+    const { error: statusError } = await supabase
+      .from("applications")
+      .update({
+        submission_result_status: "waiting",
+        submission_result_updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (statusError) {
+      // Non-fatal: translation already persisted; the runner will still pick
+      // up the queue row. Log and continue so the FE can show the user
+      // their answers were translated successfully.
+      logger.warn(
+        "Failed to set submission_result_status=waiting",
+        new Error(statusError.message),
+        { applicationId: id },
+      );
+    }
+
     logger.info("Translation complete", { applicationId: id, fieldCount: fieldKeys.length });
     res.status(200).json({ translated: true, count: fieldKeys.length, fields: resultFields });
   } catch (err: unknown) {

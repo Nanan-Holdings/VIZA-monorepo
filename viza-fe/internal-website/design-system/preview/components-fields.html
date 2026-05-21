@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .field{display:flex;flex-direction:column;gap:8px}
+  label{font:500 14px/1 "Geist", system-ui, sans-serif;color:#374151;letter-spacing:-.2px}
+  label .req{color:hsl(0 84% 60%);margin-left:4px}
+  .input{height:48px;padding:0 14px;border-radius:8px;border:1px solid #e8e8e8;font:400 15px "Geist", system-ui, sans-serif;background:#fff}
+  .input.focus{border-color:#03346E;box-shadow:0 0 0 1px #03346E}
+  .input.err{border-color:hsl(0 84% 60%)}
+  .hint{font:400 12px "Geist", system-ui, sans-serif;color:rgba(0,0,0,.45)}
+  .err-msg{font:400 12px "Geist", system-ui, sans-serif;color:hsl(0 84% 60%)}
+  .select{height:48px;border-radius:8px;border:1px solid #e8e8e8;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font:400 15px "Geist", system-ui, sans-serif;color:#3d3d3d;background:#fff}
+  .chev{color:#989898}
+</style></head>
+<body><div class="stage">
+<div class="grid">
+  <div class="field">
+    <label>Full name<span class="req">*</span></label>
+    <input class="input" placeholder="Enter your full name"/>
+    <div class="hint">As shown on your passport</div>
+  </div>
+  <div class="field">
+    <label>Email<span class="req">*</span></label>
+    <input class="input focus" value="li.wei@example.com"/>
+    <div class="hint">Focus · 1px brand ring</div>
+  </div>
+  <div class="field">
+    <label>Nationality</label>
+    <div class="select">🇨🇳 &nbsp; China <span class="chev">▾</span></div>
+  </div>
+  <div class="field">
+    <label>Date of birth<span class="req">*</span></label>
+    <input class="input err" value="1990/13/45"/>
+    <div class="err-msg" role="alert">Please enter a valid date.</div>
+  </div>
+</div>
+</div></body></html>
