@@ -67,6 +67,40 @@ type BusyTarget = { type: "upload" | "ocr" | "travel" | "refresh"; key: string }
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 const DEFAULT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.doc,.docx";
+const REQUIREMENT_LABEL_ZH: Record<string, string> = {
+  passport_copy: "护照资料页",
+  passport_bio_page: "护照资料页",
+  passport: "护照资料页",
+  photo: "证件照",
+  travel_itinerary: "旅行行程",
+  bank_statement: "资金证明",
+  flight_booking: "机票预订",
+  hotel_booking: "住宿预订",
+};
+const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
+  passport_copy: "护照资料页的清晰扫描件或照片。",
+  passport_bio_page: "护照资料页的清晰扫描件或照片。",
+  passport: "护照资料页的清晰扫描件或照片。",
+  photo: "近期证件照，需符合目的地照片规范。",
+  travel_itinerary: "按天的行程安排，包含日期、城市与主要活动。",
+  bank_statement: "近期银行对账单或等效资金证明。",
+  flight_booking: "如有，请提供机票预订或往返信息。",
+  hotel_booking: "如有，请提供住宿预订或住宿确认。",
+};
+const APPLICATION_STATUS_LABELS_ZH: Record<string, string> = {
+  draft: "草稿",
+  in_progress: "进行中",
+  submitted: "已提交",
+  approved: "已通过",
+  rejected: "已拒绝",
+  pending: "待处理",
+  complete: "已完成",
+};
+const CHECKLIST_SOURCE_LABELS_ZH: Record<string, string> = {
+  document_requirements: "材料要求",
+  package_metadata: "签证包配置",
+  fallback: "默认清单",
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -82,8 +116,8 @@ function getArray(value: unknown): unknown[] {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return "Not yet";
-  return new Intl.DateTimeFormat("en", {
+  if (!value) return "暂无";
+  return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -110,11 +144,54 @@ function isPassportRequirement(requirement: DocumentRequirement): boolean {
 }
 
 function readOcrErrorMessage(payload: unknown): string {
-  if (!isRecord(payload)) return "Passport OCR did not return a readable response.";
+  if (!isRecord(payload)) return "护照 OCR 未返回可读结果。";
   const error = payload.error;
   if (isRecord(error) && typeof error.message === "string") return error.message;
   if (typeof payload.message === "string") return payload.message;
-  return "Passport OCR could not process this upload.";
+  return "护照 OCR 无法处理该文件。";
+}
+
+function containsCjk(value: string): boolean {
+  return /[\u4e00-\u9fff]/.test(value);
+}
+
+function getRequirementLabel(requirement: DocumentRequirement): string {
+  if (requirement.labelZh && containsCjk(requirement.labelZh)) return requirement.labelZh;
+  const key = requirement.key || requirement.documentType;
+  return REQUIREMENT_LABEL_ZH[key] ?? "补充材料";
+}
+
+function getRequirementDescription(requirement: DocumentRequirement): string | null {
+  if (requirement.description && containsCjk(requirement.description)) return requirement.description;
+  const key = requirement.key || requirement.documentType;
+  return REQUIREMENT_DESCRIPTION_ZH[key] ?? null;
+}
+
+function formatApplicationStatus(status: string): string {
+  const normalized = status.toLowerCase();
+  return APPLICATION_STATUS_LABELS_ZH[normalized] ?? "状态更新中";
+}
+
+function formatChecklistSource(source: string | null | undefined): string {
+  if (!source) return CHECKLIST_SOURCE_LABELS_ZH.fallback;
+  return CHECKLIST_SOURCE_LABELS_ZH[source] ?? CHECKLIST_SOURCE_LABELS_ZH.fallback;
+}
+
+function formatUploadError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("bucket") && normalized.includes("not found")) {
+    return "上传失败：未找到存储桶 application-documents，请联系管理员确认 Supabase Storage 已创建该存储桶。";
+  }
+  if (normalized.includes("permission") || normalized.includes("not authorized") || normalized.includes("rls")) {
+    return "上传失败：存储权限不足。请联系管理员配置 Supabase Storage 写入策略。";
+  }
+  if (normalized.includes("signed-in") || normalized.includes("not authenticated")) {
+    return "上传失败：登录状态失效，请重新登录后再试。";
+  }
+
+  return "上传失败：请稍后重试，或打开控制台查看详细错误信息。";
 }
 
 function isRejectedStatus(status: string): boolean {
@@ -128,8 +205,8 @@ function isAcceptedStatus(status: string): boolean {
 function getDocumentStatus(requirement: DocumentRequirement, document: ApplicationDocument | null): DocumentStatusView {
   if (!document) {
     return {
-      label: requirement.required ? "Missing" : "Optional",
-      description: requirement.required ? "Required before this package can move forward." : "Add this if it supports your case.",
+      label: requirement.required ? "缺失" : "可选",
+      description: requirement.required ? "必需材料未齐全，当前签证包无法推进。" : "如有助于申请，可补充上传。",
       icon: requirement.required ? AlertCircle : FileText,
       badgeClassName: requirement.required
         ? "border-amber-200 bg-amber-50 text-amber-800"
@@ -141,8 +218,8 @@ function getDocumentStatus(requirement: DocumentRequirement, document: Applicati
 
   if (isRejectedStatus(document.status)) {
     return {
-      label: "Needs replacement",
-      description: document.rejectionReason ?? document.reviewNotes ?? "VIZA needs a clearer or corrected file.",
+      label: "需要补交",
+      description: document.rejectionReason ?? document.reviewNotes ?? "材料不清晰或有误，请重新上传。",
       icon: XCircle,
       badgeClassName: "border-red-200 bg-red-50 text-red-700",
       ready: false,
@@ -152,8 +229,8 @@ function getDocumentStatus(requirement: DocumentRequirement, document: Applicati
 
   if (document.status.toLowerCase() === "missing") {
     return {
-      label: "Missing",
-      description: "This item was requested but no usable file is on record.",
+      label: "缺失",
+      description: "已要求该材料，但暂无可用文件。",
       icon: AlertCircle,
       badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
       ready: false,
@@ -163,8 +240,8 @@ function getDocumentStatus(requirement: DocumentRequirement, document: Applicati
 
   if (isAcceptedStatus(document.status)) {
     return {
-      label: "Accepted",
-      description: "Checked and accepted for this application packet.",
+      label: "已通过",
+      description: "材料已审核通过，可用于本次申请。",
       icon: CheckCircle2,
       badgeClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
       ready: true,
@@ -173,8 +250,8 @@ function getDocumentStatus(requirement: DocumentRequirement, document: Applicati
   }
 
   return {
-    label: "Uploaded",
-    description: "Received and waiting for review.",
+    label: "已上传",
+    description: "已收到，等待审核。",
     icon: Clock3,
     badgeClassName: "border-blue-200 bg-blue-50 text-blue-700",
     ready: true,
@@ -209,13 +286,13 @@ function getLatestPassportOcr(extractions: PassportOcrExtraction[]): PassportOcr
 function getOcrDisplayFields(extraction: PassportOcrExtraction | null) {
   if (!extraction) return [];
   const labels: Array<[string, string[]]> = [
-    ["Full name", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
-    ["Passport number", ["passport_number", "passportNumber", "document_number", "passport_no"]],
-    ["Date of birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
-    ["Nationality", ["nationality", "citizenship"]],
-    ["Issuing country", ["passport_issuing_country", "issuingCountry", "issuing_country", "country_of_issue"]],
-    ["Issue date", ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"]],
-    ["Expiry date", ["passport_expiry_date", "expiryDate", "expiry_date", "expiration_date", "date_of_expiry"]],
+    ["姓名", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
+    ["护照号码", ["passport_number", "passportNumber", "document_number", "passport_no"]],
+    ["出生日期", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
+    ["国籍", ["nationality", "citizenship"]],
+    ["签发国家", ["passport_issuing_country", "issuingCountry", "issuing_country", "country_of_issue"]],
+    ["签发日期", ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"]],
+    ["有效期至", ["passport_expiry_date", "expiryDate", "expiry_date", "expiration_date", "date_of_expiry"]],
   ];
 
   return labels
@@ -241,7 +318,7 @@ function getCitiesFromTravelState(travelState: Record<string, unknown>): string 
   const order = getArray(travelState.travel_order).filter((item): item is string => typeof item === "string");
   const cities = getArray(travelState.cities).filter((item): item is string => typeof item === "string");
   const source = order.length > 0 ? order : cities;
-  if (source.length === 0) return "Travel AI itinerary";
+  if (source.length === 0) return "旅行 AI 行程";
   return source.slice(0, 4).join(" → ");
 }
 
@@ -276,7 +353,7 @@ function readTravelSupportCandidate(applicationId: string | null): TravelSupport
       if (latestVersion && Array.isArray(latestVersion.itinerary) && latestVersion.itinerary.length > 0) {
         const travelState = isRecord(latestVersion.travelState) ? latestVersion.travelState : {};
         return {
-          title: getString(latestVersion, "title") ?? getString(session, "title") ?? "Travel AI itinerary",
+          title: getString(latestVersion, "title") ?? getString(session, "title") ?? "旅行 AI 行程",
           updatedAt: getString(latestVersion, "createdAt") ?? getString(session, "updatedAt"),
           itinerary: latestVersion.itinerary,
           travelState,
@@ -288,7 +365,7 @@ function readTravelSupportCandidate(applicationId: string | null): TravelSupport
       if (messageItinerary.length > 0) {
         const travelState = isRecord(session.travelState) ? session.travelState : {};
         return {
-          title: getString(session, "title") ?? "Travel AI itinerary",
+          title: getString(session, "title") ?? "旅行 AI 行程",
           updatedAt: getString(session, "updatedAt"),
           itinerary: messageItinerary,
           travelState,
@@ -329,9 +406,11 @@ function ApplicationSelector({
           >
             <span className="min-w-0">
               <span className="block truncate font-semibold">
-                {application.countryFlag} {application.countryName}
+                {application.countryFlag} {application.countryNameZh || application.countryName}
               </span>
-              <span className="block truncate text-xs text-muted-foreground">{application.visaTypeLabel}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {application.visaTypeLabelZh || application.visaTypeLabel}
+              </span>
             </span>
             {selected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <ArrowRight className="h-4 w-4 shrink-0" />}
           </Link>
@@ -366,6 +445,8 @@ function RequirementRow({
 }) {
   const { requirement, document, status } = view;
   const Icon = requirement.documentType === "photo" ? Camera : requirement.documentType === "travel_itinerary" ? Plane : FileText;
+  const label = getRequirementLabel(requirement);
+  const description = getRequirementDescription(requirement);
 
   return (
     <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
@@ -376,19 +457,18 @@ function RequirementRow({
           </span>
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base font-semibold text-foreground">{requirement.labelEn}</h3>
+              <h3 className="text-base font-semibold text-foreground">{label}</h3>
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {requirement.required ? "Required" : "Optional"}
+                {requirement.required ? "必需" : "可选"}
               </span>
             </div>
-            <p className="text-sm font-medium text-brand-600">{requirement.labelZh}</p>
-            {requirement.description && <p className="max-w-2xl text-sm text-muted-foreground">{requirement.description}</p>}
+            {description && <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>}
             {document?.filename && (
               <p className="text-xs text-muted-foreground">
-                File on record: <span className="font-medium text-foreground">{document.filename}</span>
+                已上传文件：<span className="font-medium text-foreground">{document.filename}</span>
               </p>
             )}
-            {document?.reviewNotes && <p className="text-xs text-muted-foreground">Review note: {document.reviewNotes}</p>}
+            {document?.reviewNotes && <p className="text-xs text-muted-foreground">审核备注：{document.reviewNotes}</p>}
             {status.needsUpload && status.description && (
               <p className={cn("text-xs", isRejectedStatus(document?.status ?? "") ? "text-red-700" : "text-amber-800")}>
                 {status.description}
@@ -407,7 +487,7 @@ function RequirementRow({
             disabled={busy}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : document ? <RefreshCw className="h-4 w-4" /> : <UploadCloud className="h-4 w-4" />}
-            {document ? "Re-upload" : "Upload"}
+            {document ? "重新上传" : "上传"}
           </Button>
           <input ref={inputRef} type="file" className="hidden" accept={getRequirementAccept(requirement)} onChange={onFileChange} />
         </div>
@@ -430,26 +510,26 @@ function PhotoCompliancePanel({ photoView, onReupload }: { photoView: DocumentVi
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Camera className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">Photo Compliance</h2>
+            <h2 className="text-lg font-semibold">照片合规</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            VIZA keeps the photo state separate from the rest of the checklist so a failed photo is easy to fix.
+            VIZA 会将照片状态独立显示，方便在照片不合格时快速修正。
           </p>
           {failed && (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {document?.rejectionReason ?? document?.reviewNotes ?? "The photo did not meet the destination requirements. Please upload a new one."}
+              {document?.rejectionReason ?? document?.reviewNotes ?? "照片未满足目的地要求，请重新上传。"}
             </p>
           )}
-          {pending && <p className="text-sm text-blue-700">Photo received. VIZA still needs to confirm it meets the destination rules.</p>}
-          {passed && <p className="text-sm text-emerald-700">Photo passed review and is ready for the application packet.</p>}
-          {missing && <p className="text-sm text-amber-800">No passport-style photo has been uploaded yet.</p>}
+          {pending && <p className="text-sm text-blue-700">照片已收到，正在核验是否符合目的地规则。</p>}
+          {passed && <p className="text-sm text-emerald-700">照片审核通过，可用于申请材料包。</p>}
+          {missing && <p className="text-sm text-amber-800">尚未上传证件照。</p>}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <StatusBadge
             status={
               status ?? {
-                label: "Missing",
-                description: "No photo uploaded",
+                label: "缺失",
+                description: "未上传照片",
                 icon: AlertCircle,
                 badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
                 ready: false,
@@ -459,7 +539,7 @@ function PhotoCompliancePanel({ photoView, onReupload }: { photoView: DocumentVi
           />
           <Button type="button" variant="outline" onClick={onReupload}>
             <RefreshCw className="h-4 w-4" />
-            {document ? "Replace photo" : "Upload photo"}
+            {document ? "更换照片" : "上传照片"}
           </Button>
         </div>
       </div>
@@ -492,20 +572,20 @@ function OcrPanel({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <ScanLine className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">Passport OCR Confirmation</h2>
+            <h2 className="text-lg font-semibold">护照 OCR 确认</h2>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Extracted passport details stay as proposed values until you confirm them. Confirmation updates your profile and application answers.
+            OCR 识别出的护照信息会以“待确认”状态保留，确认后将更新个人资料与申请表答案。
           </p>
-          {!hasPassport && <p className="text-sm text-amber-800">Upload a passport bio page before OCR confirmation can be used.</p>}
-          {hasPassport && !extraction && <p className="text-sm text-muted-foreground">No OCR extraction has been recorded for this passport yet.</p>}
-          {pending && <p className="text-sm text-blue-700">OCR is in progress. Refresh this page after the extraction finishes.</p>}
-          {failed && <p className="text-sm text-red-700">{extraction?.errorMessage ?? "OCR could not read the passport clearly."}</p>}
-          {confirmed && <p className="text-sm text-emerald-700">Passport fields were confirmed by the applicant.</p>}
+          {!hasPassport && <p className="text-sm text-amber-800">请先上传护照资料页，才能使用 OCR 确认。</p>}
+          {hasPassport && !extraction && <p className="text-sm text-muted-foreground">尚未生成该护照的 OCR 记录。</p>}
+          {pending && <p className="text-sm text-blue-700">OCR 处理中，请稍后刷新页面。</p>}
+          {failed && <p className="text-sm text-red-700">{extraction?.errorMessage ?? "OCR 未能清晰识别护照信息。"}</p>}
+          {confirmed && <p className="text-sm text-emerald-700">护照信息已确认。</p>}
           {hasPassport && (
             <Button type="button" variant="outline" onClick={onRun} disabled={busy || pending}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
-              Run passport OCR
+              运行护照 OCR
             </Button>
           )}
         </div>
@@ -513,11 +593,11 @@ function OcrPanel({
         {fields.length > 0 && (
           <div className="w-full rounded-lg border border-border bg-muted/30 p-4 lg:max-w-md">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Proposed fields</p>
+              <p className="text-sm font-semibold">待确认字段</p>
               {confirmed && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Confirmed
+                  已确认
                 </span>
               )}
             </div>
@@ -532,7 +612,7 @@ function OcrPanel({
             {!confirmed && (
               <Button type="button" className="mt-4 w-full bg-brand-500 hover:bg-brand-400" onClick={onConfirm} disabled={busy || pending || failed}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-                Confirm passport details
+                确认护照信息
               </Button>
             )}
           </div>
@@ -563,27 +643,27 @@ function TravelAiPanel({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Plane className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">Travel AI Supporting Document</h2>
+            <h2 className="text-lg font-semibold">旅行 AI 支持材料</h2>
           </div>
           {candidate ? (
             <>
               <p className="text-sm text-muted-foreground">
-                A Travel AI itinerary is available in this browser and can be saved as the travel itinerary document.
+                当前浏览器已找到旅行 AI 行程，可保存为行程材料。
               </p>
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
                 <span className="font-semibold">{candidate.title}</span>
                 <span className="block">{candidate.citySummary}</span>
-                <span className="block text-xs">Updated {formatDate(candidate.updatedAt)}</span>
+                <span className="block text-xs">更新于 {formatDate(candidate.updatedAt)}</span>
               </div>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No saved Travel AI itinerary was found for this application in this browser. Generate one from Travel AI when you want it to satisfy this checklist item.
+              当前浏览器未找到该申请的旅行 AI 行程。需要时可在旅行 AI 生成行程以满足该材料项。
             </p>
           )}
           {existingDocument && (
             <p className="text-xs text-muted-foreground">
-              Current travel itinerary on record: <span className="font-medium text-foreground">{existingDocument.filename}</span>
+              已保存行程文件：<span className="font-medium text-foreground">{existingDocument.filename}</span>
             </p>
           )}
         </div>
@@ -591,13 +671,13 @@ function TravelAiPanel({
           {candidate && (
             <Button type="button" className="bg-brand-500 hover:bg-brand-400" onClick={onSave} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
-              {existingDocument ? "Replace with Travel AI" : "Save Travel AI itinerary"}
+              {existingDocument ? "用旅行 AI 替换" : "保存旅行 AI 行程"}
             </Button>
           )}
           <Button asChild type="button" variant="outline">
             <Link href="/client/travel-chat">
               <ExternalLink className="h-4 w-4" />
-              Open Travel AI
+              打开旅行 AI
             </Link>
           </Button>
         </div>
@@ -613,14 +693,14 @@ function EmptyState({ error }: { error: string | null }) {
         <FileText className="h-7 w-7" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold">Document Checklist Center</h1>
+        <h1 className="text-3xl font-semibold">材料清单中心</h1>
         <p className="text-muted-foreground">
-          {error ?? "Start or reopen an application first. VIZA will build a package-aware checklist once an application exists."}
+          {error ?? "请先创建或重新打开一份申请。系统会在申请存在后生成对应的材料清单。"}
         </p>
       </div>
       <Button asChild className="bg-brand-500 hover:bg-brand-400">
         <Link href="/client/application">
-          Go to application
+          前往申请
           <ArrowRight className="h-4 w-4" />
         </Link>
       </Button>
@@ -678,7 +758,7 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("A signed-in Supabase session is required to upload documents.");
+      if (!user) throw new Error("请先登录后再上传材料。");
 
       const safeName = sanitizeFilename(file.name);
       const storagePath = `${user.id}/${selectedApplication.id}/${requirement.documentType}/${Date.now()}-${safeName}`;
@@ -698,16 +778,22 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
         source,
       });
 
-      if (!result.ok) throw new Error(result.error);
+      if (!result.ok) {
+        console.error("Document record update failed", result);
+        setError("文件已上传，但记录保存失败，请刷新后重试。");
+        await refreshData();
+        return;
+      }
       if (source === "manual_upload" && isPassportRequirement(requirement)) {
         const ocrResult = await runPassportOcr({ storagePath }, key);
         if (!ocrResult.ok) {
-          setError(`Passport uploaded, but OCR did not complete: ${ocrResult.error}`);
+          setError(`护照已上传，但 OCR 未完成：${ocrResult.error}`);
         }
       }
       await refreshData();
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Document upload failed.");
+      console.error("Document upload failed", uploadError);
+      setError(formatUploadError(uploadError));
       setBusyTarget(null);
     }
   }
@@ -716,7 +802,7 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
     target: { documentId?: string; storagePath?: string },
     key = passportView ? getDocumentKey(passportView.requirement) : "passport",
   ): Promise<{ ok: true } | { ok: false; error: string }> {
-    if (!selectedApplication) return { ok: false, error: "No application selected." };
+    if (!selectedApplication) return { ok: false, error: "未选择申请。" };
     setBusyTarget({ type: "ocr", key });
 
     try {
@@ -735,14 +821,14 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
     } catch (ocrError) {
       return {
         ok: false,
-        error: ocrError instanceof Error ? ocrError.message : "Passport OCR failed.",
+        error: ocrError instanceof Error ? ocrError.message : "护照 OCR 失败。",
       };
     }
   }
 
   async function handleRunPassportOcr() {
     if (!passportView?.document) {
-      setError("Upload a passport bio page before running OCR.");
+      setError("请先上传护照资料页，再运行 OCR。");
       return;
     }
 
@@ -774,7 +860,7 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
     if (result.ok) {
       await refreshData();
     } else {
-      setError(result.error);
+      setError("确认失败，请稍后重试。");
       setBusyTarget(null);
     }
   }
@@ -817,39 +903,43 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
         <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-normal text-brand-500">Document checklist center</p>
+              <p className="text-sm font-semibold uppercase tracking-normal text-brand-500">材料清单中心</p>
               <div className="space-y-1">
                 <h1 className="text-3xl font-semibold text-foreground">
-                  {selectedApplication.countryFlag} {selectedApplication.countryName} documents
+                  {selectedApplication.countryFlag} {selectedApplication.countryNameZh || selectedApplication.countryName} 材料
                 </h1>
                 <p className="max-w-3xl text-muted-foreground">
-                  {data.packageSummary?.name ?? selectedApplication.visaTypeLabel} uses a package-aware checklist with required blockers separated from optional supporting evidence.
+                  当前签证材料清单将必需材料与可选补充材料分开显示，方便逐项完成上传。
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium">
-                <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-700">{selectedApplication.visaTypeLabel}</span>
-                <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Application status: {selectedApplication.status}</span>
+                <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-700">
+                  {selectedApplication.visaTypeLabelZh || selectedApplication.visaTypeLabel}
+                </span>
                 <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                  Checklist source: {data.packageSummary?.source.replace("_", " ") ?? "fallback"}
+                  申请状态：{formatApplicationStatus(selectedApplication.status)}
+                </span>
+                <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  清单来源：{formatChecklistSource(data.packageSummary?.source ?? null)}
                 </span>
               </div>
             </div>
 
             <div className="w-full rounded-lg border border-border bg-muted/30 p-4 lg:max-w-sm">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold">Readiness</span>
+                <span className="text-sm font-semibold">完成度</span>
                 <span className="text-2xl font-semibold text-brand-500">{completionPercent}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-brand-500" style={{ width: `${completionPercent}%` }} />
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                {readyRequired} of {totalRequired} required documents are uploaded or accepted.
+                已完成 {readyRequired} / {totalRequired} 项必需材料上传或审核。
               </p>
               <div className="mt-4 flex gap-2">
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/client/status">
-                    View status
+                    查看状态
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -877,20 +967,20 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
             <div className="flex items-center gap-2">
               {blockingViews.length ? <AlertCircle className="h-5 w-5 text-amber-700" /> : <CheckCircle2 className="h-5 w-5 text-emerald-700" />}
               <h2 className={cn("text-lg font-semibold", blockingViews.length ? "text-amber-900" : "text-emerald-900")}>
-                {blockingViews.length ? "Missing or replacement items" : "Required checklist ready"}
+                {blockingViews.length ? "缺失或需补交的材料" : "必需材料已齐备"}
               </h2>
             </div>
             <p className={cn("mt-1 text-sm", blockingViews.length ? "text-amber-800" : "text-emerald-800")}>
               {blockingViews.length
-                ? "These required items block the document packet until uploaded or replaced."
-                : "All required items have an uploaded or accepted file. VIZA can continue document review."}
+                ? "必需材料未齐全，需上传或补交后才能继续处理。"
+                : "必需材料已齐全，VIZA 可继续审核材料包。"}
             </p>
           </div>
           {blockingViews.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {blockingViews.map((view) => (
                 <span key={getDocumentKey(view.requirement)} className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-800">
-                  {view.requirement.labelEn}
+                  {getRequirementLabel(view.requirement)}
                 </span>
               ))}
             </div>
@@ -902,8 +992,8 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
         <div className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">Required documents</h2>
-              <span className="text-sm text-muted-foreground">{requiredViews.length} items</span>
+              <h2 className="text-xl font-semibold">必需材料</h2>
+              <span className="text-sm text-muted-foreground">{requiredViews.length} 项</span>
             </div>
             <div className="space-y-3">
               {requiredViews.map((view) => {
@@ -926,8 +1016,8 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">Optional supporting evidence</h2>
-              <span className="text-sm text-muted-foreground">{optionalViews.length} items</span>
+              <h2 className="text-xl font-semibold">可选补充材料</h2>
+              <span className="text-sm text-muted-foreground">{optionalViews.length} 项</span>
             </div>
             {optionalViews.length > 0 ? (
               <div className="space-y-3">
@@ -949,7 +1039,7 @@ export function DocumentCenterClient({ initialData, initialError }: DocumentCent
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-white p-4 text-sm text-muted-foreground shadow-sm">
-                This visa package has no optional documents configured yet.
+                该签证包暂未配置可选补充材料。
               </div>
             )}
           </section>
