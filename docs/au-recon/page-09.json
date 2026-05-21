@@ -1,0 +1,108 @@
+{
+  "pageMeta": "9/20",
+  "heading": [
+    "Online Lodgement",
+    "Application for a Visitor Short Stay Visa",
+    "Entry to Australia",
+    "Does the applicant want to apply for a visa valid for six years?",
+    "Proposed period of stay",
+    "Does the applicant intend to enter Australia on more than one occasion?",
+    "Does the applicant know the dates of entry for each occasion after first entry to Australia?",
+    "Is the applicant a parent or step-parent of an Australian citizen or Australian permanent resident?",
+    "Does the applicant want to apply for a longer visa validity period?",
+    "Has the applicant applied for an Australian parent visa?",
+    "Does the application have a queue date?",
+    "Is the applicant applying for a multiple stay visa which may allow the applicant to stay up to 12 months per visit?",
+    "Proposed initial period of stay",
+    "Study while in Australia",
+    "Will the applicant undertake a course of study in Australia?",
+    "Relatives, friends or contacts in Australia",
+    "Will the applicant visit any relatives, friends or contacts while in Australia?",
+    "Related Links",
+    "Help and Support"
+  ],
+  "fieldCount": 9,
+  "fields": [
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a3c1b0",
+      "id": "d215392281e112",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a3c1b0",
+      "id": "d215392281e114",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "select-one",
+      "name": "_2a0b0a0a0e0a0a8a3f0b0",
+      "id": "_2a0b0a0a0e0a0a8a3f0b0_input",
+      "label": "Length of stay in Australia",
+      "required": false,
+      "options": [
+        {
+          "v": "",
+          "t": ""
+        },
+        {
+          "v": "3",
+          "t": "Up to 3 months"
+        },
+        {
+          "v": "6",
+          "t": "Up to 6 months"
+        },
+        {
+          "v": "12",
+          "t": "Up to 12 months"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "name": "_2a0b0a0a0e0a0a8a3g0b0",
+      "id": "_2a0b0a0a0e0a0a8a3g0b0_input",
+      "label": "Planned arrival date",
+      "required": false
+    },
+    {
+      "type": "text",
+      "name": "_2a0b0a0a0e0a0a8a3h0b0",
+      "id": "_2a0b0a0a0e0a0a8a3h0b0_input",
+      "label": "Planned final departure date",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a5c1b0",
+      "id": "d215392281e445",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a5c1b0",
+      "id": "d215392281e447",
+      "label": "No",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a6c1b0",
+      "id": "d215392281e527",
+      "label": "Yes",
+      "required": false
+    },
+    {
+      "type": "radio",
+      "name": "_2a0b0a0a0e0a0a8a6c1b0",
+      "id": "d215392281e529",
+      "label": "No",
+      "required": false
+    }
+  ]
+}

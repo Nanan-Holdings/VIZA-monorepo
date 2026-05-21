@@ -38,6 +38,9 @@
   "exclude": [
     "node_modules",
     "Home_Page",
-    "Home Page  Popup Cards"
+    "Home Page  Popup Cards",
+    "design-system",
+    "tests",
+    "playwright.config.ts"
   ]
 }

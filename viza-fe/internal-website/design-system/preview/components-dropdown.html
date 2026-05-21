@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dropdown menu · shadcn</title>
+<link rel="stylesheet" href="_card.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          border: 'hsl(240 5.9% 90%)',
+          input: 'hsl(240 5.9% 90%)',
+          ring: 'hsl(240 5.9% 10%)',
+          background: 'hsl(0 0% 100%)',
+          foreground: 'hsl(240 10% 3.9%)',
+          muted: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 3.8% 46.1%)' },
+          popover: { DEFAULT: 'hsl(0 0% 100%)', foreground: 'hsl(240 10% 3.9%)' },
+          accent: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 5.9% 10%)' },
+          destructive: { DEFAULT: 'hsl(0 84.2% 60.2%)', foreground: 'hsl(0 0% 98%)' },
+          primary: { DEFAULT: 'hsl(240 5.9% 10%)', foreground: 'hsl(0 0% 98%)' },
+        },
+        borderRadius: { lg: '0.5rem', md: 'calc(0.5rem - 2px)', sm: 'calc(0.5rem - 4px)' },
+        fontFamily: { sans: ['Geist','ui-sans-serif','system-ui','sans-serif'] },
+      },
+    },
+  };
+</script>
+<style>
+  body{background:#fafafa;margin:0;font-family:Geist,ui-sans-serif,system-ui,sans-serif}
+  #root{width:700px;padding:32px;display:grid;grid-template-columns:1fr 1fr;gap:32px;box-sizing:border-box;min-height:520px}
+  .label{font:500 11px Geist;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:14px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "@radix-ui/react-dropdown-menu": "https://esm.sh/@radix-ui/react-dropdown-menu@2.1.2?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react"
+  }
+}
+</script>
+
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  Check, ChevronDown, Copy, Download, Share2, Trash2
+} from 'lucide-react';
+
+const h = React.createElement;
+
+// cn() helper — just join truthy classnames
+const cn = (...xs) => xs.filter(Boolean).join(' ');
+
+/* ─────────── shadcn components (ported 1:1 from the repo's dropdown-menu.tsx) ─────────── */
+
+function Content({ className, sideOffset = 4, children, ...props }) {
+  return h(DropdownMenu.Portal, null,
+    h(DropdownMenu.Content, {
+      sideOffset,
+      className: cn(
+        'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        className,
+      ),
+      ...props,
+    }, children),
+  );
+}
+
+function Item({ className, inset, children, ...props }) {
+  return h(DropdownMenu.Item, {
+    className: cn(
+      'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0',
+      inset && 'pl-8',
+      className,
+    ),
+    ...props,
+  }, children);
+}
+
+function CheckboxItem({ className, children, checked, ...props }) {
+  return h(DropdownMenu.CheckboxItem, {
+    className: cn(
+      'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      className,
+    ),
+    checked,
+    ...props,
+  },
+    h('span', { className: 'absolute left-2 flex h-3.5 w-3.5 items-center justify-center' },
+      h(DropdownMenu.ItemIndicator, null, h(Check, { className: 'h-4 w-4' })),
+    ),
+    children,
+  );
+}
+
+function RadioItem({ className, children, ...props }) {
+  return h(DropdownMenu.RadioItem, {
+    className: cn(
+      'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      className,
+    ),
+    ...props,
+  },
+    h('span', { className: 'absolute left-2 flex h-3.5 w-3.5 items-center justify-center' },
+      h(DropdownMenu.ItemIndicator, null,
+        h('svg', { viewBox: '0 0 15 15', className: 'h-2 w-2 fill-current' },
+          h('circle', { cx: 7.5, cy: 7.5, r: 3.75 }),
+        ),
+      ),
+    ),
+    children,
+  );
+}
+
+function Label({ className, children }) {
+  return h(DropdownMenu.Label, { className: cn('px-2 py-1.5 text-sm font-semibold', className) }, children);
+}
+function Separator() {
+  return h(DropdownMenu.Separator, { className: '-mx-1 my-1 h-px bg-muted' });
+}
+function Shortcut({ children }) {
+  return h('span', { className: 'ml-auto text-xs tracking-widest opacity-60' }, children);
+}
+
+/* ─────────── Button (shadcn variant="outline" size="sm") ─────────── */
+
+function TriggerButton({ children }) {
+  return h(DropdownMenu.Trigger, {
+    className:
+      'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2',
+  }, children);
+}
+
+/* ─────────── App ─────────── */
+
+function ActionMenu() {
+  return h('div', { style: { minHeight: 400 } },
+    h('div', { className: 'label' }, 'Action menu'),
+    h(DropdownMenu.Root, { defaultOpen: true, modal: false },
+      h(TriggerButton, null,
+        'Options',
+        h(ChevronDown, { className: 'h-4 w-4 opacity-50' }),
+      ),
+      h(Content, { align: 'start', sideOffset: 6 },
+        h(Item, null, h(Copy, null), 'Duplicate application', h(Shortcut, null, '⌘D')),
+        h(Item, null, h(Share2, null), 'Share link'),
+        h(Item, null, h(Download, null), 'Download PDF', h(Shortcut, null, '⇧⌘D')),
+        h(Separator, null),
+        h(Item, { className: 'text-destructive focus:bg-destructive/10 focus:text-destructive' },
+          h(Trash2, null), 'Delete draft'),
+      ),
+    ),
+  );
+}
+
+function FilterMenu() {
+  const [drafts, setDrafts] = React.useState(true);
+  const [submitted, setSubmitted] = React.useState(true);
+  const [archived, setArchived] = React.useState(false);
+  const [sort, setSort] = React.useState('recent');
+
+  return h('div', { style: { minHeight: 400 } },
+    h('div', { className: 'label' }, 'Checkbox · radio · grouped'),
+    h(DropdownMenu.Root, { defaultOpen: true, modal: false },
+      h(TriggerButton, null, 'Filter', h(ChevronDown, { className: 'h-4 w-4 opacity-50' })),
+      h(Content, { align: 'start', sideOffset: 6 },
+        h(Label, null, 'Show'),
+        h(CheckboxItem, { checked: drafts, onCheckedChange: setDrafts, onSelect: e => e.preventDefault() }, 'Drafts'),
+        h(CheckboxItem, { checked: submitted, onCheckedChange: setSubmitted, onSelect: e => e.preventDefault() }, 'Submitted'),
+        h(CheckboxItem, { checked: archived, onCheckedChange: setArchived, onSelect: e => e.preventDefault() }, 'Archived'),
+        h(Separator, null),
+        h(Label, null, 'Sort by'),
+        h(DropdownMenu.RadioGroup, { value: sort, onValueChange: setSort },
+          h(RadioItem, { value: 'recent', onSelect: e => e.preventDefault() }, 'Most recent'),
+          h(RadioItem, { value: 'country', onSelect: e => e.preventDefault() }, 'Country'),
+          h(RadioItem, { value: 'due', onSelect: e => e.preventDefault() }, 'Due date'),
+        ),
+      ),
+    ),
+  );
+}
+
+function App() {
+  return h(React.Fragment, null, h(ActionMenu, null), h(FilterMenu, null));
+}
+
+createRoot(document.getElementById('root')).render(h(App, null));
+</script>
+</body>
+</html>

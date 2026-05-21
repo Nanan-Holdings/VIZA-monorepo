@@ -8,10 +8,11 @@ import { MessageCircle, Plane } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
+import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
 import { useTranslations } from "next-intl";
-import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { svgPaths } from "@/components/client/constants";
+import { cn } from "@/lib/utils";
 
 interface NavBarProps {
   activeTab: string | null;
@@ -20,8 +21,6 @@ interface NavBarProps {
   isLoggingOut: boolean;
   menuReady: boolean;
 }
-
-const tabs = ["Home", "Application", "Status", "Documents", "Chat", "Support"];
 
 const tabPaths: Record<string, string> = {
   Home: "/client/home",
@@ -67,10 +66,8 @@ export function NavBar({
   const tabLabels: Record<string, string> = {
     Home: t("home"),
     Application: t("application"),
-    Status: t("status"),
     Chat: t("chat"),
     Documents: t("documents"),
-    Support: t("support"),
   };
 
   useEffect(() => {
@@ -107,18 +104,25 @@ export function NavBar({
 
   const isDark = navColor.toLowerCase().startsWith("#fff") || navColor.toLowerCase().includes("255");
 
-  // 鈹€鈹€ Logo size controls 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  const LOGO_DARK_DESKTOP  = { w: 144, h: 27 };  // dark logo, desktop
-  const LOGO_WHITE_DESKTOP = { w: 144, h: 27 };  // white logo, desktop
-  const LOGO_DARK_MOBILE   = { w: 117, h: 23 };  // dark logo, mobile
-  const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };  // white logo, mobile
-  // 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Logo size controls ──────────────────────────────────────────────────
+  const LOGO_DARK_DESKTOP  = { w: 144, h: 27 };
+  const LOGO_WHITE_DESKTOP = { w: 144, h: 27 };
+  const LOGO_DARK_MOBILE   = { w: 117, h: 23 };
+  const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
+
+  // ── 融合配置：精简标签路径，将 Chat 独立作为高级弹窗渲染 ──────────────────────
+  const leftTabs = ["Home", "Application"];
+  const rightTabs = ["Documents"]; 
+  const mobileTabs = ["Home", "Application", "Documents"]; // 移动端简化平铺
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
 
-  const leftTabs = ["Home", "Application", "Status"];
-  const rightTabs = ["Documents", "Chat", "Support"];
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const path = tabPaths[tab];
+    if (path) router.push(path);
+  };
 
   const openChatAgent = (href: string) => {
     setActiveTab("Chat");
@@ -126,6 +130,9 @@ export function NavBar({
     setMobileChatMenuOpen(false);
     router.push(href);
   };
+
+  const toItems = (ids: string[]) =>
+    ids.map((id) => ({ id, label: tabLabels[id] ?? id }));
 
   const renderChatAgentMenu = () => (
     <div className="w-[210px] rounded-2xl border border-[#dbe4f0] bg-white p-2 shadow-[0_18px_45px_rgba(3,52,110,0.18)]">
@@ -148,77 +155,69 @@ export function NavBar({
     </div>
   );
 
-  const renderTab = (tab: string) => {
-    const isActive = activeTab === tab;
+  const renderStandaloneChatTab = (isMobile: boolean = false) => {
+    const isActive = activeTab === "Chat";
+    const setOpenDropdown = isMobile ? setMobileChatMenuOpen : setChatMenuOpen;
+    const openDropdown = isMobile ? mobileChatMenuOpen : chatMenuOpen;
 
-    if (tab === "Chat") {
-      if (!hasMounted) {
-        return (
-          <motion.button
-            key={tab}
-            onClick={() => openChatAgent(tabPaths.Chat)}
-            className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            type="button"
-          >
-            <motion.span
-              className="relative transition-colors duration-600"
-              style={{ color: isActive ? activeTabColor : inactiveColor }}
-            >
-              {tabLabels[tab] ?? tab}
-            </motion.span>
-          </motion.button>
-        );
-      }
-
+    if (!hasMounted) {
       return (
-        <Popover key={tab} open={chatMenuOpen} onOpenChange={setChatMenuOpen}>
-          <PopoverTrigger asChild>
-            <motion.button
-              className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
-              type="button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <motion.span
-                className="relative transition-colors duration-600"
-                style={{ color: isActive ? activeTabColor : inactiveColor }}
-              >
-                {tabLabels[tab] ?? tab}
-              </motion.span>
-            </motion.button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="center"
-            className="w-auto border-0 bg-transparent p-0 shadow-none"
-            sideOffset={10}
-          >
-            {renderChatAgentMenu()}
-          </PopoverContent>
-        </Popover>
+        <motion.button
+          onClick={() => openChatAgent(tabPaths.Chat)}
+          className={cn(
+            "font-switzer font-medium whitespace-nowrap transition-colors duration-300",
+            isMobile 
+              ? "px-4 py-1.5 text-base rounded-full border border-solid bg-white border-[#ececec] text-black" 
+              : "px-5 py-1.5 text-lg"
+          )}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="button"
+        >
+          <motion.span style={{ color: isActive ? activeTabColor : inactiveColor }}>
+            {t("chat")}
+          </motion.span>
+        </motion.button>
       );
     }
 
     return (
-      <motion.button
-        key={tab}
-        onClick={() => {
-          setActiveTab(tab);
-          const path = tabPaths[tab];
-          if (path) router.push(path);
-        }}
-        className="px-5 py-1.5 font-switzer font-medium text-lg whitespace-nowrap transition-colors duration-300"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <motion.span
-          className="relative transition-colors duration-600"
-          style={{ color: isActive ? activeTabColor : inactiveColor }}
+      <Popover open={openDropdown} onOpenChange={setOpenDropdown}>
+        <PopoverTrigger asChild>
+          <motion.button
+            className={cn(
+              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer",
+              isMobile
+                ? cn(
+                    "px-4 py-1.5 text-base rounded-full border border-solid",
+                    isActive
+                      ? "bg-transparent border-transparent text-[#03346E]"
+                      : isDark
+                        ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
+                        : "bg-white border-[#ececec] text-black"
+                  )
+                : "px-5 py-1.5 text-lg"
+            )}
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <motion.span
+              className="relative transition-colors duration-600"
+              style={isMobile ? undefined : { color: isActive ? activeTabColor : inactiveColor }}
+            >
+              {t("chat")}
+            </motion.span>
+          </motion.button>
+        </PopoverTrigger>
+        <PopoverContent
+          align={isMobile ? "start" : "center"}
+          className="w-auto border-0 bg-transparent p-0 shadow-none"
+          sideOffset={10}
         >
-          {tabLabels[tab] ?? tab}
-        </motion.span>
-      </motion.button>
+          {renderChatAgentMenu()}
+        </PopoverContent>
+      </Popover>
     );
   };
 
@@ -265,7 +264,7 @@ export function NavBar({
               <motion.button
                 className="p-2.5 cursor-pointer rounded-md transition-all"
                 type="button"
-                animate={{ opacity: 1 }}
+                 Ramos-opacity={{ opacity: 1 }}
                 transition={{ duration: transitionDuration, ease: "easeInOut" }}
               >
                 <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
@@ -280,13 +279,18 @@ export function NavBar({
             )}
           </div>
 
-          {/* Center block: Left tabs + Logo + Right tabs */}
+          {/* Center block: Left tabs + Logo + Chat Dropdown + Right tabs */}
           <motion.div
             className="flex items-center gap-1"
             animate={{ opacity: 1 }}
             transition={{ duration: 1.3 }}
           >
-            {leftTabs.map(renderTab)}
+            <AnimatedTabPill
+              tabs={toItems(leftTabs)}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isDark={isDark}
+            />
 
             {/* Logo */}
             <Link
@@ -304,7 +308,15 @@ export function NavBar({
               />
             </Link>
 
-            {rightTabs.map(renderTab)}
+            {/* 融合核心：独立插入高级弹窗选单 */}
+            {renderStandaloneChatTab(false)}
+
+            <AnimatedTabPill
+              tabs={toItems(rightTabs)}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isDark={isDark}
+            />
           </motion.div>
 
           {/* Far right: Globe */}
@@ -324,7 +336,6 @@ export function NavBar({
       <div className="flex flex-col pt-3 gap-4">
         {/* Row 1: Logo + Hamburger */}
         <div className="px-4 flex items-center justify-between">
-          {/* Logo - sized to ~160脳30px per Figma spec */}
           <Link href="/client/home">
             <Image
               src={isDark ? "/logo/viza-logo-white.svg" : "/logo/viza-logo-black.svg"}
@@ -389,86 +400,27 @@ export function NavBar({
           </div>
         </div>
 
-        {/* Row 2: Scrollable tab pills */}
-        <div className="overflow-x-auto pb-3">
-          <div className="flex gap-[8px] pl-4">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab;
-              if (tab === "Chat") {
-                if (!hasMounted) {
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => openChatAgent(tabPaths.Chat)}
-                      className={clsx(
-                        "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
-                        isActive
-                          ? "bg-transparent border-transparent text-[#03346E]"
-                          : isDark
-                            ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                            : "bg-white border-[#ececec] text-black"
-                      )}
-                      type="button"
-                    >
-                      {tabLabels[tab] ?? tab}
-                    </button>
-                  );
-                }
+        {/* Row 2: Scrollable tab pills with Popover insertion */}
+        <div className="overflow-x-auto pb-3 flex items-center gap-2">
+          <AnimatedTabPill
+            variant="pill"
+            tabs={toItems(mobileTabs.slice(0, 2))} // 渲染 Home, Application
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            isDark={isDark}
+            className="pl-4"
+          />
+          
+          {/* 移动端无缝插入 Chat 动态弹窗组件 */}
+          {renderStandaloneChatTab(true)}
 
-                return (
-                  <Popover
-                    key={tab}
-                    open={mobileChatMenuOpen}
-                    onOpenChange={setMobileChatMenuOpen}
-                  >
-                    <PopoverTrigger asChild>
-                      <button
-                        className={clsx(
-                          "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
-                          isActive
-                            ? "bg-transparent border-transparent text-[#03346E]"
-                            : isDark
-                              ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                              : "bg-white border-[#ececec] text-black"
-                        )}
-                        type="button"
-                      >
-                        {tabLabels[tab] ?? tab}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="start"
-                      className="w-auto border-0 bg-transparent p-0 shadow-none"
-                      sideOffset={8}
-                    >
-                      {renderChatAgentMenu()}
-                    </PopoverContent>
-                  </Popover>
-                );
-              }
-
-              return (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    const path = tabPaths[tab];
-                    if (path) router.push(path);
-                  }}
-                  className={clsx(
-                    "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",
-                    isActive
-                      ? "bg-transparent border-transparent text-[#03346E]"
-                      : isDark
-                        ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                        : "bg-white border-[#ececec] text-black"
-                  )}
-                >
-                  {tabLabels[tab] ?? tab}
-                </button>
-              );
-            })}
-          </div>
+          <AnimatedTabPill
+            variant="pill"
+            tabs={toItems(mobileTabs.slice(2))} // 渲染 Documents
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            isDark={isDark}
+          />
         </div>
       </div>
     </motion.header>

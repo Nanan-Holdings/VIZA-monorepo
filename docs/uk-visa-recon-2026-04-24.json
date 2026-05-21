@@ -1,0 +1,103 @@
+{
+  "recon_date": "2026-04-24",
+  "target_portal": "https://visas-immigration.service.gov.uk",
+  "visa_product": "UK Standard Visitor visa (out-of-country)",
+  "application_path_id": "visit-visa-ooc-standard",
+  "entry_url": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",
+  "apply_now_redirects_to": "https://visas-immigration.service.gov.uk/alt-language-selection-skip-visa",
+  "selector_conventions": {
+    "radio_id_pattern": "{fieldName}_{optionValue}",
+    "radio_name": "{fieldName}",
+    "country_select_pattern": "select[name='{field}'] with ISO 3166-1 alpha-3 option values; paired input#{field}_ui typeahead is autocomplete-only (set the <select> directly, don't type in _ui)",
+    "submit_button": "button[name='submit'] OR input[type='submit']#submit (both present on most pages, button[name=submit value=Next] is the primary)",
+    "csrf": "every POST form has hidden input[name='csrfToken'] — must be preserved through Playwright navigation (don't rebuild form, fill in place)",
+    "session_resume": "many pages include hidden input[name='hasResumed'] boolean flag"
+  },
+  "page_detection_strategy": "URL alone is insufficient — after auth, most pages live at path '/next' with the same title prefix. Detect pages by (a) form.action suffix e.g. '/save/{state}.{field}', (b) h1 text, (c) document.title e.g. 'Start - Register an email'",
+  "state_model_discovery": "Form action URLs use '/save/{phase}.{field}' convention — e.g. '/save/start.contactEmail'. This is the Play Framework / UKVI 'Lifecycle' state machine. Each form submission advances to the next state determined server-side.",
+  "form_submit_quirk": "document.querySelector('form').submit() fails because a button with name='submit' shadows the native submit method. Must click the submit button instead: form.querySelector('button[name=\"submit\"], input[type=\"submit\"]').click()",
+  "anti_bot_observed": "No visible CAPTCHA on pre-auth pages. Standard cookie banner. Likely CAPTCHA or challenge after account creation — needs verification with a real account.",
+  "pages_walked": [
+    {
+      "seq": 1,
+      "phase": "pre-auth",
+      "url": "https://visas-immigration.service.gov.uk/alt-language-selection-skip-visa",
+      "h1": "Select your language",
+      "form_action": "/alt-language-selection-skip-visa",
+      "method": "post",
+      "fields": [
+        { "name": "languageCode", "type": "radio", "id_pattern": "languageCode_{value}", "values": ["en","zh","hi","ru","tr","th","ar","ur","bn","fr","id","ja","ko","pt","si","es","vi","gu","ta"], "required": true }
+      ],
+      "submit": "button[name='submit'][value='Next']"
+    },
+    {
+      "seq": 2,
+      "phase": "pre-auth",
+      "url": "https://visas-immigration.service.gov.uk/country-selection",
+      "h1": "Select a country to provide your biometrics",
+      "form_action": "/country-selection",
+      "method": "post",
+      "fields": [
+        { "name": "countryCode", "type": "select-iso3", "selector": "select[name='countryCode']", "option_count": 251, "examples": [{"v":"USA","t":"United States of America"},{"v":"AFG","t":"Afghanistan"},{"v":"CHN","t":"China"}], "paired_ui_input": "#countryCode_ui" },
+        { "name": "hasResumed", "type": "hidden" }
+      ],
+      "url_param_after_submit": "country code becomes part of next-page path: /vac-information-page/{ISO3}"
+    },
+    {
+      "seq": 3,
+      "phase": "pre-auth",
+      "url": "https://visas-immigration.service.gov.uk/vac-information-page/{ISO3}",
+      "h1": "Check available visa application centre locations",
+      "form_action": "/able-to-attend-vac-fes",
+      "method": "post",
+      "fields": [
+        { "name": "vacAvailabilityConfirmed", "type": "radio", "values": ["true","false"], "id_pattern": "vacAvailabilityConfirmed_{value}" }
+      ]
+    },
+    {
+      "seq": 4,
+      "phase": "pre-auth",
+      "url": "https://visas-immigration.service.gov.uk/visa-type",
+      "h1": "Apply for a UK visit visa",
+      "form_action": "/start/visit-visa-ooc-standard",
+      "method": "get",
+      "fields": [],
+      "note": "pass-through — just a 'Start now' submit. The form action reveals the application path id ('visit-visa-ooc-standard') which is the discriminator for this visa product."
+    },
+    {
+      "seq": 5,
+      "phase": "registration (unauth)",
+      "url": "https://visas-immigration.service.gov.uk/next",
+      "h1": "Register an email",
+      "page_title": "Start - Register an email",
+      "form_action": "/save/start.contactEmail",
+      "method": "post",
+      "fields": [
+        { "name": "email", "type": "email", "id": "email", "label": "Email address", "required": true },
+        { "name": "password1", "type": "password", "id": "password1", "label": "Create a password", "required": true },
+        { "name": "password2", "type": "password", "id": "password2", "label": "Repeat your password", "required": true },
+        { "name": "externalReference", "type": "hidden" },
+        { "name": "hasPassword", "type": "hidden", "purpose": "discriminator for returning user — if set, this page acts as sign-in instead of register" }
+      ]
+    }
+  ],
+  "pages_NOT_walked_pending_account": [
+    "All post-registration form steps: personal details, passport, travel plans, accommodation, family, work/income, travel history, declarations, document upload, review, payment, biometric appointment booking.",
+    "These pages are gated behind email verification + account creation.",
+    "Based on the gov.uk documentation, the 222-field UK Standard Visitor seed covers these. A throwaway account + completed walk is required to capture the ~50+ form-step selectors."
+  ],
+  "required_next_step": {
+    "option_a": "User authorizes creating a throwaway UKVI account with a test email; Claude walks the full form and captures all selectors to extend this JSON.",
+    "option_b": "A UK test/sandbox portal exists — user provides URL/credentials.",
+    "option_c": "Skip recon; write form-recon script now so team can run it against a real in-progress application in a dev browser, dumping selectors to JSON.",
+    "recommendation": "Option C + Option A — ship the recon script first so it's reusable for future maintenance (selectors drift), then run it end-to-end once with a throwaway account."
+  },
+  "notes_for_selector_builder": {
+    "id_selector_format": "Use direct id: #languageCode_en, #vacAvailabilityConfirmed_true, #email, #password1",
+    "name_selector_fallback": "input[name='{fieldName}'] — reliable since name attributes are stable across UKVI releases",
+    "country_fill_approach": "await page.locator('select[name=\"countryCode\"]').selectOption('USA') — do NOT type in the _ui field",
+    "submit_approach": "click locator('button[name=\"submit\"], input#submit').first()",
+    "csrf_preservation": "Never clear/rebuild the form; fill in place so csrfToken + externalReference hidden fields remain intact",
+    "post_redirect_detection": "After submit, wait for h1 change OR for form.action to change. Don't rely on URL change — URL often stays at /next."
+  }
+}

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tooltip &amp; Popover · shadcn</title>
+<link rel="stylesheet" href="_card.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          border: 'hsl(240 5.9% 90%)',
+          input: 'hsl(240 5.9% 90%)',
+          ring: 'hsl(240 5.9% 10%)',
+          background: 'hsl(0 0% 100%)',
+          foreground: 'hsl(240 10% 3.9%)',
+          muted: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 3.8% 46.1%)' },
+          popover: { DEFAULT: 'hsl(0 0% 100%)', foreground: 'hsl(240 10% 3.9%)' },
+          accent: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 5.9% 10%)' },
+          primary: { DEFAULT: 'hsl(240 5.9% 10%)', foreground: 'hsl(0 0% 98%)' },
+        },
+        borderRadius: { lg: '0.5rem', md: 'calc(0.5rem - 2px)', sm: 'calc(0.5rem - 4px)' },
+        fontFamily: { sans: ['Geist','ui-sans-serif','system-ui','sans-serif'] },
+      },
+    },
+  };
+</script>
+<style>
+  body{background:#fafafa;margin:0;font-family:Geist,ui-sans-serif,system-ui,sans-serif}
+  #root{width:700px;padding:40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;box-sizing:border-box;min-height:280px}
+  .label{font:500 11px Geist;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:20px}
+  .group{position:relative;min-height:200px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "@radix-ui/react-tooltip": "https://esm.sh/@radix-ui/react-tooltip@1.1.4?external=react,react-dom",
+    "@radix-ui/react-popover": "https://esm.sh/@radix-ui/react-popover@1.1.2?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react"
+  }
+}
+</script>
+
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import * as Tooltip from '@radix-ui/react-tooltip';
+import * as Popover from '@radix-ui/react-popover';
+import { HelpCircle, ChevronDown } from 'lucide-react';
+
+const h = React.createElement;
+const cn = (...xs) => xs.filter(Boolean).join(' ');
+
+/* ─────────── shadcn TooltipContent (1:1 port of tooltip.tsx) ─────────── */
+function TooltipContent({ className, sideOffset = 4, children, ...props }) {
+  return h(Tooltip.Portal, null,
+    h(Tooltip.Content, {
+      sideOffset,
+      className: cn(
+        'z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95',
+        className,
+      ),
+      ...props,
+    }, children),
+  );
+}
+
+/* ─────────── shadcn PopoverContent ─────────── */
+function PopoverContent({ className, align = 'center', sideOffset = 4, children, ...props }) {
+  return h(Popover.Portal, null,
+    h(Popover.Content, {
+      align,
+      sideOffset,
+      className: cn(
+        'z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+        className,
+      ),
+      ...props,
+    }, children),
+  );
+}
+
+/* ─────────── Demo ─────────── */
+function TooltipDemo() {
+  return h('div', { className: 'group' },
+    h('div', { className: 'label' }, 'Tooltip · on hover · shadcn'),
+    h(Tooltip.Provider, { delayDuration: 0 },
+      h(Tooltip.Root, { defaultOpen: true },
+        h(Tooltip.Trigger, {
+          className:
+            'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent h-9 px-4 py-2',
+        },
+          'Processing fees',
+          h(HelpCircle, { className: 'h-4 w-4 opacity-50' }),
+        ),
+        h(TooltipContent, { side: 'bottom', sideOffset: 8 },
+          'Paid separately to the consulate at submission',
+        ),
+      ),
+    ),
+  );
+}
+
+function PopoverDemo() {
+  return h('div', { className: 'group' },
+    h('div', { className: 'label' }, 'Popover · on click · shadcn'),
+    h(Popover.Root, { defaultOpen: true, modal: false },
+      h(Popover.Trigger, {
+        className:
+          'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent h-9 px-4 py-2',
+      },
+        'Share',
+        h(ChevronDown, { className: 'h-4 w-4 opacity-50' }),
+      ),
+      h(PopoverContent, { align: 'start', sideOffset: 8, onOpenAutoFocus: e => e.preventDefault() },
+        h('div', { className: 'space-y-3' },
+          h('div', null,
+            h('h4', { className: 'text-sm font-semibold leading-none mb-1.5' }, 'Invite a collaborator'),
+            h('p', { className: 'text-xs text-muted-foreground leading-relaxed' },
+              'They\u2019ll be able to view this application and leave comments.'),
+          ),
+          h('div', { className: 'flex gap-2 pt-1' },
+            h('button', { className: 'flex-1 h-8 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent' }, 'Copy link'),
+            h('button', { className: 'flex-1 h-8 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90' }, 'Send invite'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+createRoot(document.getElementById('root')).render(
+  h(React.Fragment, null, h(TooltipDemo, null), h(PopoverDemo, null)),
+);
+</script>
+</body>
+</html>

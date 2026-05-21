@@ -48,6 +48,7 @@ interface ActiveFilters {
   packet: PacketState | "all";
   external: ExternalState | "all";
   result: ResultState | "all";
+  q: string; // 融合：加入模糊搜索字段
 }
 
 const LIFECYCLE_OPTIONS = Object.keys(LIFECYCLE_LABELS) as LifecycleState[];
@@ -81,6 +82,7 @@ function parseFilters(searchParams: SearchParams): ActiveFilters {
     packet: getFilterValue(searchParams, "packet", PACKET_OPTIONS),
     external: getFilterValue(searchParams, "external", EXTERNAL_OPTIONS),
     result: getFilterValue(searchParams, "result", RESULT_OPTIONS),
+    q: firstParam(searchParams, "q")?.trim() || "", // 融合：解析搜索关键字
   };
 }
 
@@ -97,7 +99,22 @@ function matchesApplicationFilters(row: AdminApplicationModel, filters: ActiveFi
 }
 
 function matchesApplicantFilters(applicant: AdminApplicantOverview, filters: ActiveFilters): boolean {
-  return applicant.applications.some((application) => matchesApplicationFilters(application, filters));
+  // 基础的状态筛选
+  const matchesStatus = applicant.applications.some((application) => 
+    matchesApplicationFilters(application, filters)
+  );
+  if (!matchesStatus) return false;
+
+  // 融合：本地客户端进行文本模糊匹配 (ID、姓名、邮箱)
+  if (filters.q) {
+    const term = filters.q.toLowerCase();
+    const nameMatch = (applicant.profile?.full_name ?? "").toLowerCase().includes(term);
+    const emailMatch = (applicant.profile?.email ?? "").toLowerCase().includes(term);
+    const idMatch = applicant.applicantId.toLowerCase().includes(term);
+    return nameMatch || emailMatch || idMatch;
+  }
+
+  return true;
 }
 
 function averageProgress(applicants: AdminApplicantOverview[]): number {
@@ -141,12 +158,25 @@ function FilterSelect<T extends string>({
 
 function QueueFilters({ filters }: { filters: ActiveFilters }) {
   return (
-    <form className="rounded-lg border border-[#efefef] bg-white p-4 shadow-sm">
+    <form method="get" className="rounded-lg border border-[#efefef] bg-white p-4 shadow-sm space-y-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-[#232323]">
         <Filter className="h-4 w-4 text-brand-500" />
         User filters
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      
+      {/* 融合：在筛选器上方单开一行放搜索框，体验更好 */}
+      <div className="flex flex-col gap-1 text-xs font-medium text-[#6b6b6b]">
+        <span className="mb-1">Search Applicant</span>
+        <input
+          type="search"
+          name="q"
+          placeholder="Search by ID, name, or email..."
+          defaultValue={filters.q}
+          className="h-10 w-full rounded-md border border-[#d7d7d7] bg-white px-3 text-sm font-medium text-[#232323] outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <FilterSelect
           label="Lifecycle"
           name="lifecycle"
@@ -197,7 +227,7 @@ function QueueFilters({ filters }: { filters: ActiveFilters }) {
           labels={RESULT_LABELS}
         />
         <div className="flex items-end gap-2">
-          <Button type="submit" className="h-10 bg-brand-500 text-white hover:bg-brand-600">
+          <Button type="submit" className="h-10 bg-brand-500 text-white hover:bg-brand-600 flex-1">
             Apply
           </Button>
           <Button asChild variant="outline" className="h-10 border-[#d7d7d7]">
@@ -333,7 +363,11 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = parseFilters(resolvedSearchParams);
+  
+  // 仍然使用 HEAD 的统一队列获取函数
   const { applicants, applications, error } = await fetchAdminApplicantQueue();
+  
+  // 经过“多维状态筛选”加“远端文本关键字检索”过滤后的列表
   const filteredApplicants = applicants.filter((applicant) => matchesApplicantFilters(applicant, filters));
 
   const metrics = [
@@ -395,7 +429,7 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
             ) : filteredApplicants.length === 0 ? (
               <EmptyState
                 title="No matching users"
-                body="Adjust the filters to see more user overview cards."
+                body="Adjust the filters or search term to see more user overview cards."
               />
             ) : (
               <div className="space-y-3">

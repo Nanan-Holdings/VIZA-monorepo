@@ -1,0 +1,39 @@
+{
+  "pageIndex": 0,
+  "url": "https://visas-immigration.service.gov.uk/next?hasResumed=true",
+  "section": "Documents",
+  "stepperState": ["Start", "Application", "Documents (current)", "Declaration", "Pay", "Further actions"],
+  "heading": "Documents",
+  "subsections": [
+    {
+      "name": "Mandatory documents",
+      "fields": [
+        {
+          "type": "checkbox",
+          "name": "passport_doc_acknowledgement",
+          "label": "The passport or travel document for Zehua Zhang from United States of America",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Other documents",
+      "fields": [
+        {
+          "type": "checkbox",
+          "name": "evidence_of_funds_acknowledgement",
+          "label": "Evidence of funds available to you, and which are clearly accessible by you",
+          "required": false
+        },
+        {
+          "type": "checkbox",
+          "name": "right_of_residence_acknowledgement",
+          "label": "If you are not a national of the country from which you are making your application, and evidence of your right of residence there is not included in your passport; confirmation of your right of residence in that country",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "submits": [{"text": "Save and continue"}],
+  "stoppedAtPay": false
+}

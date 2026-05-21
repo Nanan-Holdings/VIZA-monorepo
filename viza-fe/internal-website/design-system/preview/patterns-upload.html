@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Upload · shadcn</title>
+<link rel="stylesheet" href="_card.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          border: 'hsl(240 5.9% 90%)',
+          input: 'hsl(240 5.9% 90%)',
+          ring: 'hsl(240 5.9% 10%)',
+          background: 'hsl(0 0% 100%)',
+          foreground: 'hsl(240 10% 3.9%)',
+          muted: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 3.8% 46.1%)' },
+          popover: { DEFAULT: 'hsl(0 0% 100%)', foreground: 'hsl(240 10% 3.9%)' },
+          accent: { DEFAULT: 'hsl(240 4.8% 95.9%)', foreground: 'hsl(240 5.9% 10%)' },
+          destructive: { DEFAULT: 'hsl(0 84.2% 60.2%)', foreground: 'hsl(0 0% 98%)' },
+          primary: { DEFAULT: 'hsl(240 5.9% 10%)', foreground: 'hsl(0 0% 98%)' },
+          brand: { DEFAULT: '#03346E', 50: '#EEF3FA', 100: '#D4E0F0', 400: '#AABFDF' },
+        },
+        borderRadius: { lg: '0.5rem', md: 'calc(0.5rem - 2px)', sm: 'calc(0.5rem - 4px)' },
+        fontFamily: { sans: ['Geist','ui-sans-serif','system-ui','sans-serif'] },
+      },
+    },
+  };
+</script>
+<style>
+  body{background:#fafafa;margin:0;font-family:Geist,ui-sans-serif,system-ui,sans-serif}
+  #root{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px}
+  .label{font:500 11px Geist;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "@radix-ui/react-progress": "https://esm.sh/@radix-ui/react-progress@1.1.0?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react"
+  }
+}
+</script>
+
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import * as ProgressPrimitive from '@radix-ui/react-progress';
+import { UploadCloud, X, Check, AlertCircle, FileText, Image as ImageIcon, FileType2 } from 'lucide-react';
+
+const h = React.createElement;
+const cn = (...xs) => xs.filter(Boolean).join(' ');
+
+/* ─────────── shadcn Button variant="ghost" size="icon" — used for close ─────────── */
+function CloseButton({ onClick, tone = 'default' }) {
+  return h('button', {
+    type: 'button',
+    onClick,
+    'aria-label': 'Remove file',
+    className: cn(
+      'inline-flex items-center justify-center rounded-md h-8 w-8 flex-shrink-0 transition-colors',
+      'text-muted-foreground hover:text-foreground hover:bg-accent',
+      tone === 'destructive' && 'text-destructive hover:text-destructive hover:bg-destructive/10',
+    ),
+  }, h(X, { className: 'h-4 w-4', strokeWidth: 2 }));
+}
+
+/* ─────────── shadcn Progress ─────────── */
+function Progress({ value, className }) {
+  return h(ProgressPrimitive.Root, {
+    className: cn('relative h-1.5 w-full overflow-hidden rounded-full bg-brand-50', className),
+  },
+    h(ProgressPrimitive.Indicator, {
+      className: 'h-full w-full flex-1 bg-brand transition-all',
+      style: { transform: `translateX(-${100 - (value || 0)}%)` },
+    }),
+  );
+}
+
+/* ─────────── Status indicator (right side, before close) ─────────── */
+function StatusDot({ kind }) {
+  if (kind === 'uploaded') {
+    return h('span', { className: 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-600 text-white flex-shrink-0' },
+      h(Check, { className: 'h-3.5 w-3.5', strokeWidth: 3 }));
+  }
+  if (kind === 'error') {
+    return h('span', { className: 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white flex-shrink-0' },
+      h(AlertCircle, { className: 'h-3.5 w-3.5', strokeWidth: 2.5 }));
+  }
+  return null;
+}
+
+/* ─────────── File thumb ─────────── */
+function FileThumb({ type, tone = 'brand' }) {
+  const Icon = type === 'PDF' ? FileText : type === 'PNG' ? ImageIcon : FileType2;
+  return h('div', {
+    className: cn(
+      'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md',
+      tone === 'brand' && 'bg-brand-50 text-brand',
+      tone === 'destructive' && 'bg-destructive/10 text-destructive',
+    ),
+  }, h(Icon, { className: 'h-5 w-5' }));
+}
+
+/* ─────────── FileUploadRow — Card + grid layout, always has a CloseButton ─────────── */
+function FileUploadRow({ name, meta, type, state, progress }) {
+  const isError = state === 'error';
+  return h('div', {
+    className: cn(
+      'flex items-center gap-3 rounded-md border bg-card p-3',
+      isError ? 'border-destructive/30 bg-destructive/5' : 'border-border',
+    ),
+  },
+    h(FileThumb, { type, tone: isError ? 'destructive' : 'brand' }),
+    h('div', { className: 'min-w-0 flex-1' },
+      h('p', { className: 'truncate text-sm font-medium text-foreground' }, name),
+      h('p', { className: cn('mt-0.5 text-xs', isError ? 'text-destructive' : 'text-muted-foreground') }, meta),
+      state === 'uploading' && h('div', { className: 'mt-2' }, h(Progress, { value: progress })),
+    ),
+    state === 'uploaded' && h(StatusDot, { kind: 'uploaded' }),
+    isError && h(StatusDot, { kind: 'error' }),
+    h(CloseButton, { tone: isError ? 'destructive' : 'default' }),
+  );
+}
+
+/* ─────────── Dropzone (idle) ─────────── */
+function Dropzone() {
+  return h('div', {
+    className: 'rounded-lg border-2 border-dashed border-brand-400 bg-brand-50/40 p-8 text-center flex flex-col items-center gap-2',
+  },
+    h('div', { className: 'flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand' },
+      h(UploadCloud, { className: 'h-6 w-6' }),
+    ),
+    h('h5', { className: 'mt-1 text-sm font-medium text-foreground' }, 'Drop your passport here'),
+    h('p', { className: 'text-xs text-muted-foreground' },
+      'or ',
+      h('button', { className: 'font-medium text-brand underline-offset-4 hover:underline' }, 'browse your files'),
+      ' · JPG, PNG, PDF · max 10MB',
+    ),
+  );
+}
+
+/* ─────────── App ─────────── */
+function App() {
+  return h(React.Fragment, null,
+    h('div', null,
+      h('div', { className: 'label' }, 'Dropzone · idle'),
+      h('div', { className: 'rounded-xl border border-border bg-card p-5' }, h(Dropzone, null)),
+    ),
+    h('div', null,
+      h('div', { className: 'label' }, 'File rows · uploading · uploaded · error'),
+      h('div', { className: 'rounded-xl border border-border bg-card p-5 space-y-2' },
+        h(FileUploadRow, {
+          name: 'passport-biodata.jpg',
+          meta: '2.1 MB · uploading…',
+          type: 'JPG',
+          state: 'uploading',
+          progress: 64,
+        }),
+        h(FileUploadRow, {
+          name: 'flight-itinerary-SQ-802.pdf',
+          meta: 'Uploaded · extracted 3 details',
+          type: 'PDF',
+          state: 'uploaded',
+        }),
+        h(FileUploadRow, {
+          name: 'photo-selfie.png',
+          meta: 'Doesn\u2019t meet ICAO photo standards · retake',
+          type: 'PNG',
+          state: 'error',
+        }),
+      ),
+    ),
+  );
+}
+
+createRoot(document.getElementById('root')).render(h(App, null));
+</script>
+</body>
+</html>

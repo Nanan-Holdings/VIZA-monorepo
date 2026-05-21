@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { border: 1px solid var(--border-hairline); border-radius: 10px; overflow: hidden; }
+  .tile .chip { height: 56px; }
+  .tile .meta { padding: 8px 10px; background: #fff; }
+  .tile .name { font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--fg-1); }
+  .tile .val { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--fg-2); margin-top: 2px; }
+  .txt-stack { display:flex; flex-direction:column; gap:6px; padding: 12px 14px; border: 1px solid var(--border-hairline); border-radius: 10px; margin-top: 12px; background: #fff;}
+  .txt-stack .line { font-size: 14px; }
+  .txt-stack .t1 { color: var(--fg-1); }
+  .txt-stack .t2 { color: var(--fg-2); }
+  .txt-stack .t3 { color: var(--fg-3); }
+</style></head>
+<body><div class="stage">
+  <div class="grid">
+    <div class="tile"><div class="chip" style="background:#ffffff; border-bottom: 1px solid var(--border-hairline)"></div><div class="meta"><div class="name">Page / Card</div><div class="val">#FFFFFF</div></div></div>
+    <div class="tile"><div class="chip" style="background:#fafafa"></div><div class="meta"><div class="name">Shell</div><div class="val">#FAFAFA</div></div></div>
+    <div class="tile"><div class="chip" style="background:#fbfbfb; border-bottom: 1px solid var(--border-hairline)"></div><div class="meta"><div class="name">Hover Subtle</div><div class="val">#FBFBFB</div></div></div>
+    <div class="tile"><div class="chip" style="background:#efefef"></div><div class="meta"><div class="name">Border hairline</div><div class="val">#EFEFEF</div></div></div>
+    <div class="tile"><div class="chip" style="background:#e8e8e8"></div><div class="meta"><div class="name">Input border</div><div class="val">#E8E8E8</div></div></div>
+    <div class="tile"><div class="chip" style="background:#dcdcdc"></div><div class="meta"><div class="name">Locked pill</div><div class="val">#DCDCDC</div></div></div>
+    <div class="tile"><div class="chip" style="background:rgba(239,239,239,0.5)"></div><div class="meta"><div class="name">Locked card</div><div class="val">239/0.5</div></div></div>
+    <div class="tile"><div class="chip" style="background:#f0f0f0"></div><div class="meta"><div class="name">Icon tile locked</div><div class="val">#F0F0F0</div></div></div>
+  </div>
+  <div class="txt-stack">
+    <div class="line t1"><strong>Primary text</strong> — #3D3D3D · fg-1</div>
+    <div class="line t2">Secondary text — rgba(0,0,0,0.45) · fg-2</div>
+    <div class="line t3">Disabled / locked — #989898 · fg-3</div>
+  </div>
+</div></body></html>

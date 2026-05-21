@@ -10,6 +10,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/rbac";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { RealtimeApplicationStatus } from "./realtime-status";
 import {
   CONSENT_LABELS,
   DOCUMENT_LABELS,
@@ -37,9 +39,40 @@ import {
 } from "../ui";
 import { SupportActions } from "../support-actions";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+interface RunnerJobRow {
+  id: string;
+  status: string;
+  attempts: number;
+  enqueued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  last_error: string | null;
+  application_id: string;
+}
+
+interface OrderRow {
+  id: string;
+  status: string;
+  agency_fee_cents: number;
+  govt_fee_cents: number;
+  currency: string;
+  paid_at: string | null;
+  application_id: string;
+}
+
+interface InboundRow {
+  id: string;
+  from_addr: string;
+  subject: string | null;
+  received_at: string;
+  processed: boolean;
 }
 
 function firstParam(
@@ -50,15 +83,8 @@ function firstParam(
   return Array.isArray(value) ? value[0] : value;
 }
 
-function ActionMessage({
-  queued,
-  error,
-}: {
-  queued: boolean;
-  error: boolean;
-}) {
+function ActionMessage({ queued, error }: { queued: boolean; error: boolean }) {
   if (!queued && !error) return null;
-
   return (
     <div
       className={[
@@ -344,7 +370,7 @@ function EventTimeline({ applicant }: { applicant: AdminApplicantOverview }) {
               <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#d7d7d7] bg-white text-[#6b6b6b]">
                 <CircleDot className="h-3.5 w-3.5" />
               </div>
-              <div className="min-w-0 border-b border-[#efefef] pb-4">
+              <div className="min-w-0 border-b border-[#efefef] pb-4 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-mono text-xs font-semibold text-[#232323]">{event.event_type}</p>
                   <StatusPill tone={event.actor_type === "admin" ? "brand" : "neutral"}>{event.actor_type}</StatusPill>
@@ -366,9 +392,26 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/admin/login");
 
-  const { id } = await params;
+  let { id } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
-  const { applicant, error } = await fetchAdminApplicantDetail(id);
+  const admin = createAdminClient();
+
+  let { applicant, error } = await fetchAdminApplicantDetail(id);
+  
+  if (!applicant && !error) {
+    const { data: legacyApp } = await admin
+      .from("applications")
+      .select("applicant_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (legacyApp?.applicant_id) {
+      const retry = await fetchAdminApplicantDetail(legacyApp.applicant_id);
+      applicant = retry.applicant;
+      error = retry.error;
+    }
+  }
+
   const queued = firstParam(resolvedSearchParams, "queuedNotification") === "1";
   const actionError = firstParam(resolvedSearchParams, "actionError") === "1";
 
@@ -392,10 +435,46 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
     );
   }
 
+  const appIds = applicant.applications.map((a) => a.id);
+  
+  // 安全提取并兼容未知属性的 inbox_alias
+  const profileWithAlias = applicant.profile as any;
+  const aliasEmailStr = profileWithAlias?.inbox_alias ? String(profileWithAlias.inbox_alias).toLowerCase() : null;
+
+  const [{ data: jobs }, { data: orders }, inbound] = await Promise.all([
+    appIds.length > 0
+      ? admin
+          .from("runner_job")
+          .select("id, status, attempts, enqueued_at, started_at, finished_at, last_error, application_id")
+          .in("application_id", appIds)
+          .order("enqueued_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+    appIds.length > 0
+      ? admin
+          .from("order")
+          .select("id, status, agency_fee_cents, govt_fee_cents, currency, paid_at, application_id")
+          .in("application_id", appIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    aliasEmailStr
+      ? admin
+          .from("inbound_email")
+          .select("id, from_addr, subject, received_at, processed")
+          .eq("to_addr", aliasEmailStr)
+          .order("received_at", { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [] as InboundRow[] }),
+  ]);
+
+  const jobRows = (jobs ?? []) as RunnerJobRow[];
+  const orderRows = (orders ?? []) as OrderRow[];
+  const inboundRows = (inbound.data ?? []) as InboundRow[];
+
   return (
-    <div className="w-full space-y-6 p-6 md:p-8">
+    <div className="w-full space-y-6 p-6 md:p-8 max-w-6xl mx-auto">
       <div>
-        <Link href="/admin/applications" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500">
+        <Link href="/admin/applications" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:underline">
           <ArrowLeft className="h-4 w-4" />
           Back to user cards
         </Link>
@@ -403,12 +482,122 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
 
       <UserSummaryHeader applicant={applicant} />
       <ActionMessage queued={queued} error={actionError} />
+      
+      {applicant.latestApplication && (
+        <RealtimeApplicationStatus
+          applicationId={applicant.latestApplication.id}
+          initialStatus={applicant.latestApplication.lifecycleState}
+        />
+      )}
+
       <OverviewMetrics applicant={applicant} />
       <ApplicantProfile applicant={applicant} />
       <PackageOverview applicant={applicant} />
       <SupportItems applicant={applicant} />
       <ApplicationsOverview applicant={applicant} />
       <EventTimeline applicant={applicant} />
+
+      {/* ———————————————————————————————————————————————————————————————— */}
+      {/* 下置的技术底层日志与运维诊断面板 (System Diagnostics) */}
+      {/* ———————————————————————————————————————————————————————————————— */}
+      <div className="pt-6 border-t border-[#e5e7eb] space-y-6">
+        <h2 className="text-lg font-bold text-[#232323] tracking-tight">System Diagnostics & Logs</h2>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Runner 任务执行追踪队列 */}
+          <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b bg-[#fafafa]">
+              <h3 className="font-semibold text-sm text-[#232323]">Runner pipeline timeline</h3>
+            </div>
+            {jobRows.length === 0 ? (
+              <p className="p-6 text-sm text-[#9ca3af]">No runner jobs yet.</p>
+            ) : (
+              <ul className="divide-y text-sm">
+                {jobRows.map((j) => (
+                  <li key={j.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <Link href={`/admin/jobs/${j.id}`} className="font-mono text-xs text-brand-500 hover:underline">
+                        {j.id.slice(0, 8)}
+                      </Link>
+                      <span className="text-xs text-[#6b6b6b]">
+                        {new Date(j.enqueued_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#6b6b6b] mt-1 flex flex-wrap gap-x-2">
+                      <span className="font-medium text-[#232323]">{j.status}</span>
+                      <span>· attempts: {j.attempts}</span>
+                      {appIds.length > 1 && <span className="text-brand-600">· app: {shortenId(j.application_id)}</span>}
+                    </div>
+                    {j.last_error && (
+                      <p className="text-[11px] font-mono text-red-600 bg-red-50 rounded mt-1.5 p-1 max-w-full overflow-x-auto">
+                        {j.last_error.slice(0, 120)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* 详细交易扣费订单 */}
+          <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b bg-[#fafafa]">
+              <h3 className="font-semibold text-sm text-[#232323]">Payment orders & Transactions</h3>
+            </div>
+            {orderRows.length === 0 ? (
+              <p className="p-6 text-sm text-[#9ca3af]">No records found.</p>
+            ) : (
+              <ul className="divide-y text-sm">
+                {orderRows.map((o) => (
+                  <li key={o.id} className="px-4 py-3 flex justify-between items-center">
+                    <div>
+                      <Link href={`/client/orders/${o.id}`} className="font-mono text-xs text-brand-500 hover:underline">
+                        {o.id.slice(0, 8)}
+                      </Link>
+                      <span className="ml-2 text-xs font-medium bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{o.status}</span>
+                      {appIds.length > 1 && <span className="block text-[11px] text-[#6b6b6b] mt-0.5">App: {shortenId(o.application_id)}</span>}
+                    </div>
+                    <span className="font-mono text-xs text-[#232323] font-semibold">
+                      {((o.agency_fee_cents + o.govt_fee_cents) / 100).toFixed(2)} {o.currency}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* 专属别名电子邮箱日志 */}
+        <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b bg-[#fafafa] flex justify-between items-center">
+            <h3 className="font-semibold text-sm text-[#232323]">Inbound email communications</h3>
+            {profileWithAlias?.inbox_alias ? (
+              <span className="text-xs font-mono bg-brand-50 text-brand-600 px-2 py-0.5 rounded border border-brand-100">
+                alias: {profileWithAlias.inbox_alias}
+              </span>
+            ) : (
+              <span className="text-xs italic text-[#9ca3af]">no email alias allocated</span>
+            )}
+          </div>
+          {inboundRows.length === 0 ? (
+            <p className="p-6 text-sm text-[#9ca3af]">No external mail recorded for this user alias.</p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {inboundRows.map((m) => (
+                <li key={m.id} className="px-4 py-3 hover:bg-[#fafafa] transition">
+                  <p className="font-medium text-[#232323] truncate">
+                    {m.subject ?? "(no subject)"}
+                  </p>
+                  <p className="text-xs text-[#6b6b6b] mt-1">
+                    {new Date(m.received_at).toLocaleString()} · from: <span className="text-[#232323]">{m.from_addr}</span>
+                    {m.processed && <span className="ml-2 text-emerald-600 bg-emerald-50 px-1 rounded font-medium">processed</span>}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

@@ -136,6 +136,255 @@
           "badge": "Awaiting"
         }
       }
+    },
+    "overview": {
+      "phaseOfTotal": "Phase {current} of {total}",
+      "notStartedYet": "Not started yet",
+      "etaLabel": "Expected decision",
+      "estimatedTotal": "Estimated total"
+    },
+    "nextAction": {
+      "title": "Next action",
+      "allDone": "All done",
+      "allDoneSub": "Awaiting decision from the consulate.",
+      "getStarted": "Get started",
+      "getStartedSub": "Pick up where you left off when you're ready.",
+      "cta": {
+        "start": "Start",
+        "continue": "Continue",
+        "payNow": "Pay now",
+        "signDeclaration": "Sign your declaration",
+        "uploadDocs": "Upload documents",
+        "bookAppointment": "Book appointment",
+        "bookInterview": "Book interview",
+        "viewDetails": "View details"
+      }
+    },
+    "duration": {
+      "day1": "Day 1",
+      "daysOneToThree": "1–3 days",
+      "daysThreeToFive": "3–5 days",
+      "sameDay": "Same day",
+      "withinOneWeek": "Within 1 week",
+      "aboutOneWeek": "~1 week",
+      "oneToTwoWeeks": "1–2 weeks",
+      "aboutThreeWeeks": "~3 weeks",
+      "threeToSixWeeks": "3–6 weeks",
+      "aboutFifteenWorkingDays": "~15 working days",
+      "aboutThreeWorkingDays": "~3 working days",
+      "aboutFiveWorkingDays": "~5 working days",
+      "dayOf": "Day of",
+      "varies": "Varies"
+    },
+    "realWorld": {
+      "in_person": "In person",
+      "mail": "Mail",
+      "online": "Online"
+    },
+    "phase": {
+      "doneOn": "Done · {date}",
+      "startedOn": "Started · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "Here's how the rest of your application unfolds. Estimated time:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "Create UKVI account",
+          "subtitle": "Sign up for a UK Visas & Immigration account to start your application."
+        },
+        "form": {
+          "title": "Online application",
+          "subtitle": "Fill out the 44-page Standard Visitor application."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the UK visa application fee online."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Upload bank statements, travel plans, and proof of accommodation."
+        },
+        "ukvcas": {
+          "title": "UKVCAS biometrics",
+          "subtitle": "Book and attend a biometrics appointment at a UKVCAS centre."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "UKVI reviews your application and returns a decision."
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "Schengen application",
+          "subtitle": "Complete the harmonized Schengen short-stay application."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Travel insurance, accommodation, financials, and itinerary."
+        },
+        "vfs_appointment": {
+          "title": "VFS appointment",
+          "subtitle": "Book an appointment at the relevant VFS Global centre."
+        },
+        "biometrics": {
+          "title": "Biometrics",
+          "subtitle": "Provide fingerprints and a photo at your appointment."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "The consulate decides on your short-stay visa."
+        },
+        "passport_pickup": {
+          "title": "Passport pickup",
+          "subtitle": "Collect your passport from the VFS centre once ready."
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "Pick visitor stream",
+          "subtitle": "Choose between Tourist, Business, Sponsored Family, ADS, or Frequent Traveller."
+        },
+        "form": {
+          "title": "Online application",
+          "subtitle": "Complete the Subclass 600 ImmiAccount application."
+        },
+        "signing": {
+          "title": "Sign your declaration",
+          "subtitle": "Review your character and health declarations and sign them before submission."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the visa application charge in ImmiAccount."
+        },
+        "submit_online": {
+          "title": "Submit online",
+          "subtitle": "Submit your application through ImmiAccount."
+        },
+        "biometrics_optional": {
+          "title": "Biometrics (if required)",
+          "subtitle": "Some nationalities must provide biometrics at a VAC."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "Home Affairs assesses and issues a decision."
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "E-Visa form",
+          "subtitle": "Fill out the Vietnam e-Visa application online."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the e-Visa fee online."
+        },
+        "wait_email": {
+          "title": "Wait for email",
+          "subtitle": "Vietnam Immigration emails the e-Visa PDF when approved."
+        },
+        "print_and_travel": {
+          "title": "Print and travel",
+          "subtitle": "Print the e-Visa PDF and present it on arrival."
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "Application",
+          "subtitle": "Complete your visa application."
+        },
+        "documents": {
+          "title": "Documents",
+          "subtitle": "Upload required supporting documents."
+        },
+        "submit": {
+          "title": "Submit",
+          "subtitle": "Submit your application for review."
+        },
+        "review": {
+          "title": "Review",
+          "subtitle": "Your application is being reviewed."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "Awaiting a decision."
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "DS-160 form",
+          "subtitle": "Complete the online DS-160 nonimmigrant visa application."
+        },
+        "pay": {
+          "title": "Pay MRV fee",
+          "subtitle": "Pay the visa application fee at a designated bank or online."
+        },
+        "schedule_interview": {
+          "title": "Schedule interview",
+          "subtitle": "Book your visa interview at the U.S. embassy or consulate."
+        },
+        "documents": {
+          "title": "Supporting documents",
+          "subtitle": "Gather passport, photo, financials, and travel evidence."
+        },
+        "interview": {
+          "title": "Consular interview",
+          "subtitle": "Attend your interview at the U.S. consulate or embassy."
+        },
+        "passport_pickup": {
+          "title": "Passport return",
+          "subtitle": "Your passport is mailed or returned for pickup with the visa."
+        },
+        "decision": {
+          "title": "Decision",
+          "subtitle": "The consular officer issues a decision after the interview."
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "Application form",
+          "subtitle": "Complete the Indonesia tourist visa B211A form."
+        },
+        "submit": {
+          "title": "Submit application",
+          "subtitle": "Submit through the Indonesia immigration portal."
+        },
+        "pay": {
+          "title": "Pay visa fee",
+          "subtitle": "Pay the B211A application fee."
+        },
+        "email_visa": {
+          "title": "E-Visa email",
+          "subtitle": "Receive your B211A approval by email."
+        }
+      }
+    }
+  },
+  "client": {
+    "signing": {
+      "loading": "Loading your declaration…",
+      "errorTitle": "We couldn't load this signing page",
+      "notAuApplication": "Signing is only required for Australian Subclass 600 visa applications.",
+      "alreadySignedTitle": "Declaration already signed",
+      "alreadySignedBody": "Your signature is on file. The submission service is taking it from here.",
+      "submittedTitle": "Signature submitted",
+      "submittedBody": "We've queued your application for the final submit step.",
+      "backToHome": "Back to dashboard",
+      "pageTitle": "Sign your declaration",
+      "pageSubtitle": "Review the answers below and sign at the bottom. Your signature is rendered onto the official Subclass 600 declaration before submission.",
+      "healthHeading": "Health declarations",
+      "characterHeading": "Character declarations",
+      "finalHeading": "Final acknowledgements",
+      "yes": "Yes",
+      "no": "No",
+      "unanswered": "Not answered",
+      "signHeading": "Sign here",
+      "signSubtitle": "Use your finger, stylus, or mouse. Tap Clear to retry.",
+      "padAriaLabel": "Signature pad",
+      "clear": "Clear",
+      "submit": "Submit signature",
+      "submitting": "Submitting…"
     }
   },
   "services": {
@@ -231,12 +480,30 @@
     "chooseDestination": "Choose a destination from Home",
     "stepOf": "Step {current} of {total}: {name}",
     "steps": {
-      "personalInfo": { "name": "Personal Info", "description": "Full name, date of birth, nationality" },
-      "passport": { "name": "Passport", "description": "Passport number, dates, issuing country" },
-      "travelDetails": { "name": "Travel Details", "description": "Arrival, departure, accommodation" },
-      "documents": { "name": "Documents", "description": "Upload all 6 required documents" },
-      "review": { "name": "Review", "description": "Confirm your details are correct" },
-      "status": { "name": "Status", "description": "Application submitted" }
+      "personalInfo": {
+        "name": "Personal Info",
+        "description": "Full name, date of birth, nationality"
+      },
+      "passport": {
+        "name": "Passport",
+        "description": "Passport number, dates, issuing country"
+      },
+      "travelDetails": {
+        "name": "Travel Details",
+        "description": "Arrival, departure, accommodation"
+      },
+      "documents": {
+        "name": "Documents",
+        "description": "Upload all 6 required documents"
+      },
+      "review": {
+        "name": "Review",
+        "description": "Confirm your details are correct"
+      },
+      "status": {
+        "name": "Status",
+        "description": "Application submitted"
+      }
     },
     "errors": {
       "notAuthenticated": "Not authenticated",
@@ -794,6 +1061,937 @@
     }
   },
   "simplifiedForm": {
+    "shared": {
+      "loading": "Getting your intake form ready…",
+      "progress": "Step {current} of {total} · {name}",
+      "back": "Back",
+      "continue": "Continue",
+      "submitting": "Saving your answers…",
+      "edit": "Edit",
+      "yes": "Yes",
+      "no": "No",
+      "openLongFormLead": "Need to fill the detailed form?",
+      "openLongFormLink": "Open the full version",
+      "review": {
+        "label": "Review",
+        "title": "Review your answers",
+        "subtitle": "Check each section and submit when everything looks right.",
+        "submit": "Looks good — submit",
+        "empty": "Nothing entered yet.",
+        "notProvided": "—"
+      },
+      "tripDates": {
+        "duration": "Trip length: {days} days",
+        "invalid": "Departure date must be after arrival date."
+      }
+    },
+    "us": {
+      "steps": {
+        "identity": "Identity",
+        "contact": "Contact",
+        "passport": "Passport",
+        "travel": "Travel",
+        "usStay": "U.S. stay",
+        "work": "Work & education",
+        "usContact": "U.S. Contact",
+        "family": "Family",
+        "background": "Background"
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your DS-160 answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "identity": "Identity",
+        "contact": "Contact",
+        "passport": "Passport",
+        "travel": "Travel",
+        "work": "Work & education",
+        "usContact": "U.S. contact",
+        "family": "Family",
+        "background": "Background"
+      }
+    },
+    "uk": {
+      "steps": {
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you visiting the UK?",
+          "subtitle": "Pick the option that best matches your main reason for travel."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport — exactly as it appears."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Travel-document details for the visa."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How UKVI can reach you."
+        },
+        "ukvi": {
+          "label": "UKVI",
+          "title": "UKVI account",
+          "subtitle": "Link the UKVI account you'll apply with."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "When are you visiting?",
+          "subtitle": "Standard Visitor visas typically allow stays of up to 6 months per visit."
+        },
+        "uk_address": {
+          "label": "UK address",
+          "title": "Where you'll stay in the UK",
+          "subtitle": "First UK address and host details if any."
+        },
+        "employment": {
+          "label": "Work",
+          "title": "Employment & income",
+          "subtitle": "Where you work and what you earn."
+        },
+        "history": {
+          "label": "History",
+          "title": "Travel & visa history",
+          "subtitle": "Past UK visits and any prior visa refusals."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your UK Standard Visitor answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "ukvi": "UKVI account",
+        "tripDates": "Trip dates",
+        "ukAddress": "UK address",
+        "employment": "Employment",
+        "history": "History",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over180Hint": "Standard Visitor visa is limited to 6 months per visit."
+      },
+      "fields": {
+        "givenNames": "Given name(s)",
+        "givenNamesPlaceholder": "e.g. John Michael",
+        "surname": "Surname",
+        "surnamePlaceholder": "e.g. Smith",
+        "anyOtherNames": "Have you been known by any other names?",
+        "otherNames": "Other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "hasOtherNationalities": "Do you hold any other nationalities?",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Town/city of birth",
+        "placeOfBirthPlaceholder": "e.g. Manchester",
+        "maritalStatus": "Marital status",
+        "passportNumber": "Passport number",
+        "passportNumberPlaceholder": "e.g. 123456789",
+        "passportIssuingCountry": "Issuing country",
+        "passportPlaceOfIssue": "Place of issue",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "email": "Email",
+        "emailPlaceholder": "name@example.com",
+        "phone": "Phone",
+        "phonePlaceholder": "+44 20 …",
+        "homeAddressLine1": "Home address",
+        "homeAddressLine1Placeholder": "Street and number",
+        "homeAddressCity": "City",
+        "postalCode": "Postal code",
+        "homeCountry": "Country of residence",
+        "ownsHome": "Do you own your home?",
+        "hasUkviAccount": "Do you already have a UKVI account?",
+        "ukviEmail": "UKVI account email",
+        "ukviEmailPlaceholder": "Your UKVI email",
+        "ukAddress": "UK address",
+        "ukAddressPlaceholder": "Hotel name, street and number",
+        "ukCity": "UK city",
+        "ukPostcode": "UK postcode",
+        "ukContactPhone": "UK contact phone",
+        "stayingWithSomeone": "Will you be staying with someone in the UK?",
+        "hostName": "Host name",
+        "hostRelationship": "Relationship to host",
+        "arrivalDate": "Intended arrival",
+        "departureDate": "Intended departure",
+        "numberOfEntries": "Type of visa requested",
+        "employmentStatus": "Employment status",
+        "employerName": "Employer name",
+        "jobTitle": "Job title",
+        "employerAddress": "Employer address",
+        "employerPhone": "Employer phone",
+        "monthlyIncome": "Monthly income",
+        "monthlyIncomePlaceholder": "Net amount, in GBP",
+        "hasVisitedUkBefore": "Have you visited the UK before?",
+        "previousUkVisitDates": "Approximate dates of previous visits",
+        "hasBeenRefusedUkVisa": "Have you ever been refused a UK visa?",
+        "ukRefusalExplanation": "Briefly explain the refusal",
+        "hasBeenRefusedOtherVisa": "Have you been refused a visa for any other country?",
+        "fundingSource": "Trip funding source",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "estimatedTripCost": "Estimated trip cost",
+        "estimatedTripCostPlaceholder": "e.g. 3000",
+        "fundsAmount": "Estimated trip cost",
+        "fundsAmountPlaceholder": "e.g. 3000",
+        "fundsCurrency": "Currency",
+        "hasSavings": "Do you have savings to support the trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "civilPartnership": "Civil partnership",
+          "unmarriedPartner": "Unmarried partner",
+          "divorced": "Divorced",
+          "widowed": "Widowed",
+          "separated": "Separated"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "visitingFamily": "Visiting family",
+          "study": "Short study",
+          "medical": "Medical",
+          "wedding": "Wedding/civil partnership",
+          "transit": "Transit",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, conferences, contracts",
+          "family": "Visiting relatives or close friends",
+          "study": "Course or training under 6 months",
+          "medical": "Medical treatment in the UK",
+          "wedding": "Attending or having a wedding/civil partnership",
+          "transit": "Transit through the UK",
+          "other": "Other reason"
+        },
+        "entries": {
+          "single": "Single visit",
+          "multi2y": "2-year multi-visit",
+          "multi5y": "5-year multi-visit",
+          "multi10y": "10-year multi-visit"
+        },
+        "employment": {
+          "employed": "Employed",
+          "selfEmployed": "Self-employed",
+          "student": "Student",
+          "retired": "Retired",
+          "unemployed": "Unemployed"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "sponsor": "Sponsor"
+        },
+        "currency": {
+          "gbp": "GBP",
+          "usd": "USD",
+          "eur": "EUR",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "Do you have any criminal convictions in any country?",
+        "noWarCrimes": "Have you ever been involved in war crimes, crimes against humanity, or genocide?",
+        "noTerrorism": "Have you ever been involved in, or supported, terrorism?",
+        "willLeaveBeforeExpiry": "I undertake to leave the UK before my visa expires."
+      }
+    },
+    "schengen": {
+      "steps": {
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you travelling?",
+          "subtitle": "Pick the option that best matches the main reason for your trip."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport — exactly as it appears."
+        },
+        "document": {
+          "label": "Document",
+          "title": "Travel document",
+          "subtitle": "Passport or other accepted travel document."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How the consulate can reach you."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "Trip dates",
+          "subtitle": "Schengen Type C lets you stay up to 90 days within any 180-day period."
+        },
+        "trip_destination": {
+          "label": "Where",
+          "title": "Where you're going",
+          "subtitle": "Main destination and the first Schengen country you'll enter."
+        },
+        "accommodation": {
+          "label": "Stay",
+          "title": "Where you'll stay",
+          "subtitle": "Accommodation details for your time in Schengen."
+        },
+        "occupation": {
+          "label": "Work",
+          "title": "Your occupation",
+          "subtitle": "Employer or school details."
+        },
+        "family_eu": {
+          "label": "EU family",
+          "title": "EU/EEA/CH family member",
+          "subtitle": "Only fill in if you're travelling as the family member of an EU/EEA/Swiss citizen."
+        },
+        "travel_history": {
+          "label": "History",
+          "title": "Travel history",
+          "subtitle": "Past Schengen visas, fingerprints, and onward entry permits."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for and whether you have travel insurance."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting your answers."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Schengen Type C answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "document": "Travel document",
+        "contact": "Contact",
+        "tripDates": "Trip dates",
+        "tripDestination": "Destination",
+        "accommodation": "Accommodation",
+        "occupation": "Occupation",
+        "familyEu": "EU family member",
+        "travelHistory": "Travel history",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "Schengen Type C is limited to 90 days within any 180-day period."
+      },
+      "fields": {
+        "surname": "Surname (family name)",
+        "surnameAtBirthDifferent": "Is your surname at birth different from your current surname?",
+        "surnameAtBirth": "Surname at birth",
+        "givenNames": "Given name(s)",
+        "dob": "Date of birth",
+        "placeOfBirth": "Place of birth",
+        "countryOfBirth": "Country of birth",
+        "nationality": "Current nationality",
+        "nationalityAtBirth": "Nationality at birth (if different)",
+        "nationalIdNumber": "National identity number",
+        "sex": "Sex",
+        "civilStatus": "Civil status",
+        "passportType": "Type of travel document",
+        "passportNumber": "Travel document number",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Valid until",
+        "passportIssuingCountry": "Issued by (country)",
+        "homeAddress": "Home address",
+        "city": "City",
+        "postalCode": "Postal code",
+        "countryOfResidence": "Country of residence",
+        "email": "Email",
+        "phone": "Phone",
+        "mainDestination": "Main destination (Schengen state)",
+        "firstEntry": "First Schengen state of entry",
+        "arrivalDate": "Intended arrival date",
+        "departureDate": "Intended departure date",
+        "numberOfEntries": "Number of entries requested",
+        "accommodationType": "Type of accommodation",
+        "accommodationName": "Hotel name or accommodation label",
+        "accommodationAddress": "Accommodation address",
+        "accommodationCity": "City",
+        "accommodationCountry": "Country",
+        "accommodationPhone": "Accommodation phone",
+        "occupation": "Current occupation",
+        "employerName": "Employer or school name",
+        "employerAddress": "Employer or school address",
+        "employerPhone": "Employer or school phone",
+        "isFamilyMemberOfEu": "Are you the family member of an EU/EEA/Swiss citizen?",
+        "euFamilySurname": "Family member surname",
+        "euFamilyGivenNames": "Family member given names",
+        "euFamilyDob": "Family member date of birth",
+        "euFamilyNationality": "Family member nationality",
+        "euFamilyRelationship": "Relationship to you",
+        "hadPreviousSchengenVisas": "Have you held a Schengen visa in the last 3 years?",
+        "previousSchengenVisaDates": "Dates of previous Schengen visas",
+        "fingerprintsCollectedPreviously": "Have your fingerprints been collected for a Schengen visa before?",
+        "fingerprintsCollectedDate": "Approximate date of collection",
+        "hasOnwardEntryPermit": "Do you hold an entry permit for any country after Schengen?",
+        "costsCoveredBy": "Cost of travel and living covered by",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Available funds",
+        "fundsAmountPlaceholder": "e.g. 2000",
+        "fundsCurrency": "Currency",
+        "hasInsurance": "Do you have travel medical insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "civil": {
+          "single": "Single",
+          "married": "Married",
+          "registeredPartnership": "Registered partnership",
+          "separated": "Separated",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "passport": {
+          "ordinary": "Ordinary",
+          "diplomatic": "Diplomatic",
+          "service": "Service",
+          "official": "Official",
+          "special": "Special",
+          "other": "Other"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "family": "Visiting family or friends",
+          "cultural": "Cultural",
+          "sports": "Sports",
+          "official": "Official visit",
+          "medical": "Medical",
+          "study": "Short study",
+          "transit": "Airport transit",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, conferences, contracts",
+          "family": "Visiting relatives or close friends in Schengen",
+          "cultural": "Festivals, exhibitions, performances",
+          "sports": "Tournaments, training, sporting events",
+          "official": "Government or diplomatic delegation",
+          "medical": "Medical treatment in Schengen",
+          "study": "Short course or training (under 90 days)",
+          "transit": "Connecting flight via a Schengen airport",
+          "other": "Other reason — explain on the next steps"
+        },
+        "entries": {
+          "single": "Single entry",
+          "two": "Two entries",
+          "multiple": "Multiple entries"
+        },
+        "accommodation": {
+          "hotel": "Hotel",
+          "private": "Private home",
+          "rental": "Short-term rental",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "sponsor": "Sponsor",
+          "employer": "Employer",
+          "both": "Both myself and a sponsor"
+        },
+        "currency": {
+          "eur": "EUR",
+          "usd": "USD",
+          "gbp": "GBP",
+          "cny": "CNY"
+        },
+        "relationship": {
+          "spouse": "Spouse",
+          "child": "Child",
+          "grandchild": "Grandchild",
+          "dependentAscendant": "Dependent ascendant",
+          "registeredPartner": "Registered partner"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "I confirm that all information provided is true and complete to the best of my knowledge.",
+        "willLeaveBeforeExpiry": "I undertake to leave the Schengen territory before the visa expires.",
+        "understandsNoEntryGuarantee": "I understand that the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "I am aware that my personal data will be processed by Schengen consular and border authorities."
+      }
+    },
+    "vn": {
+      "steps": {
+        "purpose": {
+          "label": "Purpose",
+          "title": "Why are you entering Vietnam?",
+          "subtitle": "Pick the option that best matches your trip."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport details",
+          "subtitle": "Travel document used for entry."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How we can reach you."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "Trip dates",
+          "subtitle": "Vietnam e-visa allows stays of up to 90 days."
+        },
+        "vn_destination": {
+          "label": "Where",
+          "title": "Where you're going",
+          "subtitle": "Address in Vietnam and entry/exit gates."
+        },
+        "host": {
+          "label": "Host",
+          "title": "Local contact in Vietnam",
+          "subtitle": "Who will host you, if applicable."
+        },
+        "occupation": {
+          "label": "Work",
+          "title": "Occupation",
+          "subtitle": "Employer or school details."
+        },
+        "companions": {
+          "label": "Family",
+          "title": "Accompanying family",
+          "subtitle": "Travelling with minors or family members."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Vietnam e-visa answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "purpose": "Purpose",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "tripDates": "Trip dates",
+        "vnDestination": "Destination",
+        "host": "Local contact",
+        "occupation": "Occupation",
+        "companions": "Family",
+        "funding": "Funds",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over90Hint": "Vietnam e-visa is limited to 90 days per stay."
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenName": "Given name",
+        "otherNamesUsed": "Any other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "nationalityAtBirth": "Nationality at birth",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Place of birth",
+        "nationalIdNumber": "National identity number",
+        "religion": "Religion",
+        "maritalStatus": "Marital status",
+        "passportNumber": "Passport number",
+        "passportType": "Type of passport",
+        "passportIssuing": "Issuing authority",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "hasOtherPassports": "Do you hold other passports?",
+        "permanentAddress": "Permanent residential address",
+        "contactAddress": "Contact address",
+        "city": "City",
+        "country": "Country",
+        "phone": "Phone",
+        "email": "Email",
+        "emergencyContactName": "Emergency contact name",
+        "emergencyContactPhone": "Emergency contact phone",
+        "intendedAddress": "Intended address in Vietnam",
+        "borderGateEntry": "Entry border gate",
+        "borderGateExit": "Exit border gate",
+        "hasVnContact": "Do you have a contact/host in Vietnam?",
+        "vnContactName": "Contact name",
+        "vnContactRelationship": "Relationship",
+        "vnContactPhone": "Contact phone",
+        "vnContactAddress": "Contact address",
+        "occupation": "Occupation",
+        "employerOrSchool": "Employer or school name",
+        "employerAddress": "Employer address",
+        "position": "Position",
+        "employerPhone": "Employer phone",
+        "isAccompaniedByMinor": "Are you travelling with a minor?",
+        "accompanyingMinorCount": "Number of accompanying minors",
+        "parentOrGuardianName": "Parent or legal guardian name",
+        "entryDate": "Intended entry date",
+        "exitDate": "Intended exit date",
+        "requestedVisaType": "Visa type",
+        "tripPayer": "Trip paid by",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Trip budget",
+        "fundsAmountPlaceholder": "e.g. 1500",
+        "fundsCurrency": "Currency",
+        "hasInsurance": "Do you have travel insurance for this trip?"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "religion": {
+          "none": "None",
+          "buddhism": "Buddhism",
+          "christianity": "Christianity",
+          "islam": "Islam",
+          "hinduism": "Hinduism",
+          "other": "Other"
+        },
+        "passport": {
+          "ordinary": "Ordinary",
+          "diplomatic": "Diplomatic",
+          "official": "Official"
+        },
+        "purpose": {
+          "tourism": "Tourism",
+          "business": "Business",
+          "relatives": "Visiting relatives",
+          "investment": "Investment",
+          "study": "Study",
+          "work": "Work",
+          "press": "Press",
+          "other": "Other"
+        },
+        "purposeDesc": {
+          "tourism": "Holiday or sightseeing",
+          "business": "Meetings, contracts",
+          "relatives": "Visiting family in Vietnam",
+          "investment": "Investment-related visit",
+          "study": "Course or training",
+          "work": "Short-term work",
+          "press": "Journalism or press",
+          "other": "Other reason"
+        },
+        "visa": {
+          "single": "Single entry (up to 90 days)",
+          "multiple": "Multiple entry (up to 90 days)"
+        },
+        "gates": {
+          "noiBai": "Noi Bai (Hanoi)",
+          "tanSonNhat": "Tan Son Nhat (HCMC)",
+          "daNang": "Da Nang",
+          "camRanh": "Cam Ranh (Nha Trang)",
+          "phuQuoc": "Phu Quoc",
+          "landBorder": "Land border",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "host": "Host in Vietnam"
+        },
+        "currency": {
+          "usd": "USD",
+          "vnd": "VND",
+          "eur": "EUR",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "noCriminalConvictions": "Do you have any criminal convictions in any country?",
+        "noCommunicableDisease": "Do you currently have a communicable disease of public health concern?",
+        "noDrugAddiction": "Do you have any history of drug addiction?",
+        "willObeyLocalLaws": "I undertake to obey Vietnamese laws during my stay."
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": {
+          "label": "Stream",
+          "title": "Which Subclass 600 stream?",
+          "subtitle": "Pick the stream that best matches your purpose of visit."
+        },
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "From your passport."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Travel document for the visa."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "How Home Affairs can reach you."
+        },
+        "application_context": {
+          "label": "Context",
+          "title": "Application context",
+          "subtitle": "Where you are applying from and the nature of your visit."
+        },
+        "tripDates": {
+          "label": "Dates",
+          "title": "When are you visiting?",
+          "subtitle": "Subclass 600 streams allow stays of 3, 6, or 12 months depending on the stream."
+        },
+        "visit": {
+          "label": "Visit",
+          "title": "Visit details",
+          "subtitle": "Reason, port of arrival, prior travel."
+        },
+        "companions": {
+          "label": "Family",
+          "title": "Accompanying family",
+          "subtitle": "Family travelling with you, if any."
+        },
+        "funding": {
+          "label": "Funds",
+          "title": "Trip funding",
+          "subtitle": "How the trip is paid for."
+        },
+        "health": {
+          "label": "Health",
+          "title": "Health declarations",
+          "subtitle": "Confirm each health-related question."
+        },
+        "character": {
+          "label": "Character",
+          "title": "Character declarations",
+          "subtitle": "Confirm each character-related question."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Final declarations",
+          "subtitle": "Confirm each statement before submitting."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Subclass 600 answers",
+        "subtitle": "Edit anything that's wrong before submitting.",
+        "stream": "Stream",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "applicationContext": "Application context",
+        "tripDates": "Trip dates",
+        "visit": "Visit",
+        "companions": "Family",
+        "funding": "Funds",
+        "health": "Health",
+        "character": "Character",
+        "declaration": "Declarations"
+      },
+      "tripDates": {
+        "over12mHint": "Subclass 600 stays are typically capped at 3, 6, or 12 months depending on stream."
+      },
+      "fields": {
+        "givenNames": "Given name(s)",
+        "familyName": "Family name",
+        "anyOtherNames": "Have you been known by any other names?",
+        "otherNames": "Other names",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "nationality": "Nationality",
+        "countryOfBirth": "Country of birth",
+        "placeOfBirth": "Town/city of birth",
+        "relationshipStatus": "Relationship status",
+        "hasNationalId": "Do you have a national identity card?",
+        "nationalIdNumber": "National ID number",
+        "pacificAustraliaCardHolder": "Are you a Pacific-Australia Card holder?",
+        "passportNumber": "Passport number",
+        "passportIssuing": "Issuing country",
+        "passportIssueDate": "Date of issue",
+        "passportExpiryDate": "Date of expiry",
+        "passportPlaceOfIssue": "Place of issue",
+        "chineseCommercialCodeNumber": "Chinese commercial code number (PRC only)",
+        "email": "Email",
+        "phoneMobile": "Mobile phone",
+        "phoneHome": "Home phone",
+        "phoneBusiness": "Business phone",
+        "residentialAddress": "Residential address",
+        "city": "City",
+        "postcode": "Postcode",
+        "country": "Country",
+        "applyingAllOutside": "Will all applicants be outside Australia when the application is decided?",
+        "currentLocationLegalStatus": "What is your legal status in your current country?",
+        "purposeOfStayInitial": "Primary purpose of your initial stay",
+        "significantDatesInAustralia": "Any significant dates in Australia (events, ceremonies, deadlines)?",
+        "eventInvitedByOrganisation": "Have you been invited by an Australian organisation for an event?",
+        "eventPaidByAustralianOrganisation": "Will an Australian organisation pay for any part of your visit?",
+        "applyingAsPartOfGroup": "Are you applying as part of a group of applications?",
+        "arrivalDate": "Intended arrival",
+        "departureDate": "Intended departure",
+        "mainReason": "Main reason for visit",
+        "portOfArrival": "Port of arrival",
+        "previousAuTravel": "Have you previously travelled to Australia?",
+        "previousAuVisaGrantDates": "Approximate dates of previous Australian visas",
+        "hasAccompanyingFamily": "Are family members travelling with you?",
+        "accompanyingFamilyCount": "Number of accompanying family members",
+        "hasNonAccompanyingFamily": "Do you have non-accompanying family members?",
+        "fundingSource": "Trip funding source",
+        "sponsorName": "Sponsor name",
+        "sponsorNamePlaceholder": "Full legal name",
+        "sponsorRelationship": "Relationship to sponsor",
+        "sponsorRelationshipPlaceholder": "e.g. parent, employer",
+        "fundsAmount": "Available funds",
+        "fundsAmountPlaceholder": "e.g. 5000",
+        "fundsCurrency": "Currency"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female",
+          "indeterminate": "Indeterminate"
+        },
+        "rel": {
+          "never": "Never married",
+          "married": "Married",
+          "deFacto": "De facto",
+          "engaged": "Engaged",
+          "separated": "Separated",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "stream": {
+          "tourist": "Tourist",
+          "business": "Business Visitor",
+          "sponsored": "Sponsored Family",
+          "frequent": "Frequent Traveller"
+        },
+        "streamDesc": {
+          "tourist": "Holiday, sightseeing, visiting family or friends",
+          "business": "Short business activities — meetings, conferences, negotiations",
+          "sponsored": "Family-sponsored visits where a relative supports the application",
+          "frequent": "Long-validity visa for eligible passport holders making multiple short visits"
+        },
+        "locStatus": {
+          "citizen": "Citizen",
+          "pr": "Permanent resident",
+          "temporary": "Temporary visa holder",
+          "visitor": "Visitor",
+          "other": "Other"
+        },
+        "initial": {
+          "business": "Business",
+          "tourism": "Tourism",
+          "family": "Family visit",
+          "study": "Study",
+          "religious": "Religious event",
+          "other": "Other"
+        },
+        "port": {
+          "sydney": "Sydney",
+          "melbourne": "Melbourne",
+          "brisbane": "Brisbane",
+          "perth": "Perth",
+          "adelaide": "Adelaide",
+          "goldCoast": "Gold Coast",
+          "cairns": "Cairns",
+          "darwin": "Darwin",
+          "hobart": "Hobart",
+          "other": "Other"
+        },
+        "funding": {
+          "self": "Myself",
+          "family": "Family",
+          "employer": "Employer",
+          "sponsor": "Sponsor"
+        },
+        "currency": {
+          "aud": "AUD",
+          "usd": "USD",
+          "eur": "EUR",
+          "gbp": "GBP",
+          "cny": "CNY"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "healthLivedOutsidePassport": "Have you lived outside your passport country for more than 5 years (or 3 months in the last year)?",
+        "healthVisitedFacility": "Have you been an inpatient at a hospital or health facility in the last 5 years?",
+        "healthHealthcareWorker": "Are you a healthcare worker (doctor, nurse, paramedic, etc.)?",
+        "healthAgedOrChildcare": "Have you worked in aged-care or childcare in the last 5 years?",
+        "healthClassroom3Months": "Have you spent 3+ consecutive months in a classroom (as student or teacher) in the last 5 years?",
+        "healthTbOrChestXray": "Have you had tuberculosis, an abnormal chest X-ray, or close contact with a TB patient?",
+        "hasHealthInsurance": "Do you have health insurance covering your stay in Australia?",
+        "charCriminalConvictions": "Have you been charged with or convicted of any criminal offence anywhere?",
+        "charWarCrimes": "Have you been involved in war crimes, crimes against humanity, or genocide?",
+        "charSexualOffence": "Have you been charged with or convicted of a sexual offence (including against a child)?",
+        "charTerrorism": "Have you been involved in, or supported, terrorism?",
+        "charPeopleSmuggling": "Have you been involved in people smuggling or human trafficking?",
+        "charMilitaryTraining": "Have you received specialised military, paramilitary, or weapons/explosives training?",
+        "charVisaRefused": "Have you ever been refused a visa for any country, or had a visa cancelled?",
+        "informationCorrect": "All information provided is true and complete to the best of my knowledge.",
+        "understandsNoEntryGuarantee": "I understand the visa does not guarantee entry — border officers may still refuse entry.",
+        "awareDataProcessing": "I am aware that my personal data will be processed by Australian authorities.",
+        "willLeaveBeforeExpiry": "I undertake to leave Australia before my visa expires.",
+        "genuineVisitor": "I confirm that I am a genuine visitor and intend to stay temporarily for the purpose stated."
+      }
+    },
     "loading": "Getting your intake form ready…",
     "progress": "Step {current} of {total} · {name}",
     "steps": {
@@ -801,8 +1999,11 @@
       "1": "Contact",
       "2": "Passport",
       "3": "Travel",
+      "usStay": "U.S. stay",
+      "usContact": "U.S. Contact",
       "4": "Family",
-      "5": "Background"
+      "5": "Background",
+      "6": "Work & education"
     },
     "common": {
       "continue": "Continue",
@@ -815,7 +2016,37 @@
       "scanTitle": "Let's start with your identity",
       "scanSubtitle": "Scan your passport to auto-fill, or type the details yourself.",
       "scanOption": "Scan passport",
+      "scanOptionHint": "Auto-fills your details from a photo",
       "scanComingSoon": "Coming soon — use manual entry for now",
+      "scanUploadTitle": "Upload your passport",
+      "scanInstructions": "Lay the data page flat under good light. We need to read the photo, MRZ, and all printed text.",
+      "scanBrowse": "Choose a file",
+      "scanBrowseHint": "JPG, PNG, or WEBP — up to 8 MB",
+      "scanTakePhoto": "Take a photo",
+      "scanTakePhotoHint": "Use your camera (mobile)",
+      "scanExtracting": "Reading your passport…",
+      "scanExtractError": "We couldn't read this photo. Try a clearer shot or type it manually.",
+      "scanResultTitle": "Confirm what we found",
+      "scanResultSubtitle": "Edit anything that looks wrong before continuing.",
+      "scanUseDetails": "Use these details",
+      "scanRetry": "Try another photo",
+      "scanFallbackManual": "Type it manually instead",
+      "scanPrivacyNote": "Your scan is encrypted in transit, used only for extraction, and removed after submission.",
+      "scanNoDraft": "Couldn't start a draft application. Reload the page and try again.",
+      "scanWrongFormat": "Please upload a JPG, PNG, or WEBP image.",
+      "scanTooLarge": "Image is too large — please use one under 8 MB.",
+      "scanNotAuthenticated": "Please sign in again to scan your passport.",
+      "scanPassportNumber": "Passport number",
+      "scanPassportType": "Passport type",
+      "scanIssuingCountry": "Issuing country",
+      "scanIssueDate": "Issue date",
+      "scanExpiryDate": "Expiry date",
+      "scanWarningsTitle": "Heads up",
+      "scanConfidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence — please double-check",
+        "low": "Low confidence — please review every field"
+      },
       "manualOption": "Type it in",
       "manualDescription": "Enter your details manually",
       "title": "Your details",
@@ -833,31 +2064,39 @@
       "countryOfBirthPlaceholder": "Select country",
       "cityOfBirth": "City of birth",
       "cityOfBirthPlaceholder": "e.g. Shanghai",
+      "stateOfBirth": "State/Province of birth",
+      "stateOfBirthPlaceholder": "e.g. Guangdong",
+      "noStateProvince": "My country of birth has no states/provinces",
       "nationality": "Nationality",
       "nationalityPlaceholder": "Select nationality",
       "maritalStatus": "Marital status",
+      "maritalStatusPlaceholder": "Select marital status",
       "single": "Single",
       "married": "Married",
+      "commonLawMarriage": "Common Law Marriage",
+      "civilUnion": "Civil Union / Domestic Partnership",
+      "legallySeparated": "Legally Separated",
       "divorced": "Divorced",
       "widowed": "Widowed",
+      "other": "Other",
+      "maritalStatusOtherExplain": "Please describe your marital status",
+      "maritalStatusOtherExplainPlaceholder": "Describe your marital status",
       "hasOtherName": "Have you gone by a different name?",
+      "hasOtherNameTooltip": "This includes maiden names, religious names, professional names or any other name previously used on official documents. For example: Former name: Wang Xiaohong → Li Xiaohong (after marriage)",
       "otherFirstName": "Other first name",
       "otherFirstNamePlaceholder": "Previous or alternate first name",
       "otherLastName": "Other last name",
       "otherLastNamePlaceholder": "Previous or alternate last name",
       "hasNativeAlphabet": "Does your name use non-English characters?",
-      "hasNativeAlphabetHint": "e.g. Chinese, Arabic, Cyrillic",
+      "hasNativeAlphabetTooltip": "If your passport shows your name in Chinese characters, select 'Yes' and enter it as shown. For example: 张伟 or 李明",
       "nativeAlphabetName": "Full name in native alphabet",
       "nativeAlphabetNamePlaceholder": "e.g. 张泽华",
       "hasTelecode": "Do you have a telecode for your name?",
-      "hasTelecodeHint": "Most applicants answer No",
+      "hasTelecodeTooltip": "A telecode is a 4-digit number representing a Chinese character. If you know your telecode, select 'Yes' and enter the number. For example: 张 = 1728, 伟 = 0251, 李 = 2621, 明 = 2494",
       "telecodeFirstName": "Telecode given names",
       "telecodeFirstNamePlaceholder": "Telecode given names",
       "telecodeLastName": "Telecode surname",
       "telecodeLastNamePlaceholder": "Telecode surname",
-      "hasPermanentResidence": "Do you live permanently in another country?",
-      "hasPermanentResidenceHint": "Other than your country of nationality",
-      "permanentResidenceCountryPlaceholder": "Country of permanent residence",
       "spouseTitle": "Spouse's details",
       "spouseFirstName": "Spouse's given names",
       "spouseLastName": "Spouse's surname",
@@ -893,7 +2132,15 @@
       "mailingSame": "Is your mailing address the same?",
       "socialMedia": "Social media",
       "socialMediaHint": "DS-160 requires disclosing the platforms you use. Pick any that apply.",
-      "socialHandlePlaceholder": "{platform} username or handle"
+      "useSocialMedia": "Do you use social media?",
+      "socialHandlePlaceholder": "{platform} username or handle",
+      "otherPlatforms": "Other platforms",
+      "otherPlatformsPlaceholder": "Select a platform",
+      "customPlatformLabel": "Platform",
+      "customPlatformPlaceholder": "e.g. WeChat",
+      "customUsernameLabel": "Username",
+      "customUsernamePlaceholder": "@username",
+      "addAnotherPlatform": "Add other platform"
     },
     "passport": {
       "title": "Passport & identification",
@@ -903,14 +2150,56 @@
       "typeRegularHint": "Most common",
       "typeOfficial": "Official",
       "typeDiplomatic": "Diplomatic",
+      "typePermit": "Permit",
       "typeOther": "Other",
       "number": "Passport number",
       "numberPlaceholder": "e.g. E12345678",
-      "bookNumber": "Book number (optional)",
+      "numberHint": "On the passport information page. Usually 8-9 characters.",
+      "bookNumber": "Passport book number",
+      "bookNumberQuestion": "Does your passport have a separate book number?",
       "bookNumberHint": "Only if your passport has a separate book number",
+      "bookNumberHelp": "Some passports include an extra number on the inside cover page. Most do not. If unsure, choose \"No\".",
       "bookNumberPlaceholder": "Book number",
       "issuingCountry": "Issuing country",
       "issuingCountryPlaceholder": "Select country",
+      "issuedInAnotherCountry": "Was it issued in another country?",
+      "issuedInAnotherCountryCountry": "Country where passport was issued",
+      "issuanceCity": "City",
+      "issuanceCityPlaceholder": "City",
+      "issuanceProvince": "State / Province",
+      "issuanceProvincePlaceholder": "State / Province",
+      "extraQuestionsTitle": "A few extra questions",
+      "extraOtherCitizenship": "Do you hold citizenship of another country?",
+      "extraOtherCountryPermanentResidence": "Are you a permanent resident of another country?",
+      "extraUsSocialSecurityOrTaxId": "Have you ever had a U.S. social security number or taxpayer ID?",
+      "extraNationalityCardTitle": "Nationality {index}",
+      "extraNationalityCountry": "Country",
+      "extraNationalityCountryPlaceholder": "Select",
+      "extraNationalityHasPassport": "Do you hold that country's passport?",
+      "extraNationalityPassportNumber": "Passport number",
+      "extraNationalityPassportNumberPlaceholder": "Passport number",
+      "extraAddNationality": "Add nationality",
+      "extraAddCountry": "Add country",
+      "extraSsnLabel": "Social Security Number (SSN)",
+      "extraSsnInputLabel": "SSN",
+      "extraSsnPlaceholder": "•••-••-••••",
+      "extraSsnHint": "Only fill this if you had one before (for example, if you previously worked in the U.S.).",
+      "extraItinLabel": "Taxpayer Identification Number (ITIN)",
+      "extraItinInputLabel": "ITIN",
+      "extraItinPlaceholder": "9XX-XX-XXXX",
+      "extraItinHint": "IRS-issued tax number. Only fill this if you previously filed U.S. taxes.",
+      "nationalIdSectionTitle": "National ID",
+      "nationalIdInputLabel": "Resident ID Number",
+      "nationalIdHelp": "Your 18-digit Chinese Resident Identity Card number.",
+      "nationalIdPlaceholderLong": "e.g. 110101199001011234",
+      "nationalIdNone": "I do not have one",
+      "lostPassportSectionTitle": "Lost or Stolen Passport",
+      "lostPassportQuestion": "Have you ever lost a passport or had one stolen?",
+      "lostPassportCardTitle": "Lost passport 1",
+      "lostPassportKnowNumber": "Do you know the passport number?",
+      "lostPassportNumber": "Passport number",
+      "lostPassportCountry": "Country / issuing authority",
+      "lostPassportExplanationPlaceholderLong": "Describe what happened...",
       "issueDate": "Issue date",
       "issueDatePlaceholder": "Select issue date",
       "expiryDate": "Expiration date",
@@ -927,6 +2216,61 @@
     "travel": {
       "title": "Your trip & U.S. visa history",
       "subtitle": "Rough dates are fine. Most answers here are simple yes/no.",
+      "specificPlanTitle": "Travel dates",
+      "estimatedPlanTitle": "Estimated trip details",
+      "usAddressTitle": "Address where you'll stay in the U.S.",
+      "usStayPageTitle": "Where will you stay in the U.S.?",
+      "usStayPageSubtitle": "Please provide your accommodation details while in the U.S.",
+      "accomTypeTitle": "Accommodation type",
+      "accomHotel": "Hotel/Resort",
+      "accomAirbnb": "Airbnb/Short-term",
+      "accomFriends": "Friends/Family",
+      "accomBusiness": "Business",
+      "accomSchool": "School/University",
+      "accomOther": "Other",
+      "accomHotelNameTitle": "Hotel/Resort name",
+      "accomHostNameTitle": "Host's name",
+      "accomFriendsContactTitle": "Contact's name",
+      "accomBusinessTitle": "Company name",
+      "accomSchoolTitle": "School/University name",
+      "accomOtherContactTitle": "Contact person",
+      "accomContactSubtitle": "Who or where will you be staying with",
+      "hotelHint": "You can find the hotel address and phone number in your booking confirmation email or on the hotel's website.",
+      "airbnbHint": "Please use the host's name and property address from your Airbnb booking.",
+      "howKnowThem": "How do you know them?",
+      "relative": "Relative",
+      "friend": "Friend",
+      "accomHotelAddressTitle": "Hotel address",
+      "accomAirbnbAddressTitle": "Rental address",
+      "accomFriendsAddressTitle": "Their U.S. address",
+      "accomBusinessAddressTitle": "Company address",
+      "accomSchoolAddressTitle": "School address",
+      "accomOtherAddressTitle": "Contact address",
+      "accomAddressSubtitle": "The full address of your U.S. accommodation",
+      "schoolName": "School name",
+      "schoolNamePlaceholder": "School or university name",
+      "hostFirstNamePlaceholder": "e.g. John",
+      "hostLastNamePlaceholder": "e.g. Smith",
+      "contactFirstNamePlaceholder": "e.g. John",
+      "contactLastNamePlaceholder": "e.g. Doe",
+      "usStreet2": "Address line 2",
+      "usStreet2Placeholder": "e.g. Apt 4B",
+      "usStateLabel": "State",
+      "usCityPlaceholderUs": "e.g. New York",
+      "usStatePlaceholderUs": "e.g. New York",
+      "usZipPlaceholderUs": "e.g. 10001",
+      "contactInfoHotel": "Hotel contact info",
+      "contactInfoAirbnb": "Host contact info",
+      "contactInfoFriends": "Your contact's phone & email",
+      "contactInfoBusiness": "Company contact info",
+      "contactInfoSchool": "School contact info",
+      "contactInfoOther": "Contact person info",
+      "contactInfoHotelSubtitle": "The hotel's phone and email — not yours",
+      "contactInfoFriendsSubtitle": "Your friend or relative's phone and email — not yours",
+      "contactInfoDefaultSubtitle": "Their phone and email — not yours",
+      "contactEmailHotelPlaceholder": "e.g. hotel@example.com",
+      "contactEmailPlaceholder": "e.g. contact@example.com",
+      "unknownContactEmail": "I don't know their email",
       "plans": "Do you have specific travel plans?",
       "plansYes": "Yes",
       "plansYesHint": "Dates & address confirmed",
@@ -936,16 +2280,36 @@
       "plansUnsureHint": "Skip these details",
       "arrivalDate": "Arrival date",
       "arrivalDatePlaceholder": "Select arrival date",
+      "departureDate": "Departure date",
+      "departureDatePlaceholder": "Select departure date",
+      "arrivalCity": "Arrival city",
+      "arrivalCityPlaceholder": "e.g. New York",
+      "arrivalFlight": "Arrival flight (if known)",
+      "arrivalFlightPlaceholder": "e.g. AA1234",
+      "departureCity": "Departure city",
+      "departureCityPlaceholder": "e.g. Los Angeles",
+      "departureFlight": "Departure flight (if known)",
+      "departureFlightPlaceholder": "e.g. UA5678",
+      "placesToVisit": "Places you plan to visit in the U.S.",
+      "placeToVisitPlaceholder": "e.g. New York",
+      "addPlace": "Add place",
+      "estimatedArrivalDate": "Approximate arrival date",
       "lengthOfStay": "Length of stay",
       "lengthOfStayPlaceholder": "14",
       "lengthUnit": "Duration",
       "days": "Days",
       "weeks": "Weeks",
       "months": "Months",
+      "years": "Years",
+      "lessThan24Hours": "Less than 24 hours",
+      "accommodationPlaceholder": "Select accommodation type",
       "accommodation": "Where will you stay?",
-      "hotel": "Hotel",
+      "hotelMotel": "Hotel/Motel",
       "privateHome": "Private home",
+      "shortTermRental": "Short-term rental",
       "other": "Other",
+      "hotelName": "Hotel name",
+      "hotelNamePlaceholder": "e.g. Hilton Garden Inn",
       "usStreet": "U.S. street address",
       "usStreetPlaceholder": "e.g. 350 Fifth Avenue",
       "usCity": "City",
@@ -954,6 +2318,7 @@
       "usStatePlaceholder": "State",
       "usZip": "ZIP",
       "usZipPlaceholder": "ZIP",
+      "companionsTitle": "Travel companions",
       "payer": "Who is paying for this trip?",
       "payerSelf": "Self",
       "payerFamily": "Family",
@@ -962,6 +2327,43 @@
       "embassyLocation": "Embassy / consulate where you'll interview",
       "embassyLocationHint": "Usually the U.S. embassy closest to where you live",
       "embassyLocationPlaceholder": "e.g. China — Beijing",
+      "tripPaymentTitle": "Trip payment",
+      "payerPlaceholder": "Select payer",
+      "payerOtherPerson": "Other person",
+      "payerCurrentEmployer": "Current employer",
+      "payerUsEmployer": "U.S. employer",
+      "payerOtherCompany": "Other company/organization",
+      "payerOtherPersonDetails": "Other person details",
+      "firstName": "First name",
+      "firstNamePlaceholder": "e.g. Zhang",
+      "lastName": "Last name",
+      "lastNamePlaceholder": "e.g. Wei",
+      "phone": "Phone number",
+      "phonePlaceholder": "11-digit number",
+      "dialCode": "Dial code",
+      "email": "Email",
+      "emailPlaceholder": "e.g. email@example.com",
+      "unknownPayerEmail": "I don't know their email",
+      "yourRelationship": "Your relationship",
+      "relationshipPlaceholder": "Select relationship",
+      "payerAddressSameAsYou": "Is their address the same as yours?",
+      "street1": "Street address (line 1)",
+      "street1Placeholder": "e.g. 123 Main St",
+      "street2": "Street address (line 2)",
+      "street2Placeholder": "e.g. Apt 4B",
+      "city": "City",
+      "cityPlaceholder": "e.g. Beijing",
+      "stateProvince": "State/Province",
+      "stateProvincePlaceholder": "State/Province",
+      "noStateProvince": "This country has no state/province",
+      "postalCode": "Postal code",
+      "postalCodePlaceholder": "Postal code",
+      "noPostalCode": "This country has no postal code",
+      "country": "Country",
+      "payerOrgDetails": "Company/organization details",
+      "orgName": "Company/organization name",
+      "orgNamePlaceholder": "e.g. Acme Corp",
+      "orgRelationshipPlaceholder": "e.g. Sponsor, Employer",
       "visaHistoryTitle": "U.S. visa history",
       "previousVisa": "Have you ever been issued a U.S. visa?",
       "previousVisaNumber": "Visa number",
@@ -973,14 +2375,55 @@
       "refusalExplanationPlaceholder": "Share the date and circumstances",
       "estaDenied": "Have you ever been denied ESTA?",
       "petitionFiled": "Has anyone filed an immigration petition for you?",
-      "hasCompanions": "Are other people traveling with you?",
+      "hasCompanions": "Are there other people traveling with you?",
+      "companionGroupTravel": "Are you traveling as part of a group or organization?",
+      "companionGroupName": "Group/organization name",
+      "companionGroupNamePlaceholder": "Group or organization name",
+      "travelerN": "Traveler {index}",
       "hasCompanionsHint": "Family, friends, or colleagues",
       "companionFirstName": "Companion's given names",
       "companionFirstNamePlaceholder": "e.g. Jane",
       "companionLastName": "Companion's surname",
       "companionLastNamePlaceholder": "e.g. Doe",
       "companionRelationship": "Relationship",
-      "companionRelationshipPlaceholder": "e.g. Spouse, Friend, Child",
+      "companionRelationshipPlaceholder": "Please select...",
+      "relationshipChild": "Child",
+      "relationshipParent": "Parent",
+      "relationshipSpouse": "Spouse",
+      "relationshipRelative": "Relative",
+      "relationshipFriend": "Friend",
+      "relationshipBusinessPartner": "Business partner",
+      "addTraveler": "Add traveler",
+      "internationalTravelTitle": "International travel history",
+      "hasVisitedOtherCountriesLast5Years": "In the last five years, have you visited any other countries?",
+      "visitedCountries": "Countries visited",
+      "countryPlaceholder": "Select",
+      "addCountry": "Add country",
+      "previousUsTravelTitle": "Previous U.S. travel",
+      "previousVisits": "Previous visits",
+      "visitN": "Visit {index}",
+      "unit": "Unit",
+      "addVisit": "Add visit",
+      "licenseN": "License {index}",
+      "unknownLicenseNumber": "I don't know the license number",
+      "addLicense": "Add license",
+      "previousUsVisaTitle": "Previous U.S. visa",
+      "visaIssueCountry": "Visa issuing country",
+      "visaIssueDate": "Issue date",
+      "visaValidUntil": "Valid until",
+      "unknownVisaNumber": "I don't know the visa number",
+      "sameVisaType": "Are you applying for the same visa class?",
+      "sameCountryApply": "Are you applying in the same country where it was issued?",
+      "tenPrinted": "Have your ten fingerprints been taken?",
+      "visaLostStolen": "Has your visa ever been lost or stolen?",
+      "visaLostStolenYear": "Year lost",
+      "visaCancelledRevoked": "Has your visa ever been cancelled or revoked?",
+      "received221g": "Have you ever received a 221(g) notice?",
+      "explanation": "Explanation",
+      "explanationPlaceholder": "Brief explanation",
+      "explanationDetailPlaceholder": "Describe the situation...",
+      "refusalDateKnown": "Refusal date (if known)",
+      "refusalDatePlaceholder": "Select refusal date",
       "hasBeenInUs": "Have you ever been to the U.S. before?",
       "hasBeenInUsHint": "Even a short tourist trip counts",
       "previousVisitDate": "Date of last visit",
@@ -993,14 +2436,170 @@
       "driversLicenseState": "State that issued it",
       "driversLicenseStatePlaceholder": "e.g. California"
     },
+    "work": {
+      "title": "Work & education",
+      "subtitle": "What you do day-to-day — used for the DS-160 employment / study section.",
+      "primaryOccupation": "Primary occupation",
+      "primaryOccupationPlaceholder": "Select your occupation",
+      "occupations": {
+        "business": "Business",
+        "education": "Education",
+        "engineering": "Engineering",
+        "computerScience": "Computer Science",
+        "medical": "Medical / Health",
+        "government": "Government",
+        "artist": "Artist / Performer",
+        "student": "Student",
+        "homemaker": "Homemaker",
+        "retired": "Retired",
+        "notEmployed": "Not Employed",
+        "other": "Other"
+      },
+      "occupationOtherExplain": "Describe your occupation",
+      "occupationOtherExplainPlaceholder": "e.g. Freelance translator",
+      "employerTitle": "Current employer / school",
+      "employerName": "Employer or school name",
+      "employerNamePlaceholder": "e.g. Tencent",
+      "jobTitle": "Job title",
+      "jobTitlePlaceholder": "e.g. Software Engineer",
+      "employmentStartDate": "Start date",
+      "employmentStartDatePlaceholder": "Select start date",
+      "monthlySalary": "Monthly salary (local currency)",
+      "monthlySalaryPlaceholder": "e.g. 30000",
+      "jobDuties": "Brief description of duties",
+      "jobDutiesPlaceholder": "e.g. Backend development for ad platform",
+      "employerPhone": "Employer phone",
+      "employerPhonePlaceholder": "+86 10 0000 0000",
+      "employerStreet": "Employer street address",
+      "employerStreetPlaceholder": "Street and number",
+      "employerCity": "City",
+      "employerCityPlaceholder": "City",
+      "employerState": "State / Province",
+      "employerStatePlaceholder": "State or province",
+      "employerPostal": "Postal code",
+      "employerPostalPlaceholder": "Postal code",
+      "employerCountry": "Country",
+      "employerCountryPlaceholder": "Select country",
+      "hasPreviousEmployer": "Have you had a previous employer?",
+      "prevEmployerTitle": "Previous employer",
+      "prevEmployerName": "Previous employer name",
+      "prevEmployerNamePlaceholder": "e.g. Alibaba",
+      "prevJobTitle": "Previous job title",
+      "prevJobTitlePlaceholder": "e.g. Junior Engineer",
+      "prevEmploymentStart": "Started",
+      "prevEmploymentEnd": "Ended",
+      "hasAttendedEducation": "Have you attended any school past secondary?",
+      "educationTitle": "Education",
+      "educationInstitution": "Institution name",
+      "educationInstitutionPlaceholder": "e.g. Tsinghua University",
+      "educationCourse": "Course of study",
+      "educationCoursePlaceholder": "e.g. Computer Science",
+      "educationStart": "Started",
+      "educationEnd": "Ended",
+      "educationCity": "City",
+      "educationCityPlaceholder": "City",
+      "educationCountry": "Country",
+      "educationCountryPlaceholder": "Select country"
+    },
+    "usContact": {
+      "title": "Your U.S. contact",
+      "subtitle": "A person or organization in the U.S. that knows you. Required for every DS-160.",
+      "contactType": "Type of contact",
+      "typePerson": "Person",
+      "typeOrganization": "Organization",
+      "organizationName": "Organization name",
+      "organizationNamePlaceholder": "e.g. ABC Corporation",
+      "contactFirstName": "First name",
+      "contactFirstNamePlaceholder": "e.g. Jane",
+      "contactLastName": "Last name",
+      "contactLastNamePlaceholder": "e.g. Smith",
+      "relationship": "Relationship to you",
+      "relationshipPlaceholder": "Select relationship",
+      "relationships": {
+        "relative": "Relative",
+        "spouse": "Spouse",
+        "friend": "Friend",
+        "businessAssociate": "Business associate",
+        "employer": "Employer",
+        "schoolOfficial": "School official",
+        "other": "Other"
+      },
+      "street1": "Street address",
+      "street1Placeholder": "Street and number",
+      "street2": "Address line 2 (optional)",
+      "street2Placeholder": "Apartment, suite, etc.",
+      "city": "City",
+      "cityPlaceholder": "City",
+      "state": "State",
+      "statePlaceholder": "Select state",
+      "zip": "ZIP code",
+      "zipPlaceholder": "e.g. 10001",
+      "phone": "Phone",
+      "phonePlaceholder": "+1 555 000 0000",
+      "email": "Email",
+      "emailPlaceholder": "contact@example.com"
+    },
     "family": {
-      "title": "Family & languages",
-      "subtitle": "Basic background info the DS-160 always asks for.",
-      "fatherTitle": "Father",
+      "title": "Family & background",
+      "subtitle": "A few questions about your family — standard for all visa applications.",
+      "fatherTitle": "Father's information",
+      "motherTitle": "Mother",
+      "parentSubtitle": "As shown on ID or as best you know",
+      "fatherUnknown": "I don't know my father's information",
+      "fatherMarkedUnknown": "Father's information is marked as unknown",
+      "motherUnknown": "I don't know my mother's information",
+      "motherMarkedUnknown": "Mother's information is marked as unknown",
+      "givenName": "Given name",
+      "givenNamePlaceholder": "e.g. Wei",
+      "surname": "Surname",
+      "surnamePlaceholder": "e.g. Zhang",
+      "noGivenName": "No given name (single name only)",
+      "notApplicable": "Not applicable",
+      "required": "Required",
+      "wrongStatus": "Wrong status? Go back",
+      "spouseTitle": "Spouse information",
+      "spouseSubtitle": "Legal name and basic details",
+      "deceasedSpouseTitle": "Deceased spouse",
+      "formerSpouseTitle": "Former spouses",
+      "formerSpouseSubtitle": "Provide info for each former spouse (max 5)",
+      "formerSpouseN": "Former spouse {n}",
+      "addFormerSpouse": "Add former spouse",
+      "addAnotherFormerSpouse": "Add another former spouse",
+      "dateOfBirth": "Date of birth",
+      "dateOfBirthPlaceholder": "Select date",
+      "nationality": "Nationality",
+      "cityOfBirth": "City of birth",
+      "cityOfBirthPlaceholder": "e.g. Beijing",
+      "countryOfBirth": "Country of birth",
+      "countryPlaceholder": "Select",
+      "datePlaceholder": "Select date",
+      "spouseAddressType": "Spouse address type",
+      "spouseAddressTypePlaceholder": "Select address type",
+      "addressHome": "Same as home address",
+      "addressWork": "Same as work address",
+      "addressOther": "Other address",
+      "street1": "Street address (line 1)",
+      "street1Placeholder": "e.g. 123 Main St",
+      "street2": "Street address (line 2)",
+      "street2Placeholder": "e.g. Apt 4B",
+      "city": "City",
+      "cityPlaceholder": "e.g. Beijing",
+      "stateProvince": "State/Province",
+      "stateProvincePlaceholder": "State/Province",
+      "noStateProvince": "This country has no state/province",
+      "postalCode": "Postal code",
+      "postalCodePlaceholder": "Postal code",
+      "noPostalCode": "This country has no postal code",
+      "country": "Country",
+      "marriageDate": "Marriage date",
+      "divorceDate": "Marriage end date",
+      "howEnded": "How did the marriage end?",
+      "howEndedHint": "Free text — max 200 characters",
+      "howEndedPlaceholder": "e.g. Mutual divorce",
+      "divorceCountry": "Country where marriage ended",
       "fatherKnown": "Father known?",
       "fatherFirstName": "Father first name",
       "fatherLastName": "Father last name",
-      "motherTitle": "Mother",
       "motherKnown": "Mother known?",
       "motherFirstName": "Mother first name",
       "motherLastName": "Mother last name",
@@ -1010,6 +2609,7 @@
       "lastNamePlaceholder": "Last name",
       "relativesInUs": "Do you have immediate relatives in the U.S.?",
       "relativesInUsHint": "Spouse, fiancé(e), children, siblings, or parents",
+      "relativeN": "Relative {n}",
       "relativeFirstName": "Given names",
       "relativeFirstNamePlaceholder": "Given names",
       "relativeLastName": "Surname",
@@ -1026,12 +2626,35 @@
       "statusOther": "Other / unknown",
       "hasOtherRelatives": "Do you have any other relatives in the U.S.?",
       "hasOtherRelativesHint": "Cousins, aunts/uncles, in-laws — most select No",
+      "addAnotherRelative": "Add another relative",
+      "removeRelative": "Remove relative",
       "clanTribe": "Do you belong to a clan or tribe?",
       "clanTribeHint": "Most applicants select No",
+      "clanTribeName": "Clan or tribe name",
       "clanTribeNamePlaceholder": "Clan or tribe name",
       "languages": "Languages you speak",
       "languagesHint": "Pick all that apply — add more if needed",
-      "addLanguage": "Add",
+      "recommendedLanguages": "Recommended for you",
+      "languageN": "Language {n}",
+      "languageEnglish": "English",
+      "languageSpanish": "Spanish",
+      "languageFrench": "French",
+      "languageArabic": "Arabic",
+      "languageChineseMandarin": "Chinese (Mandarin)",
+      "languageChineseCantonese": "Chinese (Cantonese)",
+      "languageHindi": "Hindi",
+      "languagePortuguese": "Portuguese",
+      "languageRussian": "Russian",
+      "languageJapanese": "Japanese",
+      "languageKorean": "Korean",
+      "languageGerman": "German",
+      "languageItalian": "Italian",
+      "languageTurkish": "Turkish",
+      "languageVietnamese": "Vietnamese",
+      "languageThai": "Thai",
+      "languageMalay": "Malay",
+      "languageTamil": "Tamil",
+      "addLanguage": "Add another language",
       "addLanguagePlaceholder": "Another language",
       "removeLanguage": "Remove {lang}"
     },
@@ -1044,6 +2667,56 @@
       "someApply": "One or more apply",
       "someApplyHint": "You'll be prompted in the full form",
       "addMoreInFullForm": "We'll set the obvious questions to No for now. You can edit any of them in the full form review.",
+      "needAnswer": "Yes, I need to answer",
+      "needAnswerHint": "Choose categories and answer the detailed questions",
+      "categoryPrompt": "Which categories apply to you? Select all that apply:",
+      "categoryHealth": "Health",
+      "categoryHealthSubtitle": "Communicable disease, physical or mental disorder, drug abuse",
+      "categoryCriminal": "Criminal record",
+      "categoryCriminalSubtitle": "Arrests, convictions, controlled substance and related violations",
+      "categorySecurity": "Security and terrorism",
+      "categorySecuritySubtitle": "Espionage, sabotage, terrorism, and related activity",
+      "categoryPolitical": "Political and social affiliations",
+      "categoryPoliticalSubtitle": "Party membership, Nazi involvement, or persecution",
+      "categoryImmigration": "Immigration violations",
+      "categoryImmigrationSubtitle": "Visa fraud, removal, unlawful presence, and custody issues",
+      "categoryOther": "Other issues",
+      "categoryOtherSubtitle": "Public charge, withheld custody, and other grounds",
+      "detailPlaceholder": "Please provide details...",
+      "questions": {
+        "has_communicable_disease": "Do you have a communicable disease of public health significance?",
+        "has_physical_mental_disorder": "Do you have a mental or physical disorder that may pose a threat to the safety or welfare of yourself or others?",
+        "has_drug_abuse": "Have you ever been a drug abuser or addict?",
+        "has_been_arrested": "Have you ever been arrested or convicted for any offense or crime, even though subject of a pardon, amnesty, or other similar action?",
+        "has_violated_substance_law": "Have you ever violated, or engaged in a conspiracy to violate, any law relating to controlled substances?",
+        "has_prostitution_involvement": "Are you coming to the United States to engage in prostitution or unlawful commercialized vice, or have you been engaged in prostitution or procuring prostitutes within the past 10 years?",
+        "has_money_laundering": "Have you ever been involved in, or do you seek to engage in, money laundering?",
+        "has_human_trafficking": "Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?",
+        "has_supported_trafficking": "Have you ever knowingly aided, abetted, assisted, or colluded with an individual who has committed or conspired to commit a severe human trafficking offense?",
+        "is_trafficking_relative": "Are you the child, spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense, and have you knowingly benefited from the trafficking activities in the last five years?",
+        "has_been_detained": "Have you ever been detained, retained, or confined by any country?",
+        "intends_espionage": "Do you seek to engage in espionage, sabotage, export control violations, or any other illegal activity while in the United States?",
+        "intends_terrorism": "Do you seek to engage in terrorist activities while in the United States, or have you ever engaged in terrorist activities?",
+        "will_support_terrorists": "Have you ever or do you intend to provide financial assistance or other support to terrorists or terrorist organizations?",
+        "is_terrorist_organization_member": "Are you a member or representative of a terrorist organization?",
+        "is_terrorist_relative": "Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity that caused harm to another person?",
+        "has_committed_genocide": "Have you ever ordered, incited, committed, assisted, or otherwise participated in genocide?",
+        "has_committed_torture": "Have you ever committed, ordered, incited, assisted, or otherwise participated in torture?",
+        "has_committed_extrajudicial_killings": "Have you committed, ordered, incited, assisted, or otherwise participated in extrajudicial killings, political killings, or other acts of violence?",
+        "has_used_child_soldiers": "Have you ever engaged in the recruitment or the use of child soldiers?",
+        "violated_religious_freedom": "Have you, while serving as a government official, been responsible for or directly carried out particularly severe violations of religious freedom?",
+        "involved_population_control": "Have you ever ordered, incited, committed, assisted, or otherwise participated in forced sterilization?",
+        "involved_organ_trafficking": "Have you ever been directly involved in the coercive transplantation of human organs or bodily tissue?",
+        "obtained_visa_by_fraud": "Have you ever sought to obtain or assist others to obtain a visa, entry into the United States, or any other United States immigration benefit by fraud or willful misrepresentation?",
+        "has_been_removed": "Have you ever been removed or deported from any country?",
+        "subject_to_removal_order": "Have you ever been subject to a removal or deportation order from the United States?",
+        "failed_removal_hearing": "Have you ever failed to attend a removal or deportation hearing in the United States?",
+        "has_overstayed": "Have you ever been unlawfully present in the United States or violated the terms of entry?",
+        "withheld_child_custody": "Have you ever withheld custody of a U.S. citizen child outside the United States from a person granted legal custody by a U.S. court?",
+        "voted_illegally": "Have you voted in the United States in violation of any law or regulation?",
+        "renounced_citizenship": "Have you ever renounced United States citizenship for the purposes of avoiding taxation?",
+        "practicing_polygamy": "Are you practicing polygamy?"
+      },
       "embassyTitle": "Embassy account security",
       "embassySubtitle": "Used to create your embassy account. Pick answers you'll remember.",
       "birthCity": "What city were you born in?",
@@ -1052,6 +2725,138 @@
       "favoriteFoodPlaceholder": "e.g. Broccoli",
       "childhoodHero": "Who is your childhood hero?",
       "childhoodHeroPlaceholder": "e.g. Superman",
+      "submit": "Continue to review"
+    },
+    "workEducation": {
+      "title": "Work & education",
+      "subtitle": "Tell us about your current work, studies, and recent history.",
+      "currentTitle": "Current work or studies",
+      "currentSubtitle": "Used for the DS-160 work/education/training section.",
+      "educationDetailsTitle": "Education details",
+      "educationDetailsSubtitle": "Add your current school or university information.",
+      "primaryOccupation": "Primary occupation",
+      "primaryOccupationPlaceholder": "Select primary occupation",
+      "occupation": {
+        "AGRICULTURE": "Agriculture",
+        "ARTIST/PERFORMER": "Artist/performer",
+        "BUSINESS": "Business",
+        "COMMUNICATIONS": "Communications",
+        "COMPUTER SCIENCE": "Computer science",
+        "CULINARY/FOOD SERVICES": "Culinary/food services",
+        "EDUCATION": "Education",
+        "ENGINEERING": "Engineering",
+        "GOVERNMENT": "Government",
+        "LEGAL PROFESSION": "Legal profession",
+        "MEDICAL/HEALTH": "Medical/health",
+        "MILITARY": "Military",
+        "NATURAL SCIENCE": "Natural science",
+        "PHYSICAL SCIENCES": "Physical sciences",
+        "RELIGIOUS VOCATION": "Religious vocation",
+        "RESEARCH": "Research",
+        "SOCIAL SCIENCE": "Social science",
+        "STUDENT": "Student",
+        "HOMEMAKER": "Homemaker",
+        "RETIRED": "Retired",
+        "NOT EMPLOYED": "Not employed",
+        "OTHER": "Other"
+      },
+      "occupationOtherExplain": "Please explain",
+      "occupationOtherExplainPlaceholder": "Please explain your occupation or situation...",
+      "employerName": "Employer/company name",
+      "employerNamePlaceholder": "e.g. Acme Corp",
+      "schoolName": "School name",
+      "schoolNamePlaceholder": "e.g. Peking University",
+      "jobTitle": "Job title",
+      "jobTitlePlaceholder": "e.g. Product manager",
+      "courseOfStudy": "Course of study",
+      "courseOfStudyPlaceholder": "e.g. Computer science",
+      "employmentStartDate": "Start date",
+      "datePlaceholder": "Select date",
+      "monthlySalary": "Monthly salary",
+      "monthlySalaryPlaceholder": "e.g. 5000",
+      "monthlySalaryHint": "Currency is for reference. Only submit the number.",
+      "noMonthlySalary": "I do not have a fixed monthly income",
+      "salaryCurrency": "Salary currency",
+      "employerPhone": "Work phone",
+      "schoolPhone": "School phone",
+      "dialCode": "Dial code",
+      "phonePlaceholder": "Phone number",
+      "employerCountry": "Country",
+      "countryPlaceholder": "Select country",
+      "employerStreet": "Employer address",
+      "schoolStreet": "School address",
+      "streetPlaceholder": "e.g. 123 Main St",
+      "employerCity": "City",
+      "cityPlaceholder": "e.g. Beijing",
+      "employerState": "State/Province",
+      "statePlaceholder": "State/Province",
+      "employerPostal": "Postal code",
+      "postalPlaceholder": "Postal code",
+      "jobDuties": "Briefly describe your duties",
+      "jobDutiesPlaceholder": "e.g. Manage client accounts and prepare reports",
+      "previousEmployerTitle": "Any other work in the last 5 years?",
+      "previousEmployerSubtitle": "Add 1-2 recent jobs and fill what you remember.",
+      "hasPreviousEmployer": "Have you had a previous employer?",
+      "previousEmployerN": "Previous job {n}",
+      "addPreviousEmployer": "Add another job",
+      "removePreviousEmployer": "Remove previous job",
+      "prevEmployerName": "Previous employer name",
+      "prevJobTitle": "Previous job title",
+      "prevJobDuties": "What did you do there?",
+      "prevJobDutiesPlaceholder": "Briefly describe duties (optional)",
+      "supervisorFirstName": "Supervisor given names",
+      "supervisorFirstNamePlaceholder": "Given names (optional)",
+      "supervisorLastName": "Supervisor surname",
+      "supervisorLastNamePlaceholder": "Surname (optional)",
+      "prevEmploymentStart": "Start date",
+      "prevEmploymentEnd": "End date",
+      "educationTitle": "Education history",
+      "educationSubtitle": "If you attended school beyond elementary level, add it here.",
+      "educationHistoryTitle": "Tell us about your education",
+      "educationHistorySubtitle": "We only need your highest or most recent schooling. Keep it simple.",
+      "hasAttendedEducation": "Have you attended school?",
+      "educationN": "Education {n}",
+      "addEducation": "Add another (optional)",
+      "removeEducation": "Remove education",
+      "educationHistoryFootnote": "Most applicants only need 1-2 schools",
+      "noEducationHint": "No education history to report? Select No and continue.",
+      "educationLevel": "Education level",
+      "educationLevelPlaceholder": "Select level (optional)",
+      "educationLevelSecondary": "High school",
+      "educationLevelCollege": "University/college",
+      "educationLevelVocationalOther": "Vocational/other",
+      "educationInstitution": "School/institution name",
+      "educationInstitutionPlaceholder": "School or institution name",
+      "educationCourse": "Course of study",
+      "educationStart": "Start date",
+      "educationEnd": "End date",
+      "educationCity": "City",
+      "educationCountry": "Country",
+      "organizationTitle": "Any clubs, groups, or organizations?",
+      "organizationSubtitle": "Professional, social, or charitable organizations. Names are enough.",
+      "organizationN": "Organization {n}",
+      "organizationName": "Organization name",
+      "organizationNamePlaceholder": "Organization name",
+      "addOrganization": "Add another organization",
+      "removeOrganization": "Remove organization",
+      "militaryTitle": "Have you ever served in the military?",
+      "militarySubtitle": "Any country, any branch, including reserve service.",
+      "militaryServiceN": "Military service {n}",
+      "militaryCountry": "Country served",
+      "militaryBranch": "Branch of service",
+      "militaryBranchPlaceholder": "Branch of service",
+      "militaryRank": "Rank/position",
+      "militaryRankPlaceholder": "Rank/position",
+      "militarySpecialty": "Military specialty",
+      "militarySpecialtyPlaceholder": "Military specialty",
+      "militaryStartDate": "Start date",
+      "militaryEndDate": "End date",
+      "addMilitaryService": "Add another service record",
+      "removeMilitaryService": "Remove service record",
+      "specializedSkillsTitle": "Any specialized skills or training?",
+      "specializedSkillsSubtitle": "For example firearms, explosives, nuclear, biological, or chemical experience.",
+      "specializedSkillsExplain": "Please explain",
+      "specializedSkillsExplainPlaceholder": "Describe your specialized skills or training...",
       "submit": "Continue to review"
     }
   },
@@ -1072,12 +2877,30 @@
       "rejected": "Rejected"
     },
     "requiredDocs": {
-      "passport_copy": { "label": "Passport Copy", "description": "Bio-data page of your passport" },
-      "photo": { "label": "Photo", "description": "Recent passport-size photo, white background" },
-      "flight_booking": { "label": "Flight Booking", "description": "Return flight booking confirmation" },
-      "hotel_booking": { "label": "Hotel Booking", "description": "Accommodation confirmation" },
-      "travel_itinerary": { "label": "Travel Itinerary", "description": "Detailed travel plan" },
-      "bank_statement": { "label": "Bank Statement", "description": "Last 3 months, showing sufficient funds" }
+      "passport_copy": {
+        "label": "Passport Copy",
+        "description": "Bio-data page of your passport"
+      },
+      "photo": {
+        "label": "Photo",
+        "description": "Recent passport-size photo, white background"
+      },
+      "flight_booking": {
+        "label": "Flight Booking",
+        "description": "Return flight booking confirmation"
+      },
+      "hotel_booking": {
+        "label": "Hotel Booking",
+        "description": "Accommodation confirmation"
+      },
+      "travel_itinerary": {
+        "label": "Travel Itinerary",
+        "description": "Detailed travel plan"
+      },
+      "bank_statement": {
+        "label": "Bank Statement",
+        "description": "Last 3 months, showing sufficient funds"
+      }
     },
     "errors": {
       "notAuthenticated": "Not authenticated. Please log in.",
@@ -1130,22 +2953,46 @@
     "sending": "Sending...",
     "howItWorks": "How it works",
     "steps": {
-      "share": { "title": "Share your unique link", "description": "Invite your friends to join VIZA using your unique referral link" },
-      "give": { "title": "Give ₱9,999 to your friends", "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services" },
-      "earn": { "title": "Earn ₱9,999 in credit", "description": "You'll also receive ₱9,999 for every friend who signs up with your link." },
-      "redeem": { "title": "Redeem your credits", "description": "Use your credits in the VIZA Services page." }
+      "share": {
+        "title": "Share your unique link",
+        "description": "Invite your friends to join VIZA using your unique referral link"
+      },
+      "give": {
+        "title": "Give ₱9,999 to your friends",
+        "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services"
+      },
+      "earn": {
+        "title": "Earn ₱9,999 in credit",
+        "description": "You'll also receive ₱9,999 for every friend who signs up with your link."
+      },
+      "redeem": {
+        "title": "Redeem your credits",
+        "description": "Use your credits in the VIZA Services page."
+      }
     },
     "faqTitle": "Frequently Asked Questions",
     "faqs": {
-      "whenReward": { "question": "When do I get my reward?", "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase." },
-      "howUseCredit": { "question": "How do I use the credit?", "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page." },
-      "whoEligible": { "question": "Who's eligible?", "answer": "New members only. One discount per new member." }
+      "whenReward": {
+        "question": "When do I get my reward?",
+        "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase."
+      },
+      "howUseCredit": {
+        "question": "How do I use the credit?",
+        "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page."
+      },
+      "whoEligible": {
+        "question": "Who's eligible?",
+        "answer": "New members only. One discount per new member."
+      }
     }
   },
   "settings": {
     "title": "Settings",
     "loading": "Loading your settings...",
-    "tabs": { "billing": "Billing", "account": "Account" },
+    "tabs": {
+      "billing": "Billing",
+      "account": "Account"
+    },
     "account": {
       "title": "Account",
       "email": "Email",
@@ -1244,9 +3091,18 @@
     "heroSubtitle": "Find answers, guides, and support for your account.",
     "quickLinks": {
       "title": "Quick links",
-      "accountProfile": { "title": "Account & Profile", "description": "Update your profile details, password, and preferences." },
-      "referrals": { "title": "Referrals", "description": "Invite friends and track your rewards." },
-      "payments": { "title": "Payments & Credits", "description": "View transactions, credits, and receipts." }
+      "accountProfile": {
+        "title": "Account & Profile",
+        "description": "Update your profile details, password, and preferences."
+      },
+      "referrals": {
+        "title": "Referrals",
+        "description": "Invite friends and track your rewards."
+      },
+      "payments": {
+        "title": "Payments & Credits",
+        "description": "View transactions, credits, and receipts."
+      }
     },
     "guides": {
       "title": "Guides",
@@ -1271,16 +3127,46 @@
     },
     "faqTitle": "Frequently Asked Questions",
     "faqs": {
-      "resetPassword": { "question": "How do I reset my password?", "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately." },
-      "seeCredits": { "question": "Where can I see my credits?", "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase." },
-      "referrals": { "question": "How do referrals work?", "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services." },
-      "bookBloodTest": { "question": "How do I book a blood test?", "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab." },
-      "labResults": { "question": "When will I receive my results?", "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab." },
-      "updateInfo": { "question": "How do I update my personal information?", "answer": "Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes." },
-      "updatePayment": { "question": "How do I add or update a payment method?", "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details." },
-      "cancelReschedule": { "question": "Can I cancel or reschedule a booked service?", "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel." },
-      "dataPrivate": { "question": "Is my health data private?", "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties." },
-      "contactSupport": { "question": "How do I contact support?", "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com." }
+      "resetPassword": {
+        "question": "How do I reset my password?",
+        "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
+      },
+      "seeCredits": {
+        "question": "Where can I see my credits?",
+        "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
+      },
+      "referrals": {
+        "question": "How do referrals work?",
+        "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
+      },
+      "bookBloodTest": {
+        "question": "How do I book a blood test?",
+        "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
+      },
+      "labResults": {
+        "question": "When will I receive my results?",
+        "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+      },
+      "updateInfo": {
+        "question": "How do I update my personal information?",
+        "answer": "Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes."
+      },
+      "updatePayment": {
+        "question": "How do I add or update a payment method?",
+        "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
+      },
+      "cancelReschedule": {
+        "question": "Can I cancel or reschedule a booked service?",
+        "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
+      },
+      "dataPrivate": {
+        "question": "Is my health data private?",
+        "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+      },
+      "contactSupport": {
+        "question": "How do I contact support?",
+        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+      }
     }
   },
   "auth": {

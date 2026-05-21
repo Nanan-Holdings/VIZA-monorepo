@@ -1,0 +1,78 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .group{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+  .group:last-child{margin:0}
+  .group h4{font:500 11px "Geist", system-ui, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);margin:0 0 2px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
+
+  /* Checkbox */
+  .opt{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font:400 15px "Geist", "PingFang SC", system-ui, sans-serif;color:#3d3d3d}
+  .opt input{position:absolute;opacity:0;pointer-events:none}
+  .box{width:18px;height:18px;border-radius:4px;border:1.5px solid #d1d5db;background:#fff;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .opt input:checked + .box{background:#03346E;border-color:#03346E}
+  .opt input:checked + .box::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+  .opt.indeterminate .box{background:#03346E;border-color:#03346E}
+  .opt.indeterminate .box::after{content:"";width:10px;height:2px;background:#fff;border-radius:1px}
+  .opt.disabled{opacity:.45;cursor:not-allowed}
+  .opt.err .box{border-color:hsl(0 84% 60%)}
+
+  /* Radio */
+  .rad{width:18px;height:18px;border-radius:50%;border:1.5px solid #d1d5db;background:#fff;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .opt input:checked + .rad{border-color:#03346E}
+  .opt input:checked + .rad::after{content:"";width:8px;height:8px;border-radius:50%;background:#03346E}
+
+  /* Stacked radio card */
+  .cards{display:flex;flex-direction:column;gap:8px}
+  .rcard{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid #efefef;border-radius:12px;cursor:pointer;background:#fff;transition:all .15s}
+  .rcard:hover{background:#fbfbfb}
+  .rcard.active{border-color:#03346E;background:#EEF3FA}
+  .rcard .rad{margin-top:2px}
+  .rcard .meta{display:flex;flex-direction:column;gap:2px}
+  .rcard .ttl{font:500 15px "Geist", system-ui, sans-serif;color:#3d3d3d;letter-spacing:-.011em}
+  .rcard .sub{font:400 13px "Geist", system-ui, sans-serif;color:rgba(0,0,0,.45)}
+  .rcard .price{margin-left:auto;font:500 14px "Switzer", system-ui, sans-serif;color:#3d3d3d}
+</style></head>
+<body><div class="stage">
+
+<div class="group">
+  <h4>Checkbox · states</h4>
+  <div class="row">
+    <label class="opt"><input type="checkbox"/><span class="box"></span>Unchecked</label>
+    <label class="opt"><input type="checkbox" checked/><span class="box"></span>Checked</label>
+    <label class="opt indeterminate"><input type="checkbox"/><span class="box"></span>Mixed</label>
+    <label class="opt disabled"><input type="checkbox" disabled/><span class="box"></span>Disabled</label>
+    <label class="opt err"><input type="checkbox"/><span class="box"></span>Error</label>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Radio · inline</h4>
+  <div class="row">
+    <label class="opt"><input type="radio" name="r1"/><span class="rad"></span>Tourist (B211A)</label>
+    <label class="opt"><input type="radio" name="r1" checked/><span class="rad"></span>Business</label>
+    <label class="opt"><input type="radio" name="r1"/><span class="rad"></span>Work permit</label>
+    <label class="opt disabled"><input type="radio" name="r1" disabled/><span class="rad"></span>Student</label>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Radio · stacked cards (preferred for high-stakes choices)</h4>
+  <div class="cards">
+    <label class="rcard"><input type="radio" name="r2" style="display:none"/><span class="rad"></span>
+      <span class="meta"><span class="ttl">Standard processing</span><span class="sub">10 business days · government fee + VIZA service</span></span>
+      <span class="price">S$ 180</span>
+    </label>
+    <label class="rcard active"><input type="radio" name="r2" checked style="display:none"/><span class="rad"></span>
+      <span class="meta"><span class="ttl">Priority processing</span><span class="sub">5 business days · includes consultant review call</span></span>
+      <span class="price">S$ 320</span>
+    </label>
+    <label class="rcard"><input type="radio" name="r2" style="display:none"/><span class="rad"></span>
+      <span class="meta"><span class="ttl">Express processing</span><span class="sub">72 hours · subject to embassy availability</span></span>
+      <span class="price">S$ 540</span>
+    </label>
+  </div>
+</div>
+
+</div></body></html>
