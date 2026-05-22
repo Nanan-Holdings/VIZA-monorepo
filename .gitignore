@@ -103,3 +103,12 @@ __pycache__/
 
 # Generated output files
 knowledge-base/visa-news.json
+
+# Submission service recon/diagnostic artifacts (HTML/PNG dumps)
+viza-be/submission-service/diag-out/
+viza-be/submission-service/e2e-out/
+viza-be/submission-service/recon-out/
+viza-be/submission-service/vn-recon-out/
+viza-be/submission-service/vn-recon-out-minimal/
+viza-be/submission-service/vn-recon-out-v2/
+viza-be/submission-service/vn-recon-out-v3/

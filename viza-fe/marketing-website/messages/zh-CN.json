@@ -1,4 +1,7 @@
 {
+  "cta": {
+    "payWithWechat": "微信支付"
+  },
   "nav": {
     "home": "首页",
     "apply": "立即申请",

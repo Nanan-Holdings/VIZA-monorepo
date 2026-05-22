@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
+import { WechatPayButton } from "@/components/WechatPayButton";
 import "./visa-indonesia.css";
 
 export default function VisaIndonesiaPage() {
@@ -151,6 +152,9 @@ export default function VisaIndonesiaPage() {
               Start application
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
+            <div className="mt-2">
+              <WechatPayButton country="indonesia" visaType="B211A" />
+            </div>
             <div className="price-foot">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
               Money-back guarantee if your visa is delayed past the promised date.
@@ -544,6 +548,9 @@ export default function VisaIndonesiaPage() {
               Start application
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
+            <div className="mt-2">
+              <WechatPayButton country="indonesia" visaType="B211A" />
+            </div>
             <div className="price-foot">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
               Pay only the government fee now. VIZA{'’'}s processing fee is charged only on approval.

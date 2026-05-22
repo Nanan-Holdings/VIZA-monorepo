@@ -1,10 +1,175 @@
 "use client";
 import "./apply.css";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 
+type PassportExtraction = {
+  surname: string;
+  givenNames: string;
+  dob: string;
+  sex: "Male" | "Female" | "";
+  nationality: string;
+  cityOfBirth?: string;
+  countryOfBirth?: string;
+  passportNumber: string;
+  passportType?: string;
+  issuingCountry: string;
+  issuanceCity?: string;
+  issuanceProvince?: string;
+  issueDate: string;
+  expiryDate: string;
+  confidence: "high" | "medium" | "low";
+  warnings?: string[];
+};
+
+type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
+
+// ISO 3166-1 alpha-3 → { alpha-2, English name }. Covers the destinations and
+// passport-issuing countries most relevant to the apply flow; falls back to the
+// raw alpha-3 code if a country isn't listed.
+const COUNTRY_MAP: Record<string, { a2: string; name: string }> = {
+  SGP: { a2: "sg", name: "Singapore" },
+  MYS: { a2: "my", name: "Malaysia" },
+  IDN: { a2: "id", name: "Indonesia" },
+  THA: { a2: "th", name: "Thailand" },
+  VNM: { a2: "vn", name: "Vietnam" },
+  PHL: { a2: "ph", name: "Philippines" },
+  CHN: { a2: "cn", name: "China" },
+  HKG: { a2: "hk", name: "Hong Kong" },
+  TWN: { a2: "tw", name: "Taiwan" },
+  JPN: { a2: "jp", name: "Japan" },
+  KOR: { a2: "kr", name: "South Korea" },
+  IND: { a2: "in", name: "India" },
+  USA: { a2: "us", name: "United States" },
+  GBR: { a2: "gb", name: "United Kingdom" },
+  AUS: { a2: "au", name: "Australia" },
+  NZL: { a2: "nz", name: "New Zealand" },
+  CAN: { a2: "ca", name: "Canada" },
+  FRA: { a2: "fr", name: "France" },
+  DEU: { a2: "de", name: "Germany" },
+  NLD: { a2: "nl", name: "Netherlands" },
+  CHE: { a2: "ch", name: "Switzerland" },
+  ITA: { a2: "it", name: "Italy" },
+  ESP: { a2: "es", name: "Spain" },
+  ARE: { a2: "ae", name: "United Arab Emirates" },
+};
+
+function formatDateDisplay(iso: string): string {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthIdx = Number(m) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return iso;
+  return `${Number(d)} ${months[monthIdx]} ${y}`;
+}
+
+function CountryDisplay({ alpha3 }: { alpha3: string }) {
+  const entry = COUNTRY_MAP[alpha3?.toUpperCase()];
+  if (!entry) return <>{alpha3 || "—"}</>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <CircleFlag countryCode={entry.a2} height={16} />
+      {entry.name}
+    </span>
+  );
+}
+
 export default function ApplyPage() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const goStepRef = useRef<(n: number) => void>(() => {});
+
+  const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
+  const [extracted, setExtracted] = useState<PassportExtraction | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  const runExtraction = useCallback(async (file: File) => {
+    if (!file) return;
+    setExtracted(null);
+    setExtractError(null);
+    setExtractStage("reading");
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      // "Reading" is the small UX delay before the upload completes — keep it
+      // honest by tying it to the in-flight POST rather than a fixed timer.
+      setExtractStage("extracting");
+      const res = await fetch("/api/passport-scan/extract", {
+        method: "POST",
+        body: form,
+      });
+
+      const body = (await res.json().catch(() => null)) as
+        | { error?: boolean; extracted?: PassportExtraction; message?: string }
+        | null;
+
+      if (!res.ok || !body || body.error) {
+        const detail = body?.message || `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
+
+      const data = body.extracted;
+      if (!data) throw new Error("Empty response");
+
+      setExtractStage("verifying");
+      // Brief verifying stage so users see the third checkmark animate in
+      // before the page jumps to step 2.
+      await new Promise((r) => setTimeout(r, 600));
+
+      setExtracted(data);
+      setExtractStage("done");
+
+      try {
+        sessionStorage.setItem("viza.passport.extracted", JSON.stringify(data));
+      } catch {
+        // sessionStorage may be blocked (private mode, etc.) — non-fatal.
+      }
+
+      setTimeout(() => goStepRef.current(2), 400);
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : String(err));
+      setExtractStage("idle");
+    }
+  }, []);
+
+  const onFilePicked = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) runExtraction(file);
+      // Allow re-selecting the same file after a reset.
+      e.target.value = "";
+    },
+    [runExtraction],
+  );
+
+  const onDzClick = useCallback(() => {
+    if (extractStage === "idle") fileInputRef.current?.click();
+  }, [extractStage]);
+
+  const onDzDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.currentTarget.classList.remove("drag");
+      if (extractStage !== "idle") return;
+      const file = e.dataTransfer.files?.[0];
+      if (file) runExtraction(file);
+    },
+    [extractStage, runExtraction],
+  );
+
+  const onDzDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add("drag");
+  }, []);
+
+  const onDzDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove("drag");
+  }, []);
+
   useEffect(() => {
     // -------------- STATE --------------
     let currentStep = 1;
@@ -18,12 +183,10 @@ export default function ApplyPage() {
     // -------------- NAVIGATION --------------
     function goStep(n: number) {
       currentStep = n;
-      // panes
       document.querySelectorAll('.step-pane').forEach(p => {
         const el = p as HTMLElement;
         el.classList.toggle('active', Number(el.dataset.pane) === n);
       });
-      // top progress
       document.querySelectorAll('.pstep').forEach(r => {
         const el = r as HTMLElement;
         const i = Number(el.dataset.step);
@@ -34,10 +197,8 @@ export default function ApplyPage() {
         if (i < n) num.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
         else num.textContent = String(i);
       });
-      // connectors
       const conns = document.querySelectorAll('#progressBar .pconn');
       conns.forEach((c, idx) => c.classList.toggle('done', idx < n - 1));
-      // actions
       const actStepNum = document.getElementById('actStepNum');
       const actStepName = document.getElementById('actStepName');
       const btnNextLabel = document.getElementById('btnNextLabel');
@@ -46,23 +207,26 @@ export default function ApplyPage() {
       if (actStepName) actStepName.textContent = steps[n].name;
       if (btnNextLabel) btnNextLabel.textContent = steps[n].next;
       if (btnBack) (btnBack as HTMLElement).style.visibility = n === 1 ? 'hidden' : 'visible';
-      canProceed = (n === 2 || n === 3); // step 2/3 always proceed (data prefilled / selections valid)
+      canProceed = (n === 2 || n === 3);
       syncNext();
 
-      // Show summary rail only on step 3
       const frame = document.getElementById('frame');
       if (frame) frame.classList.toggle('with-summary', n === 3);
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    goStepRef.current = goStep;
+
     function syncNext() {
       const btn = document.getElementById('btnNext') as HTMLButtonElement | null;
       if (btn) btn.disabled = !canProceed;
     }
     const btnBackEl = document.getElementById('btnBack');
-    if (btnBackEl) btnBackEl.addEventListener('click', () => { if (currentStep > 1) goStep(currentStep - 1); });
+    const onBack = () => { if (currentStep > 1) goStep(currentStep - 1); };
+    if (btnBackEl) btnBackEl.addEventListener('click', onBack);
+
     const btnNextEl = document.getElementById('btnNext');
-    if (btnNextEl) btnNextEl.addEventListener('click', () => {
+    const onNext = () => {
       if (!canProceed) return;
       if (currentStep === 3) {
         const lbl = document.getElementById('btnNextLabel');
@@ -73,51 +237,20 @@ export default function ApplyPage() {
         return;
       }
       goStep(currentStep + 1);
-    });
+    };
+    if (btnNextEl) btnNextEl.addEventListener('click', onNext);
 
-    // -------------- STEP 1: upload + inline AI extraction --------------
+    // Upload mode segmented switch — visual only.
     const segBtns = document.querySelectorAll('#uploadSeg button');
-    segBtns.forEach(b => b.addEventListener('click', () => {
-      segBtns.forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-    }));
-
-    const dz = document.getElementById('dz');
-    if (dz) {
-      ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, (e: Event) => { e.preventDefault(); dz.classList.add('drag'); }));
-      ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, (e: Event) => { e.preventDefault(); dz.classList.remove('drag'); }));
-      dz.addEventListener('click', startExtraction);
-      dz.addEventListener('drop', startExtraction);
-    }
-
-    let extractionStarted = false;
-    function startExtraction() {
-      if (extractionStarted) return; extractionStarted = true;
-      const uploadView = document.getElementById('uploadView');
-      const extractView = document.getElementById('extractView');
-      const uploadSeg = document.querySelector('#uploadSeg') as HTMLElement | null;
-      const btnNextLabel = document.getElementById('btnNextLabel');
-      if (uploadView) uploadView.style.display = 'none';
-      if (extractView) extractView.style.display = 'block';
-      if (uploadSeg) uploadSeg.style.display = 'none';
-      if (btnNextLabel) btnNextLabel.textContent = 'Reading…';
-      const rows = document.querySelectorAll('#extractList .extract-row');
-      let i = 0;
-      function tick() {
-        if (i > 0) { rows[i-1].classList.remove('active'); rows[i-1].classList.add('done'); }
-        if (i < rows.length) {
-          rows[i].classList.add('active');
-          i++;
-          setTimeout(tick, 1200);
-        } else {
-          canProceed = true; syncNext();
-          const lbl = document.getElementById('btnNextLabel');
-          if (lbl) lbl.textContent = 'Continue';
-          setTimeout(() => goStep(2), 500);
-        }
-      }
-      setTimeout(tick, 400);
-    }
+    const segHandlers: Array<() => void> = [];
+    segBtns.forEach(b => {
+      const handler = () => {
+        segBtns.forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+      };
+      segHandlers.push(handler);
+      b.addEventListener('click', handler);
+    });
 
     // -------------- STEP 3: dates + upgrades --------------
     function buildDates() {
@@ -195,22 +328,45 @@ export default function ApplyPage() {
     }
     bindUpgrades();
 
-    // Help bubble click handler
     const helpBubble = document.getElementById('helpBubble');
-    if (helpBubble) helpBubble.addEventListener('click', () => {
-      alert('Opening chat with Priya M., your VIZA consultant…');
-    });
+    const onHelp = () => alert('Opening chat with Priya M., your VIZA consultant…');
+    if (helpBubble) helpBubble.addEventListener('click', onHelp);
 
-    // -------------- INITIAL --------------
     goStep(1);
+
+    return () => {
+      if (btnBackEl) btnBackEl.removeEventListener('click', onBack);
+      if (btnNextEl) btnNextEl.removeEventListener('click', onNext);
+      if (helpBubble) helpBubble.removeEventListener('click', onHelp);
+      segBtns.forEach((b, i) => b.removeEventListener('click', segHandlers[i]));
+    };
   }, []);
+
+  // -------------- DERIVED EXTRACTION VIEW STATE --------------
+  const isUploading = extractStage !== "idle";
+  const rowDoneReading = extractStage === "extracting" || extractStage === "verifying" || extractStage === "done";
+  const rowDoneExtracting = extractStage === "verifying" || extractStage === "done";
+  const rowDoneVerifying = extractStage === "done";
+
+  const stageBtnLabel =
+    extractStage === "reading" ? "Reading…" :
+    extractStage === "extracting" ? "Extracting…" :
+    extractStage === "verifying" ? "Verifying…" :
+    extractStage === "done" ? "Continue" : "Continue";
+
+  useEffect(() => {
+    const lbl = document.getElementById("btnNextLabel");
+    if (lbl && isUploading) lbl.textContent = stageBtnLabel;
+  }, [isUploading, stageBtnLabel]);
+
+  const showWarning =
+    extracted !== null &&
+    (extracted.confidence !== "high" || (extracted.warnings ?? []).length > 0);
 
   return (
     <>
-      {/* Top nav */}
       <SiteNav />
 
-      {/* Top progress */}
       <div className="progress-bar">
         <div className="progress-inner" id="progressBar">
           <div className="pstep current" data-step="1">
@@ -230,12 +386,11 @@ export default function ApplyPage() {
         </div>
       </div>
 
-      {/* Frame */}
       <div className="frame" id="frame">
 
         <main className="main">
 
-          {/* ============= STEP 1: UPLOAD (with inline AI extraction) ============= */}
+          {/* ============= STEP 1: UPLOAD ============= */}
           <section className="step step-pane active" data-pane="1">
             <header className="step-head">
               <div className="step-eyebrow">Step 1 of 3</div>
@@ -243,81 +398,132 @@ export default function ApplyPage() {
               <p>We{'’'}ll read your details automatically — no typing required. Use the bio page (the one with your photo).</p>
             </header>
 
-            <div className="seg" id="uploadSeg">
-              <button className="active" data-mode="upload">
+            <div className="seg" id="uploadSeg" style={{ display: isUploading ? "none" : undefined }}>
+              <button className="active" data-mode="upload" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Upload file
               </button>
-              <button data-mode="capture">
+              <button data-mode="capture" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 Take a photo
               </button>
             </div>
 
-            {/* Pre-upload */}
-            <div id="uploadView">
-              <div className="dropzone" id="dz">
-                <div className="dz-icon">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M9 19l3-3 3 3"/></svg>
-                </div>
-                <div className="dz-title">Drop your passport photo here</div>
-                <div className="dz-sub">Or click to browse — your file is encrypted and never shared</div>
-                <button className="dz-browse">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Choose file
-                </button>
-                <div className="dz-formats">
-                  <span className="pill">JPG</span>
-                  <span className="pill">PNG</span>
-                  <span className="pill">PDF</span>
-                  <span>Up to 10 MB</span>
-                </div>
-              </div>
+            {/* Hidden file input — clicked via dropzone */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              onChange={onFilePicked}
+            />
 
-              <div className="tips">
-                <div className="tip">
-                  <div className="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div><div className="tt">All four corners visible</div><div className="ts">Frame the entire bio page including the bottom MRZ.</div></div>
+            {/* Pre-upload view */}
+            {!isUploading && (
+              <div id="uploadView">
+                <div
+                  className="dropzone"
+                  id="dz"
+                  onClick={onDzClick}
+                  onDrop={onDzDrop}
+                  onDragOver={onDzDragOver}
+                  onDragEnter={onDzDragOver}
+                  onDragLeave={onDzDragLeave}
+                >
+                  <div className="dz-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M9 19l3-3 3 3"/></svg>
+                  </div>
+                  <div className="dz-title">Drop your passport photo here</div>
+                  <div className="dz-sub">Or click to browse — your file is encrypted and never shared</div>
+                  <button
+                    className="dz-browse"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Choose file
+                  </button>
+                  <div className="dz-formats">
+                    <span className="pill">JPG</span>
+                    <span className="pill">PNG</span>
+                    <span className="pill">WebP</span>
+                    <span>Up to 10 MB</span>
+                  </div>
                 </div>
-                <div className="tip">
-                  <div className="ico warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
-                  <div><div className="tt">Bright, even lighting</div><div className="ts">Avoid shadows from your hand or phone case.</div></div>
-                </div>
-                <div className="tip">
-                  <div className="ico bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div>
-                  <div><div className="tt">No glare or reflections</div><div className="ts">Tilt slightly if your seal is reflecting.</div></div>
-                </div>
-              </div>
-            </div>
 
-            {/* Inline post-upload extraction (shows in place) */}
-            <div id="extractView" style={{ display: 'none' }}>
-              <div className="extract-inline">
-                <div className="scan-doc">
-                  <div className="pp">
-                    <i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i>
+                {extractError && (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 16,
+                      padding: "12px 14px",
+                      borderRadius: 10,
+                      background: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      color: "#991b1b",
+                      font: "500 13px/1.45 var(--font-sans)",
+                    }}
+                  >
+                    Couldn{'’'}t read that passport — {extractError}. Please try a clearer photo of the bio page.
                   </div>
-                  <div className="scanline"></div>
-                </div>
-                <div className="extract-list" id="extractList">
-                  <div className="extract-row" data-i="0">
-                    <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                    <span className="lab">Reading document</span>
+                )}
+
+                <div className="tips">
+                  <div className="tip">
+                    <div className="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                    <div><div className="tt">All four corners visible</div><div className="ts">Frame the entire bio page including the bottom MRZ.</div></div>
                   </div>
-                  <div className="extract-row" data-i="1">
-                    <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                    <span className="lab">Extracting your details</span>
+                  <div className="tip">
+                    <div className="ico warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
+                    <div><div className="tt">Bright, even lighting</div><div className="ts">Avoid shadows from your hand or phone case.</div></div>
                   </div>
-                  <div className="extract-row" data-i="2">
-                    <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                    <span className="lab">Verifying authenticity</span>
+                  <div className="tip">
+                    <div className="ico bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div>
+                    <div><div className="tt">No glare or reflections</div><div className="ts">Tilt slightly if your seal is reflecting.</div></div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Inline post-upload extraction */}
+            {isUploading && (
+              <div id="extractView">
+                <div className="extract-inline">
+                  <div className="scan-doc">
+                    <div className="pp">
+                      <i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i><i className="pp-row"></i>
+                    </div>
+                    <div className="scanline"></div>
+                  </div>
+                  <div className="extract-list" id="extractList">
+                    <div
+                      className={`extract-row ${rowDoneReading ? "done" : extractStage === "reading" ? "active" : ""}`}
+                      data-i="0"
+                    >
+                      <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                      <span className="lab">Reading document</span>
+                    </div>
+                    <div
+                      className={`extract-row ${rowDoneExtracting ? "done" : extractStage === "extracting" ? "active" : ""}`}
+                      data-i="1"
+                    >
+                      <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                      <span className="lab">Extracting your details</span>
+                    </div>
+                    <div
+                      className={`extract-row ${rowDoneVerifying ? "done" : extractStage === "verifying" ? "active" : ""}`}
+                      data-i="2"
+                    >
+                      <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                      <span className="lab">Verifying authenticity</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
-          {/* ============= STEP 2: CONFIRM (review + contact) ============= */}
+          {/* ============= STEP 2: CONFIRM ============= */}
           <section className="step step-pane" data-pane="2">
             <header className="step-head">
               <div className="step-eyebrow">Step 2 of 3</div>
@@ -325,10 +531,27 @@ export default function ApplyPage() {
               <p>We pulled these directly from your passport. Tap any field to edit.</p>
             </header>
 
-            <div className="step-success-strip show">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Passport extracted successfully — 100% confidence
-            </div>
+            {extracted && !showWarning && (
+              <div className="step-success-strip show">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Passport extracted successfully — high confidence
+              </div>
+            )}
+            {extracted && showWarning && (
+              <div
+                className="step-success-strip show"
+                style={{
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  border: "1px solid #fde68a",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                {extracted.confidence === "low"
+                  ? "Some fields were hard to read — please double-check each value below."
+                  : "We extracted most of your details — please verify the highlighted fields."}
+              </div>
+            )}
 
             <div className="review-card">
               <div className="review-head">
@@ -339,12 +562,38 @@ export default function ApplyPage() {
                 <span className="verified"><span className="dot"></span> Auto-extracted</span>
               </div>
               <div className="review-grid">
-                <div className="review-field"><div className="k">Surname</div><div className="v">TAN</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
-                <div className="review-field"><div className="k">Given names</div><div className="v">JIA WEI</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
-                <div className="review-field"><div className="k">Passport number</div><div className="v">K3402872J</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
-                <div className="review-field"><div className="k">Date of birth</div><div className="v">14 Aug 1991</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
-                <div className="review-field"><div className="k">Nationality</div><div className="v">🇸🇬 Singapore</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
-                <div className="review-field"><div className="k">Expires</div><div className="v">14 Aug 2031</div><button className="edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button></div>
+                <div className="review-field">
+                  <div className="k">Surname</div>
+                  <div className="v">{extracted?.surname || "—"}</div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
+                <div className="review-field">
+                  <div className="k">Given names</div>
+                  <div className="v">{extracted?.givenNames || "—"}</div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
+                <div className="review-field">
+                  <div className="k">Passport number</div>
+                  <div className="v">{extracted?.passportNumber || "—"}</div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
+                <div className="review-field">
+                  <div className="k">Date of birth</div>
+                  <div className="v">{formatDateDisplay(extracted?.dob ?? "")}</div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
+                <div className="review-field">
+                  <div className="k">Nationality</div>
+                  <div className="v">
+                    {extracted ? <CountryDisplay alpha3={extracted.nationality} /> : "—"}
+                  </div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
+                <div className="review-field">
+                  <div className="k">Expires</div>
+                  <div className="v">{formatDateDisplay(extracted?.expiryDate ?? "")}</div>
+                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+                </div>
               </div>
             </div>
 
@@ -354,7 +603,7 @@ export default function ApplyPage() {
             <div className="field-row">
               <div className="field">
                 <label>Email <span className="req">*</span></label>
-                <input type="email" placeholder="you@example.com" defaultValue="jia.wei.tan@gmail.com"/>
+                <input type="email" placeholder="you@example.com" />
               </div>
               <div className="field">
                 <label>Phone <span className="req">*</span></label>
@@ -364,7 +613,7 @@ export default function ApplyPage() {
                     <option>🇲🇾 +60</option>
                     <option>🇮🇩 +62</option>
                   </select>
-                  <input type="tel" placeholder="9123 4567" defaultValue="9847 2210"/>
+                  <input type="tel" placeholder="9123 4567" />
                 </div>
               </div>
             </div>
@@ -434,7 +683,6 @@ export default function ApplyPage() {
 
         </main>
 
-        {/* Right summary rail (only step 3) */}
         <aside className="summary">
           <div className="sum-title">Your application</div>
           <div className="sum-country">
@@ -469,7 +717,6 @@ export default function ApplyPage() {
 
       </div>
 
-      {/* Floating help bubble */}
       <div className="help-bubble" id="helpBubble">
         <img src="https://i.pravatar.cc/64?img=47" alt=""/>
         <div>
@@ -479,18 +726,22 @@ export default function ApplyPage() {
         <span className="pulse"></span>
       </div>
 
-      {/* Sticky bottom action bar */}
       <div className="actions">
         <div className="actions-inner">
           <div className="actions-meta">
             <span><strong id="actStepNum">Step 1</strong> of 3 · <span id="actStepName">Upload passport</span></span>
           </div>
           <div className="actions-buttons">
-            <button className="btn-back" id="btnBack" style={{ visibility: 'hidden' }}>
+            <button className="btn-back" id="btnBack" type="button" style={{ visibility: 'hidden' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Back
             </button>
-            <button className="btn-next" id="btnNext" disabled>
+            <button
+              className="btn-next"
+              id="btnNext"
+              type="button"
+              disabled
+            >
               <span id="btnNextLabel">Continue</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
@@ -498,7 +749,6 @@ export default function ApplyPage() {
         </div>
       </div>
 
-      {/* =====================  Site footer  ===================== */}
       <footer className="site-foot" data-screen-label="Footer">
         <div className="foot-rule"></div>
 
@@ -509,16 +759,16 @@ export default function ApplyPage() {
 
             <div className="ask-ai">Ask AI about VIZA</div>
             <div className="ai-chips">
-              <button className="ai-chip c1" title="Ask in your AI assistant">
+              <button className="ai-chip c1" type="button" title="Ask in your AI assistant">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
               </button>
-              <button className="ai-chip c2" title="Ask in your AI assistant">
+              <button className="ai-chip c2" type="button" title="Ask in your AI assistant">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
               </button>
-              <button className="ai-chip c3" title="Ask in your AI assistant">
+              <button className="ai-chip c3" type="button" title="Ask in your AI assistant">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.8 8.4 20 10.5 13.8 12.6 12 19 10.2 12.6 4 10.5 10.2 8.4 12 2Z"/></svg>
               </button>
-              <button className="ai-chip c4" title="Ask in your AI assistant">
+              <button className="ai-chip c4" type="button" title="Ask in your AI assistant">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
               </button>
             </div>
