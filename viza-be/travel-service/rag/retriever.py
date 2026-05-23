@@ -104,6 +104,34 @@ TRAVEL_KNOWLEDGE: list[TravelKnowledgeChunk] = [
         },
     ),
     TravelKnowledgeChunk(
+        id="dest_us_san_francisco",
+        title="旧金山海湾城市假期",
+        country="United States",
+        city="San Francisco",
+        image_key="sf",
+        suggested_days="4-6 days",
+        summary="适合想看海湾城市、金门大桥、街区咖啡和轻户外的人：旧金山可以结合索萨利托、纳帕或硅谷。",
+        highlights=["金门大桥", "渔人码头", "九曲花街", "海湾日落"],
+        keywords=[
+            "旧金山",
+            "san francisco",
+            "sf",
+            "湾区",
+            "bay area",
+            "加州",
+            "california",
+            "金门大桥",
+            "golden gate",
+            "美国",
+            "united states",
+        ],
+        payload={
+            "seed_country": "United States",
+            "seed_city": "San Francisco",
+            "countries": ["United States"],
+        },
+    ),
+    TravelKnowledgeChunk(
         id="dest_australia_sydney",
         title="澳洲悉尼慢节奏",
         country="Australia",
@@ -167,14 +195,18 @@ def _score_chunk(query: str, chunk: TravelKnowledgeChunk) -> int:
     return score
 
 
-def retrieve_travel_knowledge(query: str, limit: int = 3) -> list[TravelKnowledgeMatch]:
+def retrieve_travel_knowledge(
+    query: str,
+    limit: int = 3,
+    include_defaults: bool = True,
+) -> list[TravelKnowledgeMatch]:
     ranked = [
         TravelKnowledgeMatch(chunk=chunk, score=_score_chunk(query, chunk))
         for chunk in TRAVEL_KNOWLEDGE
     ]
     matches = [match for match in ranked if match.score > 0]
 
-    if not matches:
+    if not matches and include_defaults:
         default_lookup = {chunk.id: chunk for chunk in TRAVEL_KNOWLEDGE}
         matches = [
             TravelKnowledgeMatch(chunk=default_lookup[chunk_id], score=1)

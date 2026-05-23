@@ -30,6 +30,7 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
+import { getVisaPackageTitleZh } from "@/lib/visa-destinations";
 import type {
   SubmissionResult,
   SubmissionResultStatus,
@@ -1402,6 +1403,10 @@ export default function ApplicationPage() {
     );
   }
 
+  const pageTitle = visaPackage
+    ? getVisaPackageTitleZh(visaPackage.country, visaPackage.visa_type)
+    : t("title");
+
   return (
     <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
       {/* Left sidebar - desktop only */}
@@ -1436,7 +1441,7 @@ export default function ApplicationPage() {
           {/* Page header */}
           <div className="mb-8 sm:mb-12">
             <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
-              {visaPackage?.name ?? t("title")}
+              {pageTitle}
             </h1>
           </div>
 

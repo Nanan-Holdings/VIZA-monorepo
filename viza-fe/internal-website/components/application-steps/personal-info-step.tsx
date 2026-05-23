@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarDays, CheckIcon, ChevronDown, Globe, MapPin, User } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
@@ -143,57 +143,11 @@ const CHINA_REGION_ZH: Record<string, string> = {
   XZ: "西藏",
 };
 
-const CITY_OPTIONS_BY_REGION: Record<string, OptionPair[]> = {
-  "CN-AH": [
-    { code: "Hefei", zh: "合肥", en: "Hefei" },
-    { code: "Wuhu", zh: "芜湖", en: "Wuhu" },
-    { code: "Bengbu", zh: "蚌埠", en: "Bengbu" },
-  ],
-  "CN-BJ": [{ code: "Beijing", zh: "北京", en: "Beijing" }],
-  "CN-CQ": [{ code: "Chongqing", zh: "重庆", en: "Chongqing" }],
-  "CN-FJ": [
-    { code: "Fuzhou", zh: "福州", en: "Fuzhou" },
-    { code: "Xiamen", zh: "厦门", en: "Xiamen" },
-    { code: "Quanzhou", zh: "泉州", en: "Quanzhou" },
-  ],
-  "CN-GD": [
-    { code: "Guangzhou", zh: "广州", en: "Guangzhou" },
-    { code: "Shenzhen", zh: "深圳", en: "Shenzhen" },
-    { code: "Zhuhai", zh: "珠海", en: "Zhuhai" },
-    { code: "Foshan", zh: "佛山", en: "Foshan" },
-    { code: "Dongguan", zh: "东莞", en: "Dongguan" },
-  ],
-  "CN-SC": [
-    { code: "Chengdu", zh: "成都", en: "Chengdu" },
-    { code: "Mianyang", zh: "绵阳", en: "Mianyang" },
-    { code: "Leshan", zh: "乐山", en: "Leshan" },
-  ],
-  "CN-SH": [{ code: "Shanghai", zh: "上海", en: "Shanghai" }],
-  "CN-ZJ": [
-    { code: "Hangzhou", zh: "杭州", en: "Hangzhou" },
-    { code: "Ningbo", zh: "宁波", en: "Ningbo" },
-    { code: "Wenzhou", zh: "温州", en: "Wenzhou" },
-  ],
-  "CN-JS": [
-    { code: "Nanjing", zh: "南京", en: "Nanjing" },
-    { code: "Suzhou", zh: "苏州", en: "Suzhou" },
-    { code: "Wuxi", zh: "无锡", en: "Wuxi" },
-  ],
-  "CN-SD": [
-    { code: "Jinan", zh: "济南", en: "Jinan" },
-    { code: "Qingdao", zh: "青岛", en: "Qingdao" },
-    { code: "Yantai", zh: "烟台", en: "Yantai" },
-  ],
-  "US-CA": [
-    { code: "Los Angeles", zh: "洛杉矶", en: "Los Angeles" },
-    { code: "San Francisco", zh: "旧金山", en: "San Francisco" },
-    { code: "San Diego", zh: "圣迭戈", en: "San Diego" },
-  ],
-  "US-NY": [
-    { code: "New York", zh: "纽约", en: "New York" },
-    { code: "Buffalo", zh: "布法罗", en: "Buffalo" },
-    { code: "Albany", zh: "奥尔巴尼", en: "Albany" },
-  ],
+const CUSTOM_CITY_CODE = "__CUSTOM_CITY__";
+const CUSTOM_CITY_OPTION: OptionPair = {
+  code: CUSTOM_CITY_CODE,
+  zh: "其他（自定义城市）",
+  en: "Other (custom city)",
 };
 
 const DIRECT_TRANSLATIONS: Record<string, string> = {
@@ -288,13 +242,17 @@ function getRegionOptions(countryCode: string): OptionPair[] {
   }));
 }
 
-function getCityOptions(countryCode: string, regionCode: string): OptionPair[] {
-  const knownCities = CITY_OPTIONS_BY_REGION[`${countryCode}-${regionCode}`];
-  if (knownCities) return knownCities;
+function withCustomCityOption(options: OptionPair[]): OptionPair[] {
+  return [...options, CUSTOM_CITY_OPTION];
+}
 
-  const region = findOption(getRegionOptions(countryCode), regionCode);
-  if (!region) return [];
-  return [{ code: region.en, zh: region.zh, en: region.en }];
+function toInitialCityTextValue(value?: string): BilingualTextValue {
+  const city = value?.trim() ?? "";
+  if (!city) return { zh: "", en: "" };
+  if (/[\u3400-\u9fff]/.test(city)) {
+    return { zh: city, en: translateZhText(city) };
+  }
+  return { zh: translateEnText(city), en: city };
 }
 
 function translateZhText(value: string) {
@@ -354,8 +312,11 @@ function getInitialRegionCode(countryCode: string, value?: string) {
   return findOption(getRegionOptions(countryCode), value)?.code ?? "";
 }
 
-function getInitialCityCode(countryCode: string, regionCode: string, value?: string) {
-  return findOption(getCityOptions(countryCode, regionCode), value)?.code ?? "";
+function resolveCityEnglishValue(cityCode: string, options: OptionPair[], customCity: BilingualTextValue) {
+  if (cityCode === CUSTOM_CITY_CODE) {
+    return (customCity.en || customCity.zh).trim();
+  }
+  return findOption(options, cityCode)?.en ?? "";
 }
 
 function BilingualRow({
@@ -452,7 +413,7 @@ function OptionControl({
           <SelectValue placeholder={placeholder} />
         </div>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="max-h-[320px]">
         {options.map((option) => (
           <SelectItem key={`${side}-${option.code}`} value={option.code}>
             {side === "zh" ? option.zh : option.en}
@@ -623,22 +584,91 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
       prefill?.stateOfBirth,
     ),
   );
-  const [birthCityCode, setBirthCityCode] = useState(() =>
-    getInitialCityCode(
-      findOption(COUNTRY_OPTIONS, prefill?.countryOfBirth)?.code ?? "",
-      getInitialRegionCode(
-        findOption(COUNTRY_OPTIONS, prefill?.countryOfBirth)?.code ?? "",
-        prefill?.stateOfBirth,
-      ),
-      prefill?.cityOfBirth,
-    ),
+  const [birthCityCode, setBirthCityCode] = useState("");
+  const [customBirthCity, setCustomBirthCity] = useState(() =>
+    toInitialCityTextValue(prefill?.cityOfBirth),
   );
+  const [fetchedCityOptions, setFetchedCityOptions] = useState<OptionPair[]>([]);
+  const [cityOptionsLoading, setCityOptionsLoading] = useState(false);
+  const [cityOptionsError, setCityOptionsError] = useState<string | null>(null);
 
   const regionOptions = useMemo(() => getRegionOptions(birthCountryCode), [birthCountryCode]);
-  const cityOptions = useMemo(
-    () => getCityOptions(birthCountryCode, birthRegionCode),
-    [birthCountryCode, birthRegionCode],
+  const cityOptions = useMemo(() => withCustomCityOption(fetchedCityOptions), [fetchedCityOptions]);
+  const cityValue = resolveCityEnglishValue(birthCityCode, cityOptions, customBirthCity);
+  const cityOptionsForCopilot = useMemo(
+    () => toCopilotOptions(cityOptions.slice(0, 80)),
+    [cityOptions],
   );
+
+  useEffect(() => {
+    if (!birthCountryCode) {
+      setFetchedCityOptions([]);
+      setCityOptionsError(null);
+      setCityOptionsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ countryCode: birthCountryCode });
+    if (birthRegionCode) params.set("regionCode", birthRegionCode);
+
+    setCityOptionsLoading(true);
+    setCityOptionsError(null);
+
+    async function loadCityOptions() {
+      try {
+        const response = await fetch(`/api/application/locations/cities?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as {
+          options?: OptionPair[];
+          error?: string;
+        };
+
+        if (cancelled) return;
+        if (!response.ok) {
+          setFetchedCityOptions([]);
+          setCityOptionsError(payload.error ?? "Unable to load cities.");
+          return;
+        }
+
+        setFetchedCityOptions(payload.options ?? []);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setFetchedCityOptions([]);
+        setCityOptionsError(error instanceof Error ? error.message : "Unable to load cities.");
+      } finally {
+        if (!cancelled) setCityOptionsLoading(false);
+      }
+    }
+
+    void loadCityOptions();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [birthCountryCode, birthRegionCode]);
+
+  useEffect(() => {
+    if (!prefill?.cityOfBirth || birthCityCode || cityOptionsLoading) return;
+
+    const matchedPrefill = findOption(fetchedCityOptions, prefill.cityOfBirth);
+    if (matchedPrefill) {
+      setBirthCityCode(matchedPrefill.code);
+      setCustomBirthCity({ zh: "", en: "" });
+      return;
+    }
+
+    if (fetchedCityOptions.length > 0 || cityOptionsError) {
+      setBirthCityCode(CUSTOM_CITY_CODE);
+      setCustomBirthCity(toInitialCityTextValue(prefill.cityOfBirth));
+    }
+  }, [birthCityCode, cityOptionsError, cityOptionsLoading, fetchedCityOptions, prefill?.cityOfBirth]);
+
   const copilotAnswers = {
     surname: textValues.surname.en,
     given_names: textValues.givenNames.en,
@@ -650,7 +680,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
     current_nationality: findOption(COUNTRY_OPTIONS, nationalityCode)?.en ?? "",
     country_of_birth: findOption(COUNTRY_OPTIONS, birthCountryCode)?.en ?? "",
     state_of_birth: findOption(regionOptions, birthRegionCode)?.en ?? "",
-    city_of_birth: findOption(cityOptions, birthCityCode)?.en ?? "",
+    city_of_birth: cityValue,
   };
 
   const updateText = (field: TextFieldKey, side: Side, value: string) => {
@@ -666,16 +696,32 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
   const handleBirthCountryChange = (countryCode: string) => {
     const nextRegions = getRegionOptions(countryCode);
     const nextRegion = nextRegions[0];
-    const nextCities = nextRegion ? getCityOptions(countryCode, nextRegion.code) : [];
     setBirthCountryCode(countryCode);
     setBirthRegionCode(nextRegion?.code ?? "");
-    setBirthCityCode(nextCities[0]?.code ?? "");
+    setBirthCityCode("");
+    setCustomBirthCity({ zh: "", en: "" });
   };
 
   const handleBirthRegionChange = (regionCode: string) => {
-    const nextCities = getCityOptions(birthCountryCode, regionCode);
     setBirthRegionCode(regionCode);
-    setBirthCityCode(nextCities[0]?.code ?? "");
+    setBirthCityCode("");
+    setCustomBirthCity({ zh: "", en: "" });
+  };
+
+  const updateCustomBirthCity = (side: Side, value: string) => {
+    setBirthCityCode(CUSTOM_CITY_CODE);
+    setCustomBirthCity(
+      side === "zh"
+        ? { zh: value, en: translateZhText(value) }
+        : { zh: translateEnText(value), en: value },
+    );
+  };
+
+  const handleBirthCityChange = (cityCode: string) => {
+    setBirthCityCode(cityCode);
+    if (cityCode !== CUSTOM_CITY_CODE) {
+      setCustomBirthCity({ zh: "", en: "" });
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -690,7 +736,7 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
       nationality: findOption(COUNTRY_OPTIONS, nationalityCode)?.en ?? "",
       countryOfBirth: findOption(COUNTRY_OPTIONS, birthCountryCode)?.en ?? "",
       stateOfBirth: findOption(regionOptions, birthRegionCode)?.en ?? "",
-      cityOfBirth: findOption(cityOptions, birthCityCode)?.en ?? "",
+      cityOfBirth: cityValue,
     });
   };
 
@@ -992,31 +1038,61 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
               fieldName: "city_of_birth",
               label: "City of birth",
               fieldType: "select",
-              value: findOption(cityOptions, birthCityCode)?.en ?? "",
+              value: cityValue,
               allAnswers: copilotAnswers,
               required: true,
-              options: toCopilotOptions(cityOptions),
+              options: cityOptionsForCopilot,
               placeholder: "Select city of birth",
             }}
             zhControl={
-              <OptionControl
-                side="zh"
-                value={birthCityCode}
-                options={cityOptions}
-                placeholder="选择出生城市..."
-                icon={<MapPin className="h-4 w-4" />}
-                onChange={setBirthCityCode}
-              />
+              <div className="flex flex-col gap-2">
+                <OptionControl
+                  side="zh"
+                  value={birthCityCode}
+                  options={cityOptions}
+                  placeholder={cityOptionsLoading ? "正在加载城市..." : "选择出生城市..."}
+                  icon={<MapPin className="h-4 w-4" />}
+                  onChange={handleBirthCityChange}
+                />
+                {birthCityCode === CUSTOM_CITY_CODE && (
+                  <TextControl
+                    side="zh"
+                    value={customBirthCity.zh}
+                    placeholder="如：衡阳"
+                    onChange={(value) => updateCustomBirthCity("zh", value)}
+                  />
+                )}
+                {cityOptionsError && (
+                  <p className="text-[12px] leading-5 text-[#9a6b12]">
+                    城市列表暂时加载失败，可选择其他并手动填写。
+                  </p>
+                )}
+              </div>
             }
             enControl={
-              <OptionControl
-                side="en"
-                value={birthCityCode}
-                options={cityOptions}
-                placeholder="Select city of birth..."
-                icon={<MapPin className="h-4 w-4" />}
-                onChange={setBirthCityCode}
-              />
+              <div className="flex flex-col gap-2">
+                <OptionControl
+                  side="en"
+                  value={birthCityCode}
+                  options={cityOptions}
+                  placeholder={cityOptionsLoading ? "Loading cities..." : "Select city of birth..."}
+                  icon={<MapPin className="h-4 w-4" />}
+                  onChange={handleBirthCityChange}
+                />
+                {birthCityCode === CUSTOM_CITY_CODE && (
+                  <TextControl
+                    side="en"
+                    value={customBirthCity.en}
+                    placeholder="e.g. Hengyang"
+                    onChange={(value) => updateCustomBirthCity("en", value)}
+                  />
+                )}
+                {cityOptionsError && (
+                  <p className="text-[12px] leading-5 text-[#9a6b12]">
+                    City list could not load. Choose Other and enter it manually.
+                  </p>
+                )}
+              </div>
             }
           />
       </div>

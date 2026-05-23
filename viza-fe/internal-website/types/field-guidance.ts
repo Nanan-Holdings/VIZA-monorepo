@@ -2,11 +2,17 @@ import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 export type FieldGuidanceSeverity = "ok" | "warning" | "error";
 export type FieldGuidanceConfidence = "high" | "medium" | "low";
+export type FieldGuidanceChatRole = "user" | "assistant";
 
 export interface FieldGuidanceSource {
   title: string;
   url: string | null;
   excerpt: string;
+}
+
+export interface FieldGuidanceChatMessage {
+  role: FieldGuidanceChatRole;
+  content: string;
 }
 
 export interface FieldGuidanceBody {
@@ -41,4 +47,5 @@ export interface FieldGuidanceRequest {
   answer: string;
   allAnswers: Record<string, string>;
   question?: string;
+  history?: FieldGuidanceChatMessage[];
 }
