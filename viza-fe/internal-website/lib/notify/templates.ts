@@ -13,7 +13,10 @@ export type TransitionEvent =
   | "runner_input_needed"
   | "submitted"
   | "decision_issued"
-  | "doc_ready";
+  | "doc_ready"
+  | "wechat_paid_welcome";
+
+export type TemplateLocale = "en" | "zh-CN";
 
 export interface TemplateContext {
   applicantName: string;
@@ -23,6 +26,8 @@ export interface TemplateContext {
   /** Transition-specific extras. */
   detail?: string;
   appUrl?: string;
+  /** Magic-link URL — required for wechat_paid_welcome. */
+  magicLink?: string;
 }
 
 const FOOTER = `\n\n— VIZA · haggstorm.com\nManage notifications: /client/account/notifications`;
@@ -37,8 +42,12 @@ export interface RenderedTemplate {
 export function renderTemplate(
   event: TransitionEvent,
   ctx: TemplateContext,
+  locale: TemplateLocale = "en",
 ): RenderedTemplate {
   const link = ctx.appUrl ?? "/client/home";
+  if (event === "wechat_paid_welcome") {
+    return renderWechatPaidWelcome(ctx, locale);
+  }
   const lead = `Hi ${ctx.applicantName},\n\n`;
   switch (event) {
     case "paid":
@@ -96,4 +105,37 @@ export function renderTemplate(
           FOOTER,
       };
   }
+}
+
+function renderWechatPaidWelcome(
+  ctx: TemplateContext,
+  locale: TemplateLocale,
+): RenderedTemplate {
+  if (!ctx.magicLink) {
+    throw new Error("wechat_paid_welcome template requires magicLink");
+  }
+  if (locale === "zh-CN") {
+    return {
+      essential: true,
+      subject: `付款成功 — ${ctx.countryLabel} 签证 (VIZA)`,
+      text:
+        `您好 ${ctx.applicantName}，\n\n` +
+        `我们已收到您 ${ctx.countryLabel} ${ctx.visaTypeLabel} 申请的微信支付款项。` +
+        `点击下方链接登录 VIZA 客户端，继续您的申请：\n\n` +
+        `${ctx.magicLink}\n\n` +
+        `（链接有效期内一次性使用。如果链接失效，可前往 /client/login 使用同一邮箱重新登录。）\n` +
+        `\n— VIZA · haggstorm.com`,
+    };
+  }
+  return {
+    essential: true,
+    subject: `Payment received — ${ctx.countryLabel} visa (VIZA)`,
+    text:
+      `Hi ${ctx.applicantName},\n\n` +
+      `We received your WeChat Pay payment for the ${ctx.countryLabel} ${ctx.visaTypeLabel} application. ` +
+      `Click the link below to sign in to your VIZA client portal and continue:\n\n` +
+      `${ctx.magicLink}\n\n` +
+      `(Single-use link. If it expires, sign in with the same email at /client/login.)\n` +
+      `\n— VIZA · haggstorm.com`,
+  };
 }

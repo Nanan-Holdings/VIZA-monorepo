@@ -45,6 +45,12 @@ const config: Config = {
         "warning-bg": "var(--warning-bg)",
         "warning-fg": "var(--warning-fg)",
         destructive: "var(--destructive)",
+        // Third-party brand color — required for WeChat Pay CTA per
+        // their brand guide. Not for general use.
+        wechat: {
+          DEFAULT: "#07C160",
+          hover: "#06AD56",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

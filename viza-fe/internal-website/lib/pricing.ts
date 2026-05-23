@@ -23,6 +23,13 @@ export interface PackagePricing {
   currency: string;
   /** Whether the government fee is collected by VIZA (Stripe) or paid on the portal directly. */
   govtFeeChannel: "viza_passthrough" | "portal_direct";
+  /**
+   * WeChat Pay total in 分 (1 CNY = 100 fen). When set, the package is
+   * eligible for the WeChat Pay Native checkout. Hard-coded per
+   * package — WeChat Pay (Mainland merchant) only settles in CNY, so
+   * no FX is done at capture time.
+   */
+  wechatPayTotalFen?: number;
 }
 
 const AGENCY_USD = 9900;
@@ -43,6 +50,8 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 15000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // ≈ USD 249 → CNY 1799 (ops to revise before launch).
+    wechatPayTotalFen: 179900,
   },
   {
     country: "united_states",
@@ -269,4 +278,33 @@ export function pricingFor(
 
 export function totalCents(pricing: PackagePricing): number {
   return pricing.agencyFeeCents + pricing.govtFeeCents;
+}
+
+export class WechatPayNotSupportedError extends Error {
+  constructor(country: string, visaType: string) {
+    super(
+      `WeChat Pay total not configured for ${country}/${visaType} (add wechatPayTotalFen to PACKAGE_PRICING).`,
+    );
+    this.name = "WechatPayNotSupportedError";
+  }
+}
+
+/**
+ * Lookup helper for the WeChat Pay Native checkout. Returns the
+ * package row + the resolved CNY total in 分. Throws if the package
+ * isn't yet enabled for WeChat Pay — gives the marketing CTA something
+ * loud to surface rather than a silent 500.
+ */
+export function wechatPricingFor(
+  country: string,
+  visaType: string,
+): { pricing: PackagePricing; totalFen: number } {
+  const pricing = pricingFor(country, visaType);
+  if (!pricing) {
+    throw new WechatPayNotSupportedError(country, visaType);
+  }
+  if (!pricing.wechatPayTotalFen) {
+    throw new WechatPayNotSupportedError(country, visaType);
+  }
+  return { pricing, totalFen: pricing.wechatPayTotalFen };
 }
