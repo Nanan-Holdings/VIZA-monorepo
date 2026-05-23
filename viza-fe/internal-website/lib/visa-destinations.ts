@@ -490,6 +490,7 @@ const COUNTRY_NAMES_ZH = new Map(
 const VISA_TYPE_LABELS: Record<string, string> = {
   tourist_b211a: "Tourist Visa B211A",
   B211A: "Tourist Visa B211A",
+  ID_C1_TOURIST: "C1/B211A Tourist Visa",
   B1_B2: "DS-160 Visitor Visa",
   DS160: "DS-160 Visitor Visa",
   UK_STANDARD_VISITOR: "UK Standard Visitor Visa",
@@ -518,6 +519,7 @@ const VISA_TYPE_LABELS: Record<string, string> = {
 const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   tourist_b211a: "B211A 旅游签证",
   B211A: "B211A 旅游签证",
+  ID_C1_TOURIST: "C1/B211A 旅游签证",
   B1_B2: "B1/B2 访客签证",
   DS160: "B1/B2 访客签证",
   UK_STANDARD_VISITOR: "英国标准访客签证",

@@ -18,6 +18,7 @@ const logger = new Logger({ serviceName: "FieldGuidance" });
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
+const MAX_HISTORY_MESSAGES = 8;
 
 type FieldType =
   | "text"
@@ -31,6 +32,7 @@ type FieldType =
 
 type Severity = "ok" | "warning" | "error";
 type Confidence = "high" | "medium" | "low";
+type ChatRole = "user" | "assistant";
 
 interface FieldOption {
   value: string;
@@ -57,6 +59,7 @@ interface FieldGuidanceRequest {
   answer?: string | null;
   allAnswers?: Record<string, string>;
   question?: string | null;
+  history?: ChatMessage[];
 }
 
 interface GuidanceBody {
@@ -82,8 +85,14 @@ interface SourceBody {
 interface CachedGuidance {
   guidance: GuidanceBody;
   sources: SourceBody[];
+  chunks: VisaKnowledgeChunk[];
   confidence: Confidence;
   aiUsed: boolean;
+}
+
+interface ChatMessage {
+  role: ChatRole;
+  content: string;
 }
 
 interface AiGuidanceJson {
@@ -133,6 +142,24 @@ function stripMarkdown(content: string): string {
     .trim();
 }
 
+function sanitizeHistory(history?: ChatMessage[] | null): ChatMessage[] {
+  if (!Array.isArray(history)) return [];
+  const sanitized: ChatMessage[] = [];
+
+  for (const item of history) {
+    if (!isRecord(item)) continue;
+    const role = item.role === "assistant" ? "assistant" : item.role === "user" ? "user" : null;
+    const content = asString(item.content);
+    if (!role || !content) continue;
+    sanitized.push({
+      role,
+      content: stripMarkdown(content).slice(0, 800),
+    });
+  }
+
+  return sanitized.slice(-MAX_HISTORY_MESSAGES);
+}
+
 function cleanAiStringArray(value: unknown, limit: number): string[] {
   return asStringArray(value)
     .map((item) => stripMarkdown(item))
@@ -162,11 +189,57 @@ function getLocale(locale?: string | null): "zh" | "en" {
 }
 
 function cacheKey(
+  country: string | null | undefined,
   visaType: string | null | undefined,
   fieldName: string,
   locale: string | null | undefined
 ): string {
-  return `${visaType ?? "unknown"}:${fieldName}:${getLocale(locale)}`;
+  return `${country ?? "unknown"}:${visaType ?? "unknown"}:${fieldName}:${getLocale(locale)}`;
+}
+
+function isDs160Scope(country?: string | null, visaType?: string | null): boolean {
+  const normalizedCountry = country?.trim().toLowerCase() ?? "";
+  const normalizedVisaType = visaType?.trim().toUpperCase() ?? "";
+  return (
+    normalizedCountry === "us" ||
+    normalizedCountry === "usa" ||
+    normalizedCountry === "united_states" ||
+    normalizedCountry === "united states" ||
+    normalizedVisaType === "DS160" ||
+    normalizedVisaType === "B1_B2" ||
+    normalizedVisaType === "B1/B2" ||
+    normalizedVisaType === "B1_B2_VISITOR"
+  );
+}
+
+function activeScopeLabel(reqBody: FieldGuidanceRequest): string {
+  return `country=${reqBody.country ?? "unknown"}, visaType=${reqBody.visaType ?? "unknown"}`;
+}
+
+function stripOutOfScopeFormReferences(
+  content: string,
+  reqBody: FieldGuidanceRequest
+): string {
+  if (isDs160Scope(reqBody.country, reqBody.visaType)) return content;
+  return content
+    .replace(/\bDS[-\s]?160\b\s*(?:表格|申请表|form|application)?\s*(?:中|里|中的|里的|要求的|要求)?/gi, "当前签证申请表")
+    .replace(/\bCEAC\b/gi, "当前官方申请系统")
+    .replace(/美国签证在线申请系统/g, "当前官方申请系统")
+    .replace(/美国签证/g, "当前签证");
+}
+
+function sanitizeGuidanceScope(
+  guidance: GuidanceBody,
+  reqBody: FieldGuidanceRequest
+): GuidanceBody {
+  return {
+    title: stripOutOfScopeFormReferences(guidance.title, reqBody),
+    summary: stripOutOfScopeFormReferences(guidance.summary, reqBody),
+    examples: guidance.examples.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
+    hints: guidance.hints.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
+    officialWarnings: guidance.officialWarnings.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
+    formatHints: guidance.formatHints.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
+  };
 }
 
 function makeTitle(field: FieldGuidanceField, locale: "zh" | "en"): string {
@@ -666,6 +739,7 @@ function validateAnswer(
 }
 
 async function generateAiGuidance(
+  reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
   locale: "zh" | "en",
   chunks: VisaKnowledgeChunk[]
@@ -684,11 +758,11 @@ async function generateAiGuidance(
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 700,
-      system: `You are a visa form field copilot. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      system: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
       messages: [
         {
           role: "user",
-          content: `Field metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${context || "No source context found."}`,
+          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${context || "No source context found."}`,
         },
       ],
     });
@@ -705,9 +779,11 @@ async function generateAiGuidance(
 
 async function generateQuestionReply(
   question: string,
+  reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
   guidance: GuidanceBody,
   validation: ValidationBody,
+  history: ChatMessage[],
   locale: "zh" | "en",
   chunks: VisaKnowledgeChunk[]
 ): Promise<{ reply: string; aiUsed: boolean }> {
@@ -715,9 +791,10 @@ async function generateQuestionReply(
     locale === "zh"
       ? `关于“${field.label}”：${guidance.summary} 可以参考示例：${guidance.examples.slice(0, 2).join("；")}。${validation.messages[0] ?? ""}`
       : `For "${field.label}": ${guidance.summary} Examples: ${guidance.examples.slice(0, 2).join("; ")}. ${validation.messages[0] ?? ""}`;
+  const scopedFallback = stripOutOfScopeFormReferences(fallback, reqBody);
 
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "your_anthropic_api_key_here") {
-    return { reply: fallback, aiUsed: false };
+    return { reply: scopedFallback, aiUsed: false };
   }
 
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -725,27 +802,35 @@ async function generateQuestionReply(
     .slice(0, 3)
     .map((chunk, index) => `Source ${index + 1}: ${chunk.content.slice(0, 900)}`)
     .join("\n\n");
+  const conversation = history.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
 
   try {
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 350,
-      system: `You answer user questions about one visa form field. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+      system: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
       messages: [
+        ...conversation,
         {
           role: "user",
-          content: `Question: ${question}\n\nField: ${JSON.stringify(field)}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant context:\n${context || "No source context found."}`,
+          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant context:\n${context || "No source context found."}`,
         },
       ],
     });
 
-    const reply = stripMarkdown(extractTextContent(message.content).trim());
-    return { reply: reply || fallback, aiUsed: Boolean(reply) };
+    const reply = stripOutOfScopeFormReferences(
+      stripMarkdown(extractTextContent(message.content).trim()),
+      reqBody
+    );
+    return { reply: reply || scopedFallback, aiUsed: Boolean(reply) };
   } catch (error) {
     logger.warn("AI field question reply failed", error as Error, {
       fieldName: field.fieldName,
     });
-    return { reply: fallback, aiUsed: false };
+    return { reply: scopedFallback, aiUsed: false };
   }
 }
 
@@ -754,10 +839,10 @@ async function getStaticGuidance(
   field: FieldGuidanceField,
   locale: "zh" | "en"
 ): Promise<CachedGuidance & { cached: boolean; chunks: VisaKnowledgeChunk[] }> {
-  const key = cacheKey(reqBody.visaType, field.fieldName, reqBody.locale);
+  const key = cacheKey(reqBody.country, reqBody.visaType, field.fieldName, reqBody.locale);
   const cached = GUIDANCE_CACHE.get(key);
   if (cached) {
-    return { ...cached, cached: true, chunks: [] };
+    return { ...cached, cached: true };
   }
 
   const query = [
@@ -784,16 +869,16 @@ async function getStaticGuidance(
       });
 
   const base = buildDeterministicGuidance(field, locale);
-  const ai = await generateAiGuidance(field, locale, knowledge.chunks);
+  const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks);
   const merged = ai ? mergeGuidance(base, ai, field, locale) : base;
-  const guidance = {
+  const guidance = sanitizeGuidanceScope({
     ...merged,
     examples: merged.examples.length > 0 ? merged.examples : base.examples,
     hints: merged.hints.length > 0 ? merged.hints : base.hints,
     officialWarnings:
       merged.officialWarnings.length > 0 ? merged.officialWarnings : base.officialWarnings,
     formatHints: merged.formatHints.length > 0 ? merged.formatHints : base.formatHints,
-  };
+  }, reqBody);
   const sources = mapSources(knowledge.chunks);
   const confidence = ai
     ? (asString(ai.confidence) === "high" || asString(ai.confidence) === "medium"
@@ -806,6 +891,7 @@ async function getStaticGuidance(
   const staticGuidance: CachedGuidance = {
     guidance,
     sources,
+    chunks: knowledge.chunks,
     confidence,
     aiUsed: Boolean(ai),
   };
@@ -832,13 +918,16 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       body.allAnswers ?? {},
       locale
     );
+    const history = sanitizeHistory(body.history);
     const trimmedQuestion = body.question?.trim();
     const replyResult = trimmedQuestion
       ? await generateQuestionReply(
           trimmedQuestion,
+          body,
           field,
           staticGuidance.guidance,
           validation,
+          history,
           locale,
           staticGuidance.chunks
         )

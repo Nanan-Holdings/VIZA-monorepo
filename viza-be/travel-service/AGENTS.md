@@ -25,6 +25,10 @@ options, and exports Word/PDF travel plans.
 
 - Keep HTTP route payloads compatible with frontend `lib/travel/planner.ts` and
   `/api/travel/*` proxies.
+- Travel chat natural-language user messages must be interpreted through the
+  OpenAI API before local RAG/default fallbacks are used. Local RAG should
+  provide context and deterministic fallback only; it must not override an
+  explicit destination from the user.
 - Fallback behavior should remain deterministic and user-safe when external
   APIs or OpenAI are unavailable.
 - Do not put frontend UI state here.

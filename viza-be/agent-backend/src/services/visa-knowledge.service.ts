@@ -111,6 +111,11 @@ function normalizeVisaTypeFilter(visaType?: string | null): string | null | unde
     DS160: "b1_b2",
     B1_B2: "b1_b2",
     B211A: "tourist_b211a",
+    ID_C1_TOURIST: "tourist_b211a",
+    AU_VISITOR_600: "visitor_subclass_600",
+    JP_TOURIST: "short_term_tourism_evisa",
+    KR_C39_SHORT_TERM_VISIT: "c3_or_keta",
+    EG_E_VISA: "evisa_tourism",
     UK_STANDARD_VISITOR: "standard_visitor",
     EU_SCHENGEN_C_SHORT_STAY: "schengen_short_stay_tourism",
   };

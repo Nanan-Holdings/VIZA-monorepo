@@ -18,11 +18,14 @@ import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import {
   type FieldGuidanceRequest,
   type FieldGuidanceResponse,
+  type FieldGuidanceChatMessage,
   type FieldGuidanceSeverity,
 } from "@/types/field-guidance";
 import { cn } from "@/lib/utils";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
+const MAX_HISTORY_MESSAGES = 8;
+
+type ChatMessage = FieldGuidanceChatMessage & { id: string };
 
 interface FieldGuidancePanelProps {
   country?: string | null;
@@ -43,6 +46,10 @@ function severityClasses(severity: FieldGuidanceSeverity): string {
 function SeverityIcon({ severity }: { severity: FieldGuidanceSeverity }) {
   if (severity === "ok") return <CheckCircle2 className="h-4 w-4 shrink-0" />;
   return <AlertCircle className="h-4 w-4 shrink-0" />;
+}
+
+function makeMessageId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function normalizePlainTextContent(content: string): string {
@@ -139,7 +146,7 @@ export function FieldGuidancePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [questionLoading, setQuestionLoading] = useState(false);
 
   const isZh = locale.toLowerCase().startsWith("zh");
@@ -176,7 +183,7 @@ export function FieldGuidancePanel({
   }, [data]);
 
   const fetchGuidance = useCallback(
-    async (nextQuestion?: string) => {
+    async (nextQuestion?: string, history?: FieldGuidanceChatMessage[]) => {
       if (nextQuestion) {
         setQuestionLoading(true);
         setData((current) => current ? { ...current, reply: undefined } : current);
@@ -193,17 +200,28 @@ export function FieldGuidancePanel({
         answer,
         allAnswers,
         question: nextQuestion,
+        history: history && history.length > 0 ? history : undefined,
       };
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/field-guidance`, {
+        const res = await fetch("/api/field-guidance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
+          cache: "no-store",
         });
         if (!res.ok) throw new Error(`Guidance service returned ${res.status}`);
         const nextData = (await res.json()) as FieldGuidanceResponse;
         setData(nextData);
+        if (nextQuestion) {
+          const reply = nextData.reply?.trim();
+          if (reply) {
+            setMessages((current) => [
+              ...current,
+              { id: makeMessageId("assistant"), role: "assistant", content: reply },
+            ]);
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load field guidance");
       } finally {
@@ -221,10 +239,16 @@ export function FieldGuidancePanel({
   const handleAsk = useCallback(() => {
     const trimmed = question.trim();
     if (!trimmed || questionLoading) return;
-    setLastQuestion(trimmed);
-    void fetchGuidance(trimmed);
+    const history = messages
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map(({ role, content }) => ({ role, content }));
+    setMessages((current) => [
+      ...current,
+      { id: makeMessageId("user"), role: "user", content: trimmed },
+    ]);
+    void fetchGuidance(trimmed, history);
     setQuestion("");
-  }, [fetchGuidance, question, questionLoading]);
+  }, [fetchGuidance, messages, question, questionLoading]);
 
   const handleQuestionKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -236,6 +260,8 @@ export function FieldGuidancePanel({
     },
     [handleAsk],
   );
+
+  const hasChatHistory = messages.length > 0 || questionLoading;
 
   return (
     <div
@@ -324,7 +350,7 @@ export function FieldGuidancePanel({
           </div>
 
           <div className="flex min-w-0 flex-col gap-4">
-            {(lastQuestion || data.reply || questionLoading) && (
+            {hasChatHistory && (
               <section className="rounded-xl border border-[#d8e2ef] bg-white p-3">
                 <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-[#03346E]">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">
@@ -333,32 +359,37 @@ export function FieldGuidancePanel({
                   VIZA AI
                 </div>
                 <div className="flex flex-col gap-3">
-                  {lastQuestion && (
-                    <div className="flex justify-end">
-                      <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
-                        {renderPlainText(lastQuestion)}
+                  {messages.map((message) =>
+                    message.role === "user" ? (
+                      <div className="flex justify-end" key={message.id}>
+                        <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
+                          {renderPlainText(message.content)}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex min-w-0 items-start gap-2" key={message.id}>
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
+                          <Bot className="h-3.5 w-3.5" />
+                        </span>
+                        <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
+                          {renderPlainText(message.content)}
+                        </div>
+                      </div>
+                    ),
                   )}
-                  <div className="flex min-w-0 items-start gap-2">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
-                      <Bot className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
-                      {questionLoading ? (
+                  {questionLoading && (
+                    <div className="flex min-w-0 items-start gap-2">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
+                        <Bot className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
                         <span className="inline-flex items-center gap-2 text-[#697386]">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           {isZh ? "正在回答..." : "Replying..."}
                         </span>
-                      ) : data.reply ? (
-                        renderPlainText(data.reply)
-                      ) : (
-                        <span className="text-[#697386]">
-                          {isZh ? "可以继续问我这个字段怎么填。" : "Ask me anything about this field."}
-                        </span>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </section>
             )}

@@ -9,6 +9,7 @@ import applicationAnswersRouter from './routes/application-answers.routes.js';
 import profilePrefillRouter from './routes/profile-prefill.routes.js';
 import translationRouter from './routes/translation.routes.js';
 import fieldGuidanceRouter from './routes/field-guidance.routes.js';
+import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import internalAutomationRouter from './routes/internal-automation/index.js';
 import submissionResultRouter from './routes/submission-result.routes.js';
 import passportScanRouter from './routes/passport-scan.routes.js';
