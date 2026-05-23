@@ -23,8 +23,13 @@ Public marketing site for VIZA. Next.js 16 App Router. Deploys to `viza.com`.
 3. Mark `available: true` and update the price/duration in `lib/visa-content/destinations.ts`.
 4. SEO + sitemap update automatically via `generateStaticParams`.
 
+## Shared CTA components
+
+- `components/WechatPayButton.tsx` — deep-links to the portal's WeChat Pay Native checkout (`portalUrl('/checkout/wechat?country=&visa=&locale=')`). Marketing-side has zero payment / SDK imports — the button is a plain `<a>`. The `wechat` / `wechat-hover` tailwind colors are third-party brand tokens used **only** by this CTA; do not reuse them elsewhere.
+
 ## Cross-references
 
 - Portal app: `../internal-website/CLAUDE.md`
 - Token source: `../internal-website/tailwind.config.ts`, `../internal-website/app/globals.css`
 - Marketing PRD: `../../docs/marketing-site-prd.md`
+- WeChat Pay checkout (server-side, in the portal): `../internal-website/app/checkout/wechat/`
