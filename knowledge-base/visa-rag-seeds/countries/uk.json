@@ -1,7 +1,7 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-05-24",
   "country": "uk",
-  "notes": "Country-level VIZA RAG seed for uk. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Country-level VIZA RAG seed for the United Kingdom Standard Visitor route. Sources reviewed: GOV.UK Standard Visitor overview and application pages, GOV.UK visitor supporting documents guidance, GOV.UK outside-UK processing times, GOV.UK Appendix V Visitor rules, GOV.UK visa application centre finder, and the UKVI online application service language-selection entry. This seed is aligned with the existing UK_STANDARD_VISITOR form schema in viza-be/agent-backend/scripts/seed-uk-standard-visitor-form-fields.ts.",
   "documents": [
     {
       "slug": "uk-standard-visitor-overview",
@@ -9,7 +9,7 @@
       "visaType": "standard_visitor",
       "documentType": "requirements",
       "title": "UK Standard Visitor Visa Overview",
-      "sourceUrl": "https://www.gov.uk/standard-visitor",
+      "sourceUrl": "https://www.gov.uk/standard-visitor/overview",
       "chunks": [
         {
           "id": "uk_standard_visitor_scope",
@@ -18,35 +18,40 @@
             "uk",
             "standard-visitor",
             "tourism",
+            "family-visit",
             "business",
-            "visit",
-            "study"
+            "study",
+            "transit",
+            "permitted-activities"
           ],
-          "content": "The UK Standard Visitor route can cover tourism, visiting family or friends, certain business activities such as meetings or interviews, short study or exams, transit, medical reasons, and other permitted activities. A visitor can usually stay in the UK for up to 6 months, with limited exceptions. Depending on nationality, the traveller may need a Standard Visitor visa, an ETA, or neither, so VIZA AI should tell users to use the GOV.UK visa checker before applying."
+          "content": "The UK Standard Visitor route covers short visits such as tourism, holidays, visiting family or friends, volunteering up to 30 days with a registered charity, passing through the UK in transit, certain business activities such as meetings or interviews, permitted paid engagements for eligible experts, short recreational courses, short study or exams, academic visits, and private medical treatment. A visitor can usually stay in the UK for up to 6 months. Some special purposes, such as academic or medical visits, can have route-specific evidence and longer maximum periods. If the user says they are travelling for tourism or a short visit, VIZA should treat the default UK route as UK_STANDARD_VISITOR unless facts indicate another visa category."
         },
         {
-          "id": "uk_standard_visitor_limits",
-          "title": "Standard Visitor limits",
+          "id": "uk_standard_visitor_not_allowed",
+          "title": "Standard Visitor limits and not-permitted activities",
           "tags": [
             "uk",
             "standard-visitor",
             "not-permitted",
             "work",
-            "public-funds"
+            "public-funds",
+            "marriage",
+            "long-stay"
           ],
-          "content": "A UK Standard Visitor cannot do paid or unpaid work for a UK company or as a self-employed person unless the activity is specifically permitted, cannot claim public funds, cannot live in the UK for long periods through frequent or successive visits, and cannot marry or give notice of marriage or civil partnership on this route. If the user's purpose is work, long-term study, settlement, or marriage, do not recommend Standard Visitor as the final answer; ask clarifying questions and route them to the appropriate category."
+          "content": "A Standard Visitor cannot do paid or unpaid work for a UK company or as a self-employed person unless the activity is explicitly permitted, cannot claim public funds, cannot live in the UK for long periods through frequent or successive visits, and cannot marry, register a civil partnership, or give notice of marriage or civil partnership. If the user's purpose is work, long-term study, settlement, marriage, civil partnership, journalism, or another regulated category, do not recommend the Standard Visitor route as final; ask a targeted clarification or route to the appropriate UK visa workflow."
         },
         {
-          "id": "uk_standard_visitor_eligibility",
-          "title": "Standard Visitor eligibility basics",
+          "id": "uk_standard_visitor_genuine_visitor",
+          "title": "Genuine visitor eligibility basics",
           "tags": [
             "uk",
             "standard-visitor",
             "eligibility",
+            "genuine-visitor",
             "funds",
             "return"
           ],
-          "content": "Standard Visitor eligibility includes having a passport or travel document valid for the whole UK stay, showing that the traveller will leave the UK at the end of the visit, can support themselves and dependants during the trip, can pay for return or onward travel, and will not make the UK their main home through frequent or successive visits. Additional requirements can apply for study, academic visits, paid engagements, or medical visits."
+          "content": "The applicant must have a passport or travel document valid for the whole UK stay. They must be able to show they will leave the UK at the end of the visit, can support themselves and dependants during the trip or have third-party support, can pay for return or onward travel or have funding for it, and will not make the UK their main home through frequent or successive visits. GOV.UK also says travellers should check whether their nationality requires a Standard Visitor visa, an electronic travel authorisation, or neither before applying."
         }
       ]
     },
@@ -60,39 +65,111 @@
       "chunks": [
         {
           "id": "uk_standard_visitor_apply_online",
-          "title": "Apply online and appointment",
+          "title": "Apply online before travel",
           "tags": [
             "uk",
             "standard-visitor",
             "apply-online",
-            "appointment",
-            "biometrics"
+            "govuk",
+            "appointment"
           ],
-          "content": "If a traveller needs a UK Standard Visitor visa, they must apply online before travelling to the UK and attend an appointment at a visa application centre. The earliest application time is 3 months before travel. At the appointment, the applicant proves identity with the passport or travel document, gives fingerprints and a photo, and provides documents showing eligibility. Each family member needs their own application and fee."
+          "content": "If the traveller needs a Standard Visitor visa, they must apply online before travelling to the UK. GOV.UK says the earliest application time is 3 months before travel. Once started, the online application can be saved and completed later. Each family member must have their own application, pay their own fee, and attend their own visa application centre appointment when required. The official GOV.UK application button routes to the UK Visas and Immigration online service."
         },
         {
-          "id": "uk_standard_visitor_fee_timing",
-          "title": "Standard Visitor fee and timing",
+          "id": "uk_standard_visitor_fees_validity",
+          "title": "Fees, validity and long-term visitor options",
           "tags": [
             "uk",
             "standard-visitor",
             "fee",
-            "processing-time",
-            "6-months"
+            "validity",
+            "long-term-visitor"
           ],
-          "content": "GOV.UK lists the Standard Visitor visa fee as GBP 135 for a maximum stay of 6 months as of the reviewed page. Long-term Standard Visitor visas may be available for regular visitors, but each visit is still limited to a maximum of 6 months. After applying online, proving identity, and providing documents, applicants usually get a decision within 3 weeks; users should still check GOV.UK for the current fee and processing options."
+          "content": "As reviewed on GOV.UK, the Standard Visitor visa fee is GBP 135 for a maximum stay of 6 months. Long-term Standard Visitor visas are available for frequent visitors: 2 years, 5 years, or 10 years, but each visit is still normally limited to a maximum of 6 months. GOV.UK lists separate fees for medical, academic, and long-term visitor options. VIZA should state fee figures as official-page dependent and recommend checking GOV.UK before payment because fees can change."
         },
         {
-          "id": "uk_standard_visitor_application_info",
-          "title": "Information needed for online application",
+          "id": "uk_standard_visitor_biometrics_and_decision",
+          "title": "Biometrics, documents and decision timing",
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "biometrics",
+            "vac",
+            "processing-time"
+          ],
+          "content": "As part of the online application, the applicant normally books an appointment at a visa application centre. At the appointment they prove identity with their passport or travel document, provide fingerprints and a photo, and provide documents showing eligibility. GOV.UK says that once the applicant has applied online, proved identity, and provided documents, Standard Visitor decisions outside the UK are usually made within 3 weeks. Faster decision services may be available depending on location and service availability."
+        },
+        {
+          "id": "uk_standard_visitor_vac_location",
+          "title": "Visa application centre location",
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "visa-application-centre",
+            "vac",
+            "vfs"
+          ],
+          "content": "GOV.UK provides a visa application centre finder and notes that applicants may need to travel to attend an appointment. VAC availability, optional services, passport handling, document upload support, and priority services vary by country and centre. For users applying from China, Singapore, or another residence country, VIZA should use the residence/apply-from country only to guide the VAC and appointment context, not to replace the UK as the destination country."
+        }
+      ]
+    },
+    {
+      "slug": "uk-standard-visitor-supporting-documents",
+      "country": "uk",
+      "visaType": "standard_visitor",
+      "documentType": "requirements",
+      "title": "UK Standard Visitor Supporting Documents",
+      "sourceUrl": "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents/guide-to-supporting-documents-visiting-the-uk",
+      "chunks": [
+        {
+          "id": "uk_standard_visitor_documents_passport",
+          "title": "Passport and identity evidence",
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "passport",
+            "identity",
+            "documents"
+          ],
+          "content": "GOV.UK supporting document guidance says the applicant must provide a valid passport or other travel document with the application and when travelling to the UK. The travel document should establish identity and nationality and be valid for the whole stay. Some passport holders may need alternative evidence of identity and nationality. Non-English or non-Welsh documents need certified translations."
+        },
+        {
+          "id": "uk_standard_visitor_documents_genuine_visit",
+          "title": "Evidence of genuine visit, funds and return",
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "funds",
+            "employment",
+            "home-ties",
+            "documents"
+          ],
+          "content": "For a Standard Visitor application, supporting evidence should help show that the applicant is a genuine visitor, will undertake permitted activities, will leave at the end of the visit, and has sufficient funds for themselves and dependants. Useful evidence can include details of circumstances in the home or residence country, employment or study evidence, bank statements or other financial evidence, evidence of who pays for the trip, return or onward travel plans, itinerary, accommodation, and evidence linked to the specific activity in the UK."
+        },
+        {
+          "id": "uk_standard_visitor_documents_hosts_and_family",
+          "title": "Host, family and sponsor evidence",
+          "tags": [
+            "uk",
+            "standard-visitor",
+            "host",
+            "family",
+            "sponsor",
+            "invitation"
+          ],
+          "content": "If someone in the UK is hosting, inviting, or paying for the trip, collect their name, address, relationship to the applicant, immigration/residence status where relevant, and financial or accommodation support evidence. GOV.UK guidance indicates that details of family members in the UK and anyone paying for the trip can be required in the online application. VIZA should not tell users that invitation letters are always mandatory, but should recommend them when the visit depends on a UK host or sponsor."
+        },
+        {
+          "id": "uk_standard_visitor_documents_cautions",
+          "title": "Document caution and booking risk",
           "tags": [
             "uk",
             "standard-visitor",
             "documents",
-            "application-info",
-            "translation"
+            "caution",
+            "booking-risk"
           ],
-          "content": "The UK Standard Visitor online application asks for information such as planned travel dates, UK accommodation, estimated trip cost, current home address and residence history, parents' names and dates of birth if known, annual income if applicable, and any criminal, civil, or immigration offences. Depending on circumstances, applicants may also need travel history for the past 10 years, employer details, partner details, sponsor payer details, family in the UK details, or TB test evidence for visits over 6 months. Documents not in English or Welsh need certified translation."
+          "content": "GOV.UK says submitting or presenting supporting documents does not guarantee that a visit visa or border entry will be successful. Applicants should bear this in mind when making bookings, especially if they need a visa before travel. The official processing-times guidance also says applicants are not required to book travel before applying or before a decision is made. VIZA should give a rough idea of common evidence while clearly marking optional or circumstance-specific items."
         }
       ]
     },
@@ -105,40 +182,53 @@
       "sourceUrl": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",
       "chunks": [
         {
-          "id": "uk_form_channel_and_scope",
-          "title": "United Kingdom application channel and form scope",
+          "id": "uk_form_channel_and_supported_route",
+          "title": "United Kingdom supported application channel and route",
           "tags": [
             "uk",
             "application-form",
             "form-requirements",
-            "workflow",
+            "uk-standard-visitor",
+            "supported-route",
             "official-source"
           ],
-          "content": "Apply online on GOV.UK for a Standard Visitor visa, then attend a visa application centre appointment when required. Official source URLs reviewed for this seed: https://www.gov.uk/standard-visitor/apply-standard-visitor-visa ; https://www.gov.uk/standard-visitor. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "VIZA supports the United Kingdom Standard Visitor form as visaType UK_STANDARD_VISITOR and country parameter united_kingdom. For a user ready to apply for a UK tourist, family/friend visit, short business, short study, transit, private medical, or other Standard Visitor purpose, emit an application_redirect block to /client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR. Do not say the knowledge base lacks UK visa details. Use GOV.UK as the official source and explain that detailed field completion happens on the application page, not inside chat."
         },
         {
           "id": "uk_form_fields_to_collect",
-          "title": "United Kingdom fields to collect before filling the form",
+          "title": "United Kingdom fields aligned to existing VIZA form schema",
           "tags": [
             "uk",
             "application-form",
-            "autofill",
             "field-mapping",
-            "intake"
+            "intake",
+            "UK_STANDARD_VISITOR"
           ],
-          "content": "The UK online application should collect planned UK travel dates, UK accommodation, purpose and itinerary, estimated trip cost, current home address and residence history, parents details where known, income and employment or study details, travel history, partner details, sponsor or payer details, family in the UK, criminal/civil/immigration history, and any route-specific answers for study, medical, business or family visits."
+          "content": "The existing VIZA UK_STANDARD_VISITOR form schema covers UKVI account and resume URL, personal details, passport and other travel documents, nationality and birth details, under-18 and accompanying adult logic, contact information, home address and residence history, parents, partner and dependants, employment or study status, income and savings, trip cost, who pays, UK travel dates, accommodation, itinerary, purpose-specific answers, travel history, previous UK/immigration history, criminal/civil/security questions, family or host in the UK, and document upload/review steps. In chat, only identify the route and provide the direct form link; collect detailed answers in /client/application."
         },
         {
-          "id": "uk_supporting_documents_and_review",
-          "title": "United Kingdom supporting documents and review checklist",
+          "id": "uk_form_documents_and_uploads",
+          "title": "United Kingdom supporting documents mapped to form preparation",
           "tags": [
             "uk",
             "documents",
-            "checklist",
             "upload",
-            "review-before-submit"
+            "review-before-submit",
+            "form-prep"
           ],
-          "content": "Supporting documents should evidence identity, purpose of visit, funds and who pays, employment/study or other home ties, accommodation, UK invite or host where relevant, travel history, and any special route evidence. Non-English/Welsh documents need certified translations. Workflow guardrails: The form can usually be saved and resumed. VIZA should map answers to GOV.UK sections, flag missing trip cost/accommodation/payer data, and avoid treating optional evidence as universally mandatory."
+          "content": "Before filling the UK form, the application page should prompt users to prepare a passport or travel document, travel dates, accommodation, estimated trip cost, funding evidence, employment or study/home-tie evidence, travel history, host or sponsor evidence where relevant, family-in-UK details where relevant, route-specific evidence for business/study/medical/PPE/academic visits, and certified translations for documents not in English or Welsh. The form should flag missing trip cost, accommodation, payer/sponsor, travel history, and host data, but avoid presenting optional supporting evidence as universally mandatory."
+        },
+        {
+          "id": "uk_form_guardrails_and_handoff",
+          "title": "United Kingdom form guardrails and handoff",
+          "tags": [
+            "uk",
+            "guardrails",
+            "handoff",
+            "official-form",
+            "application-redirect"
+          ],
+          "content": "VIZA chat should not collect the UK detailed application answers inline. When the route is clear or the user says they are ready, wants to apply, wants the application form, or asks for a direct link, send an application_redirect CTA to the dedicated form page. Explain that the official GOV.UK/UKVI online application can be saved and resumed, and that the user may later need to create or resume a UKVI account, pay the official fee, book a VAC appointment, provide biometrics, upload or bring documents, and wait for the UKVI decision."
         }
       ]
     }

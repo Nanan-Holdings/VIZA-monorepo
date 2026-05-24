@@ -417,14 +417,23 @@ export function inferVisaKnowledgeIntent(
   if (
     includesAny(normalized, [
       '开始申请',
+      '准备好了',
       '帮我申请',
       '帮我填',
       '填表',
       '表格',
+      '申请表',
       '下一步',
+      '继续申请',
+      '前往申请',
+      '直达表单',
+      '表单链接',
       'start application',
+      'ready to apply',
       'apply now',
+      'continue application',
       'fill form',
+      'form link',
       'form intake',
     ])
   ) {
