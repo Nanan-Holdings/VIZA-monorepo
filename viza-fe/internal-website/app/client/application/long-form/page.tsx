@@ -1406,6 +1406,8 @@ export default function ApplicationPage() {
   const pageTitle = visaPackage
     ? getVisaPackageTitleZh(visaPackage.country, visaPackage.visa_type)
     : t("title");
+  const activeCountry = visaPackage?.country ?? "indonesia";
+  const activeVisaType = visaPackage?.visa_type ?? "tourist_b211a";
 
   return (
     <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
@@ -1491,6 +1493,8 @@ export default function ApplicationPage() {
                         {step.id === photoStepIndex && appState.applicationId && (
                           <PhotoUploadStep
                             applicationId={appState.applicationId}
+                            country={activeCountry}
+                            visaType={activeVisaType}
                             existingPhotoUrl={appState.photo ? undefined : undefined}
                             onComplete={handlePhotoComplete}
                             onSkip={handlePhotoSkip}
@@ -1524,18 +1528,24 @@ export default function ApplicationPage() {
                       <>
                         {step.id === 0 && (
                           <PersonalInfoStep
+                            country={activeCountry}
+                            visaType={activeVisaType}
                             prefill={appState.personal}
                             onComplete={handlePersonalComplete}
                           />
                         )}
                         {step.id === 1 && (
                           <PassportStep
+                            country={activeCountry}
+                            visaType={activeVisaType}
                             prefill={appState.passport}
                             onComplete={handlePassportComplete}
                           />
                         )}
                         {step.id === 2 && (
                           <TravelInfoStep
+                            country={activeCountry}
+                            visaType={activeVisaType}
                             prefill={appState.travel}
                             onComplete={handleTravelComplete}
                           />

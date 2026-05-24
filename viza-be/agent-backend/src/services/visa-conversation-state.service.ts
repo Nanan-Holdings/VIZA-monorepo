@@ -243,8 +243,44 @@ function buildCompactPatch(
       if (slot === 'nationality') patch.nationality = normalizeFreeTextCountry(value);
       if (slot === 'residence') patch.residenceCountry = normalizeFreeTextCountry(value);
       if (slot === 'stayLengthDays') {
-        const days = parseStayDays(value);
-        if (days !== null) patch.stayLengthDays = days;
+        const questionCountries = detectKnowledgeCountriesInOrder(question);
+        const valueParts = splitCompactAnswer(value);
+        const numericValues = valueParts.map(parseStayDays);
+        const mapsToCountryDaySplit =
+          questionCountries.length > 1 &&
+          numericValues.length === questionCountries.length &&
+          numericValues.every((days) => days !== null);
+
+        if (mapsToCountryDaySplit) {
+          const daySplit: Partial<Record<SupportedKnowledgeCountry, number>> = {};
+          questionCountries.forEach((country, countryIndex) => {
+            const days = numericValues[countryIndex];
+            if (days !== null) daySplit[country] = days;
+          });
+          patch.schengenDaySplit = {
+            ...(patch.schengenDaySplit ?? {}),
+            ...daySplit,
+          };
+          patch.destinationCountries = uniqueCountries([
+            ...(patch.destinationCountries ?? []),
+            ...questionCountries,
+          ]);
+
+          const daySplitEntries = Object.entries(daySplit) as Array<
+            [SupportedKnowledgeCountry, number]
+          >;
+          const schengenEntries = daySplitEntries.filter(([country]) =>
+            isSchengenKnowledgeCountry(country)
+          );
+          const destinationEntries =
+            schengenEntries.length > 0 ? schengenEntries : daySplitEntries;
+          const maxDays = Math.max(...destinationEntries.map(([, days]) => days));
+          const longest = destinationEntries.filter(([, days]) => days === maxDays);
+          if (longest.length === 1) patch.mainDestination = longest[0][0];
+        } else {
+          const days = parseStayDays(value);
+          if (days !== null) patch.stayLengthDays = days;
+        }
       }
       if (slot === 'tripPurpose') {
         patch.tripPurpose = inferTripPurpose(value) ?? 'unknown';
@@ -291,10 +327,18 @@ function buildCompactPatch(
     patch.destinationCountries = uniqueCountries(lastAssistantCountries);
 
     if (lastAssistantCountries.length === numericParts.length) {
-      const maxDays = Math.max(...Object.values(daySplit).filter((days) => days !== undefined));
-      const longest = Object.entries(daySplit).filter(([, days]) => days === maxDays);
+      const daySplitEntries = Object.entries(daySplit) as Array<
+        [SupportedKnowledgeCountry, number]
+      >;
+      const schengenEntries = daySplitEntries.filter(([country]) =>
+        isSchengenKnowledgeCountry(country)
+      );
+      const destinationEntries =
+        schengenEntries.length > 0 ? schengenEntries : daySplitEntries;
+      const maxDays = Math.max(...destinationEntries.map(([, days]) => days));
+      const longest = destinationEntries.filter(([, days]) => days === maxDays);
       if (longest.length === 1) {
-        patch.mainDestination = longest[0][0] as SupportedKnowledgeCountry;
+        patch.mainDestination = longest[0][0];
       }
     }
   }
@@ -399,8 +443,13 @@ function resolveMainDestination(
     [SupportedKnowledgeCountry, number]
   >;
   if (splitEntries.length > 0) {
-    const maxDays = Math.max(...splitEntries.map(([, days]) => days));
-    const longest = splitEntries.filter(([, days]) => days === maxDays);
+    const schengenEntries = splitEntries.filter(([country]) =>
+      isSchengenKnowledgeCountry(country)
+    );
+    const destinationEntries =
+      schengenEntries.length > 0 ? schengenEntries : splitEntries;
+    const maxDays = Math.max(...destinationEntries.map(([, days]) => days));
+    const longest = destinationEntries.filter(([, days]) => days === maxDays);
     if (longest.length === 1) return longest[0][0];
   }
 

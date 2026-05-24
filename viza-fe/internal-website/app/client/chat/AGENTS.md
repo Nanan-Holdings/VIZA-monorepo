@@ -54,6 +54,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 17. VIZA AI user-facing answers must be plain text by default. Keep the no-Markdown rule in `BASE_SYSTEM_PROMPT`, the robustness harness, and `ChatMessage`; do not add Markdown headings, tables, bold markers, bullet markers, code fences, raw JSON, or raw XML unless the user explicitly asks. `ChatMessage` should render common Markdown markers as plain text for VIZA answers.
 18. Do not collect application form fields inside VIZA chat. When the user wants to apply, VIZA should provide a rough overview of route, requirements, timing/fees caveats, then show an application redirect CTA. Detailed field collection belongs in `/client/application`.
 19. Keep VIZA process switching durable. The active process is stored in `sessionStorage["viza_chat_session_id"]`; switching must call `getSessionMessages(sessionId, userId)`, queued offline messages must carry their target `sessionId`, and rename must expose an obvious Save / Cancel action before reporting the feature complete.
+20. VIZA AI's main response language must follow the selected interface locale from the language selector, not the user's latest message language. `chat-client.tsx` sends `locale` on `visa_chat_message`; keep that contract aligned with `viza-be/agent-backend/src/socket/visa-namespace.ts` and `viza-be/agent-backend/src/agent/index.ts`.
+21. Mixed Schengen + non-Schengen itineraries must preserve separate routes. For example, France + Iceland + UK should choose the correct Schengen main destination from Schengen day counts while still reminding the user that the UK needs a separate visitor visa/application link.
 
 ## Session Model
 
@@ -84,7 +86,9 @@ For backend Socket.IO or agent changes:
 1. `cd viza-be/agent-backend && npm run type-check`
 2. Verify the frontend still connects to `NEXT_PUBLIC_AGENT_BACKEND_URL/visa`.
 3. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
-4. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
+4. Confirm locale-driven responses: when UI locale is Chinese and the user sends English text, the Socket payload includes `locale: "zh"` and the backend prompt requires Simplified Chinese.
+5. Confirm mixed itinerary handoff: France 4 days + Iceland 5 days + UK 6 days should produce Iceland Schengen as the Schengen form route and keep the UK separate route visible.
+6. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
 
 ## Current RAG Routing Scope
 

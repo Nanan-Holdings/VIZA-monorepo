@@ -13,11 +13,18 @@ import {
 import { documentTypesForIntent } from '../src/services/visa-knowledge.service.js';
 import {
   buildCompactAnswerInterpretation,
+  buildApplicationFormUrl,
+  buildApplicationRedirectBlocks,
   inferVisaKnowledgeIntent,
   resolveKnowledgeCountry,
   resolveKnowledgeVisaType,
 } from '../src/socket/visa-namespace.js';
-import { BASE_SYSTEM_PROMPT } from '../src/agent/index.js';
+import {
+  BASE_SYSTEM_PROMPT,
+  buildResponseLanguageInstruction,
+  buildSystemPrompt,
+  normalizeResponseLocale,
+} from '../src/agent/index.js';
 
 type EvalCategory =
   | 'schengen_route'
@@ -517,11 +524,11 @@ function evaluateBranchTests(): BranchResult[] {
 
     branch('RAGDOC-001', 'rag_document_type_branch', () => [
       expectArrayEqual('route docs', documentTypesForIntent('route_recommendation'), ['requirements', 'process']),
-      expectArrayEqual('requirements docs', documentTypesForIntent('requirements'), ['requirements', 'form_requirements']),
-      expectArrayEqual('form docs', documentTypesForIntent('form_intake'), ['form_requirements', 'requirements', 'process']),
+      expectArrayEqual('requirements docs', documentTypesForIntent('requirements'), ['requirements', 'form_requirements', 'photo_requirements']),
+      expectArrayEqual('form docs', documentTypesForIntent('form_intake'), ['form_requirements', 'photo_requirements', 'requirements', 'process']),
       expectArrayEqual('fees docs', documentTypesForIntent('fees_timing'), ['requirements', 'process']),
       expectArrayEqual('eligibility docs', documentTypesForIntent('eligibility'), ['requirements']),
-      expectArrayEqual('source docs', documentTypesForIntent('source_check'), ['requirements', 'process', 'form_requirements']),
+      expectArrayEqual('source docs', documentTypesForIntent('source_check'), ['requirements', 'process', 'form_requirements', 'photo_requirements']),
     ]),
     branch('RAGDOC-002', 'rag_document_type_branch', () => [
       expectEqual('undefined intent docs', documentTypesForIntent(undefined), undefined),
@@ -667,6 +674,22 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('direct first entry main destination', state.mainDestination, 'france'),
       ];
     }),
+    branch('STATE-009', 'state_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '我想去巴黎，还有冰岛和英国' },
+        {
+          role: 'assistant',
+          content:
+            '1. 您持哪国护照？\n2. 您目前居住在哪里？\n3. 旅行目的？\n4. 在 France, Iceland, United Kingdom 各计划停留多少天？',
+        },
+        { role: 'user', content: '中国，新加坡，旅游，4，5，6' },
+      ]);
+      return [
+        expectEqual('mixed itinerary keeps UK destination', state.destinationCountries.includes('uk'), true),
+        expectEqual('mixed itinerary chooses longest Schengen stay', state.mainDestination, 'iceland'),
+        expectEqual('mixed itinerary visitor route is Schengen', state.recommendedVisaType, 'schengen_short_stay_tourism'),
+      ];
+    }),
 
     branch('COMPACT-001', 'compact_interpretation_branch', () => [
       expectEqual('non-compact returns null', buildCompactAnswerInterpretation([], '我想去日本旅游'), null),
@@ -707,6 +730,48 @@ function evaluateBranchTests(): BranchResult[] {
       expectEqual('prompt forbids chat form collection', BASE_SYSTEM_PROMPT.includes('Do not collect application form fields inside VIZA chat'), true),
       expectEqual('prompt asks for rough overview before redirect', BASE_SYSTEM_PROMPT.includes('give a rough idea first'), true),
     ]),
+    branch('LANG-001', 'language_branch', () => [
+      expectEqual('zh locale normalizes to zh', normalizeResponseLocale('zh-CN'), 'zh'),
+      expectEqual('en locale normalizes to en', normalizeResponseLocale('en'), 'en'),
+      expectEqual('missing locale defaults to en', normalizeResponseLocale(undefined), 'en'),
+      expectEqual(
+        'zh instruction ignores latest user language',
+        buildResponseLanguageInstruction('zh').includes('Respond primarily in Simplified Chinese even if the user writes in English'),
+        true
+      ),
+      expectEqual(
+        'en instruction ignores latest user language',
+        buildResponseLanguageInstruction('en').includes('Respond primarily in English even if the user writes in Chinese'),
+        true
+      ),
+      expectEqual(
+        'system prompt includes selected Chinese interface language',
+        buildSystemPrompt({ profile: null, application: null }, undefined, undefined, undefined, 'zh').includes('Selected interface language: Simplified Chinese'),
+        true
+      ),
+    ]),
+    branch('REDIRECT-001', 'redirect_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '我想去巴黎，还有冰岛和英国' },
+        {
+          role: 'assistant',
+          content:
+            '1. 您持哪国护照？\n2. 您目前居住在哪里？\n3. 旅行目的？\n4. 在 France, Iceland, United Kingdom 各计划停留多少天？',
+        },
+        { role: 'user', content: '中国，新加坡，旅游，4，5，6' },
+      ]);
+      const blocks = buildApplicationRedirectBlocks(
+        state,
+        state.mainDestination,
+        state.recommendedVisaType
+      );
+      const urls = blocks.map((block) => block.redirectUrl);
+      return [
+        expectEqual('iceland Schengen form link emitted', urls.includes('/client/application?country=iceland&visaType=EU_SCHENGEN_C_SHORT_STAY'), true),
+        expectEqual('uk separate form link emitted', urls.includes('/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR'), true),
+        expectEqual('direct url helper maps Iceland Schengen', buildApplicationFormUrl('iceland', 'schengen_short_stay_tourism'), '/client/application?country=iceland&visaType=EU_SCHENGEN_C_SHORT_STAY'),
+      ];
+    }),
   ];
 }
 

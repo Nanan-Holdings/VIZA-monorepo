@@ -81,6 +81,7 @@ type IpLocation = {
   countryCode?: string;
   source?: string;
 };
+type DestinationAddStep = "idle" | "country" | "city";
 
 const OTHER_COUNTRY_VALUE = "__country_other__";
 const OTHER_CITY_VALUE = "__city_other__";
@@ -1019,6 +1020,10 @@ export function TravelPlannerForm({
   const [returnCountry, setReturnCountry] = useState<string>(travelState.return_country ?? "");
   const [returnCity, setReturnCity] = useState<string>(travelState.return_city ?? "");
   const [travelOrder, setTravelOrder] = useState<string[]>(travelState.travel_order);
+  const [destinationAddStep, setDestinationAddStep] =
+    useState<DestinationAddStep>("idle");
+  const [additionalCountries, setAdditionalCountries] = useState<string[]>([]);
+  const [additionalCities, setAdditionalCities] = useState<string[]>([]);
 
   const [flightLegs, setFlightLegs] = useState<FlightLegResult[]>([]);
   const [hotelStays, setHotelStays] = useState<HotelStayResult[]>([]);
@@ -1051,6 +1056,10 @@ export function TravelPlannerForm({
   const [manualEndpointMode, setManualEndpointMode] = useState(false);
   const [customCountriesInput, setCustomCountriesInput] = useState("");
   const [customCitiesInput, setCustomCitiesInput] = useState("");
+  const [customAdditionalCountriesInput, setCustomAdditionalCountriesInput] =
+    useState("");
+  const [customAdditionalCitiesInput, setCustomAdditionalCitiesInput] =
+    useState("");
   const [customOriginCountry, setCustomOriginCountry] = useState("");
   const [customOriginCity, setCustomOriginCity] = useState("");
   const [customReturnCountry, setCustomReturnCountry] = useState("");
@@ -1273,6 +1282,16 @@ export function TravelPlannerForm({
   }, []);
 
   useEffect(() => {
+    if (missingField !== "destination_confirmation") {
+      setDestinationAddStep("idle");
+      setAdditionalCountries([]);
+      setAdditionalCities([]);
+      setCustomAdditionalCountriesInput("");
+      setCustomAdditionalCitiesInput("");
+    }
+  }, [missingField]);
+
+  useEffect(() => {
     const neededCountries = countries.filter(
       (country) =>
         country !== OTHER_COUNTRY_VALUE &&
@@ -1281,6 +1300,19 @@ export function TravelPlannerForm({
     if (!neededCountries.length) return;
     loadCitiesForCountries(neededCountries);
   }, [countries, citiesByCountry, loadCitiesForCountries]);
+
+  useEffect(() => {
+    const neededCountries = removeSpecialValue(
+      additionalCountries,
+      OTHER_COUNTRY_VALUE
+    ).filter(
+      (country) =>
+        country &&
+        !Object.prototype.hasOwnProperty.call(citiesByCountry, country)
+    );
+    if (!neededCountries.length) return;
+    loadCitiesForCountries(neededCountries);
+  }, [additionalCountries, citiesByCountry, loadCitiesForCountries]);
 
   useEffect(() => {
     const neededCountries = [originCountry, returnCountry]
@@ -1462,6 +1494,17 @@ export function TravelPlannerForm({
         normalizeLookupKey(option.value) !== seedKey
     );
   }, [cityOptionsWithOther, missingField, travelState.cities.length, travelState.seed_city]);
+  const additionalCityOptions = useMemo(() => {
+    const baseCountries = removeSpecialValue(
+      additionalCountries,
+      OTHER_COUNTRY_VALUE
+    );
+    return withOtherOption(
+      cityOptionsFromCountries(baseCountries, citiesByCountry),
+      OTHER_CITY_VALUE,
+      "其他（自定义城市）"
+    );
+  }, [additionalCountries, citiesByCountry]);
   const citySet = useMemo(() => new Set(cities), [cities]);
 
   const resolvedCountries = useMemo(() => {
@@ -1475,6 +1518,17 @@ export function TravelPlannerForm({
     const custom = splitCustomValues(customCitiesInput);
     return dedupeValues([...selected, ...custom]);
   }, [cities, customCitiesInput]);
+  const resolvedAdditionalCountries = useMemo(() => {
+    const selected = removeSpecialValue(additionalCountries, OTHER_COUNTRY_VALUE);
+    const custom = splitCustomValues(customAdditionalCountriesInput);
+    return dedupeValues([...selected, ...custom]);
+  }, [additionalCountries, customAdditionalCountriesInput]);
+
+  const resolvedAdditionalCities = useMemo(() => {
+    const selected = removeSpecialValue(additionalCities, OTHER_CITY_VALUE);
+    const custom = splitCustomValues(customAdditionalCitiesInput);
+    return dedupeValues([...selected, ...custom]);
+  }, [additionalCities, customAdditionalCitiesInput]);
 
   const resolvedOriginCountry = useMemo(() => {
     if (originCountry === OTHER_COUNTRY_VALUE) {
@@ -1537,11 +1591,19 @@ export function TravelPlannerForm({
   const cityLabelMap = useMemo(
     () =>
       new Map(
-        [...cityOptionsWithOther, ...originCityOptions, ...returnCityOptions].map(
-          (option) => [option.value, option.label]
-        )
+        [
+          ...cityOptionsWithOther,
+          ...additionalCityOptions,
+          ...originCityOptions,
+          ...returnCityOptions,
+        ].map((option) => [option.value, option.label])
       ),
-    [cityOptionsWithOther, originCityOptions, returnCityOptions]
+    [
+      additionalCityOptions,
+      cityOptionsWithOther,
+      originCityOptions,
+      returnCityOptions,
+    ]
   );
   const getCountryDisplayName = useCallback(
     (value: string) => optionLabelFromMap(value, countryLabelMap),
@@ -1567,6 +1629,22 @@ export function TravelPlannerForm({
       ...custom,
     ]);
   }, [cities, cityLabelMap, customCitiesInput]);
+  const resolvedAdditionalCountryDisplayNames = useMemo(() => {
+    const selected = removeSpecialValue(additionalCountries, OTHER_COUNTRY_VALUE);
+    const custom = splitCustomValues(customAdditionalCountriesInput);
+    return dedupeValues([
+      ...optionLabelsFromValues(selected, countryLabelMap),
+      ...custom,
+    ]);
+  }, [additionalCountries, countryLabelMap, customAdditionalCountriesInput]);
+  const resolvedAdditionalCityDisplayNames = useMemo(() => {
+    const selected = removeSpecialValue(additionalCities, OTHER_CITY_VALUE);
+    const custom = splitCustomValues(customAdditionalCitiesInput);
+    return dedupeValues([
+      ...optionLabelsFromValues(selected, cityLabelMap),
+      ...custom,
+    ]);
+  }, [additionalCities, cityLabelMap, customAdditionalCitiesInput]);
   const selectedCityLabelMap = useMemo(
     () =>
       Object.fromEntries(
@@ -1697,6 +1775,77 @@ export function TravelPlannerForm({
     resolvedCityDisplayNames,
     selectedCityLabelMap,
     sendStructuredMessage,
+  ]);
+
+  const submitAdditionalDestination = useCallback(() => {
+    if (!resolvedAdditionalCountries.length) {
+      toast.error("请至少选择一个要添加的国家。");
+      return;
+    }
+    if (!resolvedAdditionalCities.length) {
+      toast.error("请至少选择一个要添加的城市。");
+      return;
+    }
+
+    const existingCountries =
+      travelState.countries.length > 0
+        ? travelState.countries
+        : travelState.country
+          ? [travelState.country]
+          : [];
+    const nextCountries = dedupeValues([
+      ...existingCountries,
+      ...resolvedAdditionalCountries,
+    ]);
+    const nextCities = dedupeValues([
+      ...travelState.cities,
+      ...resolvedAdditionalCities,
+    ]);
+    const existingOrder =
+      travelState.travel_order.length === travelState.cities.length
+        ? travelState.travel_order
+        : [];
+    const nextOrder = existingOrder.length
+      ? dedupeValues([...existingOrder, ...resolvedAdditionalCities])
+      : undefined;
+
+    sendStructuredMessage({
+      country: nextCountries.join("、"),
+      countries: nextCountries,
+      cities: nextCities,
+      travel_order:
+        nextOrder && nextOrder.length === nextCities.length
+          ? nextOrder
+          : undefined,
+      display: {
+        country: nextCountries.map(getCountryDisplayName).join("、"),
+        countries: nextCountries.map(getCountryDisplayName),
+        cities: nextCities.map(getCityDisplayName),
+        city_labels: Object.fromEntries(
+          nextCities.map((city) => [city, getCityDisplayName(city)])
+        ),
+        travel_order:
+          nextOrder && nextOrder.length === nextCities.length
+            ? nextOrder.map(getCityDisplayName)
+            : undefined,
+      },
+    });
+
+    setDestinationAddStep("idle");
+    setAdditionalCountries([]);
+    setAdditionalCities([]);
+    setCustomAdditionalCountriesInput("");
+    setCustomAdditionalCitiesInput("");
+  }, [
+    getCityDisplayName,
+    getCountryDisplayName,
+    resolvedAdditionalCities,
+    resolvedAdditionalCountries,
+    sendStructuredMessage,
+    travelState.cities,
+    travelState.countries,
+    travelState.country,
+    travelState.travel_order,
   ]);
 
   const submitEndpoints = useCallback(() => {
@@ -1886,31 +2035,172 @@ export function TravelPlannerForm({
             {resolvedCityDisplayNames.length > 0
               ? resolvedCityDisplayNames.join("、")
               : travelState.cities.join("、")}
-            。如果还想加入别的国家或城市，可以继续点右侧地图卡片，也可以直接在下方输入城市名。
+            。如果还想加入别的国家或城市，可以继续选择国家和城市。
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              className="w-full"
-              disabled={busy}
-              onClick={() => {
-                toast.info("可以继续点击右侧地图卡片，或直接输入想加入的城市/国家。");
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              继续添加目的地
-            </Button>
-            <Button
-              className="w-full"
-              disabled={busy}
-              onClick={() => sendStructuredMessage({ destination_confirmed: true })}
-              size="sm"
-              type="button"
-            >
-              目的地就这些
-            </Button>
-          </div>
+          {destinationAddStep === "idle" && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={() => setDestinationAddStep("country")}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                继续添加目的地
+              </Button>
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={() => sendStructuredMessage({ destination_confirmed: true })}
+                size="sm"
+                type="button"
+              >
+                目的地就这些
+              </Button>
+            </div>
+          )}
+
+          {destinationAddStep === "country" && (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <div className="text-xs font-semibold text-slate-700">
+                先选择要追加的国家
+              </div>
+              {countryLoadError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+                  {countryLoadError}
+                </div>
+              )}
+              <SearchableMultiSelect
+                disabled={busy || isLoadingCountryOptions}
+                onChange={(values) => {
+                  setAdditionalCountries(values);
+                  setAdditionalCities([]);
+                  setCustomAdditionalCitiesInput("");
+                }}
+                options={countryOptionsWithOther}
+                placeholder={
+                  isLoadingCountryOptions
+                    ? "正在加载国家..."
+                    : "选择要追加的国家（可多选）"
+                }
+                values={additionalCountries}
+              />
+              {additionalCountries.includes(OTHER_COUNTRY_VALUE) && (
+                <Input
+                  onChange={(event) =>
+                    setCustomAdditionalCountriesInput(event.target.value)
+                  }
+                  placeholder="输入其他国家（可多项，逗号分隔）"
+                  type="text"
+                  value={customAdditionalCountriesInput}
+                />
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="w-full"
+                  disabled={busy}
+                  onClick={() => {
+                    setDestinationAddStep("idle");
+                    setAdditionalCountries([]);
+                    setAdditionalCities([]);
+                    setCustomAdditionalCountriesInput("");
+                    setCustomAdditionalCitiesInput("");
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  返回
+                </Button>
+                <Button
+                  className="w-full"
+                  disabled={
+                    busy ||
+                    isLoadingCountryOptions ||
+                    resolvedAdditionalCountries.length === 0
+                  }
+                  onClick={() => setDestinationAddStep("city")}
+                  size="sm"
+                  type="button"
+                >
+                  下一步选城市
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {destinationAddStep === "city" && (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <div className="text-xs font-semibold text-slate-700">
+                再选择要追加的城市
+              </div>
+              {cityLoadError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+                  {cityLoadError}
+                </div>
+              )}
+              <SearchableMultiSelect
+                disabled={
+                  busy ||
+                  resolvedAdditionalCountries.length === 0 ||
+                  isLoadingCityOptions
+                }
+                onChange={setAdditionalCities}
+                options={additionalCityOptions}
+                placeholder={
+                  isLoadingCityOptions
+                    ? "正在加载城市..."
+                    : "选择要追加的城市（可多选）"
+                }
+                values={additionalCities}
+              />
+              {additionalCities.includes(OTHER_CITY_VALUE) && (
+                <Input
+                  onChange={(event) =>
+                    setCustomAdditionalCitiesInput(event.target.value)
+                  }
+                  placeholder="输入其他城市（可多项，逗号分隔）"
+                  type="text"
+                  value={customAdditionalCitiesInput}
+                />
+              )}
+              {resolvedAdditionalCountryDisplayNames.length > 0 && (
+                <div className="text-[11px] text-muted-foreground">
+                  正在添加：
+                  {resolvedAdditionalCountryDisplayNames.join("、")}
+                  {resolvedAdditionalCityDisplayNames.length > 0
+                    ? ` · ${resolvedAdditionalCityDisplayNames.join("、")}`
+                    : ""}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="w-full"
+                  disabled={busy}
+                  onClick={() => setDestinationAddStep("country")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  上一步
+                </Button>
+                <Button
+                  className="w-full"
+                  disabled={
+                    busy ||
+                    isLoadingCityOptions ||
+                    resolvedAdditionalCities.length === 0
+                  }
+                  onClick={submitAdditionalDestination}
+                  size="sm"
+                  type="button"
+                >
+                  加入这些目的地
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

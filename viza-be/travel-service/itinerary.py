@@ -582,6 +582,43 @@ def _revision_response(
     }
 
 
+def _itinerary_signature(itinerary):
+    if not isinstance(itinerary, list):
+        return ""
+
+    normalized = []
+    for day in itinerary:
+        if not isinstance(day, dict):
+            continue
+        normalized.append(
+            {
+                "day": str(day.get("day") or ""),
+                "city": str(day.get("city") or "").strip(),
+                "activities": [
+                    str(item).strip()
+                    for item in (day.get("activities") or [])
+                    if str(item).strip()
+                ]
+                if isinstance(day.get("activities"), list)
+                else [],
+                "food": [
+                    str(item).strip()
+                    for item in (day.get("food") or [])
+                    if str(item).strip()
+                ]
+                if isinstance(day.get("food"), list)
+                else [],
+                "cost": str(day.get("cost") or "").strip(),
+            }
+        )
+
+    return json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+
+
+def _has_revision_patch(value):
+    return isinstance(value, dict) and bool(value)
+
+
 def _coerce_revision_response(parsed, state, current_itinerary):
     current = _sanitize_itinerary(current_itinerary, state)
     if not isinstance(parsed, dict):
@@ -634,6 +671,18 @@ def _coerce_revision_response(parsed, state, current_itinerary):
             "我尝试修改了，但返回的行程格式不稳定。请再说一次要修改的点，我会保留当前版本不变。",
             current,
             edit_summary="revision schema invalid",
+        )
+
+    if (
+        _itinerary_signature(revised) == _itinerary_signature(current)
+        and not _has_revision_patch(state_patch)
+        and not _has_revision_patch(module_patch)
+    ):
+        return _revision_response(
+            "clarify",
+            "OpenAI 已经处理了这句话，但没有返回任何可见的行程变化。我没有假装更新，请再明确要改哪一天、增加哪个城市或调整哪些安排。",
+            current,
+            edit_summary="OpenAI returned unchanged itinerary",
         )
 
     return _revision_response(

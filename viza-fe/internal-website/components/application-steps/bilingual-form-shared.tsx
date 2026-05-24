@@ -191,9 +191,11 @@ export function getBilingualRowLabels(label: string, englishFallback?: string) {
 export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilotConfig }) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const resolvedVisaType = config.visaType ?? config.allAnswers.visa_type ?? "unknown";
+  const resolvedCountry = config.country ?? config.allAnswers.destination_country ?? null;
   const field: VisaFormFieldRow = {
     id: `legacy-${config.fieldName}`,
-    visaType: config.visaType ?? "DS160",
+    visaType: resolvedVisaType,
     fieldName: config.fieldName,
     label: config.label,
     fieldType: config.fieldType,
@@ -229,8 +231,8 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
       </div>
       {open && (
         <FieldGuidancePanel
-          country={config.country}
-          visaType={config.visaType ?? "DS160"}
+          country={resolvedCountry}
+          visaType={resolvedVisaType}
           locale={locale}
           field={field}
           answer={config.value}
@@ -255,8 +257,15 @@ export function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
-  const labels = getBilingualRowLabels(label, copilot?.label);
-  const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
+  const scopedCopilot = copilot
+    ? {
+        ...copilot,
+        country: copilot.country ?? copilot.allAnswers.destination_country ?? null,
+        visaType: copilot.visaType ?? copilot.allAnswers.visa_type ?? "unknown",
+      }
+    : undefined;
+  const labels = getBilingualRowLabels(label, scopedCopilot?.label);
+  const requiredMark = scopedCopilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
 
   return (
     <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
@@ -274,9 +283,9 @@ export function BilingualRow({
         </span>
         {enControl}
       </div>
-      {copilot && (
-        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={copilot.fieldName}>
-          <BilingualFieldCopilot config={copilot} />
+      {scopedCopilot && (
+        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={scopedCopilot.fieldName}>
+          <BilingualFieldCopilot config={scopedCopilot} />
         </div>
       )}
     </div>
