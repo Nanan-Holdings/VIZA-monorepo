@@ -28,6 +28,13 @@ namespace `/visa` and sends/receives streaming events.
 - RAG routing should not default to Indonesia or any other country without user
   or application context.
 - User-facing assistant responses should stay plain text by default.
+- Main response language follows the frontend interface locale sent on
+  `visa_chat_message.locale`, not the user's latest message language. Keep this
+  aligned with `src/agent/index.ts` and `viza-fe/internal-website/types/agent-test.ts`.
+- Mixed Schengen + non-Schengen itineraries need multiple handoff routes. The
+  Schengen form link should use the Schengen main destination from Schengen day
+  counts, while non-Schengen destinations such as the UK remain visible as
+  separate visa/application links.
 
 ## Validation
 
@@ -47,5 +54,7 @@ Also smoke `/client/chat` with the frontend when possible.
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
+- `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`
 - `viza-fe/internal-website/app/client/chat/AGENTS.md`
+- `viza-fe/internal-website/components/client/companion/block-message.tsx`
 - `viza-fe/internal-website/types/agent-test.ts`

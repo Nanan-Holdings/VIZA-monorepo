@@ -28,6 +28,7 @@ TYPE_TRANSLATIONS = {
     "航班": "Flight",
     "餐饮": "Dining",
 }
+REVERSE_TYPE_TRANSLATIONS = {value: key for key, value in TYPE_TRANSLATIONS.items()}
 
 PLACE_TRANSLATIONS = {
     "北京": "Beijing",
@@ -66,6 +67,8 @@ PLACE_TRANSLATIONS = {
     "什刹海": "Shichahai",
     "南锣鼓巷": "Nanluoguxiang",
     "前门": "Qianmen",
+    "前门烤鸭": "Qianmen Roast Duck",
+    "北京烤鸭": "Peking Duck",
     "牛街海京味小吃": "Niujie Beijing-style Snacks",
     "东京塔": "Tokyo Tower",
     "浅草寺": "Senso-ji Temple",
@@ -117,6 +120,45 @@ TEXT_TRANSLATIONS = (
     ("默认酒店（可编辑）", "Default hotel (editable)"),
     ("市中心区域", "city center area"),
 )
+REVERSE_TEXT_TRANSLATIONS = (
+    ("Morning", "上午"),
+    ("Afternoon", "下午"),
+    ("Evening", "晚上"),
+    ("Lunch", "午餐"),
+    ("Dinner", "晚餐"),
+    ("Departure", "出发"),
+    ("Arrival", "到达"),
+    ("Check-in", "入住"),
+    ("Check-out", "退房"),
+    ("Address", "地址"),
+    ("Price", "价格"),
+    ("Airport", "机场"),
+    ("Duration", "时长"),
+    ("Stops", "经停"),
+    ("Direct", "直飞"),
+    ("Cabin", "舱位"),
+    ("Airline", "航司"),
+    ("Flight No.", "航班号"),
+    ("Dining", "餐饮"),
+    ("Suggested stay", "建议停留"),
+    ("hour(s)", "小时"),
+    ("Continue visiting", "继续游览"),
+    ("Visit", "游览"),
+    ("Arrive and", "抵达并"),
+    ("photo stops, walking and nearby neighborhood exploration", "拍照、步行和周边街区体验"),
+    ("photo stops, walking and nearby exploration", "拍照、步行和周边体验"),
+    ("Confirm via booking platform", "请通过预订平台确认"),
+    ("To be confirmed by hotel API", "待酒店 API 确认"),
+    ("Default flight (editable)", "默认航班（可编辑）"),
+    ("Default hotel (editable)", "默认酒店（可编辑）"),
+    ("city center area", "市中心区域"),
+    ("night(s)", "晚"),
+)
+REVERSE_PLACE_TRANSLATIONS = {
+    value: key for key, value in sorted(
+        PLACE_TRANSLATIONS.items(), key=lambda item: len(item[1]), reverse=True
+    )
+}
 
 
 def _as_text(value, fallback="-"):
@@ -124,6 +166,10 @@ def _as_text(value, fallback="-"):
         return fallback
     text = str(value).strip()
     return text or fallback
+
+
+def _has_cjk(value):
+    return bool(re.search(r"[\u3400-\u9fff]", _as_text(value, "")))
 
 
 def _join_items(items):
@@ -259,7 +305,7 @@ def _build_activity_rows(itinerary):
         if not isinstance(day, dict):
             continue
         day_number = _day_number_from_value(day.get("day"))
-        day_label = f"天 {day_number}"
+        day_label = f"第 {day_number} 天"
         city = _as_text(day.get("city"))
         activities = day.get("activities") if isinstance(day.get("activities"), list) else []
         food_items = day.get("food") if isinstance(day.get("food"), list) else []
@@ -555,17 +601,67 @@ def get_table_headers(language):
 
 def _translate_text(value):
     text = _as_text(value)
+    for source, target in sorted(
+        PLACE_TRANSLATIONS.items(), key=lambda item: len(item[0]), reverse=True
+    ):
+        text = text.replace(source, target)
+    text = re.sub(r"第\s*(\d+)\s*天", r"Day \1", text)
     text = re.sub(r"天\s*(\d+)", r"Day \1", text)
     text = re.sub(r"(\d+)月(\d+)日", r"\1/\2", text)
+    text = re.sub(r"(\d+)\s*晚(?!餐)", r"\1 night(s)", text)
     for source, target in TEXT_TRANSLATIONS:
         text = text.replace(source, target)
+    text = re.sub(r"[\u3400-\u9fff]+", "", text)
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r",\s*,+", ",", text)
+    text = re.sub(r",\s*\.", ".", text)
+    text = text.replace(" ;", ";").replace(" ,", ",").strip()
     return text
+
+
+def _english_fallback_for_cell(key):
+    if key == "time":
+        return "TBD"
+    if key == "type":
+        return "Item"
+    if key == "date":
+        return "Day TBD"
+    if key == "route":
+        return "Route TBD"
+    if key == "name":
+        return "Travel item"
+    if key == "details":
+        return "Details to be confirmed."
+    if key == "contact":
+        return "-"
+    return "-"
 
 
 def _translate_cell(key, value):
     if key == "type":
-        return TYPE_TRANSLATIONS.get(_as_text(value), _translate_text(value))
-    return _translate_text(value)
+        translated = TYPE_TRANSLATIONS.get(_as_text(value), _translate_text(value))
+    else:
+        translated = _translate_text(value)
+    return translated if translated and not _has_cjk(translated) else _english_fallback_for_cell(key)
+
+
+def _localize_chinese_text(value):
+    text = _as_text(value)
+    text = re.sub(r"\bDay\s*(\d+)\b", r"第 \1 天", text, flags=re.IGNORECASE)
+    text = re.sub(r"(\d+)/(\d+)", r"\1月\2日", text)
+    for source, target in REVERSE_PLACE_TRANSLATIONS.items():
+        text = text.replace(source, target)
+    for source, target in REVERSE_TEXT_TRANSLATIONS:
+        text = text.replace(source, target)
+    text = text.replace(";", "；").replace(",", "，").replace(":", "：")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _localize_chinese_cell(key, value):
+    if key == "type":
+        return REVERSE_TYPE_TRANSLATIONS.get(_as_text(value), _localize_chinese_text(value))
+    return _localize_chinese_text(value)
 
 
 def localize_itinery_row(row, language):
@@ -579,9 +675,17 @@ def localize_itinery_row(row, language):
         elif normalized == "bilingual":
             localized[key] = zh_value if zh_value == en_value else f"{zh_value}\n{en_value}"
         else:
-            localized[key] = zh_value
+            localized[key] = _localize_chinese_cell(key, zh_value)
     return localized
 
 
 def localize_itinery_rows(rows, language):
     return [localize_itinery_row(row, language) for row in rows]
+
+
+def localize_export_text(value, language, key="details"):
+    normalized = normalize_export_language(language)
+    text = _as_text(value)
+    if normalized == "en":
+        return _translate_cell(key, text)
+    return text

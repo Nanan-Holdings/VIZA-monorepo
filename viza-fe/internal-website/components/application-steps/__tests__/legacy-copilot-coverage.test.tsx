@@ -11,7 +11,26 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/components/field-guidance-panel", () => ({
-  FieldGuidancePanel: () => <div data-testid="field-guidance-panel" />,
+  FieldGuidancePanel: ({
+    country,
+    allAnswers,
+    field,
+    visaType,
+  }: {
+    allAnswers: Record<string, string>;
+    country?: string | null;
+    field: { fieldName: string };
+    visaType: string;
+  }) => (
+    <div
+      data-answer-country={allAnswers.destination_country ?? ""}
+      data-answer-visa-type={allAnswers.visa_type ?? ""}
+      data-country={country ?? ""}
+      data-field-name={field.fieldName}
+      data-testid="field-guidance-panel"
+      data-visa-type={visaType}
+    />
+  ),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -36,7 +55,9 @@ function expectCopilotCoverage(container: HTMLElement, expectedFields: string[])
 
 describe("legacy application step copilot coverage", () => {
   it("renders one copilot trigger for every travel details field", () => {
-    const { container } = render(<TravelInfoStep onComplete={vi.fn()} />);
+    const { container } = render(
+      <TravelInfoStep country="indonesia" visaType="ID_C1_TOURIST" onComplete={vi.fn()} />,
+    );
 
     expectCopilotCoverage(container, [
       "purpose_of_trip",
@@ -88,7 +109,9 @@ describe("legacy application step copilot coverage", () => {
   });
 
   it("opens legacy field guidance only from the copilot trigger", () => {
-    const { container } = render(<TravelInfoStep onComplete={vi.fn()} />);
+    const { container } = render(
+      <TravelInfoStep country="indonesia" visaType="ID_C1_TOURIST" onComplete={vi.fn()} />,
+    );
     const arrivalCityFrame = container.querySelector<HTMLElement>(
       '[data-copilot-panel-frame="arrival_city"]',
     );
@@ -103,7 +126,13 @@ describe("legacy application step copilot coverage", () => {
     expect(arrivalCityTrigger).toBeInTheDocument();
 
     fireEvent.click(arrivalCityTrigger as HTMLElement);
-    expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
+    const panel = container.querySelector<HTMLElement>('[data-testid="field-guidance-panel"]');
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute("data-answer-country", "indonesia");
+    expect(panel).toHaveAttribute("data-answer-visa-type", "ID_C1_TOURIST");
+    expect(panel).toHaveAttribute("data-country", "indonesia");
+    expect(panel).toHaveAttribute("data-visa-type", "ID_C1_TOURIST");
+    expect(panel).toHaveAttribute("data-field-name", "arrival_city");
   });
 
   it("renders a consistent copilot trigger for the photo upload field", () => {

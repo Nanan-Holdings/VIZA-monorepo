@@ -7,6 +7,7 @@ import {
   streamChat,
   buildApplicationContext,
   buildSystemPrompt,
+  normalizeResponseLocale,
   type ApplicationBlockPayload,
 } from '../agent/index.js';
 import {
@@ -346,6 +347,7 @@ interface VisaChatRequest {
   user_id: string;
   session_id: string;
   message: string;
+  locale?: string;
   service_id?: string;
   history?: Array<{
     role: 'user' | 'assistant';
@@ -433,7 +435,7 @@ const APPLICATION_VISA_TYPE_PARAM_OVERRIDES: Record<string, string> = {
   tourist_b211a: 'B211A',
 };
 
-function buildApplicationFormUrl(
+export function buildApplicationFormUrl(
   country: SupportedKnowledgeCountry,
   visaType: string | null
 ): string {
@@ -467,6 +469,88 @@ function buildApplicationRedirectBlock(
     country,
     visaType,
   };
+}
+
+function getSchengenMainCountry(
+  state: VisaConversationState
+): SupportedKnowledgeCountry | null {
+  if (isSchengenKnowledgeCountry(state.mainDestination)) {
+    return state.mainDestination;
+  }
+
+  const schengenEntries = Object.entries(state.schengenDaySplit).filter(([country]) =>
+    isSchengenKnowledgeCountry(country as SupportedKnowledgeCountry)
+  ) as Array<[SupportedKnowledgeCountry, number]>;
+  if (schengenEntries.length > 0) {
+    const maxDays = Math.max(...schengenEntries.map(([, days]) => days));
+    const longest = schengenEntries.filter(([, days]) => days === maxDays);
+    if (longest.length === 1) return longest[0][0];
+  }
+
+  return (
+    state.destinationCountries.find((country) => isSchengenKnowledgeCountry(country)) ??
+    null
+  );
+}
+
+export function buildApplicationRedirectBlocks(
+  state: VisaConversationState,
+  primaryCountry: SupportedKnowledgeCountry | null,
+  primaryVisaType: string | null
+): ApplicationBlockPayload[] {
+  const countries: SupportedKnowledgeCountry[] = [];
+  if (primaryCountry) countries.push(primaryCountry);
+
+  const schengenMainCountry = getSchengenMainCountry(state);
+  if (schengenMainCountry) countries.push(schengenMainCountry);
+
+  for (const country of state.destinationCountries) {
+    if (!isSchengenKnowledgeCountry(country)) countries.push(country);
+  }
+
+  const uniqueCountries = Array.from(new Set(countries));
+  return uniqueCountries
+    .map((country) => {
+      const visaType =
+        country === primaryCountry
+          ? primaryVisaType
+          : getDefaultVisitorVisaType(country);
+      return buildApplicationRedirectBlock(country, visaType);
+    })
+    .filter((block): block is ApplicationBlockPayload => Boolean(block));
+}
+
+function buildApplicationRedirectPromptNote(
+  blocks: ApplicationBlockPayload[],
+  state: VisaConversationState
+): string | null {
+  if (blocks.length === 0) return null;
+
+  const blockLines = blocks
+    .map(
+      (block) =>
+        `${COUNTRY_DISPLAY_NAMES[block.country as SupportedKnowledgeCountry]}: ${block.visaType ?? 'visitor route'} form link ${block.redirectUrl}`
+    )
+    .join('\n');
+  const nonSchengenDestinations = state.destinationCountries.filter(
+    (country) => !isSchengenKnowledgeCountry(country)
+  );
+  const nonSchengenNote =
+    nonSchengenDestinations.length > 0
+      ? `The itinerary also includes non-Schengen destination(s): ${nonSchengenDestinations
+          .map((country) => COUNTRY_DISPLAY_NAMES[country])
+          .join(', ')}. Remind the user these require separate visa/application routes from the Schengen visa.`
+      : null;
+
+  return [
+    'Application form redirect button(s) have already been sent in this turn.',
+    'Mention the relevant form link(s) directly in the text so the user can locate them even if the CTA card is not visible after copying the chat.',
+    blockLines,
+    nonSchengenNote,
+    'Provide a rough overview of requirements and timing from retrieved knowledge. Do not ask the user to fill an inline chat form.',
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join('\n');
 }
 
 async function emitAndSaveApplicationBlock(
@@ -512,6 +596,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
         userId: user_id,
         sessionId: session_id,
         messageLength: message.length,
+        locale: request.locale,
       });
 
       const startTime = Date.now();
@@ -625,34 +710,40 @@ export function registerVisaNamespace(nsp: Namespace): void {
         );
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
-        const applicationRedirect = isFormIntakeRequest(knowledgeIntent)
-          ? buildApplicationRedirectBlock(
+        const responseLocale = normalizeResponseLocale(request.locale);
+        const applicationRedirects = isFormIntakeRequest(knowledgeIntent)
+          ? buildApplicationRedirectBlocks(
+              conversationState,
               knowledgeCountry,
               knowledgeVisaType ?? (knowledgeCountry ? getDefaultVisitorVisaType(knowledgeCountry) : null)
             )
-          : null;
-        if (applicationRedirect) {
+          : [];
+        for (const applicationRedirect of applicationRedirects) {
           try {
             await emitAndSaveApplicationBlock(socket, session_id, applicationRedirect);
           } catch (dbErr) {
             logger.error('Failed to emit/save application redirect block', dbErr as Error, {
               sessionId: session_id,
               blockType: applicationRedirect.blockType,
+              country: applicationRedirect.country,
             });
           }
         }
+        const applicationRedirectNote = buildApplicationRedirectPromptNote(
+          applicationRedirects,
+          conversationState
+        );
         const dynamicSystemPrompt = buildSystemPrompt(
           appContext,
           knowledgeContext,
           [
             compactAnswerInterpretation,
-            applicationRedirect
-              ? 'An application form redirect button has already been sent in this turn. Mention it briefly, provide a rough overview of requirements and timing from retrieved knowledge, and do not ask the user to fill an inline chat form.'
-              : null,
+            applicationRedirectNote,
           ]
             .filter((note): note is string => Boolean(note))
             .join('\n\n') || undefined,
-          statePrompt
+          statePrompt,
+          responseLocale
         );
 
         socket.emit('app_log', {
@@ -666,11 +757,17 @@ export function registerVisaNamespace(nsp: Namespace): void {
             intent: knowledgeIntent,
             historySource,
             historyLength: chatHistory.length,
+            responseLocale,
             resolvedStateSummary: stateSummary,
             stateConfidence: conversationState.confidence,
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
             compactAnswerInterpreted: Boolean(compactAnswerInterpretation),
+            applicationRedirects: applicationRedirects.map((block) => ({
+              country: block.country,
+              visaType: block.visaType,
+              redirectUrl: block.redirectUrl,
+            })),
             topSources: knowledgeResult.chunks.slice(0, 3).map((chunk) => ({
               title: chunk.title,
               country: chunk.country,

@@ -230,15 +230,15 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   dubai:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Burj_Khalifa_from_a_ferry%2C_Dubai.jpg/960px-Burj_Khalifa_from_a_ferry%2C_Dubai.jpg",
   moscow:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/5/50/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
   bali:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Jimbaran_Bay._Bali_%2815208714849%29.jpg/960px-Jimbaran_Bay._Bali_%2815208714849%29.jpg",
   istanbul:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/b/b0/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
   melbourne:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_2008.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/2/24/Melbourne_skyline_2008.jpg",
   hawaii:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_view_from_Diamond_Head.JPG",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Waikiki_from_Diamond_Head.jpg/960px-Waikiki_from_Diamond_Head.jpg",
   egypt: "/globe/egypt.jpg",
   japan: "/globe/tokyo.jpg",
   singaporecountry: "/globe/singapore.jpg",
@@ -1115,6 +1115,39 @@ function parseTravelRevisionResponse(
   };
 }
 
+function itineraryRevisionSignature(itinerary: ItineraryDay[]): string {
+  return JSON.stringify(
+    itinerary.map((day) => ({
+      day: String(day.day ?? ""),
+      city: day.city.trim(),
+      activities: day.activities.map((activity) => activity.trim()),
+      food: day.food.map((food) => food.trim()),
+      cost: day.cost.trim(),
+    }))
+  );
+}
+
+function hasRevisionPatch(value: Record<string, unknown>): boolean {
+  return Object.keys(value).length > 0;
+}
+
+function hasVisibleRevisionChange(
+  currentItinerary: ItineraryDay[],
+  revision: TravelRevisionResult
+): boolean {
+  if (
+    itineraryRevisionSignature(currentItinerary) !==
+    itineraryRevisionSignature(revision.itinerary)
+  ) {
+    return true;
+  }
+
+  return (
+    hasRevisionPatch(revision.statePatch) ||
+    hasRevisionPatch(revision.modulePatch)
+  );
+}
+
 function applyRevisionPatches(
   baseState: TravelState,
   statePatch: Record<string, unknown>,
@@ -1821,6 +1854,7 @@ export function TravelChatClient({
   const [sessions, setSessions] = useState<TravelChatSession[]>(() => [
     createTravelChatSession(),
   ]);
+  const sessionsRef = useRef<TravelChatSession[]>(sessions);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
   const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
@@ -1850,6 +1884,10 @@ export function TravelChatClient({
     visible: false,
   });
 
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
   const activeSession = useMemo(
     () =>
       sessions.find((session) => session.id === activeSessionId) ?? sessions[0],
@@ -1862,12 +1900,14 @@ export function TravelChatClient({
       sessionId: string,
       updater: (session: TravelChatSession) => TravelChatSession
     ) => {
-      setSessions((currentSessions) =>
-        currentSessions.map((session) => {
+      setSessions((currentSessions) => {
+        const nextSessions = currentSessions.map((session) => {
           if (session.id !== sessionId) return session;
           return normalizeTravelChatSession(updater(session));
-        })
-      );
+        });
+        sessionsRef.current = nextSessions;
+        return nextSessions;
+      });
     },
     []
   );
@@ -2687,8 +2727,11 @@ export function TravelChatClient({
       const latestVisibleUserText = latestUserMessage
         ? getVisibleMessageText(latestUserMessage)
         : "";
+      const latestSessions = sessionsRef.current;
       const sessionSnapshot =
-        sessions.find((session) => session.id === sessionId) ?? activeSession;
+        latestSessions.find((session) => session.id === sessionId) ??
+        sessions.find((session) => session.id === sessionId) ??
+        activeSession;
       const sessionVersions = sessionSnapshot?.versions ?? [];
       const currentVersion =
         sessionVersions.find(
@@ -2731,6 +2774,15 @@ export function TravelChatClient({
 
         const result = (await response.json()) as unknown;
         const revision = parseTravelRevisionResponse(result, currentItinerary);
+
+        if (
+          revision.action === "revise" &&
+          !hasVisibleRevisionChange(currentItinerary, revision)
+        ) {
+          throw new Error(
+            "OpenAI 已被调用，但没有返回任何可见的 itinerary 或模块变化。请换一种更明确的修改说法，或者检查 revision prompt。"
+          );
+        }
 
         if (revision.action === "restart") {
           setSessionMapMode(sessionId, true);
