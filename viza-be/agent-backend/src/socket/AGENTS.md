@@ -35,6 +35,9 @@ namespace `/visa` and sends/receives streaming events.
   Schengen form link should use the Schengen main destination from Schengen day
   counts, while non-Schengen destinations such as the UK remain visible as
   separate visa/application links.
+- Persist visible user/assistant messages idempotently. The frontend also has a
+  Supabase-side `ensureSessionMessage()` fallback, so Socket.IO persistence must
+  check for an existing exact session/role/content row before inserting.
 
 ## Validation
 

@@ -1,5 +1,5 @@
 import { Namespace, Socket } from 'socket.io';
-import { eq, asc } from 'drizzle-orm';
+import { and, eq, asc } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
 import { visaChatMessages } from '../db/schema.js';
@@ -35,6 +35,35 @@ import {
 } from '../services/visa-conversation-state.service.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
+
+async function saveVisibleVisaChatMessage(
+  sessionId: string,
+  role: 'user' | 'assistant',
+  content: string
+): Promise<void> {
+  const normalizedContent = content.trim();
+  if (!normalizedContent) return;
+
+  const existing = await db
+    .select({ id: visaChatMessages.id })
+    .from(visaChatMessages)
+    .where(
+      and(
+        eq(visaChatMessages.sessionId, sessionId),
+        eq(visaChatMessages.role, role),
+        eq(visaChatMessages.content, normalizedContent)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) return;
+
+  await db.insert(visaChatMessages).values({
+    sessionId,
+    role,
+    content: normalizedContent,
+  });
+}
 
 function includesAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
@@ -604,11 +633,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
       try {
         // 1. Save user message to DB (non-fatal)
         try {
-          await db.insert(visaChatMessages).values({
-            sessionId: session_id,
-            role: 'user',
-            content: message,
-          });
+          await saveVisibleVisaChatMessage(session_id, 'user', message);
         } catch (dbErr) {
           logger.warn('Failed to save user message (DB may be unavailable)', dbErr as Error, {
             sessionId: session_id,
@@ -798,11 +823,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
               // 5. Save assistant text message to DB (only if there's text)
               if (fullResponse.trim()) {
                 try {
-                  await db.insert(visaChatMessages).values({
-                    sessionId: session_id,
-                    role: 'assistant',
-                    content: fullResponse,
-                  });
+                  await saveVisibleVisaChatMessage(session_id, 'assistant', fullResponse);
                 } catch (dbErr) {
                   logger.error('Failed to save assistant message', dbErr as Error, {
                     sessionId: session_id,
