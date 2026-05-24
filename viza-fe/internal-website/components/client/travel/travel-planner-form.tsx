@@ -1879,6 +1879,41 @@ export function TravelPlannerForm({
         </div>
       )}
 
+      {missingField === "destination_confirmation" && (
+        <div className="space-y-2">
+          <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            已选目的地：
+            {resolvedCityDisplayNames.length > 0
+              ? resolvedCityDisplayNames.join("、")
+              : travelState.cities.join("、")}
+            。如果还想加入别的国家或城市，可以继续点右侧地图卡片，也可以直接在下方输入城市名。
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={() => {
+                toast.info("可以继续点击右侧地图卡片，或直接输入想加入的城市/国家。");
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              继续添加目的地
+            </Button>
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={() => sendStructuredMessage({ destination_confirmed: true })}
+              size="sm"
+              type="button"
+            >
+              目的地就这些
+            </Button>
+          </div>
+        </div>
+      )}
+
       {missingField === "departure_date" && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">

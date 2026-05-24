@@ -141,15 +141,6 @@ type GoogleMapsNamespace = {
       fullscreenControl?: boolean;
       zoomControl?: boolean;
       gestureHandling?: "cooperative" | "greedy" | "none" | "auto";
-      restriction?: {
-        latLngBounds: {
-          north: number;
-          south: number;
-          east: number;
-          west: number;
-        };
-        strictBounds: boolean;
-      };
     }
   ) => GoogleMapInstance;
   Marker: new (options: {
@@ -297,6 +288,26 @@ const NETWORK_CITY_IMAGES_BY_KEY: Record<string, string[]> = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Komune_Resort_and_Beach_Club_Bali%2C_Indonesia_%28Unsplash%29.jpg/960px-Komune_Resort_and_Beach_Club_Bali%2C_Indonesia_%28Unsplash%29.jpg",
     "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Nusa_Dua_1998_03.jpg/960px-Nusa_Dua_1998_03.jpg",
   ],
+  moscow: [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/St._Basil_Cathedral%2C_Moscow%2C_Russia_LCCN90713169.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Red_Square_Moscow_Russia_%28pixinn.net%29.jpg",
+  ],
+  istanbul: [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2021-10_img21_Hagia_Sophia.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Sultan_Ahmed_Mosque%2C_Istanbul%2C_Turkey_%28Unsplash%29.jpg",
+  ],
+  melbourne: [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_2008.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_sor.jpg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_CBD_from_Yarra_River.jpg",
+  ],
+  hawaii: [
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_view_from_Diamond_Head.JPG",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Diamond_Head_Hawaii_From_Round_Top_Rd.JPG",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_Beach%2C_Honolulu%2C_Hawaii_%282010%29.jpg",
+  ],
   bangkok: [
     "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg/960px-Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg",
     "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Wat_Arun_Temple_Of_Dawn_%28121412175%29.jpeg/960px-Wat_Arun_Temple_Of_Dawn_%28121412175%29.jpeg",
@@ -338,6 +349,10 @@ const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
   osaka: NETWORK_CITY_IMAGES_BY_KEY.osaka,
   dubai: NETWORK_CITY_IMAGES_BY_KEY.dubai,
   bali: NETWORK_CITY_IMAGES_BY_KEY.bali,
+  moscow: NETWORK_CITY_IMAGES_BY_KEY.moscow,
+  istanbul: NETWORK_CITY_IMAGES_BY_KEY.istanbul,
+  melbourne: NETWORK_CITY_IMAGES_BY_KEY.melbourne,
+  hawaii: NETWORK_CITY_IMAGES_BY_KEY.hawaii,
   bangkok: NETWORK_CITY_IMAGES_BY_KEY.bangkok,
   seoul: NETWORK_CITY_IMAGES_BY_KEY.seoul,
   hongkong: NETWORK_CITY_IMAGES_BY_KEY.hongkong,
@@ -373,6 +388,10 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   osaka: "大阪",
   dubai: "迪拜",
   bali: "巴厘岛",
+  moscow: "莫斯科",
+  istanbul: "伊斯坦布尔",
+  melbourne: "墨尔本",
+  hawaii: "夏威夷",
   egypt: "埃及",
   marinabaysands: "滨海湾金沙",
   eiffeltower: "埃菲尔铁塔",
@@ -698,7 +717,6 @@ const DETAIL_ITEM_MEDIA_BY_TITLE: Record<string, DetailItemMedia> = {
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
   },
 };
-const LABEL_MIN_ZOOM = 3;
 const SCRIPT_ID = "viza-travel-google-maps-script";
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -777,6 +795,13 @@ function getLocalNameFromValue(value: string | undefined): string | null {
 }
 
 function getPointDisplayName(point: TripMapPoint): string {
+  if (point.kind !== "city") {
+    const labelLocalName = getLocalNameFromValue(point.label);
+    if (labelLocalName) return labelLocalName;
+    if (point.localName && point.localName !== point.city) return point.localName;
+    return point.label;
+  }
+
   const cityLocalName = getLocalNameFromValue(point.city);
   if (cityLocalName) return cityLocalName;
   if (point.city) return point.localName ?? point.city;
@@ -1076,15 +1101,6 @@ function buildMarkerIcon(
   };
 }
 
-function buildMarkerLabel(point: TripMapPoint, iconSize: number): GoogleMarkerLabel {
-  return {
-    text: point.localName ?? point.label,
-    color: "#0f2a56",
-    fontSize: `${clamp(Math.round(iconSize * 0.22), 10, 14)}px`,
-    fontWeight: "700",
-  };
-}
-
 function calculateCoordinateCenter(
   coordinates: GoogleLatLngLiteral[]
 ): GoogleLatLngLiteral {
@@ -1140,7 +1156,10 @@ function getPointDisplayLocation(point: TripMapPoint): string {
 }
 
 function getPointAttractions(point: TripMapPoint): string {
-  const city = getPointDisplayName(point);
+  const city =
+    point.kind === "city"
+      ? getPointDisplayName(point)
+      : getLocalNameFromValue(point.city) ?? point.city ?? getPointDisplayName(point);
   const attractionName = getLocalNameFromValue(point.label) ?? point.label;
   const base =
     point.kind === "city"
@@ -1493,11 +1512,9 @@ export function TripRouteMap({
 
     const visualVersion = markerVisualVersionRef.current + 1;
     markerVisualVersionRef.current = visualVersion;
-    const zoom = map.getZoom() ?? DEFAULT_ZOOM;
     const mapWidth = containerRef.current?.clientWidth ?? 1200;
     const mapHeight = containerRef.current?.clientHeight ?? 800;
     const iconSize = getAdaptiveIconSize(markersRef.current.length, mapWidth, mapHeight);
-    const showLabel = zoom >= LABEL_MIN_ZOOM;
 
     markersRef.current.forEach(({ marker, point }) => {
       const isActive = point.id === activePointIdRef.current;
@@ -1507,7 +1524,7 @@ export function TripRouteMap({
         isActive
       );
       marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl));
-      marker.setLabel(showLabel ? buildMarkerLabel(point, iconSize) : undefined);
+      marker.setLabel(undefined);
       marker.setZIndex(isActive ? 1000 : 100);
 
       void getBubbleMarkerDataUrl(point, iconSize, isActive).then((markerDataUrl) => {
@@ -1559,15 +1576,6 @@ export function TripRouteMap({
           fullscreenControl: false,
           zoomControl: true,
           gestureHandling: "greedy",
-          restriction: {
-            latLngBounds: {
-              north: 85,
-              south: -85,
-              west: -179.9,
-              east: 179.9,
-            },
-            strictBounds: true,
-          },
         });
 
         hoverInfoRef.current = new maps.InfoWindow({
@@ -1682,7 +1690,6 @@ export function TripRouteMap({
     const mapWidth = containerRef.current?.clientWidth ?? 1200;
     const mapHeight = containerRef.current?.clientHeight ?? 800;
     const iconSize = getAdaptiveIconSize(points.length, mapWidth, mapHeight);
-    const showLabel = zoom >= LABEL_MIN_ZOOM;
     let effectDisposed = false;
     let fitRetryTimeoutId: number | null = null;
     const fitFallbackTimeoutIds: number[] = [];
@@ -1698,7 +1705,6 @@ export function TripRouteMap({
         position: { lat: point.lat, lng: point.lng },
         title: `${point.label} · ${point.subtitle}`,
         icon: buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl),
-        label: showLabel ? buildMarkerLabel(point, iconSize) : undefined,
         shape: {
           coords: [0, 0, markerDimensions.width, markerDimensions.height],
           type: "rect",

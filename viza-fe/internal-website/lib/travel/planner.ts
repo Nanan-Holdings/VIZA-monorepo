@@ -4,6 +4,7 @@ export const DEFAULT_CITY_DAYS = 2;
 export type TravelField =
   | "country"
   | "cities"
+  | "destination_confirmation"
   | "departure_date"
   | "travel_days"
   | "travelers"
@@ -107,6 +108,7 @@ export type TravelState = {
   seed_country: string | null;
   seed_city: string | null;
   city_days: Record<string, number>;
+  destination_confirmed: boolean;
   departure_date: string | null;
   date_flexibility: TravelDateFlexibility | null;
   travel_days: number | null;
@@ -179,6 +181,7 @@ export type TravelFormDisplayPayload = {
   travelers_label?: string;
   budget_label?: string;
   travel_order?: string[];
+  destination_confirmed?: boolean;
 };
 
 export type TravelFormPayload = Partial<TravelPayload> & {
@@ -192,6 +195,7 @@ export type TravelFormPayload = Partial<TravelPayload> & {
   seed_country?: string;
   seed_city?: string;
   city_days?: Record<string, number>;
+  destination_confirmed?: boolean;
   travelers?: number;
   budget?: number;
   origin_country?: string;
@@ -209,6 +213,7 @@ export type TravelFormPayload = Partial<TravelPayload> & {
 export const FIELD_QUESTIONS: Record<TravelField, string> = {
   country: "请选择要去的国家（可搜索、可多选）。",
   cities: "请选择要去的城市（可搜索、可多选）。",
+  destination_confirmation: "还要添加其他国家或城市吗？",
   departure_date: "请选择出行日期：可以灵活出行，也可以指定日期。",
   travel_days: "请输入本次旅行一共多少天，也可以先灵活规划。",
   travelers: "请输入旅行人数，也可以先灵活规划。",
@@ -523,6 +528,7 @@ export function createInitialTravelState(): TravelState {
     seed_country: null,
     seed_city: null,
     city_days: {},
+    destination_confirmed: false,
     departure_date: null,
     date_flexibility: null,
     travel_days: null,
@@ -603,6 +609,22 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
       return `我想把 ${seedCityLabel} 加入旅行计划。`;
     }
     return `我想先去 ${seedCountryLabel} 旅行。`;
+  }
+
+  if (payload.countries?.length && payload.cities?.length) {
+    const countries = display?.countries?.length
+      ? display.countries
+      : payload.countries;
+    const cities = display?.cities?.length ? display.cities : payload.cities;
+    return `我更新了目的地：城市 ${cities.join("、")}；国家 ${countries.join("、")}。`;
+  }
+
+  if (payload.destination_confirmed === true) {
+    return "目的地就这些，继续规划后面的行程信息。";
+  }
+
+  if (payload.destination_confirmed === false) {
+    return "我还想继续添加其他国家或城市。";
   }
 
   if (payload.countries?.length) {
@@ -733,11 +755,20 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const countries = normalizeStringArray(payload.countries);
   if (countries.length > 0) {
+    const previousCountryKey = state.countries
+      .map((item) => item.trim().toLowerCase())
+      .join("|");
+    const nextCountryKey = countries
+      .map((item) => item.trim().toLowerCase())
+      .join("|");
     state.countries = countries;
     if (!state.country) {
       state.country = countries.join("、");
     }
     state.seed_country = null;
+    if (previousCountryKey !== nextCountryKey) {
+      state.destination_confirmed = false;
+    }
   }
 
   const country = normalizeString(payload.country);
@@ -748,6 +779,12 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const cities = normalizeStringArray(payload.cities);
   if (cities.length > 0) {
+    const previousCityKey = state.cities
+      .map((item) => item.trim().toLowerCase())
+      .join("|");
+    const nextCityKey = cities
+      .map((item) => item.trim().toLowerCase())
+      .join("|");
     state.cities = cities;
     state.seed_city = null;
 
@@ -758,6 +795,13 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
     state.travel_order = state.travel_order.filter((city) => citySet.has(city));
     state.selected_flights = [];
     state.selected_hotels = [];
+    if (previousCityKey !== nextCityKey) {
+      state.destination_confirmed = false;
+    }
+  }
+
+  if (typeof payload.destination_confirmed === "boolean") {
+    state.destination_confirmed = payload.destination_confirmed;
   }
 
   const cityDays = normalizeCityDays(payload.city_days, state.cities);
@@ -901,6 +945,7 @@ function hasCompleteReturn(state: TravelState): boolean {
 export function nextMissingField(state: TravelState): TravelField | null {
   if (!state.countries.length && !normalizeString(state.country)) return "country";
   if (state.cities.length === 0) return "cities";
+  if (!state.destination_confirmed) return "destination_confirmation";
   if (!hasCompleteDepartureDate(state)) return "departure_date";
   if (!hasCompleteTravelDays(state)) return "travel_days";
   if (!state.travelers) return "travelers";

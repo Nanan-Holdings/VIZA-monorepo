@@ -148,6 +148,7 @@ function toShareFormPayload(state: TravelState): TravelFormPayload {
     seed_country: state.seed_country ?? undefined,
     seed_city: state.seed_city ?? undefined,
     city_days: state.city_days,
+    destination_confirmed: state.destination_confirmed,
     departure_date: state.departure_date ?? undefined,
     date_flexibility: state.date_flexibility ?? undefined,
     travel_days: state.travel_days ?? undefined,

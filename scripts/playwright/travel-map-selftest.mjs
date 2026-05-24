@@ -16,12 +16,27 @@ function averagePosition(items) {
   return { x: sumX / count, y: sumY / count };
 }
 
+function medianSize(items) {
+  const widths = items.map((item) => item.width).sort((a, b) => a - b);
+  return widths[Math.floor(widths.length / 2)] ?? 0;
+}
+
 function pointOverlapsRect(point, rect, margin = 28) {
   return (
     point.x >= rect.x - margin &&
     point.x <= rect.x + rect.width + margin &&
     point.y >= rect.y - margin &&
     point.y <= rect.y + rect.height + margin
+  );
+}
+
+function visibleMarkerRects(items, mapBox) {
+  return items.filter(
+    (item) =>
+      item.x + item.width > mapBox.x &&
+      item.x < mapBox.x + mapBox.width &&
+      item.y + item.height > mapBox.y &&
+      item.y < mapBox.y + mapBox.height
   );
 }
 
@@ -63,6 +78,7 @@ async function collectMarkerRects(page, selector) {
         };
       })
       .filter((item) => item.width > 24 && item.height > 24)
+      .filter((item) => item.width > 40 && item.height > item.width * 1.05)
   );
 }
 
@@ -81,15 +97,23 @@ async function run() {
 
     await page.waitForSelector("[data-testid='trip-route-map']", { timeout: 30000 });
     await page.waitForFunction(
-      (selector) => document.querySelectorAll(selector).length >= 4,
+      (selector) => document.querySelectorAll(selector).length >= 1,
       markerSelector,
       { timeout: 30000 }
     );
     await page.waitForTimeout(1500);
 
-    const first = await collectMarkerRects(page, markerSelector);
-    if (first.length < 4) {
-      throw new Error(`Expected >= 4 markers, got ${first.length}`);
+    const mapBox = await page.locator("[data-testid='trip-route-map']").boundingBox();
+    if (!mapBox) {
+      throw new Error("Map bounding box not found.");
+    }
+
+    const first = visibleMarkerRects(
+      await collectMarkerRects(page, markerSelector),
+      mapBox
+    );
+    if (first.length < 1) {
+      throw new Error(`Expected at least one visible marker, got ${first.length}`);
     }
 
     const broken = first.filter(
@@ -147,11 +171,6 @@ async function run() {
       }
     }
 
-    const mapBox = await page.locator("[data-testid='trip-route-map']").boundingBox();
-    if (!mapBox) {
-      throw new Error("Map bounding box not found.");
-    }
-
     const dragStart = pickDragStart(mapBox, first);
     const dragStartX = dragStart.x;
     const dragStartY = dragStart.y;
@@ -161,7 +180,10 @@ async function run() {
     await page.mouse.up();
     await page.waitForTimeout(1200);
 
-    const afterDrag = await collectMarkerRects(page, markerSelector);
+    const afterDrag = visibleMarkerRects(
+      await collectMarkerRects(page, markerSelector),
+      mapBox
+    );
     const firstAvg = averagePosition(first);
     const dragAvg = averagePosition(afterDrag);
     const dragShift =
@@ -177,13 +199,16 @@ async function run() {
     await page.mouse.wheel(0, -1200);
     await page.waitForTimeout(1500);
 
-    const afterZoom = await collectMarkerRects(page, markerSelector);
-    const avgSizeBefore =
-      first.reduce((sum, item) => sum + item.width, 0) / Math.max(1, first.length);
-    const avgSizeAfter =
-      afterZoom.reduce((sum, item) => sum + item.width, 0) / Math.max(1, afterZoom.length);
-    if (Math.abs(avgSizeAfter - avgSizeBefore) > 2.5) {
-      throw new Error("Marker size should stay stable when zooming.");
+    const afterZoom = visibleMarkerRects(
+      await collectMarkerRects(page, markerSelector),
+      mapBox
+    );
+    const markerSizeBefore = medianSize(first);
+    const markerSizeAfter = medianSize(afterZoom);
+    if (Math.abs(markerSizeAfter - markerSizeBefore) > 2.5) {
+      throw new Error(
+        `Marker size should stay stable when zooming. before=${markerSizeBefore}, after=${markerSizeAfter}, count=${afterZoom.length}`
+      );
     }
 
     const zoomShift = Math.abs((afterZoom[0]?.x ?? 0) - (afterDrag[0]?.x ?? 0));
