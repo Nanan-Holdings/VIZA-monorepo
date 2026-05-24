@@ -109,13 +109,13 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
   try {
     const adminClient = createAdminClient();
 
-    // Fetch sessions
+    // Fetch extra rows so empty draft sessions do not crowd out real history.
     const { data: sessions, error } = await adminClient
       .from("visa_chat_sessions")
       .select("*")
       .eq("applicant_id", userId)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(30);
 
     if (error) {
       return [];
@@ -176,7 +176,8 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
         firstMessagePreview:
           firstMessageMap.get(session.id)?.slice(0, 30) || undefined,
       }))
-      .filter((session) => Boolean(session.title || session.firstMessagePreview));
+      .filter((session) => Boolean(session.title || session.firstMessagePreview))
+      .slice(0, 10);
   } catch {
     return [];
   }
