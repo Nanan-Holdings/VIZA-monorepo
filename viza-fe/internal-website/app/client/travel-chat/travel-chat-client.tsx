@@ -205,6 +205,7 @@ const TRAVEL_MARKDOWN_CODE_BLOCK_PATTERN =
 const TRAVEL_STAGE_ORDER: readonly TravelField[] = [
   "country",
   "cities",
+  "destination_confirmation",
   "departure_date",
   "travel_days",
   "travelers",
@@ -226,6 +227,18 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   sanfrancisco: "/globe/sf.jpg",
   sf: "/globe/sf.jpg",
   pisa: "/globe/pisa.jpg",
+  dubai:
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Burj_Khalifa_from_a_ferry%2C_Dubai.jpg/960px-Burj_Khalifa_from_a_ferry%2C_Dubai.jpg",
+  moscow:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
+  bali:
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Jimbaran_Bay._Bali_%2815208714849%29.jpg/960px-Jimbaran_Bay._Bali_%2815208714849%29.jpg",
+  istanbul:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
+  melbourne:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_2008.jpg",
+  hawaii:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_view_from_Diamond_Head.JPG",
   egypt: "/globe/egypt.jpg",
   japan: "/globe/tokyo.jpg",
   singaporecountry: "/globe/singapore.jpg",
@@ -238,13 +251,22 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
 };
 
 const HOTSPOTS_BY_CITY: Record<string, string[]> = {
-  tokyo: ["Shibuya Crossing", "Senso-ji Temple", "Tokyo Skytree", "Tsukiji Outer Market"],
-  singapore: ["Marina Bay Sands", "Gardens by the Bay", "Chinatown", "Sentosa"],
-  sydney: ["Sydney Opera House", "Bondi Beach", "The Rocks", "Darling Harbour"],
-  newyork: ["Times Square", "Central Park", "Brooklyn Bridge", "SoHo"],
-  paris: ["Eiffel Tower", "Louvre Museum", "Montmartre", "Le Marais"],
-  london: ["Covent Garden", "Tower Bridge", "Camden Town", "Borough Market"],
-  rome: ["Colosseum", "Trevi Fountain", "Trastevere", "Vatican Museums"],
+  tokyo: ["涩谷十字路口", "浅草寺", "东京晴空塔", "筑地场外市场"],
+  singapore: ["滨海湾金沙", "滨海湾花园", "牛车水", "圣淘沙"],
+  sydney: ["悉尼歌剧院", "邦迪海滩", "岩石区", "达令港"],
+  newyork: ["时代广场", "中央公园", "布鲁克林大桥", "苏豪区"],
+  paris: ["埃菲尔铁塔", "卢浮宫", "蒙马特", "玛黑区"],
+  london: ["科文特花园", "塔桥", "卡姆登", "博罗市场"],
+  rome: ["斗兽场", "特莱维喷泉", "特拉斯提弗列", "梵蒂冈博物馆"],
+  beijing: ["故宫", "天坛", "颐和园", "慕田峪长城"],
+  sanfrancisco: ["金门大桥", "渔人码头", "九曲花街", "联合广场"],
+  pisa: ["比萨斜塔", "奇迹广场", "比萨主教座堂", "阿诺河岸"],
+  dubai: ["哈利法塔", "迪拜喷泉", "朱美拉海滩", "迪拜老城"],
+  moscow: ["红场", "圣瓦西里大教堂", "克里姆林宫", "阿尔巴特街"],
+  bali: ["乌鲁瓦图寺", "德格拉朗梯田", "库塔海滩", "乌布猴林"],
+  istanbul: ["圣索菲亚大教堂", "蓝色清真寺", "大巴扎", "博斯普鲁斯海峡"],
+  melbourne: ["联邦广场", "维多利亚女王市场", "大洋路", "霍西尔巷"],
+  hawaii: ["威基基海滩", "钻石山", "珍珠港", "哈雷阿卡拉国家公园"],
 };
 
 const FALLBACK_HOTSPOTS = [
@@ -264,10 +286,20 @@ const WORLD_CITY_SUGGESTIONS = [
   "Beijing",
   "San Francisco",
   "Pisa",
+  "Dubai",
+  "Moscow",
+  "Bali",
+  "Istanbul",
+  "Melbourne",
+  "Hawaii",
 ] as const;
 
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   japan: "日本",
+  unitedarabemirates: "阿联酋",
+  uae: "阿联酋",
+  russia: "俄罗斯",
+  turkey: "土耳其",
   china: "中国",
   singapore: "新加坡",
   australia: "澳大利亚",
@@ -301,6 +333,10 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   paris: "巴黎",
   london: "伦敦",
   dubai: "迪拜",
+  moscow: "莫斯科",
+  istanbul: "伊斯坦布尔",
+  melbourne: "墨尔本",
+  hawaii: "夏威夷",
   seoul: "首尔",
   osaka: "大阪",
   kyoto: "京都",
@@ -360,9 +396,12 @@ const CANONICAL_PLACE_KEY_BY_LOCAL_NAME = Object.entries(LOCAL_NAME_BY_KEY).redu
 
 const PLACE_TEXT_REPLACEMENTS = [
   ["South Korea", "韩国"],
+  ["United Arab Emirates", "阿联酋"],
   ["United Kingdom", "英国"],
   ["United States", "美国"],
   ["New Zealand", "新西兰"],
+  ["Russia", "俄罗斯"],
+  ["Turkey", "土耳其"],
   ["China", "中国"],
   ["Japan", "日本"],
   ["Singapore", "新加坡"],
@@ -396,6 +435,11 @@ const PLACE_TEXT_REPLACEMENTS = [
   ["Pattaya", "芭提雅"],
   ["Krabi", "甲米"],
   ["Bali", "巴厘岛"],
+  ["Dubai", "迪拜"],
+  ["Moscow", "莫斯科"],
+  ["Istanbul", "伊斯坦布尔"],
+  ["Melbourne", "墨尔本"],
+  ["Hawaii", "夏威夷"],
 ] as const;
 
 const CITY_CONTEXT: Record<
@@ -508,6 +552,42 @@ const CITY_CONTEXT: Record<
     countryZh: "意大利",
     days: "1-2 days",
     intro: "比萨适合安排轻量文化停留，经典地标集中，便于衔接托斯卡纳路线。",
+  },
+  dubai: {
+    countryEn: "United Arab Emirates",
+    countryZh: "阿联酋",
+    days: "2-4 days",
+    intro: "迪拜适合城市天际线、沙漠体验和海滨度假组合，节奏现代且选择丰富。",
+  },
+  moscow: {
+    countryEn: "Russia",
+    countryZh: "俄罗斯",
+    days: "3-5 days",
+    intro: "莫斯科适合红场、历史建筑和艺术街区路线，城市尺度大，建议按片区安排。",
+  },
+  bali: {
+    countryEn: "Indonesia",
+    countryZh: "印度尼西亚",
+    days: "4-6 days",
+    intro: "巴厘岛适合海滩、梯田、寺庙和度假村体验，适合把放松和轻户外结合。",
+  },
+  istanbul: {
+    countryEn: "Turkey",
+    countryZh: "土耳其",
+    days: "3-5 days",
+    intro: "伊斯坦布尔横跨欧亚，清真寺、集市与海峡风景密集，适合文化和美食路线。",
+  },
+  melbourne: {
+    countryEn: "Australia",
+    countryZh: "澳大利亚",
+    days: "3-5 days",
+    intro: "墨尔本适合咖啡街区、艺术巷弄和近郊公路旅行，城市氛围年轻好逛。",
+  },
+  hawaii: {
+    countryEn: "United States",
+    countryZh: "美国",
+    days: "5-7 days",
+    intro: "夏威夷适合海滩、火山、冲浪和自驾路线，适合慢节奏度假和自然景观。",
   },
 };
 
@@ -948,23 +1028,6 @@ function getVisibleMessageText(message: TravelChatMessage): string {
   return message.role === "assistant" ? stripTravelMarkdown(visibleText) : visibleText;
 }
 
-function isDestinationEditRequest(text: string): boolean {
-  const normalized = text.trim().toLowerCase();
-  if (!normalized) return false;
-
-  const asksToChange =
-    /(改|修改|换|更换|调整|重选|重新|change|edit|switch|replace|update)/i.test(
-      normalized
-    );
-  if (!asksToChange) return false;
-
-  return (
-    /(城市|国家|目的地|行程|路线|city|cities|country|destination|destinations|route|trip)/i.test(
-      normalized
-    ) || normalized.length <= 24
-  );
-}
-
 function toChatLikeMessages(messages: TravelChatMessage[]): ChatLikeMessage[] {
   return messages.map((message) => ({
     role: message.role,
@@ -1357,21 +1420,24 @@ function coerceTravelFormCandidatePayload(
     if (seedCity) {
       result.seed_city = seedCity;
     }
-    return result;
   }
 
   if (seedCity) result.seed_city = seedCity;
   if (country) result.country = country;
-  if (countries) {
-    result.countries = countries;
+
+  const normalizedCountries = countries ?? (seedCountry ? [seedCountry] : undefined);
+  if (normalizedCountries) {
+    result.countries = normalizedCountries;
     if (!result.country) {
-      result.country = countries.join("、");
+      result.country = normalizedCountries.join("、");
     }
   }
-  if (cities) {
-    result.cities = cities;
-    if (cities.length === 1) {
-      result.travel_order = cities;
+
+  const normalizedCities = cities ?? (seedCity ? [seedCity] : undefined);
+  if (normalizedCities) {
+    result.cities = normalizedCities;
+    if (normalizedCities.length === 1) {
+      result.travel_order = normalizedCities;
     }
   }
 
@@ -1416,6 +1482,91 @@ function normalizeCityKey(city: string): string {
 function getLocalDisplayName(value: string): string {
   const key = normalizeCityKey(value);
   return LOCAL_NAME_BY_KEY[key] ?? value;
+}
+
+function appendUniquePlaces(values: string[], additions: Array<string | undefined>): string[] {
+  const result = values.filter((value) => value.trim());
+  const seen = new Set(result.map((value) => normalizeCityKey(value)));
+
+  additions.forEach((addition) => {
+    const value = addition?.trim();
+    if (!value) return;
+
+    const key = normalizeCityKey(value);
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    result.push(value);
+  });
+
+  return result;
+}
+
+function createDestinationAppendPayload(
+  state: TravelState,
+  destination: {
+    country?: string;
+    countries?: string[];
+    city?: string;
+    cities?: string[];
+    includeCityDays?: boolean;
+    defaultCityDays?: number;
+  }
+): TravelFormCandidatePayload | null {
+  const existingCountries =
+    state.countries.length > 0
+      ? state.countries
+      : state.country
+        ? [state.country]
+        : state.seed_country
+          ? [state.seed_country]
+          : [];
+  const existingCities =
+    state.cities.length > 0
+      ? state.cities
+      : state.seed_city
+        ? [state.seed_city]
+        : [];
+  const targetCountries = [
+    ...(destination.countries ?? []),
+    destination.country,
+  ];
+  const targetCities = [...(destination.cities ?? []), destination.city];
+  const nextCountries = appendUniquePlaces(existingCountries, targetCountries);
+  const nextCities = appendUniquePlaces(existingCities, targetCities);
+  const countryChanged = nextCountries.length !== existingCountries.length;
+  const cityChanged = nextCities.length !== existingCities.length;
+
+  if (!countryChanged && !cityChanged) return null;
+
+  const nextOrder = state.travel_order.length
+    ? appendUniquePlaces(
+        state.travel_order.filter((city) =>
+          nextCities.some((nextCity) => normalizeCityKey(nextCity) === normalizeCityKey(city))
+        ),
+        targetCities
+      )
+    : [];
+  const payload: TravelFormCandidatePayload = {
+    country: nextCountries.length > 0 ? nextCountries.join("、") : undefined,
+    countries: nextCountries,
+    cities: nextCities,
+    travel_order: nextOrder.length === nextCities.length ? nextOrder : undefined,
+  };
+
+  if (destination.includeCityDays) {
+    const nextCityDays = { ...state.city_days };
+    targetCities.forEach((city) => {
+      const value = city?.trim();
+      if (!value) return;
+      nextCityDays[value] ??= destination.defaultCityDays ?? 2;
+    });
+    if (Object.keys(nextCityDays).length > 0) {
+      payload.city_days = nextCityDays;
+    }
+  }
+
+  return withLocalCandidateDisplay(payload);
 }
 
 function escapeRegExp(value: string): string {
@@ -1499,6 +1650,13 @@ function getGoogleCityCoordinates(
   lookup: Record<string, GoogleGeocodeCoordinate>
 ): [number, number] | null {
   const key = normalizeCityKey(city);
+  return getGoogleCoordinateByKey(key, lookup);
+}
+
+function getGoogleCoordinateByKey(
+  key: string,
+  lookup: Record<string, GoogleGeocodeCoordinate>
+): [number, number] | null {
   const coordinate = lookup[key];
   if (!coordinate) return null;
   return [coordinate.lat, coordinate.lng];
@@ -1518,6 +1676,31 @@ function buildGoogleGeocodeItem(city: string): GoogleGeocodeRequestItem | null {
       : trimmedCity;
 
   return { key, query };
+}
+
+function getHotspotGeocodeKey(city: string, hotspot: string): string {
+  return `${normalizeCityKey(city)}:${normalizePlaceLookupKey(hotspot)}`;
+}
+
+function buildGoogleHotspotGeocodeItem(
+  city: string,
+  hotspot: string
+): GoogleGeocodeRequestItem | null {
+  const trimmedCity = city.trim();
+  const trimmedHotspot = hotspot.trim();
+  if (!trimmedCity || !trimmedHotspot) return null;
+
+  const cityName = getLocalDisplayName(trimmedCity);
+  const hotspotName = getLocalDisplayName(trimmedHotspot);
+  const context = getCityContext(trimmedCity);
+  const query = context
+    ? `${hotspotName}, ${cityName}, ${context.countryZh}`
+    : `${hotspotName}, ${cityName}`;
+
+  return {
+    key: getHotspotGeocodeKey(trimmedCity, trimmedHotspot),
+    query,
+  };
 }
 
 function buildRouteCityNames(
@@ -1732,31 +1915,17 @@ export function TravelChatClient({
   const displayItinerary = activeTravelVersion?.itinerary ?? latestItinerary;
   const displayTravelState = activeTravelVersion?.travelState ?? travelState;
   const missingField = useMemo(() => nextMissingField(travelState), [travelState]);
-  const latestVisibleUserText = useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message.role === "user") {
-        return getVisibleMessageText(message);
-      }
-    }
-
-    return "";
-  }, [messages]);
-  const destinationSelectionLocked = useMemo(() => {
+  const hasDestinationSelection = useMemo(() => {
     const hasCountry = travelState.countries.length > 0 || Boolean(travelState.country);
     const hasCities = travelState.cities.length > 0;
-    const choosingDestination =
-      missingField === "country" || missingField === "cities";
 
-    return hasCountry && hasCities && !choosingDestination;
+    return hasCountry && hasCities;
   }, [
-    missingField,
     travelState.cities.length,
     travelState.countries.length,
     travelState.country,
   ]);
-  const canAddDestinationFromMap =
-    !destinationSelectionLocked || isDestinationEditRequest(latestVisibleUserText);
+  const canAddDestinationFromMap = status === "ready";
 
   const stageIndex = useMemo(() => {
     if (!missingField) return TRAVEL_STAGE_ORDER.length;
@@ -1802,12 +1971,23 @@ export function TravelChatClient({
       displayTravelState.return_city,
     ]
   );
-  const cityNamesForGoogleGeocoding = useMemo(() => {
-    const cityByKey = new Map<string, string>();
+  const googleGeocodeItems = useMemo(() => {
+    const itemByKey = new Map<string, GoogleGeocodeRequestItem>();
+    const addItem = (item: GoogleGeocodeRequestItem | null) => {
+      if (!item) return;
+      itemByKey.set(item.key, item);
+    };
     const addCity = (city: string | null | undefined) => {
       const trimmedCity = city?.trim();
       if (!trimmedCity) return;
-      cityByKey.set(normalizeCityKey(trimmedCity), trimmedCity);
+      addItem(buildGoogleGeocodeItem(trimmedCity));
+    };
+    const addHotspotsForCity = (city: string | null | undefined) => {
+      const trimmedCity = city?.trim();
+      if (!trimmedCity) return;
+      getHotspotsForCity(trimmedCity).forEach((hotspot) => {
+        addItem(buildGoogleHotspotGeocodeItem(trimmedCity, hotspot));
+      });
     };
 
     WORLD_CITY_SUGGESTIONS.forEach(addCity);
@@ -1817,8 +1997,10 @@ export function TravelChatClient({
     displayOrderedCities.forEach(addCity);
     travelState.selected_hotels.forEach((hotel) => addCity(hotel.city));
     displayTravelState.selected_hotels.forEach((hotel) => addCity(hotel.city));
+    orderedCities.forEach(addHotspotsForCity);
+    displayOrderedCities.forEach(addHotspotsForCity);
 
-    return Array.from(cityByKey.values());
+    return Array.from(itemByKey.values());
   }, [
     displayItineraryRouteCityNames,
     displayOrderedCities,
@@ -1838,10 +2020,7 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    const pendingItems = cityNamesForGoogleGeocoding
-      .map(buildGoogleGeocodeItem)
-      .filter((item): item is GoogleGeocodeRequestItem => {
-        if (!item) return false;
+    const pendingItems = googleGeocodeItems.filter((item) => {
         if (googleCityCoordinates[item.key]) return false;
         return !failedGeocodeKeysRef.current.has(item.key);
       });
@@ -1906,7 +2085,7 @@ export function TravelChatClient({
     return () => {
       disposed = true;
     };
-  }, [cityNamesForGoogleGeocoding, googleCityCoordinates]);
+  }, [googleGeocodeItems, googleCityCoordinates]);
 
   const routeCoordinates = useMemo(
     () => buildGoogleRouteCoordinates(routeCityNames, googleCityCoordinates),
@@ -2070,7 +2249,9 @@ export function TravelChatClient({
   }, [activeBaseTarget?.city, orderedCities, travelState.selected_hotels]);
 
   const hotspotMapTargets = useMemo(() => {
-    if (!destinationSelectionLocked || !activeCityForHotspots) return [];
+    if (!hasDestinationSelection || !activeCityForHotspots) return [];
+    const activeCityKey = normalizeCityKey(activeCityForHotspots);
+    if (!selectedCityKeys.has(activeCityKey)) return [];
 
     const cityCenter = getGoogleCityCoordinates(
       activeCityForHotspots,
@@ -2095,16 +2276,23 @@ export function TravelChatClient({
       })(),
       imageSrc: getCityImage(activeCityForHotspots, `hotspot-${index}`),
       ...(() => {
-        const [lat, lng] = withOffset(
-          cityCenter,
-          `hotspot-${activeCityForHotspots}-${index}`,
-          0.26
+        const exactCoordinate = getGoogleCoordinateByKey(
+          getHotspotGeocodeKey(activeCityForHotspots, spot),
+          googleCityCoordinates
         );
+        const [lat, lng] =
+          exactCoordinate ??
+          withOffset(cityCenter, `hotspot-${activeCityForHotspots}-${index}`, 0.26);
         return { lat, lng };
       })(),
       city: activeCityForHotspots,
     }));
-  }, [activeCityForHotspots, destinationSelectionLocked, googleCityCoordinates]);
+  }, [
+    activeCityForHotspots,
+    googleCityCoordinates,
+    hasDestinationSelection,
+    selectedCityKeys,
+  ]);
 
   const allMapTargets = useMemo(
     () => [...baseMapTargets, ...citySuggestionTargets, ...hotspotMapTargets],
@@ -2512,13 +2700,11 @@ export function TravelChatClient({
       const currentItinerary = currentVersion?.itinerary ?? messageItinerary;
       const revisionBaseState = currentVersion?.travelState ?? state;
       const isStructuredMessage = isStructuredTravelFormText(latestUserText);
-      const isMapModeSession = mapModeSessionIds.includes(sessionId);
 
       if (
         currentItinerary.length > 0 &&
         latestVisibleUserText &&
-        !isStructuredMessage &&
-        !isMapModeSession
+        !isStructuredMessage
       ) {
         const response = await fetch("/api/travel/itinerary/revise", {
           method: "POST",
@@ -2758,7 +2944,6 @@ export function TravelChatClient({
     }
   }, [
     activeSession,
-    mapModeSessionIds,
     sessions,
     setSessionMapMode,
     setSessionMessages,
@@ -2804,10 +2989,16 @@ export function TravelChatClient({
 
   const handleDestinationCardAction = useCallback(
     (card: TravelDestinationCard) => {
-      const payload = withLocalCandidateDisplay(
-        coerceTravelFormCandidatePayload(card.payload)
-      );
-      if (Object.keys(payload).length === 0) {
+      const candidate = coerceTravelFormCandidatePayload(card.payload);
+      const payload = createDestinationAppendPayload(travelState, {
+        country: candidate.seed_country ?? candidate.country ?? card.country,
+        countries: candidate.countries,
+        city: candidate.seed_city ?? card.city ?? undefined,
+        cities: candidate.cities,
+        includeCityDays: missingField !== "country" && missingField !== "cities",
+      });
+
+      if (!payload) {
         sendFreeTextMessage(
           `我想了解 ${getLocalDisplayName(card.city ?? card.country)}`
         );
@@ -2819,7 +3010,7 @@ export function TravelChatClient({
         parts: [{ type: "text", text: createTravelFormMessage(payload) }],
       });
     },
-    [sendFreeTextMessage, sendMessage]
+    [missingField, sendFreeTextMessage, sendMessage, travelState]
   );
 
   const handleAddDestinationFromMap = useCallback(
@@ -2832,90 +3023,26 @@ export function TravelChatClient({
       const cityContext = getCityContext(targetCity);
       const seedCountry =
         cityContext?.countryEn ?? cityContext?.countryZh ?? null;
-      const existingCities =
-        travelState.cities.length > 0
-          ? travelState.cities
-          : travelState.seed_city
-            ? [travelState.seed_city]
-            : [];
-      const alreadySelected = existingCities.some(
-        (city) => normalizeCityKey(city) === normalizeCityKey(targetCity)
-      );
-
-      if (alreadySelected) return;
-
-      const existingCountries =
-        travelState.countries.length > 0
-          ? travelState.countries
-          : travelState.country
-            ? [travelState.country]
-            : travelState.seed_country
-              ? [travelState.seed_country]
-              : [];
-      const nextCountries =
-        seedCountry &&
-        !existingCountries.some(
-          (country) => normalizeCityKey(country) === normalizeCityKey(seedCountry)
-        )
-          ? [...existingCountries, seedCountry]
-          : existingCountries;
-      const nextCities = [...existingCities, targetCity];
       const shouldPrefillDays =
         missingField !== "country" && missingField !== "cities";
-      const nextCityDays = shouldPrefillDays
-        ? {
-            ...travelState.city_days,
-            [targetCity]: travelState.city_days[targetCity] ?? 2,
-          }
-        : travelState.city_days;
-      const nextOrder = travelState.travel_order.length
-        ? Array.from(new Set([...travelState.travel_order, targetCity]))
-        : [];
-
-      const payloadText = createTravelFormMessage({
-        country:
-          travelState.country ??
-          (nextCountries.length > 0 ? nextCountries.join("、") : undefined),
-        countries: nextCountries,
-        cities: nextCities,
-        city_days: nextCityDays,
-        travel_order:
-          nextOrder.length === nextCities.length ? nextOrder : undefined,
-        display: {
-          country:
-            nextCountries.length > 0
-              ? nextCountries.map(getLocalDisplayName).join("、")
-              : travelState.country
-                ? getLocalDisplayName(travelState.country)
-                : undefined,
-          countries: nextCountries.map(getLocalDisplayName),
-          cities: nextCities.map(getLocalDisplayName),
-          city_labels: Object.fromEntries(
-            nextCities.map((city) => [city, getLocalDisplayName(city)])
-          ),
-          travel_order:
-            nextOrder.length === nextCities.length
-              ? nextOrder.map(getLocalDisplayName)
-              : undefined,
-        },
+      const payload = createDestinationAppendPayload(travelState, {
+        country: seedCountry ?? undefined,
+        city: targetCity,
+        includeCityDays: shouldPrefillDays,
+        defaultCityDays: 2,
       });
+      if (!payload) return;
 
       sendMessage({
         role: "user",
-        parts: [{ type: "text", text: payloadText }],
+        parts: [{ type: "text", text: createTravelFormMessage(payload) }],
       });
     },
     [
       canAddDestinationFromMap,
       missingField,
       sendMessage,
-      travelState.cities,
-      travelState.city_days,
-      travelState.countries,
-      travelState.country,
-      travelState.seed_city,
-      travelState.seed_country,
-      travelState.travel_order,
+      travelState,
     ]
   );
 

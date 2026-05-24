@@ -18,6 +18,8 @@ reports, and workflow documentation for VIZA.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
+- `pitch/**`: pitch-deck-ready product/module summaries and bilingual investor
+  narrative material.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
