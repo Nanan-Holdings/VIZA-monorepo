@@ -118,7 +118,7 @@ export function ChatInput({
               : "bg-gray-200 text-gray-400 cursor-not-allowed",
             buttonClassName
           )}
-          aria-label={isConnecting ? "正在回复" : "Send message"}
+          aria-label={isConnecting ? "Connecting..." : "Send message"}
         >
           <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
         </button>
