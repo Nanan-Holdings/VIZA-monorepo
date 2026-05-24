@@ -108,6 +108,17 @@ describe("legacy application step copilot coverage", () => {
     );
   });
 
+  it("transliterates Chinese given names instead of showing confirm text", () => {
+    render(<PersonalInfoStep onComplete={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("如：小明"), {
+      target: { value: "晓明" },
+    });
+
+    expect(screen.getByPlaceholderText("e.g. XIAOMING")).toHaveValue("XIAOMING");
+    expect(screen.queryByDisplayValue(/Please confirm/i)).not.toBeInTheDocument();
+  });
+
   it("opens legacy field guidance only from the copilot trigger", () => {
     const { container } = render(
       <TravelInfoStep country="indonesia" visaType="ID_C1_TOURIST" onComplete={vi.fn()} />,
