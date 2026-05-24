@@ -197,6 +197,7 @@ declare global {
 const DEFAULT_CENTER: GoogleLatLngLiteral = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
+const MAX_CENTER_LAT = 67;
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
 const GALLERY_MAX_IMAGES = 8;
@@ -289,24 +290,24 @@ const NETWORK_CITY_IMAGES_BY_KEY: Record<string, string[]> = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Nusa_Dua_1998_03.jpg/960px-Nusa_Dua_1998_03.jpg",
   ],
   moscow: [
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/St._Basil_Cathedral%2C_Moscow%2C_Russia_LCCN90713169.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Red_Square_Moscow_Russia_%28pixinn.net%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/5/50/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/3/3d/St._Basil_Cathedral%2C_Moscow%2C_Russia_LCCN90713169.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Moscow_City_skyline_at_sunset.jpg/960px-Moscow_City_skyline_at_sunset.jpg",
   ],
   istanbul: [
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Istanbul_asv2021-10_img21_Hagia_Sophia.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Sultan_Ahmed_Mosque%2C_Istanbul%2C_Turkey_%28Unsplash%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/b/b0/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/e/ef/Istanbul_asv2021-10_img21_Hagia_Sophia.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Blue_Mosque_Istanbul_2007.jpg/960px-Blue_Mosque_Istanbul_2007.jpg",
   ],
   melbourne: [
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_2008.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_skyline_sor.jpg",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Melbourne_CBD_from_Yarra_River.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/2/24/Melbourne_skyline_2008.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/7/74/Melbourne_skyline_sor.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Melbourne_CBD_from_Southbank.jpg/960px-Melbourne_CBD_from_Southbank.jpg",
   ],
   hawaii: [
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_view_from_Diamond_Head.JPG",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Diamond_Head_Hawaii_From_Round_Top_Rd.JPG",
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Waikiki_Beach%2C_Honolulu%2C_Hawaii_%282010%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Waikiki_from_Diamond_Head.jpg/960px-Waikiki_from_Diamond_Head.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Diamond_Head_Hawaii_From_Round_Top_Rd.JPG/960px-Diamond_Head_Hawaii_From_Round_Top_Rd.JPG",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Waikiki_Beach%2C_Honolulu%2C_Hawaii.jpg/960px-Waikiki_Beach%2C_Honolulu%2C_Hawaii.jpg",
   ],
   bangkok: [
     "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg/960px-Wat_Arun_Ratchawararam_and_the_Royal_Barge_Procession.jpg",
@@ -874,6 +875,13 @@ function toWorldPixel(lat: number, lng: number, zoom: number): { x: number; y: n
   return { x, y };
 }
 
+function getWrappedLongitudeNearCenter(lng: number, centerLng: number): number {
+  let wrappedLng = lng;
+  while (wrappedLng - centerLng > 180) wrappedLng -= 360;
+  while (centerLng - wrappedLng > 180) wrappedLng += 360;
+  return wrappedLng;
+}
+
 function toScreenPixel(
   lat: number,
   lng: number,
@@ -883,11 +891,56 @@ function toScreenPixel(
   mapHeight: number
 ): { x: number; y: number } {
   const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
-  const world = toWorldPixel(lat, lng, zoom);
+  const world = toWorldPixel(lat, getWrappedLongitudeNearCenter(lng, center.lng), zoom);
   return {
     x: mapWidth / 2 + (world.x - centerWorld.x),
     y: mapHeight / 2 + (world.y - centerWorld.y),
   };
+}
+
+function getPointPriority(point: TripMapPoint, activePointId: string | null): number {
+  if (point.id === activePointId) return 0;
+  if (point.kind === "city") return 1;
+  if (point.kind === "hotel") return 2;
+  if (point.kind === "hotspot") return 3;
+  return 4;
+}
+
+function getDeclutteredPoints(
+  points: TripMapPoint[],
+  center: GoogleLatLngLiteral,
+  zoom: number,
+  mapWidth: number,
+  mapHeight: number,
+  iconSize: number,
+  activePointId: string | null
+): TripMapPoint[] {
+  if (points.length <= 1) return points;
+
+  const minDistance = clamp(iconSize * (zoom <= 3 ? 1.05 : 0.82), 42, 78);
+  const rankedPoints = points
+    .map((point, index) => ({
+      point,
+      index,
+      screen: toScreenPixel(point.lat, point.lng, center, zoom, mapWidth, mapHeight),
+      priority: getPointPriority(point, activePointId),
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index);
+
+  const accepted: typeof rankedPoints = [];
+  rankedPoints.forEach((candidate) => {
+    const shouldKeep =
+      candidate.point.id === activePointId ||
+      accepted.every((entry) => {
+        const dx = entry.screen.x - candidate.screen.x;
+        const dy = entry.screen.y - candidate.screen.y;
+        return Math.hypot(dx, dy) >= minDistance;
+      });
+
+    if (shouldKeep) accepted.push(candidate);
+  });
+
+  return accepted.sort((a, b) => a.index - b.index).map((entry) => entry.point);
 }
 
 function getAdaptiveIconSize(
@@ -1579,13 +1632,30 @@ export function TripRouteMap({
         });
 
         hoverInfoRef.current = new maps.InfoWindow({
-          disableAutoPan: true,
+          disableAutoPan: false,
         });
 
         mapRef.current = map;
         map.addListener("click", () => {
           hoverInfoRef.current?.close();
         });
+        let centerClampRunning = false;
+        const clampMapCenterLatitude = () => {
+          if (centerClampRunning) return;
+          const center = map.getCenter();
+          if (!center) return;
+          const lat = center.lat();
+          if (lat <= MAX_CENTER_LAT && lat >= -MAX_CENTER_LAT) return;
+
+          centerClampRunning = true;
+          map.setCenter({
+            lat: clamp(lat, -MAX_CENTER_LAT, MAX_CENTER_LAT),
+            lng: center.lng(),
+          });
+          window.setTimeout(() => {
+            centerClampRunning = false;
+          }, 0);
+        };
 
         const scheduleMarkerVisualRefresh = () => {
           hoverInfoRef.current?.close();
@@ -1612,6 +1682,7 @@ export function TripRouteMap({
           map.addListener("dragstart", () => {
             hoverInfoRef.current?.close();
           }),
+          map.addListener("center_changed", clampMapCenterLatitude),
         ];
 
         if (containerRef.current && typeof ResizeObserver !== "undefined") {

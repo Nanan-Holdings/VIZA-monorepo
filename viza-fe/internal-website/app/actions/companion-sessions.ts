@@ -62,6 +62,8 @@ function normalizeSessionTitle(title: string): string {
   return title.trim().replace(/\s+/g, " ").slice(0, 80);
 }
 
+export type PersistableVisaMessageRole = "user" | "assistant";
+
 function encodeSessionTitle(title: string): string {
   return `${SESSION_TITLE_PREFIX}${title}`;
 }
@@ -160,18 +162,21 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       }
     }
 
-    return sessions.map((session) => ({
-      id: session.id,
-      userId: session.applicant_id,
-      journeyType: "check_in",
-      state: "active",
-      startedAt: session.created_at,
-      endedAt: session.updated_at,
-      metadata: {},
-      createdAt: session.created_at,
-      title: titleMap.get(session.id),
-      firstMessagePreview: firstMessageMap.get(session.id)?.slice(0, 30) || undefined,
-    }));
+    return sessions
+      .map((session) => ({
+        id: session.id,
+        userId: session.applicant_id,
+        journeyType: "check_in",
+        state: "active",
+        startedAt: session.created_at,
+        endedAt: session.updated_at,
+        metadata: {},
+        createdAt: session.created_at,
+        title: titleMap.get(session.id),
+        firstMessagePreview:
+          firstMessageMap.get(session.id)?.slice(0, 30) || undefined,
+      }))
+      .filter((session) => Boolean(session.title || session.firstMessagePreview));
   } catch {
     return [];
   }
@@ -233,6 +238,76 @@ export async function getSessionMessages(
     riskLevel: null,
     createdAt: msg.created_at,
   }));
+}
+
+export async function ensureSessionMessage(
+  userId: string,
+  sessionId: string,
+  role: PersistableVisaMessageRole,
+  content: string
+): Promise<{ success: boolean; inserted?: boolean; error?: string }> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const normalizedContent = content.trim();
+  if (!normalizedContent) {
+    return { success: true, inserted: false };
+  }
+
+  const adminClient = createAdminClient();
+
+  const { data: session, error: sessionError } = await adminClient
+    .from("visa_chat_sessions")
+    .select("id, applicant_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (sessionError || !session || session.applicant_id !== userId) {
+    return { success: false, error: "Session not found" };
+  }
+
+  const { data: existing, error: existingError } = await adminClient
+    .from("visa_chat_messages")
+    .select("id")
+    .eq("session_id", sessionId)
+    .eq("role", role)
+    .eq("content", normalizedContent)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    return { success: false, error: "Failed to check existing message" };
+  }
+
+  if (existing) {
+    await adminClient
+      .from("visa_chat_sessions")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", sessionId);
+    return { success: true, inserted: false };
+  }
+
+  const { error: insertError } = await adminClient
+    .from("visa_chat_messages")
+    .insert({
+      session_id: sessionId,
+      role,
+      content: normalizedContent,
+    });
+
+  if (insertError) {
+    return { success: false, error: "Failed to save message" };
+  }
+
+  await adminClient
+    .from("visa_chat_sessions")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", sessionId);
+
+  return { success: true, inserted: true };
 }
 
 /**

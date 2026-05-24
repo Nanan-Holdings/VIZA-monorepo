@@ -27,13 +27,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   BilingualFieldCopilot,
@@ -57,7 +50,9 @@ export interface PersonalInfoData {
 
 interface PersonalInfoStepProps {
   applicationId?: string;
+  country?: string | null;
   prefill?: Partial<PersonalInfoData>;
+  visaType?: string;
   onComplete: (data: PersonalInfoData) => void;
 }
 
@@ -332,8 +327,15 @@ function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
-  const labels = getBilingualRowLabels(label, copilot?.label);
-  const requiredMark = copilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
+  const scopedCopilot = copilot
+    ? {
+        ...copilot,
+        country: copilot.country ?? copilot.allAnswers.destination_country ?? null,
+        visaType: copilot.visaType ?? copilot.allAnswers.visa_type ?? "unknown",
+      }
+    : undefined;
+  const labels = getBilingualRowLabels(label, scopedCopilot?.label);
+  const requiredMark = scopedCopilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
 
   return (
     <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
@@ -351,9 +353,9 @@ function BilingualRow({
         </span>
         {enControl}
       </div>
-      {copilot && (
-        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={copilot.fieldName}>
-          <BilingualFieldCopilot config={copilot} />
+      {scopedCopilot && (
+        <div className="min-w-0 md:col-span-2" data-copilot-panel-frame={scopedCopilot.fieldName}>
+          <BilingualFieldCopilot config={scopedCopilot} />
         </div>
       )}
     </div>
@@ -395,6 +397,8 @@ function OptionControl({
   side,
   options,
   placeholder,
+  searchPlaceholder,
+  emptyText,
   icon,
   onChange,
 }: {
@@ -402,25 +406,85 @@ function OptionControl({
   side: Side;
   options: OptionPair[];
   placeholder: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
   icon?: ReactNode;
   onChange: (value: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = findOption(options, value);
+  const resolvedSearchPlaceholder = searchPlaceholder ?? (side === "zh" ? "搜索选项..." : "Search options...");
+  const resolvedEmptyText = emptyText ?? (side === "zh" ? "未找到选项" : "No option found.");
+
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground">
-        <div className="flex min-w-0 items-center gap-2">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        type="button"
+        className="flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-left text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]"
+      >
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-2",
+            selectedOption ? "text-[#1f2f46]" : "text-muted-foreground",
+          )}
+        >
           {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
-          <SelectValue placeholder={placeholder} />
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            {selectedOption ? (side === "zh" ? selectedOption.zh : selectedOption.en) : placeholder}
+          </span>
         </div>
-      </SelectTrigger>
-      <SelectContent className="max-h-[320px]">
-        {options.map((option) => (
-          <SelectItem key={`${side}-${option.code}`} value={option.code}>
-            {side === "zh" ? option.zh : option.en}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+      </PopoverTrigger>
+      <PopoverContent
+        collisionPadding={10}
+        side="bottom"
+        align="start"
+        className="min-w-[--radix-popper-anchor-width] p-0"
+      >
+        <Command
+          className="w-full"
+          filter={(commandValue, search, keywords) => {
+            const normalizedSearch = search.trim().toLowerCase();
+            if (!normalizedSearch) return 1;
+            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
+            return haystack.includes(normalizedSearch) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder={resolvedSearchPlaceholder} />
+          <CommandList className="max-h-[200px] sm:max-h-[260px]">
+            <CommandEmpty>{resolvedEmptyText}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  className="flex w-full items-center gap-2 [&_svg]:size-auto"
+                  key={`${side}-${option.code}`}
+                  value={option.code}
+                  keywords={[option.zh, option.en, option.code]}
+                  onSelect={() => {
+                    onChange(option.code);
+                    setOpen(false);
+                  }}
+                >
+                  {icon ? <span className="shrink-0 text-gray-400">{icon}</span> : null}
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {side === "zh" ? option.zh : option.en}
+                  </span>
+                  <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
+                    {side === "zh" ? option.en : option.zh}
+                  </span>
+                  <CheckIcon
+                    className={cn(
+                      "ml-auto !h-4 !w-4 shrink-0",
+                      selectedOption?.code === option.code ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -559,7 +623,7 @@ function BilingualDateControl({
   );
 }
 
-export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps) {
+export function PersonalInfoStep({ country, prefill, visaType, onComplete }: PersonalInfoStepProps) {
   const t = useTranslations("applicationSteps");
   const [textValues, setTextValues] = useState<BilingualTextState>({
     surname: toInitialTextValue("surname", prefill?.surname),
@@ -670,6 +734,8 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
   }, [birthCityCode, cityOptionsError, cityOptionsLoading, fetchedCityOptions, prefill?.cityOfBirth]);
 
   const copilotAnswers = {
+    destination_country: country ?? "",
+    visa_type: visaType ?? "",
     surname: textValues.surname.en,
     given_names: textValues.givenNames.en,
     full_name_native_alphabet: textValues.fullNameNativeAlphabet.zh,
@@ -1015,6 +1081,8 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthRegionCode}
                 options={regionOptions}
                 placeholder="选择省 / 州..."
+                searchPlaceholder="搜索省 / 州..."
+                emptyText="未找到省 / 州"
                 icon={<MapPin className="h-4 w-4" />}
                 onChange={handleBirthRegionChange}
               />
@@ -1025,6 +1093,8 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                 value={birthRegionCode}
                 options={regionOptions}
                 placeholder="Select state / province..."
+                searchPlaceholder="Search state / province..."
+                emptyText="No state or province found."
                 icon={<MapPin className="h-4 w-4" />}
                 onChange={handleBirthRegionChange}
               />
@@ -1051,6 +1121,8 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                   value={birthCityCode}
                   options={cityOptions}
                   placeholder={cityOptionsLoading ? "正在加载城市..." : "选择出生城市..."}
+                  searchPlaceholder={cityOptionsLoading ? "城市正在加载..." : "搜索城市..."}
+                  emptyText={cityOptionsLoading ? "城市正在加载..." : "未找到城市，可选择其他并手动填写"}
                   icon={<MapPin className="h-4 w-4" />}
                   onChange={handleBirthCityChange}
                 />
@@ -1076,6 +1148,8 @@ export function PersonalInfoStep({ prefill, onComplete }: PersonalInfoStepProps)
                   value={birthCityCode}
                   options={cityOptions}
                   placeholder={cityOptionsLoading ? "Loading cities..." : "Select city of birth..."}
+                  searchPlaceholder={cityOptionsLoading ? "Loading cities..." : "Search city..."}
+                  emptyText={cityOptionsLoading ? "Loading cities..." : "No city found. Choose Other and enter it manually."}
                   icon={<MapPin className="h-4 w-4" />}
                   onChange={handleBirthCityChange}
                 />

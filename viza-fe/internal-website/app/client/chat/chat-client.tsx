@@ -14,7 +14,7 @@ import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -33,9 +33,11 @@ import { TravelChatClient } from "../travel-chat/travel-chat-client";
 import {
   createSession,
   deleteSession,
+  ensureSessionMessage,
   getSessionMessages,
   renameSession,
   type Message,
+  type PersistableVisaMessageRole,
   type Session,
 } from "@/app/actions/companion-sessions";
 import type {
@@ -577,6 +579,7 @@ export function ChatClient({
   travelApplicationStatus,
 }: ChatClientProps) {
   const t = useTranslations("chat");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedChatMode = parseRequestedChatMode(searchParams.get("agent"));
@@ -666,6 +669,27 @@ export function ChatClient({
       setLogs((prev) => [...prev, entry]);
     },
     [generateId]
+  );
+
+  const ensureMessagePersisted = useCallback(
+    (
+      targetSessionId: string,
+      role: PersistableVisaMessageRole,
+      content: string
+    ) => {
+      void ensureSessionMessage(userId, targetSessionId, role, content).then(
+        (result) => {
+          if (!result.success) {
+            console.warn("Failed to persist VIZA chat message", {
+              sessionId: targetSessionId,
+              role,
+              error: result.error,
+            });
+          }
+        }
+      );
+    },
+    [userId]
   );
 
   const flushTokenBuffer = useCallback(() => {
@@ -900,6 +924,7 @@ export function ChatClient({
         user_id: userId,
         session_id: effectiveSessionId,
         message,
+        locale,
         history: [
           ...chatContextRef.current
             .filter((msg) => !msg.isStreaming && msg.content.trim().length > 0)
@@ -913,7 +938,7 @@ export function ChatClient({
       };
       socketRef.current.emit("visa_chat_message", request);
     },
-    [userId, sessionId, addLog, generateId]
+    [userId, sessionId, addLog, generateId, locale]
   );
 
   const clearLogs = useCallback(() => setLogs([]), []);

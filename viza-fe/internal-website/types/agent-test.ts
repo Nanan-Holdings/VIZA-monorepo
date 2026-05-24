@@ -54,6 +54,7 @@ export interface VisaChatRequest {
   user_id: string;
   session_id: string;
   message: string;
+  locale?: string;
   service_id?: string;
   history?: Array<{
     role: "user" | "assistant";

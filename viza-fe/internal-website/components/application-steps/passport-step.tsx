@@ -33,7 +33,9 @@ export interface PassportData {
 
 interface PassportStepProps {
   applicationId?: string;
+  country?: string | null;
   prefill?: Partial<PassportData>;
+  visaType?: string;
   onComplete: (data: PassportData) => void;
 }
 
@@ -70,7 +72,7 @@ function toCityValue(value?: string) {
   };
 }
 
-export function PassportStep({ prefill, onComplete }: PassportStepProps) {
+export function PassportStep({ country, prefill, visaType, onComplete }: PassportStepProps) {
   const t = useTranslations("applicationSteps");
   const [passportDocumentType, setPassportDocumentType] = useState(prefill?.passportDocumentType ?? "");
   const [mirroredValues, setMirroredValues] = useState<Record<MirroredField, { zh: string; en: string }>>({
@@ -107,6 +109,8 @@ export function PassportStep({ prefill, onComplete }: PassportStepProps) {
   };
 
   const copilotAnswers = {
+    destination_country: country ?? "",
+    visa_type: visaType ?? "",
     passport_document_type: passportDocumentType,
     passport_number: mirroredValues.passportNumber.en,
     passport_book_number: mirroredValues.passportBookNumber.en,

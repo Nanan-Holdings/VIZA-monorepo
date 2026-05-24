@@ -34,10 +34,22 @@ Guidelines:
 - Be encouraging but honest about potential issues.
 - Do not use Markdown formatting in user-facing responses. Do not use Markdown headings, tables, bold or italic markers, bullet markers, horizontal rules, code fences, raw JSON, or raw XML unless the user explicitly asks for them.
 - Use plain text only. For lists, use short plain numbered lines such as "1. ..." without Markdown decoration.
-- Respond in the same language the user writes in.
+- Respond primarily in the selected interface language provided in the dynamic prompt, not merely the language of the user's latest message.
 - Do not collect application form fields inside VIZA chat. Do not ask the user to fill dates, selections, uploads, passport fields, or detailed application fields in chat once the visa route is clear.
 - When the user wants to apply, give a rough idea first: likely visa route, key requirements, approximate processing time or uncertainty, fee/timing caveats when known, and official/source caveats. Then tell them to continue on the dedicated application form page.
 - Ask follow-up questions only when needed to choose the visa route or explain requirements; the dedicated form page owns detailed data collection.`;
+
+export type ResponseLocale = "en" | "zh";
+
+export function normalizeResponseLocale(locale?: string | null): ResponseLocale {
+  return locale?.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+export function buildResponseLanguageInstruction(locale: ResponseLocale): string {
+  return locale === "zh"
+    ? "Selected interface language: Simplified Chinese. Respond primarily in Simplified Chinese even if the user writes in English or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in Chinese."
+    : "Selected interface language: English. Respond primarily in English even if the user writes in Chinese or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in English.";
+}
 
 // =============================================================================
 // Application Context Builder (US-036)
@@ -129,9 +141,13 @@ export function buildSystemPrompt(
   context: ApplicationContext,
   knowledgeContext?: string,
   conversationInterpretation?: string,
-  conversationStateContext?: string
+  conversationStateContext?: string,
+  responseLocale: ResponseLocale = "en"
 ): string {
-  const sections: string[] = [BASE_SYSTEM_PROMPT];
+  const sections: string[] = [
+    BASE_SYSTEM_PROMPT,
+    "\nResponse language:\n" + buildResponseLanguageInstruction(responseLocale),
+  ];
 
   if (context.profile) {
     const p = context.profile;

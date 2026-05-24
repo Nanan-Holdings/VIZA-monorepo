@@ -32,7 +32,9 @@ export interface TravelInfoData {
 
 interface TravelInfoStepProps {
   applicationId?: string;
+  country?: string | null;
   prefill?: Partial<TravelInfoData>;
+  visaType?: string;
   onComplete: (data: TravelInfoData) => void;
 }
 
@@ -121,7 +123,7 @@ function toTextValue(value?: string) {
   };
 }
 
-export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
+export function TravelInfoStep({ country, prefill, visaType, onComplete }: TravelInfoStepProps) {
   const t = useTranslations("applicationSteps");
   const [purposeOfTrip, setPurposeOfTrip] = useState(prefill?.purposeOfTrip ?? "");
   const [arrivalDate, setArrivalDate] = useState(prefill?.arrivalDate ?? "");
@@ -160,6 +162,8 @@ export function TravelInfoStep({ prefill, onComplete }: TravelInfoStepProps) {
   };
 
   const copilotAnswers = {
+    destination_country: country ?? "",
+    visa_type: visaType ?? "",
     purpose_of_trip: purposeOfTrip,
     arrival_date: arrivalDate,
     departure_date: departureDate,
