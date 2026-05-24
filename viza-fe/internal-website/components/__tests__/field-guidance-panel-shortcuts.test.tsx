@@ -124,4 +124,28 @@ describe("FieldGuidancePanel shortcuts", () => {
     const ctrlRequest = JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body));
     expect(ctrlRequest.question).toBe("Need this exact?");
   });
+
+  it("renders Chinese source labels and cleaned excerpts", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...baseResponse,
+        sources: [
+          {
+            title: "Indonesia Application Form and Document Intake Requirements",
+            url: "https://evisa.imigrasi.go.id/web/home",
+            excerpt:
+              "# Indonesia fields to collect before filling the form Country: indonesia Visa type: tourist_b211a Document type: form_requirements Source: Indonesia Application Form and Document Intake Requirements Source URL: https://evisa.imigrasi.go.id/web/home",
+          },
+        ],
+      }),
+    } as Response);
+
+    renderPanel();
+
+    expect(await screen.findByText("印度尼西亚申请表与材料要求")).toBeInTheDocument();
+    expect(screen.getByText("填表前字段清单。适用国家/地区：印度尼西亚；签证类型：B211A 旅游签证。")).toBeInTheDocument();
+    expect(screen.queryByText(/Source URL/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Document type/i)).not.toBeInTheDocument();
+  });
 });

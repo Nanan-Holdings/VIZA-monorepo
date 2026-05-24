@@ -24,6 +24,7 @@ import {
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
+import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
 import { TravelItineraryExperience } from "@/components/client/travel/travel-itinerary-experience";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
@@ -2780,7 +2781,7 @@ export function TravelChatClient({
           !hasVisibleRevisionChange(currentItinerary, revision)
         ) {
           throw new Error(
-            "OpenAI 已被调用，但没有返回任何可见的 itinerary 或模块变化。请换一种更明确的修改说法，或者检查 revision prompt。"
+            "我可以继续帮你改这份行程。你想改哪一天、加在哪个城市，还是让我按当前路线自动安排？"
           );
         }
 
@@ -3014,9 +3015,24 @@ export function TravelChatClient({
 
       const nextMessages = [...messages, userMessage];
       setSessionMessages(sessionId, nextMessages);
+      window.requestAnimationFrame(() => {
+        scrollConversationToBottom("smooth");
+        window.setTimeout(() => {
+          scrollConversationToBottom("smooth");
+          updateConversationScrollThumb();
+        }, 80);
+      });
       void respondToConversation(nextMessages, sessionId);
     },
-    [activeSessionId, messages, respondToConversation, setSessionMessages, status]
+    [
+      activeSessionId,
+      messages,
+      respondToConversation,
+      scrollConversationToBottom,
+      setSessionMessages,
+      status,
+      updateConversationScrollThumb,
+    ]
   );
 
   const sendFreeTextMessage = useCallback(
@@ -3659,6 +3675,15 @@ export function TravelChatClient({
                   </div>
                 );
               })}
+                  {(status === "submitted" || status === "streaming") && (
+                    <div
+                      aria-live="polite"
+                      className="flex justify-start"
+                      data-testid="travel-thinking-indicator"
+                    >
+                      <ThinkingIndicator className="px-1 py-2" />
+                    </div>
+                  )}
                 </div>
 
               </div>

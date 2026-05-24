@@ -36,7 +36,7 @@ export interface SearchResult {
   id: string;
   sessionId: string;
   content: string;
-  senderType: "user" | "agent" | "system";
+  senderType: "user" | "agent" | "system" | "block";
   createdAt: string | null;
   /** The matched snippet with search term */
   matchSnippet: string;
@@ -45,11 +45,12 @@ export interface SearchResult {
 export interface Message {
   id: string;
   sessionId: string;
-  senderType: "user" | "agent" | "system";
+  senderType: "user" | "agent" | "system" | "block";
   content: string;
   intent: string | null;
   riskLevel: string | null;
   createdAt: string | null;
+  blockData?: Record<string, unknown> | null;
 }
 
 // =============================================================================
@@ -238,6 +239,7 @@ export async function getSessionMessages(
     intent: null,
     riskLevel: null,
     createdAt: msg.created_at,
+    blockData: msg.block_data ?? null,
   }));
 }
 

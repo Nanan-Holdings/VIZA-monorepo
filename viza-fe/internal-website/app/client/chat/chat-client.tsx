@@ -150,14 +150,28 @@ function formatSessionDate(value: string | null): string {
 }
 
 function formatStoredMessages(messages: Message[]): SocketChatMessage[] {
-  return messages.map((msg) => ({
-    id: msg.id,
-    role: msg.senderType === "user" ? "user" : "agent",
-    content: msg.content,
-    timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
-    isStreaming: false,
-    sessionId: msg.sessionId,
-  }));
+  return messages
+    .filter((msg) => msg.senderType === "user" || msg.senderType === "agent")
+    .map((msg) => ({
+      id: msg.id,
+      role: msg.senderType === "user" ? "user" : "agent",
+      content: msg.content,
+      timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+      isStreaming: false,
+      sessionId: msg.sessionId,
+    }));
+}
+
+function formatStoredBlocks(
+  messages: Message[]
+): Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }> {
+  return messages
+    .filter((msg) => msg.senderType === "block" && msg.blockData)
+    .map((msg) => ({
+      id: msg.id,
+      payload: msg.blockData as unknown as ApplicationBlockPayload,
+      timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+    }));
 }
 
 function parseRequestedChatMode(value: string | null): ChatAgentMode | null {
@@ -613,7 +627,9 @@ export function ChatClient({
   const [pendingMessages, setPendingMessages] = useState<PendingVizaMessage[]>([]);
   const [_isNearBottom, setIsNearBottom] = useState(true);
   const [pendingComponents, setPendingComponents] = useState<PendingComponent[]>([]);
-  const [blockMessages, setBlockMessages] = useState<Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>>([]);
+  const [blockMessages, setBlockMessages] = useState<
+    Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }>
+  >(() => formatStoredBlocks(initialMessages));
 
   const selectChatMode = useCallback((mode: ChatAgentMode) => {
     setShowChat(true);
@@ -992,9 +1008,15 @@ export function ChatClient({
   const continuousChat = useContinuousChat({
     userId,
     sessionId,
-    initialMessages,
+    initialMessages: initialMessages.filter(
+      (message) => message.senderType === "user" || message.senderType === "agent"
+    ),
     initialCheckpoints: [],
-    isFirstTimeUser: initialMessages.length === 0,
+    isFirstTimeUser:
+      initialMessages.filter(
+        (message) =>
+          message.senderType === "user" || message.senderType === "agent"
+      ).length === 0,
   });
 
   const {
@@ -1288,6 +1310,7 @@ export function ChatClient({
       try {
         const messages = await getSessionMessages(nextSessionId, userId);
         setChatMessages(formatStoredMessages(messages));
+        setBlockMessages(formatStoredBlocks(messages));
         resetHistoryState(messages.length >= 50);
       } catch (error) {
         console.error("Error loading VIZA session:", error);

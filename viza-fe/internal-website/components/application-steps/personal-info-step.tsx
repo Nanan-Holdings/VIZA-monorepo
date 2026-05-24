@@ -171,6 +171,66 @@ const DIRECT_TRANSLATIONS: Record<string, string> = {
   杭州: "Hangzhou",
 };
 
+const COMMON_NAME_PINYIN: Record<string, string> = {
+  ...DIRECT_TRANSLATIONS,
+  安: "AN",
+  博: "BO",
+  晨: "CHEN",
+  成: "CHENG",
+  诚: "CHENG",
+  丹: "DAN",
+  东: "DONG",
+  飞: "FEI",
+  峰: "FENG",
+  刚: "GANG",
+  国: "GUO",
+  海: "HAI",
+  浩: "HAO",
+  红: "HONG",
+  华: "HUA",
+  慧: "HUI",
+  佳: "JIA",
+  建: "JIAN",
+  杰: "JIE",
+  静: "JING",
+  军: "JUN",
+  凯: "KAI",
+  琳: "LIN",
+  林: "LIN",
+  磊: "LEI",
+  丽: "LI",
+  明: "MING",
+  宁: "NING",
+  平: "PING",
+  强: "QIANG",
+  青: "QING",
+  庆: "QING",
+  瑞: "RUI",
+  思: "SI",
+  涛: "TAO",
+  天: "TIAN",
+  文: "WEN",
+  霞: "XIA",
+  晓: "XIAO",
+  小: "XIAO",
+  欣: "XIN",
+  新: "XIN",
+  雪: "XUE",
+  雅: "YA",
+  阳: "YANG",
+  洋: "YANG",
+  颖: "YING",
+  勇: "YONG",
+  宇: "YU",
+  雨: "YU",
+  玉: "YU",
+  月: "YUE",
+  泽: "ZE",
+  志: "ZHI",
+  中: "ZHONG",
+  子: "ZI",
+};
+
 const REVERSE_TRANSLATIONS = Object.entries(DIRECT_TRANSLATIONS).reduce<Record<string, string>>(
   (translations, [zh, en]) => {
     translations[normalizeLookup(en)] = zh;
@@ -250,22 +310,36 @@ function toInitialCityTextValue(value?: string): BilingualTextValue {
   return { zh: translateEnText(city), en: city };
 }
 
-function translateZhText(value: string) {
+function transliterateChineseName(value: string, separator = "") {
+  const normalized = value.trim().replace(/\s+/g, "");
+  if (!normalized || !/[\u3400-\u9fff]/.test(normalized)) return null;
+
+  const syllables = Array.from(normalized).map((character) => COMMON_NAME_PINYIN[character]);
+  if (syllables.some((syllable) => !syllable)) return null;
+  return syllables.join(separator);
+}
+
+function translateZhText(value: string, mode: "freeform" | "name" = "freeform") {
   const trimmed = value.trim();
   if (!trimmed) return "";
   const direct = DIRECT_TRANSLATIONS[trimmed];
   if (direct) return direct;
 
+  if (mode === "name") {
+    const pinyin = transliterateChineseName(trimmed);
+    if (pinyin) return pinyin;
+  }
+
   const syllables = Array.from(trimmed.replace(/\s+/g, "")).map((character) => DIRECT_TRANSLATIONS[character]);
   if (syllables.length > 0 && syllables.every(Boolean)) {
-    return syllables.join(" ");
+    return syllables.join(mode === "name" ? "" : " ");
   }
 
   if (/^[\dA-Za-z\s,.'#/-]+$/.test(trimmed)) {
     return trimmed;
   }
 
-  return `Please confirm official English: ${trimmed}`;
+  return mode === "name" ? trimmed : `Please confirm official English: ${trimmed}`;
 }
 
 function translateEnText(value: string) {
@@ -293,7 +367,7 @@ function toInitialTextValue(field: TextFieldKey, value?: string): BilingualTextV
   if (field === "fullNameNativeAlphabet") {
     return {
       zh: officialValue,
-      en: translateZhText(officialValue),
+      en: translateZhText(officialValue, "name"),
     };
   }
 
@@ -754,7 +828,7 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
       ...current,
       [field]:
         side === "zh"
-          ? { zh: value, en: translateZhText(value) }
+          ? { zh: value, en: translateZhText(value, "name") }
           : { zh: translateEnText(value), en: value },
     }));
   };

@@ -98,6 +98,75 @@ function sourceIdentity(source: FieldGuidanceResponse["sources"][number]): strin
   return [source.title.trim(), source.url?.trim() ?? "", source.excerpt.trim()].join("|");
 }
 
+function localizedSourceTitle(title: string, isZh: boolean): string {
+  if (!isZh) return title;
+  const normalized = title.toLowerCase();
+
+  if (normalized.includes("photo")) return "签证照片官方要求";
+  if (normalized.includes("indonesia")) return "印度尼西亚申请表与材料要求";
+  if (normalized.includes("united states")) return "美国签证申请表与材料要求";
+  if (normalized.includes("local")) return "VIZA 本地字段提示";
+  if (normalized.includes("application form") || normalized.includes("document intake")) {
+    return "官方申请表与材料要求";
+  }
+  return title;
+}
+
+function sourceCountryLabel(text: string): string | null {
+  const normalized = text.toLowerCase();
+  if (normalized.includes("indonesia")) return "印度尼西亚";
+  if (normalized.includes("united states") || /\bcountry:\s*us\b/.test(normalized)) return "美国";
+  return null;
+}
+
+function sourceVisaTypeLabel(text: string): string | null {
+  const normalized = text.toLowerCase();
+  if (normalized.includes("tourist_b211a")) return "B211A 旅游签证";
+  if (normalized.includes("b1_b2")) return "B1/B2";
+  if (normalized.includes("ds160") || normalized.includes("ds-160")) return "DS-160";
+  return null;
+}
+
+function sourceScopeSummary(source: FieldGuidanceResponse["sources"][number]): string {
+  const haystack = `${source.title} ${source.excerpt}`;
+  const normalized = haystack.toLowerCase();
+  const country = sourceCountryLabel(haystack);
+  const visaType = sourceVisaTypeLabel(haystack);
+  const scopeParts = [
+    country ? `适用国家/地区：${country}` : null,
+    visaType ? `签证类型：${visaType}` : null,
+  ].filter(Boolean);
+
+  let description = "官方资料摘录";
+  if (normalized.includes("photo")) {
+    description = "官方签证照片要求";
+  } else if (normalized.includes("fields to collect before filling the form")) {
+    description = "填表前字段清单";
+  } else if (normalized.includes("application channel and form scope")) {
+    description = "申请渠道和表单范围";
+  } else if (normalized.includes("supporting documents and review checklist")) {
+    description = "支持材料和核对清单";
+  } else if (normalized.includes("local")) {
+    description = "VIZA 本地规则提示";
+  }
+
+  return scopeParts.length > 0 ? `${description}。${scopeParts.join("；")}。` : `${description}。`;
+}
+
+function localizedSourceExcerpt(source: FieldGuidanceResponse["sources"][number], isZh: boolean): string {
+  if (isZh) return sourceScopeSummary(source);
+
+  const excerpt = normalizePlainTextContent(source.excerpt)
+    .replace(/^#\s*/, "")
+    .replace(/\s*Source URL:\s*\S+/gi, "")
+    .replace(/\s*Source:\s*[^#]+$/gi, "")
+    .replace(/\s*Document type:\s*[a-z0-9_/-]+/gi, "")
+    .replace(/\s*Visa type:\s*([a-z0-9_/-]+)/gi, " Visa type: $1")
+    .replace(/\s*Country:\s*([a-z0-9_/-]+)/gi, "Country: $1")
+    .trim();
+  return excerpt;
+}
+
 function SectionList({
   title,
   items,
@@ -433,12 +502,16 @@ export function FieldGuidancePanel({
                           rel="noreferrer"
                           className="break-words font-medium text-[#03346E] hover:underline"
                         >
-                          {source.title}
+                          {localizedSourceTitle(source.title, isZh)}
                         </a>
                       ) : (
-                        <span className="break-words font-medium text-[#3f4652]">{source.title}</span>
+                        <span className="break-words font-medium text-[#3f4652]">
+                          {localizedSourceTitle(source.title, isZh)}
+                        </span>
                       )}
-                      <p className="min-w-0 break-words">{renderPlainText(source.excerpt)}</p>
+                      <p className="min-w-0 break-words">
+                        {renderPlainText(localizedSourceExcerpt(source, isZh))}
+                      </p>
                     </div>
                   ))}
                 </div>

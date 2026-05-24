@@ -767,9 +767,12 @@ function evaluateBranchTests(): BranchResult[] {
       );
       const urls = blocks.map((block) => block.redirectUrl);
       return [
+        expectEqual('ready phrase triggers form redirect intent', inferVisaKnowledgeIntent('准备好了', []).toString(), 'form_intake'),
+        expectEqual('uk form link phrase triggers form redirect intent', inferVisaKnowledgeIntent('给我英国签证申请表链接', []).toString(), 'form_intake'),
         expectEqual('iceland Schengen form link emitted', urls.includes('/client/application?country=iceland&visaType=EU_SCHENGEN_C_SHORT_STAY'), true),
         expectEqual('uk separate form link emitted', urls.includes('/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR'), true),
         expectEqual('direct url helper maps Iceland Schengen', buildApplicationFormUrl('iceland', 'schengen_short_stay_tourism'), '/client/application?country=iceland&visaType=EU_SCHENGEN_C_SHORT_STAY'),
+        expectEqual('direct url helper maps UK Standard Visitor', buildApplicationFormUrl('uk', 'standard_visitor'), '/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR'),
       ];
     }),
   ];

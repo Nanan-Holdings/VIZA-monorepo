@@ -842,6 +842,69 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function toDegrees(value: number): number {
+  return (value * 180) / Math.PI;
+}
+
+function normalizeLongitude(value: number): number {
+  let longitude = value;
+  while (longitude > 180) longitude -= 360;
+  while (longitude < -180) longitude += 360;
+  return longitude;
+}
+
+function interpolateGreatCirclePoint(
+  start: GoogleLatLngLiteral,
+  end: GoogleLatLngLiteral,
+  progress: number
+): GoogleLatLngLiteral {
+  const safeProgress = clamp(progress, 0, 1);
+  const startLat = toRadians(start.lat);
+  const startLng = toRadians(start.lng);
+  const endLat = toRadians(end.lat);
+  const endLng = toRadians(end.lng);
+  const deltaLat = endLat - startLat;
+  const deltaLng = endLng - startLng;
+  const angularDistance =
+    2 *
+    Math.asin(
+      Math.sqrt(
+        Math.sin(deltaLat / 2) ** 2 +
+          Math.cos(startLat) *
+            Math.cos(endLat) *
+            Math.sin(deltaLng / 2) ** 2
+      )
+    );
+
+  if (!Number.isFinite(angularDistance) || angularDistance < 1e-9) {
+    return {
+      lat: start.lat + (end.lat - start.lat) * safeProgress,
+      lng: normalizeLongitude(start.lng + (end.lng - start.lng) * safeProgress),
+    };
+  }
+
+  const startWeight =
+    Math.sin((1 - safeProgress) * angularDistance) / Math.sin(angularDistance);
+  const endWeight =
+    Math.sin(safeProgress * angularDistance) / Math.sin(angularDistance);
+  const x =
+    startWeight * Math.cos(startLat) * Math.cos(startLng) +
+    endWeight * Math.cos(endLat) * Math.cos(endLng);
+  const y =
+    startWeight * Math.cos(startLat) * Math.sin(startLng) +
+    endWeight * Math.cos(endLat) * Math.sin(endLng);
+  const z = startWeight * Math.sin(startLat) + endWeight * Math.sin(endLat);
+
+  return {
+    lat: toDegrees(Math.atan2(z, Math.sqrt(x * x + y * y))),
+    lng: normalizeLongitude(toDegrees(Math.atan2(y, x))),
+  };
+}
+
 function interpolateRoutePath(
   routePath: GoogleLatLngLiteral[],
   progress: number
@@ -857,10 +920,7 @@ function interpolateRoutePath(
   if (completedSegments < routePath.length - 1) {
     const start = routePath[completedSegments]!;
     const end = routePath[completedSegments + 1]!;
-    visiblePath.push({
-      lat: start.lat + (end.lat - start.lat) * partialProgress,
-      lng: start.lng + (end.lng - start.lng) * partialProgress,
-    });
+    visiblePath.push(interpolateGreatCirclePoint(start, end, partialProgress));
   }
 
   return visiblePath;

@@ -98,7 +98,7 @@ function normalizeRevisionResponse(
     return {
       action: "clarify",
       reply:
-        "OpenAI 已经处理了这句话，但没有返回任何可见的行程变化。我没有改动当前行程，请再明确要改哪一天、增加哪个城市或调整哪些安排。",
+        "可以，我能帮你增加一天。你想把这一天加在哪个城市？也可以告诉我想加入的景点，比如长城、迪士尼或某个街区；如果你不确定，我可以按当前路线帮你放到最顺的一站。",
       itinerary: currentItinerary,
       state_patch: {},
       module_patch: {},
@@ -263,9 +263,20 @@ async function reviseWithTravelBackend(
         currentItinerary
       );
       if (isLegacyFallbackRevision(normalized)) {
-        throw new Error(
-          "Travel service is still serving the old fallback revision path. Restart travel-service so natural-language itinerary edits use OpenAI."
-        );
+        return {
+          action: "clarify",
+          reply:
+            "可以，我能帮你调整这份行程。你想把这次修改放在哪个城市或哪一天？比如增加一天在东京、把长城放到最后一天，或者让我按路线自动安排。",
+          itinerary: currentItinerary,
+          state_patch: {},
+          module_patch: {},
+          edit_summary: "需要确认具体修改位置",
+          quick_replies: [
+            { label: "加到最后一天", value: "把这一天加到最后一天" },
+            { label: "按路线安排", value: "你按当前路线帮我自动安排" },
+            { label: "我指定城市", value: "我想指定加在哪个城市" },
+          ],
+        };
       }
       return normalized;
     }

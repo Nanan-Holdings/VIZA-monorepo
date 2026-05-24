@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, KeyboardEvent } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
@@ -118,13 +118,9 @@ export function ChatInput({
               : "bg-gray-200 text-gray-400 cursor-not-allowed",
             buttonClassName
           )}
-          aria-label={isConnecting ? "Connecting..." : "Send message"}
+          aria-label={isConnecting ? "正在回复" : "Send message"}
         >
-          {isConnecting ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
-          )}
+          <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
         </button>
       </div>
     </div>

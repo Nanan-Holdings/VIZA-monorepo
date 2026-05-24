@@ -680,7 +680,7 @@ def _coerce_revision_response(parsed, state, current_itinerary):
     ):
         return _revision_response(
             "clarify",
-            "OpenAI 已经处理了这句话，但没有返回任何可见的行程变化。我没有假装更新，请再明确要改哪一天、增加哪个城市或调整哪些安排。",
+            "可以，我能帮你增加一天。你想把这一天加在哪个城市？也可以告诉我想加入的景点，比如长城、迪士尼或某个街区；如果你不确定，我可以按当前路线帮你放到最顺的一站。",
             current,
             edit_summary="OpenAI returned unchanged itinerary",
         )
