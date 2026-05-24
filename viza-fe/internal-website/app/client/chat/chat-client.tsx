@@ -799,6 +799,10 @@ export function ChatClient({
         );
         currentMessageIdRef.current = null;
       }
+
+      if (event.sessionId && event.fullResponse?.trim()) {
+        ensureMessagePersisted(event.sessionId, "assistant", event.fullResponse);
+      }
     });
 
     socket.on("error", (event: ErrorEvent) => {
@@ -871,7 +875,13 @@ export function ChatClient({
         addLog("proactive_message", { messageId: event.message.id });
       }
     );
-  }, [userId, addLog, flushTokenBuffer, scheduleTokenFlush]);
+  }, [
+    userId,
+    addLog,
+    ensureMessagePersisted,
+    flushTokenBuffer,
+    scheduleTokenFlush,
+  ]);
 
   const disconnect = useCallback(() => {
     flushTokenBuffer();
@@ -936,9 +946,10 @@ export function ChatClient({
           { role: "user", content: message },
         ],
       };
+      ensureMessagePersisted(effectiveSessionId, "user", message);
       socketRef.current.emit("visa_chat_message", request);
     },
-    [userId, sessionId, addLog, generateId, locale]
+    [userId, sessionId, addLog, ensureMessagePersisted, generateId, locale]
   );
 
   const clearLogs = useCallback(() => setLogs([]), []);

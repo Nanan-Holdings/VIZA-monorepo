@@ -125,6 +125,7 @@ flowchart TD
 4. 切换已有 session 时，`getSessionMessages()` 只加载该 session 的消息；`useContinuousChat` 的向上加载也会带 `sessionId`，避免混入其他 process。当前 active process 会保存到 `sessionStorage["viza_chat_session_id"]`，刷新后客户端会自动恢复到用户上次选中的 process。
 5. 新空 VIZA chat 会渲染 `messages/*/chat.newChatGreeting` 作为 display-only assistant greeting；这个 greeting 不写入 `visa_chat_messages`，避免污染历史或重复保存。
 6. Process 侧栏只保留一个显式 `New chat` 入口；每个 process 支持 rename 和 delete。Rename 使用明确的 Save / Cancel 操作，并通过隐藏 system marker 持久化；delete 删除 `visa_chat_sessions` 并由数据库 cascade 删除消息。
+7. `getUserSessions()` 只返回有 title 或首条用户消息的非空 process；空白 draft session 不应抢占最新历史。前端会在发送 user message 和收到 `response_complete` 时调用 `ensureSessionMessage()` 做 Supabase-side 幂等保存，作为 agent-backend Socket 持久化失败时的兜底。
 
 ## 5. 后端逻辑关系
 
