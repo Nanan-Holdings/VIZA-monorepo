@@ -98,6 +98,10 @@ function normalizeCountryFilter(country?: string | null): string | null | undefi
     united_kingdom: "uk",
     "united kingdom": "uk",
     britain: "uk",
+    "hong kong": "hong_kong",
+    hksar: "hong_kong",
+    macao: "macau",
+    "russian federation": "russia",
     schengen_area: "france",
   };
   return aliases[normalized] ?? normalized;
@@ -118,6 +122,9 @@ function normalizeVisaTypeFilter(visaType?: string | null): string | null | unde
     EG_E_VISA: "evisa_tourism",
     UK_STANDARD_VISITOR: "standard_visitor",
     EU_SCHENGEN_C_SHORT_STAY: "schengen_short_stay_tourism",
+    HK_VISIT_VISA: "hk_visit_visa",
+    MO_VISIT_VISA: "mo_visit_visa",
+    RU_E_VISA: "unified_evisa",
   };
   return aliases[aliasKey] ?? normalized;
 }

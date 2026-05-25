@@ -1,0 +1,73 @@
+{
+  "version": "2026-05-25",
+  "country": "hong_kong",
+  "notes": "Country-level VIZA RAG seed for Hong Kong SAR Visit/Transit entry service, aligned with the HK_VISIT_VISA form seed. Sources reviewed: Hong Kong Immigration Department visit/transit service pages, visit visa/entry permit requirements, application forms page, and the e-Visa launch notice.",
+  "documents": [
+    {
+      "slug": "hong-kong-visit-visa-requirements",
+      "country": "hong_kong",
+      "visaType": "hk_visit_visa",
+      "documentType": "requirements",
+      "title": "Hong Kong Visit/Transit Visa or Entry Permit Requirements",
+      "sourceUrl": "https://www.immd.gov.hk/eng/services/visas/visit_transit.html",
+      "chunks": [
+        {
+          "id": "hk_visit_transit_scope",
+          "title": "Hong Kong visit or transit route scope",
+          "tags": ["hong-kong", "visit", "transit", "eligibility", "visitor"],
+          "content": "Hong Kong Immigration Department guidance covers visa or entry permit applications for visitors and transit passengers who are not visa-free or who need permission beyond their visa-free conditions. A visit/transit application may be considered when the applicant meets normal immigration requirements, holds a valid travel document with returnability to their country of residence or citizenship, has no security or criminal concern, and is unlikely to become a burden on Hong Kong. Visitors are generally not allowed to take up paid or unpaid employment, establish or join a business, or enter school as students."
+        },
+        {
+          "id": "hk_visit_transit_documents",
+          "title": "Hong Kong supporting evidence",
+          "tags": ["hong-kong", "documents", "passport", "funds", "itinerary"],
+          "content": "The Hong Kong visit/transit workflow should collect passport and identity details, current residence, travel purpose, proposed entry date and duration, itinerary, accommodation or host information, return or onward travel, financial support, prior Hong Kong visits, and any refusal or background declarations. If there is a local sponsor or host, collect sponsor identity, address, contact details, relationship, and support evidence. VIZA should distinguish visa-free travel, pre-arrival registration where relevant, and visit visa/entry permit filing."
+        }
+      ]
+    },
+    {
+      "slug": "hong-kong-visit-visa-process",
+      "country": "hong_kong",
+      "visaType": "hk_visit_visa",
+      "documentType": "process",
+      "title": "Hong Kong Visit/Transit Application Process",
+      "sourceUrl": "https://www.immd.gov.hk/eng/forms/hk-visas/visit-transit.html",
+      "chunks": [
+        {
+          "id": "hk_visit_transit_application_channels",
+          "title": "Hong Kong application channels",
+          "tags": ["hong-kong", "application", "online", "e-visa", "immigration-department"],
+          "content": "Hong Kong Immigration Department provides visit/transit application forms, including ID 1003A for the applicant. Hong Kong also operates electronic services for visa applications and e-Visa arrangements, allowing eligible applicants to submit applications online through ImmD website, GovHK, or the ImmD mobile application. Some applicants may apply directly to the Hong Kong Immigration Department by post, through a local sponsor, or through relevant Chinese diplomatic or consular channels depending on nationality and location."
+        },
+        {
+          "id": "hk_visit_transit_review_guardrails",
+          "title": "Hong Kong review guardrails",
+          "tags": ["hong-kong", "review", "submission", "e-visa", "guardrails"],
+          "content": "VIZA should explain that Hong Kong visit/transit approval depends on individual merits and immigration control. Do not promise visa-free eligibility without passport-specific checking. Before handoff to the application page, give a rough idea of likely needs: valid travel document, purpose and itinerary, accommodation or sponsor details, funds, return/onward travel, and background declarations. Detailed field collection belongs in the HK_VISIT_VISA form page."
+        }
+      ]
+    },
+    {
+      "slug": "hong-kong-form-requirements",
+      "country": "hong_kong",
+      "visaType": "hk_visit_visa",
+      "documentType": "form_requirements",
+      "title": "Hong Kong Visit Visa Form Requirements",
+      "sourceUrl": "https://www.immd.gov.hk/eng/forms/hk-visas/visit-transit.html",
+      "chunks": [
+        {
+          "id": "hk_form_supported_route",
+          "title": "Hong Kong supported VIZA form route",
+          "tags": ["hong-kong", "form-requirements", "HK_VISIT_VISA", "application-redirect"],
+          "content": "VIZA supports Hong Kong Visit Visa as country hong_kong and visaType HK_VISIT_VISA. When the user asks to apply for a Hong Kong visitor or transit route, send an application_redirect block to /client/application?country=hong_kong&visaType=HK_VISIT_VISA. Do not collect detailed application fields inside chat."
+        },
+        {
+          "id": "hk_form_fields_and_documents",
+          "title": "Hong Kong fields and document preparation",
+          "tags": ["hong-kong", "field-mapping", "documents", "form-prep"],
+          "content": "The HK_VISIT_VISA form schema is aligned to Hong Kong Immigration Department visitor forms and collects applicant identity, other names, nationality, passport and other travel documents, marital and contact details, Hong Kong travel purpose, entry date, duration, accommodation, host or sponsor details, prior Hong Kong travel, visa refusals, criminal or deportation history, and supporting document preparation such as passport bio page, photo, itinerary, accommodation, return ticket, funds, and sponsor evidence where relevant."
+        }
+      ]
+    }
+  ]
+}

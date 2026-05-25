@@ -21,6 +21,7 @@ import {
   detectKnowledgeCountries,
   detectKnowledgeCountriesInOrder,
   getDefaultVisitorVisaType,
+  isVisaServiceSupportedCountry,
   isSchengenKnowledgeCountry,
   normalizeKnowledgeCountry,
   type SupportedKnowledgeCountry,
@@ -69,6 +70,16 @@ function includesAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
 }
 
+function uniqueCountries(countries: SupportedKnowledgeCountry[]): SupportedKnowledgeCountry[] {
+  return Array.from(new Set(countries));
+}
+
+export function detectUnsupportedServiceCountries(message: string): SupportedKnowledgeCountry[] {
+  return uniqueCountries(detectKnowledgeCountries(message.toLowerCase())).filter(
+    (country) => !isVisaServiceSupportedCountry(country)
+  );
+}
+
 export function resolveKnowledgeCountry(
   message: string,
   applicationCountry?: string | null,
@@ -76,39 +87,36 @@ export function resolveKnowledgeCountry(
 ): SupportedKnowledgeCountry | null {
   const normalized = message.toLowerCase();
   const matchedCountries = detectKnowledgeCountries(normalized);
-  const uniqueCountries = Array.from(new Set(matchedCountries));
+  const unsupportedCountries = uniqueCountries(matchedCountries).filter(
+    (country) => !isVisaServiceSupportedCountry(country)
+  );
+  const serviceCountries = uniqueCountries(
+    matchedCountries.filter(isVisaServiceSupportedCountry)
+  );
   const mentionsSchengen = includesAny(normalized, ['申根', 'schengen']);
 
-  if (uniqueCountries.length === 1) {
-    return uniqueCountries[0];
-  }
-
   if (
-    uniqueCountries.length === 2 &&
-    uniqueCountries.includes('mexico') &&
-    uniqueCountries.includes('us') &&
-    includesAny(normalized, [
-      '美国签证',
-      '美签',
-      'us visa',
-      'u.s. visa',
-      'usa visa',
-      'valid us',
-      'visa exemption',
-      '免签',
-      '豁免',
-    ])
+    unsupportedCountries.length === 1 &&
+    serviceCountries.length === 1 &&
+    serviceCountries[0] === 'us' &&
+    includesAny(normalized, ['美国签证', '美签', 'us visa', 'u.s. visa', 'valid us'])
   ) {
-    return 'mexico';
+    return null;
   }
 
-  if (uniqueCountries.length > 1) {
+  if (serviceCountries.length === 1) {
+    return serviceCountries[0];
+  }
+
+  if (serviceCountries.length > 1) {
     return null;
   }
 
   if (recentUserContext) {
-    const contextCountries = Array.from(
-      new Set(detectKnowledgeCountries(recentUserContext.toLowerCase()))
+    const contextCountries = uniqueCountries(
+      detectKnowledgeCountries(recentUserContext.toLowerCase()).filter(
+        isVisaServiceSupportedCountry
+      )
     );
 
     if (contextCountries.length === 1) {
@@ -121,6 +129,9 @@ export function resolveKnowledgeCountry(
   }
 
   const contextCountry = normalizeKnowledgeCountry(applicationCountry);
+  if (!isVisaServiceSupportedCountry(contextCountry)) {
+    return null;
+  }
   if (mentionsSchengen && !isSchengenKnowledgeCountry(contextCountry)) {
     return null;
   }
@@ -471,6 +482,9 @@ const APPLICATION_VISA_TYPE_PARAM_OVERRIDES: Record<string, string> = {
   standard_visitor: 'UK_STANDARD_VISITOR',
   schengen_short_stay_tourism: 'EU_SCHENGEN_C_SHORT_STAY',
   tourist_b211a: 'B211A',
+  hk_visit_visa: 'HK_VISIT_VISA',
+  mo_visit_visa: 'MO_VISIT_VISA',
+  unified_evisa: 'RU_E_VISA',
 };
 
 export function buildApplicationFormUrl(
@@ -548,6 +562,7 @@ export function buildApplicationRedirectBlocks(
 
   const uniqueCountries = Array.from(new Set(countries));
   return uniqueCountries
+    .filter(isVisaServiceSupportedCountry)
     .map((country) => {
       const visaType =
         country === primaryCountry
@@ -556,6 +571,21 @@ export function buildApplicationRedirectBlocks(
       return buildApplicationRedirectBlock(country, visaType);
     })
     .filter((block): block is ApplicationBlockPayload => Boolean(block));
+}
+
+function buildUnsupportedServicePromptNote(
+  unsupportedCountries: SupportedKnowledgeCountry[]
+): string | null {
+  const uniqueUnsupported = uniqueCountries(unsupportedCountries);
+  if (uniqueUnsupported.length === 0) return null;
+
+  return [
+    `The user mentioned destination(s) that are recognized but not currently open for VIZA application service: ${uniqueUnsupported
+      .map((country) => COUNTRY_DISPLAY_NAMES[country])
+      .join(', ')}.`,
+    'Do not answer with detailed RAG requirements or provide application form links for those unsupported destinations.',
+    'Tell the user clearly that VIZA has not opened service for that country/region yet. If the message also includes supported destinations, help only with the supported destinations and separate the unsupported ones.',
+  ].join('\n');
 }
 
 function buildApplicationRedirectPromptNote(
@@ -742,6 +772,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
           chatHistory,
           message
         );
+        const unsupportedServiceCountries = detectUnsupportedServiceCountries(message);
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
         const responseLocale = normalizeResponseLocale(request.locale);
@@ -767,12 +798,16 @@ export function registerVisaNamespace(nsp: Namespace): void {
           applicationRedirects,
           conversationState
         );
+        const unsupportedServiceNote = buildUnsupportedServicePromptNote(
+          unsupportedServiceCountries
+        );
         const dynamicSystemPrompt = buildSystemPrompt(
           appContext,
           knowledgeContext,
           [
             compactAnswerInterpretation,
             applicationRedirectNote,
+            unsupportedServiceNote,
           ]
             .filter((note): note is string => Boolean(note))
             .join('\n\n') || undefined,
@@ -797,6 +832,9 @@ export function registerVisaNamespace(nsp: Namespace): void {
             usedEmbedding: knowledgeResult.usedEmbedding,
             fallbackReason: knowledgeResult.fallbackReason,
             compactAnswerInterpreted: Boolean(compactAnswerInterpretation),
+            unsupportedServiceCountries: unsupportedServiceCountries.map(
+              (country) => COUNTRY_DISPLAY_NAMES[country]
+            ),
             applicationRedirects: applicationRedirects.map((block) => ({
               country: block.country,
               visaType: block.visaType,

@@ -1,0 +1,73 @@
+{
+  "version": "2026-05-25",
+  "country": "macau",
+  "notes": "Country-level VIZA RAG seed for Macau SAR visitor entry authorization, aligned with the MO_VISIT_VISA form seed. Sources reviewed: Macao SAR Government Portal PS-1472 Authorization to Enter and Stay, PS-1472 application page, Public Security Police Force immigration service pages, and Macao Government Tourism Office entry requirements.",
+  "documents": [
+    {
+      "slug": "macau-visit-visa-requirements",
+      "country": "macau",
+      "visaType": "mo_visit_visa",
+      "documentType": "requirements",
+      "title": "Macau Authorization to Enter and Stay Visitor Requirements",
+      "sourceUrl": "https://www.gov.mo/en/services/ps-1472/",
+      "chunks": [
+        {
+          "id": "mo_visit_scope",
+          "title": "Macau visitor authorization scope",
+          "tags": ["macau", "macao", "visitor", "entry-authorization", "visa"],
+          "content": "Macau SAR entry rules distinguish visa or prior authorization requirements, visa exemption, and authorization to enter and stay at a checkpoint. Macao Government Tourism Office states that all visitors must hold a passport or valid travel document for travel to Macao and points users to the Macao Immigration Services of the Public Security Police Force for visa and entry permit exemption details. Visitors who are not exempt may need a visa, prior authorization to enter, or authorization upon arrival depending on nationality and circumstances."
+        },
+        {
+          "id": "mo_visit_documents",
+          "title": "Macau visitor document basics",
+          "tags": ["macau", "documents", "passport", "funds", "itinerary"],
+          "content": "Macau visitor intake should collect passport or travel document details, nationality, residence, travel purpose, intended entry date and duration, accommodation or host, itinerary, return or onward travel, financial means, and background declarations. Macao SAR Government Portal guidance notes that passports and travel documents accepted for immigration control should generally be valid for at least 90 days beyond the intended stay in Macao. VIZA should avoid blanket statements because visa exemption and visa-on-arrival treatment depend on nationality."
+        }
+      ]
+    },
+    {
+      "slug": "macau-visit-visa-process",
+      "country": "macau",
+      "visaType": "mo_visit_visa",
+      "documentType": "process",
+      "title": "Macau Authorization to Enter and Stay Process",
+      "sourceUrl": "https://www.gov.mo/en/services/ps-1472/ps-1472a/?noredirect=en_US",
+      "chunks": [
+        {
+          "id": "mo_visit_application_channels",
+          "title": "Macau application and arrival channels",
+          "tags": ["macau", "application", "arrival", "prior-authorization"],
+          "content": "Macau SAR Government Portal describes prior authorization to enter and authorization to enter and stay. Persons who are not exempt from visa or prior authorization, and who do not wish to apply for authorization at the checkpoint, may ask a legal agent to apply to the Residence and Stay Affairs Department before travel if no Chinese diplomatic mission or other representative office is available in their residence location. Some travellers may instead obtain authorization to enter and stay at the checkpoint upon arrival."
+        },
+        {
+          "id": "mo_visit_review_guardrails",
+          "title": "Macau review guardrails",
+          "tags": ["macau", "review", "guardrails", "public-security-police"],
+          "content": "Macau visitor answers should truthfully match the actual travel purpose. Public Security Police Force guidance notes that non-residents with a visa or prior authorization have declared their purpose of entry in the application, and declaring a different non-tourism-equivalent purpose on arrival can affect entry. VIZA should route non-visitor purposes such as work, residence, study, or long-term stay away from MO_VISIT_VISA."
+        }
+      ]
+    },
+    {
+      "slug": "macau-form-requirements",
+      "country": "macau",
+      "visaType": "mo_visit_visa",
+      "documentType": "form_requirements",
+      "title": "Macau Visit Visa Form Requirements",
+      "sourceUrl": "https://www.gov.mo/en/services/ps-1472/ps-1472a/?noredirect=en_US",
+      "chunks": [
+        {
+          "id": "mo_form_supported_route",
+          "title": "Macau supported VIZA form route",
+          "tags": ["macau", "form-requirements", "MO_VISIT_VISA", "application-redirect"],
+          "content": "VIZA supports Macau Visit Visa as country macau and visaType MO_VISIT_VISA. When the user asks to apply for Macau visitor entry authorization, send an application_redirect block to /client/application?country=macau&visaType=MO_VISIT_VISA. Do not collect detailed application fields inside chat."
+        },
+        {
+          "id": "mo_form_fields_and_documents",
+          "title": "Macau fields and document preparation",
+          "tags": ["macau", "field-mapping", "documents", "form-prep"],
+          "content": "The MO_VISIT_VISA form schema collects applicant identity, other names, nationality, passport and other travel documents, marital and contact details, Macau travel purpose, entry date, duration, accommodation, host details, prior Macau visits, refusals, criminal or deportation declarations, and document preparation such as passport bio page, photo, itinerary, accommodation, return ticket, funds, and host evidence where relevant."
+        }
+      ]
+    }
+  ]
+}

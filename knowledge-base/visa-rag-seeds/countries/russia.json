@@ -1,0 +1,73 @@
+{
+  "version": "2026-05-25",
+  "country": "russia",
+  "notes": "Country-level VIZA RAG seed for Russia Unified e-Visa, aligned with the RU_E_VISA form seed. Sources reviewed: Russian MFA Consular Department unified e-visa landing page, instruction page, FAQ, and official electronic visa service.",
+  "documents": [
+    {
+      "slug": "russia-unified-evisa-requirements",
+      "country": "russia",
+      "visaType": "unified_evisa",
+      "documentType": "requirements",
+      "title": "Russia Unified Electronic Visa Requirements",
+      "sourceUrl": "https://electronic-visa.kdmid.ru/index_en.html",
+      "chunks": [
+        {
+          "id": "ru_evisa_scope",
+          "title": "Russia unified e-visa scope",
+          "tags": ["russia", "evisa", "unified-evisa", "tourism", "business"],
+          "content": "The Russian MFA electronic visa service states that citizens of eligible foreign states can obtain a unified electronic visa for entry to the Russian Federation through approved border checkpoints. The e-visa is generally used for short visits such as tourism, business, humanitarian, cultural, scientific, sporting and similar purposes where eligible. It is not a work, residence, or long-term study route. VIZA should ask for nationality when eligibility is uncertain."
+        },
+        {
+          "id": "ru_evisa_conditions",
+          "title": "Russia unified e-visa conditions",
+          "tags": ["russia", "evisa", "conditions", "validity", "stay"],
+          "content": "The official e-visa service explains that a unified e-visa is issued through the MFA website or mobile application and must be used through approved Russian Federation checkpoints. Official pages describe the e-visa as a short-stay authorization and instruct travellers to check the rules, eligible citizenship, checkpoints, passport validity, and permitted stay before travel. VIZA should not recommend the e-visa to users who are not from eligible nationalities or who need work, residence, or a regular consular visa."
+        }
+      ]
+    },
+    {
+      "slug": "russia-unified-evisa-process",
+      "country": "russia",
+      "visaType": "unified_evisa",
+      "documentType": "process",
+      "title": "Russia Unified Electronic Visa Process",
+      "sourceUrl": "https://evisa.kdmid.ru/Home/Instruction",
+      "chunks": [
+        {
+          "id": "ru_evisa_online_process",
+          "title": "Russia e-visa online application process",
+          "tags": ["russia", "evisa", "online-application", "fee", "decision"],
+          "content": "The official Russian MFA e-visa process is online: fill in the application, pay the visa fee by bank card, receive notice of e-visa issuance on the website or by email, print or save the notification, and show it to the carrier and Russian border service at an approved checkpoint. The official site says e-visas are issued within not more than 4 calendar days. VIZA should still mark timing and fee details as official-page dependent."
+        },
+        {
+          "id": "ru_evisa_form_inputs",
+          "title": "Russia e-visa inputs and review",
+          "tags": ["russia", "evisa", "passport", "photo", "form-fields"],
+          "content": "Russia unified e-visa preparation should collect identity and passport details, nationality, travel purpose, planned dates, accommodation or host information, contact details, employment or study status, prior Russia travel, background declarations, digital photo, passport bio-page data, and medical insurance details where required. The official service may return applications for correction, including photo issues, so VIZA should flag photo and passport accuracy before handoff."
+        }
+      ]
+    },
+    {
+      "slug": "russia-form-requirements",
+      "country": "russia",
+      "visaType": "unified_evisa",
+      "documentType": "form_requirements",
+      "title": "Russia Unified e-Visa Form Requirements",
+      "sourceUrl": "https://evisa.kdmid.ru/Home/Instruction",
+      "chunks": [
+        {
+          "id": "ru_form_supported_route",
+          "title": "Russia supported VIZA form route",
+          "tags": ["russia", "form-requirements", "RU_E_VISA", "application-redirect"],
+          "content": "VIZA supports Russia Unified e-Visa as country russia and visaType RU_E_VISA. When the user asks to apply for a Russia e-visa visitor route, send an application_redirect block to /client/application?country=russia&visaType=RU_E_VISA. Do not collect detailed application fields inside chat."
+        },
+        {
+          "id": "ru_form_fields_and_documents",
+          "title": "Russia fields and document preparation",
+          "tags": ["russia", "field-mapping", "documents", "photo", "form-prep"],
+          "content": "The RU_E_VISA form schema collects applicant identity, other names, nationality, passport and other travel documents, contact and residence details, Russia travel purpose, itinerary, accommodation or host, prior Russia visits, visa refusals, criminal or deportation declarations, employment or study details, and document preparation such as passport bio page, compliant digital photo, medical insurance where applicable, and official e-visa account or application references."
+        }
+      ]
+    }
+  ]
+}
