@@ -1,10 +1,11 @@
 import json
 import os
 import re
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
 client = OpenAI(api_key=api_key) if api_key else None

@@ -24,6 +24,10 @@ field guidance, and future form automation.
 - Do not append duplicate `form_requirements` documents; replace/update the
   existing one.
 - Do not invent requirements. Mark unknown or country-variant details clearly.
+- Runtime RAG routing is limited to destinations that are open on the
+  application form/product surface. If a seed exists for a destination that is
+  not in `VISA_SERVICE_COUNTRIES`, treat it as dormant reference material until
+  the product service is opened.
 - If a country becomes form-fillable, update frontend destination metadata,
   backend destination registry, docs, and relevant module AGENTS files.
 

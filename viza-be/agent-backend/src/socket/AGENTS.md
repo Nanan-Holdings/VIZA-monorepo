@@ -35,6 +35,10 @@ namespace `/visa` and sends/receives streaming events.
   Schengen form link should use the Schengen main destination from Schengen day
   counts, while non-Schengen destinations such as the UK remain visible as
   separate visa/application links.
+- RAG routing follows the application form/product service boundary. If a
+  recognized country is not in `VISA_SERVICE_COUNTRIES`, tell the user VIZA has
+  not opened that country/region service yet and do not provide detailed RAG
+  requirements or application links for it.
 - Persist visible user/assistant messages idempotently. The frontend also has a
   Supabase-side `ensureSessionMessage()` fallback, so Socket.IO persistence must
   check for an existing exact session/role/content row before inserting.

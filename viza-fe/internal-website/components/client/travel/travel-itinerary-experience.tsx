@@ -37,6 +37,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -108,6 +115,21 @@ type AttractionChoiceCard = {
 };
 
 type DetailResourceTab = "attractions" | "flights" | "hotels";
+type ApiLoadStatus = "idle" | "loading" | "success" | "error";
+
+type ItineraryOptionPanel =
+  | {
+      type: "flight";
+      leg: FlightLegResult;
+      legIndex: number;
+    }
+  | {
+      type: "hotel";
+      stay: HotelStayResult;
+      stayIndex: number;
+      city: string;
+    }
+  | null;
 
 type TravelItineraryExperienceProps = {
   itinerary: ItineraryDay[];
