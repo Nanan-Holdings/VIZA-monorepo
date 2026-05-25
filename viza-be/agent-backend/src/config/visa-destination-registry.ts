@@ -14,6 +14,7 @@ export type SupportedKnowledgeCountry =
   | 'france'
   | 'germany'
   | 'greece'
+  | 'hong_kong'
   | 'hungary'
   | 'iceland'
   | 'india'
@@ -25,6 +26,7 @@ export type SupportedKnowledgeCountry =
   | 'liechtenstein'
   | 'lithuania'
   | 'luxembourg'
+  | 'macau'
   | 'malaysia'
   | 'maldives'
   | 'malta'
@@ -39,6 +41,7 @@ export type SupportedKnowledgeCountry =
   | 'portugal'
   | 'qatar'
   | 'romania'
+  | 'russia'
   | 'saudi_arabia'
   | 'singapore'
   | 'slovakia'
@@ -109,6 +112,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   france: destination('france', 'France', ['法国', 'france', 'paris', '巴黎'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   germany: destination('germany', 'Germany', ['德国', 'germany', 'berlin', 'munich', 'frankfurt', '柏林', '慕尼黑', '法兰克福'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   greece: destination('greece', 'Greece', ['希腊', 'greece', 'athens', 'santorini', '雅典', '圣托里尼'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
+  hong_kong: destination('hong_kong', 'Hong Kong', ['香港', 'hong kong', 'hksar', 'hong kong sar', 'hk visit visa', 'hk visa'], 'hk_visit_visa'),
   hungary: destination('hungary', 'Hungary', ['匈牙利', 'hungary', 'budapest', '布达佩斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   iceland: destination('iceland', 'Iceland', ['冰岛', 'iceland', 'reykjavik', '雷克雅未克'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   india: destination('india', 'India', ['india', 'delhi', 'mumbai', 'new delhi', '新德里', '孟买'], 'regular_tourist_visa'),
@@ -120,6 +124,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   liechtenstein: destination('liechtenstein', 'Liechtenstein', ['列支敦士登', 'liechtenstein', 'vaduz', '瓦杜兹'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   lithuania: destination('lithuania', 'Lithuania', ['立陶宛', 'lithuania', 'vilnius', '维尔纽斯'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   luxembourg: destination('luxembourg', 'Luxembourg', ['卢森堡', 'luxembourg'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
+  macau: destination('macau', 'Macau', ['澳门', '澳門', 'macau', 'macao', 'macau sar', 'macao sar'], 'mo_visit_visa'),
   malaysia: destination('malaysia', 'Malaysia', ['马来西亚', 'malaysia', 'kuala lumpur', 'penang', 'sabah', '吉隆坡', '槟城', '沙巴'], 'visa_exemption_or_evisa_tourism'),
   maldives: destination('maldives', 'Maldives', ['马尔代夫', 'maldives', 'male', '马累'], 'tourist_visa_on_arrival'),
   malta: destination('malta', 'Malta', ['马耳他', 'malta', 'valletta', '瓦莱塔'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
@@ -134,6 +139,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   portugal: destination('portugal', 'Portugal', ['葡萄牙', 'portugal', 'lisbon', 'porto', '里斯本', '波尔图'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   qatar: destination('qatar', 'Qatar', ['卡塔尔', 'qatar', 'doha', '多哈', 'hayya'], 'hayya_a1_tourist_visa'),
   romania: destination('romania', 'Romania', ['罗马尼亚', 'romania', 'bucharest', '布加勒斯特'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
+  russia: destination('russia', 'Russia', ['俄罗斯', '俄签', 'russia', 'russian federation', 'moscow', 'saint petersburg', '莫斯科', '圣彼得堡'], 'unified_evisa'),
   saudi_arabia: destination('saudi_arabia', 'Saudi Arabia', ['沙特', '沙特阿拉伯', 'saudi', 'saudi arabia', 'riyadh', 'jeddah', '利雅得', '吉达'], 'tourist_evisa'),
   singapore: destination('singapore', 'Singapore', ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'], 'entry_visa_or_visit_pass'),
   slovakia: destination('slovakia', 'Slovakia', ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
@@ -167,6 +173,69 @@ export const COUNTRY_ALIASES: Record<SupportedKnowledgeCountry, string[]> =
       config.aliases,
     ])
   ) as Record<SupportedKnowledgeCountry, string[]>;
+
+export const VISA_SERVICE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
+  'austria',
+  'australia',
+  'belgium',
+  'bulgaria',
+  'canada',
+  'cambodia',
+  'croatia',
+  'czech_republic',
+  'denmark',
+  'egypt',
+  'estonia',
+  'finland',
+  'france',
+  'germany',
+  'greece',
+  'hong_kong',
+  'hungary',
+  'iceland',
+  'india',
+  'indonesia',
+  'italy',
+  'japan',
+  'laos',
+  'latvia',
+  'liechtenstein',
+  'lithuania',
+  'luxembourg',
+  'macau',
+  'malaysia',
+  'maldives',
+  'malta',
+  'netherlands',
+  'new_zealand',
+  'norway',
+  'philippines',
+  'poland',
+  'portugal',
+  'romania',
+  'russia',
+  'singapore',
+  'slovakia',
+  'slovenia',
+  'south_africa',
+  'south_korea',
+  'spain',
+  'sri_lanka',
+  'switzerland',
+  'sweden',
+  'thailand',
+  'turkey',
+  'uk',
+  'united_arab_emirates',
+  'us',
+  'vietnam',
+]);
+
+export function isVisaServiceSupportedCountry(
+  country: SupportedKnowledgeCountry | null | undefined
+): country is SupportedKnowledgeCountry {
+  return Boolean(country && VISA_SERVICE_COUNTRIES.has(country));
+}
 
 export const SCHENGEN_KNOWLEDGE_COUNTRIES = new Set<SupportedKnowledgeCountry>(
   Object.values(VISA_DESTINATION_REGISTRY)

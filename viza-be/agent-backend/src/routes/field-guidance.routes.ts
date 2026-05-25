@@ -498,6 +498,37 @@ function mergeGuidance(
   };
 }
 
+function hasCjk(content: string): boolean {
+  return /[\u3400-\u9fff]/.test(content);
+}
+
+function isLikelyNonChineseSentence(content: string): boolean {
+  const text = stripMarkdown(content).trim();
+  if (!text || hasCjk(text)) return false;
+  const latinLetters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return latinLetters >= 12;
+}
+
+function keepChineseItems(items: string[], fallback: string[]): string[] {
+  const kept = items.filter((item) => !isLikelyNonChineseSentence(item));
+  return kept.length > 0 ? kept : fallback;
+}
+
+function enforceGuidanceLanguage(
+  guidance: GuidanceBody,
+  base: GuidanceBody,
+  locale: "zh" | "en"
+): GuidanceBody {
+  if (locale !== "zh") return guidance;
+  return {
+    ...guidance,
+    summary: isLikelyNonChineseSentence(guidance.summary) ? base.summary : guidance.summary,
+    hints: keepChineseItems(guidance.hints, base.hints),
+    officialWarnings: keepChineseItems(guidance.officialWarnings, base.officialWarnings),
+    formatHints: keepChineseItems(guidance.formatHints, base.formatHints),
+  };
+}
+
 function parseJsonObject(text: string): Record<string, unknown> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -758,7 +789,7 @@ async function generateAiGuidance(
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 700,
-      system: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      system: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
       messages: [
         {
           role: "user",
@@ -811,7 +842,7 @@ async function generateQuestionReply(
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 350,
-      system: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+      system: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
       messages: [
         ...conversation,
         {
@@ -825,6 +856,9 @@ async function generateQuestionReply(
       stripMarkdown(extractTextContent(message.content).trim()),
       reqBody
     );
+    if (locale === "zh" && isLikelyNonChineseSentence(reply)) {
+      return { reply: scopedFallback, aiUsed: false };
+    }
     return { reply: reply || scopedFallback, aiUsed: Boolean(reply) };
   } catch (error) {
     logger.warn("AI field question reply failed", error as Error, {
@@ -870,7 +904,11 @@ async function getStaticGuidance(
 
   const base = buildDeterministicGuidance(field, locale);
   const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks);
-  const merged = ai ? mergeGuidance(base, ai, field, locale) : base;
+  const merged = enforceGuidanceLanguage(
+    ai ? mergeGuidance(base, ai, field, locale) : base,
+    base,
+    locale
+  );
   const guidance = sanitizeGuidanceScope({
     ...merged,
     examples: merged.examples.length > 0 ? merged.examples : base.examples,

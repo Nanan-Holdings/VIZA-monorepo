@@ -44,6 +44,39 @@ function stripMarkdown(content: string): string {
     .trim();
 }
 
+function hasCjk(content: string): boolean {
+  return /[\u3400-\u9fff]/.test(content);
+}
+
+function isLikelyNonChineseSentence(content: string): boolean {
+  const text = stripMarkdown(content).trim();
+  if (!text || hasCjk(text)) return false;
+  const latinLetters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return latinLetters >= 12;
+}
+
+function localizedFieldLabel(request: FieldGuidanceRequest): string {
+  const name = request.field.fieldName.toLowerCase();
+  const label = request.field.label.trim();
+  if (name.includes("surname") || name.includes("family_name")) return "姓氏";
+  if (name.includes("given") || name.includes("first_name")) return "名字";
+  if (name.includes("full_name")) return "姓名";
+  if (name.includes("birth") && name.includes("date")) return "出生日期";
+  if (name.includes("passport") && name.includes("number")) return "护照号码";
+  if (name.includes("passport")) return "护照信息";
+  if (name.includes("photo")) return "签证照片";
+  if (name.includes("nationality")) return "国籍";
+  if (name.includes("country")) return "国家/地区";
+  if (name.includes("city")) return "城市";
+  if (name.includes("date")) return "日期";
+  return /[\u3400-\u9fff]/.test(label) ? label : "当前字段";
+}
+
+function keepChineseItems(items: string[], fallback: string[]): string[] {
+  const kept = items.filter((item) => !isLikelyNonChineseSentence(item));
+  return kept.length > 0 ? kept : fallback;
+}
+
 function localSource(reason: string): FieldGuidanceSource {
   return {
     title: "VIZA 本地字段提示",
@@ -133,6 +166,38 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   };
 }
 
+function sanitizeChineseResponse(
+  request: FieldGuidanceRequest,
+  payload: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  if (getLocale(request) !== "zh") return payload;
+
+  const fallback = makeFallbackGuidance(request, "language fallback");
+  const fieldLabel = localizedFieldLabel(request);
+  const fallbackSummary = `${fieldLabel}用于当前签证申请表。请按护照、官方证件、题目选项或支持材料上的信息填写，并与其他答案保持一致。`;
+
+  return {
+    ...payload,
+    guidance: {
+      ...payload.guidance,
+      title: `${fieldLabel}填写帮助`,
+      summary: isLikelyNonChineseSentence(payload.guidance.summary)
+        ? fallbackSummary
+        : payload.guidance.summary,
+      hints: keepChineseItems(payload.guidance.hints, fallback.guidance.hints),
+      officialWarnings: keepChineseItems(payload.guidance.officialWarnings, fallback.guidance.officialWarnings),
+      formatHints: keepChineseItems(payload.guidance.formatHints, fallback.guidance.formatHints),
+    },
+    validation: {
+      ...payload.validation,
+      messages: keepChineseItems(payload.validation.messages, fallback.validation.messages),
+    },
+    reply: payload.reply && isLikelyNonChineseSentence(payload.reply)
+      ? fallback.reply
+      : payload.reply,
+  };
+}
+
 async function forwardToBackend(requestBody: FieldGuidanceRequest): Promise<FieldGuidanceResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FIELD_GUIDANCE_TIMEOUT_MS);
@@ -152,7 +217,7 @@ async function forwardToBackend(requestBody: FieldGuidanceRequest): Promise<Fiel
 
     const payload = (await response.json()) as FieldGuidanceResponse;
     if (payload.reply) payload.reply = stripMarkdown(payload.reply);
-    return payload;
+    return sanitizeChineseResponse(requestBody, payload);
   } finally {
     clearTimeout(timeout);
   }

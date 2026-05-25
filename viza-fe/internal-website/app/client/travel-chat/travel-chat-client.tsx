@@ -2077,13 +2077,15 @@ export function TravelChatClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: pendingItems }),
         });
-        const payload = (await response.json()) as {
+        const payload = (await response.json().catch(() => ({}))) as {
           results?: GoogleGeocodeResult[];
           error?: string;
         };
 
         if (!response.ok) {
-          console.warn("Google geocoding request failed", payload.error);
+          pendingItems.forEach((item) =>
+            failedGeocodeKeysRef.current.add(item.key)
+          );
           return;
         }
 
@@ -2106,10 +2108,6 @@ export function TravelChatClient({
           }
 
           failedGeocodeKeysRef.current.add(result.key);
-          console.warn(
-            `Google geocoding did not return coordinates for ${result.query}`,
-            result.error ?? result.status
-          );
         });
 
         if (!disposed && Object.keys(nextCoordinates).length > 0) {
@@ -2118,8 +2116,10 @@ export function TravelChatClient({
             ...nextCoordinates,
           }));
         }
-      } catch (error) {
-        console.warn("Failed to resolve Google geocoding coordinates", error);
+      } catch {
+        pendingItems.forEach((item) =>
+          failedGeocodeKeysRef.current.add(item.key)
+        );
       }
     })();
 

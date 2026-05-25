@@ -2294,7 +2294,6 @@ export function TravelItineraryExperience({
           pendingItems.forEach((item) =>
             failedAttractionGeocodeKeysRef.current.add(item.key)
           );
-          console.warn("Google attraction geocoding failed", payload.error);
           return;
         }
 
@@ -2325,11 +2324,10 @@ export function TravelItineraryExperience({
             ...nextCoordinates,
           }));
         }
-      } catch (error) {
+      } catch {
         pendingItems.forEach((item) =>
           failedAttractionGeocodeKeysRef.current.add(item.key)
         );
-        console.warn("Google attraction geocoding request failed", error);
       }
     })();
 
