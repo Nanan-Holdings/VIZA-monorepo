@@ -738,11 +738,14 @@ export function registerVisaNamespace(nsp: Namespace): void {
         }
 
         const recentUserContext = buildRecentUserContext(chatHistory);
-        const stateCountry =
+        const rawStateCountry =
           conversationState.mainDestination ??
           (conversationState.destinationCountries.length === 1
             ? conversationState.destinationCountries[0]
             : null);
+        const stateCountry = isVisaServiceSupportedCountry(rawStateCountry)
+          ? rawStateCountry
+          : null;
         const knowledgeCountry =
           stateCountry ??
           resolveKnowledgeCountry(
@@ -760,19 +763,32 @@ export function registerVisaNamespace(nsp: Namespace): void {
           message,
           conversationState.missingSlots
         );
-        const knowledgeResult = await retrieveVisaKnowledge({
-          query: recentUserContext ? `${recentUserContext}\n${message}` : message,
-          country: knowledgeCountry,
-          visaType: knowledgeVisaType,
-          intent: knowledgeIntent,
-          matchCount: 5,
-        });
-        const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
         const compactAnswerInterpretation = buildCompactAnswerInterpretation(
           chatHistory,
           message
         );
-        const unsupportedServiceCountries = detectUnsupportedServiceCountries(message);
+        const unsupportedServiceCountries = uniqueCountries([
+          ...detectUnsupportedServiceCountries(message),
+          ...(rawStateCountry && !isVisaServiceSupportedCountry(rawStateCountry)
+            ? [rawStateCountry]
+            : []),
+        ]);
+        const shouldSkipKnowledgeRetrieval =
+          unsupportedServiceCountries.length > 0 && !knowledgeCountry;
+        const knowledgeResult = shouldSkipKnowledgeRetrieval
+          ? {
+              chunks: [],
+              usedEmbedding: false,
+              fallbackReason: "unsupported_service_country",
+            }
+          : await retrieveVisaKnowledge({
+              query: recentUserContext ? `${recentUserContext}\n${message}` : message,
+              country: knowledgeCountry,
+              visaType: knowledgeVisaType,
+              intent: knowledgeIntent,
+              matchCount: 5,
+            });
+        const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
         const statePrompt = buildVisaConversationStatePrompt(conversationState);
         const stateSummary = summarizeVisaConversationState(conversationState);
         const responseLocale = normalizeResponseLocale(request.locale);
