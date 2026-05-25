@@ -15,6 +15,7 @@ import {
   buildCompactAnswerInterpretation,
   buildApplicationFormUrl,
   buildApplicationRedirectBlocks,
+  detectUnsupportedServiceCountries,
   inferVisaKnowledgeIntent,
   resolveKnowledgeCountry,
   resolveKnowledgeVisaType,
@@ -539,9 +540,14 @@ function evaluateBranchTests(): BranchResult[] {
     ]),
     branch('COUNTRY-002', 'country_routing_branch', () => [
       expectEqual(
-        'Mexico with valid US visa exemption keeps Mexico as destination',
+        'Mexico is recognized but not routed to RAG because service is not open',
         resolveKnowledgeCountry('中国护照去墨西哥旅游，有有效美国签证能不能免签'),
-        'mexico'
+        null
+      ),
+      expectArrayEqual(
+        'Mexico appears in unsupported service list',
+        detectUnsupportedServiceCountries('中国护照去墨西哥旅游，有有效美国签证能不能免签'),
+        ['mexico']
       ),
     ]),
     branch('COUNTRY-003', 'country_routing_branch', () => [
@@ -569,6 +575,11 @@ function evaluateBranchTests(): BranchResult[] {
     ]),
     branch('COUNTRY-010', 'country_routing_branch', () => [
       expectEqual('Schengen can use Schengen app country fallback', resolveKnowledgeCountry('申根签证怎么办', 'France'), 'france'),
+    ]),
+    branch('COUNTRY-011', 'country_routing_branch', () => [
+      expectEqual('Hong Kong service country routes', resolveKnowledgeCountry('中国护照去香港旅游'), 'hong_kong'),
+      expectEqual('Macau service country routes', resolveKnowledgeCountry('中国护照去澳门旅游'), 'macau'),
+      expectEqual('Russia service country routes', resolveKnowledgeCountry('中国护照去俄罗斯旅游'), 'russia'),
     ]),
 
     branch('VISA-001', 'visa_type_branch', () => [
@@ -773,6 +784,9 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('uk separate form link emitted', urls.includes('/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR'), true),
         expectEqual('direct url helper maps Iceland Schengen', buildApplicationFormUrl('iceland', 'schengen_short_stay_tourism'), '/client/application?country=iceland&visaType=EU_SCHENGEN_C_SHORT_STAY'),
         expectEqual('direct url helper maps UK Standard Visitor', buildApplicationFormUrl('uk', 'standard_visitor'), '/client/application?country=united_kingdom&visaType=UK_STANDARD_VISITOR'),
+        expectEqual('direct url helper maps Hong Kong Visit Visa', buildApplicationFormUrl('hong_kong', 'hk_visit_visa'), '/client/application?country=hong_kong&visaType=HK_VISIT_VISA'),
+        expectEqual('direct url helper maps Macau Visit Visa', buildApplicationFormUrl('macau', 'mo_visit_visa'), '/client/application?country=macau&visaType=MO_VISIT_VISA'),
+        expectEqual('direct url helper maps Russia eVisa', buildApplicationFormUrl('russia', 'unified_evisa'), '/client/application?country=russia&visaType=RU_E_VISA'),
       ];
     }),
   ];
