@@ -271,6 +271,123 @@ export const TRAVEL_ATTRACTION_KNOWLEDGE: TravelAttractionKnowledgeItem[] = [
       "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/MatisseMuseumNice.jpg/330px-MatisseMuseumNice.jpg",
     sourceUrl: "https://en.wikipedia.org/wiki/Mus%C3%A9e_Matisse_(Nice)",
   },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "中央公园与湖畔步道",
+    location: "Central Park, Manhattan, New York, NY",
+    lat: 40.7812,
+    lng: -73.9665,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Gapstow_bridge_of_central_park_in_november.jpg/960px-Gapstow_bridge_of_central_park_in_november.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Gapstow_bridge_of_central_park_in_november.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "帝国大厦观景台",
+    location: "20 W 34th St., New York, NY",
+    lat: 40.7484,
+    lng: -73.9857,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Empire_State_Building_from_Brooklyn_Bridge.jpg/960px-Empire_State_Building_from_Brooklyn_Bridge.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Empire_State_Building_from_Brooklyn_Bridge.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "时代广场霓虹街区",
+    location: "Times Square, Manhattan, New York, NY",
+    lat: 40.758,
+    lng: -73.9855,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Times_Square%2C_New_York_City%2C_20231006_1916_2338.jpg/960px-Times_Square%2C_New_York_City%2C_20231006_1916_2338.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Times_Square,_New_York_City,_20231006_1916_2338.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "自由女神像与自由岛",
+    location: "Liberty Island, New York, NY",
+    lat: 40.6892,
+    lng: -74.0445,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Statue_of_Liberty_7.jpg/960px-Statue_of_Liberty_7.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Statue_of_Liberty_7.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "布鲁克林大桥与丹波街区",
+    location: "Brooklyn Bridge, New York, NY",
+    lat: 40.7061,
+    lng: -73.9969,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Brooklyn_Bridge_Postdlf.jpg/960px-Brooklyn_Bridge_Postdlf.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_Postdlf.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "中央车站主大厅",
+    location: "89 E 42nd St, New York, NY",
+    lat: 40.7527,
+    lng: -73.9772,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Grand_Central_Station_Main_Concourse_Jan_2006.jpg/960px-Grand_Central_Station_Main_Concourse_Jan_2006.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Grand_Central_Station_Main_Concourse_Jan_2006.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "大都会艺术博物馆",
+    location: "1000 5th Ave, New York, NY",
+    lat: 40.7794,
+    lng: -73.9632,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Metropolitan_Museum_of_Art_%28The_Met%29_-_Central_Park%2C_NYC.jpg/960px-Metropolitan_Museum_of_Art_%28The_Met%29_-_Central_Park%2C_NYC.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Metropolitan_Museum_of_Art_(The_Met)_-_Central_Park,_NYC.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "高线公园与切尔西画廊",
+    location: "The High Line, New York, NY",
+    lat: 40.74799,
+    lng: -74.0048,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/High_Line_20th_Street_looking_downtown.jpg/960px-High_Line_20th_Street_looking_downtown.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:High_Line_20th_Street_looking_downtown.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "9/11 纪念博物馆",
+    location: "180 Greenwich St, New York, NY",
+    lat: 40.7115,
+    lng: -74.0134,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/New_York_-_National_September_11_Memorial_South_Pool_-_April_2012_-_9693C.jpg/960px-New_York_-_National_September_11_Memorial_South_Pool_-_April_2012_-_9693C.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:New_York_-_National_September_11_Memorial_South_Pool_-_April_2012_-_9693C.jpg",
+  },
+  {
+    cityKeys: ["newyork", "new york", "nyc", "纽约"],
+    cityLabel: "纽约",
+    name: "纽约公共图书馆与布莱恩特公园",
+    location: "476 5th Ave, New York, NY",
+    lat: 40.7532,
+    lng: -73.9822,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/At_New_York_City_2023_124.jpg/960px-At_New_York_City_2023_124.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:At_New_York_City_2023_124.jpg",
+  },
 ];
 
 function itemMatchesCity(item: TravelAttractionKnowledgeItem, city: string): boolean {
