@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "next-intl";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 export type TripMapPoint = {
   id: string;
@@ -153,7 +155,10 @@ type GoogleMapsNamespace = {
     optimized?: boolean;
     zIndex?: number;
   }) => GoogleMarkerInstance;
-  InfoWindow: new (options?: { content?: string; disableAutoPan?: boolean }) => GoogleInfoWindowInstance;
+  InfoWindow: new (options?: {
+    content?: string;
+    disableAutoPan?: boolean;
+  }) => GoogleInfoWindowInstance;
   Polyline: new (options: {
     path: GoogleLatLngLiteral[];
     map?: GoogleMapInstance | null;
@@ -357,8 +362,14 @@ const GALLERY_IMAGES_BY_KEY: Record<string, string[]> = {
   bangkok: NETWORK_CITY_IMAGES_BY_KEY.bangkok,
   seoul: NETWORK_CITY_IMAGES_BY_KEY.seoul,
   hongkong: NETWORK_CITY_IMAGES_BY_KEY.hongkong,
-  marinabaysands: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
-  gardensbythebay: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
+  marinabaysands: [
+    "/globe/singapore.jpg",
+    ...NETWORK_CITY_IMAGES_BY_KEY.singapore,
+  ],
+  gardensbythebay: [
+    "/globe/singapore.jpg",
+    ...NETWORK_CITY_IMAGES_BY_KEY.singapore,
+  ],
   sentosa: ["/globe/singapore.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.singapore],
   operahouse: ["/globe/sydney.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sydney],
   sydneyoperahouse: ["/globe/sydney.jpg", ...NETWORK_CITY_IMAGES_BY_KEY.sydney],
@@ -403,7 +414,10 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   sydneyoperahouse: "悉尼歌剧院",
   colosseum: "罗马斗兽场",
 };
-const DETAIL_SECTION_META: Record<DetailSectionId, { title: string; icon: string }> = {
+const DETAIL_SECTION_META: Record<
+  DetailSectionId,
+  { title: string; icon: string }
+> = {
   attractions: { title: "热门景点", icon: "⌁" },
   food: { title: "必吃美食", icon: "♨" },
   stay: { title: "热门住宿区域", icon: "▥" },
@@ -474,7 +488,12 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["海港", "市中心", "海滩"],
     },
     nightlife: {
-      items: ["Darling Harbour", "The Rocks 酒吧", "歌剧院夜景", "Surry Hills 小酒馆"],
+      items: [
+        "Darling Harbour",
+        "The Rocks 酒吧",
+        "歌剧院夜景",
+        "Surry Hills 小酒馆",
+      ],
       tip: "海港夜景和晚餐可以连起来，夜间回程也方便。",
       tags: ["海港夜景", "酒吧", "音乐"],
     },
@@ -630,20 +649,24 @@ const DETAIL_ITEM_MEDIA_BY_TITLE: Record<string, DetailItemMedia> = {
   比萨斜塔: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg/960px-The_Leaning_Tower_of_Pisa%2C_Pisa%2C_Italy.jpg",
-    description: "比萨最具识别度的钟楼，适合安排在奇迹广场主线里，白天拍照效果最好。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:The_Leaning_Tower_of_Pisa,_Pisa,_Italy.jpg",
+    description:
+      "比萨最具识别度的钟楼，适合安排在奇迹广场主线里，白天拍照效果最好。",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:The_Leaning_Tower_of_Pisa,_Pisa,_Italy.jpg",
   },
   奇迹广场: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Piazza_dei_Miracoli_%28Pisa%29_2023.1.jpg/960px-Piazza_dei_Miracoli_%28Pisa%29_2023.1.jpg",
     description: "比萨主教座堂、洗礼堂和斜塔所在的核心广场，适合集中半日游。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Miracoli_(Pisa)_2023.1.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Piazza_dei_Miracoli_(Pisa)_2023.1.jpg",
   },
   比萨主教座堂: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Pisa_-_Cathedral_-_Facade_1052.jpg/960px-Pisa_-_Cathedral_-_Facade_1052.jpg",
     description: "奇迹广场内的罗曼式主教座堂，和斜塔、洗礼堂一起看最完整。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_-_Cathedral_-_Facade_1052.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Pisa_-_Cathedral_-_Facade_1052.jpg",
   },
   阿诺河岸: {
     imageSrc:
@@ -660,62 +683,76 @@ const DETAIL_ITEM_MEDIA_BY_TITLE: Record<string, DetailItemMedia> = {
   意式冰淇淋: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Gelato%2C_Florence%2C_Italy_2016.jpg/960px-Gelato%2C_Florence%2C_Italy_2016.jpg",
-    description: "意大利 gelato 适合放在下午散步时段，轻松补糖，也很适合边走边吃。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Gelato,_Florence,_Italy_2016.jpg",
+    description:
+      "意大利 gelato 适合放在下午散步时段，轻松补糖，也很适合边走边吃。",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Gelato,_Florence,_Italy_2016.jpg",
   },
   手工意面: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Handmade_pasta_noodles_%28Unsplash%29.jpg/960px-Handmade_pasta_noodles_%28Unsplash%29.jpg",
     description: "手工意面更适合作为正餐，搭配托斯卡纳肉酱或简单番茄酱都很稳。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Handmade_pasta_noodles_(Unsplash).jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Handmade_pasta_noodles_(Unsplash).jpg",
   },
   当地葡萄酒: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Tuscan_Wine_Country_Vineyard_%2853593605746%29.jpg/960px-Tuscan_Wine_Country_Vineyard_%2853593605746%29.jpg",
-    description: "托斯卡纳葡萄酒适合晚餐搭配，想轻松一点可以选按杯供应的小酒馆。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Tuscan_Wine_Country_Vineyard_(53593605746).jpg",
+    description:
+      "托斯卡纳葡萄酒适合晚餐搭配，想轻松一点可以选按杯供应的小酒馆。",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Tuscan_Wine_Country_Vineyard_(53593605746).jpg",
   },
   奇迹广场附近: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Piazza_dei_miracoli_-_aerial_panorama.jpg/960px-Piazza_dei_miracoli_-_aerial_panorama.jpg",
-    description: "住在奇迹广场附近最方便早晚错峰拍斜塔，适合短停和第一次来比萨。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_miracoli_-_aerial_panorama.jpg",
+    description:
+      "住在奇迹广场附近最方便早晚错峰拍斜塔，适合短停和第一次来比萨。",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Piazza_dei_miracoli_-_aerial_panorama.jpg",
   },
   中央车站周边: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Pisa_Centrale_train_station_-_platforms.jpg/960px-Pisa_Centrale_train_station_-_platforms.jpg",
-    description: "Pisa Centrale 周边适合赶火车或一晚短住，去佛罗伦萨、卢卡都方便。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_Centrale_train_station_-_platforms.jpg",
+    description:
+      "Pisa Centrale 周边适合赶火车或一晚短住，去佛罗伦萨、卢卡都方便。",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Pisa_Centrale_train_station_-_platforms.jpg",
   },
   老城区: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Borgo_Stretto_de_Pisa.JPG/960px-Borgo_Stretto_de_Pisa.JPG",
     description: "老城区街巷更有生活感，适合慢游、找小餐馆和晚上散步。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
   },
   阿诺河夜景: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Pisa_-_Arno_di_notte.JPG/960px-Pisa_-_Arno_di_notte.JPG",
     description: "阿诺河夜间灯光柔和，适合晚饭后散步，把节奏放慢一点。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Pisa_-_Arno_di_notte.JPG",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Pisa_-_Arno_di_notte.JPG",
   },
   老城酒吧: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Borgo_Stretto_de_Pisa.JPG/960px-Borgo_Stretto_de_Pisa.JPG",
     description: "老城酒吧和小馆集中在步行街附近，适合晚餐后短距离探索。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Borgo_Stretto_de_Pisa.JPG",
   },
   大学区小馆: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Piazza_dei_Cavalieri_%28Pisa%29.jpg/960px-Piazza_dei_Cavalieri_%28Pisa%29.jpg",
     description: "骑士广场周边有大学氛围，小馆和咖啡店适合轻松收尾。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
   },
   广场散步: {
     imageSrc:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Piazza_dei_Cavalieri_%28Pisa%29.jpg/960px-Piazza_dei_Cavalieri_%28Pisa%29.jpg",
     description: "比萨广场夜间人少一些，适合饭后散步和补几张城市氛围照片。",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Piazza_dei_Cavalieri_(Pisa).jpg",
   },
 };
 const SCRIPT_ID = "viza-travel-google-maps-script";
@@ -762,7 +799,9 @@ function hashLookupString(value: string): number {
   return Math.abs(hash);
 }
 
-function buildFallbackNetworkGalleryImages(value: string | undefined): string[] {
+function buildFallbackNetworkGalleryImages(
+  value: string | undefined
+): string[] {
   const city = value?.trim();
   if (!city) return [];
 
@@ -777,13 +816,24 @@ function buildFallbackNetworkGalleryImages(value: string | undefined): string[] 
 
 function getImageLookupKey(imageSrc: string | undefined): string {
   if (!imageSrc) return "";
-  return normalizeLookupKey(imageSrc.split("/").pop()?.replace(/\.[^.]+$/, ""));
+  return normalizeLookupKey(
+    imageSrc
+      .split("/")
+      .pop()
+      ?.replace(/\.[^.]+$/, "")
+  );
 }
 
 function getPointLookupKeys(point: TripMapPoint): string[] {
   return Array.from(
     new Set(
-      [point.label, point.city, point.localName, point.subtitle, getImageLookupKey(point.imageSrc)]
+      [
+        point.label,
+        point.city,
+        point.localName,
+        point.subtitle,
+        getImageLookupKey(point.imageSrc),
+      ]
         .map(normalizeLookupKey)
         .filter(Boolean)
     )
@@ -792,14 +842,15 @@ function getPointLookupKeys(point: TripMapPoint): string[] {
 
 function getLocalNameFromValue(value: string | undefined): string | null {
   const key = normalizeLookupKey(value);
-  return key ? LOCAL_NAME_BY_KEY[key] ?? null : null;
+  return key ? (LOCAL_NAME_BY_KEY[key] ?? null) : null;
 }
 
 function getPointDisplayName(point: TripMapPoint): string {
   if (point.kind !== "city") {
     const labelLocalName = getLocalNameFromValue(point.label);
     if (labelLocalName) return labelLocalName;
-    if (point.localName && point.localName !== point.city) return point.localName;
+    if (point.localName && point.localName !== point.city)
+      return point.localName;
     return point.label;
   }
 
@@ -809,7 +860,11 @@ function getPointDisplayName(point: TripMapPoint): string {
   const labelLocalName = getLocalNameFromValue(point.label);
   if (labelLocalName) return labelLocalName;
   if (point.kind === "city" && point.localName) return point.localName;
-  if (point.kind !== "city" && point.localName && point.localName !== point.city) {
+  if (
+    point.kind !== "city" &&
+    point.localName &&
+    point.localName !== point.city
+  ) {
     return point.localName;
   }
   return point.label;
@@ -832,7 +887,9 @@ function getPointGalleryImages(point: TripMapPoint): string[] {
 
   const uniqueImages = Array.from(new Set(orderedImages.filter(Boolean)));
   if (uniqueImages.length < 4) {
-    uniqueImages.push(...buildFallbackNetworkGalleryImages(point.city ?? point.label));
+    uniqueImages.push(
+      ...buildFallbackNetworkGalleryImages(point.city ?? point.label)
+    );
   }
 
   return Array.from(new Set(uniqueImages)).slice(0, GALLERY_MAX_IMAGES);
@@ -874,9 +931,7 @@ function interpolateGreatCirclePoint(
     Math.asin(
       Math.sqrt(
         Math.sin(deltaLat / 2) ** 2 +
-          Math.cos(startLat) *
-            Math.cos(endLat) *
-            Math.sin(deltaLng / 2) ** 2
+          Math.cos(startLat) * Math.cos(endLat) * Math.sin(deltaLng / 2) ** 2
       )
     );
 
@@ -915,7 +970,10 @@ function interpolateRoutePath(
   const segmentProgress = safeProgress * (routePath.length - 1);
   const completedSegments = Math.floor(segmentProgress);
   const partialProgress = segmentProgress - completedSegments;
-  const visiblePath = routePath.slice(0, Math.min(completedSegments + 1, routePath.length));
+  const visiblePath = routePath.slice(
+    0,
+    Math.min(completedSegments + 1, routePath.length)
+  );
 
   if (completedSegments < routePath.length - 1) {
     const start = routePath[completedSegments]!;
@@ -926,12 +984,17 @@ function interpolateRoutePath(
   return visiblePath;
 }
 
-function toWorldPixel(lat: number, lng: number, zoom: number): { x: number; y: number } {
+function toWorldPixel(
+  lat: number,
+  lng: number,
+  zoom: number
+): { x: number; y: number } {
   const safeLat = clamp(lat, -85, 85);
   const sinLat = Math.sin((safeLat * Math.PI) / 180);
   const scale = 256 * Math.pow(2, zoom);
   const x = ((lng + 180) / 360) * scale;
-  const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+  const y =
+    (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
   return { x, y };
 }
 
@@ -951,14 +1014,21 @@ function toScreenPixel(
   mapHeight: number
 ): { x: number; y: number } {
   const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
-  const world = toWorldPixel(lat, getWrappedLongitudeNearCenter(lng, center.lng), zoom);
+  const world = toWorldPixel(
+    lat,
+    getWrappedLongitudeNearCenter(lng, center.lng),
+    zoom
+  );
   return {
     x: mapWidth / 2 + (world.x - centerWorld.x),
     y: mapHeight / 2 + (world.y - centerWorld.y),
   };
 }
 
-function getPointPriority(point: TripMapPoint, activePointId: string | null): number {
+function getPointPriority(
+  point: TripMapPoint,
+  activePointId: string | null
+): number {
   if (point.id === activePointId) return 0;
   if (point.kind === "city") return 1;
   if (point.kind === "hotel") return 2;
@@ -982,7 +1052,14 @@ function getDeclutteredPoints(
     .map((point, index) => ({
       point,
       index,
-      screen: toScreenPixel(point.lat, point.lng, center, zoom, mapWidth, mapHeight),
+      screen: toScreenPixel(
+        point.lat,
+        point.lng,
+        center,
+        zoom,
+        mapWidth,
+        mapHeight
+      ),
       priority: getPointPriority(point, activePointId),
     }))
     .sort((a, b) => a.priority - b.priority || a.index - b.index);
@@ -1060,7 +1137,14 @@ function createBubblePath(
   ctx: CanvasRenderingContext2D,
   dims: ReturnType<typeof createBubbleMarkerDimensions>
 ): void {
-  drawRoundedRectPath(ctx, 3, 3, dims.bodySize + 4, dims.bodySize + 4, dims.borderRadius + 3);
+  drawRoundedRectPath(
+    ctx,
+    3,
+    3,
+    dims.bodySize + 4,
+    dims.bodySize + 4,
+    dims.borderRadius + 3
+  );
   ctx.moveTo(Math.round(dims.width / 2) - dims.tailHalf, dims.bubbleBottom);
   ctx.lineTo(Math.round(dims.width / 2) + dims.tailHalf, dims.bubbleBottom);
   ctx.lineTo(Math.round(dims.width / 2), dims.bubbleBottom + dims.tailHeight);
@@ -1096,8 +1180,13 @@ function createSolidBubbleMarkerDataUrl(
   ctx.font = "700 14px 'Segoe UI', 'Microsoft YaHei', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const fallbackText = (point.localName ?? point.label ?? "?").trim().slice(0, 1) || "?";
-  ctx.fillText(fallbackText, Math.round(dims.width / 2), Math.round((dims.bodySize + 8) / 2));
+  const fallbackText =
+    (point.localName ?? point.label ?? "?").trim().slice(0, 1) || "?";
+  ctx.fillText(
+    fallbackText,
+    Math.round(dims.width / 2),
+    Math.round((dims.bodySize + 8) / 2)
+  );
 
   return canvas.toDataURL("image/png");
 }
@@ -1109,7 +1198,8 @@ function loadImageForCanvas(imageUrl: string): Promise<HTMLImageElement> {
     image.referrerPolicy = "no-referrer";
     image.decoding = "async";
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`marker image load failed: ${imageUrl}`));
+    image.onerror = () =>
+      reject(new Error(`marker image load failed: ${imageUrl}`));
     image.src = imageUrl;
   });
 }
@@ -1151,7 +1241,14 @@ async function createBubbleMarkerDataUrl(
     ctx.fill();
     ctx.restore();
 
-    drawRoundedRectPath(ctx, 3, 3, dims.bodySize + 4, dims.bodySize + 4, dims.borderRadius + 3);
+    drawRoundedRectPath(
+      ctx,
+      3,
+      3,
+      dims.bodySize + 4,
+      dims.bodySize + 4,
+      dims.borderRadius + 3
+    );
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.lineWidth = dims.strokeWidth;
@@ -1161,7 +1258,14 @@ async function createBubbleMarkerDataUrl(
     const imageInset = 5;
     const imageSize = dims.bodySize;
     ctx.save();
-    drawRoundedRectPath(ctx, imageInset, imageInset, imageSize, imageSize, dims.borderRadius);
+    drawRoundedRectPath(
+      ctx,
+      imageInset,
+      imageInset,
+      imageSize,
+      imageSize,
+      dims.borderRadius
+    );
     ctx.clip();
     ctx.drawImage(image, imageInset, imageInset, imageSize, imageSize);
     ctx.restore();
@@ -1254,9 +1358,11 @@ function estimateCoordinateZoom(
 }
 
 function getPointDisplayLocation(point: TripMapPoint): string {
-  if (point.countryLabel) return point.countryLabel.replace(/\s*\([^)]*\)/g, "").trim();
+  if (point.countryLabel)
+    return point.countryLabel.replace(/\s*\([^)]*\)/g, "").trim();
   if (point.subtitle.includes(" in ")) {
-    const subtitleLocation = point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
+    const subtitleLocation =
+      point.subtitle.split(" in ").at(-1)?.trim() || point.subtitle;
     return getLocalNameFromValue(subtitleLocation) ?? subtitleLocation;
   }
   return (
@@ -1272,7 +1378,9 @@ function getPointAttractions(point: TripMapPoint): string {
   const city =
     point.kind === "city"
       ? getPointDisplayName(point)
-      : getLocalNameFromValue(point.city) ?? point.city ?? getPointDisplayName(point);
+      : (getLocalNameFromValue(point.city) ??
+        point.city ??
+        getPointDisplayName(point));
   const attractionName = getLocalNameFromValue(point.label) ?? point.label;
   const base =
     point.kind === "city"
@@ -1289,10 +1397,9 @@ function splitDetailItems(value: string): string[] {
     .slice(0, 4);
 }
 
-function getCityDetailSamples(point: TripMapPoint): Record<
-  DetailSectionId,
-  DetailSectionSample
-> | null {
+function getCityDetailSamples(
+  point: TripMapPoint
+): Record<DetailSectionId, DetailSectionSample> | null {
   for (const key of getPointLookupKeys(point)) {
     const sampleKey = CITY_SAMPLE_ALIAS_BY_KEY[key] ?? key;
     const samples = CITY_DETAIL_SAMPLES_BY_KEY[sampleKey];
@@ -1348,7 +1455,10 @@ function buildDetailSectionSample(
   location: string
 ): DetailSectionSample {
   const citySamples = getCityDetailSamples(point);
-  return citySamples?.[sectionId] ?? getFallbackDetailSample(point, sectionId, city, location);
+  return (
+    citySamples?.[sectionId] ??
+    getFallbackDetailSample(point, sectionId, city, location)
+  );
 }
 
 function getDetailSectionItemDescription(
@@ -1394,6 +1504,7 @@ function buildHoverCardHtml(
   point: TripMapPoint,
   addButtonId: string | null,
   buttonLabel: string,
+  isZh: boolean,
   options?: {
     cardWidth?: number;
     imageHeight?: number;
@@ -1409,7 +1520,9 @@ function buildHoverCardHtml(
   const title = getPointDisplayName(point);
   const cityOrCountry = getPointDisplayLocation(point);
   const attractions = getPointAttractions(point);
-  const duration = formatChineseDuration(point.recommendedDays);
+  const duration = isZh
+    ? formatChineseDuration(point.recommendedDays)
+    : (point.recommendedDays ?? "").trim();
   const galleryImages =
     options?.galleryImages && options.galleryImages.length > 0
       ? options.galleryImages
@@ -1439,12 +1552,12 @@ function buildHoverCardHtml(
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18));"></div>
       ${
         previousPhotoButtonId
-          ? `<button id="${previousPhotoButtonId}" type="button" aria-label="上一张照片" style="${galleryButtonStyle}left:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">‹</span></button>`
+          ? `<button id="${previousPhotoButtonId}" type="button" aria-label="${isZh ? "上一张照片" : "Previous photo"}" style="${galleryButtonStyle}left:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">‹</span></button>`
           : ""
       }
       ${
         photoButtonId
-          ? `<button id="${photoButtonId}" type="button" aria-label="下一张照片" style="${galleryButtonStyle}right:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">›</span></button>`
+          ? `<button id="${photoButtonId}" type="button" aria-label="${isZh ? "下一张照片" : "Next photo"}" style="${galleryButtonStyle}right:12px;"><span style="display:block;line-height:1;transform:translateY(-1px);">›</span></button>`
           : ""
       }
       <div style="position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:5px;">
@@ -1462,7 +1575,7 @@ function buildHoverCardHtml(
         <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">🔥 10</span>
       </div>
       <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-        <span style="color:#0f3bae;">热门景点：</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
+        <span style="color:#0f3bae;">${isZh ? "热门景点：" : "Highlights:"}</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
       <div style="margin-top:10px;display:flex;align-items:center;gap:7px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         <span style="font-size:${compact ? 14 : 16}px;color:#475569;">⌖</span>
@@ -1504,10 +1617,16 @@ async function loadGoogleMaps(apiKey: string): Promise<GoogleMapsNamespace> {
         resolve(maps);
         return;
       }
-      reject(new Error("Google Maps API loaded, but window.google.maps is unavailable"));
+      reject(
+        new Error(
+          "Google Maps API loaded, but window.google.maps is unavailable"
+        )
+      );
     };
 
-    const existingScript = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    const existingScript = document.getElementById(
+      SCRIPT_ID
+    ) as HTMLScriptElement | null;
     if (existingScript) {
       existingScript.addEventListener("load", resolveMaps, { once: true });
       existingScript.addEventListener(
@@ -1530,11 +1649,10 @@ async function loadGoogleMaps(apiKey: string): Promise<GoogleMapsNamespace> {
       { once: true }
     );
     document.head.appendChild(script);
-  })
-    .catch((error) => {
-      mapsLoaderPromise = null;
-      throw error;
-    });
+  }).catch((error) => {
+    mapsLoaderPromise = null;
+    throw error;
+  });
 
   return mapsLoaderPromise;
 }
@@ -1548,6 +1666,8 @@ export function TripRouteMap({
   animateRoute,
   className,
 }: TripRouteMapProps) {
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
   const mapsRef = useRef<GoogleMapsNamespace | null>(null);
@@ -1579,7 +1699,8 @@ export function TripRouteMap({
     useState<DetailSectionId | null>(null);
 
   const pointKey = useMemo(
-    () => points.map((point) => `${point.id}:${point.lat}:${point.lng}`).join("|"),
+    () =>
+      points.map((point) => `${point.id}:${point.lat}:${point.lng}`).join("|"),
     [points]
   );
 
@@ -1627,7 +1748,11 @@ export function TripRouteMap({
     markerVisualVersionRef.current = visualVersion;
     const mapWidth = containerRef.current?.clientWidth ?? 1200;
     const mapHeight = containerRef.current?.clientHeight ?? 800;
-    const iconSize = getAdaptiveIconSize(markersRef.current.length, mapWidth, mapHeight);
+    const iconSize = getAdaptiveIconSize(
+      markersRef.current.length,
+      mapWidth,
+      mapHeight
+    );
 
     markersRef.current.forEach(({ marker, point }) => {
       const isActive = point.id === activePointIdRef.current;
@@ -1636,20 +1761,29 @@ export function TripRouteMap({
         iconSize,
         isActive
       );
-      marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl));
+      marker.setIcon(
+        buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl)
+      );
       marker.setLabel(undefined);
       marker.setZIndex(isActive ? 1000 : 100);
 
-      void getBubbleMarkerDataUrl(point, iconSize, isActive).then((markerDataUrl) => {
-        const markerStillMounted = markersRef.current.some(
-          (entry) => entry.marker === marker && entry.id === point.id
-        );
-        if (!markerStillMounted || markerVisualVersionRef.current !== visualVersion) {
-          return;
-        }
+      void getBubbleMarkerDataUrl(point, iconSize, isActive).then(
+        (markerDataUrl) => {
+          const markerStillMounted = markersRef.current.some(
+            (entry) => entry.marker === marker && entry.id === point.id
+          );
+          if (
+            !markerStillMounted ||
+            markerVisualVersionRef.current !== visualVersion
+          ) {
+            return;
+          }
 
-        marker.setIcon(buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl));
-      });
+          marker.setIcon(
+            buildMarkerIcon(maps, point, isActive, iconSize, markerDataUrl)
+          );
+        }
+      );
     });
   }, []);
 
@@ -1762,7 +1896,10 @@ export function TripRouteMap({
         setLoadError(null);
         setIsReady(true);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to initialize Google Maps";
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to initialize Google Maps";
         setLoadError(message);
       }
     })();
@@ -1776,7 +1913,9 @@ export function TripRouteMap({
         marker.setMap(null);
       });
       markersRef.current = [];
-      layoutRerenderListenersRef.current.forEach((listener) => listener.remove());
+      layoutRerenderListenersRef.current.forEach((listener) =>
+        listener.remove()
+      );
       layoutRerenderListenersRef.current = [];
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
@@ -1830,12 +1969,22 @@ export function TripRouteMap({
     points.forEach((point) => {
       const isActive = point.id === currentActivePointId;
       const markerDimensions = createBubbleMarkerDimensions(iconSize, isActive);
-      const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(point, iconSize, isActive);
+      const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(
+        point,
+        iconSize,
+        isActive
+      );
       const marker = new maps.Marker({
         map,
         position: { lat: point.lat, lng: point.lng },
         title: `${point.label} · ${point.subtitle}`,
-        icon: buildMarkerIcon(maps, point, isActive, iconSize, fallbackMarkerUrl),
+        icon: buildMarkerIcon(
+          maps,
+          point,
+          isActive,
+          iconSize,
+          fallbackMarkerUrl
+        ),
         shape: {
           coords: [0, 0, markerDimensions.width, markerDimensions.height],
           type: "rect",
@@ -1871,7 +2020,9 @@ export function TripRouteMap({
         const summaryButtonId = `trip-map-summary-${safePointId}`;
         const imageElementId = `trip-map-image-${safePointId}`;
         const dotIdPrefix = `trip-map-dot-${safePointId}`;
-        const galleryImages = getPointGalleryImages(point).map(resolveMarkerImageUrl);
+        const galleryImages = getPointGalleryImages(point).map(
+          resolveMarkerImageUrl
+        );
         const cityForPlan = getPointDisplayName(point);
         const currentWidth = containerRef.current?.clientWidth ?? mapWidth;
         const currentHeight = containerRef.current?.clientHeight ?? mapHeight;
@@ -1937,7 +2088,10 @@ export function TripRouteMap({
           buildHoverCardHtml(
             point,
             onAddDestinationRef.current ? buttonId : null,
-            `加入我的计划：${cityForPlan}`,
+            isZh
+              ? `加入我的计划：${cityForPlan}`
+              : `Add to my plan: ${cityForPlan}`,
+            isZh,
             {
               cardWidth,
               imageHeight,
@@ -1987,8 +2141,9 @@ export function TripRouteMap({
               contentElement.style.pointerEvents = "none";
             }
 
-            const defaultCloseButton =
-              infoElement.querySelector<HTMLElement>(".gm-ui-hover-effect");
+            const defaultCloseButton = infoElement.querySelector<HTMLElement>(
+              ".gm-ui-hover-effect"
+            );
             if (defaultCloseButton) {
               defaultCloseButton.style.display = "none";
             }
@@ -2012,13 +2167,17 @@ export function TripRouteMap({
             if (infoRect.left < mapRect.left + margin) {
               nextOffsetX += Math.round(mapRect.left + margin - infoRect.left);
             } else if (infoRect.right > mapRect.right - margin) {
-              nextOffsetX -= Math.round(infoRect.right - (mapRect.right - margin));
+              nextOffsetX -= Math.round(
+                infoRect.right - (mapRect.right - margin)
+              );
             }
 
             if (infoRect.top < mapRect.top + margin) {
               nextOffsetY += Math.round(mapRect.top + margin - infoRect.top);
             } else if (infoRect.bottom > mapRect.bottom - margin) {
-              nextOffsetY -= Math.round(infoRect.bottom - (mapRect.bottom - margin));
+              nextOffsetY -= Math.round(
+                infoRect.bottom - (mapRect.bottom - margin)
+              );
             }
 
             if (nextOffsetX !== offsetX || nextOffsetY !== offsetY) {
@@ -2058,10 +2217,13 @@ export function TripRouteMap({
               imageElementId
             ) as HTMLImageElement | null;
             if (imageElement) {
-              imageElement.src = galleryImages[imageIndex] ?? galleryImages[0] ?? "";
+              imageElement.src =
+                galleryImages[imageIndex] ?? galleryImages[0] ?? "";
             }
             galleryImages.forEach((_, index) => {
-              const dotElement = document.getElementById(`${dotIdPrefix}-${index}`);
+              const dotElement = document.getElementById(
+                `${dotIdPrefix}-${index}`
+              );
               if (dotElement) {
                 dotElement.style.background = `rgba(255,255,255,${
                   index === imageIndex ? ".96" : ".62"
@@ -2197,7 +2359,8 @@ export function TripRouteMap({
         const animationDuration = 4200;
         const startTime = performance.now();
         const tick = (timestamp: number) => {
-          const progress = ((timestamp - startTime) % animationDuration) / animationDuration;
+          const progress =
+            ((timestamp - startTime) % animationDuration) / animationDuration;
           animatedRouteLine.setPath(interpolateRoutePath(routePath, progress));
           routeAnimationFrameRef.current = window.requestAnimationFrame(tick);
         };
@@ -2233,7 +2396,11 @@ export function TripRouteMap({
 
     if (coordinateCount >= 2 && shouldFit) {
       const fallbackCenter = calculateCoordinateCenter(fitCoordinates);
-      const fallbackZoom = estimateCoordinateZoom(fitCoordinates, mapWidth, mapHeight);
+      const fallbackZoom = estimateCoordinateZoom(
+        fitCoordinates,
+        mapWidth,
+        mapHeight
+      );
       const fitVisibleRoute = () => {
         if (effectDisposed) return;
         map.fitBounds(bounds, 72);
@@ -2269,12 +2436,15 @@ export function TripRouteMap({
       if (fitRetryTimeoutId !== null) {
         window.clearTimeout(fitRetryTimeoutId);
       }
-      fitFallbackTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      fitFallbackTimeoutIds.forEach((timeoutId) =>
+        window.clearTimeout(timeoutId)
+      );
       clearRouteLines();
     };
   }, [
     animateRoute,
     isReady,
+    isZh,
     pointKey,
     points,
     routeCoordinates,
@@ -2302,7 +2472,11 @@ export function TripRouteMap({
 
     let disposed = false;
     const focusZoom =
-      activePoint.kind === "hotel" ? 13 : activePoint.kind === "hotspot" ? 12 : 10;
+      activePoint.kind === "hotel"
+        ? 13
+        : activePoint.kind === "hotspot"
+          ? 12
+          : 10;
     const focusMap = () => {
       if (disposed) return;
       map.setCenter({ lat: activePoint.lat, lng: activePoint.lng });
@@ -2324,20 +2498,29 @@ export function TripRouteMap({
 
   const detailSections = useMemo<DetailSection[]>(() => {
     if (!detailPoint) return [];
-    const city = getLocalNameFromValue(detailPoint.city) ?? getPointDisplayName(detailPoint);
+    const city =
+      getLocalNameFromValue(detailPoint.city) ??
+      getPointDisplayName(detailPoint);
     const location = getPointDisplayLocation(detailPoint);
 
-    return (["attractions", "food", "stay", "nightlife"] as const).map((sectionId) => {
-      const sample = buildDetailSectionSample(detailPoint, sectionId, city, location);
-      const meta = DETAIL_SECTION_META[sectionId];
-      return {
-        id: sectionId,
-        title: meta.title,
-        icon: meta.icon,
-        body: sample.items.join("、"),
-        ...sample,
-      };
-    });
+    return (["attractions", "food", "stay", "nightlife"] as const).map(
+      (sectionId) => {
+        const sample = buildDetailSectionSample(
+          detailPoint,
+          sectionId,
+          city,
+          location
+        );
+        const meta = DETAIL_SECTION_META[sectionId];
+        return {
+          id: sectionId,
+          title: meta.title,
+          icon: meta.icon,
+          body: sample.items.join("、"),
+          ...sample,
+        };
+      }
+    );
   }, [detailPoint]);
 
   return (
@@ -2351,7 +2534,9 @@ export function TripRouteMap({
           <div className="pointer-events-auto flex h-full w-1/2 max-w-[50%] flex-col border-l border-slate-200 bg-white shadow-[-20px_0_45px_rgba(15,23,42,0.12)] max-md:w-full max-md:max-w-none">
             <div className="flex items-center justify-end px-5 py-5">
               <button
-                aria-label="关闭目的地详情"
+                aria-label={
+                  isZh ? "关闭目的地详情" : "Close destination details"
+                }
                 className="flex h-11 w-11 items-center justify-center rounded-full text-4xl leading-none text-slate-900 transition-all duration-200 hover:scale-105 hover:bg-slate-100"
                 onClick={() => setDetailPointId(null)}
                 type="button"
@@ -2370,7 +2555,9 @@ export function TripRouteMap({
                   <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-rose-50 px-2 py-1 text-base font-semibold text-[#fb4d61]">
                     <span>🔥 10</span>
                     <span className="h-4 w-px bg-rose-200" />
-                    <span>第 1 名 · {getPointDisplayLocation(detailPoint)}热门城市</span>
+                    <span>
+                      第 1 名 · {getPointDisplayLocation(detailPoint)}热门城市
+                    </span>
                   </div>
                 </div>
 
@@ -2378,7 +2565,9 @@ export function TripRouteMap({
                   <span className="text-2xl">⌖</span>
                   <span>{getPointDisplayLocation(detailPoint)}</span>
                   <span className="h-5 w-px bg-slate-300" />
-                  <span>{formatChineseDuration(detailPoint.recommendedDays)} 推荐</span>
+                  <span>
+                    {formatChineseDuration(detailPoint.recommendedDays)} 推荐
+                  </span>
                 </div>
 
                 <p className="text-lg leading-relaxed text-slate-600">
@@ -2388,7 +2577,11 @@ export function TripRouteMap({
                 <div className="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {detailGalleryImages.map((imageSrc, index) => (
                     <div
-                      aria-label={`${getPointDisplayName(detailPoint)}照片 ${index + 1}`}
+                      aria-label={
+                        isZh
+                          ? `${getPointDisplayName(detailPoint)}照片 ${index + 1}`
+                          : `${getPointDisplayName(detailPoint)} photo ${index + 1}`
+                      }
                       className="h-32 min-w-[150px] flex-1 rounded-md bg-cover bg-center transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-200/60"
                       key={`${detailPoint.id}-preview-${index}`}
                       role="img"
@@ -2396,7 +2589,9 @@ export function TripRouteMap({
                     />
                   ))}
                   <button
-                    aria-label="下一张目的地照片"
+                    aria-label={
+                      isZh ? "下一张目的地照片" : "Next destination photo"
+                    }
                     className="mr-1 flex h-14 w-14 shrink-0 self-center rounded-full bg-white text-4xl text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)]"
                     type="button"
                   >
@@ -2416,17 +2611,23 @@ export function TripRouteMap({
                           aria-expanded={isExpanded}
                           className="group flex w-full items-center gap-4 px-4 py-4 text-left"
                           onClick={() =>
-                            setExpandedDetailSectionId(isExpanded ? null : section.id)
+                            setExpandedDetailSectionId(
+                              isExpanded ? null : section.id
+                            )
                           }
                           type="button"
                         >
-                          <span className="text-2xl text-slate-600">{section.icon}</span>
+                          <span className="text-2xl text-slate-600">
+                            {section.icon}
+                          </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-2 text-xl font-bold text-slate-950">
                               {section.title}
                               <span
                                 className={`inline-block text-slate-500 transition-transform ${
-                                  isExpanded ? "rotate-90" : "group-hover:translate-x-1"
+                                  isExpanded
+                                    ? "rotate-90"
+                                    : "group-hover:translate-x-1"
                                 }`}
                               >
                                 ›
@@ -2458,7 +2659,9 @@ export function TripRouteMap({
                                       <div
                                         aria-hidden="true"
                                         className="h-24 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                                        style={{ backgroundImage: `url(${itemMedia.imageSrc})` }}
+                                        style={{
+                                          backgroundImage: `url(${itemMedia.imageSrc})`,
+                                        }}
                                       />
                                     ) : null}
                                     <div className="space-y-2 px-3 py-3">
@@ -2467,7 +2670,7 @@ export function TripRouteMap({
                                           {item}
                                         </h4>
                                         <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                                          精选
+                                          {isZh ? "精选" : "Featured"}
                                         </span>
                                       </div>
                                       <p className="line-clamp-2 text-xs leading-relaxed text-slate-600">
@@ -2510,7 +2713,7 @@ export function TripRouteMap({
                   }}
                   type="button"
                 >
-                  加入我的计划
+                  {isZh ? "加入我的计划" : "Add to my plan"}
                 </button>
               </div>
             ) : null}
@@ -2519,7 +2722,8 @@ export function TripRouteMap({
       ) : null}
       {loadError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-100/85 p-4 text-center text-sm text-slate-700">
-          地图加载失败：{loadError}
+          {isZh ? "地图加载失败：" : "Map failed to load: "}
+          {loadError}
         </div>
       ) : null}
     </div>

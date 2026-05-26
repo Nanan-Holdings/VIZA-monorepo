@@ -22,6 +22,7 @@ import {
   type PhotoFailureReason,
 } from "@/lib/photo-validation";
 import { getPhotoGuidance } from "@/lib/photo-guidance";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { PhotoCropTool } from "./photo-crop-tool";
 
@@ -56,11 +57,12 @@ export function PhotoUploadStep({
 }: PhotoUploadStepProps) {
   const t = useTranslations("applicationSteps.photoUpload");
   const locale = useLocale();
-  const guidance = getPhotoGuidance(country, visaType);
+  const isZh = isChineseLocale(locale);
+  const guidance = getPhotoGuidance(country, visaType, isZh ? "zh" : "en");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [screen, setScreen] = useState<Screen>(
-    existingPhotoUrl ? "confirm" : "upload",
+    existingPhotoUrl ? "confirm" : "upload"
   );
   const [rawObjectUrl, setRawObjectUrl] = useState<string | null>(null);
   const [showCropTool, setShowCropTool] = useState(false);
@@ -70,9 +72,11 @@ export function PhotoUploadStep({
     useState<PhotoValidationResult | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
-  const [uploadedApplicationId, setUploadedApplicationId] = useState<string | null>(null);
+  const [uploadedApplicationId, setUploadedApplicationId] = useState<
+    string | null
+  >(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(
-    existingPhotoUrl ?? null,
+    existingPhotoUrl ?? null
   );
   const [error, setError] = useState<string | null>(null);
   const [photoCopilotOpen, setPhotoCopilotOpen] = useState(false);
@@ -83,7 +87,7 @@ export function PhotoUploadStep({
       id: PHOTO_COPILOT_FIELD_NAME,
       visaType: fieldGuidanceVisaType,
       fieldName: PHOTO_COPILOT_FIELD_NAME,
-      label: "签证照片 / Visa photo",
+      label: isZh ? "签证照片 / Visa photo" : "Visa photo",
       fieldType: "file",
       required: true,
       stepNumber: 0,
@@ -98,9 +102,10 @@ export function PhotoUploadStep({
       options: null,
       conditionalLogic: null,
     }),
-    [fieldGuidanceVisaType, guidance.formatSpec],
+    [fieldGuidanceVisaType, guidance.formatSpec, isZh]
   );
-  const photoCopilotAnswer = uploadedPath ?? (photoPreviewUrl ? "photo.jpg" : "");
+  const photoCopilotAnswer =
+    uploadedPath ?? (photoPreviewUrl ? "photo.jpg" : "");
   const photoAllAnswers = useMemo<Record<string, string>>(
     () => ({
       photo_upload: photoCopilotAnswer,
@@ -109,7 +114,7 @@ export function PhotoUploadStep({
       destination_country: country ?? "",
       visa_type: fieldGuidanceVisaType,
     }),
-    [country, fieldGuidanceVisaType, photoCopilotAnswer, uploadedPath],
+    [country, fieldGuidanceVisaType, photoCopilotAnswer, uploadedPath]
   );
 
   // Cleanup object URLs on unmount
@@ -173,7 +178,9 @@ export function PhotoUploadStep({
     setError(null);
 
     try {
-      const resolvedApplicationId = applicationId ?? (ensureApplicationId ? await ensureApplicationId() : null);
+      const resolvedApplicationId =
+        applicationId ??
+        (ensureApplicationId ? await ensureApplicationId() : null);
       if (!resolvedApplicationId) throw new Error(t("uploadError"));
 
       const supabase = createClient();
@@ -202,16 +209,20 @@ export function PhotoUploadStep({
       setPhotoPreviewUrl(signedData?.signedUrl ?? croppedObjectUrl);
       setScreen("confirm");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("uploadError"),
-      );
+      setError(err instanceof Error ? err.message : t("uploadError"));
     } finally {
       setUploading(false);
     }
   };
 
   const renderPhotoCopilot = () => {
-    const buttonLabel = photoCopilotOpen ? "收起 AI 帮助" : "问 AI";
+    const buttonLabel = photoCopilotOpen
+      ? isZh
+        ? "收起 AI 帮助"
+        : "Hide AI help"
+      : isZh
+        ? "问 AI"
+        : "Ask AI";
 
     return (
       <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-[#dbe7f5] bg-[#f8fbff] p-4">
@@ -224,11 +235,11 @@ export function PhotoUploadStep({
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-[13px] font-medium text-[#03346E]">
-                  必填项
+                  {isZh ? "必填项" : "Required"}
                 </span>
                 {!photoCopilotAnswer && (
                   <span className="text-[13px] font-medium text-[#03346E]">
-                    照片还未上传
+                    {isZh ? "照片还未上传" : "Photo not uploaded yet"}
                   </span>
                 )}
               </div>
@@ -253,7 +264,10 @@ export function PhotoUploadStep({
           {guidance.instructions}
         </p>
         {photoCopilotOpen && (
-          <div className="w-full" data-copilot-panel-frame={PHOTO_COPILOT_FIELD_NAME}>
+          <div
+            className="w-full"
+            data-copilot-panel-frame={PHOTO_COPILOT_FIELD_NAME}
+          >
             <FieldGuidancePanel
               country={country}
               visaType={fieldGuidanceVisaType}
@@ -430,9 +444,7 @@ export function PhotoUploadStep({
           </div>
         )}
 
-        {error && (
-          <p className="text-xs text-red-500">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-500">{error}</p>}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
@@ -525,7 +537,10 @@ export function PhotoUploadStep({
           className="flex-1"
           onClick={() => {
             if (uploadedPath) {
-              onComplete(uploadedPath, uploadedApplicationId ?? applicationId ?? undefined);
+              onComplete(
+                uploadedPath,
+                uploadedApplicationId ?? applicationId ?? undefined
+              );
             } else {
               // Existing photo — just continue
               onSkip();

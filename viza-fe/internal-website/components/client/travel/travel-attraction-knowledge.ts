@@ -17,6 +17,124 @@ export function normalizeTravelKnowledgeKey(value: string | null | undefined): s
 
 export const TRAVEL_ATTRACTION_KNOWLEDGE: TravelAttractionKnowledgeItem[] = [
   {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "浅草寺与仲见世商店街",
+    location: "2 Chome-3-1 Asakusa, Taito City, Tokyo",
+    lat: 35.7148,
+    lng: 139.7967,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Asakusa_Sensoji_Kaminarimon_2012.JPG/960px-Asakusa_Sensoji_Kaminarimon_2012.JPG",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Asakusa_Sensoji_Kaminarimon_2012.JPG",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "东京塔与芝公园",
+    location: "4 Chome-2-8 Shibakoen, Minato City, Tokyo",
+    lat: 35.6586,
+    lng: 139.7454,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Tokyo_Tower_seen_from_Shiba_Park.jpg/960px-Tokyo_Tower_seen_from_Shiba_Park.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Tokyo_Tower_seen_from_Shiba_Park.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "明治神宫",
+    location: "1-1 Yoyogikamizonocho, Shibuya City, Tokyo",
+    lat: 35.6764,
+    lng: 139.6993,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Meiji_Shrine%2C_Tokyo%3B_April_2009_%2801%29.jpg/960px-Meiji_Shrine%2C_Tokyo%3B_April_2009_%2801%29.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Meiji_Shrine,_Tokyo;_April_2009_(01).jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "涩谷十字路口与忠犬八公像",
+    location: "Shibuya Scramble Crossing, Shibuya City, Tokyo",
+    lat: 35.6595,
+    lng: 139.7005,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Shibuya_Crossing%2C_Aerial.jpg/960px-Shibuya_Crossing%2C_Aerial.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Shibuya_Crossing,_Aerial.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "筑地场外市场",
+    location: "4 Chome-16 Tsukiji, Chuo City, Tokyo",
+    lat: 35.6654,
+    lng: 139.7707,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Tsukiji_Outer_Market_-04.jpg/960px-Tsukiji_Outer_Market_-04.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Tsukiji_Outer_Market_-04.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "上野公园与东京国立博物馆",
+    location: "13-9 Uenokoen, Taito City, Tokyo",
+    lat: 35.7188,
+    lng: 139.7765,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Tokyo_National_Museum_-_Ueno_Park%2C_Tokyo%2C_Japan_-_DSC08641.jpg/960px-Tokyo_National_Museum_-_Ueno_Park%2C_Tokyo%2C_Japan_-_DSC08641.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Tokyo_National_Museum_-_Ueno_Park,_Tokyo,_Japan_-_DSC08641.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "新宿御苑",
+    location: "11 Naitomachi, Shinjuku City, Tokyo",
+    lat: 35.6852,
+    lng: 139.7101,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Shinjuku_Gyoen_National_Garden%2C_Tokyo%2C_20240822_1447_5457.jpg/960px-Shinjuku_Gyoen_National_Garden%2C_Tokyo%2C_20240822_1447_5457.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Shinjuku_Gyoen_National_Garden,_Tokyo,_20240822_1447_5457.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "秋叶原电器街",
+    location: "Akihabara Electric Town, Chiyoda City, Tokyo",
+    lat: 35.6984,
+    lng: 139.773,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Akihabara_Electric_Town%2C_Tokyo%2C_20240823_1617_5580.jpg/960px-Akihabara_Electric_Town%2C_Tokyo%2C_20240823_1617_5580.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Akihabara_Electric_Town,_Tokyo,_20240823_1617_5580.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "东京晴空塔",
+    location: "1 Chome-1-2 Oshiage, Sumida City, Tokyo",
+    lat: 35.7101,
+    lng: 139.8107,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Tokyo_Skytree_2014_%E2%85%A2.jpg/960px-Tokyo_Skytree_2014_%E2%85%A2.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Tokyo_Skytree_2014_%E2%85%A2.jpg",
+  },
+  {
+    cityKeys: ["tokyo", "东京", "東京"],
+    cityLabel: "东京",
+    name: "新宿思出横丁拉面",
+    location: "Omoide Yokocho, Shinjuku City, Tokyo",
+    lat: 35.6937,
+    lng: 139.6996,
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/2024-10-20_Omoide-Yokoch%C5%8D%2C_Shinjuku.jpg/960px-2024-10-20_Omoide-Yokoch%C5%8D%2C_Shinjuku.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:2024-10-20_Omoide-Yokoch%C5%8D,_Shinjuku.jpg",
+  },
+  {
     cityKeys: ["paris", "巴黎"],
     cityLabel: "巴黎",
     name: "埃菲尔铁塔与战神广场",

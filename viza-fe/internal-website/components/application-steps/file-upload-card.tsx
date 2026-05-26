@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useTranslations } from "next-intl";
-import { UploadCloud, CheckCircle2, Loader2, ScanLine, XCircle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  UploadCloud,
+  CheckCircle2,
+  Loader2,
+  ScanLine,
+  XCircle,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { recordDocumentUpload } from "@/app/client/documents/actions";
 
 export type DocumentType =
@@ -32,12 +39,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getOcrErrorMessage(payload: unknown): string {
-  if (!isRecord(payload)) return "Passport OCR did not return a readable response.";
+function getOcrErrorMessage(payload: unknown, isZh: boolean): string {
+  if (!isRecord(payload)) {
+    return isZh
+      ? "护照 OCR 没有返回可读取的结果。"
+      : "Passport OCR did not return a readable response.";
+  }
   const error = payload.error;
-  if (isRecord(error) && typeof error.message === "string") return error.message;
+  if (isRecord(error) && typeof error.message === "string")
+    return error.message;
   if (typeof payload.message === "string") return payload.message;
-  return "Passport OCR could not process this upload.";
+  return isZh
+    ? "护照 OCR 无法处理这次上传。"
+    : "Passport OCR could not process this upload.";
 }
 
 function isPassportUpload(documentType: DocumentType): boolean {
@@ -54,7 +68,11 @@ export function FileUploadCard({
   onComplete,
 }: FileUploadCardProps) {
   const t = useTranslations("applicationSteps");
-  const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
+  const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">(
+    "idle"
+  );
   const [fileName, setFileName] = useState<string | null>(null);
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -67,7 +85,7 @@ export function FileUploadCard({
     if (!supportsPassportOcr) return;
 
     setOcrStatus("running");
-    setOcrMessage("Reading passport fields...");
+    setOcrMessage(isZh ? "正在读取护照字段..." : "Reading passport fields...");
 
     try {
       const response = await fetch("/api/passport-ocr", {
@@ -78,17 +96,25 @@ export function FileUploadCard({
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok || !isRecord(payload) || payload.success !== true) {
-        throw new Error(getOcrErrorMessage(payload));
+        throw new Error(getOcrErrorMessage(payload, isZh));
       }
 
       setOcrStatus("succeeded");
-      setOcrMessage("Passport OCR completed. Confirm the proposed fields in Documents.");
+      setOcrMessage(
+        isZh
+          ? "护照 OCR 已完成。请在材料页确认建议字段。"
+          : "Passport OCR completed. Confirm the proposed fields in Documents."
+      );
     } catch (ocrError) {
       setOcrStatus("failed");
       setOcrMessage(
         ocrError instanceof Error
-          ? `Uploaded. OCR did not complete: ${ocrError.message}`
-          : "Uploaded. OCR did not complete.",
+          ? isZh
+            ? `已上传。OCR 未完成：${ocrError.message}`
+            : `Uploaded. OCR did not complete: ${ocrError.message}`
+          : isZh
+            ? "已上传。OCR 未完成。"
+            : "Uploaded. OCR did not complete."
       );
     }
   };
@@ -100,7 +126,9 @@ export function FileUploadCard({
     setOcrMessage(null);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error(t("uploadFailed"));
 
       const path = `${user.id}/${applicationId}/${documentType}/${file.name}`;
@@ -121,7 +149,11 @@ export function FileUploadCard({
 
       if (!recordResult.ok && supportsPassportOcr) {
         setOcrStatus("failed");
-        setOcrMessage(`Uploaded. OCR is waiting because the document record was not saved: ${recordResult.error}`);
+        setOcrMessage(
+          isZh
+            ? `已上传。由于材料记录未保存，OCR 暂停：${recordResult.error}`
+            : `Uploaded. OCR is waiting because the document record was not saved: ${recordResult.error}`
+        );
       }
 
       setFileName(file.name);
@@ -144,26 +176,50 @@ export function FileUploadCard({
         status === "done"
           ? "border-green-400 bg-green-50"
           : status === "error"
-          ? "border-red-300 bg-red-50"
-          : "border-dashed border-border hover:border-brand-400"
+            ? "border-red-300 bg-red-50"
+            : "border-dashed border-border hover:border-brand-400"
       }`}
     >
       <CardContent className="p-4 flex items-center gap-4">
         <div className="shrink-0">
-          {status === "uploading" && <Loader2 className="h-6 w-6 animate-spin text-brand-500" />}
-          {status === "done" && <CheckCircle2 className="h-6 w-6 text-green-500" />}
+          {status === "uploading" && (
+            <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+          )}
+          {status === "done" && (
+            <CheckCircle2 className="h-6 w-6 text-green-500" />
+          )}
           {status === "error" && <XCircle className="h-6 w-6 text-red-500" />}
-          {status === "idle" && <UploadCloud className="h-6 w-6 text-muted-foreground" />}
+          {status === "idle" && (
+            <UploadCloud className="h-6 w-6 text-muted-foreground" />
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{label}</p>
-          {secondaryLabel && <p className="text-xs font-medium text-[#03346E] truncate">{secondaryLabel}</p>}
-          {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
-          {fileName && <p className="text-xs text-muted-foreground truncate">{fileName}</p>}
+          <p className="text-sm font-medium text-foreground truncate">
+            {label}
+          </p>
+          {secondaryLabel && (
+            <p className="text-xs font-medium text-[#03346E] truncate">
+              {secondaryLabel}
+            </p>
+          )}
+          {description && (
+            <p className="text-xs text-muted-foreground truncate">
+              {description}
+            </p>
+          )}
+          {fileName && (
+            <p className="text-xs text-muted-foreground truncate">{fileName}</p>
+          )}
           {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
           {supportsPassportOcr && ocrMessage && (
-            <p className={ocrStatus === "failed" ? "text-xs text-amber-700" : "text-xs text-brand-600"}>
+            <p
+              className={
+                ocrStatus === "failed"
+                  ? "text-xs text-amber-700"
+                  : "text-xs text-brand-600"
+              }
+            >
               {ocrMessage}
             </p>
           )}
@@ -179,7 +235,11 @@ export function FileUploadCard({
               disabled={ocrStatus === "running" || status === "uploading"}
               className="shrink-0"
             >
-              {ocrStatus === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
+              {ocrStatus === "running" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ScanLine className="h-4 w-4" />
+              )}
               OCR
             </Button>
           )}
@@ -191,7 +251,7 @@ export function FileUploadCard({
             disabled={status === "uploading"}
             className="shrink-0"
           >
-            {status === "done" ? `${t("replace")} / Replace` : `${t("upload")} / Upload`}
+            {status === "done" ? t("replace") : t("upload")}
           </Button>
         </div>
 
