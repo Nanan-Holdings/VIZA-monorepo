@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "next-intl";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Bot,
@@ -19,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
 type ConversationStatus = "waiting" | "active" | "resolved";
@@ -52,6 +54,13 @@ const QUICK_REPLIES = [
   "我正在查看你的申请资料，请稍等一下。",
   "我看到你这边还需要补一份材料，我帮你确认是哪一项。",
   "你的退款请求我已经记录，会先核对付款和申请状态。",
+  "Thanks for waiting. I am checking your application context now.",
+];
+
+const QUICK_REPLIES_EN = [
+  "I’m reviewing your application details now. Thanks for waiting.",
+  "I can see that one document may still be required. I’ll confirm which item it is.",
+  "I’ve recorded your refund request and will check the payment and application status first.",
   "Thanks for waiting. I am checking your application context now.",
 ];
 
@@ -139,8 +148,10 @@ function nowLabel() {
   }).format(new Date());
 }
 
-function buildAiGreeting(conversation: Conversation) {
-  return `你好，我是 VIZA 客服 ${SUPPORT_AGENT_NAME}。我正在查看你的 ${conversation.applicationLabel} 申请资料，现在可以继续帮你处理。`;
+function buildAiGreeting(conversation: Conversation, locale: string) {
+  return isChineseLocale(locale)
+    ? `你好，我是 VIZA 客服 ${SUPPORT_AGENT_NAME}。我正在查看你的 ${conversation.applicationLabel} 申请资料，现在可以继续帮你处理。`
+    : `Hello, I’m ${SUPPORT_AGENT_NAME} from VIZA Support. I’m reviewing your ${conversation.applicationLabel} application now and can continue helping you here.`;
 }
 
 function statusLabel(status: ConversationStatus) {
@@ -156,6 +167,8 @@ function statusClassName(status: ConversationStatus) {
 }
 
 export function AdminSupportChatWidget() {
+  const locale = useLocale();
+  const quickReplies = isChineseLocale(locale) ? QUICK_REPLIES : QUICK_REPLIES_EN;
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS);
@@ -194,7 +207,7 @@ export function AdminSupportChatWidget() {
               {
                 id: `${conversation.id}-ai-greeting-${Date.now()}`,
                 sender: "staff",
-                body: buildAiGreeting(conversation),
+                body: buildAiGreeting(conversation, locale),
                 createdAt: nowLabel(),
                 aiGenerated: true,
               },
@@ -205,7 +218,7 @@ export function AdminSupportChatWidget() {
     }, 650);
 
     return () => window.clearTimeout(timer);
-  }, [activeConversation, isMinimized, isOpen]);
+  }, [activeConversation, isMinimized, isOpen, locale]);
 
   function openWidget() {
     setIsOpen(true);
@@ -492,7 +505,7 @@ export function AdminSupportChatWidget() {
 
             <div className="border-t border-[#edf1f7] bg-white p-3">
               <div className="mb-2 flex gap-2 overflow-x-auto">
-                {QUICK_REPLIES.map((reply) => (
+                {quickReplies.map((reply) => (
                   <button
                     key={reply}
                     type="button"

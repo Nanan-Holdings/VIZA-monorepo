@@ -225,6 +225,9 @@ const CITY_IMAGE_POOL = [
 ] as const;
 
 const CITY_IMAGE_BY_KEY: Record<string, string> = {
+  bali: "/globe/singapore.jpg",
+  denpasar: "/globe/singapore.jpg",
+  chengdu: "/globe/beijing.jpg",
   tokyo: "/globe/tokyo.jpg",
   kyoto: "/globe/tokyo.jpg",
   osaka: "/globe/tokyo.jpg",
@@ -241,6 +244,7 @@ const CITY_IMAGE_BY_KEY: Record<string, string> = {
   sanfrancisco: "/globe/sf.jpg",
   sf: "/globe/sf.jpg",
   pisa: "/globe/pisa.jpg",
+  naples: "/globe/pisa.jpg",
   rome: "/globe/pisa.jpg",
   bangkok: "/globe/singapore.jpg",
   "曼谷": "/globe/singapore.jpg",
@@ -544,6 +548,9 @@ const VAGUE_ACTIVITY_RE =
   /(城市地标|地标打卡|本地文化|当地文化|当地特色|本地特色|文化体验|自由活动|城市漫步|city landmark|local culture|local experience)/i;
 
 const CITY_COORDINATES: Record<string, [number, number]> = {
+  bali: [-8.4095, 115.1889],
+  denpasar: [-8.65, 115.2167],
+  chengdu: [30.5728, 104.0668],
   tokyo: [35.6762, 139.6503],
   kyoto: [35.0116, 135.7681],
   osaka: [34.6937, 135.5023],
@@ -560,6 +567,7 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   sanfrancisco: [37.7749, -122.4194],
   sf: [37.7749, -122.4194],
   pisa: [43.7228, 10.4017],
+  naples: [40.8518, 14.2681],
   rome: [41.9028, 12.4964],
   seoul: [37.5665, 126.978],
   bangkok: [13.7563, 100.5018],

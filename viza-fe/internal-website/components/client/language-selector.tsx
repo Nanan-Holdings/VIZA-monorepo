@@ -90,7 +90,7 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
       items={languages.map((lang) => ({
         id: lang.code,
         label: lang.label,
-        selected: locale === lang.code,
+        selected: normalizeInterfaceLocale(locale) === lang.code,
       }))}
       onSelect={handleSelect}
       searchPlaceholder={t("searchLanguage")}

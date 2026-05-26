@@ -1257,59 +1257,77 @@ function revisionPrefersFourStarHotels(modulePatch?: Record<string, unknown>): b
 
 function formatSelectedFlights(
   flights: SelectedFlightOption[],
-  modulePatch?: Record<string, unknown>
+  modulePatch?: Record<string, unknown>,
+  locale: InterfaceLocale = "zh"
 ): string {
+  const isZh = locale === "zh";
   if (revisionRemovesFlights(modulePatch)) {
-    return "已按你的要求减少或移除航班，itinerary 表格中不会再自动补默认航班。";
+    return isZh
+      ? "已按你的要求减少或移除航班，itinerary 表格中不会再自动补默认航班。"
+      : "I reduced or removed flights as requested, so the itinerary table will not auto-fill default flights.";
   }
 
   if (!flights.length) {
-    return "默认航班会在行程表格中生成，可直接编辑航司、时间、价格和航班号。";
+    return isZh
+      ? "默认航班会在行程表格中生成，可直接编辑航司、时间、价格和航班号。"
+      : "Default flight rows will be generated in the itinerary table, and you can edit airline, time, price, and flight number.";
   }
 
   return flights
     .map((flight) => {
       if (flight.skip) {
-        return `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}。`;
+        return isZh
+          ? `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}。`
+          : `Leg ${flight.leg_index}: ${flight.from} to ${flight.to}.`;
       }
 
       const option = flight.option;
-      const airline = option?.airline ?? "未命名航司";
-      const price = option?.price ? `${option.price} ${option.currency ?? "CNY"}` : "价格未知";
-      const flightNumber = option?.flight_number ? `，航班号 ${option.flight_number}` : "";
+      const airline = option?.airline ?? (isZh ? "未命名航司" : "Unnamed airline");
+      const price = option?.price ? `${option.price} ${option.currency ?? "CNY"}` : (isZh ? "价格未知" : "price unknown");
+      const flightNumber = option?.flight_number
+        ? isZh ? `，航班号 ${option.flight_number}` : `, flight ${option.flight_number}`
+        : "";
 
-      return `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}，${airline}，${price}${flightNumber}。`;
+      return isZh
+        ? `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}，${airline}，${price}${flightNumber}。`
+        : `Leg ${flight.leg_index}: ${flight.from} to ${flight.to}, ${airline}, ${price}${flightNumber}.`;
     })
     .join("\n");
 }
 
 function formatSelectedHotels(
   hotels: SelectedHotelOption[],
-  modulePatch?: Record<string, unknown>
+  modulePatch?: Record<string, unknown>,
+  locale: InterfaceLocale = "zh"
 ): string {
+  const isZh = locale === "zh";
   const fourStarNote = revisionPrefersFourStarHotels(modulePatch)
-    ? "已应用 4 星酒店偏好；"
+    ? isZh ? "已应用 4 星酒店偏好；" : "Applied the 4-star hotel preference; "
     : "";
 
   if (!hotels.length) {
-    return `${fourStarNote}默认酒店会在行程表格中生成，可直接编辑酒店名、地址、价格和联系方式。`;
+    return isZh
+      ? `${fourStarNote}默认酒店会在行程表格中生成，可直接编辑酒店名、地址、价格和联系方式。`
+      : `${fourStarNote}default hotel rows will be generated in the itinerary table, and you can edit hotel name, address, price, and contact details.`;
   }
 
   return hotels
     .map((hotel) => {
       const option = hotel.option;
-      const name = option?.name ?? "未命名酒店";
+      const name = option?.name ?? (isZh ? "未命名酒店" : "Unnamed hotel");
       const price = option?.price_per_night
-        ? `${option.price_per_night} ${option.currency ?? "CNY"}/晚`
-        : "价格未知";
+        ? `${option.price_per_night} ${option.currency ?? "CNY"}${isZh ? "/晚" : "/night"}`
+        : isZh ? "价格未知" : "price unknown";
       const rating =
         option?.rating !== undefined && option?.rating !== null
-          ? `评分 ${option.rating}`
-          : "暂无评分";
-      const address = option?.address ? `，地址 ${option.address}` : "";
-      const contact = option?.contact_phone ? `，电话 ${option.contact_phone}` : "";
+          ? isZh ? `评分 ${option.rating}` : `rating ${option.rating}`
+          : isZh ? "暂无评分" : "no rating yet";
+      const address = option?.address ? (isZh ? `，地址 ${option.address}` : `, address ${option.address}`) : "";
+      const contact = option?.contact_phone ? (isZh ? `，电话 ${option.contact_phone}` : `, phone ${option.contact_phone}`) : "";
 
-      return `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${fourStarNote}${name}，${price}，${rating}${address}${contact}。`;
+      return isZh
+        ? `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${fourStarNote}${name}，${price}，${rating}${address}${contact}。`
+        : `City ${hotel.stay_index}: ${hotel.city}, ${hotel.check_in} to ${hotel.check_out}, ${hotel.nights} nights, ${fourStarNote}${name}, ${price}, ${rating}${address}${contact}.`;
     })
     .join("\n");
 }
@@ -1321,19 +1339,24 @@ function createItineraryAssistantMessage(options: {
   intro?: string;
   modulePatch?: Record<string, unknown>;
   quickReplies?: TravelQuickReply[];
+  locale: InterfaceLocale;
 }): TravelChatMessage {
   const intro =
     options.intro?.trim() ||
-    "行程已经生成，我已经把每天安排整理到行程卡片里。";
+    (options.locale === "zh"
+      ? "行程已经生成，我已经把每天安排整理到行程卡片里。"
+      : "Your itinerary is ready. I organized each day into itinerary cards.");
   const content =
     `${intro}\n\n` +
-    `路线节点：\n${formatSelectedFlights(
+    `${options.locale === "zh" ? "路线节点" : "Route nodes"}：\n${formatSelectedFlights(
       options.selectedFlights,
-      options.modulePatch
+      options.modulePatch,
+      options.locale
     )}\n\n` +
-    `已选酒店：\n${formatSelectedHotels(
+    `${options.locale === "zh" ? "已选酒店" : "Selected hotels"}：\n${formatSelectedHotels(
       options.selectedHotels,
-      options.modulePatch
+      options.modulePatch,
+      options.locale
     )}`;
 
   return {
@@ -2869,7 +2892,9 @@ export function TravelChatClient({
           revision.modulePatch
         );
         const editSummaryText = revision.editSummary
-          ? `\n\n修改摘要：${revision.editSummary}`
+          ? interfaceLocale === "zh"
+            ? `\n\n修改摘要：${revision.editSummary}`
+            : `\n\nEdit summary: ${revision.editSummary}`
           : "";
         const assistantMessage = createItineraryAssistantMessage({
           itinerary: revision.itinerary,
@@ -2878,6 +2903,7 @@ export function TravelChatClient({
           intro: `${revision.reply}${editSummaryText}`,
           modulePatch: revision.modulePatch,
           quickReplies: revision.quickReplies,
+          locale: interfaceLocale,
         });
 
         setSessionMapMode(sessionId, false);
@@ -2965,13 +2991,13 @@ export function TravelChatClient({
 
       if (!response.ok) {
         const detail = await response.text();
-        throw new Error(detail || "无法生成行程。");
+        throw new Error(detail || (interfaceLocale === "zh" ? "无法生成行程。" : "Unable to generate the itinerary."));
       }
 
       const result = (await response.json()) as unknown;
       const itinerary = parseItineraryFromResponse(result);
       if (itinerary.length === 0) {
-        throw new Error("后端返回的行程为空或格式无效。");
+        throw new Error(interfaceLocale === "zh" ? "后端返回的行程为空或格式无效。" : "The backend returned an empty or invalid itinerary.");
       }
 
       const assistantMessage = createItineraryAssistantMessage({
@@ -2983,6 +3009,7 @@ export function TravelChatClient({
             ? "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。"
             : "Your itinerary is ready. I organized each day into itinerary cards, and you can keep editing it in chat; I’ll save changes as new versions.",
         quickReplies: interfaceLocale === "zh" ? ITINERARY_REVISION_QUICK_REPLIES : ITINERARY_REVISION_QUICK_REPLIES_EN,
+        locale: interfaceLocale,
       });
 
       updateTravelSession(sessionId, (session) => {
@@ -3000,7 +3027,9 @@ export function TravelChatClient({
             session.activeVersionId ?? versions[versions.length - 1]?.id,
           sourceMessageId: assistantMessage.id,
           editSummary:
-            versions.length > 0 ? "重新生成了一版完整行程" : "生成初始行程",
+            versions.length > 0
+              ? interfaceLocale === "zh" ? "重新生成了一版完整行程" : "Regenerated a full itinerary"
+              : interfaceLocale === "zh" ? "生成初始行程" : "Generated the initial itinerary",
         });
         return {
           ...session,
