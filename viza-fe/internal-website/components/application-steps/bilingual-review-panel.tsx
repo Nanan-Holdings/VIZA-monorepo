@@ -1,9 +1,10 @@
 "use client";
 
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 export interface ReviewRow {
   section: string;
@@ -47,8 +48,23 @@ function BilingualReviewRow({
 }: {
   row: ReviewRow;
 }) {
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const sourceLabel = row.sourceLabel ?? row.label;
   const officialLabel = row.officialLabel ?? row.label;
+
+  if (!isZh) {
+    return (
+      <div className="border-b border-border/50 py-4 last:border-0">
+        <div className="min-w-0">
+          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
+          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
+            {row.officialValue}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-b border-border/50 py-4 last:border-0">

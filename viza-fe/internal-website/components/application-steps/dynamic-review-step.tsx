@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/ds160-translations";
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
 
@@ -86,6 +87,8 @@ export function DynamicReviewStep({
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const tDyn = useTranslations("application.dynamicSteps");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const [translations, setTranslations] = useState<TranslationMap>({});
   const [translationLoading, setTranslationLoading] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
@@ -107,10 +110,10 @@ export function DynamicReviewStep({
       (o) => o.value.toLowerCase() === value.toLowerCase(),
     );
     if (option) {
-      return getChineseOptionText(option.text);
+      return isZh ? getChineseOptionText(option.text) : option.text;
     }
     return value;
-  }, [t]);
+  }, [isZh, t]);
 
   const getOfficialValue = useCallback((
     fieldName: string,
@@ -162,8 +165,9 @@ export function DynamicReviewStep({
   }, [applicationId, fetchTranslations, t]);
 
   useEffect(() => {
+    if (!isZh) return;
     void runTranslation(false);
-  }, [runTranslation]);
+  }, [isZh, runTranslation]);
 
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const rows: ReviewRow[] = [];
@@ -172,7 +176,7 @@ export function DynamicReviewStep({
       const sectionTitle = (() => {
         const safeKey = step.stepName.replace(/\./g, "");
         const localized = tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
-        return translateLabel(localized, "zh");
+        return translateLabel(localized, isZh ? "zh" : "en");
       })();
 
       for (const field of step.fields) {
@@ -248,7 +252,7 @@ export function DynamicReviewStep({
     }
 
     return rows;
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, t, tDyn, translations]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn, translations]);
 
   return (
     <div className="flex flex-col gap-4">

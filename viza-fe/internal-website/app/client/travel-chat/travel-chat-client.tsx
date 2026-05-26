@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useLocale } from "next-intl";
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -56,6 +57,7 @@ import {
   type TravelField,
   type TravelState,
 } from "@/lib/travel/planner";
+import { isChineseLocale, toTravelAgentLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import type {
   TravelDestinationCard,
   TravelChatInputMessage,
@@ -181,11 +183,18 @@ type TravelRevisionResult = {
 
 const INITIAL_ASSISTANT_TEXT =
   "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、出行日期、天数、预算和偏好，也可以先让我给你一些目的地灵感。";
+const INITIAL_ASSISTANT_TEXT_EN =
+  "Hi, I’m VIZA Travel Buddy. Tell me your destination, travel dates, trip length, budget, and preferences, or ask me for destination ideas first.";
 
 const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "我不知道去哪", value: "我不知道去哪" },
   { label: "想去日本", value: "我想去日本" },
   { label: "想去欧洲", value: "我想去欧洲" },
+];
+const INITIAL_QUICK_REPLIES_EN: TravelQuickReply[] = [
+  { label: "I’m not sure where to go", value: "I’m not sure where to go" },
+  { label: "I want to visit Japan", value: "I want to visit Japan" },
+  { label: "I want to visit Europe", value: "I want to visit Europe" },
 ];
 
 const ITINERARY_REVISION_QUICK_REPLIES: TravelQuickReply[] = [
@@ -194,6 +203,13 @@ const ITINERARY_REVISION_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "换4星酒店", value: "把酒店换成4星酒店" },
   { label: "加本地美食", value: "每天加更多本地美食" },
   { label: "重排行程", value: "重新安排每天的顺序" },
+];
+const ITINERARY_REVISION_QUICK_REPLIES_EN: TravelQuickReply[] = [
+  { label: "Make it cheaper", value: "Make this trip cheaper" },
+  { label: "Reduce flights", value: "Remove flights and use other transport where possible" },
+  { label: "Use 4-star hotels", value: "Change the hotels to 4-star hotels" },
+  { label: "Add local food", value: "Add more local food each day" },
+  { label: "Reorder itinerary", value: "Reorder the daily itinerary" },
 ];
 
 const EMPTY_TRAVEL_MESSAGES: TravelChatMessage[] = [];
@@ -604,24 +620,25 @@ function createVersionId(): string {
   return `travel-version-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createInitialTravelMessages(): TravelChatMessage[] {
+function createInitialTravelMessages(locale: InterfaceLocale): TravelChatMessage[] {
+  const isZh = locale === "zh";
   return [
     {
       id: createMessageId(),
       role: "assistant",
       parts: [
-        { type: "text", text: INITIAL_ASSISTANT_TEXT },
-        { type: "quick_replies", quick_replies: INITIAL_QUICK_REPLIES },
+        { type: "text", text: isZh ? INITIAL_ASSISTANT_TEXT : INITIAL_ASSISTANT_TEXT_EN },
+        { type: "quick_replies", quick_replies: isZh ? INITIAL_QUICK_REPLIES : INITIAL_QUICK_REPLIES_EN },
       ],
     },
   ];
 }
 
-function createTravelChatSession(): TravelChatSession {
+function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
   return {
     id: createSessionId(),
-    title: "新的旅行对话",
-    messages: createInitialTravelMessages(),
+    title: locale === "zh" ? "新的旅行对话" : "New travel chat",
+    messages: createInitialTravelMessages(locale),
     versions: [],
     updatedAt: new Date().toISOString(),
   };
@@ -917,25 +934,25 @@ function createTravelShareSession(
   });
 }
 
-function readArchivedTravelSessions(storageKey: string): TravelChatSession[] {
+function readArchivedTravelSessions(storageKey: string, locale: InterfaceLocale): TravelChatSession[] {
   if (typeof window === "undefined") {
-    return [createTravelChatSession()];
+    return [createTravelChatSession(locale)];
   }
 
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return [createTravelChatSession()];
+    if (!raw) return [createTravelChatSession(locale)];
 
     const parsed = JSON.parse(raw) as unknown;
     if (!isRecord(parsed) || parsed.version !== TRAVEL_CHAT_ARCHIVE_VERSION) {
-      return [createTravelChatSession()];
+      return [createTravelChatSession(locale)];
     }
 
     if (Array.isArray(parsed.sessions)) {
       const sessions = parsed.sessions
         .filter(isTravelChatSession)
         .map(normalizeTravelChatSession);
-      return sessions.length > 0 ? sessions : [createTravelChatSession()];
+      return sessions.length > 0 ? sessions : [createTravelChatSession(locale)];
     }
 
     if (Array.isArray(parsed.messages)) {
@@ -944,7 +961,7 @@ function readArchivedTravelSessions(storageKey: string): TravelChatSession[] {
         normalizeTravelChatSession({
           id: createSessionId(),
           title: "新的旅行对话",
-          messages: messages.length > 0 ? messages : createInitialTravelMessages(),
+          messages: messages.length > 0 ? messages : createInitialTravelMessages(locale),
           updatedAt:
             typeof parsed.updatedAt === "string"
               ? parsed.updatedAt
@@ -953,9 +970,9 @@ function readArchivedTravelSessions(storageKey: string): TravelChatSession[] {
       ];
     }
 
-    return [createTravelChatSession()];
+    return [createTravelChatSession(locale)];
   } catch {
-    return [createTravelChatSession()];
+    return [createTravelChatSession(locale)];
   }
 }
 
@@ -1074,7 +1091,8 @@ function parseItineraryFromResponse(raw: unknown): ItineraryDay[] {
 
 function parseTravelRevisionResponse(
   raw: unknown,
-  fallbackItinerary: ItineraryDay[]
+  fallbackItinerary: ItineraryDay[],
+  locale: InterfaceLocale
 ): TravelRevisionResult {
   if (!isRecord(raw)) {
     throw new Error("行程修改返回格式无效。");
@@ -1093,16 +1111,20 @@ function parseTravelRevisionResponse(
 
   const quickReplies = Array.isArray(raw.quick_replies)
     ? raw.quick_replies.filter(isTravelQuickReply)
-    : ITINERARY_REVISION_QUICK_REPLIES;
+    : locale === "zh" ? ITINERARY_REVISION_QUICK_REPLIES : ITINERARY_REVISION_QUICK_REPLIES_EN;
 
   return {
     action,
     reply:
       typeof raw.reply === "string" && raw.reply.trim()
-        ? localizeTravelText(raw.reply.trim())
+        ? localizeTravelText(raw.reply.trim(), locale)
         : action === "restart"
-          ? "可以，我们保留旧版本，先回到地图重新规划。"
-          : "我已处理这次行程修改。",
+          ? locale === "zh"
+            ? "可以，我们保留旧版本，先回到地图重新规划。"
+            : "Sure. I’ll keep the old version and restart from the map."
+          : locale === "zh"
+            ? "我已处理这次行程修改。"
+            : "I’ve handled this itinerary change.",
     itinerary: itinerary.length > 0 ? itinerary : fallbackItinerary,
     statePatch: isRecord(raw.state_patch) ? raw.state_patch : {},
     modulePatch: isRecord(raw.module_patch) ? raw.module_patch : {},
@@ -1112,7 +1134,9 @@ function parseTravelRevisionResponse(
         : action === "revise"
           ? "已更新行程"
           : "",
-    quickReplies: quickReplies.length > 0 ? quickReplies : ITINERARY_REVISION_QUICK_REPLIES,
+    quickReplies: quickReplies.length > 0
+      ? quickReplies
+      : locale === "zh" ? ITINERARY_REVISION_QUICK_REPLIES : ITINERARY_REVISION_QUICK_REPLIES_EN,
   };
 }
 
@@ -1375,13 +1399,14 @@ function toAgentChatMessages(messages: TravelChatMessage[]) {
 }
 
 function createAssistantMessageFromAgentResponse(
-  response: TravelAgentChatResponse
+  response: TravelAgentChatResponse,
+  locale: InterfaceLocale
 ): TravelChatMessage {
   const parts: TravelChatMessage["parts"] = [];
   const reply = response.reply?.trim();
 
   if (reply) {
-    parts.push({ type: "text", text: localizeTravelText(reply) });
+    parts.push({ type: "text", text: localizeTravelText(reply, locale) });
   }
 
   if (response.cards?.length) {
@@ -1393,8 +1418,8 @@ function createAssistantMessageFromAgentResponse(
       type: "quick_replies",
       quick_replies: response.quick_replies.map((reply) => ({
         ...reply,
-        label: localizeTravelText(reply.label),
-        value: localizeTravelText(reply.value),
+        label: localizeTravelText(reply.label, locale),
+        value: localizeTravelText(reply.value, locale),
       })),
     });
   }
@@ -1607,7 +1632,9 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function localizeTravelText(value: string): string {
+function localizeTravelText(value: string, locale: InterfaceLocale): string {
+  if (locale === "en") return stripTravelMarkdown(value);
+
   const localized = PLACE_TEXT_REPLACEMENTS.reduce((text, [source, target]) => {
     const pattern = new RegExp(`\\b${escapeRegExp(source)}\\b`, "g");
     return text.replace(pattern, target);
@@ -1616,8 +1643,9 @@ function localizeTravelText(value: string): string {
   return stripTravelMarkdown(localized);
 }
 
-function localizeSuggestedDays(value: string | null | undefined): string {
-  return value ? localizeTravelText(value) : "3-5 天";
+function localizeSuggestedDays(value: string | null | undefined, locale: InterfaceLocale): string {
+  if (!value) return locale === "zh" ? "3-5 天" : "3-5 days";
+  return localizeTravelText(value, locale);
 }
 
 function getCityContext(city: string) {
@@ -1848,12 +1876,15 @@ export function TravelChatClient({
   applicationId,
   embedded = false,
 }: TravelChatClientProps) {
+  const locale = useLocale();
+  const interfaceLocale = isChineseLocale(locale) ? "zh" : "en";
+  const travelAgentLocale = toTravelAgentLocale(locale);
   const archiveKey = useMemo(
     () => getTravelChatArchiveKey(applicationId),
     [applicationId]
   );
   const [sessions, setSessions] = useState<TravelChatSession[]>(() => [
-    createTravelChatSession(),
+    createTravelChatSession(interfaceLocale),
   ]);
   const sessionsRef = useRef<TravelChatSession[]>(sessions);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
@@ -2541,7 +2572,7 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    const archivedSessions = readArchivedTravelSessions(archiveKey);
+    const archivedSessions = readArchivedTravelSessions(archiveKey, interfaceLocale);
     let nextSessions = archivedSessions;
     let nextActiveSessionId = archivedSessions[0].id;
 
@@ -2566,7 +2597,7 @@ export function TravelChatClient({
     setRenamingSessionId(null);
     setRenamingSessionTitle("");
     setArchiveLoadedKey(archiveKey);
-  }, [archiveKey]);
+  }, [archiveKey, interfaceLocale]);
 
   useEffect(() => {
     let disposed = false;
@@ -2764,24 +2795,26 @@ export function TravelChatClient({
               selected_flights: revisionBaseState.selected_flights,
               selected_hotels: revisionBaseState.selected_hotels,
             },
-            locale: "zh-CN",
+            locale: travelAgentLocale,
           }),
         });
 
         if (!response.ok) {
           const detail = await response.text();
-          throw new Error(detail || "无法修改行程。");
+          throw new Error(detail || (interfaceLocale === "zh" ? "无法修改行程。" : "Unable to revise the itinerary."));
         }
 
         const result = (await response.json()) as unknown;
-        const revision = parseTravelRevisionResponse(result, currentItinerary);
+        const revision = parseTravelRevisionResponse(result, currentItinerary, interfaceLocale);
 
         if (
           revision.action === "revise" &&
           !hasVisibleRevisionChange(currentItinerary, revision)
         ) {
           throw new Error(
-            "我可以继续帮你改这份行程。你想改哪一天、加在哪个城市，还是让我按当前路线自动安排？"
+            interfaceLocale === "zh"
+              ? "我可以继续帮你改这份行程。你想改哪一天、加在哪个城市，还是让我按当前路线自动安排？"
+              : "I can keep revising this itinerary. Which day should change, which city should I add it to, or should I place it automatically along the current route?"
           );
         }
 
@@ -2800,7 +2833,7 @@ export function TravelChatClient({
                   quick_replies:
                     revision.quickReplies.length > 0
                       ? revision.quickReplies
-                      : INITIAL_QUICK_REPLIES,
+                      : interfaceLocale === "zh" ? INITIAL_QUICK_REPLIES : INITIAL_QUICK_REPLIES_EN,
                 },
               ],
             },
@@ -2903,19 +2936,19 @@ export function TravelChatClient({
           body: JSON.stringify({
             messages: toAgentChatMessages(nextMessages),
             state,
-            locale: "zh-CN",
+            locale: travelAgentLocale,
           }),
         });
 
         if (!response.ok) {
           const detail = await response.text();
-          throw new Error(detail || "无法生成旅行对话回复。");
+          throw new Error(detail || (interfaceLocale === "zh" ? "无法生成旅行对话回复。" : "Unable to generate a travel chat response."));
         }
 
         const result = (await response.json()) as TravelAgentChatResponse;
         setSessionMessages(sessionId, (prev) => [
           ...prev,
-          createAssistantMessageFromAgentResponse(result),
+          createAssistantMessageFromAgentResponse(result, interfaceLocale),
         ]);
         return;
       }
@@ -2946,8 +2979,10 @@ export function TravelChatClient({
         selectedFlights: payload.selected_flights,
         selectedHotels: payload.selected_hotels,
         intro:
-          "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。",
-        quickReplies: ITINERARY_REVISION_QUICK_REPLIES,
+          interfaceLocale === "zh"
+            ? "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。"
+            : "Your itinerary is ready. I organized each day into itinerary cards, and you can keep editing it in chat; I’ll save changes as new versions.",
+        quickReplies: interfaceLocale === "zh" ? ITINERARY_REVISION_QUICK_REPLIES : ITINERARY_REVISION_QUICK_REPLIES_EN,
       });
 
       updateTravelSession(sessionId, (session) => {
@@ -2986,7 +3021,9 @@ export function TravelChatClient({
             {
               type: "text",
               text:
-                "抱歉，暂时无法生成旅行计划。请检查 travel service 是否启动，以及 API key 是否已配置。\n\n" +
+                (interfaceLocale === "zh"
+                  ? "抱歉，暂时无法生成旅行计划。请检查 travel service 是否启动，以及 API key 是否已配置。\n\n"
+                  : "Sorry, I can’t generate the travel plan right now. Please check that the travel service is running and the API key is configured.\n\n") +
                 detail,
             },
           ],
@@ -2997,9 +3034,11 @@ export function TravelChatClient({
     }
   }, [
     activeSession,
+    interfaceLocale,
     sessions,
     setSessionMapMode,
     setSessionMessages,
+    travelAgentLocale,
     updateTravelSession,
   ]);
 
@@ -3120,13 +3159,13 @@ export function TravelChatClient({
 
   const handleNewSession = useCallback(() => {
     if (status !== "ready") return;
-    const nextSession = createTravelChatSession();
+    const nextSession = createTravelChatSession(interfaceLocale);
     setSessions((currentSessions) => [nextSession, ...currentSessions]);
     setActiveSessionId(nextSession.id);
     setActiveMapTargetId("");
     setRenamingSessionId(null);
     setRenamingSessionTitle("");
-  }, [status]);
+  }, [interfaceLocale, status]);
 
   const handleSelectSession = useCallback(
     (sessionId: string) => {
@@ -3182,7 +3221,7 @@ export function TravelChatClient({
           (session) => session.id !== sessionId
         );
         if (nextSessions.length === 0) {
-          const replacement = createTravelChatSession();
+          const replacement = createTravelChatSession(interfaceLocale);
           setActiveSessionId(replacement.id);
           setActiveMapTargetId("");
           return [replacement];
@@ -3203,7 +3242,7 @@ export function TravelChatClient({
         setRenamingSessionTitle("");
       }
     },
-    [activeSessionId, renamingSessionId, status]
+    [activeSessionId, interfaceLocale, renamingSessionId, status]
   );
 
   return (
@@ -3568,15 +3607,19 @@ export function TravelChatClient({
                               const rawDisplayCity = card.city ?? card.country;
                               const displayCity = getLocalDisplayName(rawDisplayCity);
                               const suggestedDays = localizeSuggestedDays(
-                                card.suggested_days
+                                card.suggested_days,
+                                interfaceLocale
                               );
                               const localizedSubtitle = localizeTravelText(
-                                card.subtitle
+                                card.subtitle,
+                                interfaceLocale
                               );
                               const actionLabel =
                                 card.action_label && card.action_label !== "加入计划"
-                                  ? localizeTravelText(card.action_label)
-                                  : `加入计划：${displayCity}`;
+                                  ? localizeTravelText(card.action_label, interfaceLocale)
+                                  : interfaceLocale === "zh"
+                                    ? `加入计划：${displayCity}`
+                                    : `Add to plan: ${displayCity}`;
                               const imageSrc = getCityImage(
                                 rawDisplayCity,
                                 card.image_key ?? card.title
@@ -3617,7 +3660,7 @@ export function TravelChatClient({
                                             className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-800"
                                             key={highlight}
                                           >
-                                            {localizeTravelText(highlight)}
+                                            {localizeTravelText(highlight, interfaceLocale)}
                                           </span>
                                         ))}
                                       </div>

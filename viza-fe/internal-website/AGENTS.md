@@ -114,6 +114,7 @@ Smoke URLs:
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `lib/supabase/*`
+- `lib/i18n/locale.ts`
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`

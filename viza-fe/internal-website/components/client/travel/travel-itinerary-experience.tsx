@@ -254,6 +254,9 @@ const CITY_IMAGE_BY_KEY: Record<string, string> = {
 };
 
 const LOCAL_CITY_LABELS: Record<string, string> = {
+  bali: "巴厘岛",
+  denpasar: "登巴萨",
+  chengdu: "成都",
   tokyo: "东京",
   kyoto: "京都",
   osaka: "大阪",
@@ -270,6 +273,10 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   sanfrancisco: "旧金山",
   sf: "旧金山",
   pisa: "比萨",
+  naples: "那不勒斯",
+  kohsamui: "苏梅岛",
+  samui: "苏梅岛",
+  "koh samui": "苏梅岛",
   rome: "罗马",
   seoul: "首尔",
   bangkok: "曼谷",
@@ -282,6 +289,42 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
   "芭提雅": "芭提雅",
   "芭堤雅": "芭提雅",
   hongkong: "香港",
+};
+
+const LOCAL_TEXT_LABELS: Record<string, string> = {
+  ...LOCAL_CITY_LABELS,
+  "bali": "巴厘岛",
+  "naples": "那不勒斯",
+  "chengdu": "成都",
+  "denpasar": "登巴萨",
+  "kuta": "库塔",
+  "ubud": "乌布",
+  "nusa penida": "努沙佩尼达",
+  "penida": "佩尼达",
+  "jl.": "路",
+  "jalan": "路",
+  "hotel": "酒店",
+  "villa": "别墅",
+  "lodge": "旅馆",
+  "ricefield": "稻田",
+  "alba": "阿尔巴",
+  "vita": "维塔",
+  "domu alba vita": "多穆阿尔巴维塔酒店",
+  "elmon ricefield hotel": "埃尔蒙稻田酒店",
+  "amalla lodge penida by omanera": "奥马内拉佩尼达阿玛拉旅馆",
+  "sayuban villa": "萨尤班别墅",
+};
+
+const LOCAL_AIRLINE_LABELS: Record<string, string> = {
+  "air china": "中国国际航空",
+  "cathay pacific airways": "国泰航空",
+  "cathay pacific": "国泰航空",
+  "china eastern": "中国东方航空",
+  "china eastern airlines": "中国东方航空",
+  "shenzhen airlines": "深圳航空",
+  "jeju air": "济州航空",
+  scoot: "酷航",
+  peach: "乐桃航空",
 };
 
 const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
@@ -547,6 +590,61 @@ function hashString(value: string): number {
 function getLocalCityLabel(city: string): string {
   const key = normalizeLookupKey(city);
   return LOCAL_CITY_LABELS[key] ?? city;
+}
+
+function containsCjk(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function localizeKnownTravelText(value: string | null | undefined): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+  if (containsCjk(raw)) return raw;
+
+  const exact = LOCAL_TEXT_LABELS[normalizeLookupKey(raw)];
+  if (exact) return exact;
+
+  return Object.entries(LOCAL_TEXT_LABELS)
+    .sort((first, second) => second[0].length - first[0].length)
+    .reduce((text, [source, target]) => {
+      const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return text.replace(new RegExp(`\\b${escaped}\\b`, "gi"), target);
+    }, raw);
+}
+
+function getLocalizedPlaceLabel(value: string): string {
+  return localizeKnownTravelText(getLocalCityLabel(value));
+}
+
+function getLocalizedHotelName(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string
+): string {
+  const rawName = option?.name?.trim();
+  const localized = localizeKnownTravelText(rawName);
+  if (localized) return localized;
+  return `${getLocalCityLabel(fallbackCity)}酒店`;
+}
+
+function getLocalizedHotelAddress(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string
+): string {
+  const rawAddress = option?.address?.trim();
+  const localized = localizeKnownTravelText(rawAddress);
+  if (localized) return localized;
+  return `${getLocalCityLabel(fallbackCity)}市中心区域`;
+}
+
+function getLocalizedAirlineName(option: FlightOptionResult | null | undefined): string {
+  const rawName = option?.airline ?? option?.provider ?? "";
+  const exact = LOCAL_AIRLINE_LABELS[normalizeLookupKey(rawName)];
+  if (exact) return exact;
+  return localizeKnownTravelText(rawName) || "已选航班";
+}
+
+function formatLocalizedRoute(from: string, to: string): string {
+  return `${getLocalCityLabel(from)} → ${getLocalCityLabel(to)}`;
 }
 
 function getCityImage(city: string, seed: string = "default"): string {

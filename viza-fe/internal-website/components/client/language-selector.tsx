@@ -5,8 +5,7 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { AnimatedDropdown } from "@/components/ui/animated-dropdown";
-
-const LOCALE_COOKIE = "NEXT_LOCALE";
+import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
 
 const languages = [
   { code: "en", label: "English" },
@@ -53,7 +52,10 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
   }, []);
 
   const handleSelect = (code: string) => {
-    document.cookie = `${LOCALE_COOKIE}=${code}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    const nextLocale = normalizeInterfaceLocale(code);
+    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    window.localStorage.setItem(LOCALE_COOKIE, nextLocale);
+    window.dispatchEvent(new CustomEvent("viza:locale-change", { detail: nextLocale }));
     router.refresh();
   };
 
