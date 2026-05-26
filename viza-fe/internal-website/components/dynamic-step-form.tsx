@@ -18,6 +18,7 @@ import {
   toOfficialEnglishValue,
 } from "@/lib/ds160-translations";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
 interface DynamicStepFormProps {
@@ -179,7 +180,9 @@ function getLocalFieldIssue(
   valueKey: string,
   value: string,
   values: Record<string, string>,
+  locale: string,
 ): FieldIssue {
+  const isZh = isChineseLocale(locale);
   const trimmed = value.trim();
   const rules = field.validationRules as {
     maxLength?: number;
@@ -188,17 +191,17 @@ function getLocalFieldIssue(
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
   if (field.required && !trimmed) {
-    return issue("warning", "必填项");
+    return issue("warning", isZh ? "必填项" : "Required");
   }
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
-    return issue("error", `最多 ${rules.maxLength} 个字符`);
+    return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
   }
 
   if (rules?.pattern && trimmed) {
     try {
       if (!new RegExp(rules.pattern).test(trimmed)) {
-        return issue("error", "格式不符合要求");
+        return issue("error", isZh ? "格式不符合要求" : "Format does not match the requirement");
       }
     } catch {
       // Ignore malformed schema regexes here; the backend logs them.
@@ -216,12 +219,12 @@ function getLocalFieldIssue(
         option.value.toLowerCase() === trimmed.toLowerCase() ||
         option.text.toLowerCase() === trimmed.toLowerCase(),
     );
-    if (!optionMatch) return issue("error", "请选择题目提供的选项");
+    if (!optionMatch) return issue("error", isZh ? "请选择题目提供的选项" : "Choose one of the provided options");
   }
 
   const currentDate = field.fieldType === "date" ? parseFlexibleDate(trimmed) : null;
   if (field.fieldType === "date" && trimmed && !currentDate) {
-    return issue("error", "日期格式不符合要求");
+    return issue("error", isZh ? "日期格式不符合要求" : "Date format does not match the requirement");
   }
 
   if (
@@ -229,7 +232,7 @@ function getLocalFieldIssue(
     (valueKey.toLowerCase().includes("birth") || field.fieldName.toLowerCase().includes("birth")) &&
     currentDate > new Date()
   ) {
-    return issue("error", "出生日期不能晚于今天");
+    return issue("error", isZh ? "出生日期不能晚于今天" : "Date of birth cannot be later than today");
   }
 
   const issueDate = parseFlexibleDate(findAnswerValue(values, [
@@ -247,7 +250,7 @@ function getLocalFieldIssue(
   ]) ?? undefined);
 
   if (issueDate && expiryDate && expiryDate <= issueDate) {
-    return issue("error", "到期日必须晚于签发日");
+    return issue("error", isZh ? "到期日必须晚于签发日" : "Expiry date must be after the issue date");
   }
 
   const arrivalDate = parseFlexibleDate(findAnswerValue(values, [
@@ -262,13 +265,13 @@ function getLocalFieldIssue(
   ]) ?? undefined);
 
   if (arrivalDate && departureDate && departureDate <= arrivalDate) {
-    return issue("error", "离开日期必须晚于到达日期");
+    return issue("error", isZh ? "离开日期必须晚于到达日期" : "Departure date must be after arrival date");
   }
   if (arrivalDate && expiryDate && expiryDate < arrivalDate) {
-    return issue("error", "证件到期日在旅行日期之前");
+    return issue("error", isZh ? "证件到期日在旅行日期之前" : "Document expires before the travel date");
   }
   if (arrivalDate && expiryDate && expiryDate < addMonths(arrivalDate, 6)) {
-    return issue("warning", "证件有效期距离旅行日期不足 6 个月");
+    return issue("warning", isZh ? "证件有效期距离旅行日期不足 6 个月" : "Document validity is less than 6 months from the travel date");
   }
 
   const currentNationality = findAnswerValue(values, ["current_nationality", "nationality_country", "nationality"]);
@@ -280,10 +283,10 @@ function getLocalFieldIssue(
     nationalityDifferent?.toLowerCase() === "no" &&
     currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase()
   ) {
-    return issue("warning", "国籍相关答案可能不一致");
+    return issue("warning", isZh ? "国籍相关答案可能不一致" : "Nationality answers may be inconsistent");
   }
 
-  return issue("ok", "AI 填写帮助");
+  return issue("ok", isZh ? "AI 填写帮助" : "AI field guidance");
 }
 
 function issueMessageClasses(severity: FieldIssueSeverity): string {
@@ -417,6 +420,7 @@ export function DynamicStepForm({
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
   const locale = useLocale();
+  const isChineseInterface = isChineseLocale(locale);
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
 
   // Track how many instances each repeat_group has (min 1)
@@ -854,10 +858,65 @@ export function DynamicStepForm({
       ...field,
       options: fieldOptions ?? null,
     };
-    const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values);
+    const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
-    const buttonLabel = panelOpen ? "收起 AI 帮助" : "问 AI";
+    const buttonLabel = panelOpen
+      ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
+      : (isChineseInterface ? "问 AI" : "Ask AI");
+
+    if (!isChineseInterface) {
+      return (
+        <div
+          key={valueKey}
+          className={cn(
+            "py-3 transition-colors",
+            panelOpen ? "bg-[#fbfdff]" : "",
+          )}
+        >
+          <div className="min-w-0">
+            {renderSide("en")}
+          </div>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {issue.severity !== "ok" && (
+              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                {issue.message}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
+              }}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                copilotButtonClasses(),
+              )}
+              aria-expanded={panelOpen}
+              aria-label={buttonLabel}
+              data-copilot-trigger={valueKey}
+            >
+              <Bot className="h-3.5 w-3.5" />
+              {buttonLabel}
+            </button>
+          </div>
+          {panelOpen && (
+            <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
+              <FieldGuidancePanel
+                country={country}
+                visaType={resolvedVisaType}
+                locale={locale}
+                field={guidanceField}
+                answer={values[valueKey] ?? ""}
+                allAnswers={values}
+                onClose={() => setActiveGuidanceKey(null)}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div
@@ -1076,7 +1135,7 @@ export function DynamicStepForm({
           <Bot className="h-4 w-4" />
         </span>
         <span>
-          {locale.startsWith("zh")
+          {isChineseInterface
             ? "对问题有疑问？点击题目旁的 AI 提示。"
             : "Need help? Click the AI tip beside any question."}
         </span>

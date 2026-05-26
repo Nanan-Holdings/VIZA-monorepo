@@ -17,6 +17,29 @@ export type PopularVisaDestination = {
   searchAliases?: string[];
 };
 
+export type VisaDestinationRegionId =
+  | "north-america"
+  | "south-america"
+  | "middle-east"
+  | "africa"
+  | "schengen"
+  | "europe-non-schengen"
+  | "southeast-asia"
+  | "east-asia"
+  | "south-asia"
+  | "oceania";
+
+export type VisaDestinationRegionGroup = {
+  id: VisaDestinationRegionId;
+  name: string;
+  nameZh: string;
+  description: string;
+  descriptionZh: string;
+  flag: string;
+  destinationIds: string[];
+  href: string;
+};
+
 type DestinationInput = Omit<PopularVisaDestination, "id" | "kind" | "supportLabel"> & {
   id?: string;
   supportLabel?: string;
@@ -96,7 +119,7 @@ export const SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinat
   schengenDestination("switzerland", "Switzerland", "瑞士", "🇨🇭"),
 ]);
 
-const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
+export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
   destination({
     country: "australia",
     countryName: "Australia",
@@ -456,15 +479,184 @@ export const SCHENGEN_GROUP_DESTINATION: PopularVisaDestination = {
   ]),
 };
 
-export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
-  ...NON_SCHENGEN_VISA_DESTINATIONS,
-  SCHENGEN_GROUP_DESTINATION,
-]);
+const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destinationIds" | "href"> & { countries: string[] }> = [
+  {
+    id: "north-america",
+    name: "North America",
+    nameZh: "北美",
+    description: "United States, Canada, Mexico and nearby visitor routes.",
+    descriptionZh: "美国、加拿大、墨西哥等北美访客签证和入境路线。",
+    flag: "🇺🇸",
+    countries: ["canada", "mexico", "united_states"],
+  },
+  {
+    id: "south-america",
+    name: "South America",
+    nameZh: "南美",
+    description: "South America destination workflows as they are connected.",
+    descriptionZh: "南美目的地表单会在接入后集中显示在这里。",
+    flag: "🇧🇷",
+    countries: [],
+  },
+  {
+    id: "middle-east",
+    name: "Middle East",
+    nameZh: "中东",
+    description: "Gulf and Middle East eVisa or visitor-entry workflows.",
+    descriptionZh: "海湾及中东地区电子签证、访客入境资料采集。",
+    flag: "🇦🇪",
+    countries: ["qatar", "saudi_arabia", "united_arab_emirates"],
+  },
+  {
+    id: "africa",
+    name: "Africa",
+    nameZh: "非洲",
+    description: "Africa tourist eVisa and visitor visa intake routes.",
+    descriptionZh: "非洲旅游电子签证和访客签证信息采集路线。",
+    flag: "🇪🇬",
+    countries: ["egypt", "morocco", "south_africa"],
+  },
+  {
+    id: "schengen",
+    name: "Schengen Area",
+    nameZh: "申根区",
+    description: "Choose the main Schengen destination for the shared Type C form.",
+    descriptionZh: "进入申根国家列表，选择 C 类短期签证的主要目的地。",
+    flag: "🇪🇺",
+    countries: SCHENGEN_VISA_DESTINATIONS.map((destinationItem) => destinationItem.country),
+  },
+  {
+    id: "europe-non-schengen",
+    name: "Europe outside Schengen",
+    nameZh: "欧洲非申根区",
+    description: "European visitor routes that do not use the Schengen Type C form.",
+    descriptionZh: "不使用申根 C 类表单的欧洲访客签证路线。",
+    flag: "🇬🇧",
+    countries: ["turkey", "united_kingdom"],
+  },
+  {
+    id: "southeast-asia",
+    name: "Southeast Asia",
+    nameZh: "东南亚",
+    description: "ASEAN visitor entry, eVisa and short-stay workflows.",
+    descriptionZh: "东南亚访客入境、电子签证和短期停留资料采集。",
+    flag: "🇸🇬",
+    countries: [
+      "cambodia",
+      "indonesia",
+      "laos",
+      "malaysia",
+      "philippines",
+      "singapore",
+      "thailand",
+      "vietnam",
+    ],
+  },
+  {
+    id: "east-asia",
+    name: "East Asia",
+    nameZh: "东亚",
+    description: "Japan and Korea short-stay visitor workflows.",
+    descriptionZh: "日本、韩国等东亚短期访问签证或入境路线。",
+    flag: "🇯🇵",
+    countries: ["japan", "south_korea"],
+  },
+  {
+    id: "south-asia",
+    name: "South Asia",
+    nameZh: "南亚",
+    description: "South Asia tourist visa, ETA and arrival-card routes.",
+    descriptionZh: "南亚旅游签证、ETA 和落地入境资料路线。",
+    flag: "🇮🇳",
+    countries: ["india", "maldives", "nepal", "sri_lanka"],
+  },
+  {
+    id: "oceania",
+    name: "Oceania",
+    nameZh: "大洋洲",
+    description: "Australia and New Zealand visitor visa workflows.",
+    descriptionZh: "澳大利亚、新西兰访客签证资料采集。",
+    flag: "🇦🇺",
+    countries: ["australia", "new_zealand"],
+  },
+];
 
 const SELECTABLE_VISA_DESTINATIONS = [
   ...NON_SCHENGEN_VISA_DESTINATIONS,
   ...SCHENGEN_VISA_DESTINATIONS,
 ];
+
+function destinationIdsForCountries(countries: string[]): string[] {
+  const countrySet = new Set(countries);
+  return SELECTABLE_VISA_DESTINATIONS
+    .filter((destinationItem) => countrySet.has(destinationItem.country))
+    .map((destinationItem) => destinationItem.id);
+}
+
+function regionGroupToDestination(group: VisaDestinationRegionGroup): PopularVisaDestination {
+  const destinations = getVisaDestinationsForRegion(group.id);
+  return {
+    id: `region-${group.id}`,
+    country: group.id,
+    countryName: group.name,
+    countryNameZh: group.nameZh,
+    visaType: "REGION_GROUP",
+    visaName: "Browse destination forms",
+    visaNameZh: "浏览分区签证表单",
+    description: group.description,
+    descriptionZh: group.descriptionZh,
+    flag: group.flag,
+    region: group.name,
+    supportLabel: "Destination region",
+    kind: "group",
+    href: group.href,
+    countryCount: destinations.length,
+    searchAliases: destinations.flatMap((destinationItem) => [
+      destinationItem.countryName,
+      destinationItem.countryNameZh,
+      destinationItem.visaName,
+      destinationItem.visaNameZh,
+      ...(destinationItem.searchAliases ?? []),
+    ]),
+  };
+}
+
+export const VISA_DESTINATION_REGION_GROUPS: VisaDestinationRegionGroup[] = DESTINATION_REGION_INPUTS.map((group) => ({
+  id: group.id,
+  name: group.name,
+  nameZh: group.nameZh,
+  description: group.description,
+  descriptionZh: group.descriptionZh,
+  flag: group.flag,
+  destinationIds: group.id === "schengen"
+    ? SCHENGEN_VISA_DESTINATIONS.map((destinationItem) => destinationItem.id)
+    : destinationIdsForCountries(group.countries),
+  href: group.id === "schengen" ? "/client/destinations/schengen" : `/client/destinations/${group.id}`,
+}));
+
+export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
+  "united_states",
+  "united_kingdom",
+  "france",
+  "japan",
+  "canada",
+  "australia",
+]
+  .map((country) => SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => destinationItem.country === country))
+  .filter((destinationItem): destinationItem is PopularVisaDestination => Boolean(destinationItem));
+
+export const DESTINATION_REGION_GROUP_DESTINATIONS: PopularVisaDestination[] =
+  VISA_DESTINATION_REGION_GROUPS.map(regionGroupToDestination);
+
+export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
+  ...FEATURED_VISA_DESTINATIONS,
+  ...DESTINATION_REGION_GROUP_DESTINATIONS,
+];
+
+export const SEARCHABLE_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
+  ...SELECTABLE_VISA_DESTINATIONS,
+  ...DESTINATION_REGION_GROUP_DESTINATIONS,
+]);
 
 const COUNTRY_FLAGS = new Map(
   SELECTABLE_VISA_DESTINATIONS.map((destinationItem) => [
@@ -547,6 +739,17 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
 
 export function getPopularVisaDestination(destinationId: string): PopularVisaDestination | null {
   return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => destinationItem.id === destinationId) ?? null;
+}
+
+export function getVisaDestinationRegionGroup(regionId: string): VisaDestinationRegionGroup | null {
+  return VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === regionId) ?? null;
+}
+
+export function getVisaDestinationsForRegion(regionId: string): PopularVisaDestination[] {
+  const group = VISA_DESTINATION_REGION_GROUPS.find((regionGroup) => regionGroup.id === regionId);
+  if (!group) return [];
+  const destinationIdSet = new Set(group.destinationIds);
+  return SELECTABLE_VISA_DESTINATIONS.filter((destinationItem) => destinationIdSet.has(destinationItem.id));
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
