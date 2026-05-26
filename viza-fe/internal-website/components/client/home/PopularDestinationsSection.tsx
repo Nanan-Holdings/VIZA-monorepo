@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
-  POPULAR_VISA_DESTINATIONS,
+  DESTINATION_REGION_GROUP_DESTINATIONS,
+  FEATURED_VISA_DESTINATIONS,
+  SEARCHABLE_VISA_DESTINATIONS,
   getVisaDestinationKey,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
@@ -21,8 +23,23 @@ function isSelectedDestination(
   if (destination.kind === "group") return false;
   const destinationKey = getVisaDestinationKey(destination.country, destination.visaType);
   return selectedPackages.some(
-    (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey
+    (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey,
   );
+}
+
+function matchesDestinationSearch(destination: PopularVisaDestination, normalizedSearch: string): boolean {
+  const searchableText = [
+    destination.countryName,
+    destination.countryNameZh,
+    destination.visaName,
+    destination.visaNameZh,
+    destination.description,
+    destination.descriptionZh,
+    destination.region,
+    destination.supportLabel,
+    ...(destination.searchAliases ?? []),
+  ].join(" ").toLowerCase();
+  return searchableText.includes(normalizedSearch);
 }
 
 export interface DestinationApplicationProgress {
@@ -47,22 +64,9 @@ export function PopularDestinationsSection({
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const filteredDestinations = normalizedSearch
-    ? POPULAR_VISA_DESTINATIONS.filter((destination) => {
-      const searchableText = [
-        destination.countryName,
-        destination.countryNameZh,
-        destination.visaName,
-        destination.visaNameZh,
-        destination.description,
-        destination.descriptionZh,
-        destination.region,
-        destination.supportLabel,
-        ...(destination.searchAliases ?? []),
-      ].join(" ").toLowerCase();
-      return searchableText.includes(normalizedSearch);
-    })
-    : POPULAR_VISA_DESTINATIONS;
+  const searchResults = normalizedSearch
+    ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) => matchesDestinationSearch(destination, normalizedSearch))
+    : [];
 
   function handleSelect(destination: PopularVisaDestination) {
     setSelectionError(null);
@@ -88,11 +92,114 @@ export function PopularDestinationsSection({
     });
   }
 
+  function renderDestinationCard(destination: PopularVisaDestination) {
+    const isGroup = destination.kind === "group";
+    const progress = isGroup
+      ? undefined
+      : applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
+    const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
+    const loading = isPending && pendingDestinationId === destination.id;
+    const actionLabel = isGroup
+      ? t("browseRegion")
+      : progress
+        ? t("continue")
+        : selected
+          ? t("open")
+          : t("start");
+    const progressLabel = progress
+      ? progress.label
+      : selected
+        ? t("addedNotStarted")
+        : isGroup
+          ? t("countriesCount", { count: destination.countryCount ?? 0 })
+          : t("readyToStart");
+    const progressPill = isGroup
+      ? (destination.countryCount ?? 0) > 0
+        ? t("chooseCountry")
+        : t("comingSoon")
+      : progress
+        ? t("progressPill", { pct: progress.percent })
+        : selected
+          ? t("selectedNotFilled")
+          : t("fillable");
+
+    return (
+      <button
+        key={destination.id}
+        type="button"
+        onClick={() => handleSelect(destination)}
+        disabled={loading}
+        className={[
+          "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
+          selected || isGroup
+            ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
+            : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
+          loading ? "cursor-wait opacity-80" : "cursor-pointer",
+        ].join(" ")}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[34px] leading-none" aria-hidden="true">
+              {destination.flag}
+            </span>
+            <div>
+              <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
+                {destination.countryNameZh}
+              </p>
+              <p className="mt-1 text-[13px] font-medium text-[#637083]">
+                {destination.countryName} · {destination.region}
+              </p>
+            </div>
+          </div>
+          {selected && !isGroup && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div>
+            <p className="text-[15px] font-semibold leading-5 text-[#03346E]">
+              {destination.visaNameZh}
+            </p>
+            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[rgba(0,0,0,0.55)]">
+              {destination.descriptionZh}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-[#526174]">
+              <span>{progressLabel}</span>
+              <span>{progress ? `${progress.percent}%` : selected ? "0%" : ""}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
+              <div
+                className="h-full rounded-full bg-[#03346E] transition-all duration-500"
+                style={{ width: `${isGroup ? (destination.countryCount ?? 0) > 0 ? 100 : 0 : progress?.percent ?? 0}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
+              {progressPill}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
+              {loading ? t("starting") : actionLabel}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              )}
+            </span>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
   return (
-    <section className="w-full max-w-[1090px] mt-10 xl:mt-12">
+    <section className="mt-10 w-full max-w-[1090px] xl:mt-12">
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="font-heading font-medium leading-[1.3] text-[#3d3d3d] text-[30px] tracking-[-0.9px]">
+          <p className="font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d]">
             {t("heading")}
           </p>
           <p className="mt-2 max-w-3xl text-[16px] leading-6 text-[rgba(0,0,0,0.52)]">
@@ -122,111 +229,33 @@ export function PopularDestinationsSection({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {filteredDestinations.map((destination) => {
-          const isGroup = destination.kind === "group";
-          const progress = isGroup
-            ? undefined
-            : applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
-          const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
-          const loading = isPending && pendingDestinationId === destination.id;
-          const actionLabel = isGroup
-            ? "查看国家"
-            : progress
-              ? t("continue")
-              : selected
-                ? t("open")
-                : t("start");
-          const progressLabel = progress
-            ? progress.label
-            : selected
-              ? t("addedNotStarted")
-              : isGroup
-                ? `${destination.countryCount ?? 0} 个国家`
-                : t("readyToStart");
-          const progressPill = isGroup
-            ? t("chooseCountry")
-            : progress
-              ? t("progressPill", { pct: progress.percent })
-              : selected
-                ? t("selectedNotFilled")
-                : t("fillable");
+      {normalizedSearch ? (
+        <>
+          <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("searchResultsHeading")}</p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {searchResults.map(renderDestinationCard)}
+          </div>
+          {searchResults.length === 0 && (
+            <div className="rounded-[16px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">
+              <p className="text-[15px] font-medium text-[#526174]">{t("noSearchResults")}</p>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col gap-8">
+          <div>
+            <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("featuredHeading")}</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {FEATURED_VISA_DESTINATIONS.map(renderDestinationCard)}
+            </div>
+          </div>
 
-          return (
-            <button
-              key={destination.id}
-              type="button"
-              onClick={() => handleSelect(destination)}
-              disabled={loading}
-              className={[
-                "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
-                selected || isGroup
-                  ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
-                  : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
-                loading ? "cursor-wait opacity-80" : "cursor-pointer",
-              ].join(" ")}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-[34px] leading-none" aria-hidden="true">
-                    {destination.flag}
-                  </span>
-                  <div>
-                    <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
-                      {destination.countryNameZh}
-                    </p>
-                    <p className="mt-1 text-[13px] font-medium text-[#637083]">
-                      {destination.countryName} · {destination.region}
-                    </p>
-                  </div>
-                </div>
-                {selected && !isGroup && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
-              </div>
-
-              <div className="mt-5 space-y-3">
-                <div>
-                  <p className="text-[15px] font-semibold leading-5 text-[#03346E]">
-                    {destination.visaNameZh}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[rgba(0,0,0,0.55)]">
-                    {destination.descriptionZh}
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-[#526174]">
-                    <span>{progressLabel}</span>
-                    <span>{progress ? `${progress.percent}%` : selected ? "0%" : ""}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
-                    <div
-                      className="h-full rounded-full bg-[#03346E] transition-all duration-500"
-                      style={{ width: `${isGroup ? 100 : progress?.percent ?? 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
-                    {progressPill}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
-                    {loading ? t("starting") : actionLabel}
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                    )}
-                  </span>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      {filteredDestinations.length === 0 && (
-        <div className="rounded-[16px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">
-          <p className="text-[15px] font-medium text-[#526174]">{t("noSearchResults")}</p>
+          <div>
+            <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("regionHeading")}</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {DESTINATION_REGION_GROUP_DESTINATIONS.map(renderDestinationCard)}
+            </div>
+          </div>
         </div>
       )}
     </section>

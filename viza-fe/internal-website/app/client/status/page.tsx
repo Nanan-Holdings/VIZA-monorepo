@@ -13,7 +13,6 @@ import {
   FileCheck2,
   FileText,
   FolderCheck,
-  Info,
   Landmark,
   Package,
   Receipt,
@@ -432,7 +431,8 @@ function DetailView({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
-    <div className="space-y-5">
+    <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
+      <div className="space-y-5">
       <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 gap-4">
@@ -551,7 +551,8 @@ function DetailView({
           </div>
         )}
       </section>
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -591,13 +592,6 @@ function Dashboard({
         </div>
       </section>
 
-      {data.partialData && (
-        <div className="mt-6 flex gap-3 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-[14px] leading-6 text-amber-900">
-          <Info className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>{t("partialData")}</p>
-        </div>
-      )}
-
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatPanel label={t("stats.applications")} value={String(data.applications.length)} icon={FileText} />
         <StatPanel label={t("stats.averageProgress")} value={`${averageProgress}%`} icon={CheckCircle2} />
@@ -611,17 +605,19 @@ function Dashboard({
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-          <aside className="space-y-3">
+          <aside className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5">
             <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("applicationsTitle")}</h2>
-            {data.applications.map((application) => (
-              <ApplicationCard
-                key={getSelectionKey(application)}
-                application={application}
-                selected={selectedApplication ? getSelectionKey(application) === getSelectionKey(selectedApplication) : false}
-                locale={locale}
-                t={t}
-              />
-            ))}
+            <div className="mt-4 space-y-3">
+              {data.applications.map((application) => (
+                <ApplicationCard
+                  key={getSelectionKey(application)}
+                  application={application}
+                  selected={selectedApplication ? getSelectionKey(application) === getSelectionKey(selectedApplication) : false}
+                  locale={locale}
+                  t={t}
+                />
+              ))}
+            </div>
           </aside>
           {selectedApplication && <DetailView application={selectedApplication} locale={locale} t={t} />}
         </div>

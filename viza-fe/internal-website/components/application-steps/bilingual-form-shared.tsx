@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
 export type BilingualSide = "zh" | "en";
@@ -190,6 +191,7 @@ export function getBilingualRowLabels(label: string, englishFallback?: string) {
 
 export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilotConfig }) {
   const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const [open, setOpen] = useState(false);
   const resolvedVisaType = config.visaType ?? config.allAnswers.visa_type ?? "unknown";
   const resolvedCountry = config.country ?? config.allAnswers.destination_country ?? null;
@@ -214,7 +216,7 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
       <div className="flex items-center justify-end gap-2">
         {config.required && (
           <span className="text-[12px] font-medium text-[#03346E]">
-            必填项
+            {isZh ? "必填项" : "Required"}
           </span>
         )}
         <button
@@ -222,11 +224,11 @@ export function BilingualFieldCopilot({ config }: { config: BilingualFieldCopilo
           onClick={() => setOpen((current) => !current)}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#b8d3f3] bg-[#eef6ff] px-2.5 text-[12px] font-medium text-[#03346E] transition-colors hover:bg-[#e3f0ff]"
           aria-expanded={open}
-          aria-label={`${open ? "收起 AI 帮助" : "问 AI"}: ${config.label}`}
+          aria-label={`${open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}: ${config.label}`}
           data-copilot-trigger={config.fieldName}
         >
           <Bot className="h-3.5 w-3.5" />
-          {open ? "收起 AI 帮助" : "问 AI"}
+          {open ? (isZh ? "收起 AI 帮助" : "Hide AI help") : (isZh ? "问 AI" : "Ask AI")}
         </button>
       </div>
       {open && (
@@ -257,6 +259,8 @@ export function BilingualRow({
   enControl: ReactNode;
   copilot?: BilingualFieldCopilotConfig;
 }) {
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const scopedCopilot = copilot
     ? {
         ...copilot,
@@ -266,6 +270,23 @@ export function BilingualRow({
     : undefined;
   const labels = getBilingualRowLabels(label, scopedCopilot?.label);
   const requiredMark = scopedCopilot?.required ? <span className="ml-1 text-red-500">*</span> : null;
+
+  if (!isZh) {
+    return (
+      <div className="min-w-0 px-0 py-4 sm:px-2">
+        <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
+          {labels.en}
+          {requiredMark}
+        </span>
+        {enControl}
+        {scopedCopilot && (
+          <div className="min-w-0" data-copilot-panel-frame={scopedCopilot.fieldName}>
+            <BilingualFieldCopilot config={scopedCopilot} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="grid min-w-0 gap-4 px-0 py-4 sm:px-2 md:grid-cols-2">
