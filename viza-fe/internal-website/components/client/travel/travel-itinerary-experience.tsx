@@ -2371,6 +2371,7 @@ export function TravelItineraryExperience({
     setActiveDayIndex(0);
     setLocalSelectedFlights(null);
     setLocalSelectedHotels(null);
+    setLocalTravelStatePatch(null);
     setDetailResourceTab("attractions");
     setCustomizeDayEditor(false);
   }, [itinerary]);
@@ -2619,6 +2620,9 @@ export function TravelItineraryExperience({
     (updater: (days: ItineraryDay[]) => ItineraryDay[]) => {
       setEditableItinerary((days) => {
         const nextDays = renumberItineraryDays(updater(days));
+        setLocalTravelStatePatch(
+          buildItineraryTravelStatePatch(nextDays, travelState, orderedCities)
+        );
         const nextActiveIndex = Math.min(
           activeDayIndex,
           Math.max(0, nextDays.length - 1)
@@ -2629,7 +2633,7 @@ export function TravelItineraryExperience({
         return nextDays;
       });
     },
-    [activeDayIndex]
+    [activeDayIndex, orderedCities, travelState]
   );
 
   const updateItineraryActivity = useCallback(
@@ -2659,7 +2663,12 @@ export function TravelItineraryExperience({
                 ...day,
                 activities: [
                   ...day.activities,
-                  getSpecificAttraction(day.city, dayIndex, day.activities.length),
+                  getSpecificAttraction(
+                    day.city,
+                    dayIndex,
+                    day.activities.length,
+                    new Set(day.activities.map(normalizeLookupKey))
+                  ),
                 ],
               }
             : day
@@ -2816,13 +2825,31 @@ export function TravelItineraryExperience({
           }
           return days.length;
         })();
+        const usedAttractions = new Set(
+          days
+            .filter(
+              (day) => normalizeLookupKey(day.city) === normalizeLookupKey(city)
+            )
+            .flatMap((day) => day.activities)
+            .map(normalizeLookupKey)
+        );
+        const firstAttraction = getSpecificAttraction(
+          city,
+          insertAfter,
+          0,
+          usedAttractions
+        );
+        usedAttractions.add(normalizeLookupKey(firstAttraction));
+        const secondAttraction = getSpecificAttraction(
+          city,
+          insertAfter,
+          1,
+          usedAttractions
+        );
         const newDay: ItineraryDay = {
           day: insertAfter + 1,
           city,
-          activities: [
-            getSpecificAttraction(city, insertAfter, 0),
-            getSpecificAttraction(city, insertAfter, 1),
-          ],
+          activities: [firstAttraction, secondAttraction],
           food: [`${getLocalCityLabel(city)}本地餐厅`],
           cost: "¥800",
         };
@@ -4155,7 +4182,11 @@ export function TravelItineraryExperience({
                               height={120}
                               src={
                                 findTravelAttraction(activeDay.city, activity)?.imageSrc ??
-                                getCityImage(activeDay.city, activity)
+                                getAttractionImage(
+                                  activeDay.city,
+                                  activity,
+                                  `active-day-${activeDayIndex}-${index}`
+                                )
                               }
                               width={140}
                             />

@@ -1012,6 +1012,7 @@ function buildPassportProfileUpdates(fields: JsonRecord) {
   const mappings: Array<[string, string[]]> = [
     ["full_name", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
     ["date_of_birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
+    ["gender", ["gender", "sex"]],
     ["nationality", ["nationality", "citizenship"]],
     ["passport_number", ["passport_number", "passportNumber", "document_number", "passport_no"]],
     ["passport_issue_date", ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"]],
@@ -1032,9 +1033,14 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
   const answerMappings: Array<[string, string | undefined]> = [
     ["full_name", profileUpdates.full_name],
     ["date_of_birth", profileUpdates.date_of_birth],
+    ["gender", profileUpdates.gender],
+    ["sex", profileUpdates.gender],
     ["nationality", profileUpdates.nationality],
+    ["nationality_country", profileUpdates.nationality],
     ["passport_number", profileUpdates.passport_number],
+    ["passport_issue_date", profileUpdates.passport_issue_date],
     ["passport_issuance_date", profileUpdates.passport_issue_date],
+    ["passport_expiry_date", profileUpdates.passport_expiry_date],
     ["passport_expiration_date", profileUpdates.passport_expiry_date],
     ["passport_issuing_country", profileUpdates.passport_issuing_country],
   ];

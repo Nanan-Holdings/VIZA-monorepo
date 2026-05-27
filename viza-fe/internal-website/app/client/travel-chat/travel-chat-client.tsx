@@ -36,6 +36,7 @@ import {
   type TravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
 import { TravelPlannerForm } from "@/components/client/travel/travel-planner-form";
+import { findTravelAttraction } from "@/components/client/travel/travel-attraction-knowledge";
 import {
   TripRouteMap,
   type TripMapPoint,
