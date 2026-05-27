@@ -799,6 +799,10 @@ export default function ApplicationPage() {
   const t = useTranslations("application");
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
+  const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
+  const explicitVisaType =
+    searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
+  const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
 
   const STEPS: StepDef[] = STEP_KEYS.map((key, id) => ({
     id,
@@ -814,18 +818,30 @@ export default function ApplicationPage() {
   const [packageLoaded, setPackageLoaded] = useState(false);
 
   useEffect(() => {
-    getUserVisaPackage().then((pkg) => {
-      if (pkg) setVisaPackage(pkg);
-      const visaType = pkg?.visa_type ?? "tourist_b211a";
-      return getVisaFormSteps(visaType);
-    }).then((steps) => {
-      if (steps.length > 0) setDbSteps(steps);
-    }).catch(() => {
-      // Silent fallback to hardcoded steps
-    }).finally(() => {
-      setPackageLoaded(true);
-    });
-  }, []);
+    let cancelled = false;
+
+    getUserVisaPackage()
+      .then((pkg) => {
+        if (cancelled) return null;
+        if (pkg) setVisaPackage(pkg);
+        const visaType = explicitVisaType ?? pkg?.visa_type ?? "tourist_b211a";
+        return getVisaFormSteps(visaType);
+      })
+      .then((steps) => {
+        if (cancelled) return;
+        if (steps && steps.length > 0) setDbSteps(steps);
+      })
+      .catch(() => {
+        // Silent fallback to hardcoded steps
+      })
+      .finally(() => {
+        if (!cancelled) setPackageLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [explicitVisaType]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -844,6 +860,9 @@ export default function ApplicationPage() {
   const [error, setError] = useState<string | null>(null);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+
+  const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
+  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
 
   // Use DB-driven steps when available, otherwise fall back to hardcoded
   const useDynamic = dbSteps.length > 0;
@@ -1176,8 +1195,8 @@ export default function ApplicationPage() {
           .insert({
             applicant_id: profile.id,
             status: "draft",
-            country: visaPackage?.country ?? "indonesia",
-            visa_type: visaPackage?.visa_type ?? "tourist_b211a",
+            country: resolvedCountry,
+            visa_type: resolvedVisaType,
             arrival_date: data.arrivalDate || null,
             departure_date: data.departureDate || null,
             port_of_entry: data.arrivalCity || null,
@@ -1217,10 +1236,9 @@ export default function ApplicationPage() {
       // Ensure we have a draft application (server-side, bypasses RLS)
       let applicationId = appState.applicationId;
       if (!applicationId) {
-        const result = await ensureDraftApplication(
-          visaPackage?.country ?? "indonesia",
-          visaPackage?.visa_type ?? "tourist_b211a"
-        );
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: preferExplicitPackage,
+        });
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
         setAppState((prev) => ({ ...prev, applicationId }));
@@ -1261,10 +1279,9 @@ export default function ApplicationPage() {
     try {
       let applicationId = appState.applicationId;
       if (!applicationId) {
-        const result = await ensureDraftApplication(
-          visaPackage?.country ?? "indonesia",
-          visaPackage?.visa_type ?? "tourist_b211a",
-        );
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: preferExplicitPackage,
+        });
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
         setAppState((prev) => ({ ...prev, applicationId }));
@@ -1311,14 +1328,14 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const isJpTourist = visaPackage?.visa_type === "JP_TOURIST";
+      const isJpTourist = resolvedVisaType === "JP_TOURIST";
 
       if (!isJpTourist) {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
         await supabase.from("submission_queue").insert({
           application_id: appState.applicationId,
-          status: queueStatusForPackage(visaPackage?.visa_type),
+          status: queueStatusForPackage(resolvedVisaType),
           attempts: 0,
           created_at: new Date().toISOString(),
         });
@@ -1397,7 +1414,7 @@ export default function ApplicationPage() {
 
       await supabase.from("submission_queue").insert({
         application_id: appState.applicationId,
-        status: queueStatusForPackage(visaPackage?.visa_type),
+        status: queueStatusForPackage(resolvedVisaType),
         attempts: 0,
         created_at: new Date().toISOString(),
       });
@@ -1434,12 +1451,14 @@ export default function ApplicationPage() {
     }
   };
 
-  const activeCountry = visaPackage?.country ?? "indonesia";
-  const activeVisaType = visaPackage?.visa_type ?? "tourist_b211a";
+  const activeCountry = resolvedCountry;
+  const activeVisaType = resolvedVisaType;
 
   const ensurePassportOcrApplication = useCallback(async () => {
     if (appState.applicationId) return appState.applicationId;
-    const result = await ensureDraftApplication(activeCountry, activeVisaType);
+    const result = await ensureDraftApplication(activeCountry, activeVisaType, {
+      preferExplicit: preferExplicitPackage,
+    });
     if (result.error || !result.applicationId) {
       setError(result.error ?? t("errors.noApplicationFound"));
       return null;
@@ -1486,8 +1505,9 @@ export default function ApplicationPage() {
     );
   }
 
-  const pageTitle = visaPackage
-    ? getVisaPackageTitleZh(visaPackage.country, visaPackage.visa_type)
+  const hasResolvedPackage = Boolean(explicitCountry || explicitVisaType || visaPackage);
+  const pageTitle = hasResolvedPackage
+    ? getVisaPackageTitleZh(resolvedCountry, resolvedVisaType)
     : t("title");
   const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
 
@@ -1511,7 +1531,7 @@ export default function ApplicationPage() {
         <div
           className={cn(
             "mx-auto max-w-xl sm:max-w-2xl",
-            isDocumentsStep ? "md:max-w-6xl" : "md:max-w-3xl"
+            isDocumentsStep ? "md:max-w-5xl" : "md:max-w-3xl"
           )}
         >
           {/* Mobile step indicator */}

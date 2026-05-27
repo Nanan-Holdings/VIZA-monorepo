@@ -1856,6 +1856,13 @@ function getCityImage(city: string, seed: string = "default"): string {
   return getRemoteCityImage(city);
 }
 
+function getAttractionImage(city: string, attraction: string, seed: string): string {
+  const attractionImage = findTravelAttraction(city, attraction)?.imageSrc;
+  if (attractionImage) return attractionImage;
+
+  return getCityImage(`${city}-${attraction}`, seed);
+}
+
 function getGoogleCityCoordinates(
   city: string,
   lookup: Record<string, GoogleGeocodeCoordinate>
