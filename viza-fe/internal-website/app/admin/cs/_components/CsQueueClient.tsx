@@ -19,6 +19,16 @@ const TABS: Array<{ key: TicketTab; label: string }> = [
   { key: "breaching", label: "Breaching" },
 ];
 
+const STATUS_LABELS: Record<string, string> = {
+  open: "Sent",
+  staff_replied: "Pending",
+  closed: "Processed",
+};
+
+function formatTicketStatus(status: string) {
+  return STATUS_LABELS[status] ?? status;
+}
+
 export function CsQueueClient({ initialTab, initialRows }: CsQueueClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<TicketTab>(initialTab);
@@ -67,7 +77,7 @@ export function CsQueueClient({ initialTab, initialRows }: CsQueueClientProps) {
                 return (
                   <tr key={row.id} className="border-t border-input/60">
                     <td className="px-3 py-2 font-medium text-foreground">{row.subject}</td>
-                    <td className="px-3 py-2 text-xs">{row.status}</td>
+                    <td className="px-3 py-2 text-xs">{formatTicketStatus(row.status)}</td>
                     <td className="px-3 py-2 text-xs">
                       {slaBreached ? (
                         <span className="inline-flex items-center gap-1 text-destructive">
