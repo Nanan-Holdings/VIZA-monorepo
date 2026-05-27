@@ -6,7 +6,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   ensureDraftApplication,
   loadSimplifiedFormState,
@@ -23,6 +25,7 @@ interface WizardShellProps<TForm> {
 }
 
 const REVIEW_STEP_KEY = "__review";
+const DOCUMENT_STEP_KEY = "__documents";
 
 export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   const router = useRouter();
@@ -41,10 +44,12 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
     () => config.steps.filter((s) => !s.showIf || s.showIf(form)),
     [config, form],
   );
-  const reviewIndex = visibleSteps.length;
-  const totalSteps = visibleSteps.length + 1; // +1 for review
+  const documentIndex = visibleSteps.length;
+  const reviewIndex = visibleSteps.length + 1;
+  const totalSteps = visibleSteps.length + 2; // +1 for documents, +1 for review
+  const onDocuments = stepIndex === documentIndex;
   const onReview = stepIndex === reviewIndex;
-  const currentStep = onReview ? null : visibleSteps[Math.min(stepIndex, visibleSteps.length - 1)];
+  const currentStep = onDocuments || onReview ? null : visibleSteps[Math.min(stepIndex, visibleSteps.length - 1)];
 
   // Initial load: get user, draft application, restore prior state.
   useEffect(() => {
@@ -155,18 +160,22 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   }, [applicationId, config, form, router]);
 
   const stepLabel = useMemo(() => {
-    const titleKey = onReview
+    const titleKey = onDocuments
+      ? ""
+      : onReview
       ? "review.label"
       : currentStep
         ? currentStep.titleKey
         : visibleSteps[0]?.titleKey ?? "";
-    const name = tCountry.has(titleKey as never)
+    const name = onDocuments
+      ? "材料 / Documents"
+      : tCountry.has(titleKey as never)
       ? tCountry(titleKey as never)
       : tShared.has(titleKey as never)
         ? tShared(titleKey as never)
         : "";
     return tShared("progress", { current: stepIndex + 1, total: totalSteps, name });
-  }, [currentStep, onReview, stepIndex, tCountry, tShared, totalSteps, visibleSteps]);
+  }, [currentStep, onDocuments, onReview, stepIndex, tCountry, tShared, totalSteps, visibleSteps]);
 
   if (loading) {
     return (
@@ -189,7 +198,12 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   const setFormFn = (updater: (prev: TForm) => TForm) => setForm(updater);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-12">
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-col gap-6 pb-12",
+        onDocuments ? "max-w-6xl" : "max-w-2xl"
+      )}
+    >
       <ProgressRail
         step={stepIndex + 1}
         total={totalSteps}
@@ -198,10 +212,32 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
         backLabel={tShared("back")}
       />
 
-      <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-8">
+      <div
+        className={cn(
+          !onDocuments && "rounded-xl border bg-white p-5 shadow-sm sm:p-8"
+        )}
+      >
         <AnimatePresence mode="wait">
-          <motion.div key={onReview ? REVIEW_STEP_KEY : currentStep?.key ?? "_"} {...motionProps}>
-            {onReview ? (
+          <motion.div
+            key={onDocuments ? DOCUMENT_STEP_KEY : onReview ? REVIEW_STEP_KEY : currentStep?.key ?? "_"}
+            {...motionProps}
+          >
+            {onDocuments ? (
+              applicationId ? (
+                <DocumentCenterClient
+                  initialData={null}
+                  initialError={null}
+                  applicationId={applicationId}
+                  embedded
+                  onContinue={goNext}
+                  continueLabel="继续"
+                />
+              ) : (
+                <div className="flex min-h-[240px] items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+                </div>
+              )
+            ) : onReview ? (
               <WizardReview
                 config={config}
                 form={form}
