@@ -47,6 +47,12 @@ CITY_ALIASES = {
     "sf": "sanfrancisco",
     "比萨": "pisa",
     "pisa": "pisa",
+    "巴厘岛": "bali",
+    "bali": "bali",
+    "登巴萨": "denpasar",
+    "denpasar": "denpasar",
+    "那不勒斯": "naples",
+    "naples": "naples",
 }
 
 
@@ -253,6 +259,133 @@ SPECIFIC_FOOD_BY_KEY = {
 }
 
 
+SPECIFIC_ATTRACTIONS_EN_BY_KEY = {
+    "tokyo": [
+        "Senso-ji Temple and Nakamise Street",
+        "Tokyo Tower and Shiba Park",
+        "Meiji Shrine",
+        "Shibuya Crossing and Hachiko Statue",
+        "Tsukiji Outer Market",
+        "Ueno Park and Tokyo National Museum",
+        "Shinjuku Gyoen National Garden",
+        "teamLab Planets TOKYO Toyosu",
+        "Akihabara Electric Town",
+        "Harajuku Takeshita Street",
+    ],
+    "kyoto": [
+        "Kiyomizu-dera and Ninenzaka Sannenzaka",
+        "Fushimi Inari Taisha Thousand Torii Gates",
+        "Kinkaku-ji",
+        "Arashiyama Bamboo Grove and Togetsukyo Bridge",
+        "Gion Hanamikoji Street",
+        "Nijo Castle",
+        "Philosopher's Path",
+        "Nishiki Market",
+    ],
+    "osaka": [
+        "Osaka Castle Park",
+        "Dotonbori Glico Sign",
+        "Kuromon Market",
+        "Umeda Sky Building Floating Garden",
+        "Tsutenkaku and Shinsekai",
+        "Shinsaibashi-suji Shopping Street",
+    ],
+    "paris": [
+        "Eiffel Tower and Champ de Mars",
+        "Louvre Museum and Glass Pyramid",
+        "Musee d'Orsay",
+        "Notre-Dame and Ile de la Cite",
+        "Sainte-Chapelle",
+        "Montmartre and Sacre-Coeur",
+        "Arc de Triomphe and Champs-Elysees",
+        "Le Marais and Place des Vosges",
+    ],
+    "london": [
+        "British Museum",
+        "Tower Bridge and Tower of London",
+        "Palace of Westminster and Big Ben",
+        "Buckingham Palace",
+        "Covent Garden",
+        "Borough Market",
+        "National Gallery",
+        "Camden Market",
+    ],
+    "rome": [
+        "Colosseum",
+        "Roman Forum",
+        "Pantheon",
+        "Trevi Fountain",
+        "Spanish Steps",
+        "Vatican Museums and Sistine Chapel",
+        "St. Peter's Basilica",
+        "Trastevere",
+    ],
+    "singapore": [
+        "Marina Bay Sands SkyPark",
+        "Gardens by the Bay Cloud Forest and Supertree Grove",
+        "Merlion Park",
+        "Buddha Tooth Relic Temple in Chinatown",
+        "Little India Serangoon Road",
+        "Sentosa Siloso Beach",
+    ],
+    "sydney": [
+        "Sydney Opera House",
+        "Sydney Harbour Bridge lookout",
+        "The Rocks",
+        "Bondi Beach and Bondi to Coogee Coastal Walk",
+        "Darling Harbour",
+        "Royal Botanic Garden and Mrs Macquarie's Chair",
+    ],
+    "bali": [
+        "Uluwatu Temple",
+        "Tegallalang Rice Terrace",
+        "Kuta Beach",
+        "Ubud Monkey Forest",
+        "Tanah Lot Temple",
+        "Seminyak Beach",
+    ],
+    "denpasar": [
+        "Bajra Sandhi Monument",
+        "Badung Market",
+        "Sanur Beach",
+        "Bali Museum",
+        "Puputan Square",
+    ],
+    "naples": [
+        "Naples Historic Center",
+        "Spaccanapoli",
+        "National Archaeological Museum of Naples",
+        "Castel dell'Ovo",
+        "Piazza del Plebiscito",
+        "Via Toledo",
+    ],
+    "pisa": [
+        "Leaning Tower of Pisa",
+        "Piazza dei Miracoli",
+        "Pisa Cathedral",
+        "Baptistery of San Giovanni",
+        "Piazza dei Cavalieri",
+        "Lungarni riverside walk",
+    ],
+}
+
+
+SPECIFIC_FOOD_EN_BY_KEY = {
+    "tokyo": ["Tsukiji Outer Market sushi", "Shinjuku Omoide Yokocho ramen"],
+    "kyoto": ["Nishiki Market snacks", "Gion kaiseki dinner"],
+    "osaka": ["Dotonbori takoyaki", "Kuromon Market seafood"],
+    "paris": ["Saint-Germain croissant cafe", "Le Marais bistro dinner"],
+    "london": ["Borough Market bites", "Covent Garden gastropub"],
+    "rome": ["Trastevere pasta", "Campo de' Fiori pizza"],
+    "singapore": ["Lau Pa Sat satay", "Maxwell Food Centre chicken rice"],
+    "sydney": ["The Rocks brunch", "Bondi Beach seafood"],
+    "bali": ["Jimbaran seafood dinner", "Ubud cafe lunch"],
+    "denpasar": ["Badung Market local lunch", "Sanur seafood dinner"],
+    "naples": ["Spaccanapoli pizza", "Via Toledo espresso and pastry"],
+    "pisa": ["Piazza dei Cavalieri trattoria", "Lungarni gelato"],
+}
+
+
 VAGUE_ACTIVITY_RE = re.compile(
     r"(城市地标|地标打卡|本地文化|当地文化|当地特色|本地特色|文化体验|"
     r"自由活动|市区游览|城市漫步|local culture|city landmark|"
@@ -284,27 +417,52 @@ def _rotated_values(values, start_index, count):
     return [values[(start_index + offset) % len(values)] for offset in range(count)]
 
 
-def _specific_attractions_for_city(city, day_index=0, count=2):
-    city_text = str(city).strip() or "目的地"
+def _is_english_state(state):
+    locale = str((state or {}).get("locale") or (state or {}).get("export_language") or "").lower()
+    return locale.startswith("en")
+
+
+def _specific_attractions_for_city(city, day_index=0, count=2, language="zh"):
+    is_english = str(language).lower().startswith("en")
+    city_text = str(city).strip() or ("destination" if is_english else "目的地")
     key = _canonical_city_key(city_text)
-    attractions = SPECIFIC_ATTRACTIONS_BY_KEY.get(key)
+    attractions = (
+        SPECIFIC_ATTRACTIONS_EN_BY_KEY.get(key)
+        if is_english
+        else SPECIFIC_ATTRACTIONS_BY_KEY.get(key)
+    )
     if not attractions:
-        attractions = [
-            f"{city_text} 中央车站周边",
-            f"{city_text} 市政厅广场",
-            f"{city_text} 中央市场",
-            f"{city_text} 历史博物馆",
-            f"{city_text} 河岸步道",
-        ]
+        attractions = (
+            [
+                f"{city_text} central station area",
+                f"{city_text} civic square",
+                f"{city_text} central market",
+                f"{city_text} history museum",
+                f"{city_text} riverside walk",
+            ]
+            if is_english
+            else [
+                f"{city_text} 中央车站周边",
+                f"{city_text} 市政厅广场",
+                f"{city_text} 中央市场",
+                f"{city_text} 历史博物馆",
+                f"{city_text} 河岸步道",
+            ]
+        )
     return _rotated_values(attractions, day_index * count, count)
 
 
-def _specific_food_for_city(city, day_index=0):
-    city_text = str(city).strip() or "目的地"
+def _specific_food_for_city(city, day_index=0, language="zh"):
+    is_english = str(language).lower().startswith("en")
+    city_text = str(city).strip() or ("destination" if is_english else "目的地")
     key = _canonical_city_key(city_text)
-    food = SPECIFIC_FOOD_BY_KEY.get(key)
+    food = SPECIFIC_FOOD_EN_BY_KEY.get(key) if is_english else SPECIFIC_FOOD_BY_KEY.get(key)
     if not food:
-        food = [f"{city_text} 中央市场餐厅", f"{city_text} 老城区咖啡馆"]
+        food = (
+            [f"{city_text} central market restaurant", f"{city_text} old town cafe"]
+            if is_english
+            else [f"{city_text} 中央市场餐厅", f"{city_text} 老城区咖啡馆"]
+        )
     return _rotated_values(food, day_index, 2)
 
 
@@ -349,6 +507,7 @@ def _sanitize_itinerary(parsed, state):
     if not isinstance(parsed, list):
         return []
 
+    language = "en" if _is_english_state(state) else "zh"
     fallback = _fallback_itinerary(state)
     fallback_by_day = {
         item.get("day"): item for item in fallback if isinstance(item, dict)
@@ -371,7 +530,9 @@ def _sanitize_itinerary(parsed, state):
             if not _is_vague_activity(activity)
         ]
         if len(activities) < 2:
-            for fallback_activity in _specific_attractions_for_city(city, index, 3):
+            for fallback_activity in _specific_attractions_for_city(
+                city, index, 3, language
+            ):
                 if fallback_activity not in activities:
                     activities.append(fallback_activity)
                 if len(activities) >= 2:
@@ -379,7 +540,7 @@ def _sanitize_itinerary(parsed, state):
 
         food = _clean_string_list(item.get("food"))
         if not food or any(_is_vague_activity(food_item) for food_item in food):
-            food = _specific_food_for_city(city, index)
+            food = _specific_food_for_city(city, index, language)
 
         cost = str(item.get("cost") or fallback_day.get("cost") or "¥800").strip()
 
@@ -397,12 +558,13 @@ def _sanitize_itinerary(parsed, state):
 
 
 def _fallback_itinerary(state):
+    language = "en" if _is_english_state(state) else "zh"
     cities = state.get("travel_order") or state.get("cities") or []
     if not isinstance(cities, list):
         cities = []
     cities = [str(city).strip() for city in cities if str(city).strip()]
     if not cities:
-        cities = ["目的地"]
+        cities = ["destination" if language == "en" else "目的地"]
 
     city_days = state.get("city_days") if isinstance(state.get("city_days"), dict) else {}
     budget = _safe_positive_int(state.get("budget"), default=0)
@@ -428,8 +590,10 @@ def _fallback_itinerary(state):
             {
                 "day": day_index,
                 "city": city,
-                "activities": _specific_attractions_for_city(city, city_day_index, 2),
-                "food": _specific_food_for_city(city, city_day_index),
+                "activities": _specific_attractions_for_city(
+                    city, city_day_index, 2, language
+                ),
+                "food": _specific_food_for_city(city, city_day_index, language),
                 "cost": f"¥{per_day_budget}",
             }
         )
