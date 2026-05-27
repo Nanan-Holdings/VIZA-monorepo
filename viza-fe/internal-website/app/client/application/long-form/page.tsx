@@ -6,6 +6,7 @@ import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -14,7 +15,6 @@ import {
   PersonalInfoStep,
   PassportStep,
   TravelInfoStep,
-  DocumentUploadStep,
   ReviewStep,
   PhotoUploadStep,
   DynamicReviewStep,
@@ -24,6 +24,7 @@ import {
   type DocumentType,
 } from "@/components/application-steps";
 import { DynamicStepForm } from "@/components/dynamic-step-form";
+import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
   saveDynamicAnswers,
   ensureDraftApplication,
@@ -35,6 +36,12 @@ import type {
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
+import {
+  buildUniversalProfileAnswerPatch,
+  mergeUniversalProfileIntoAnswers,
+  splitUniversalFullName,
+  type UniversalProfileSnapshot,
+} from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +73,7 @@ type StepSectionKey =
   | "family"
   | "workEducationTraining"
   | "securityAndBackground"
+  | "documents"
   | "photo"
   | "review"
   | "confirmation";
@@ -87,6 +95,7 @@ const STEP_SECTION_ORDER: StepSectionKey[] = [
   "family",
   "workEducationTraining",
   "securityAndBackground",
+  "documents",
   "photo",
   "review",
   "confirmation",
@@ -150,6 +159,7 @@ function getStepSectionKey(step: StepDef): StepSectionKey {
   if (sourceName.startsWith("family information")) return "family";
   if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
   if (sourceName.startsWith("security and background")) return "securityAndBackground";
+  if (sourceName.startsWith("supporting documents") || sourceName.startsWith("upload documents")) return "documents";
   if (sourceName.startsWith("upload photo")) return "photo";
   if (sourceName.startsWith("review")) return "review";
   if (sourceName.startsWith("confirmation")) return "confirmation";
@@ -840,9 +850,10 @@ export default function ApplicationPage() {
   const tDyn = useTranslations("application.dynamicSteps");
   const tApp = useTranslations("application");
   // Indices for the extra steps appended after DB-driven form steps
-  const photoStepIndex = dbSteps.length;
-  const reviewStepIndex = dbSteps.length + 1;
-  const statusStepIndex = dbSteps.length + 2;
+  const documentStepIndex = dbSteps.length;
+  const photoStepIndex = dbSteps.length + 1;
+  const reviewStepIndex = dbSteps.length + 2;
+  const statusStepIndex = dbSteps.length + 3;
 
   const visibleDynamicSteps = useMemo(
     () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswers) : []),
@@ -853,8 +864,10 @@ export default function ApplicationPage() {
   // The displayed/navigated list (`effectiveSteps` below) is reordered to
   // match the grouped section order so the sidebar numbers stay sequential
   // (1, 2, 3, 4…) instead of jumping (e.g. 1, 2, 5, 3, 4).
-  const sourceOrderedSteps: StepDef[] = useDynamic
-    ? [
+  const sourceOrderedSteps = useMemo<StepDef[]>(
+    () =>
+      useDynamic
+        ? [
         ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
           sourceName: step.stepName,
@@ -864,6 +877,12 @@ export default function ApplicationPage() {
           })(),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
+        {
+          id: documentStepIndex,
+          sourceName: "Supporting Documents",
+          name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : "材料 / Documents",
+          description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
+        },
         {
           id: photoStepIndex,
           sourceName: "Upload Photo",
@@ -883,7 +902,19 @@ export default function ApplicationPage() {
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]
-    : STEPS;
+        : [...STEPS],
+    [
+      documentStepIndex,
+      photoStepIndex,
+      reviewStepIndex,
+      statusStepIndex,
+      STEPS,
+      tApp,
+      tDyn,
+      useDynamic,
+      visibleDynamicSteps,
+    ],
+  );
 
   const dynamicSectionTitles = {
     personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
@@ -896,6 +927,7 @@ export default function ApplicationPage() {
     family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
     workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
     securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
+    documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : "材料 / Documents",
     photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
     review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
     confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
@@ -939,6 +971,8 @@ export default function ApplicationPage() {
         const { answers } = await loadDynamicAnswers(application.id);
         ds160Answers = answers;
       }
+      const universalAnswers = mergeUniversalProfileIntoAnswers({}, profile as UniversalProfileSnapshot);
+      const mergedDynamicAnswers = { ...universalAnswers, ...ds160Answers };
 
       // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
       const a = ds160Answers;
@@ -995,8 +1029,8 @@ export default function ApplicationPage() {
       setCurrentStep(Math.min(completed, 5));
 
       // Set dynamic answers for the dynamic form steps
-      if (Object.keys(ds160Answers).length > 0) {
-        setDynamicAnswers(ds160Answers);
+      if (Object.keys(mergedDynamicAnswers).length > 0) {
+        setDynamicAnswers(mergedDynamicAnswers);
         if (ds160Answers["photo_path"]) {
           setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
         }
@@ -1209,8 +1243,13 @@ export default function ApplicationPage() {
     }
   };
 
-  const handleDocumentsComplete = (uploadedPaths: Record<DocumentType, string>) => {
-    setAppState((prev) => ({ ...prev, documents: uploadedPaths }));
+  const handleDynamicDocumentsContinue = () => {
+    const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
+    setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
+    setCurrentStep(photoStepIndex);
+  };
+
+  const handleFallbackDocumentsContinue = () => {
     setCompletedUpTo((c) => Math.max(c, 4));
     setCurrentStep(4);
   };
@@ -1395,6 +1434,50 @@ export default function ApplicationPage() {
     }
   };
 
+  const activeCountry = visaPackage?.country ?? "indonesia";
+  const activeVisaType = visaPackage?.visa_type ?? "tourist_b211a";
+
+  const ensurePassportOcrApplication = useCallback(async () => {
+    if (appState.applicationId) return appState.applicationId;
+    const result = await ensureDraftApplication(activeCountry, activeVisaType);
+    if (result.error || !result.applicationId) {
+      setError(result.error ?? t("errors.noApplicationFound"));
+      return null;
+    }
+    setAppState((prev) => ({ ...prev, applicationId: result.applicationId ?? prev.applicationId }));
+    return result.applicationId;
+  }, [activeCountry, activeVisaType, appState.applicationId, t]);
+
+  useEffect(() => {
+    if (loading || !packageLoaded || appState.applicationId) return;
+    void ensurePassportOcrApplication();
+  }, [appState.applicationId, ensurePassportOcrApplication, loading, packageLoaded]);
+
+  const handlePassportOcrFieldsApplied = useCallback((fields: UniversalProfileSnapshot) => {
+    const answerPatch = buildUniversalProfileAnswerPatch(fields);
+    const { givenNames, surname } = splitUniversalFullName(fields.full_name);
+
+    setDynamicAnswers((prev) => ({ ...prev, ...answerPatch }));
+    setAppState((prev) => ({
+      ...prev,
+      personal: {
+        ...prev.personal,
+        givenNames: givenNames || prev.personal.givenNames,
+        surname: surname || prev.personal.surname,
+        dateOfBirth: fields.date_of_birth ?? prev.personal.dateOfBirth,
+        sex: fields.gender ?? prev.personal.sex,
+        nationality: fields.nationality ?? prev.personal.nationality,
+      },
+      passport: {
+        ...prev.passport,
+        passportNumber: fields.passport_number ?? prev.passport.passportNumber,
+        passportIssuingCountry: fields.passport_issuing_country ?? prev.passport.passportIssuingCountry,
+        passportIssuanceDate: fields.passport_issue_date ?? prev.passport.passportIssuanceDate,
+        passportExpirationDate: fields.passport_expiry_date ?? prev.passport.passportExpirationDate,
+      },
+    }));
+  }, []);
+
   if (loading || !packageLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -1406,8 +1489,7 @@ export default function ApplicationPage() {
   const pageTitle = visaPackage
     ? getVisaPackageTitleZh(visaPackage.country, visaPackage.visa_type)
     : t("title");
-  const activeCountry = visaPackage?.country ?? "indonesia";
-  const activeVisaType = visaPackage?.visa_type ?? "tourist_b211a";
+  const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
 
   return (
     <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
@@ -1426,7 +1508,12 @@ export default function ApplicationPage() {
 
       {/* Main content area */}
       <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px] lg:overflow-y-auto">
-        <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
+        <div
+          className={cn(
+            "mx-auto max-w-xl sm:max-w-2xl",
+            isDocumentsStep ? "md:max-w-6xl" : "md:max-w-3xl"
+          )}
+        >
           {/* Mobile step indicator */}
           {useDynamic ? (
             <GroupedMobileStepBar
@@ -1475,17 +1562,36 @@ export default function ApplicationPage() {
                   </h2>
                   {/* Panel card */}
                   <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
+                    {(useDynamic ? step.id < documentStepIndex : step.id <= 2) && (
+                      <PassportOcrUpload
+                        applicationId={appState.applicationId}
+                        className="mb-6"
+                        onFieldsApplied={handlePassportOcrFieldsApplied}
+                      />
+                    )}
                     {useDynamic ? (
                       /* Dynamic DB-driven form + photo/review/status steps */
                       <>
                         {/* DB-driven form steps */}
-                        {step.id < photoStepIndex && dbSteps[step.id] && (
+                        {step.id < documentStepIndex && dbSteps[step.id] && (
                           <DynamicStepForm
                             key={step.id}
                             step={dbSteps[step.id]}
                             prefill={dynamicAnswers}
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
                             saving={saving}
+                          />
+                        )}
+
+                        {/* Supporting documents step */}
+                        {step.id === documentStepIndex && appState.applicationId && (
+                          <DocumentCenterClient
+                            initialData={null}
+                            initialError={null}
+                            applicationId={appState.applicationId}
+                            embedded
+                            onContinue={handleDynamicDocumentsContinue}
+                            continueLabel="继续"
                           />
                         )}
 
@@ -1551,9 +1657,13 @@ export default function ApplicationPage() {
                           />
                         )}
                         {step.id === 3 && appState.applicationId && (
-                          <DocumentUploadStep
+                          <DocumentCenterClient
+                            initialData={null}
+                            initialError={null}
                             applicationId={appState.applicationId}
-                            onComplete={handleDocumentsComplete}
+                            embedded
+                            onContinue={handleFallbackDocumentsContinue}
+                            continueLabel="继续"
                           />
                         )}
                         {step.id === 4 && (

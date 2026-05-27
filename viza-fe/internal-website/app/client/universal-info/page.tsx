@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Database, Loader2, Save } from "lucide-react";
+import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
+import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import { createClient } from "@/lib/supabase/client";
+import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
 interface UniversalProfileForm {
   full_name: string;
@@ -85,6 +88,7 @@ export default function UniversalInfoPage() {
   const [form, setForm] = useState<UniversalProfileForm>(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +125,22 @@ export default function UniversalInfoPage() {
       }
 
       const typedProfile = profile as Partial<UniversalProfileForm> | null;
+      if (!typedProfile) {
+        await supabase.from("applicant_profiles").upsert(
+          {
+            auth_user_id: user.id,
+            email: user.email ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "auth_user_id" },
+        );
+      }
+
+      const draftResult = await ensureDraftApplication("us", "b1_b2");
+      if (isMounted && draftResult.applicationId) {
+        setPassportOcrApplicationId(draftResult.applicationId);
+      }
+
       setForm({
         full_name: typedProfile?.full_name ?? "",
         date_of_birth: typedProfile?.date_of_birth ?? "",
@@ -147,6 +167,22 @@ export default function UniversalInfoPage() {
   function updateField(field: keyof UniversalProfileForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
     setMessage(null);
+    setError(null);
+  }
+
+  function applyPassportOcrFields(fields: UniversalProfileSnapshot) {
+    setForm((current) => ({
+      ...current,
+      full_name: fields.full_name ?? current.full_name,
+      date_of_birth: fields.date_of_birth ?? current.date_of_birth,
+      gender: fields.gender ?? current.gender,
+      nationality: fields.nationality ?? current.nationality,
+      passport_number: fields.passport_number ?? current.passport_number,
+      passport_issue_date: fields.passport_issue_date ?? current.passport_issue_date,
+      passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
+      passport_issuing_country: fields.passport_issuing_country ?? current.passport_issuing_country,
+    }));
+    setMessage("护照 OCR 已填入可识别字段，请核对后保存或继续编辑。");
     setError(null);
   }
 
@@ -246,6 +282,13 @@ export default function UniversalInfoPage() {
           </div>
 
           <div className="grid gap-0 divide-y divide-[#edf2f7]">
+            <section className="p-6">
+              <PassportOcrUpload
+                applicationId={passportOcrApplicationId}
+                onFieldsApplied={applyPassportOcrFields}
+              />
+            </section>
+
             <section className="grid gap-5 p-6 lg:grid-cols-2">
               <div className="lg:col-span-2">
                 <h2 className="font-heading text-[22px] font-medium text-[#03346E]">基本身份信息</h2>

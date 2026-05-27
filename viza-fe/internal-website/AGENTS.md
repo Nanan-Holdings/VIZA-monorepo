@@ -109,12 +109,14 @@ Smoke URLs:
 - `app/api/travel/*`
 - `components/ui/*`
 - `components/client/*`
+- `components/client/passport-ocr-upload.tsx`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `lib/supabase/*`
 - `lib/i18n/locale.ts`
+- `lib/universal-profile-prefill.ts`
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`

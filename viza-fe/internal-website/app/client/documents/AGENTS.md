@@ -4,9 +4,10 @@ Scope: this file applies to `viza-fe/internal-website/app/client/documents/**`.
 
 ## Purpose
 
-This module owns the applicant document checklist center. It replaces the old
-status-page usage of `/client/documents` with a true document workspace driven
-by visa package requirements.
+This module owns the applicant document checklist logic that is embedded inside
+the country-specific application forms. `/client/documents` is no longer a
+standalone applicant workspace; the route redirects users back to the
+application flow.
 
 ## Key Responsibilities
 
@@ -24,12 +25,12 @@ by visa package requirements.
 
 ## Current Files
 
-- `page.tsx`: server route entry that resolves query params and redirects
-  unauthenticated users through the client login flow.
+- `page.tsx`: server route entry that redirects to `/client/application`.
 - `actions.ts`: documents-local server actions for authorized checklist reads,
   upload record upserts, and applicant-confirmed passport OCR persistence.
-- `document-center-client.tsx`: checklist UI, upload/re-upload controls, photo
-  compliance state, OCR confirmation UX, and Travel AI itinerary save entry.
+- `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
+  controls, photo compliance state, OCR confirmation UX, and Travel AI
+  itinerary save entry.
 
 ## Data Sources
 
@@ -46,7 +47,8 @@ by visa package requirements.
   `document_requirements`.
 - Do not mark a document approved automatically unless the rule is explicitly
   deterministic. The default upload state is `uploaded`.
-- Do not put full application status timelines here; link to `/client/status`.
+- Do not put full application status timelines here; keep the embedded form
+  experience focused on document completion.
 - Do not touch `viza-be/submission-service` or official portal automation.
 
 ## Validation
@@ -58,5 +60,5 @@ npm run type-check
 npm run lint
 ```
 
-Smoke `/client/documents`. Verify unauthenticated users redirect to
-`/client/login`.
+Smoke `/client/application` and `/client/documents`. Verify the former reaches
+the active country form and the latter redirects back to the application flow.

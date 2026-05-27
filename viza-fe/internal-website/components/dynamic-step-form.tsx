@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Bot, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -485,6 +485,7 @@ export function DynamicStepForm({
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
   const groupCountsRef = useRef(groupCounts);
+  const previousPrefillRef = useRef(prefill);
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
 
@@ -511,6 +512,59 @@ export function DynamicStepForm({
     undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
     redoStackRef.current = [];
   };
+
+  useEffect(() => {
+    const previousPrefill = previousPrefillRef.current;
+    let valuesChanged = false;
+    let textPairsChanged = false;
+    const nextValues = { ...valuesRef.current };
+    const nextTextPairs = cloneTextPairs(textPairsRef.current);
+
+    const applyPrefillValue = (key: string, field: VisaFormFieldRow) => {
+      const nextPrefill = prefill[key]?.trim();
+      if (!nextPrefill) return;
+
+      const currentValue = valuesRef.current[key] ?? "";
+      const previousValue = previousPrefill[key] ?? "";
+      if (currentValue.trim() && currentValue !== previousValue) return;
+
+      if (nextValues[key] !== nextPrefill) {
+        nextValues[key] = nextPrefill;
+        valuesChanged = true;
+      }
+
+      if (isTextLikeField(field)) {
+        const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
+        const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
+        if (!pairWasEdited) {
+          nextTextPairs[key] = toInitialBilingualText(nextPrefill);
+          textPairsChanged = true;
+        }
+      }
+    };
+
+    for (const field of step.fields) {
+      const group = getRepeatGroup(field);
+      if (group) {
+        const count = groupCountsRef.current[group] ?? 1;
+        for (let i = 0; i < count; i++) {
+          applyPrefillValue(instanceKey(field.fieldName, i), field);
+        }
+      } else {
+        applyPrefillValue(field.fieldName, field);
+      }
+    }
+
+    previousPrefillRef.current = prefill;
+    if (valuesChanged) {
+      valuesRef.current = nextValues;
+      setValues(nextValues);
+    }
+    if (textPairsChanged) {
+      textPairsRef.current = nextTextPairs;
+      setTextPairs(nextTextPairs);
+    }
+  }, [prefill, step.fields]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);

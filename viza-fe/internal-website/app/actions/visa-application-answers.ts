@@ -38,6 +38,7 @@ function buildProfilePatchFromAnswers(data: Record<string, string>): ProfilePatc
     passport_issue_date: ["passport_issue_date", "passport_issuance_date", "passportIssuanceDate"],
     passport_expiry_date: ["passport_expiry_date", "passport_expiration_date", "passportExpirationDate"],
     passport_issuing_country: ["passport_issuing_country", "passport_issuance_country", "issuing_country"],
+    passport_issuing_authority: ["passport_issuing_authority", "passport_place_of_issue", "passportIssuanceCity"],
     email: ["email", "email_address"],
     phone: ["phone", "phone_number", "primary_phone_number", "mobile_phone"],
   };
