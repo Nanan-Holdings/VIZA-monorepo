@@ -11,7 +11,7 @@
     "status": "状态",
     "chat": "聊天",
     "documents": "材料",
-    "support": "客服",
+    "support": "帮助",
     "visaConsultant": "签证顾问",
     "travelAgent": "旅行顾问",
     "inviteFriends": "邀请朋友"
@@ -20,7 +20,7 @@
     "inviteFriends": "邀请朋友",
     "status": "状态",
     "documents": "材料",
-    "support": "客服",
+    "support": "帮助",
     "settings": "设置",
     "help": "帮助",
     "logout": "退出登录",
@@ -2995,43 +2995,36 @@
     }
   },
   "supportCenter": {
-    "eyebrow": "客户服务",
-    "title": "帮助中心",
-    "subtitle": "选择一条最近的 VIZA 活动，告诉客服 Agent 遇到的问题，对话会自动带上对应申请步骤的上下文。",
-    "activitiesTitle": "你需要哪条活动的帮助？",
-    "activitiesSubtitle": "最近的申请、材料、付款和账号动态会优先显示。",
+    "eyebrow": "帮助中心",
+    "title": "帮助",
+    "subtitle": "先选择问题类型，我们会根据知识库给出答复；若未解决，可提交客服请求。",
+    "activitiesTitle": "你需要哪类帮助？",
+    "activitiesSubtitle": "先选问题类型，再描述细节，我们会带上对应上下文。",
     "viewMore": "查看更多",
     "showLess": "收起",
-    "questionLabel": "发生了什么？",
-    "questionPlaceholder": "描述这条活动遇到的问题...",
+    "questionLabel": "描述你的问题",
+    "questionPlaceholder": "请描述你遇到的问题或疑问...",
     "send": "发送",
-    "requestHuman": "转人工客服",
-    "emailSupport": "邮件联系客服",
     "activities": {
       "application": {
-        "title": "印尼 B211A 申请",
-        "meta": "今天 10:20 更新",
-        "status": "审核中"
+        "title": "申请进度与材料",
+        "meta": "填写、提交、审核、补件"
       },
       "documents": {
-        "title": "护照与照片上传",
-        "meta": "2026 年 5 月 26 日 16:18",
-        "status": "待处理"
+        "title": "文件上传与格式",
+        "meta": "护照、照片、材料上传"
       },
       "billing": {
-        "title": "VIZA 服务费付款",
-        "meta": "2026 年 5 月 24 日 13:56",
-        "status": "已支付"
+        "title": "付款与退款",
+        "meta": "支付失败、退款、发票"
       },
       "status": {
-        "title": "申请包准备进度",
-        "meta": "2026 年 5 月 23 日 22:25",
-        "status": "处理中"
+        "title": "订单与时效",
+        "meta": "进度、时长、加急需求"
       },
       "account": {
-        "title": "账号资料更新",
-        "meta": "2026 年 5 月 19 日 10:55",
-        "status": "已保存"
+        "title": "账号与通知",
+        "meta": "登录、资料、消息提醒"
       }
     },
     "actions": {
@@ -3040,36 +3033,55 @@
         "description": "阅读帮助中心文章和指南。"
       },
       "requests": {
-        "title": "查看客服请求",
-        "description": "查看当前和历史工单。"
-      },
-      "human": {
-        "title": "联系人工客服",
-        "description": "请客服团队继续审核这个案例。",
-        "prefill": "我希望客服同事帮我查看这条活动。"
+        "title": "我的反馈",
+        "description": "查看已发送、处理中和已处理的问题。"
       }
     },
     "requests": {
-      "title": "最近客服请求",
-      "loading": "正在加载请求...",
-      "empty": "还没有客服请求。你可以先在上方开始对话，我们会为你创建一条。",
-      "ticketMeta": "工单 #{id} · {status}"
+      "title": "我的反馈",
+      "loading": "正在加载反馈...",
+      "empty": "还没有反馈记录。提交客服请求后会显示在这里。",
+      "ticketMeta": "工单 #{id}",
+      "status": {
+        "sent": "已发送",
+        "pending": "处理中",
+        "resolved": "已处理"
+      }
     },
     "agent": {
-      "cardTitle": "客服 Agent",
-      "cardDescription": "先选择活动，对话会自动带上上下文。",
-      "title": "Agent 对话",
-      "subtitle": "正在处理：{activity}",
-      "openActivity": "打开活动",
-      "openThread": "打开工单对话",
-      "creating": "正在创建客服请求...",
-      "greeting": "我看到你选择了“{activity}”，当前状态是“{status}”。请告诉我发生了什么，我会带着这条活动的上下文创建客服请求。",
-      "ticketCreated": "收到。我已创建工单 #{ticket}，并关联了这条活动。你可以继续进入工单对话；如果很紧急，也可以邮件联系客服。",
-      "ticketError": "暂时无法创建工单。",
-      "fallbackReply": "我已在当前对话里保留这条活动的上下文。请邮件联系客服，并写明所选活动，方便团队快速定位。"
+      "cardTitle": "智能解答",
+      "cardDescription": "先选问题类型，再描述细节，我们会先给出知识库答复。",
+      "title": "智能解答",
+      "subtitle": "问题类型：{activity}",
+      "openActivity": "打开相关页面",
+      "greeting": "你选择了“{activity}”。请描述问题，我会先根据知识库给出答复。",
+      "kbAnswer": "知识库正在完善中，当前仅能提供基础答复。如需进一步协助，请提交客服请求。",
+      "handoffHint": "如果答案未解决问题，可以提交客服请求，我们会尽快处理。",
+      "handoffCta": "提交客服请求"
+    },
+    "requestForm": {
+      "title": "提交客服请求",
+      "subtitle": "像写邮件一样描述问题并添加附件，我们会尽快处理。",
+      "issueLabel": "问题类型：{activity}",
+      "subjectLabel": "主题",
+      "subjectPlaceholder": "例如：付款失败 / 申请进度疑问",
+      "descriptionLabel": "问题描述",
+      "descriptionPlaceholder": "请描述问题发生的步骤、时间和期望的解决方式。",
+      "attachmentsLabel": "附件（可选）",
+      "attachmentsHint": "可上传截图或文件以便我们更快定位问题。",
+      "submit": "发送请求",
+      "sending": "正在发送...",
+      "helper": "提交后可在左侧查看状态。",
+      "successTitle": "请求已发送",
+      "successBody": "我们已收到你的问题，会尽快处理并更新状态。",
+      "successMeta": "工单 #{id}",
+      "backToHelp": "返回帮助",
+      "subjectError": "请填写主题（至少 3 个字符）。",
+      "descriptionError": "请填写更完整的描述（至少 10 个字符）。",
+      "submitError": "暂时无法提交请求，请稍后重试。"
     },
     "quickIssues": {
-      "stuck": "这一步好像卡住了",
+      "stuck": "流程卡住了",
       "change": "我需要修改内容",
       "refund": "我有付款或退款问题",
       "deadline": "我担心时间来不及"

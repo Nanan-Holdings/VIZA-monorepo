@@ -11,7 +11,7 @@
     "status": "Status",
     "chat": "Chat",
     "documents": "Documents",
-    "support": "Support",
+    "support": "Help",
     "visaConsultant": "Visa Consultant",
     "travelAgent": "Travel Agent",
     "inviteFriends": "Invite Friends"
@@ -20,7 +20,7 @@
     "inviteFriends": "Invite Friends",
     "status": "Status",
     "documents": "Documents",
-    "support": "Support",
+    "support": "Help",
     "settings": "Settings",
     "help": "Help",
     "logout": "Logout",
@@ -3021,43 +3021,36 @@
     }
   },
   "supportCenter": {
-    "eyebrow": "Customer support",
-    "title": "Help Center",
-    "subtitle": "Choose a recent VIZA activity, tell the support agent what went wrong, and keep the conversation tied to the right application step.",
-    "activitiesTitle": "Which activity do you need help with?",
-    "activitiesSubtitle": "Recent application, document, billing, and account events are listed first.",
+    "eyebrow": "Help center",
+    "title": "Help",
+    "subtitle": "Pick an issue type first. We'll answer from the knowledge base; if that doesn't solve it, submit a support request.",
+    "activitiesTitle": "What can we help with?",
+    "activitiesSubtitle": "Choose a category first so we can keep the right context.",
     "viewMore": "View more",
     "showLess": "Show less",
-    "questionLabel": "What happened?",
-    "questionPlaceholder": "Describe the issue with this activity...",
+    "questionLabel": "Describe your issue",
+    "questionPlaceholder": "Share what happened or what you need help with...",
     "send": "Send",
-    "requestHuman": "Talk to human support",
-    "emailSupport": "Email support",
     "activities": {
       "application": {
-        "title": "Indonesia B211A application",
-        "meta": "Updated today, 10:20 AM",
-        "status": "In review"
+        "title": "Application progress & steps",
+        "meta": "Filling, submission, review, follow-ups"
       },
       "documents": {
-        "title": "Passport and photo upload",
-        "meta": "26 May 2026, 4:18 PM",
-        "status": "Action needed"
+        "title": "Document upload & format",
+        "meta": "Passport, photo, file uploads"
       },
       "billing": {
-        "title": "VIZA agency fee payment",
-        "meta": "24 May 2026, 1:56 PM",
-        "status": "Paid"
+        "title": "Payments & refunds",
+        "meta": "Payment failures, refunds, invoices"
       },
       "status": {
-        "title": "Packet preparation update",
-        "meta": "23 May 2026, 10:25 PM",
-        "status": "Processing"
+        "title": "Order status & timing",
+        "meta": "Progress, timelines, rush requests"
       },
       "account": {
-        "title": "Account profile update",
-        "meta": "19 May 2026, 10:55 AM",
-        "status": "Saved"
+        "title": "Account & notifications",
+        "meta": "Login, profile, alerts"
       }
     },
     "actions": {
@@ -3066,33 +3059,52 @@
         "description": "Read help center articles and guides."
       },
       "requests": {
-        "title": "View support requests",
-        "description": "Check active and past tickets for your account."
-      },
-      "human": {
-        "title": "Talk to a human",
-        "description": "Ask the support team to review this case.",
-        "prefill": "I would like a support teammate to review this activity."
+        "title": "My requests",
+        "description": "Track sent, pending, and resolved feedback."
       }
     },
     "requests": {
-      "title": "Recent support requests",
+      "title": "My requests",
       "loading": "Loading requests...",
-      "empty": "No support requests yet. Start a chat above and we will create one for you.",
-      "ticketMeta": "Ticket #{id} · {status}"
+      "empty": "No feedback yet. Your support requests will show up here.",
+      "ticketMeta": "Ticket #{id}",
+      "status": {
+        "sent": "Sent",
+        "pending": "Pending",
+        "resolved": "Processed"
+      }
     },
     "agent": {
-      "cardTitle": "Support Agent",
-      "cardDescription": "Pick an activity to start with the right context.",
-      "title": "Agent chat",
-      "subtitle": "Now helping with: {activity}",
-      "openActivity": "Open activity",
-      "openThread": "Open request thread",
-      "creating": "Creating your support request...",
-      "greeting": "I see you selected {activity}, currently marked {status}. Tell me what happened and I will open a support request with this context.",
-      "ticketCreated": "Got it. I created ticket #{ticket} and linked it to this activity. You can continue in the request thread or email support if it is urgent.",
-      "ticketError": "We could not create the ticket right now.",
-      "fallbackReply": "I saved the context in this chat view. Please email support and include the selected activity so the team can find the case quickly."
+      "cardTitle": "Smart answers",
+      "cardDescription": "Pick a category first, then describe the details.",
+      "title": "Smart answers",
+      "subtitle": "Issue type: {activity}",
+      "openActivity": "Open related page",
+      "greeting": "You picked {activity}. Tell us what happened and we'll answer from the knowledge base first.",
+      "kbAnswer": "Our knowledge base is still being filled out, so we can only provide a basic answer for now. If you need more help, submit a support request.",
+      "handoffHint": "If the answer doesn't solve it, submit a support request and we'll follow up quickly.",
+      "handoffCta": "Submit support request"
+    },
+    "requestForm": {
+      "title": "Submit a support request",
+      "subtitle": "Describe the issue like an email and attach files if needed. We'll respond quickly.",
+      "issueLabel": "Issue type: {activity}",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Example: Payment failed / Question about status",
+      "descriptionLabel": "Issue description",
+      "descriptionPlaceholder": "Describe what happened, when it occurred, and what outcome you expect.",
+      "attachmentsLabel": "Attachments (optional)",
+      "attachmentsHint": "Add screenshots or files to help us investigate faster.",
+      "submit": "Send request",
+      "sending": "Sending...",
+      "helper": "You can track the status from the left panel.",
+      "successTitle": "Request sent",
+      "successBody": "We received your issue and will update the status shortly.",
+      "successMeta": "Ticket #{id}",
+      "backToHelp": "Back to help",
+      "subjectError": "Please enter a subject (at least 3 characters).",
+      "descriptionError": "Please provide a fuller description (at least 10 characters).",
+      "submitError": "We could not submit the request right now. Try again soon."
     },
     "quickIssues": {
       "stuck": "This step looks stuck",
