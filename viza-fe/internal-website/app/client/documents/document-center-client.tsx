@@ -1514,7 +1514,12 @@ export function DocumentCenterClient({
               </div>
             </div>
 
-            <div className="w-full rounded-lg border border-border bg-muted/30 p-4 lg:max-w-sm">
+            <div
+              className={cn(
+                "w-full rounded-lg border border-border bg-muted/30 p-4",
+                embedded ? "lg:max-w-xs" : "lg:max-w-sm",
+              )}
+            >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-semibold">
                   {isZh ? "完成度" : "Progress"}
@@ -1632,7 +1637,12 @@ export function DocumentCenterClient({
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+      <div
+        className={cn(
+          "grid gap-6",
+          embedded ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-[1fr_380px]",
+        )}
+      >
         <div className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
