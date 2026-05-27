@@ -102,8 +102,8 @@ export function FileUploadCard({
       setOcrStatus("succeeded");
       setOcrMessage(
         isZh
-          ? "护照 OCR 已完成。请在材料页确认建议字段。"
-          : "Passport OCR completed. Confirm the proposed fields in Documents."
+          ? "护照 OCR 已完成。请在表单的材料步骤确认建议字段。"
+          : "Passport OCR completed. Confirm the proposed fields in the form documents step."
       );
     } catch (ocrError) {
       setOcrStatus("failed");

@@ -17,6 +17,12 @@ import {
 } from "@/app/actions/visa-application-answers";
 import { getUserVisaPackage } from "@/app/actions/user-package";
 import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
+import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
+import {
+  mergeUniversalProfileIntoWizardForm,
+  UNIVERSAL_PROFILE_SELECT,
+  type UniversalProfileSnapshot,
+} from "@/lib/universal-profile-prefill";
 import { WizardReview } from "./wizard-review";
 import type { WizardConfig } from "./types";
 
@@ -62,6 +68,13 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
         } = await supabase.auth.getUser();
         if (cancelled) return;
         const userEmail = user?.email ?? "";
+        const { data: profile } = user
+          ? await supabase
+              .from("applicant_profiles")
+              .select(UNIVERSAL_PROFILE_SELECT)
+              .eq("auth_user_id", user.id)
+              .maybeSingle()
+          : { data: null };
         const pkg = await getUserVisaPackage();
         if (cancelled) return;
 
@@ -71,7 +84,14 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
         );
         if (cancelled || !draftId) {
           if (userEmail && config.seedAuthEmail) {
-            setForm((prev) => config.seedAuthEmail!(prev, userEmail));
+            setForm((prev) =>
+              mergeUniversalProfileIntoWizardForm(
+                config.seedAuthEmail!(prev, userEmail),
+                profile as UniversalProfileSnapshot | null,
+              ),
+            );
+          } else if (profile) {
+            setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, profile as UniversalProfileSnapshot));
           }
           setLoading(false);
           return;
@@ -82,15 +102,26 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
         if (cancelled) return;
         if (state?.form && typeof state.form === "object") {
           const restored = state.form as TForm;
-          const merged = config.seedAuthEmail
+          const withEmail = config.seedAuthEmail
             ? config.seedAuthEmail(restored, userEmail)
             : restored;
+          const merged = mergeUniversalProfileIntoWizardForm(
+            withEmail,
+            profile as UniversalProfileSnapshot | null,
+          );
           setForm(merged);
           if (typeof state.stepIndex === "number" && state.stepIndex >= 0) {
             setStepIndex(state.stepIndex);
           }
         } else if (userEmail && config.seedAuthEmail) {
-          setForm((prev) => config.seedAuthEmail!(prev, userEmail));
+          setForm((prev) =>
+            mergeUniversalProfileIntoWizardForm(
+              config.seedAuthEmail!(prev, userEmail),
+              profile as UniversalProfileSnapshot | null,
+            ),
+          );
+        } else if (profile) {
+          setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, profile as UniversalProfileSnapshot));
         }
       } catch {
         /* non-fatal — wizard still renders empty */
@@ -101,6 +132,38 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
       cancelled = true;
     };
   }, [config]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (cancelled || !user) return;
+      channel = supabase
+        .channel("simplified-form-universal-profile")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "applicant_profiles",
+            filter: `auth_user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            setForm((prev) =>
+              mergeUniversalProfileIntoWizardForm(prev, payload.new as UniversalProfileSnapshot),
+            );
+          },
+        )
+        .subscribe();
+    });
+
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Debounced auto-save.
   useEffect(() => {
@@ -217,6 +280,16 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
           !onDocuments && "rounded-xl border bg-white p-5 shadow-sm sm:p-8"
         )}
       >
+        {!onDocuments && !onReview ? (
+          <PassportOcrUpload
+            applicationId={applicationId}
+            className="mb-6"
+            onFieldsApplied={(fields) => {
+              setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, fields, { force: true }));
+            }}
+          />
+        ) : null}
+
         <AnimatePresence mode="wait">
           <motion.div
             key={onDocuments ? DOCUMENT_STEP_KEY : onReview ? REVIEW_STEP_KEY : currentStep?.key ?? "_"}
