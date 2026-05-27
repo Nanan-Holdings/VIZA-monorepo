@@ -19,24 +19,6 @@ export default function ApplicationRouterPage() {
       const qs = searchParams?.toString();
       const suffix = qs ? `?${qs}` : "";
 
-      // ── 融合 HEAD 逻辑 ──────────────────────────────────────────────────
-      // 拦截并保持对文档详情页深层链接（Deep Link）的向前兼容性
-      const requestedView = searchParams.get("view");
-      if (requestedView === "detail") {
-        const requestedApplicationId = searchParams.get("applicationId")?.trim();
-        const requestedCountry = searchParams.get("country")?.trim();
-        const requestedVisaType = (searchParams.get("visaType") || searchParams.get("visa_type"))?.trim();
-
-        const destParams = new URLSearchParams({ view: "detail" });
-        if (requestedApplicationId) destParams.set("applicationId", requestedApplicationId);
-        if (requestedCountry) destParams.set("country", requestedCountry);
-        if (requestedVisaType) destParams.set("visaType", requestedVisaType);
-
-        router.replace(`/client/documents?${destParams.toString()}`);
-        return;
-      }
-      // ──────────────────────────────────────────────────────────────────
-
       try {
         const pkg = await getUserVisaPackage();
         if (cancelled) return;
