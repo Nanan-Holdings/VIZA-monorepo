@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
@@ -12,12 +12,10 @@ import {
   CreditCard,
   FileCheck2,
   FolderKanban,
-  Headphones,
   HelpCircle,
   History,
   Inbox,
   Loader2,
-  Mail,
   MessageSquareText,
   Search,
   SendHorizontal,
@@ -29,21 +27,20 @@ import {
   type SupportTicketRow,
 } from "@/app/actions/support";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-type ActivityKey = "application" | "documents" | "billing" | "status" | "account";
-type HelpActionKey = "faqs" | "requests" | "human";
+type IssueTypeKey = "application" | "documents" | "billing" | "status" | "account";
+type HelpActionKey = "faqs" | "requests";
 type ChatTurn = {
   id: string;
   role: "agent" | "user";
   body: string;
-  ticketId?: string;
 };
 
-const SUPPORT_EMAIL = "support@viza.com";
-
-const RECENT_ACTIVITIES: Array<{
-  key: ActivityKey;
+const ISSUE_TYPES: Array<{
+  key: IssueTypeKey;
   icon: LucideIcon;
   href: string;
   tone: "info" | "success" | "warning";
@@ -62,7 +59,6 @@ const HELP_ACTIONS: Array<{
 }> = [
   { key: "faqs", icon: HelpCircle, href: "/client/help" },
   { key: "requests", icon: Inbox },
-  { key: "human", icon: Headphones },
 ];
 
 const QUICK_ISSUES = ["stuck", "change", "refund", "deadline"] as const;
