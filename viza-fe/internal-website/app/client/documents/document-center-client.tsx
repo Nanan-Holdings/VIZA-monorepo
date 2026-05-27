@@ -40,6 +40,11 @@ import {
 interface DocumentCenterClientProps {
   initialData: DocumentCenterData | null;
   initialError: string | null;
+  applicationId?: string | null;
+  embedded?: boolean;
+  hideApplicationSelector?: boolean;
+  onContinue?: () => void;
+  continueLabel?: string;
 }
 
 interface DocumentViewState {
@@ -1100,9 +1105,22 @@ function TravelAiPanel({
   );
 }
 
-function EmptyState({ error, isZh }: { error: string | null; isZh: boolean }) {
+function EmptyState({
+  error,
+  isZh,
+  embedded = false,
+}: {
+  error: string | null;
+  isZh: boolean;
+  embedded?: boolean;
+}) {
   return (
-    <main className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 py-16 text-center">
+    <main
+      className={cn(
+        "mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 text-center",
+        embedded ? "py-8" : "py-16"
+      )}
+    >
       <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
         <FileText className="h-7 w-7" />
       </div>
@@ -1130,6 +1148,11 @@ function EmptyState({ error, isZh }: { error: string | null; isZh: boolean }) {
 export function DocumentCenterClient({
   initialData,
   initialError,
+  applicationId,
+  embedded = false,
+  hideApplicationSelector = embedded,
+  onContinue,
+  continueLabel,
 }: DocumentCenterClientProps) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
@@ -1177,6 +1200,32 @@ export function DocumentCenterClient({
   ).length;
   const completionPercent =
     totalRequired > 0 ? Math.round((readyRequired / totalRequired) * 100) : 0;
+
+  useEffect(() => {
+    if (!applicationId) return;
+    if (data?.selectedApplication?.id === applicationId) return;
+
+    let cancelled = false;
+    setBusyTarget({ type: "refresh", key: applicationId });
+    loadDocumentCenterData({ applicationId })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setData(result.data);
+          setError(null);
+        } else {
+          setData(null);
+          setError(result.error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBusyTarget(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId, data?.selectedApplication?.id]);
 
   useEffect(() => {
     setTravelCandidate(
@@ -1391,28 +1440,46 @@ export function DocumentCenterClient({
   }
 
   if (!data || !selectedApplication) {
-    return <EmptyState error={error} isZh={isZh} />;
+    return <EmptyState error={error} isZh={isZh} embedded={embedded} />;
   }
 
   const refreshing = busyTarget?.type === "refresh";
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 pb-16">
+    <main
+      className={cn(
+        "space-y-6",
+        embedded ? "pb-2" : "mx-auto max-w-7xl pb-16"
+      )}
+    >
       <section className="space-y-5">
-        <ApplicationSelector
-          applications={data.applications}
-          selectedApplication={selectedApplication}
-          isZh={isZh}
-        />
+        {!hideApplicationSelector && (
+          <ApplicationSelector
+            applications={data.applications}
+            selectedApplication={selectedApplication}
+            isZh={isZh}
+          />
+        )}
 
         <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
               <p className="text-sm font-semibold uppercase tracking-normal text-brand-500">
-                {isZh ? "材料清单中心" : "Document checklist center"}
+                {embedded
+                  ? isZh
+                    ? "当前表单材料"
+                    : "Form documents"
+                  : isZh
+                    ? "材料清单中心"
+                    : "Document checklist center"}
               </p>
               <div className="space-y-1">
-                <h1 className="text-3xl font-semibold text-foreground">
+                <h1
+                  className={cn(
+                    "font-semibold text-foreground",
+                    embedded ? "text-2xl" : "text-3xl"
+                  )}
+                >
                   {selectedApplication.countryFlag}{" "}
                   {isZh
                     ? selectedApplication.countryNameZh ||
@@ -1422,8 +1489,8 @@ export function DocumentCenterClient({
                 </h1>
                 <p className="max-w-3xl text-muted-foreground">
                   {isZh
-                    ? "当前签证材料清单将必需材料与可选补充材料分开显示，方便逐项完成上传。"
-                    : "This checklist separates required documents from optional supporting files so you can complete each upload step by step."}
+                    ? "在这个表单内完成必需材料、可选补充材料、护照 OCR 确认与证件照检查。"
+                    : "Complete required documents, optional support, passport OCR confirmation, and photo checks inside this form."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium">
@@ -1468,15 +1535,18 @@ export function DocumentCenterClient({
                   : `${readyRequired} / ${totalRequired} required documents uploaded or reviewed.`}
               </p>
               <div className="mt-4 flex gap-2">
-                <Button asChild variant="outline" className="flex-1">
-                  <Link href="/client/status">
-                    {isZh ? "查看状态" : "View status"}
-                    <ExternalLink className="h-4 w-4" />
-                  </Link>
-                </Button>
+                {!embedded && (
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href="/client/status">
+                      {isZh ? "查看状态" : "View status"}
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
+                  className={embedded ? "w-full" : undefined}
                   onClick={refreshData}
                   disabled={refreshing}
                 >
@@ -1670,6 +1740,20 @@ export function DocumentCenterClient({
           />
         </aside>
       </div>
+
+      {embedded && onContinue && (
+        <div className="flex justify-end border-t border-border pt-5">
+          <Button
+            type="button"
+            className="bg-brand-500 hover:bg-brand-400"
+            onClick={onContinue}
+            disabled={busyTarget !== null || blockingViews.length > 0}
+          >
+            {continueLabel ?? (isZh ? "继续" : "Continue")}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </main>
   );
 }

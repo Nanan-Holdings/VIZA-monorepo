@@ -164,6 +164,11 @@ type CitySegment = {
   imageSrc: string;
 };
 
+type ItineraryTravelStatePatch = Pick<
+  TravelState,
+  "cities" | "city_days" | "travel_days" | "travel_order"
+>;
+
 type RouteNode = {
   id: string;
   label: string;
@@ -907,8 +912,19 @@ function summarizeDay(day: ItineraryDay): string {
   return `${firstActivity} · ${secondActivity}`;
 }
 
+function getAttractionImage(city: string, attraction: string, fallbackSeed: string): string {
+  const knowledgeImage = findTravelAttraction(city, attraction)?.imageSrc;
+  if (knowledgeImage) return knowledgeImage;
+
+  return getCityImage(`${city}-${attraction}`, fallbackSeed);
+}
+
 function getDayImage(day: ItineraryDay, index: number): string {
-  return getCityImage(day.city, `day-${day.day}-${index}`);
+  const representedActivity =
+    day.activities.find((activity) => findTravelAttraction(day.city, activity)) ??
+    day.activities[0] ??
+    getSpecificAttraction(day.city, index, 0);
+  return getAttractionImage(day.city, representedActivity, `day-${day.day}-${index}`);
 }
 
 function getPointIdForCity(points: TripMapPoint[], city: string): string | null {
@@ -1029,7 +1045,7 @@ function getAttractionChoicesForCity(city: string): AttractionChoiceCard[] {
     .map((name, index) => ({
       name,
       location: `${getLocalCityLabel(city)} · Google Maps 精准定位`,
-      imageSrc: getCityImage(city, `attraction-choice-${name}-${index}`),
+      imageSrc: getAttractionImage(city, name, `attraction-choice-${name}-${index}`),
     }));
 
   return [...knowledgeChoices, ...fallbackChoices].slice(0, 10);
@@ -1394,21 +1410,30 @@ function isVagueActivityName(value: string): boolean {
   return !value.trim() || VAGUE_ACTIVITY_RE.test(value);
 }
 
-function getSpecificAttraction(city: string, dayIndex: number, activityIndex: number): string {
+function getSpecificAttraction(
+  city: string,
+  dayIndex: number,
+  activityIndex: number,
+  excludedAttractions: Set<string> = new Set()
+): string {
   const knowledgeAttractions = getTravelAttractionNamesForCity(city);
-  if (knowledgeAttractions.length) {
-    return knowledgeAttractions[
-      (dayIndex * 2 + activityIndex) % knowledgeAttractions.length
-    ];
-  }
-
   const key = normalizeLookupKey(city);
-  const attractions = SPECIFIC_ATTRACTIONS_BY_KEY[key];
+  const attractions = knowledgeAttractions.length
+    ? knowledgeAttractions
+    : SPECIFIC_ATTRACTIONS_BY_KEY[key];
   if (!attractions?.length) {
     return `${getLocalCityLabel(city)} 市中心历史街区`;
   }
 
-  return attractions[(dayIndex * 2 + activityIndex) % attractions.length];
+  const startIndex = (dayIndex * 2 + activityIndex) % attractions.length;
+  for (let offset = 0; offset < attractions.length; offset += 1) {
+    const candidate = attractions[(startIndex + offset) % attractions.length];
+    if (!excludedAttractions.has(normalizeLookupKey(candidate))) {
+      return candidate;
+    }
+  }
+
+  return attractions[startIndex];
 }
 
 function renumberItineraryDays(days: ItineraryDay[]): ItineraryDay[] {
@@ -1416,6 +1441,31 @@ function renumberItineraryDays(days: ItineraryDay[]): ItineraryDay[] {
     ...day,
     day: index + 1,
   }));
+}
+
+function buildItineraryTravelStatePatch(
+  days: ItineraryDay[],
+  travelState: TravelState,
+  orderedCities: string[]
+): ItineraryTravelStatePatch {
+  const cityDays: Record<string, number> = {};
+  days.forEach((day) => {
+    cityDays[day.city] = (cityDays[day.city] ?? 0) + 1;
+  });
+
+  const dayCityKeys = new Set(days.map((day) => normalizeLookupKey(day.city)));
+  const cities = getUniqueCities(days, [
+    ...travelState.travel_order,
+    ...orderedCities,
+    ...travelState.cities,
+  ]).filter((city) => dayCityKeys.has(normalizeLookupKey(city)));
+
+  return {
+    cities: cities.length ? cities : days.map((day) => day.city),
+    city_days: cityDays,
+    travel_days: Math.max(1, days.length),
+    travel_order: cities.length ? cities : days.map((day) => day.city),
+  };
 }
 
 function shouldSuppressFlights(modulePatch?: Record<string, unknown>): boolean {
@@ -1479,7 +1529,7 @@ function buildAttractionMapPoints(
       subtitle: `${cityLabel}第 ${index + 1} 站`,
       localName: cityLabel,
       intro: `${activity} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`,
-      imageSrc: attraction?.imageSrc ?? getCityImage(city, `${seedPrefix}-${index}`),
+      imageSrc: attraction?.imageSrc ?? getAttractionImage(city, activity, `${seedPrefix}-${index}`),
       lat,
       lng,
       city,
@@ -2025,6 +2075,8 @@ export function TravelItineraryExperience({
   const [localSelectedHotels, setLocalSelectedHotels] = useState<
     SelectedHotelOption[] | null
   >(null);
+  const [localTravelStatePatch, setLocalTravelStatePatch] =
+    useState<ItineraryTravelStatePatch | null>(null);
   const [googleAttractionCoordinates, setGoogleAttractionCoordinates] = useState<
     Record<string, GoogleGeocodeCoordinate>
   >({});
@@ -2066,10 +2118,17 @@ export function TravelItineraryExperience({
   const effectiveTravelState = useMemo(
     () => ({
       ...travelState,
+      ...(localTravelStatePatch ?? {}),
+      city_days: localTravelStatePatch?.city_days ?? travelState.city_days,
       selected_flights: effectiveSelectedFlights,
       selected_hotels: effectiveSelectedHotels,
     }),
-    [effectiveSelectedFlights, effectiveSelectedHotels, travelState]
+    [
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      localTravelStatePatch,
+      travelState,
+    ]
   );
 
   const segments = useMemo(
