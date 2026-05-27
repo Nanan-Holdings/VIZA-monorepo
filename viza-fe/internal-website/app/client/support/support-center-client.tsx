@@ -1,74 +1,99 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  Banknote,
+  Bot,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
-  Copy,
   CreditCard,
-  FileText,
+  FileCheck2,
+  FolderKanban,
   Headphones,
+  HelpCircle,
+  History,
+  Inbox,
   Loader2,
   Mail,
-  MessageCircleQuestion,
+  MessageSquareText,
   Search,
-  ShieldCheck,
-  UserRound,
+  SendHorizontal,
   type LucideIcon,
 } from "lucide-react";
+import {
+  createSupportTicket,
+  listMyTickets,
+  type SupportTicketRow,
+} from "@/app/actions/support";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type TopicKey = "refund" | "status" | "documents" | "payment" | "account" | "human";
+type ActivityKey = "application" | "documents" | "billing" | "status" | "account";
+type HelpActionKey = "faqs" | "requests" | "human";
+type ChatTurn = {
+  id: string;
+  role: "agent" | "user";
+  body: string;
+  ticketId?: string;
+};
 
 const SUPPORT_EMAIL = "support@viza.com";
 
-const TOPICS: Array<{
-  key: TopicKey;
+const RECENT_ACTIVITIES: Array<{
+  key: ActivityKey;
+  icon: LucideIcon;
+  href: string;
+  tone: "info" | "success" | "warning";
+}> = [
+  { key: "application", icon: ClipboardList, href: "/client/application", tone: "info" },
+  { key: "documents", icon: FileCheck2, href: "/client/documents", tone: "warning" },
+  { key: "billing", icon: CreditCard, href: "/client/billing", tone: "success" },
+  { key: "status", icon: CalendarClock, href: "/client/status", tone: "info" },
+  { key: "account", icon: FolderKanban, href: "/client/settings", tone: "success" },
+];
+
+const HELP_ACTIONS: Array<{
+  key: HelpActionKey;
   icon: LucideIcon;
   href?: string;
 }> = [
-  { key: "refund", icon: Banknote, href: "/client/billing" },
-  { key: "status", icon: ClipboardList, href: "/client/status" },
-  { key: "documents", icon: FileText, href: "/client/documents" },
-  { key: "payment", icon: CreditCard, href: "/client/billing" },
-  { key: "account", icon: UserRound, href: "/client/settings" },
+  { key: "faqs", icon: HelpCircle, href: "/client/help" },
+  { key: "requests", icon: Inbox },
   { key: "human", icon: Headphones },
 ];
 
-const TOPIC_KEYWORDS: Record<TopicKey, string[]> = {
-  refund: ["refund", "money", "cancel", "退款", "退费", "取消", "退钱"],
-  status: ["status", "progress", "where", "track", "状态", "进度", "到哪", "查询"],
-  documents: ["document", "file", "ocr", "passport", "photo", "材料", "文件", "护照", "照片"],
-  payment: ["pay", "card", "invoice", "receipt", "账单", "付款", "支付", "收据", "发票"],
-  account: ["login", "email", "password", "account", "登录", "邮箱", "密码", "账户", "账号"],
-  human: ["human", "agent", "staff", "support", "客服", "人工", "真人"],
-};
+const QUICK_ISSUES = ["stuck", "change", "refund", "deadline"] as const;
 
-function inferTopic(input: string): TopicKey {
-  const normalized = input.toLowerCase();
-  for (const topic of TOPICS) {
-    if (TOPIC_KEYWORDS[topic.key].some((keyword) => normalized.includes(keyword))) {
-      return topic.key;
-    }
-  }
-  return "human";
+function activityToneClasses(tone: "info" | "success" | "warning") {
+  if (tone === "success") return "bg-emerald-50 text-emerald-700";
+  if (tone === "warning") return "bg-amber-50 text-amber-700";
+  return "bg-brand-50 text-brand-500";
 }
 
-function buildMailto(topicTitle: string, question: string) {
-  const subject = encodeURIComponent(`VIZA support request: ${topicTitle}`);
+function buildTicketBody(activityTitle: string, activityMeta: string, issue: string) {
+  return [
+    `Activity: ${activityTitle}`,
+    `Activity details: ${activityMeta}`,
+    "",
+    `Issue: ${issue}`,
+    "",
+    "Source: /client/support recent activity chat",
+  ].join("\n");
+}
+
+function buildMailto(activityTitle: string, issue: string) {
+  const subject = encodeURIComponent(`VIZA support request: ${activityTitle}`);
   const body = encodeURIComponent(
     [
       "Hi VIZA Support,",
       "",
-      `Topic: ${topicTitle}`,
-      question ? `Question: ${question}` : "Question:",
+      `Activity: ${activityTitle}`,
+      issue ? `Issue: ${issue}` : "Issue:",
       "",
-      "Please include your account email, application destination, and application reference if available.",
+      "Please include your account email, destination, and application reference if available.",
     ].join("\n"),
   );
   return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
@@ -76,236 +101,412 @@ function buildMailto(topicTitle: string, question: string) {
 
 export function SupportCenterClient() {
   const t = useTranslations("supportCenter");
-  const [query, setQuery] = useState("");
-  const [submittedQuestion, setSubmittedQuestion] = useState("");
-  const [selectedTopic, setSelectedTopic] = useState<TopicKey | null>(null);
-  const [handoffRequested, setHandoffRequested] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityKey>("application");
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showRequests, setShowRequests] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [tickets, setTickets] = useState<SupportTicketRow[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  const selectedTopicConfig = TOPICS.find((topic) => topic.key === selectedTopic) ?? null;
-  const selectedTopicTitle = selectedTopic ? t(`topics.${selectedTopic}.title`) : "";
-  const mailtoHref = buildMailto(selectedTopicTitle || t("human.title"), submittedQuestion);
+  const selectedActivityConfig = RECENT_ACTIVITIES.find((activity) => activity.key === selectedActivity);
+  const selectedActivityTitle = t(`activities.${selectedActivity}.title`);
+  const selectedActivityMeta = t(`activities.${selectedActivity}.meta`);
+  const visibleActivities = showAllActivities ? RECENT_ACTIVITIES : RECENT_ACTIVITIES.slice(0, 3);
+  const latestIssue = useMemo(() => {
+    const latestUserTurn = [...turns].reverse().find((turn) => turn.role === "user");
+    return latestUserTurn?.body ?? "";
+  }, [turns]);
+  const mailtoHref = buildMailto(selectedActivityTitle, latestIssue);
 
-  const filteredTopics = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return TOPICS;
+  useEffect(() => {
+    let mounted = true;
+    setTicketsLoading(true);
+    listMyTickets()
+      .then((result) => {
+        if (!mounted) return;
+        if (result.rows) setTickets(result.rows);
+      })
+      .finally(() => {
+        if (mounted) setTicketsLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-    return TOPICS.filter((topic) => {
-      const title = t(`topics.${topic.key}.title`).toLowerCase();
-      const description = t(`topics.${topic.key}.description`).toLowerCase();
-      return (
-        title.includes(normalizedQuery) ||
-        description.includes(normalizedQuery) ||
-        TOPIC_KEYWORDS[topic.key].some((keyword) => normalizedQuery.includes(keyword))
-      );
+  function selectActivity(activity: ActivityKey) {
+    setSelectedActivity(activity);
+    setTicketError(null);
+    setTurns([]);
+  }
+
+  function submitIssue(issue: string) {
+    const trimmedIssue = issue.trim();
+    if (!trimmedIssue || isPending) return;
+
+    const userTurn: ChatTurn = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      body: trimmedIssue,
+    };
+    setTurns((current) => [...current, userTurn]);
+    setDraft("");
+    setTicketError(null);
+
+    startTransition(async () => {
+      const result = await createSupportTicket({
+        subject: `${selectedActivityTitle}: ${trimmedIssue.slice(0, 72)}`,
+        body: buildTicketBody(selectedActivityTitle, selectedActivityMeta, trimmedIssue),
+      });
+
+      if (result.error || !result.ticketId) {
+        setTicketError(t("agent.ticketError"));
+        setTurns((current) => [
+          ...current,
+          {
+            id: `agent-error-${Date.now()}`,
+            role: "agent",
+            body: t("agent.fallbackReply"),
+          },
+        ]);
+        return;
+      }
+
+      const ticketId = result.ticketId;
+      setTurns((current) => [
+        ...current,
+        {
+          id: `agent-ticket-${ticketId}`,
+          role: "agent",
+          body: t("agent.ticketCreated", { ticket: ticketId.slice(0, 8) }),
+          ticketId,
+        },
+      ]);
+      setTickets((current) => [
+        {
+          id: ticketId,
+          applicant_id: "",
+          application_id: null,
+          subject: `${selectedActivityTitle}: ${trimmedIssue.slice(0, 72)}`,
+          body: trimmedIssue,
+          status: "open",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...current,
+      ]);
     });
-  }, [query, t]);
-
-  function selectTopic(topic: TopicKey, question = "") {
-    setSelectedTopic(topic);
-    setSubmittedQuestion(question);
-    setHandoffRequested(topic === "human");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) return;
-    selectTopic(inferTopic(trimmedQuery), trimmedQuery);
+    submitIssue(draft);
   }
 
-  async function copyEmail() {
-    if (!navigator.clipboard?.writeText) return;
-    await navigator.clipboard.writeText(SUPPORT_EMAIL);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+  function handleAction(action: HelpActionKey) {
+    if (action === "requests") {
+      setShowRequests((current) => !current);
+      return;
+    }
+    if (action === "human") {
+      setDraft(t("actions.human.prefill"));
+    }
   }
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-6 pb-16">
-      <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-        <div className="grid gap-5 lg:grid-cols-[1fr_360px] lg:items-center">
-          <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-normal text-brand-500">{t("eyebrow")}</p>
+      <section className="overflow-hidden rounded-lg border border-brand-100 bg-brand-500 text-white shadow-sm">
+        <div className="grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_320px] lg:items-center">
+          <div className="space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-normal text-brand-100">{t("eyebrow")}</p>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-foreground">{t("title")}</h1>
-              <p className="max-w-3xl text-base leading-7 text-muted-foreground">{t("subtitle")}</p>
+              <h1 className="text-3xl font-semibold md:text-4xl">{t("title")}</h1>
+              <p className="max-w-2xl text-base leading-7 text-brand-50">{t("subtitle")}</p>
             </div>
           </div>
-          <div className="rounded-lg border border-brand-100 bg-brand-50 p-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-brand-500">
-                <Headphones className="h-5 w-5" />
-              </span>
-              <div className="space-y-1">
-                <p className="font-semibold text-brand-900">{t("humanCard.title")}</p>
-                <p className="text-sm leading-6 text-brand-800">{t("humanCard.description")}</p>
-              </div>
+          <div className="flex items-center gap-3 rounded-lg border border-white/20 bg-white/10 p-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-brand-500">
+              <Bot className="h-5 w-5" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-semibold">{t("agent.cardTitle")}</p>
+              <p className="text-sm leading-6 text-brand-50">{t("agent.cardDescription")}</p>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[390px_1fr]">
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <label className="text-sm font-semibold text-foreground" htmlFor="support-question">
-                {t("questionLabel")}
-              </label>
-              <div className="flex min-h-12 items-center gap-2 rounded-lg border border-input bg-background px-3 focus-within:ring-1 focus-within:ring-ring">
-                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <input
-                  id="support-question"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                  placeholder={t("questionPlaceholder")}
-                />
-                <button
-                  type="submit"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white transition-colors hover:bg-brand-400 disabled:bg-muted"
-                  disabled={!query.trim()}
-                  aria-label={t("send")}
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t("topicsTitle")}</h2>
-              <span className="text-xs font-medium text-muted-foreground">{t("topicsHint")}</span>
+      <div className="grid gap-6 xl:grid-cols-[430px_1fr]">
+        <aside className="space-y-6">
+          <section className="rounded-lg border border-border bg-white shadow-sm">
+            <div className="border-b border-border p-5">
+              <h2 className="text-xl font-semibold text-foreground">{t("activitiesTitle")}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("activitiesSubtitle")}</p>
             </div>
-            <div className="space-y-2">
-              {filteredTopics.map((topic) => {
-                const Icon = topic.icon;
-                const active = selectedTopic === topic.key;
+            <div className="divide-y divide-border">
+              {visibleActivities.map((activity) => {
+                const Icon = activity.icon;
+                const selected = activity.key === selectedActivity;
                 return (
                   <button
-                    key={topic.key}
+                    key={activity.key}
                     type="button"
-                    onClick={() => selectTopic(topic.key)}
+                    aria-pressed={selected}
+                    onClick={() => selectActivity(activity.key)}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-lg border bg-white p-4 text-left shadow-sm transition",
-                      active
-                        ? "border-brand-300 bg-brand-50 text-brand-900"
-                        : "border-border text-foreground hover:border-brand-200 hover:bg-brand-50/50",
+                      "flex w-full items-center gap-3 p-4 text-left transition hover:bg-brand-50/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      selected && "bg-brand-50",
                     )}
                   >
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                      <Icon className="h-4 w-4" />
+                    <span
+                      className={cn(
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+                        activityToneClasses(activity.tone),
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
                     </span>
-                    <span className="min-w-0 space-y-1">
-                      <span className="block font-semibold">{t(`topics.${topic.key}.title`)}</span>
-                      <span className="block text-sm leading-6 text-muted-foreground">
-                        {t(`topics.${topic.key}.description`)}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-foreground">
+                        {t(`activities.${activity.key}.title`)}
                       </span>
+                      <span className="mt-1 block truncate text-sm text-muted-foreground">
+                        {t(`activities.${activity.key}.meta`)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right text-sm font-medium text-brand-500">
+                      {t(`activities.${activity.key}.status`)}
                     </span>
                   </button>
                 );
               })}
             </div>
+            <div className="border-t border-border p-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full"
+                onClick={() => setShowAllActivities((current) => !current)}
+              >
+                {showAllActivities ? t("showLess") : t("viewMore")}
+              </Button>
+            </div>
           </section>
+
+          <section className="space-y-3">
+            {HELP_ACTIONS.map((action) => {
+              const Icon = action.icon;
+              const content = (
+                <>
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-semibold text-foreground">
+                      {t(`actions.${action.key}.title`)}
+                    </span>
+                    <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+                      {t(`actions.${action.key}.description`)}
+                    </span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </>
+              );
+
+              if (action.href) {
+                return (
+                  <Link
+                    key={action.key}
+                    href={action.href}
+                    className="flex min-h-24 items-center gap-4 rounded-lg border border-border bg-white p-4 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {content}
+                  </Link>
+                );
+              }
+
+              return (
+                <button
+                  key={action.key}
+                  type="button"
+                  onClick={() => handleAction(action.key)}
+                  className="flex min-h-24 w-full items-center gap-4 rounded-lg border border-border bg-white p-4 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {content}
+                </button>
+              );
+            })}
+          </section>
+
+          {showRequests ? (
+            <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <History className="h-4 w-4 text-brand-500" />
+                <h2 className="font-semibold text-foreground">{t("requests.title")}</h2>
+              </div>
+              {ticketsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("requests.loading")}
+                </div>
+              ) : tickets.length > 0 ? (
+                <div className="space-y-2">
+                  {tickets.slice(0, 3).map((ticket) => (
+                    <Link
+                      key={ticket.id}
+                      href={`/support/${ticket.id}`}
+                      className="block rounded-lg border border-border p-3 transition hover:border-brand-200 hover:bg-brand-50/60"
+                    >
+                      <span className="block truncate text-sm font-medium text-foreground">{ticket.subject}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {t("requests.ticketMeta", { id: ticket.id.slice(0, 8), status: ticket.status })}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">{t("requests.empty")}</p>
+              )}
+            </section>
+          ) : null}
         </aside>
 
-        <section className="min-h-[620px] rounded-lg border border-border bg-white shadow-sm">
+        <section className="min-h-[640px] rounded-lg border border-border bg-white shadow-sm">
           <div className="flex h-full flex-col">
-            <div className="border-b border-border p-4">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                  <MessageCircleQuestion className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 className="font-semibold">{t("botName")}</h2>
-                  <p className="text-sm text-muted-foreground">{t("botSubtitle")}</p>
+            <div className="border-b border-border p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                    <MessageSquareText className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="font-semibold text-foreground">{t("agent.title")}</h2>
+                    <p className="text-sm text-muted-foreground">{t("agent.subtitle", { activity: selectedActivityTitle })}</p>
+                  </div>
                 </div>
+                {selectedActivityConfig ? (
+                  <Button asChild variant="outline" className="h-10">
+                    <Link href={selectedActivityConfig.href}>
+                      {t("agent.openActivity")}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </div>
 
             <div className="flex-1 space-y-4 p-4 sm:p-6">
               <div className="flex items-start gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                  <Loader2 className="h-4 w-4" />
+                  <Bot className="h-4 w-4" />
                 </span>
-                <div className="max-w-2xl rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-foreground">
-                  {t("greeting")}
+                <div className="max-w-3xl rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-foreground">
+                  {t("agent.greeting", {
+                    activity: selectedActivityTitle,
+                    status: t(`activities.${selectedActivity}.status`),
+                  })}
                 </div>
               </div>
 
-              {submittedQuestion && (
-                <div className="flex justify-end">
-                  <div className="max-w-2xl rounded-lg bg-brand-500 px-4 py-3 text-sm leading-6 text-white">
-                    {submittedQuestion}
-                  </div>
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2 pl-11">
+                {QUICK_ISSUES.map((issue) => (
+                  <button
+                    key={issue}
+                    type="button"
+                    onClick={() => submitIssue(t(`quickIssues.${issue}`))}
+                    disabled={isPending}
+                    className="rounded-full border border-border bg-white px-3 py-2 text-sm font-medium text-foreground transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {t(`quickIssues.${issue}`)}
+                  </button>
+                ))}
+              </div>
 
-              {selectedTopic && selectedTopicConfig && (
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </span>
-                  <div className="max-w-3xl space-y-4 rounded-lg border border-border bg-white p-4 shadow-sm">
-                    <div className="space-y-2">
-                      <p className="font-semibold">{t(`topics.${selectedTopic}.answerTitle`)}</p>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {t(`topics.${selectedTopic}.answer`)}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTopicConfig.href && (
-                        <Button asChild className="bg-brand-500 hover:bg-brand-400">
-                          <Link href={selectedTopicConfig.href}>
-                            {t(`topics.${selectedTopic}.action`)}
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        </Button>
+              {turns.map((turn) => {
+                const fromUser = turn.role === "user";
+                return (
+                  <div key={turn.id} className={cn("flex items-start gap-3", fromUser && "justify-end")}>
+                    {!fromUser ? (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                      </span>
+                    ) : null}
+                    <div
+                      className={cn(
+                        "max-w-3xl rounded-lg px-4 py-3 text-sm leading-6",
+                        fromUser ? "bg-brand-500 text-white" : "bg-muted text-foreground",
                       )}
-                      <Button type="button" variant="outline" onClick={() => setHandoffRequested(true)}>
-                        <Headphones className="h-4 w-4" />
-                        {t("requestHuman")}
-                      </Button>
-                      <Button asChild variant="outline">
-                        <a href={mailtoHref}>
-                          <Mail className="h-4 w-4" />
-                          {t("emailSupport")}
-                        </a>
-                      </Button>
+                    >
+                      <p>{turn.body}</p>
+                      {turn.ticketId ? (
+                        <Link
+                          href={`/support/${turn.ticketId}`}
+                          className="mt-3 inline-flex items-center gap-2 font-medium text-brand-500 underline-offset-4 hover:underline"
+                        >
+                          {t("agent.openThread")}
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
 
-              {handoffRequested && (
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                    <ShieldCheck className="h-4 w-4" />
-                  </span>
-                  <div className="max-w-3xl space-y-4 rounded-lg border border-brand-100 bg-brand-50 p-4">
-                    <div className="space-y-2">
-                      <p className="font-semibold text-brand-900">{t("handoff.title")}</p>
-                      <p className="text-sm leading-6 text-brand-800">{t("handoff.description")}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild className="bg-brand-500 hover:bg-brand-400">
-                        <a href={mailtoHref}>
-                          <Mail className="h-4 w-4" />
-                          {SUPPORT_EMAIL}
-                        </a>
-                      </Button>
-                      <Button type="button" variant="outline" onClick={copyEmail}>
-                        <Copy className="h-4 w-4" />
-                        {copied ? t("copied") : t("copyEmail")}
-                      </Button>
-                    </div>
-                  </div>
+              {isPending ? (
+                <div className="flex items-center gap-2 pl-11 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+                  {t("agent.creating")}
                 </div>
-              )}
+              ) : null}
+
+              {ticketError ? (
+                <div className="ml-11 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                  {ticketError}{" "}
+                  <a href={mailtoHref} className="font-medium underline underline-offset-4">
+                    {t("emailSupport")}
+                  </a>
+                </div>
+              ) : null}
             </div>
+
+            <form className="border-t border-border p-4 sm:p-5" onSubmit={handleSubmit}>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="support-agent-message">
+                {t("questionLabel")}
+              </label>
+              <div className="flex min-h-12 items-center gap-2 rounded-lg border border-input bg-background px-3 focus-within:ring-1 focus-within:ring-ring">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <input
+                  id="support-agent-message"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                  placeholder={t("questionPlaceholder")}
+                />
+                <button
+                  type="submit"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white transition-colors hover:bg-brand-400 disabled:cursor-not-allowed disabled:bg-muted"
+                  disabled={!draft.trim() || isPending}
+                  aria-label={t("send")}
+                >
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-10">
+                  <a href={mailtoHref}>
+                    <Mail className="h-4 w-4" />
+                    {t("emailSupport")}
+                  </a>
+                </Button>
+                <Button type="button" variant="outline" className="h-10" onClick={() => setDraft(t("actions.human.prefill"))}>
+                  <Headphones className="h-4 w-4" />
+                  {t("requestHuman")}
+                </Button>
+              </div>
+            </form>
           </div>
         </section>
       </div>

@@ -851,7 +851,8 @@ function createSessionTitle(messages: TravelChatMessage[]): string {
 
 function createTripVersionTitle(
   itinerary: ItineraryDay[],
-  travelState: TravelState
+  travelState: TravelState,
+  locale: InterfaceLocale
 ): string {
   const cities =
     travelState.travel_order.length > 0
@@ -859,6 +860,10 @@ function createTripVersionTitle(
       : travelState.cities.length > 0
         ? travelState.cities
         : Array.from(new Set(itinerary.map((day) => day.city).filter(Boolean)));
+  if (locale === "en") {
+    const prefix = itinerary.length > 0 ? `${itinerary.length}-day` : "Travel";
+    return `${prefix} ${cities.slice(0, 3).join(", ") || "custom"} itinerary`;
+  }
   const prefix = itinerary.length > 0 ? `${itinerary.length}天` : "旅行";
   return `${prefix}${cities.slice(0, 3).join("、") || "定制"}行程`;
 }
@@ -873,11 +878,16 @@ function createTravelTripVersion(options: {
   editSummary?: string;
   modulePatch?: Record<string, unknown>;
   createdAt?: string;
+  locale?: InterfaceLocale;
 }): TravelTripVersion {
   return {
     id: createVersionId(),
     versionNumber: options.versionNumber,
-    title: createTripVersionTitle(options.itinerary, options.travelState),
+    title: createTripVersionTitle(
+      options.itinerary,
+      options.travelState,
+      options.locale ?? "zh"
+    ),
     createdAt: options.createdAt ?? new Date().toISOString(),
     parentVersionId: options.parentVersionId,
     sourceMessageId: options.sourceMessageId,
@@ -3123,6 +3133,7 @@ export function TravelChatClient({
               userPrompt: latestVisibleUserText,
               editSummary: revision.editSummary,
               modulePatch: revision.modulePatch,
+              locale: interfaceLocale,
             });
             return {
               ...session,
@@ -3190,7 +3201,7 @@ export function TravelChatClient({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, locale: travelAgentLocale }),
         });
 
         if (!response.ok) {
@@ -3250,6 +3261,7 @@ export function TravelChatClient({
                 : interfaceLocale === "zh"
                   ? "生成初始行程"
                   : "Generated the initial itinerary",
+            locale: interfaceLocale,
           });
           return {
             ...session,
@@ -4074,6 +4086,7 @@ export function TravelChatClient({
                 }
                 activeVersionId={activeTravelVersion?.id}
                 activeVersionSummary={activeTravelVersion?.editSummary}
+                interfaceLocale={interfaceLocale}
                 initialItineryRows={sharedItineryRows}
                 itinerary={displayItinerary}
                 mapPoints={mapPoints}
