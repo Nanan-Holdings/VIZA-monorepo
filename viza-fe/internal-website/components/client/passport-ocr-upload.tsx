@@ -46,7 +46,7 @@ function proposalValue(field: PassportOcrFieldProposal | undefined): string | nu
 }
 
 function sanitizeFilename(filename: string) {
-  return filename.replace(/[^\w.\-]+/g, "_");
+  return filename.replace(/[^\w.-]+/g, "_");
 }
 
 function extensionFromFile(file: File) {

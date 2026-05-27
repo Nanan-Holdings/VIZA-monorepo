@@ -49,6 +49,7 @@ class TravelRequest(BaseModel):
     itinerary: list[dict] = Field(default_factory=list)
     itinery_rows: list[dict] = Field(default_factory=list)
     export_language: Optional[str] = "zh"
+    locale: str = "zh-CN"
 
 
 class TravelRevisionRequest(BaseModel):

@@ -1057,20 +1057,57 @@ def generate_itinerary(state):
         print("OPENAI_API_KEY 未配置，使用 fallback itinerary。")
         return _fallback_itinerary(state)
 
+    locale = str(state.get("locale") or state.get("export_language") or "zh-CN").lower()
+    is_english = locale.startswith("en")
+    language_requirement = (
+        "- Use English for every user-facing itinerary field, including city names, activities, food, and cost notes"
+        if is_english
+        else "- 使用中文"
+    )
+    date_mode_label = (
+        "flexible dates" if is_english and state.get("date_flexibility") == "flexible"
+        else "fixed date" if is_english
+        else "灵活出行" if state.get("date_flexibility") == "flexible"
+        else "指定日期"
+    )
+    output_example = (
+        """
+[
+  {
+    "day": 1,
+    "city": "Tokyo",
+    "activities": ["Senso-ji Temple and Nakamise Street", "Akihabara Electric Town"],
+    "food": ["Tsukiji Outer Market sushi", "Shinjuku Omoide Yokocho ramen"],
+    "cost": "¥800"
+  }
+]
+"""
+        if is_english
+        else """
+[
+  {
+    "day": 1,
+    "city": "东京",
+    "activities": ["参观浅草寺", "游览秋叶原"],
+    "food": ["寿司", "拉面"],
+    "cost": "¥800"
+  }
+]
+"""
+    )
     selected_flights = _format_selected_flights(state)
     selected_hotels = _format_selected_hotels(state)
     attached_files = _format_attached_files(state)
     final_note = (state.get("final_note") or "").strip() or "无"
     departure_date = (state.get("departure_date") or "").strip() or "未指定"
     date_flexibility = state.get("date_flexibility") or "flexible"
-    date_mode_label = "灵活出行" if date_flexibility == "flexible" else "指定日期"
     travel_days = _safe_positive_int(state.get("travel_days"), default=0)
 
     prompt = f"""
 你是一位专业旅行规划师，请根据用户需求生成详细行程。
 
 要求：
-- 使用中文
+{language_requirement}
 - 使用人民币（¥）
 - 严格只使用给定城市
 - 不要生成其他国家或城市
@@ -1083,6 +1120,7 @@ def generate_itinerary(state):
 - 禁止输出“城市地标打卡”“本地文化体验”“当地特色体验”“城市漫步”“自由活动”等泛泛描述
 - 如果城市有当地名称，请尽量使用具体中文名和常见英文/原文名，例如“埃菲尔铁塔与战神广场”“浅草寺与仲见世商店街”
 - food 也要具体到餐饮区域或餐厅类型地点，例如“筑地场外市场寿司”“玛黑区小酒馆晚餐”
+- 如果语言要求是 English，不要把城市、景点、酒店、航司或说明混入中文；酒店和航班名称优先保留官方/API 原名
 
 用户信息：
 国家：{state.get("country")}
@@ -1105,15 +1143,7 @@ def generate_itinerary(state):
 
 返回 JSON（不要 ```json，不要 Markdown，不要额外解释）：
 
-[
-  {{
-    "day": 1,
-    "city": "东京",
-    "activities": ["参观浅草寺", "游览秋叶原"],
-    "food": ["寿司", "拉面"],
-    "cost": "¥800"
-  }}
-]
+{output_example}
 """
 
     try:
@@ -1126,6 +1156,11 @@ def generate_itinerary(state):
                     "content": (
                         "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
                         "不能使用泛泛的旅行活动描述。"
+                        + (
+                            " All user-facing itinerary text must be English."
+                            if is_english
+                            else ""
+                        )
                     ),
                 },
                 {"role": "user", "content": prompt},

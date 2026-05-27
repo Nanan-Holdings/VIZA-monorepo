@@ -2996,74 +2996,83 @@
   },
   "supportCenter": {
     "eyebrow": "客户服务",
-    "title": "需要什么帮助？",
-    "subtitle": "告诉 VIZA 客服机器人你遇到的问题，选择一个主题，先走最快的自助处理路径。需要真人时，也可以随时转人工或发邮件。",
-    "humanCard": {
-      "title": "需要人工吗？",
-      "description": "点击下方人工客服选项，或发邮件到 support@viza.com。请附上账户邮箱和申请编号，方便我们快速定位。"
-    },
-    "questionLabel": "你遇到了什么问题？",
-    "questionPlaceholder": "退款、材料缺失、申请状态...",
+    "title": "帮助中心",
+    "subtitle": "选择一条最近的 VIZA 活动，告诉客服 Agent 遇到的问题，对话会自动带上对应申请步骤的上下文。",
+    "activitiesTitle": "你需要哪条活动的帮助？",
+    "activitiesSubtitle": "最近的申请、材料、付款和账号动态会优先显示。",
+    "viewMore": "查看更多",
+    "showLess": "收起",
+    "questionLabel": "发生了什么？",
+    "questionPlaceholder": "描述这条活动遇到的问题...",
     "send": "发送",
-    "topicsTitle": "常见问题",
-    "topicsHint": "请选择",
-    "botName": "VIZA 客服机器人",
-    "botSubtitle": "先自助处理，必要时转人工",
-    "greeting": "你好，我可以帮你找到正确的客服路径。请选择一个主题，或用一句话描述你的问题。",
     "requestHuman": "转人工客服",
     "emailSupport": "邮件联系客服",
-    "copyEmail": "复制邮箱",
-    "copied": "已复制",
-    "human": {
-      "title": "人工客服"
-    },
-    "handoff": {
-      "title": "人工客服选项",
-      "description": "如果是账号相关问题、退款、支付异常或特殊申请情况，人工客服可以继续处理。请在邮件里写明账户邮箱和申请编号，我们会更快找到你的案例。"
-    },
-    "topics": {
-      "refund": {
-        "title": "退款或取消",
-        "description": "退款资格、取消申请、重复付款或退款规则问题。",
-        "answerTitle": "退款处理路径",
-        "answer": "请先打开账单页面查看付款状态、收据、发票申请和可见的退款资格。如果申请包或外部交接已经开始，可能需要人工客服进一步审核。",
-        "action": "打开账单"
-      },
-      "status": {
-        "title": "申请状态",
-        "description": "查看签证申请到了哪一步，以及下一步要做什么。",
-        "answerTitle": "状态查询路径",
-        "answer": "状态中心会展示付款、授权、表单、材料、申请包、外部交接和结果交付。如果状态看起来卡住或不准确，请带上申请编号联系人工客服。",
-        "action": "打开状态"
+    "activities": {
+      "application": {
+        "title": "印尼 B211A 申请",
+        "meta": "今天 10:20 更新",
+        "status": "审核中"
       },
       "documents": {
-        "title": "材料或 OCR",
-        "description": "缺失文件、护照 OCR、照片检查或重新上传材料。",
-        "answerTitle": "材料处理路径",
-        "answer": "请打开材料中心查看必传/选传材料、重新上传文件、运行护照 OCR，并检查照片合规状态。如果文件被拒但原因不清楚，可以转人工客服。",
-        "action": "打开材料"
+        "title": "护照与照片上传",
+        "meta": "2026 年 5 月 26 日 16:18",
+        "status": "待处理"
       },
-      "payment": {
-        "title": "付款、收据或发票",
-        "description": "服务费、收据下载、发票申请或付款失败。",
-        "answerTitle": "付款处理路径",
-        "answer": "账单页面集中展示收据、发票申请、付款记录和退款可见状态。如果 Stripe 付款失败或收据缺失，请把付款日期和账户邮箱发给客服。",
-        "action": "打开账单"
+      "billing": {
+        "title": "VIZA 服务费付款",
+        "meta": "2026 年 5 月 24 日 13:56",
+        "status": "已支付"
+      },
+      "status": {
+        "title": "申请包准备进度",
+        "meta": "2026 年 5 月 23 日 22:25",
+        "status": "处理中"
       },
       "account": {
-        "title": "账号或登录",
-        "description": "邮箱访问、个人资料、隐私请求或账号设置。",
-        "answerTitle": "账号处理路径",
-        "answer": "请先打开设置页面更新账号资料或管理隐私请求。登录、邮箱访问等问题需要验证身份，建议联系人工客服处理。",
-        "action": "打开设置"
+        "title": "账号资料更新",
+        "meta": "2026 年 5 月 19 日 10:55",
+        "status": "已保存"
+      }
+    },
+    "actions": {
+      "faqs": {
+        "title": "浏览 FAQ",
+        "description": "阅读帮助中心文章和指南。"
+      },
+      "requests": {
+        "title": "查看客服请求",
+        "description": "查看当前和历史工单。"
       },
       "human": {
         "title": "联系人工客服",
-        "description": "自助路径无法解决时，转给客服团队。",
-        "answerTitle": "人工处理路径",
-        "answer": "请发邮件到 support@viza.com，并写上账户邮箱、目的地和申请编号。客服同事会查看案例并回复下一步。",
-        "action": "邮件联系客服"
+        "description": "请客服团队继续审核这个案例。",
+        "prefill": "我希望客服同事帮我查看这条活动。"
       }
+    },
+    "requests": {
+      "title": "最近客服请求",
+      "loading": "正在加载请求...",
+      "empty": "还没有客服请求。你可以先在上方开始对话，我们会为你创建一条。",
+      "ticketMeta": "工单 #{id} · {status}"
+    },
+    "agent": {
+      "cardTitle": "客服 Agent",
+      "cardDescription": "先选择活动，对话会自动带上上下文。",
+      "title": "Agent 对话",
+      "subtitle": "正在处理：{activity}",
+      "openActivity": "打开活动",
+      "openThread": "打开工单对话",
+      "creating": "正在创建客服请求...",
+      "greeting": "我看到你选择了“{activity}”，当前状态是“{status}”。请告诉我发生了什么，我会带着这条活动的上下文创建客服请求。",
+      "ticketCreated": "收到。我已创建工单 #{ticket}，并关联了这条活动。你可以继续进入工单对话；如果很紧急，也可以邮件联系客服。",
+      "ticketError": "暂时无法创建工单。",
+      "fallbackReply": "我已在当前对话里保留这条活动的上下文。请邮件联系客服，并写明所选活动，方便团队快速定位。"
+    },
+    "quickIssues": {
+      "stuck": "这一步好像卡住了",
+      "change": "我需要修改内容",
+      "refund": "我有付款或退款问题",
+      "deadline": "我担心时间来不及"
     }
   },
   "help": {

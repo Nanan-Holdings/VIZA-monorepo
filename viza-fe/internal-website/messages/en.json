@@ -3022,74 +3022,83 @@
   },
   "supportCenter": {
     "eyebrow": "Customer support",
-    "title": "How can we help?",
-    "subtitle": "Tell VIZA Support Bot what happened, choose a topic, and get the fastest self-service path. You can still reach a human support teammate at any time.",
-    "humanCard": {
-      "title": "Need a person?",
-      "description": "Use the human support option below or email support@viza.com. Include your account email and application reference if you have one."
-    },
-    "questionLabel": "What do you need help with?",
-    "questionPlaceholder": "Refund, missing documents, application status...",
+    "title": "Help Center",
+    "subtitle": "Choose a recent VIZA activity, tell the support agent what went wrong, and keep the conversation tied to the right application step.",
+    "activitiesTitle": "Which activity do you need help with?",
+    "activitiesSubtitle": "Recent application, document, billing, and account events are listed first.",
+    "viewMore": "View more",
+    "showLess": "Show less",
+    "questionLabel": "What happened?",
+    "questionPlaceholder": "Describe the issue with this activity...",
     "send": "Send",
-    "topicsTitle": "Common issues",
-    "topicsHint": "Pick one",
-    "botName": "VIZA Support Bot",
-    "botSubtitle": "Self-service first, human support when needed",
-    "greeting": "Hi, I can help you find the right support path. Choose a topic or describe your issue in one sentence.",
     "requestHuman": "Talk to human support",
     "emailSupport": "Email support",
-    "copyEmail": "Copy email",
-    "copied": "Copied",
-    "human": {
-      "title": "Human support"
-    },
-    "handoff": {
-      "title": "Human support option",
-      "description": "A support teammate can help with account-specific questions, refunds, payment issues, and unusual application cases. Email us with your account email and application reference so we can find your case quickly."
-    },
-    "topics": {
-      "refund": {
-        "title": "Refund or cancellation",
-        "description": "Refund eligibility, cancellation, duplicate payment, or policy questions.",
-        "answerTitle": "Refund support path",
-        "answer": "Open Billing first to check payment status, receipt, invoice request, and visible refund eligibility. If the application packet or external handoff already started, human support may need to review the case.",
-        "action": "Open Billing"
-      },
-      "status": {
-        "title": "Application status",
-        "description": "Know where your visa application is and what happens next.",
-        "answerTitle": "Status support path",
-        "answer": "The Status Center shows payment, consent, form, documents, packet preparation, external handoff, and result delivery. If the status looks stuck or wrong, contact human support with the application reference.",
-        "action": "Open Status"
+    "activities": {
+      "application": {
+        "title": "Indonesia B211A application",
+        "meta": "Updated today, 10:20 AM",
+        "status": "In review"
       },
       "documents": {
-        "title": "Documents or OCR",
-        "description": "Missing files, passport OCR, photo checks, or replacement uploads.",
-        "answerTitle": "Document support path",
-        "answer": "Open Documents to see required and optional materials, upload replacement files, run passport OCR, and check photo compliance. Human support can help if a file is rejected and the reason is unclear.",
-        "action": "Open Documents"
+        "title": "Passport and photo upload",
+        "meta": "26 May 2026, 4:18 PM",
+        "status": "Action needed"
       },
-      "payment": {
-        "title": "Payment, receipt, or invoice",
-        "description": "Agency fee, receipt download, invoice request, or failed payment.",
-        "answerTitle": "Payment support path",
-        "answer": "Billing keeps receipts, invoice requests, payment history, and refund visibility together. If Stripe payment failed or a receipt is missing, email support with the payment date and account email.",
-        "action": "Open Billing"
+      "billing": {
+        "title": "VIZA agency fee payment",
+        "meta": "24 May 2026, 1:56 PM",
+        "status": "Paid"
+      },
+      "status": {
+        "title": "Packet preparation update",
+        "meta": "23 May 2026, 10:25 PM",
+        "status": "Processing"
       },
       "account": {
-        "title": "Account or login",
-        "description": "Email access, profile details, privacy request, or account settings.",
-        "answerTitle": "Account support path",
-        "answer": "Open Settings to update account details and manage privacy requests. For login or email-access problems, contact human support because we need to verify ownership before making changes.",
-        "action": "Open Settings"
+        "title": "Account profile update",
+        "meta": "19 May 2026, 10:55 AM",
+        "status": "Saved"
+      }
+    },
+    "actions": {
+      "faqs": {
+        "title": "Browse FAQs",
+        "description": "Read help center articles and guides."
+      },
+      "requests": {
+        "title": "View support requests",
+        "description": "Check active and past tickets for your account."
       },
       "human": {
         "title": "Talk to a human",
-        "description": "Escalate to customer support when self-service is not enough.",
-        "answerTitle": "Human support path",
-        "answer": "Email support@viza.com with your account email, destination, and application reference. A support teammate will review your case and reply with the next step.",
-        "action": "Email support"
+        "description": "Ask the support team to review this case.",
+        "prefill": "I would like a support teammate to review this activity."
       }
+    },
+    "requests": {
+      "title": "Recent support requests",
+      "loading": "Loading requests...",
+      "empty": "No support requests yet. Start a chat above and we will create one for you.",
+      "ticketMeta": "Ticket #{id} · {status}"
+    },
+    "agent": {
+      "cardTitle": "Support Agent",
+      "cardDescription": "Pick an activity to start with the right context.",
+      "title": "Agent chat",
+      "subtitle": "Now helping with: {activity}",
+      "openActivity": "Open activity",
+      "openThread": "Open request thread",
+      "creating": "Creating your support request...",
+      "greeting": "I see you selected {activity}, currently marked {status}. Tell me what happened and I will open a support request with this context.",
+      "ticketCreated": "Got it. I created ticket #{ticket} and linked it to this activity. You can continue in the request thread or email support if it is urgent.",
+      "ticketError": "We could not create the ticket right now.",
+      "fallbackReply": "I saved the context in this chat view. Please email support and include the selected activity so the team can find the case quickly."
+    },
+    "quickIssues": {
+      "stuck": "This step looks stuck",
+      "change": "I need to change something",
+      "refund": "I have a payment or refund question",
+      "deadline": "I am worried about timing"
     }
   },
   "help": {
