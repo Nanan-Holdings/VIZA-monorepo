@@ -135,6 +135,10 @@ function getLocalCityLabel(city: string): string {
   return LOCAL_CITY_LABELS[normalizeLookupKey(city)] ?? city;
 }
 
+function getDisplayCityLabel(city: string, locale: "zh" | "en"): string {
+  return locale === "zh" ? getLocalCityLabel(city) : city;
+}
+
 function getCityImage(city: string, seed = "share"): string {
   const key = normalizeLookupKey(city);
   const direct = CITY_IMAGE_BY_KEY[key];
@@ -142,8 +146,9 @@ function getCityImage(city: string, seed = "share"): string {
   return CITY_IMAGE_POOL[hashString(`${key}-${seed}`) % CITY_IMAGE_POOL.length];
 }
 
-function formatDayTab(day: ItineraryDay): string {
-  return `天 ${typeof day.day === "number" ? day.day : String(day.day)}`;
+function formatDayTab(day: ItineraryDay, locale: "zh" | "en" = "zh"): string {
+  const value = typeof day.day === "number" ? day.day : String(day.day);
+  return locale === "zh" ? `天 ${value}` : `Day ${value}`;
 }
 
 function joinList(items: string[]): string {
@@ -317,6 +322,20 @@ export function TravelItineraryShareRenderer() {
     setHasMounted(true);
   }, []);
 
+  const interfaceLocale = payload?.locale === "en" ? "en" : "zh";
+  const isZh = interfaceLocale === "zh";
+  const exportLanguageOptions = useMemo(
+    () =>
+      interfaceLocale === "en"
+        ? EXPORT_LANGUAGE_OPTIONS.filter((option) => option.value === "en")
+        : EXPORT_LANGUAGE_OPTIONS,
+    [interfaceLocale]
+  );
+
+  useEffect(() => {
+    setExportLanguage(interfaceLocale === "en" ? "en" : "zh");
+  }, [interfaceLocale]);
+
   const rows = useMemo(
     () =>
       payload?.itineryRows?.length
@@ -351,19 +370,23 @@ export function TravelItineraryShareRenderer() {
     );
   }
 
-  const title = payload.title || `${payload.itinerary.length}天定制旅行`;
+  const title =
+    payload.title ||
+    (isZh
+      ? `${payload.itinerary.length}天定制旅行`
+      : `${payload.itinerary.length}-day custom trip`);
   const totalDays = payload.travelState.travel_days ?? payload.itinerary.length;
   const heroCity = cities[0] ?? payload.itinerary[0]?.city ?? "";
   const heroImage = getCityImage(heroCity);
-  const hotelRows = rows.filter((row) => row.type.includes("酒店"));
-  const flightRows = rows.filter((row) => row.type.includes("航班"));
+  const hotelRows = rows.filter((row) => /酒店|hotel/i.test(row.type));
+  const flightRows = rows.filter((row) => /航班|flight/i.test(row.type));
   const exportFilenameSuffix =
     exportLanguage === "zh" ? "" : `-${exportLanguage}`;
 
   const handleCopyLink = async () => {
     if (!navigator.clipboard?.writeText) return;
     await navigator.clipboard.writeText(window.location.href);
-    toast.success("分享链接已复制。");
+    toast.success(isZh ? "分享链接已复制。" : "Share link copied.");
   };
 
   const handleDownload = async (
@@ -374,9 +397,17 @@ export function TravelItineraryShareRenderer() {
     setBusy(true);
     try {
       await downloadBlob(endpoint, exportPayload, filename);
-      toast.success(`${filename} 已开始下载。`);
+      toast.success(
+        isZh ? `${filename} 已开始下载。` : `${filename} download started.`
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `${filename} 下载失败。`);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isZh
+            ? `${filename} 下载失败。`
+            : `${filename} download failed.`
+      );
     } finally {
       setBusy(false);
     }
@@ -396,32 +427,46 @@ export function TravelItineraryShareRenderer() {
               width={720}
             />
             <div className="absolute left-5 top-5 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-[#2d1635] shadow-lg">
-              Shared itinery
+              {isZh ? "分享行程" : "Shared itinerary"}
             </div>
           </div>
           <div className="flex flex-col justify-between gap-5 p-6 md:p-8">
             <div>
               <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#7b4de8]">
                 <Sparkles className="h-4 w-4" />
-                {cities.map(getLocalCityLabel).join(" → ") || "定制行程"}
+                {cities
+                  .map((city) => getDisplayCityLabel(city, interfaceLocale))
+                  .join(" → ") ||
+                  (isZh ? "定制行程" : "Custom trip")}
               </div>
               <h1 className="mt-4 text-4xl font-bold leading-tight md:text-5xl">
                 {title}
               </h1>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Metric icon={CalendarDays} label={`${totalDays} 天数`} />
-                <Metric icon={MapPin} label={`${cities.length} 城市`} />
-                <Metric icon={Star} label={`${rows.length} 项`} />
+                <Metric
+                  icon={CalendarDays}
+                  label={`${totalDays} ${isZh ? "天数" : "days"}`}
+                />
+                <Metric
+                  icon={MapPin}
+                  label={`${cities.length} ${isZh ? "城市" : "cities"}`}
+                />
+                <Metric
+                  icon={Star}
+                  label={`${rows.length} ${isZh ? "项" : "items"}`}
+                />
                 <Metric
                   icon={Users}
-                  label={`${payload.travelState.travelers ?? 1} 旅行者`}
+                  label={`${payload.travelState.travelers ?? 1} ${
+                    isZh ? "旅行者" : "travelers"
+                  }`}
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <div className="flex rounded-full bg-[#f6efff] p-1">
-                {EXPORT_LANGUAGE_OPTIONS.map((option) => (
+                {exportLanguageOptions.map((option) => (
                   <button
                     className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                       exportLanguage === option.value
@@ -443,7 +488,7 @@ export function TravelItineraryShareRenderer() {
                 variant="outline"
               >
                 <Share2 className="h-4 w-4" />
-                分享
+                {isZh ? "分享" : "Share"}
               </Button>
               <Button
                 className="rounded-full bg-[#d9c2ff] text-[#2d1635] hover:bg-[#c9acff]"
@@ -481,9 +526,11 @@ export function TravelItineraryShareRenderer() {
 
         <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(32,20,43,0.08)] md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-3xl font-bold">itinery</h2>
+            <h2 className="text-3xl font-bold">
+              {isZh ? "itinery" : "itinerary"}
+            </h2>
             <span className="rounded-full bg-[#f6efff] px-4 py-2 text-sm font-bold text-[#6f40cc]">
-              {rows.length} 项
+              {rows.length} {isZh ? "项" : "items"}
             </span>
           </div>
           <div className="mt-5 overflow-auto rounded-2xl border border-[#e6dff0]">
@@ -491,13 +538,13 @@ export function TravelItineraryShareRenderer() {
               <thead className="bg-[#efe5ff] text-[#2d1635]">
                 <tr>
                   {[
-                    "时间",
-                    "类型",
-                    "日期/天数",
-                    "城市/路线",
-                    "名称",
-                    "详情",
-                    "联系电话/航班号",
+                    isZh ? "时间" : "Time",
+                    isZh ? "类型" : "Type",
+                    isZh ? "日期/天数" : "Date / day",
+                    isZh ? "城市/路线" : "City / route",
+                    isZh ? "名称" : "Name",
+                    isZh ? "详情" : "Details",
+                    isZh ? "联系方式/航班号" : "Contact / flight no.",
                   ].map((header) => (
                     <th className="px-4 py-3 font-bold" key={header}>
                       {header}
@@ -584,7 +631,8 @@ export function TravelItineraryShareRenderer() {
               </div>
               <div className="min-w-0 p-2">
                 <p className="text-sm font-bold text-[#7b4de8]">
-                  {formatDayTab(day)} · {getLocalCityLabel(day.city)} · {day.cost}
+                  {formatDayTab(day, interfaceLocale)} ·{" "}
+                  {getDisplayCityLabel(day.city, interfaceLocale)} · {day.cost}
                 </p>
                 <h3 className="mt-2 text-2xl font-bold">
                   {day.activities.slice(0, 2).join(" · ")}
@@ -601,7 +649,8 @@ export function TravelItineraryShareRenderer() {
                 </div>
                 {day.food.length ? (
                   <p className="mt-4 text-sm font-semibold text-[#756a7b]">
-                    餐饮：{joinList(day.food)}
+                    {isZh ? "餐饮：" : "Dining: "}
+                    {joinList(day.food)}
                   </p>
                 ) : null}
               </div>

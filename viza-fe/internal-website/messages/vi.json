@@ -8,8 +8,13 @@
   "nav": {
     "home": "[VI] Home",
     "application": "[VI] Application",
+    "status": "[VI] Status",
     "chat": "[VI] Chat",
     "documents": "[VI] Documents",
+    "settings": "[VI] Settings",
+    "support": "[VI] Help",
+    "visaConsultant": "[VI] Visa Consultant",
+    "travelAgent": "[VI] Travel Agent",
     "inviteFriends": "[VI] Invite Friends"
   },
   "menu": {

@@ -70,6 +70,7 @@ export function NavBar({
     Chat: t("chat"),
     Documents: t("documents"),
     Support: t("support"),
+    Settings: t("settings"),
   };
 
   useEffect(() => {
@@ -112,8 +113,8 @@ export function NavBar({
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
 
   const leftTabs = ["Home", "Application", "Status"];
-  const rightTabs = ["Documents", "Support"];
-  const mobileTabs = ["Home", "Application", "Status", "Documents", "Support"];
+  const rightTabs = ["Settings", "Support"];
+  const mobileTabs = ["Home", "Application", "Status", "Settings", "Support"];
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";

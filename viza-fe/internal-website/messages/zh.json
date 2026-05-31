@@ -11,6 +11,7 @@
     "status": "状态",
     "chat": "聊天",
     "documents": "材料",
+    "settings": "设置",
     "support": "帮助",
     "visaConsultant": "签证顾问",
     "travelAgent": "旅行顾问",
@@ -3021,6 +3022,11 @@
         "title": "个人资料",
         "description": "查看 VIZA 准备申请时会使用的基础信息。"
       },
+      "travelers": {
+        "title": "常用出行人",
+        "description": "添加家人、同事或同行人资料，后续团单可直接选择。",
+        "badge": "团单"
+      },
       "language": {
         "title": "语言",
         "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
@@ -3059,6 +3065,53 @@
           "title": "微信支付",
           "description": "当套餐支持时，可使用中文支付流程。"
         }
+      }
+    },
+    "travelers": {
+      "title": "常用出行人",
+      "description": "保存经常一起出行的申请人资料。这里的资料不会自动提交，只是为后续团单选择做准备。",
+      "add": "添加出行人",
+      "addFirst": "添加第一个出行人",
+      "addTitle": "添加常用出行人",
+      "editTitle": "编辑出行人",
+      "formHint": "建议填写姓名、国籍和护照信息；之后团单表单可复用这些资料。",
+      "loading": "正在加载出行人...",
+      "emptyTitle": "还没有常用出行人",
+      "emptyDescription": "可以先添加家人、同事或同行朋友。之后做团单时，就能从这里选择。",
+      "notSet": "未填写",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存出行人",
+      "saving": "保存中...",
+      "cancel": "取消",
+      "created": "出行人已添加。",
+      "updated": "出行人已更新。",
+      "deleted": "出行人已删除。",
+      "loadError": "暂时无法加载常用出行人。",
+      "saveError": "暂时无法保存该出行人，请检查姓名后重试。",
+      "deleteError": "暂时无法删除该出行人。",
+      "handoffHint": "之后接入团单表单时，可以把这里的出行人作为同行申请人加入同一订单。",
+      "fields": {
+        "fullName": "姓名",
+        "dateOfBirth": "出生日期",
+        "nationality": "国籍",
+        "passportNumber": "护照号码",
+        "passportExpiryDate": "护照有效期至",
+        "email": "邮箱",
+        "phone": "手机号"
+      },
+      "placeholders": {
+        "fullName": "例如：张小明 / ZHANG XIAOMING",
+        "nationality": "例如：中国 / China",
+        "passportNumber": "按护照填写",
+        "email": "name@example.com",
+        "phone": "包含国家/地区号码"
+      },
+      "deleteDialog": {
+        "title": "删除这个出行人？",
+        "description": "将从常用出行人中移除 {name}。已创建的申请不会被自动删除。",
+        "cancel": "保留",
+        "confirm": "删除"
       }
     },
     "account": {
@@ -3501,6 +3554,90 @@
       "contact": {
         "title": "联系我们",
         "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.com。"
+      }
+    }
+  },
+  "subscription": {
+    "back": "返回首页",
+    "eyebrow": "VIZA Application",
+    "title": "选择适合你的 VIZA 申请方式",
+    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。当前页面为方案预览，正式支付开启前不会产生扣费。",
+    "current": {
+      "label": "当前方案",
+      "plan": "VIZA 申请体验版",
+      "badge": "预览中",
+      "renewalLabel": "续费状态",
+      "renewalValue": "暂未启用",
+      "paymentLabel": "支付方式",
+      "paymentValue": "暂未绑定"
+    },
+    "highlights": {
+      "allCountries": {
+        "title": "全国家入口",
+        "body": "月付方案覆盖平台支持的所有国家申请入口。"
+      },
+      "twoWays": {
+        "title": "月付或次付",
+        "body": "常旅客用月付更省心，单次旅程可以按目的地付费。"
+      },
+      "officialFees": {
+        "title": "费用清晰",
+        "body": "页面价格为 VIZA 服务费，不包含官方签证费和第三方费用。"
+      }
+    },
+    "monthly": {
+      "title": "月付方案",
+      "subtitle": "月付适合同时规划多个目的地的用户。两个方案都可以访问所有国家，区别在每月申请额度和高级能力。",
+      "badge": "Global Access",
+      "recommended": "推荐",
+      "countryLimit": "每月最多 {count} 个国家",
+      "cta": "选择方案",
+      "plans": {
+        "access": {
+          "name": "Access",
+          "description": "适合个人高频出行，保留核心申请工具和进度管理。"
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "适合家庭、团队或多目的地行程，开启 AI、团单和 Travel Agent 能力。"
+        }
+      },
+      "features": {
+        "countryAccess": "所有国家申请入口",
+        "requirements": "签证要求核对",
+        "checklist": "动态材料清单",
+        "multilingual": "多语言申请辅助",
+        "status": "申请进度与提醒",
+        "ai": "AI assistance 与自动填表辅助",
+        "group": "团单申请",
+        "travel": "Travel Agent 行程规划"
+      }
+    },
+    "payPer": {
+      "title": "次付申请",
+      "subtitle": "每一次申请按国家单独计费，适合偶尔出行或只准备一个目的地的用户。",
+      "limitTitle": "单次申请周期",
+      "limitBody": "每次购买覆盖 1 个国家，用户需要在 1 个月内完成资料填写和提交准备。",
+      "groupTitle": "包含核心能力",
+      "groupBody": "次付默认包含申请要求核对、动态材料清单、多语言辅助、AI assistance、团单和 Travel Agent。",
+      "feeNote": "所有价格均为每次申请的 VIZA 服务费，不包含官方签证费、签证中心费、生物信息采集费、快递费或加急费。",
+      "countries": {
+        "singapore": "新加坡",
+        "malaysia": "马来西亚",
+        "thailand": "泰国",
+        "indonesia": "印度尼西亚",
+        "vietnam": "越南",
+        "cambodia": "柬埔寨",
+        "uae": "阿联酋",
+        "turkey": "土耳其",
+        "japan": "日本",
+        "southKorea": "韩国",
+        "australia": "澳大利亚",
+        "newZealand": "新西兰",
+        "schengen": "申根区",
+        "uk": "英国",
+        "canada": "加拿大",
+        "us": "美国"
       }
     }
   }

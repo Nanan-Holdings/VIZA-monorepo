@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SubmissionDisclaimerDialog } from "@/components/application-steps/submission-disclaimer-dialog";
 import type { WizardConfig } from "./types";
 
 interface WizardReviewProps<TForm> {
@@ -22,6 +24,7 @@ export function WizardReview<TForm>({
 }: WizardReviewProps<TForm>) {
   const tShared = useTranslations("simplifiedForm.shared");
   const tCountry = useTranslations(config.i18nNamespace);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const sections = config.reviewSections(form);
 
   const tr = (key: string): string => {
@@ -82,7 +85,7 @@ export function WizardReview<TForm>({
         ))}
       </div>
 
-      <Button onClick={onSubmit} disabled={submitting} size="lg" className="self-stretch">
+      <Button onClick={() => setDisclaimerOpen(true)} disabled={submitting} size="lg" className="self-stretch">
         {submitting ? (
           tShared("submitting")
         ) : (
@@ -92,6 +95,13 @@ export function WizardReview<TForm>({
           </>
         )}
       </Button>
+
+      <SubmissionDisclaimerDialog
+        open={disclaimerOpen}
+        submitting={submitting}
+        onCancel={() => setDisclaimerOpen(false)}
+        onConfirm={onSubmit}
+      />
     </div>
   );
 }

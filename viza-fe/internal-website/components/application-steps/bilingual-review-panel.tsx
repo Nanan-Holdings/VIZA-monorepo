@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +17,7 @@ export interface ReviewRow {
   badges: string[];
   warnings: string[];
   editable: boolean;
+  editStepIndex?: number;
 }
 
 interface BilingualReviewPanelProps {
@@ -28,9 +29,10 @@ interface BilingualReviewPanelProps {
   onRetry?: () => void;
   onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
+  onEditSection?: (stepIndex: number) => void;
 }
 
-function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[] }> {
+function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[]; editStepIndex?: number }> {
   const grouped = new Map<string, ReviewRow[]>();
   for (const row of rows) {
     const existing = grouped.get(row.section) ?? [];
@@ -40,6 +42,7 @@ function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[
   return Array.from(grouped.entries()).map(([section, sectionRows]) => ({
     section,
     rows: sectionRows,
+    editStepIndex: sectionRows.find((row) => row.editStepIndex !== undefined)?.editStepIndex,
   }));
 }
 
@@ -92,6 +95,7 @@ export function BilingualReviewPanel({
   error,
   retrying,
   onRetry,
+  onEditSection,
 }: BilingualReviewPanelProps) {
   const t = useTranslations("applicationSteps.translation");
   const sections = groupRows(rows);
@@ -135,9 +139,23 @@ export function BilingualReviewPanel({
       ) : (
         sections.map((section) => (
           <div key={section.section} className="rounded-lg border border-border p-4">
-            <h3 className="mb-3 font-heading text-sm font-semibold text-brand-500">
-              {section.section}
-            </h3>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="font-heading text-sm font-semibold text-brand-500">
+                {section.section}
+              </h3>
+              {section.editStepIndex !== undefined && onEditSection ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
+                  onClick={() => onEditSection(section.editStepIndex!)}
+                >
+                  <Pencil className="mr-1 h-4 w-4" />
+                  修改
+                </Button>
+              ) : null}
+            </div>
             <div>
               {section.rows.map((row) => (
                 <BilingualReviewRow
