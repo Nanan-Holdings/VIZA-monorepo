@@ -1751,7 +1751,7 @@ export default function ApplicationPage() {
   const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
 
   return (
-    <div className="flex min-h-screen pt-3 lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
+    <div className="flex min-h-screen pt-3 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden lg:overscroll-none">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar
@@ -1766,7 +1766,7 @@ export default function ApplicationPage() {
       )}
 
       {/* Main content area */}
-      <main className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:overflow-y-auto">
+      <main className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
         <div
           className={cn(
             "mx-auto max-w-xl sm:max-w-2xl",

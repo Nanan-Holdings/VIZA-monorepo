@@ -107,6 +107,7 @@ function ClientLayoutContent({
   }, [isReportPage]);
   const searchParams = useSearchParams();
   const isAboutMeForm = pathname.startsWith("/client/about-me-form");
+  const isApplicationFlow = pathname.startsWith("/client/application");
 
   // Check session validity on tab focus/visibility change
   // This handles the case where another tab starts a new impersonation
@@ -351,7 +352,12 @@ function ClientLayoutContent({
         menuReady={menuReady}
       />
 
-      <main className="pt-32 xl:pt-32 px-4 sm:px-6 md:px-10 xl:px-20">
+      <main
+        className={clsx(
+          "px-4 pt-32 sm:px-6 md:px-10 xl:px-20 xl:pt-32",
+          isApplicationFlow && "lg:h-dvh lg:overflow-hidden"
+        )}
+      >
         {sessionValid === null || (sessionValid === true && !formRequestChecked) ? (
           // Show loading spinner while verifying session or checking form requests
           // This prevents data fetching and also handles the first-login redirect flow

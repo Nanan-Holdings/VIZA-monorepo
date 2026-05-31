@@ -3,10 +3,8 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, FileText, Loader2, ScanLine, UploadCloud, XCircle } from "lucide-react";
 import { useLocale } from "next-intl";
-import {
-  confirmPassportOcrExtraction,
-  uploadApplicationDocument,
-} from "@/app/client/documents/actions";
+import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
@@ -158,7 +156,7 @@ export function PassportOcrUpload({
       uploadForm.set("filename", safeName);
       uploadForm.set("required", "true");
       uploadForm.set("file", file);
-      const uploadResult = await uploadApplicationDocument(uploadForm);
+      const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       setStatus("ocr");

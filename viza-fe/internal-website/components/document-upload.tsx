@@ -3,7 +3,7 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { uploadApplicationDocument } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
@@ -94,7 +94,7 @@ export function DocumentUpload({
       uploadForm.set("filename", file.name);
       uploadForm.set("required", "true");
       uploadForm.set("file", file);
-      const uploadResult = await uploadApplicationDocument(uploadForm);
+      const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) {
         const retry = /network|timeout|fetch|temporar|502|503|504/i.test(uploadResult.error);
         return { ok: false, retry, message: uploadResult.error };

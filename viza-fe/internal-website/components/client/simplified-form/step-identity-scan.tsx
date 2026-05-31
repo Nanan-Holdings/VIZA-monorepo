@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, Loader2, ScanLine, Upload, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { uploadApplicationDocument } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import type { SimplifiedIdentity, SimplifiedPassport } from "./types";
 
 type Screen = "upload" | "extracting" | "result" | "error";
@@ -91,7 +91,7 @@ export function StepIdentityScan({
       uploadForm.set("filename", file.name || `passport.${ext}`);
       uploadForm.set("required", "true");
       uploadForm.set("file", file);
-      const uploadResult = await uploadApplicationDocument(uploadForm);
+      const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       const resp = await fetch("/api/passport-scan/extract", {

@@ -25,10 +25,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import {
   confirmPassportOcrExtraction,
   loadDocumentCenterData,
-  uploadApplicationDocument,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
@@ -1294,7 +1294,7 @@ export function DocumentCenterClient({
       uploadForm.set("required", String(requirement.required));
       uploadForm.set("source", source);
       uploadForm.set("file", file);
-      const result = await uploadApplicationDocument(uploadForm);
+      const result = await uploadApplicationDocumentFromClient(uploadForm);
       if (!result.ok) throw new Error(result.error);
 
       if (source === "manual_upload" && isPassportRequirement(requirement)) {

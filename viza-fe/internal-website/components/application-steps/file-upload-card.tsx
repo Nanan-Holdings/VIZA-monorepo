@@ -12,7 +12,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { uploadApplicationDocument } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 
 export type DocumentType =
   | "passport_copy"
@@ -131,7 +131,7 @@ export function FileUploadCard({
       uploadForm.set("filename", file.name);
       uploadForm.set("required", String(required));
       uploadForm.set("file", file);
-      const uploadResult = await uploadApplicationDocument(uploadForm);
+      const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       setFileName(uploadResult.filename);
