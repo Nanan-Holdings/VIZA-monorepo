@@ -43,6 +43,8 @@ The current internal automation migrations are:
 - `0014_internal_automation_db_refinements.sql`: coverage matrix,
   government-fee rules, retention jobs, data-rights columns, and lookup
   indexes.
+- `0087_application_documents_bucket.sql`: private
+  `application-documents` Storage bucket and user-prefix object policies.
 
 ## Guardrails
 

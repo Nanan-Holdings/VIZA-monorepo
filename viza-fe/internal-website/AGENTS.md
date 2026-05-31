@@ -27,6 +27,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/actions/internal-automation/**`.
 - Payment, OCR, and external status API boundaries under `app/api/stripe/**`,
   `app/api/passport-ocr/**`, and `app/api/external-submission/**`.
+- Applicant upload storage is the private Supabase Storage bucket
+  `application-documents`, created by `supabase/migrations/**` with user-id
+  path-prefix policies.
 - VIZA AI chat under `app/client/chat/**` and
   `components/client/companion/**`.
 - Customer service support center under `app/client/support/**`; keep it

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.consent_event (
   applicant_id UUID,
   application_id UUID,
   email TEXT,
-  doc_kind TEXT NOT NULL CHECK (doc_kind IN ('tos', 'privacy', 'application_authorisation')),
+  doc_kind TEXT NOT NULL CHECK (doc_kind IN ('tos', 'privacy', 'application_authorisation', 'dpa')),
   doc_version TEXT NOT NULL,
   ip TEXT,
   ua TEXT,

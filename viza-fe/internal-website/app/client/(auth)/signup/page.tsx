@@ -15,6 +15,7 @@ function isValidEmail(v: string) {
 }
 
 type SignupStep = 'email' | 'password'
+type PasswordRequirementKey = 'length' | 'letter' | 'digit' | 'symbol'
 
 function getPasswordScore(password: string) {
   const checks = {
@@ -172,8 +173,12 @@ export default function ClientSignupPage() {
         setIsSubmitting(false)
         return
       }
-      const { recordSignupConsent } = await import('@/app/actions/consent')
-      await recordSignupConsent({ email: normalizedEmail })
+      try {
+        const { recordSignupConsent } = await import('@/app/actions/consent')
+        await recordSignupConsent({ email: normalizedEmail })
+      } catch (consentError) {
+        console.error('Could not record signup consent:', consentError)
+      }
       await supabase.auth.signOut()
       window.location.href = '/client/login?registered=1'
     } catch (err) {
@@ -357,13 +362,13 @@ export default function ClientSignupPage() {
                     ))}
                   </div>
                   <div className="grid gap-1 text-[12px] text-[rgba(0,0,0,0.55)]">
-                    {[
+                    {([
                       ['length', passwordStrength.checks.length],
                       ['letter', passwordStrength.checks.letter],
                       ['digit', passwordStrength.checks.digit],
                       ['symbol', passwordStrength.checks.symbol],
-                    ].map(([key, ok]) => (
-                      <span key={key as string} className="flex items-center gap-2">
+                    ] satisfies Array<[PasswordRequirementKey, boolean]>).map(([key, ok]) => (
+                      <span key={key} className="flex items-center gap-2">
                         <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-brand-500' : 'text-[#bdbdbd]'}`} />
                         {t(`requirements.${key}`)}
                       </span>

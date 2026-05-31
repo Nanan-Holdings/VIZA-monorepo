@@ -44,7 +44,7 @@ interface Env {
   apiV3Key: string;
   merchantSerial: string;
   privateKeyPem: string;
-  notifyUrl: string;
+  notifyUrl?: string;
 }
 
 function loadEnv(): Env {
@@ -56,7 +56,7 @@ function loadEnv(): Env {
     privateKeyPem: process.env.WECHAT_PAY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     notifyUrl: process.env.WECHAT_PAY_NOTIFY_URL,
   };
-  for (const [k, v] of Object.entries(required)) {
+  for (const [k, v] of Object.entries(required).filter(([k]) => k !== "notifyUrl")) {
     if (!v) throw new Error(`WeChat Pay env ${k} not set`);
   }
   return required as Env;
@@ -144,6 +144,7 @@ export interface CreateNativeInput {
   outTradeNo: string;
   amountFen: number;
   description: string;
+  notifyUrl?: string;
 }
 
 export interface CreateNativeOutput {
@@ -154,6 +155,10 @@ export async function createNativeOrder(
   input: CreateNativeInput,
 ): Promise<CreateNativeOutput> {
   const env = loadEnv();
+  const notifyUrl = input.notifyUrl ?? env.notifyUrl;
+  if (!notifyUrl) {
+    throw new Error("WeChat Pay notify URL is not configured");
+  }
   const res = await request<{ code_url?: string }>({
     method: "POST",
     path: NATIVE_PATH,
@@ -162,7 +167,7 @@ export async function createNativeOrder(
       mchid: env.mchId,
       description: input.description,
       out_trade_no: input.outTradeNo,
-      notify_url: env.notifyUrl,
+      notify_url: notifyUrl,
       amount: { total: input.amountFen, currency: "CNY" },
     },
   });
