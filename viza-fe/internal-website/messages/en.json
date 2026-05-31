@@ -55,6 +55,21 @@
       "travelAI": "Open Travel AI",
       "viewStatus": "View Application Status"
     },
+    "subscriptionPlan": {
+      "title": "VIZA Application",
+      "subtitle": "Application plan and subscription status",
+      "planTitle": "VIZA Application",
+      "planStatus": "Trial · renewal not enabled yet",
+      "viewPlan": "View plan",
+      "viewDetails": "View details"
+    },
+    "universalInfo": {
+      "title": "Universal profile",
+      "subtitle": "Reused across similar visa questions",
+      "saved": "{completed}/{total} saved",
+      "fields": "Name, birthday, passport, contact",
+      "edit": "Edit universal profile"
+    },
     "emptyApplication": {
       "noActiveApplication": "No active application",
       "subtitle": "Choose a destination below to start the right visitor visa workflow.",
@@ -648,6 +663,7 @@
       "Security and Background: Part 3": "Security and Background: Part 3",
       "Security and Background: Part 4": "Security and Background: Part 4",
       "Security and Background: Part 5": "Security and Background: Part 5",
+      "Supporting Documents": "Supporting Documents",
       "Upload Photo": "Upload Photo",
       "Review": "Review Application",
       "Confirmation": "Confirmation"
@@ -663,11 +679,13 @@
       "family": "Family",
       "workEducationTraining": "Work / Education / Training",
       "securityAndBackground": "Security and Background",
+      "documents": "Documents",
       "photo": "Upload Photo",
       "review": "Review",
       "confirmation": "Confirmation"
     },
     "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
+    "documentsStepDescription": "Upload required and optional supporting documents",
     "photoStepDescription": "Upload your passport-style photo",
     "reviewStepDescription": "Review and confirm your details",
     "statusStepDescription": "Application submitted",
@@ -1072,6 +1090,7 @@
       "progress": "Step {current} of {total} · {name}",
       "back": "Back",
       "continue": "Continue",
+      "documents": "Documents",
       "submitting": "Saving your answers…",
       "edit": "Edit",
       "yes": "Yes",
@@ -2994,10 +3013,79 @@
   },
   "settings": {
     "title": "Settings",
+    "subtitle": "Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
     "loading": "Loading your settings...",
     "tabs": {
       "billing": "Billing",
       "account": "Account"
+    },
+    "profile": {
+      "fallbackName": "VIZA applicant",
+      "editDetails": "Edit details",
+      "completion": "Reusable profile completion",
+      "completionHint": "Complete this once so VIZA can prefill repeated visa questions."
+    },
+    "quickSnapshot": {
+      "label": "Account snapshot",
+      "passport": "Passport",
+      "phone": "Phone",
+      "payment": "Payment",
+      "notSet": "Not set"
+    },
+    "sections": {
+      "general": "General",
+      "payments": "Payments",
+      "support": "Support"
+    },
+    "rows": {
+      "universalInfo": {
+        "title": "Universal profile",
+        "description": "Edit reusable identity, passport, contact, and address details.",
+        "badge": "Recommended"
+      },
+      "account": {
+        "title": "Personal details",
+        "description": "Review the information VIZA uses to prepare your applications."
+      },
+      "language": {
+        "title": "Language",
+        "description": "Use the language switcher in the top bar, or read the profile guide."
+      },
+      "paymentMethods": {
+        "title": "Payment method setup",
+        "description": "See how to add or update card, bank transfer, or WeChat Pay arrangements.",
+        "badge": "Guide"
+      },
+      "billing": {
+        "title": "Receipts and invoices",
+        "description": "Open billing history, receipts, invoice requests, and refund visibility."
+      },
+      "helpCenter": {
+        "title": "Help center",
+        "description": "Read account, payment, privacy, and application support articles."
+      },
+      "feedback": {
+        "title": "Share feedback",
+        "description": "Send a support request if something needs human follow-up."
+      }
+    },
+    "payment": {
+      "selected": "Default",
+      "setDefault": "Set as default",
+      "methods": {
+        "card": {
+          "title": "Card",
+          "description": "Preferred for hosted checkout and receipt tracking."
+        },
+        "bank_transfer": {
+          "title": "Bank transfer",
+          "description": "Use support-assisted transfer details for larger cases."
+        },
+        "wechat_pay": {
+          "title": "WeChat Pay",
+          "description": "Use Chinese payment flow when it is available for the package."
+        }
+      }
     },
     "account": {
       "title": "Account",
@@ -3008,6 +3096,20 @@
       "saving": "Saving...",
       "failedToSave": "Failed to save.",
       "saved": "Saved."
+    },
+    "security": {
+      "title": "Security settings",
+      "passwordTitle": "Change password",
+      "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "updatePassword": "Update password",
+      "saving": "Updating...",
+      "updated": "Password updated.",
+      "mismatch": "The two passwords do not match.",
+      "tooShort": "Password must be at least 8 characters.",
+      "failed": "Could not update the password. Please try again.",
+      "guide": "Security guide"
     },
     "signOut": {
       "title": "Sign Out",
@@ -3074,6 +3176,18 @@
         "resolved": "Processed"
       }
     },
+    "requestsPage": {
+      "eyebrow": "Support history",
+      "title": "My requests",
+      "subtitle": "Review submitted feedback, see processing status, and open the full support thread when you need more detail.",
+      "back": "Back to Help",
+      "newRequest": "Submit new request",
+      "listTitle": "Feedback history",
+      "listSubtitle": "Each request keeps its subject, latest status, and support thread together.",
+      "emptyTitle": "No feedback yet",
+      "errorTitle": "Could not load feedback",
+      "error": "We could not load your support requests right now. Please try again later."
+    },
     "agent": {
       "cardTitle": "Smart answers",
       "cardDescription": "Pick a category first, then describe the details.",
@@ -3097,7 +3211,7 @@
       "attachmentsHint": "Add screenshots or files to help us investigate faster.",
       "submit": "Send request",
       "sending": "Sending...",
-      "helper": "You can track the status from the left panel.",
+      "helper": "You can track the status from My requests.",
       "successTitle": "Request sent",
       "successBody": "We received your issue and will update the status shortly.",
       "successMeta": "Ticket #{id}",

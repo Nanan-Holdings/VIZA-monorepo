@@ -202,7 +202,7 @@ declare global {
 const DEFAULT_CENTER: GoogleLatLngLiteral = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
-const MAX_CENTER_LAT = 67;
+const MAX_VISIBLE_LAT = 85;
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
 const GALLERY_MAX_IMAGES = 8;
@@ -989,13 +989,45 @@ function toWorldPixel(
   lng: number,
   zoom: number
 ): { x: number; y: number } {
-  const safeLat = clamp(lat, -85, 85);
+  const safeLat = clamp(lat, -MAX_VISIBLE_LAT, MAX_VISIBLE_LAT);
   const sinLat = Math.sin((safeLat * Math.PI) / 180);
   const scale = 256 * Math.pow(2, zoom);
   const x = ((lng + 180) / 360) * scale;
   const y =
     (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
   return { x, y };
+}
+
+function worldPixelYToLat(y: number, zoom: number): number {
+  const scale = 256 * Math.pow(2, zoom);
+  const mercatorN = Math.PI - (2 * Math.PI * y) / scale;
+  return (Math.atan(Math.sinh(mercatorN)) * 180) / Math.PI;
+}
+
+function getLatitudeBoundedCenter(
+  center: GoogleLatLngLiteral,
+  zoom: number,
+  mapHeight: number
+): GoogleLatLngLiteral {
+  if (mapHeight <= 0) return center;
+
+  const centerWorld = toWorldPixel(center.lat, center.lng, zoom);
+  const topLimitY = toWorldPixel(MAX_VISIBLE_LAT, 0, zoom).y;
+  const bottomLimitY = toWorldPixel(-MAX_VISIBLE_LAT, 0, zoom).y;
+  const halfHeight = mapHeight / 2;
+  const minCenterY = topLimitY + halfHeight;
+  const maxCenterY = bottomLimitY - halfHeight;
+  const nextCenterY =
+    minCenterY > maxCenterY
+      ? (minCenterY + maxCenterY) / 2
+      : clamp(centerWorld.y, minCenterY, maxCenterY);
+
+  if (Math.abs(nextCenterY - centerWorld.y) < 0.5) return center;
+
+  return {
+    lat: worldPixelYToLat(nextCenterY, zoom),
+    lng: center.lng,
+  };
 }
 
 function getWrappedLongitudeNearCenter(lng: number, centerLng: number): number {
@@ -1838,14 +1870,15 @@ export function TripRouteMap({
           if (centerClampRunning) return;
           const center = map.getCenter();
           if (!center) return;
-          const lat = center.lat();
-          if (lat <= MAX_CENTER_LAT && lat >= -MAX_CENTER_LAT) return;
+          const boundedCenter = getLatitudeBoundedCenter(
+            { lat: center.lat(), lng: center.lng() },
+            map.getZoom() ?? DEFAULT_ZOOM,
+            containerRef.current?.clientHeight ?? 0
+          );
+          if (Math.abs(boundedCenter.lat - center.lat()) < 0.000001) return;
 
           centerClampRunning = true;
-          map.setCenter({
-            lat: clamp(lat, -MAX_CENTER_LAT, MAX_CENTER_LAT),
-            lng: center.lng(),
-          });
+          map.setCenter(boundedCenter);
           window.setTimeout(() => {
             centerClampRunning = false;
           }, 0);
@@ -1867,16 +1900,22 @@ export function TripRouteMap({
           markerRefreshFrameId = window.requestAnimationFrame(() => {
             markerRefreshFrameId = null;
             maps.event.trigger(map, "resize");
+            clampMapCenterLatitude();
             refreshMarkerVisualsRef.current();
           });
         };
 
         layoutRerenderListenersRef.current = [
-          map.addListener("zoom_changed", scheduleMarkerVisualRefresh),
+          map.addListener("zoom_changed", () => {
+            clampMapCenterLatitude();
+            scheduleMarkerVisualRefresh();
+          }),
           map.addListener("dragstart", () => {
             hoverInfoRef.current?.close();
           }),
+          map.addListener("drag", clampMapCenterLatitude),
           map.addListener("center_changed", clampMapCenterLatitude),
+          map.addListener("idle", clampMapCenterLatitude),
         ];
 
         if (containerRef.current && typeof ResizeObserver !== "undefined") {
@@ -1890,6 +1929,7 @@ export function TripRouteMap({
         [0, 240].forEach((delay) => {
           window.setTimeout(() => {
             maps.event.trigger(map, "resize");
+            clampMapCenterLatitude();
             refreshMarkerVisualsRef.current();
           }, delay);
         });
@@ -1965,8 +2005,20 @@ export function TripRouteMap({
     const fitFallbackTimeoutIds: number[] = [];
 
     const currentActivePointId = activePointIdRef.current;
+    const currentCenter = map.getCenter();
+    const visiblePoints = getDeclutteredPoints(
+      points,
+      currentCenter
+        ? { lat: currentCenter.lat(), lng: currentCenter.lng() }
+        : DEFAULT_CENTER,
+      zoom,
+      mapWidth,
+      mapHeight,
+      iconSize,
+      currentActivePointId
+    );
 
-    points.forEach((point) => {
+    visiblePoints.forEach((point) => {
       const isActive = point.id === currentActivePointId;
       const markerDimensions = createBubbleMarkerDimensions(iconSize, isActive);
       const fallbackMarkerUrl = createSolidBubbleMarkerDataUrl(
