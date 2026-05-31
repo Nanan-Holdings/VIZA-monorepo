@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useEffect, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
@@ -13,19 +13,13 @@ import {
   FileCheck2,
   FolderKanban,
   HelpCircle,
-  History,
   Inbox,
-  Loader2,
   MessageSquareText,
   Search,
   SendHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import {
-  createSupportTicket,
-  listMyTickets,
-  type SupportTicketRow,
-} from "@/app/actions/support";
+import { createSupportTicket } from "@/app/actions/support";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,10 +49,10 @@ const ISSUE_TYPES: Array<{
 const HELP_ACTIONS: Array<{
   key: HelpActionKey;
   icon: LucideIcon;
-  href?: string;
+  href: string;
 }> = [
   { key: "faqs", icon: HelpCircle, href: "/client/help" },
-  { key: "requests", icon: Inbox },
+  { key: "requests", icon: Inbox, href: "/client/support/requests" },
 ];
 
 const QUICK_ISSUES = ["stuck", "change", "refund", "deadline"] as const;
@@ -102,11 +96,8 @@ export function SupportCenterClient() {
   const t = useTranslations("supportCenter");
   const [selectedIssue, setSelectedIssue] = useState<IssueTypeKey>("application");
   const [showAllIssues, setShowAllIssues] = useState(false);
-  const [showRequests, setShowRequests] = useState(false);
   const [draft, setDraft] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const [tickets, setTickets] = useState<SupportTicketRow[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
   const [requestView, setRequestView] = useState<"knowledge" | "request">("knowledge");
   const [requestSubject, setRequestSubject] = useState("");
   const [requestDescription, setRequestDescription] = useState("");
@@ -120,22 +111,6 @@ export function SupportCenterClient() {
   const selectedIssueMeta = t(`activities.${selectedIssue}.meta`);
   const visibleIssues = showAllIssues ? ISSUE_TYPES : ISSUE_TYPES.slice(0, 3);
   const showHandoff = turns.some((turn) => turn.role === "agent");
-
-  useEffect(() => {
-    let mounted = true;
-    setTicketsLoading(true);
-    listMyTickets()
-      .then((result) => {
-        if (!mounted) return;
-        if (result.rows) setTickets(result.rows);
-      })
-      .finally(() => {
-        if (mounted) setTicketsLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   function selectIssue(issue: IssueTypeKey) {
     setSelectedIssue(issue);
@@ -167,12 +142,6 @@ export function SupportCenterClient() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     submitIssue(draft);
-  }
-
-  function handleAction(action: HelpActionKey) {
-    if (action === "requests") {
-      setShowRequests((current) => !current);
-    }
   }
 
   function openRequestForm() {
@@ -227,34 +196,7 @@ export function SupportCenterClient() {
       setRequestSubject("");
       setRequestDescription("");
       setRequestFiles([]);
-      setTickets((current) => [
-        {
-          id: ticketId,
-          applicant_id: "",
-          application_id: null,
-          subject: trimmedSubject,
-          body: trimmedDescription,
-          status: "open",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        ...current,
-      ]);
-      setShowRequests(true);
     });
-  }
-
-  function requestStatusLabel(status: string) {
-    if (status === "open") return t("requests.status.sent");
-    if (status === "staff_replied") return t("requests.status.pending");
-    if (status === "closed") return t("requests.status.resolved");
-    return t("requests.status.pending");
-  }
-
-  function requestStatusClasses(status: string) {
-    if (status === "closed") return "bg-emerald-50 text-emerald-700";
-    if (status === "staff_replied") return "bg-amber-50 text-amber-700";
-    return "bg-brand-50 text-brand-600";
   }
 
   return (
@@ -354,71 +296,17 @@ export function SupportCenterClient() {
                 </>
               );
 
-              if (action.href) {
-                return (
-                  <Link
-                    key={action.key}
-                    href={action.href}
-                    className="flex min-h-24 items-center gap-4 rounded-lg border border-border bg-white p-4 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {content}
-                  </Link>
-                );
-              }
-
               return (
-                <button
+                <Link
                   key={action.key}
-                  type="button"
-                  onClick={() => handleAction(action.key)}
-                  className="flex min-h-24 w-full items-center gap-4 rounded-lg border border-border bg-white p-4 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  href={action.href}
+                  className="flex min-h-24 items-center gap-4 rounded-lg border border-border bg-white p-4 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   {content}
-                </button>
+                </Link>
               );
             })}
           </section>
-
-          {showRequests ? (
-            <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center gap-2">
-                <History className="h-4 w-4 text-brand-500" />
-                <h2 className="font-semibold text-foreground">{t("requests.title")}</h2>
-              </div>
-              {ticketsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("requests.loading")}
-                </div>
-              ) : tickets.length > 0 ? (
-                <div className="space-y-2">
-                  {tickets.slice(0, 4).map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      className="rounded-lg border border-border p-3 transition hover:border-brand-200 hover:bg-brand-50/60"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="block truncate text-sm font-medium text-foreground">{ticket.subject}</span>
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-semibold",
-                            requestStatusClasses(ticket.status),
-                          )}
-                        >
-                          {requestStatusLabel(ticket.status)}
-                        </span>
-                      </div>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {t("requests.ticketMeta", { id: ticket.id.slice(0, 8) })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm leading-6 text-muted-foreground">{t("requests.empty")}</p>
-              )}
-            </section>
-          ) : null}
         </aside>
 
         <section className="min-h-[640px] rounded-lg border border-border bg-white shadow-sm">

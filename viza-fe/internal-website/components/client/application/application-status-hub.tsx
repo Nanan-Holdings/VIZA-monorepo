@@ -204,7 +204,10 @@ function SummaryCard({
 }) {
   const t = useTranslations("application.statusHub");
   const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
   const tone = STATUS_TONE[summary.status];
+  const countryName = isZh ? summary.countryNameZh : summary.countryName;
+  const visaTypeLabel = isZh ? summary.visaTypeLabelZh : summary.visaTypeLabel;
 
   return (
     <motion.div
@@ -224,10 +227,10 @@ function SummaryCard({
               </span>
               <div className="min-w-0">
                 <h2 className="font-heading text-[18px] font-medium leading-tight text-[#1f2937]">
-                  {summary.countryNameZh}
+                  {countryName}
                 </h2>
                 <p className="mt-1 truncate text-[13px] font-medium text-[#6b7687]">
-                  {summary.countryName} · {summary.visaTypeLabelZh}
+                  {visaTypeLabel}
                 </p>
               </div>
             </div>
@@ -488,6 +491,9 @@ function DetailView({
   }
 
   const tone = STATUS_TONE[summary.status];
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const countryName = isZh ? summary.countryNameZh : summary.countryName;
+  const visaTypeLabel = isZh ? summary.visaTypeLabelZh : summary.visaTypeLabel;
   const primaryHref = getFormHref(summary);
   const resultDone = summary.status === "approved" || summary.status === "rejected";
   const submittingDone = summary.status === "submitting" || summary.status === "submitted" || resultDone;
@@ -543,12 +549,12 @@ function DetailView({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="font-heading text-[30px] font-medium leading-tight tracking-[-1px] text-[#26364a]">
-                  {summary.countryNameZh}
+                  {countryName}
                 </h1>
                 <StatusBadge status={summary.status} />
               </div>
               <p className="mt-2 text-[15px] font-medium text-[#66758a]">
-                {summary.countryName} · {summary.visaTypeLabelZh} / {summary.visaTypeLabel}
+                {visaTypeLabel}
               </p>
               {summary.latestSubmission?.lastError && (
                 <p className="mt-3 rounded-[8px] border border-red-100 bg-red-50 px-3 py-2 text-[13px] text-red-700">
