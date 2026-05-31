@@ -151,8 +151,8 @@ function formatDayTab(day: ItineraryDay, locale: "zh" | "en" = "zh"): string {
   return locale === "zh" ? `天 ${value}` : `Day ${value}`;
 }
 
-function joinList(items: string[]): string {
-  return items.filter(Boolean).join("、") || "-";
+function joinList(items: string[], locale: "zh" | "en" = "zh"): string {
+  return items.filter(Boolean).join(locale === "zh" ? "、" : ", ") || "-";
 }
 
 function getCities(payload: TravelItinerarySharePayload): string[] {
@@ -172,53 +172,69 @@ function getCities(payload: TravelItinerarySharePayload): string[] {
     });
 }
 
-function buildRowsFromItinerary(itinerary: ItineraryDay[]): TravelItineryShareRow[] {
+function buildRowsFromItinerary(
+  itinerary: ItineraryDay[],
+  locale: "zh" | "en"
+): TravelItineryShareRow[] {
   return itinerary.flatMap((day) => {
     const rows: TravelItineryShareRow[] = [];
-    const city = getLocalCityLabel(day.city);
-    const firstActivity = day.activities[0] ?? `${city}城市地标`;
-    const secondActivity = day.activities[1] ?? day.activities[0] ?? `${city}街区体验`;
+    const city = getDisplayCityLabel(day.city, locale);
+    const firstActivity =
+      day.activities[0] ??
+      (locale === "zh" ? `${city}城市地标` : `${city} city landmark`);
+    const secondActivity =
+      day.activities[1] ??
+      day.activities[0] ??
+      (locale === "zh" ? `${city}街区体验` : `${city} neighborhood experience`);
 
     rows.push({
-      time: "09:00 上午",
-      type: "景点",
-      date: formatDayTab(day),
+      time: locale === "zh" ? "09:00 上午" : "09:00 Morning",
+      type: locale === "zh" ? "景点" : "Attraction",
+      date: formatDayTab(day, locale),
       route: city,
       name: firstActivity,
-      details: `上午：游览 ${firstActivity}，建议停留 2-3 小时。`,
+      details:
+        locale === "zh"
+          ? `上午：游览 ${firstActivity}，建议停留 2-3 小时。`
+          : `Morning: visit ${firstActivity}. Suggested stay: 2-3 hours.`,
       contact: "-",
     });
 
     if (day.food[0]) {
       rows.push({
-        time: "12:30 午餐",
-        type: "餐饮",
-        date: formatDayTab(day),
+        time: locale === "zh" ? "12:30 午餐" : "12:30 Lunch",
+        type: locale === "zh" ? "餐饮" : "Dining",
+        date: formatDayTab(day, locale),
         route: city,
         name: day.food[0],
-        details: `午餐：${day.food[0]}。`,
+        details:
+          locale === "zh" ? `午餐：${day.food[0]}。` : `Lunch: ${day.food[0]}.`,
         contact: "-",
       });
     }
 
     rows.push({
-      time: "14:30 下午",
-      type: "景点",
-      date: formatDayTab(day),
+      time: locale === "zh" ? "14:30 下午" : "14:30 Afternoon",
+      type: locale === "zh" ? "景点" : "Attraction",
+      date: formatDayTab(day, locale),
       route: city,
       name: secondActivity,
-      details: `下午：继续游览 ${secondActivity}，安排拍照、步行和周边体验。`,
+      details:
+        locale === "zh"
+          ? `下午：继续游览 ${secondActivity}，安排拍照、步行和周边体验。`
+          : `Afternoon: continue to ${secondActivity}, with time for photos, walking, and nearby streets.`,
       contact: "-",
     });
 
     if (day.food[1]) {
       rows.push({
-        time: "18:30 晚餐",
-        type: "餐饮",
-        date: formatDayTab(day),
+        time: locale === "zh" ? "18:30 晚餐" : "18:30 Dinner",
+        type: locale === "zh" ? "餐饮" : "Dining",
+        date: formatDayTab(day, locale),
         route: city,
         name: day.food[1],
-        details: `晚餐：${day.food[1]}。`,
+        details:
+          locale === "zh" ? `晚餐：${day.food[1]}。` : `Dinner: ${day.food[1]}.`,
         contact: "-",
       });
     }
@@ -340,8 +356,8 @@ export function TravelItineraryShareRenderer() {
     () =>
       payload?.itineryRows?.length
         ? payload.itineryRows
-        : buildRowsFromItinerary(payload?.itinerary ?? []),
-    [payload]
+        : buildRowsFromItinerary(payload?.itinerary ?? [], interfaceLocale),
+    [interfaceLocale, payload]
   );
   const cities = useMemo(() => (payload ? getCities(payload) : []), [payload]);
   const exportPayload = useMemo(
@@ -650,7 +666,7 @@ export function TravelItineraryShareRenderer() {
                 {day.food.length ? (
                   <p className="mt-4 text-sm font-semibold text-[#756a7b]">
                     {isZh ? "餐饮：" : "Dining: "}
-                    {joinList(day.food)}
+                    {joinList(day.food, interfaceLocale)}
                   </p>
                 ) : null}
               </div>
