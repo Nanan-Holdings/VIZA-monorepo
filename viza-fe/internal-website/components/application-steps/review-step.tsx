@@ -19,6 +19,8 @@ interface ReviewStepProps {
   };
   onEdit?: (section: "personal" | "passport" | "travel" | "documents") => void;
   onComplete: (result: { confirmed: true }) => void;
+  mode?: "submit" | "continue";
+  continueLabel?: string;
 }
 
 interface ReviewRow {
@@ -234,9 +236,17 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
   );
 }
 
-export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComplete }: ReviewStepProps) {
+export function ReviewStep({
+  applicationId: _applicationId,
+  data,
+  onEdit,
+  onComplete,
+  mode = "submit",
+  continueLabel,
+}: ReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const actionLabel = continueLabel ?? t("review.continueToTeam");
   const personalRows: ReviewRow[] = [
     { label: "姓 / Surname", value: data?.personal?.surname },
     { label: "名 / Given name(s)", value: data?.personal?.givenNames },
@@ -292,12 +302,20 @@ export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComp
           onEdit={onEdit ? () => onEdit("travel") : undefined}
         />
 
-        <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
-        <SubmissionDisclaimerDialog
-          open={disclaimerOpen}
-          onCancel={() => setDisclaimerOpen(false)}
-          onConfirm={() => onComplete({ confirmed: true })}
-        />
+        {mode === "submit" ? (
+          <>
+            <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
+            <SubmissionDisclaimerDialog
+              open={disclaimerOpen}
+              onCancel={() => setDisclaimerOpen(false)}
+              onConfirm={() => onComplete({ confirmed: true })}
+            />
+          </>
+        ) : (
+          <BrandActionButton onClick={() => onComplete({ confirmed: true })}>
+            {actionLabel}
+          </BrandActionButton>
+        )}
       </CardContent>
     </Card>
   );

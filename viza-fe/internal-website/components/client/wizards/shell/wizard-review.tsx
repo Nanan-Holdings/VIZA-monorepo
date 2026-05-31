@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubmissionDisclaimerDialog } from "@/components/application-steps/submission-disclaimer-dialog";
@@ -15,6 +15,55 @@ interface WizardReviewProps<TForm> {
   submitting: boolean;
 }
 
+const ZH_REVIEW_KEY_LABELS: Record<string, string> = {
+  identity: "身份",
+  personal: "个人信息",
+  contact: "联系方式",
+  passport: "护照",
+  document: "证件",
+  travel: "旅行",
+  trip: "行程",
+  tripDates: "行程日期",
+  tripDestination: "目的地",
+  accommodation: "住宿",
+  occupation: "职业",
+  work: "工作与教育",
+  usStay: "美国住宿",
+  usContact: "美国联系人",
+  family: "家庭",
+  familyEu: "欧盟亲属",
+  background: "背景",
+  purpose: "目的",
+  funding: "资金",
+  declaration: "声明",
+  sponsor: "担保人",
+  host: "联系人",
+  travelHistory: "旅行历史",
+  stream: "签证类别",
+  applicationContext: "申请背景",
+  visit: "访问",
+  companions: "同行人",
+  health: "健康",
+  character: "品格",
+};
+
+function fallbackReviewLabel(key: string, locale: string): string {
+  const parts = key.split(".");
+  const last = parts.at(-1) ?? key;
+  const semanticKey = ["label", "title", "subtitle"].includes(last)
+    ? parts.at(-2) ?? last
+    : last;
+
+  if (locale.toLowerCase().startsWith("zh")) {
+    return ZH_REVIEW_KEY_LABELS[semanticKey] ?? semanticKey;
+  }
+
+  return semanticKey
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 export function WizardReview<TForm>({
   config,
   form,
@@ -22,6 +71,7 @@ export function WizardReview<TForm>({
   onSubmit,
   submitting,
 }: WizardReviewProps<TForm>) {
+  const locale = useLocale();
   const tShared = useTranslations("simplifiedForm.shared");
   const tCountry = useTranslations(config.i18nNamespace);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
@@ -31,12 +81,7 @@ export function WizardReview<TForm>({
     if (key.startsWith("literal:")) return key.slice("literal:".length);
     if (tCountry.has(key as never)) return tCountry(key as never);
     if (tShared.has(key as never)) return tShared(key as never);
-    // Fallback: humanize the last dot-segment so we never render raw keys.
-    const last = key.split(".").pop() ?? key;
-    return last
-      .replace(/_/g, " ")
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/^./, (c) => c.toUpperCase());
+    return fallbackReviewLabel(key, locale);
   };
 
   return (

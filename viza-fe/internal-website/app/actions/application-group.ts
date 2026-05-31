@@ -71,6 +71,11 @@ export interface DeleteTeamCompanionResult {
   reason?: string;
 }
 
+export interface MarkTeamCompanionReviewedResult {
+  ok: boolean;
+  reason?: string;
+}
+
 export interface TeamApplicationContextResult {
   ok: boolean;
   application?: {
@@ -172,7 +177,7 @@ async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdm
   const { data: app } = await adminClient
     .from("applications")
     .select(
-      "id, applicant_id, group_id, country, visa_type, visa_package_id, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
+      "id, applicant_id, group_id, country, visa_type, visa_package_id, status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -581,6 +586,31 @@ export async function deleteTeamCompanion(
     .delete()
     .eq("id", companionApplicationId)
     .eq("group_id", groupId);
+
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true };
+}
+
+export async function markTeamCompanionReviewed(
+  applicationId: string
+): Promise<MarkTeamCompanionReviewedResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, reason: "Not authenticated" };
+
+  const adminClient = createAdminClient();
+  const resolved = await getAuthorizedApplication(adminClient, applicationId, user.id);
+  if ("error" in resolved) return { ok: false, reason: resolved.error };
+
+  const { error } = await adminClient
+    .from("applications")
+    .update({
+      status: "ready_for_submission",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", applicationId);
 
   if (error) return { ok: false, reason: error.message };
   return { ok: true };

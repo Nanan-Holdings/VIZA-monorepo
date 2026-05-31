@@ -56,12 +56,12 @@ export interface TeamStepProps {
   submitLabel: string;
   submitting?: boolean;
   onSubmit: () => void;
-  initialNotice?: Notice;
+  initialNotice?: TeamStepNotice;
 }
 
 type NoticeTone = "success" | "error";
 
-type Notice = {
+export type TeamStepNotice = {
   tone: NoticeTone;
   message: string;
 };
@@ -79,7 +79,7 @@ const EMPTY_FORM: FrequentTravelerInput = {
 function obfuscatePassport(value: string | null) {
   if (!value) return null;
   if (value.length <= 4) return value;
-  return `••${value.slice(-4)}`;
+  return `**${value.slice(-4)}`;
 }
 
 function statusKey(status?: string | null) {
@@ -92,6 +92,8 @@ function statusKey(status?: string | null) {
       return "rejected";
     case "in_progress":
       return "in_progress";
+    case "ready_for_submission":
+      return "ready_for_submission";
     default:
       return "draft";
   }
@@ -118,7 +120,7 @@ export function TeamStep({
   const [loading, setLoading] = useState(true);
   const [companions, setCompanions] = useState<TeamCompanionSummary[]>([]);
   const [frequentTravelers, setFrequentTravelers] = useState<FrequentTravelerSummary[]>([]);
-  const [notice, setNotice] = useState<Notice | null>(initialNotice ?? null);
+  const [notice, setNotice] = useState<TeamStepNotice | null>(initialNotice ?? null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"frequent" | "custom">("frequent");
   const [form, setForm] = useState<FrequentTravelerInput>(EMPTY_FORM);
@@ -390,7 +392,7 @@ export function TeamStep({
                         <div>
                           <p className="text-sm font-semibold text-foreground">{traveler.fullName}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {traveler.nationality || tTravelers("notSet")} · {obfuscatePassport(traveler.passportNumber) || tTravelers("notSet")}
+                            {traveler.nationality || tTravelers("notSet")} | {obfuscatePassport(traveler.passportNumber) || tTravelers("notSet")}
                           </p>
                         </div>
                         <span className="text-xs font-semibold text-brand-500">{t("dialog.select")}</span>
