@@ -851,9 +851,9 @@ function getPointDisplayName(point: TripMapPoint): string {
   if (point.kind !== "city") {
     const labelLocalName = getLocalNameFromValue(point.label);
     if (labelLocalName) return labelLocalName;
-    if (point.localName && point.localName !== point.city)
-      return point.localName;
-    return point.label;
+    const label = point.label.trim();
+    if (label) return label;
+    return point.localName ?? point.city ?? point.subtitle;
   }
 
   const cityLocalName = getLocalNameFromValue(point.city);
@@ -1225,8 +1225,7 @@ function createSolidBubbleMarkerDataUrl(
   ctx.font = "700 14px 'Segoe UI', 'Microsoft YaHei', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const fallbackText =
-    (point.localName ?? point.label ?? "?").trim().slice(0, 1) || "?";
+  const fallbackText = getPointDisplayName(point).trim().slice(0, 1) || "?";
   ctx.fillText(
     fallbackText,
     Math.round(dims.width / 2),
@@ -1458,7 +1457,9 @@ function getCityDetailSamples(
     .slice(0, 4)
     .map((item) => item.name);
   const cityLabel =
-    getLocalNameFromValue(point.city) ?? point.city ?? getPointDisplayName(point);
+    getLocalNameFromValue(point.city) ??
+    point.city ??
+    getPointDisplayName(point);
 
   for (const key of getPointLookupKeys(point)) {
     const sampleKey = CITY_SAMPLE_ALIAS_BY_KEY[key] ?? key;
@@ -1486,7 +1487,12 @@ function getCityDetailSamples(
       },
       food: getFallbackDetailSample(point, "food", cityLabel, cityLabel),
       stay: getFallbackDetailSample(point, "stay", cityLabel, cityLabel),
-      nightlife: getFallbackDetailSample(point, "nightlife", cityLabel, cityLabel),
+      nightlife: getFallbackDetailSample(
+        point,
+        "nightlife",
+        cityLabel,
+        cityLabel
+      ),
     };
   }
 
@@ -2690,7 +2696,8 @@ export function TripRouteMap({
                     <span>🔥 10</span>
                     <span className="h-4 w-px bg-rose-200" />
                     <span>
-                      第 1 名 · {getPointDisplayLocation(detailPoint)}热门城市
+                      第 1 名 · {getPointDisplayLocation(detailPoint)}
+                      {detailPoint.kind === "city" ? "热门城市" : "热门景点"}
                     </span>
                   </div>
                 </div>

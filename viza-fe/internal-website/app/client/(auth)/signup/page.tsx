@@ -7,8 +7,10 @@ import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import createGlobe from 'cobe'
 import { createClient } from '@/lib/supabase/client'
+import { prepareAuthEmailLocale } from '@/app/actions/client-auth'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
-import { useTranslations } from 'next-intl'
+import { normalizeAuthEmailLocale } from '@/lib/i18n/locale'
+import { useLocale, useTranslations } from 'next-intl'
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -31,6 +33,7 @@ function getPasswordScore(password: string) {
 export default function ClientSignupPage() {
   const t = useTranslations('auth.signup')
   const tp = useTranslations('auth.polaroids')
+  const locale = useLocale()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerRef = useRef({ dragging: false, startX: 0, startY: 0, phiStart: 0, thetaStart: 0 })
   const stateRef = useRef({ phi: 0, theta: 0.2 })
@@ -148,6 +151,8 @@ export default function ClientSignupPage() {
 
   const sendSignupCode = async (targetEmail: string) => {
     const supabase = createClient()
+    const emailLocale = normalizeAuthEmailLocale(locale)
+    await prepareAuthEmailLocale(targetEmail, emailLocale)
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: targetEmail.toLowerCase().trim(),
       options: {
@@ -155,6 +160,8 @@ export default function ClientSignupPage() {
         data: {
           role: 'client',
           user_type: 'client',
+          locale: emailLocale,
+          language: emailLocale,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/login`,
       },
@@ -200,14 +207,27 @@ export default function ClientSignupPage() {
     setIsSubmitting(true)
     try {
       const supabase = createClient()
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: email.toLowerCase().trim(),
-        token: normalizedCode,
-        type: 'email',
-      })
+      const verifyAttempts = [
+        await supabase.auth.verifyOtp({
+          email: email.toLowerCase().trim(),
+          token: normalizedCode,
+          type: 'signup',
+        }),
+      ]
 
-      if (verifyError) {
-        setError(verifyError.message)
+      if (verifyAttempts[0].error) {
+        verifyAttempts.push(
+          await supabase.auth.verifyOtp({
+            email: email.toLowerCase().trim(),
+            token: normalizedCode,
+            type: 'email',
+          })
+        )
+      }
+
+      const verified = verifyAttempts.some((attempt) => !attempt.error)
+      if (!verified) {
+        setError(verifyAttempts.at(-1)?.error?.message ?? t('authFailed'))
         return
       }
 
@@ -248,6 +268,7 @@ export default function ClientSignupPage() {
     try {
       const supabase = createClient()
       const normalizedEmail = email.toLowerCase().trim()
+      const emailLocale = normalizeAuthEmailLocale(locale)
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -264,6 +285,8 @@ export default function ClientSignupPage() {
         data: {
           role: 'client',
           user_type: 'client',
+          locale: emailLocale,
+          language: emailLocale,
         },
       })
 

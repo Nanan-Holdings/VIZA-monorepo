@@ -102,6 +102,8 @@ Smoke URLs:
 
 - `package.json`
 - `proxy.ts`
+- `vitest.config.mts`
+- `vitest.server-only.ts`
 - `app/layout.tsx`
 - `app/client/layout.tsx`
 - `app/admin/admin-layout-content.tsx`

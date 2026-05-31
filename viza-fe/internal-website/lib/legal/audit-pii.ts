@@ -33,6 +33,15 @@ export interface AuditPiiOpts {
   purpose?: string;
 }
 
+function isMissingPiiAuditTableError(message: string): boolean {
+  return (
+    message.includes("pii_access_log") &&
+    (message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("Could not find the table"))
+  );
+}
+
 async function readForensics() {
   try {
     const h = await headers();
@@ -83,6 +92,7 @@ export async function auditPiiRead(
         ua,
       });
       if (error) {
+        if (isMissingPiiAuditTableError(error.message)) return;
         console.error("[audit-pii] insert failed", error.message, {
           actor,
           applicantId,
@@ -92,6 +102,7 @@ export async function auditPiiRead(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (isMissingPiiAuditTableError(msg)) return;
     console.error("[audit-pii] threw", msg, { actor, applicantId, fields });
   }
 }

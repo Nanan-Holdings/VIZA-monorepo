@@ -2,12 +2,51 @@
 
 import { useState, type FormEvent } from "react";
 import { motion } from "motion/react";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2, Mail, Lock, Languages } from "lucide-react";
 import { signIn } from "@/app/actions/auth";
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
+import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
+
+const COPY = {
+  en: {
+    title: "Admin Portal",
+    subtitle: "Sign in to manage your workspace",
+    email: "Email",
+    password: "Password",
+    forgotPassword: "Forgot password?",
+    passwordPlaceholder: "Enter your password",
+    signingIn: "Signing in...",
+    signIn: "Sign In",
+    privacy: "Privacy Policy",
+    terms: "Terms of Service",
+    language: "Language",
+    english: "English",
+    chinese: "中文",
+  },
+  zh: {
+    title: "管理后台",
+    subtitle: "登录以管理 VIZA 工作台",
+    email: "邮箱",
+    password: "密码",
+    forgotPassword: "忘记密码？",
+    passwordPlaceholder: "输入密码",
+    signingIn: "正在登录...",
+    signIn: "登录",
+    privacy: "隐私政策",
+    terms: "服务条款",
+    language: "语言",
+    english: "English",
+    chinese: "中文",
+  },
+} as const;
 
 export default function AdminLoginPage() {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const copy = COPY[locale];
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,6 +63,11 @@ export default function AdminLoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  function setLocale(nextLocale: "en" | "zh") {
+    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    router.refresh();
+  }
 
   return (
     <div
@@ -54,10 +98,10 @@ export default function AdminLoginPage() {
           />
           <div className="flex flex-col gap-[4px]">
             <h1 className="font-heading text-[clamp(22px,3vw,32px)] font-semibold leading-[1.3] tracking-[-0.5px] text-[#3d3d3d]">
-              Admin Portal
+              {copy.title}
             </h1>
             <p className="text-[clamp(12px,1.2vw,14px)] leading-[1.5] tracking-[-0.24px] text-[rgba(0,0,0,0.55)]">
-              Sign in to manage your workspace
+              {copy.subtitle}
             </p>
           </div>
         </div>
@@ -72,7 +116,7 @@ export default function AdminLoginPage() {
               htmlFor="email"
               className="text-[13px] font-medium text-[#374151]"
             >
-              Email
+              {copy.email}
             </label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
@@ -83,7 +127,7 @@ export default function AdminLoginPage() {
                 required
                 autoFocus
                 disabled={isSubmitting}
-                placeholder="admin@viza.com"
+                placeholder="admin@viza.test"
                 className="h-[clamp(38px,5vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-10 pr-3 text-[clamp(12px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none transition-colors focus:border-[#3d3d3d] disabled:opacity-50"
               />
             </div>
@@ -95,13 +139,13 @@ export default function AdminLoginPage() {
                 htmlFor="password"
                 className="text-[13px] font-medium text-[#374151]"
               >
-                Password
+                {copy.password}
               </label>
               <Link
                 href="/forgot-password"
                 className="text-[12px] text-brand-500 hover:opacity-70 transition-opacity"
               >
-                Forgot password?
+                {copy.forgotPassword}
               </Link>
             </div>
             <div className="relative">
@@ -112,7 +156,7 @@ export default function AdminLoginPage() {
                 type="password"
                 required
                 disabled={isSubmitting}
-                placeholder="Enter your password"
+                placeholder={copy.passwordPlaceholder}
                 className="h-[clamp(38px,5vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-10 pr-3 text-[clamp(12px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none transition-colors focus:border-[#3d3d3d] disabled:opacity-50"
               />
             </div>
@@ -136,10 +180,10 @@ export default function AdminLoginPage() {
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Signing in...
+                {copy.signingIn}
               </span>
             ) : (
-              "Sign In"
+              copy.signIn
             )}
           </button>
         </form>
@@ -150,14 +194,32 @@ export default function AdminLoginPage() {
             href="/privacy"
             className="whitespace-nowrap hover:opacity-70 transition-opacity"
           >
-            Privacy Policy
+            {copy.privacy}
           </Link>
           <Link
             href="/terms"
             className="whitespace-nowrap hover:opacity-70 transition-opacity"
           >
-            Terms of Service
+            {copy.terms}
           </Link>
+          <div className="ml-auto flex items-center rounded-full border border-[#efefef] bg-white p-1">
+            <span className="sr-only">{copy.language}</span>
+            <Languages className="mx-1 h-3.5 w-3.5 text-[#6b7280]" />
+            {(["en", "zh"] as const).map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLocale(code)}
+                className={`rounded-full px-2 py-0.5 transition-colors ${
+                  locale === code
+                    ? "bg-brand-50 text-brand-500"
+                    : "hover:bg-[#f5f5f5] hover:text-[#3d3d3d]"
+                }`}
+              >
+                {code === "en" ? copy.english : copy.chinese}
+              </button>
+            ))}
+          </div>
         </div>
       </motion.div>
     </div>

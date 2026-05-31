@@ -40,6 +40,14 @@ interface RawProviderOutput {
   field_confidence: RawFieldConfidence;
 }
 
+interface OpenAIErrorBody {
+  error?: {
+    type?: string;
+    code?: string | null;
+    message?: string;
+  };
+}
+
 export class PassportOcrProviderError extends Error {
   constructor(
     public readonly code: "provider_unavailable" | "unreadable" | "provider_failed",
@@ -51,7 +59,7 @@ export class PassportOcrProviderError extends Error {
   }
 }
 
-const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 const PASSPORT_SCHEMA = {
   type: "object",
@@ -295,7 +303,7 @@ function buildFilePart(file: PassportOcrFile): OpenAIContentPart {
     return {
       type: "input_file",
       filename: file.filename,
-      file_data: base64,
+      file_data: `data:${file.mimeType};base64,${base64}`,
     };
   }
 
@@ -335,6 +343,38 @@ function buildOpenAIInput(file: PassportOcrFile): OpenAIMessageInput[] {
   ];
 }
 
+function splitModelList(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+}
+
+function getOpenAIModelCandidates(): string[] {
+  const configuredModel = process.env.PASSPORT_OCR_OPENAI_MODEL?.trim();
+  const fallbackModels = splitModelList(process.env.PASSPORT_OCR_OPENAI_FALLBACK_MODELS);
+  return Array.from(new Set([configuredModel || DEFAULT_OPENAI_MODEL, ...fallbackModels, DEFAULT_OPENAI_MODEL]));
+}
+
+async function parseOpenAIErrorBody(response: Response): Promise<OpenAIErrorBody | null> {
+  try {
+    const body: unknown = await response.json();
+    return isRecord(body) ? (body as OpenAIErrorBody) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isOpenAIModelAccessError(response: Response, body: OpenAIErrorBody | null): boolean {
+  const code = body?.error?.code ?? "";
+  const message = body?.error?.message?.toLowerCase() ?? "";
+  return (
+    code === "model_not_found" ||
+    ((response.status === 400 || response.status === 403 || response.status === 404) &&
+      message.includes("model"))
+  );
+}
+
 async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProviderResult> {
   const apiKey = process.env.PASSPORT_OCR_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "your_openai_api_key_here") {
@@ -345,71 +385,86 @@ async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProv
     );
   }
 
-  const model = process.env.PASSPORT_OCR_OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: buildOpenAIInput(file),
-      max_output_tokens: 900,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "passport_ocr_fields",
-          strict: true,
-          schema: PASSPORT_SCHEMA,
-        },
+  const modelCandidates = getOpenAIModelCandidates();
+  for (let index = 0; index < modelCandidates.length; index += 1) {
+    const model = modelCandidates[index];
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        model,
+        input: buildOpenAIInput(file),
+        max_output_tokens: 900,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "passport_ocr_fields",
+            strict: true,
+            schema: PASSPORT_SCHEMA,
+          },
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    const retryable = response.status === 429 || response.status >= 500;
-    throw new PassportOcrProviderError(
-      retryable ? "provider_unavailable" : "provider_failed",
-      retryable
-        ? "Passport OCR provider is temporarily unavailable."
-        : "Passport OCR provider rejected the request.",
-      retryable,
-    );
-  }
+    if (!response.ok) {
+      const errorBody = await parseOpenAIErrorBody(response);
+      const isModelError = isOpenAIModelAccessError(response, errorBody);
+      if (isModelError && index < modelCandidates.length - 1) continue;
 
-  const responseBody: unknown = await response.json();
-  const outputText = extractOutputText(responseBody);
-  if (!outputText) {
-    throw new PassportOcrProviderError("unreadable", "The passport could not be read.", false);
-  }
+      const retryable = response.status === 429 || response.status >= 500;
+      throw new PassportOcrProviderError(
+        retryable || isModelError ? "provider_unavailable" : "provider_failed",
+        isModelError
+          ? "Passport OCR model is not available in this environment."
+          : retryable
+            ? "Passport OCR provider is temporarily unavailable."
+            : "Passport OCR provider rejected the request.",
+        retryable,
+      );
+    }
 
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(outputText);
-  } catch {
-    throw new PassportOcrProviderError("unreadable", "The passport could not be read.", false);
-  }
+    const responseBody: unknown = await response.json();
+    const outputText = extractOutputText(responseBody);
+    if (!outputText) {
+      throw new PassportOcrProviderError("unreadable", "The passport could not be read.", false);
+    }
 
-  const raw = parseRawProviderOutput(parsedJson);
-  if (!raw || !raw.is_readable) {
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(outputText);
+    } catch {
+      throw new PassportOcrProviderError("unreadable", "The passport could not be read.", false);
+    }
+
+    const raw = parseRawProviderOutput(parsedJson);
+    if (!raw || !raw.is_readable) {
+      return {
+        provider: "openai_vision",
+        confidence: raw?.confidence ?? 0,
+        isReadable: false,
+        fields: EMPTY_FIELDS,
+        warnings: ["document_unreadable"],
+      };
+    }
+
+    const normalized = normalizeFields(raw);
     return {
       provider: "openai_vision",
-      confidence: raw?.confidence ?? 0,
-      isReadable: false,
-      fields: EMPTY_FIELDS,
-      warnings: ["document_unreadable"],
+      confidence: raw.confidence,
+      isReadable: true,
+      fields: normalized.fields,
+      warnings: normalized.warnings,
     };
   }
 
-  const normalized = normalizeFields(raw);
-  return {
-    provider: "openai_vision",
-    confidence: raw.confidence,
-    isReadable: true,
-    fields: normalized.fields,
-    warnings: normalized.warnings,
-  };
+  throw new PassportOcrProviderError(
+    "provider_unavailable",
+    "Passport OCR model is not available in this environment.",
+    false,
+  );
 }
 
 export function getPassportOcrProviderName(): string {

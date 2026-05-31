@@ -63,7 +63,9 @@ import {
   type TravelState,
 } from "@/lib/travel/planner";
 import {
+  LOCALE_COOKIE,
   isChineseLocale,
+  normalizeInterfaceLocale,
   toTravelAgentLocale,
   type InterfaceLocale,
 } from "@/lib/i18n/locale";
@@ -673,6 +675,23 @@ function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
     versions: [],
     updatedAt: new Date().toISOString(),
   };
+}
+
+function readGlobalInterfaceLocale(
+  fallback: InterfaceLocale
+): InterfaceLocale {
+  if (typeof window === "undefined") return fallback;
+
+  const storedLocale = window.localStorage.getItem(LOCALE_COOKIE);
+  if (storedLocale) return normalizeInterfaceLocale(storedLocale);
+
+  const cookieLocale = document.cookie
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${LOCALE_COOKIE}=`))
+    ?.split("=")[1];
+
+  return normalizeInterfaceLocale(cookieLocale ?? fallback);
 }
 
 function getTravelChatArchiveKey(applicationId?: string | null): string {
@@ -1344,7 +1363,7 @@ function formatSelectedFlights(
   const isZh = locale === "zh";
   if (revisionRemovesFlights(modulePatch)) {
     return isZh
-      ? "已按你的要求减少或移除航班，itinerary 表格中不会再自动补默认航班。"
+      ? "已按你的要求减少或移除航班，行程表中不会再自动补默认航班。"
       : "I reduced or removed flights as requested, so the itinerary table will not auto-fill default flights.";
   }
 
@@ -2048,7 +2067,7 @@ function buildProgressItems(
       detail:
         state.origin_city && state.return_city && state.cities.length
           ? isZh
-            ? "已生成默认项，可在 itinerary 编辑"
+            ? "已生成默认项，可在行程里编辑"
             : "Defaults generated; editable in the itinerary"
           : isZh
             ? "等待中"
@@ -2070,9 +2089,12 @@ export function TravelChatClient({
   embedded = false,
 }: TravelChatClientProps) {
   const locale = useLocale();
-  const interfaceLocale = isChineseLocale(locale) ? "zh" : "en";
+  const nextIntlInterfaceLocale = isChineseLocale(locale) ? "zh" : "en";
+  const [interfaceLocale, setInterfaceLocale] = useState<InterfaceLocale>(
+    () => nextIntlInterfaceLocale
+  );
   const isZh = interfaceLocale === "zh";
-  const travelAgentLocale = toTravelAgentLocale(locale);
+  const travelAgentLocale = toTravelAgentLocale(interfaceLocale);
   const archiveKey = useMemo(
     () => getTravelChatArchiveKey(applicationId),
     [applicationId]
@@ -2112,6 +2134,35 @@ export function TravelChatClient({
     height: 0,
     visible: false,
   });
+
+  useEffect(() => {
+    setInterfaceLocale(readGlobalInterfaceLocale(nextIntlInterfaceLocale));
+  }, [nextIntlInterfaceLocale]);
+
+  useEffect(() => {
+    const syncLocale = () => {
+      setInterfaceLocale(readGlobalInterfaceLocale(nextIntlInterfaceLocale));
+    };
+    const handleLocaleChange = (event: Event) => {
+      if (event instanceof CustomEvent && typeof event.detail === "string") {
+        setInterfaceLocale(normalizeInterfaceLocale(event.detail));
+        return;
+      }
+      syncLocale();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === LOCALE_COOKIE) {
+        syncLocale();
+      }
+    };
+
+    window.addEventListener("viza:locale-change", handleLocaleChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("viza:locale-change", handleLocaleChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [nextIntlInterfaceLocale]);
 
   useEffect(() => {
     sessionsRef.current = sessions;

@@ -223,7 +223,7 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 [auth.email.template.confirmation]
-subject = "Confirm Your Signup"
+subject = '{{ if eq .Data.locale "zh" }}您的 VIZA 验证码{{ else if eq .Data.locale "vi" }}Mã xác minh VIZA của bạn{{ else if eq .Data.locale "es" }}Tu código de verificación de VIZA{{ else }}Your VIZA verification code{{ end }}'
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.invite]
@@ -231,7 +231,7 @@ subject = "You Have Been Invited to VIZA"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
-subject = "Your VIZA Login Code"
+subject = '{{ if eq .Data.locale "zh" }}您的 VIZA 验证码{{ else if eq .Data.locale "vi" }}Mã xác minh VIZA của bạn{{ else if eq .Data.locale "es" }}Tu código de verificación de VIZA{{ else }}Your VIZA verification code{{ end }}'
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.recovery]
@@ -243,7 +243,7 @@ subject = "Confirm Change of Email"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.template.reauthentication]
-subject = "Confirm Reauthentication"
+subject = '{{ if eq .Data.locale "zh" }}确认您的 VIZA 身份{{ else if eq .Data.locale "vi" }}Xác nhận danh tính VIZA của bạn{{ else if eq .Data.locale "es" }}Confirma tu identidad de VIZA{{ else }}Confirm your VIZA identity{{ end }}'
 content_path = "./supabase/templates/reauthentication.html"
 
 [auth.sms]

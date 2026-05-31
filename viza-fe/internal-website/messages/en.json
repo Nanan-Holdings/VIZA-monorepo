@@ -3890,6 +3890,7 @@
       "sendingCode": "Sending code...",
       "failedToSendCode": "Failed to send code",
       "failedToResend": "Failed to resend code.",
+      "authFailed": "Verification failed. Please request a new code and try again.",
       "verifyEmailTitle": "Verify your email",
       "sentCodeTo": "We sent an 8-digit code to",
       "resendIn": "Resend in {seconds}s",
