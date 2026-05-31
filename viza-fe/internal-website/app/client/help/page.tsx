@@ -293,7 +293,7 @@ export default function HelpPage() {
           </motion.p>
         </motion.div>
 
-        <div className="w-full max-w-[720px] mt-[56px] sm:mt-[88px] flex flex-col gap-8 sm:gap-12 lg:gap-[64px] pb-[80px] sm:pb-[100px]">
+        <div className="w-full max-w-[720px] mt-[96px] sm:mt-[120px] lg:mt-[128px] flex flex-col gap-8 sm:gap-12 lg:gap-[64px] pb-[80px] sm:pb-[100px]">
           <QuickLinksSection />
           <GuidesSection />
           <div className="mt-6 sm:mt-8 lg:mt-12 w-full">

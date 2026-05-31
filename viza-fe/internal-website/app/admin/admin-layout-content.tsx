@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -18,6 +19,8 @@ import {
   ShoppingCart,
   Bell,
   Settings,
+  Headphones,
+  Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,65 +28,124 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { adminSignOut } from "@/app/actions/auth";
 import { useState, useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
-import { AdminSupportChatWidget } from "./admin-support-chat-widget";
+import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
 
 interface RouteChild {
-  label: string;
+  labelKey: AdminNavKey;
   href: string;
   icon?: LucideIcon;
 }
 
 interface Route {
-  label: string;
+  labelKey: AdminNavKey;
   icon: LucideIcon;
   href: string;
   children?: RouteChild[];
 }
 
+type AdminNavKey =
+  | "dashboard"
+  | "accounts"
+  | "applications"
+  | "coverage"
+  | "billing"
+  | "support"
+  | "orders"
+  | "products"
+  | "consultations";
+
+const ADMIN_COPY = {
+  en: {
+    nav: {
+      dashboard: "Dashboard",
+      accounts: "Accounts",
+      applications: "Applications",
+      coverage: "Coverage",
+      billing: "Billing",
+      support: "Support",
+      orders: "Orders",
+      products: "Products",
+      consultations: "Consultations",
+    },
+    logout: "Logout",
+    loggingOut: "Logging out...",
+    operationsLead: "Operations Lead",
+    language: "Language",
+    english: "English",
+    chinese: "中文",
+  },
+  zh: {
+    nav: {
+      dashboard: "仪表盘",
+      accounts: "账户",
+      applications: "申请",
+      coverage: "覆盖范围",
+      billing: "账单",
+      support: "客服",
+      orders: "订单",
+      products: "产品",
+      consultations: "咨询",
+    },
+    logout: "退出登录",
+    loggingOut: "正在退出...",
+    operationsLead: "运营负责人",
+    language: "语言",
+    english: "English",
+    chinese: "中文",
+  },
+} as const;
+
 const adminRoutes: Route[] = [
   {
-    label: "Dashboard",
+    labelKey: "dashboard",
     icon: LayoutDashboard,
     href: "/admin",
   },
   {
-    label: "Accounts",
+    labelKey: "accounts",
     icon: Users,
     href: "/admin/users",
   },
   {
-    label: "Applications",
+    labelKey: "applications",
     icon: ClipboardList,
     href: "/admin/applications",
   },
   {
-    label: "Coverage",
+    labelKey: "coverage",
     icon: Map,
     href: "/admin/packages",
   },
   {
-    label: "Billing",
+    labelKey: "billing",
     icon: CreditCard,
     href: "/admin/billing",
   },
   {
-    label: "Orders",
+    labelKey: "support",
+    icon: Headphones,
+    href: "/admin/support",
+  },
+  {
+    labelKey: "orders",
     icon: ShoppingCart,
     href: "/admin/orders",
   },
   {
-    label: "Products",
+    labelKey: "products",
     icon: Package,
     href: "/admin/products",
   },
   {
-    label: "Consultations",
+    labelKey: "consultations",
     icon: Calendar,
     href: "/admin/cal-bookings",
   },
 ];
 
 function AdminSidebar() {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const copy = ADMIN_COPY[locale];
   const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -138,7 +200,9 @@ function AdminSidebar() {
             onClick={() => toggleMenu(route.href)}
           >
             <route.icon className={cn("h-5 w-5 shrink-0", "stroke-[2]")} />
-            <span className="flex-1 text-left font-sans text-[15px] leading-[24px]">{route.label}</span>
+            <span className="flex-1 text-left font-sans text-[15px] leading-[24px]">
+              {copy.nav[route.labelKey]}
+            </span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
@@ -159,7 +223,7 @@ function AdminSidebar() {
                         "bg-brand-50 text-brand-500 hover:bg-brand-50 shadow-sm border border-brand-200"
                     )}
                   >
-                    {child.label}
+                    {copy.nav[child.labelKey]}
                   </Button>
                 </Link>
               ))}
@@ -181,7 +245,7 @@ function AdminSidebar() {
           )}
         >
           <route.icon className={cn("h-5 w-5 shrink-0", "stroke-[2]")} />
-          <span>{route.label}</span>
+          <span>{copy.nav[route.labelKey]}</span>
         </Button>
       </Link>
     );
@@ -206,7 +270,7 @@ function AdminSidebar() {
             disabled={isLoggingOut}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            {isLoggingOut ? "Logging out..." : "Logout"}
+            {isLoggingOut ? copy.loggingOut : copy.logout}
           </Button>
         </div>
       </div>
@@ -238,14 +302,49 @@ function AdminSidebar() {
   );
 }
 
+function AdminLanguageSwitcher() {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const router = useRouter();
+  const copy = ADMIN_COPY[locale];
+
+  function setLocale(nextLocale: "en" | "zh") {
+    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    router.refresh();
+  }
+
+  return (
+    <div className="flex items-center rounded-full border border-[#efefef] bg-white p-1">
+      <span className="sr-only">{copy.language}</span>
+      <Languages className="mx-2 h-4 w-4 text-[#45556c]" />
+      {(["en", "zh"] as const).map((code) => (
+        <button
+          key={code}
+          type="button"
+          onClick={() => setLocale(code)}
+          className={cn(
+            "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+            locale === code
+              ? "bg-brand-50 text-brand-500"
+              : "text-[#64748b] hover:bg-[#f5f7fb] hover:text-[#3d3d3d]",
+          )}
+        >
+          {code === "en" ? copy.english : copy.chinese}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AdminTopBar() {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const copy = ADMIN_COPY[locale];
   const pathname = usePathname();
 
   const getPageTitle = () => {
     const route = adminRoutes.find(
       (r) => pathname === r.href || (r.href !== "/admin" && pathname.startsWith(`${r.href}/`))
     );
-    return route?.label || "Dashboard";
+    return route ? copy.nav[route.labelKey] : copy.nav.dashboard;
   };
 
   return (
@@ -272,6 +371,8 @@ function AdminTopBar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          <AdminLanguageSwitcher />
+
           {/* Notification Bell */}
           <button className="relative rounded-lg p-2 hover:bg-brand-50/50 transition-colors">
             <Bell className="h-5 w-5 text-[#45556c]" strokeWidth={2} />
@@ -294,7 +395,7 @@ function AdminTopBar() {
               </p>
               <div className="bg-brand-50 px-2 py-0.5 rounded-full">
                 <p className="font-sans text-[11px] leading-[16px] text-brand-500">
-                  Operations Lead
+                  {copy.operationsLead}
                 </p>
               </div>
             </div>
@@ -326,7 +427,6 @@ export default function AdminLayoutContent({
           {children}
         </main>
       </div>
-      <AdminSupportChatWidget />
     </div>
   );
 }

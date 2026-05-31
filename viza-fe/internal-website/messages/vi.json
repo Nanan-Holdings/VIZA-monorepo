@@ -2954,6 +2954,7 @@
       "sendingCode": "[VI] Sending code...",
       "failedToSendCode": "[VI] Failed to send code",
       "failedToResend": "[VI] Failed to resend code.",
+      "authFailed": "[VI] Verification failed. Please request a new code and try again.",
       "verifyEmailTitle": "[VI] Verify your email",
       "sentCodeTo": "[VI] We sent an 8-digit code to",
       "resendIn": "[VI] Resend in {seconds}s",

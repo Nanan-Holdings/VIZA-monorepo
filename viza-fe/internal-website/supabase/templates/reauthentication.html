@@ -1,4 +1,21 @@
-<h2>Confirm Reauthentication</h2>
+{{ if eq .Data.locale "zh" }}
+<h2>确认您的 VIZA 身份</h2>
+<p>请输入此验证码确认身份：</p>
+<h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
+<p>验证码将在 10 分钟后失效。请勿分享给任何人。</p>
+{{ else if eq .Data.locale "vi" }}
+<h2>Xác nhận danh tính VIZA của bạn</h2>
+<p>Nhập mã này để xác nhận danh tính của bạn:</p>
+<h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
+<p>Mã này hết hạn sau 10 phút. Không chia sẻ mã này với bất kỳ ai.</p>
+{{ else if eq .Data.locale "es" }}
+<h2>Confirma tu identidad de VIZA</h2>
+<p>Ingresa este código para confirmar tu identidad:</p>
+<h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
+<p>Este código vence en 10 minutos. No lo compartas con nadie.</p>
+{{ else }}
+<h2>Confirm your VIZA identity</h2>
 <p>Enter this code to confirm your identity:</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
 <p>This code expires in 10 minutes. Do not share it with anyone.</p>
+{{ end }}

@@ -38,6 +38,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const OCR_ERROR_COPY_ZH: Record<string, string> = {
+  provider_unavailable: "护照 OCR 服务暂时不可用，请稍后重试。",
+  provider_failed: "护照 OCR 暂时无法处理这份文件，请稍后重试或换一份更清晰的护照资料页。",
+  unreadable: "这份护照资料页暂时无法读取，请换一张更清晰的资料页。",
+  unsupported_file: "护照 OCR 支持 PDF、JPG、PNG 和 WebP 文件。",
+  missing_file: "未找到已上传的护照文件，请重新上传。",
+  unauthorized: "请先登录后再上传护照。",
+};
+
+function containsCjk(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
 function getOcrErrorMessage(payload: unknown, isZh: boolean): string {
   if (!isRecord(payload)) {
     return isZh
@@ -45,9 +58,19 @@ function getOcrErrorMessage(payload: unknown, isZh: boolean): string {
       : "Passport OCR did not return a readable response.";
   }
   const error = payload.error;
-  if (isRecord(error) && typeof error.message === "string")
-    return error.message;
-  if (typeof payload.message === "string") return payload.message;
+  if (isRecord(error)) {
+    if (isZh && typeof error.code === "string" && OCR_ERROR_COPY_ZH[error.code]) {
+      return OCR_ERROR_COPY_ZH[error.code];
+    }
+    if (typeof error.message === "string") {
+      if (isZh && !containsCjk(error.message)) return "护照 OCR 无法处理这次上传。";
+      return error.message;
+    }
+  }
+  if (typeof payload.message === "string") {
+    if (isZh && !containsCjk(payload.message)) return "护照 OCR 无法处理这次上传。";
+    return payload.message;
+  }
   return isZh
     ? "护照 OCR 无法处理这次上传。"
     : "Passport OCR could not process this upload.";

@@ -30,6 +30,7 @@ interface PassportOcrResponse {
     gender: PassportOcrFieldProposal;
   };
   error?: {
+    code?: string;
     message?: string;
   };
 }
@@ -78,6 +79,17 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
 
 const CJK_TEXT_RE = /[\u3400-\u9fff]/;
 
+const OCR_ERROR_COPY = {
+  zh: {
+    provider_unavailable: "护照 OCR 服务暂时不可用，请稍后重试。",
+    provider_failed: "护照 OCR 暂时无法处理这份文件，请稍后重试或换一份更清晰的护照资料页。",
+    unreadable: "这份护照资料页暂时无法读取，请换一张更清晰的资料页。",
+    unsupported_file: "护照 OCR 支持 PDF、JPG、PNG 和 WebP 文件。",
+    missing_file: "未找到已上传的护照文件，请重新上传。",
+    unauthorized: "请先登录后再上传护照。",
+  },
+} as const;
+
 const PASSPORT_OCR_COPY = {
   zh: {
     title: "上传护照资料页",
@@ -110,8 +122,16 @@ const PASSPORT_OCR_COPY = {
 
 function getResponseError(payload: PassportOcrResponse | null, fallbackMessage: string, isZh: boolean) {
   const message = payload?.error?.message?.trim();
+  const code = payload?.error?.code;
+  if (isZh) {
+    if (code && code in OCR_ERROR_COPY.zh) {
+      return OCR_ERROR_COPY.zh[code as keyof typeof OCR_ERROR_COPY.zh];
+    }
+    if (message && CJK_TEXT_RE.test(message)) return message;
+    return fallbackMessage;
+  }
   if (!message) return fallbackMessage;
-  if (!isZh && CJK_TEXT_RE.test(message)) return fallbackMessage;
+  if (CJK_TEXT_RE.test(message)) return fallbackMessage;
   return message;
 }
 

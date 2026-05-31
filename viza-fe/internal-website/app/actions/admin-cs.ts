@@ -8,6 +8,7 @@ export type TicketTab = "open" | "mine" | "unassigned" | "breaching";
 export interface AdminTicketRow {
   id: string;
   subject: string;
+  body: string;
   status: string;
   applicant_id: string;
   application_id: string | null;
@@ -16,6 +17,21 @@ export interface AdminTicketRow {
   sla_due_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminSupportTicketRow extends AdminTicketRow {
+  applicantName: string;
+  applicantEmail: string | null;
+  applicationLabel: string;
+}
+
+export interface AdminSupportMessageRow {
+  id: string;
+  ticket_id: string;
+  author_kind: "applicant" | "staff";
+  author_id: string | null;
+  body: string;
+  created_at: string;
 }
 
 async function assertStaff(): Promise<{ userId?: string; error?: string }> {
@@ -44,7 +60,7 @@ export async function listAdminTickets(
   let query = adminClient
     .from("support_ticket")
     .select(
-      "id, subject, status, applicant_id, application_id, assigned_to, first_response_at, sla_due_at, created_at, updated_at",
+      "id, subject, body, status, applicant_id, application_id, assigned_to, first_response_at, sla_due_at, created_at, updated_at",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -59,6 +75,139 @@ export async function listAdminTickets(
   const { data, error } = await query;
   if (error) return { error: error.message };
   return { rows: (data ?? []) as AdminTicketRow[] };
+}
+
+export async function listAdminSupportInbox(
+  tab: TicketTab,
+): Promise<{ rows?: AdminSupportTicketRow[]; error?: string }> {
+  const result = await listAdminTickets(tab);
+  if (result.error || !result.rows) return { error: result.error };
+
+  const rows = result.rows;
+  const adminClient = createAdminClient();
+  const applicantIds = [...new Set(rows.map((row) => row.applicant_id).filter(Boolean))];
+  const applicationIds = [...new Set(rows.map((row) => row.application_id).filter(Boolean))] as string[];
+
+  const profilesById = new Map<string, { full_name: string | null; email: string | null }>();
+  if (applicantIds.length > 0) {
+    const { data: profiles } = await adminClient
+      .from("applicant_profiles")
+      .select("id, full_name, email")
+      .in("id", applicantIds);
+    for (const profile of profiles ?? []) {
+      profilesById.set(profile.id as string, {
+        full_name: (profile.full_name as string | null) ?? null,
+        email: (profile.email as string | null) ?? null,
+      });
+    }
+  }
+
+  const applicationsById = new Map<string, { country: string | null; visa_type: string | null }>();
+  if (applicationIds.length > 0) {
+    const { data: applications } = await adminClient
+      .from("applications")
+      .select("id, country, visa_type")
+      .in("id", applicationIds);
+    for (const application of applications ?? []) {
+      applicationsById.set(application.id as string, {
+        country: (application.country as string | null) ?? null,
+        visa_type: (application.visa_type as string | null) ?? null,
+      });
+    }
+  }
+
+  return {
+    rows: rows.map((row) => {
+      const profile = profilesById.get(row.applicant_id);
+      const application = row.application_id ? applicationsById.get(row.application_id) : null;
+      const applicationLabel =
+        application?.country || application?.visa_type
+          ? [application.country, application.visa_type].filter(Boolean).join(" · ")
+          : "General support";
+
+      return {
+        ...row,
+        applicantName: profile?.full_name || profile?.email || "Unnamed applicant",
+        applicantEmail: profile?.email ?? null,
+        applicationLabel,
+      };
+    }),
+  };
+}
+
+export async function listAdminTicketMessages(
+  ticketId: string,
+): Promise<{ rows?: AdminSupportMessageRow[]; error?: string }> {
+  const guard = await assertStaff();
+  if (!guard.userId) return { error: guard.error };
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("support_message")
+    .select("id, ticket_id, author_kind, author_id, body, created_at")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+
+  if (error) return { error: error.message };
+  return { rows: (data ?? []) as AdminSupportMessageRow[] };
+}
+
+export async function postAdminTicketReply(input: {
+  ticketId: string;
+  body: string;
+}): Promise<{ ok: boolean; message?: AdminSupportMessageRow; reason?: string }> {
+  const guard = await assertStaff();
+  if (!guard.userId) return { ok: false, reason: guard.error };
+  const body = input.body.trim();
+  if (!body) return { ok: false, reason: "Reply is empty" };
+
+  const adminClient = createAdminClient();
+  const { data: message, error } = await adminClient
+    .from("support_message")
+    .insert({
+      ticket_id: input.ticketId,
+      author_kind: "staff",
+      author_id: guard.userId,
+      body,
+    })
+    .select("id, ticket_id, author_kind, author_id, body, created_at")
+    .single();
+
+  if (error || !message) return { ok: false, reason: error?.message ?? "Reply failed" };
+
+  await adminClient
+    .from("support_ticket")
+    .update({
+      assigned_to: guard.userId,
+      first_response_at: new Date().toISOString(),
+      status: "staff_replied",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.ticketId)
+    .is("first_response_at", null);
+
+  await adminClient
+    .from("support_ticket")
+    .update({
+      assigned_to: guard.userId,
+      status: "staff_replied",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.ticketId);
+
+  return { ok: true, message: message as AdminSupportMessageRow };
+}
+
+export async function closeAdminTicket(ticketId: string): Promise<{ ok: boolean; reason?: string }> {
+  const guard = await assertStaff();
+  if (!guard.userId) return { ok: false, reason: guard.error };
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("support_ticket")
+    .update({ status: "closed", updated_at: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true };
 }
 
 export async function assignTicket(input: {

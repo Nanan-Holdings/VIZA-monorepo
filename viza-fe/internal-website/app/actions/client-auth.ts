@@ -8,6 +8,7 @@ import {
 } from "@/lib/client-session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 
 /**
  * Validate that an email is acceptable for OTP login.
@@ -28,6 +29,69 @@ export async function validateUserEmail(
   }
 }
 
+export async function prepareAuthEmailLocale(
+  email: string,
+  locale: string
+): Promise<{ success: boolean }> {
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      return { success: false };
+    }
+
+    const authEmailLocale = normalizeAuthEmailLocale(locale);
+    const adminClient = createAdminClient();
+
+    for (let page = 1; page <= 10; page += 1) {
+      const { data, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
+
+      if (error) {
+        console.error("Error preparing auth email locale:", error);
+        return { success: false };
+      }
+
+      const authUser = data.users.find(
+        (user) => user.email?.toLowerCase() === normalizedEmail
+      );
+
+      if (authUser) {
+        const existingMetadata =
+          typeof authUser.user_metadata === "object" &&
+          authUser.user_metadata !== null &&
+          !Array.isArray(authUser.user_metadata)
+            ? authUser.user_metadata
+            : {};
+
+        const { error: updateError } =
+          await adminClient.auth.admin.updateUserById(authUser.id, {
+            user_metadata: {
+              ...existingMetadata,
+              locale: authEmailLocale,
+              language: authEmailLocale,
+            },
+          });
+
+        if (updateError) {
+          console.error("Error updating auth email locale:", updateError);
+          return { success: false };
+        }
+
+        return { success: true };
+      }
+
+      if (data.users.length < 1000) break;
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Unexpected error in prepareAuthEmailLocale:", err);
+    return { success: false };
+  }
+}
+
 export interface UserSession {
   userId: string;
   email: string;
@@ -42,7 +106,7 @@ export async function getUserSession(): Promise<UserSession | null> {
   const session = await getUserFromSupabaseSession();
   if (!session) return null;
 
-  const adminClient = createAdminClient() as any;
+  const adminClient = createAdminClient();
   const { data: profile } = await adminClient
     .from("applicant_profiles")
     .select("full_name")

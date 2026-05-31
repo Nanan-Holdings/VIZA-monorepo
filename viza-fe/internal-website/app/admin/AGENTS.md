@@ -21,8 +21,8 @@ website automation monitoring, coverage, and billing support.
   automation capability flags.
 - `(dashboard)/billing/**`: payment, receipt, invoice, and refund support
   visibility.
-- `admin-support-chat-widget.tsx`: global floating customer conversation
-  widget for staff to handle multiple user chats while reviewing admin pages.
+- `(dashboard)/support/**`: staff support inbox for customer questions and
+  replies.
 - `(dashboard)/orders/page.tsx`: order management.
 - `(dashboard)/products/page.tsx`: product management.
 - `(dashboard)/cal-bookings/page.tsx`: consultation bookings.
@@ -38,6 +38,8 @@ website automation monitoring, coverage, and billing support.
   and this file.
 - Staff monitoring pages should observe and support cases; they must not become
   required manual approval gates for the happy path.
+- Admin shell and support inbox copy should follow the global interface
+  language (`NEXT_LOCALE`) for English/Chinese switching.
 
 ## Validation
 
@@ -56,10 +58,10 @@ dashboard routes redirect to `/admin/login`.
 - `viza-fe/internal-website/app/admin/login/page.tsx`
 - `viza-fe/internal-website/app/admin/(dashboard)/layout.tsx`
 - `viza-fe/internal-website/app/admin/admin-layout-content.tsx`
-- `viza-fe/internal-website/app/admin/admin-support-chat-widget.tsx`
 - `viza-fe/internal-website/app/admin/(dashboard)/applications/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/packages/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`
+- `viza-fe/internal-website/app/admin/(dashboard)/support/page.tsx`
 - `viza-fe/internal-website/lib/rbac.ts`
 - `viza-fe/internal-website/app/actions/auth.ts`
 - `viza-fe/internal-website/lib/supabase/admin.ts`
