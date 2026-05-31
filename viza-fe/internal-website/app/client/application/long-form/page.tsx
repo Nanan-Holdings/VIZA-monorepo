@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
+import {
+  loadDocumentCenterData,
+  type DocumentCenterData,
+} from "@/app/client/documents/actions";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -150,14 +154,23 @@ function getStepSectionKey(step: StepDef): StepSectionKey {
   const sourceName = normalizeStepName(step.sourceName ?? step.name);
 
   if (sourceName.startsWith("personal information")) return "personal";
+  if (sourceName.startsWith("personal details")) return "personal";
   if (sourceName.startsWith("travel information")) return "travel";
+  if (sourceName.startsWith("trip details")) return "travel";
+  if (sourceName.startsWith("accommodation in schengen")) return "travel";
   if (sourceName.startsWith("travel companions")) return "travelCompanions";
+  if (sourceName.startsWith("travel history")) return "previousTravel";
   if (sourceName.startsWith("previous u s travel") || sourceName.startsWith("previous us travel")) return "previousTravel";
   if (sourceName.startsWith("address and phone")) return "addressAndPhone";
+  if (sourceName.startsWith("contact details residence") || sourceName.startsWith("contact details and residence")) return "addressAndPhone";
   if (sourceName.includes("passport information")) return "passport";
+  if (sourceName.startsWith("travel document identity") || sourceName.startsWith("travel document and identity")) return "passport";
   if (sourceName.includes("us contact information") || sourceName.includes("us point of contact")) return "usContact";
   if (sourceName.startsWith("family information")) return "family";
+  if (sourceName.startsWith("eu eea ch family member")) return "family";
   if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
+  if (sourceName.startsWith("occupation")) return "workEducationTraining";
+  if (sourceName.startsWith("financial support")) return "travel";
   if (sourceName.startsWith("security and background")) return "securityAndBackground";
   if (sourceName.startsWith("supporting documents") || sourceName.startsWith("upload documents")) return "documents";
   if (sourceName.startsWith("upload photo")) return "photo";
@@ -861,6 +874,8 @@ export default function ApplicationPage() {
   const [error, setError] = useState<string | null>(null);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+  const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
+  const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
@@ -1056,7 +1071,7 @@ export default function ApplicationPage() {
 
       const completed = hasPersonal ? (hasPassport ? (hasTravel ? (hasDocuments ? (isSubmitted ? 6 : 4) : 3) : 2) : 1) : 0;
       setCompletedUpTo(completed);
-      setCurrentStep(Math.min(completed, 5));
+      setCurrentStep(0);
 
       // Set dynamic answers for the dynamic form steps
       if (Object.keys(mergedDynamicAnswers).length > 0) {
@@ -1486,6 +1501,43 @@ export default function ApplicationPage() {
     void ensurePassportOcrApplication();
   }, [appState.applicationId, ensurePassportOcrApplication, loading, packageLoaded]);
 
+  useEffect(() => {
+    const applicationId = appState.applicationId;
+    if (loading || !packageLoaded || !applicationId) return;
+
+    let cancelled = false;
+    setDocumentCenterData((current) =>
+      current?.selectedApplication?.id === applicationId ? current : null
+    );
+    setDocumentCenterError(null);
+
+    loadDocumentCenterData({
+      applicationId,
+      country: resolvedCountry,
+      visaType: resolvedVisaType,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setDocumentCenterData(result.data);
+          setDocumentCenterError(null);
+        } else {
+          setDocumentCenterData(null);
+          setDocumentCenterError(result.error);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDocumentCenterData(null);
+          setDocumentCenterError(err instanceof Error ? err.message : t("errors.failedToSave"));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appState.applicationId, loading, packageLoaded, resolvedCountry, resolvedVisaType, t]);
+
   const handlePassportOcrFieldsApplied = useCallback((fields: UniversalProfileSnapshot) => {
     const answerPatch = buildUniversalProfileAnswerPatch(fields);
     const { givenNames, surname } = splitUniversalFullName(fields.full_name);
@@ -1621,8 +1673,8 @@ export default function ApplicationPage() {
                         {step.id === documentStepIndex && (
                           appState.applicationId ? (
                             <DocumentCenterClient
-                              initialData={null}
-                              initialError={null}
+                              initialData={documentCenterData}
+                              initialError={documentCenterError}
                               applicationId={appState.applicationId}
                               country={activeCountry}
                               visaType={activeVisaType}
@@ -1701,8 +1753,8 @@ export default function ApplicationPage() {
                         {step.id === 3 && (
                           appState.applicationId ? (
                             <DocumentCenterClient
-                              initialData={null}
-                              initialError={null}
+                              initialData={documentCenterData}
+                              initialError={documentCenterError}
                               applicationId={appState.applicationId}
                               country={activeCountry}
                               visaType={activeVisaType}
