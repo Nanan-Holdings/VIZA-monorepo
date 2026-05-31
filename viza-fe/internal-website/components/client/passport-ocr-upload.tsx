@@ -5,10 +5,8 @@ import { CheckCircle2, FileText, Loader2, ScanLine, UploadCloud, XCircle } from 
 import { useLocale } from "next-intl";
 import {
   confirmPassportOcrExtraction,
-  ensureApplicationDocumentsBucket,
-  recordDocumentUpload,
+  uploadApplicationDocument,
 } from "@/app/client/documents/actions";
-import { createClient } from "@/lib/supabase/client";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
@@ -151,33 +149,17 @@ export function PassportOcrUpload({
     setMessage(copy.uploading);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error(copy.notAuthenticated);
-
-      const bucketResult = await ensureApplicationDocumentsBucket();
-      if (!bucketResult.ok) throw new Error(bucketResult.error);
-
       const ext = extensionFromFile(file);
       const safeName = sanitizeFilename(file.name || `passport.${ext}`);
-      const storagePath = `${user.id}/${applicationId}/passport_copy/${Date.now()}-${safeName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("application-documents")
-        .upload(storagePath, file, { upsert: true, contentType: file.type || undefined });
-      if (uploadError) throw uploadError;
-
-      const recordResult = await recordDocumentUpload({
-        applicationId,
-        documentType: "passport_copy",
-        requirementKey: "passport_copy",
-        filename: file.name || `passport.${ext}`,
-        storagePath,
-        required: true,
-      });
-      if (!recordResult.ok) throw new Error(recordResult.error);
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", applicationId);
+      uploadForm.set("documentType", "passport_copy");
+      uploadForm.set("requirementKey", "passport_copy");
+      uploadForm.set("filename", safeName);
+      uploadForm.set("required", "true");
+      uploadForm.set("file", file);
+      const uploadResult = await uploadApplicationDocument(uploadForm);
+      if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       setStatus("ocr");
       setMessage(copy.extracting);
@@ -185,7 +167,7 @@ export function PassportOcrUpload({
       const response = await fetch("/api/passport-ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId, storagePath }),
+        body: JSON.stringify({ applicationId, storagePath: uploadResult.storagePath }),
       });
       const payload = (await response.json().catch(() => null)) as PassportOcrResponse | null;
       if (!response.ok || !payload?.success) throw new Error(getResponseError(payload, copy.ocrFallback, isZh));

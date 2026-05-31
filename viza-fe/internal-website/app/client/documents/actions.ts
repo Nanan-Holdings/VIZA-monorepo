@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+// eslint-disable-next-line no-restricted-imports -- This is a server action module; uploads use service-role only after applicant ownership checks.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getImpersonationSession } from "@/lib/impersonation-session";

@@ -23,14 +23,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import {
   confirmPassportOcrExtraction,
-  ensureApplicationDocumentsBucket,
   loadDocumentCenterData,
-  recordDocumentUpload,
+  uploadApplicationDocument,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
@@ -1287,53 +1285,20 @@ export function DocumentCenterClient({
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user)
-        throw new Error(
-          isZh
-            ? "请先登录后再上传材料。"
-            : "Please sign in before uploading documents."
-        );
-
-      const bucketResult = await ensureApplicationDocumentsBucket();
-      if (!bucketResult.ok) throw new Error(bucketResult.error);
-
       const safeName = sanitizeFilename(file.name);
-      const storagePath = `${user.id}/${selectedApplication.id}/${requirement.documentType}/${Date.now()}-${safeName}`;
-      const { error: uploadError } = await supabase.storage
-        .from("application-documents")
-        .upload(storagePath, file, {
-          upsert: true,
-          contentType: file.type || undefined,
-        });
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", selectedApplication.id);
+      uploadForm.set("documentType", requirement.documentType);
+      uploadForm.set("requirementKey", requirement.key);
+      uploadForm.set("filename", safeName);
+      uploadForm.set("required", String(requirement.required));
+      uploadForm.set("source", source);
+      uploadForm.set("file", file);
+      const result = await uploadApplicationDocument(uploadForm);
+      if (!result.ok) throw new Error(result.error);
 
-      if (uploadError) throw uploadError;
-
-      const result = await recordDocumentUpload({
-        applicationId: selectedApplication.id,
-        documentType: requirement.documentType,
-        requirementKey: requirement.key,
-        filename: safeName,
-        storagePath,
-        required: requirement.required,
-        source,
-      });
-
-      if (!result.ok) {
-        console.error("Document record update failed", result);
-        setError(
-          isZh
-            ? "文件已上传，但记录保存失败，请刷新后重试。"
-            : "The file was uploaded, but the document record was not saved. Please refresh and try again."
-        );
-        await refreshData();
-        return;
-      }
       if (source === "manual_upload" && isPassportRequirement(requirement)) {
-        const ocrResult = await runPassportOcr({ storagePath }, key);
+        const ocrResult = await runPassportOcr({ storagePath: result.storagePath }, key);
         if (!ocrResult.ok) {
           setError(
             isZh
