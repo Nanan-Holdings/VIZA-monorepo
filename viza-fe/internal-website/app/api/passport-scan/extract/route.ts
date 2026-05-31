@@ -4,7 +4,7 @@
  * Body: { applicationId: string, storagePath: string, mediaType?: string }
  *
  * 1. Verifies the caller is an authenticated client.
- * 2. Confirms the storagePath sits under that user's namespace.
+ * 2. Confirms the storagePath belongs to one of that applicant's documents.
  * 3. Downloads the image from Supabase storage (bucket `application-documents`)
  *    via the admin client.
  * 4. Forwards the base64 image to the agent-backend OCR route, which calls
@@ -26,23 +26,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     }
 
-    const { storagePath, mediaType } = (await request.json()) as {
+    const { applicationId, storagePath, mediaType } = (await request.json()) as {
       applicationId?: string;
       storagePath?: string;
       mediaType?: string;
     };
 
+    if (!applicationId || typeof applicationId !== "string") {
+      return NextResponse.json({ error: "applicationId required" }, { status: 400 });
+    }
+
     if (!storagePath || typeof storagePath !== "string") {
       return NextResponse.json({ error: "storagePath required" }, { status: 400 });
     }
 
-    // Path must start with the authenticated user's id — prevents one user
-    // from triggering OCR against another user's upload.
-    if (!storagePath.startsWith(`${session.userId}/`)) {
+    const adminClient = createAdminClient();
+    const { data: application } = await adminClient
+      .from("applications")
+      .select("id")
+      .eq("id", applicationId)
+      .eq("applicant_id", session.userId)
+      .maybeSingle();
+
+    if (!application) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    const adminClient = createAdminClient();
+    const { data: document } = await adminClient
+      .from("application_documents")
+      .select("id")
+      .eq("application_id", applicationId)
+      .eq("storage_path", storagePath)
+      .maybeSingle();
+
+    if (!document) {
+      return NextResponse.json({ error: "document not found" }, { status: 404 });
+    }
+
     const { data: blob, error: downloadError } = await adminClient.storage
       .from(STORAGE_BUCKET)
       .download(storagePath);

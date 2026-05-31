@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
-import { uploadApplicationDocument } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { createClient } from "@/lib/supabase/client";
 import {
   validatePhoto,
@@ -191,7 +191,7 @@ export function PhotoUploadStep({
       uploadForm.set("filename", "photo.jpg");
       uploadForm.set("required", "true");
       uploadForm.set("file", new File([croppedBlob], "photo.jpg", { type: "image/jpeg" }));
-      const uploadResult = await uploadApplicationDocument(uploadForm);
+      const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       // Get a signed URL for preview

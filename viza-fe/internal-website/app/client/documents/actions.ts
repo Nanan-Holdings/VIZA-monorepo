@@ -969,6 +969,19 @@ function sanitizeUploadFilename(name: string): string {
   return fallback.length > 120 ? fallback.slice(fallback.length - 120) : fallback;
 }
 
+function isLegacyDocumentSchemaError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "PGRST204" ||
+    message.includes("schema cache") ||
+    message.includes("required column") ||
+    message.includes("requirement_key") ||
+    message.includes("review_notes") ||
+    message.includes("no unique or exclusion constraint")
+  );
+}
+
 async function ensureApplicationDocumentsBucketWithAdmin(adminClient: ReturnType<typeof createAdminClient>) {
   const { data: bucket, error: bucketError } = await adminClient.storage.getBucket(APPLICATION_DOCUMENTS_BUCKET);
   if (bucket && !bucketError) return null;
@@ -1069,6 +1082,68 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
   }
 }
 
+async function saveApplicationDocumentRecord(
+  adminClient: ReturnType<typeof createAdminClient>,
+  input: RecordDocumentUploadInput,
+): Promise<string | null> {
+  const now = new Date().toISOString();
+  const reviewNotes =
+    input.source === "travel_ai"
+      ? "Saved from Travel AI itinerary output. Awaiting VIZA review."
+      : "Uploaded by applicant. Awaiting VIZA review.";
+
+  const { error } = await adminClient.from("application_documents").upsert(
+    {
+      application_id: input.applicationId,
+      document_type: input.documentType,
+      requirement_key: input.requirementKey,
+      storage_path: input.storagePath,
+      filename: input.filename,
+      status: "uploaded",
+      rejection_reason: null,
+      required: input.required,
+      review_notes: reviewNotes,
+      reviewed_at: null,
+      reviewed_by: null,
+      updated_at: now,
+    },
+    { onConflict: "application_id,document_type" },
+  );
+
+  if (!error) return null;
+  if (!isLegacyDocumentSchemaError(error)) return error.message;
+
+  const legacyPayload = {
+    application_id: input.applicationId,
+    document_type: input.documentType,
+    storage_path: input.storagePath,
+    filename: input.filename,
+    status: "uploaded",
+    rejection_reason: null,
+    updated_at: now,
+  };
+
+  const { data: existing, error: lookupError } = await adminClient
+    .from("application_documents")
+    .select("id")
+    .eq("application_id", input.applicationId)
+    .eq("document_type", input.documentType)
+    .maybeSingle();
+
+  if (lookupError && !isLegacyDocumentSchemaError(lookupError)) return lookupError.message;
+
+  if (existing?.id) {
+    const { error: updateError } = await adminClient
+      .from("application_documents")
+      .update(legacyPayload)
+      .eq("id", existing.id);
+    return updateError?.message ?? null;
+  }
+
+  const { error: insertError } = await adminClient.from("application_documents").insert(legacyPayload);
+  return insertError?.message ?? null;
+}
+
 export async function recordDocumentUpload(input: RecordDocumentUploadInput): Promise<DocumentMutationResult> {
   try {
     if (!input.applicationId || !input.documentType || !input.storagePath || !input.filename) {
@@ -1082,31 +1157,8 @@ export async function recordDocumentUpload(input: RecordDocumentUploadInput): Pr
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
 
     const adminClient = createAdminClient();
-    const now = new Date().toISOString();
-    const { error } = await adminClient.from("application_documents").upsert(
-      {
-        application_id: input.applicationId,
-        document_type: input.documentType,
-        requirement_key: input.requirementKey,
-        storage_path: input.storagePath,
-        filename: input.filename,
-        status: "uploaded",
-        rejection_reason: null,
-        required: input.required,
-        review_notes:
-          input.source === "travel_ai"
-            ? "Saved from Travel AI itinerary output. Awaiting VIZA review."
-            : "Uploaded by applicant. Awaiting VIZA review.",
-        reviewed_at: null,
-        reviewed_by: null,
-        updated_at: now,
-      },
-      { onConflict: "application_id,document_type" },
-    );
-
-    if (error) {
-      return { ok: false, code: "server_error", error: error.message };
-    }
+    const saveError = await saveApplicationDocumentRecord(adminClient, input);
+    if (saveError) return { ok: false, code: "server_error", error: saveError };
 
     revalidatePath("/client/documents");
     revalidatePath("/client/status");

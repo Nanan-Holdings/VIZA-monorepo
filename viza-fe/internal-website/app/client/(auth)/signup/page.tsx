@@ -14,7 +14,7 @@ function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
-type SignupStep = 'email' | 'password'
+type SignupStep = 'email' | 'otp' | 'password'
 type PasswordRequirementKey = 'length' | 'letter' | 'digit' | 'symbol'
 
 function getPasswordScore(password: string) {
@@ -117,12 +117,14 @@ export default function ClientSignupPage() {
   // --- Signup state ---
   const [step, setStep] = useState<SignupStep>('email')
   const [email, setEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [acceptTos, setAcceptTos] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const consentReady = acceptTos && acceptPrivacy
@@ -137,6 +139,35 @@ export default function ClientSignupPage() {
           ? 'fair'
           : 'weak'
 
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown((value) => value - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCooldown])
+
+  const sendSignupCode = async (targetEmail: string) => {
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithOtp({
+      email: targetEmail.toLowerCase().trim(),
+      options: {
+        shouldCreateUser: true,
+        data: {
+          role: 'client',
+          user_type: 'client',
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/login`,
+      },
+    })
+
+    if (authError) {
+      setError(authError.message || t('failedToSendCode'))
+      return false
+    }
+
+    return true
+  }
+
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
@@ -145,7 +176,67 @@ export default function ClientSignupPage() {
       setError(t('acceptRequired'))
       return
     }
-    setStep('password')
+
+    setIsSubmitting(true)
+    try {
+      const ok = await sendSignupCode(email)
+      if (ok) {
+        setStep('otp')
+        setOtpCode('')
+        setResendCooldown(60)
+      }
+    } catch (err) {
+      console.error(err)
+      setError(t('unexpectedError'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const verifySignupCode = async (code: string) => {
+    const normalizedCode = code.replace(/\D/g, '').slice(0, 8)
+    if (normalizedCode.length !== 8) return
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      const supabase = createClient()
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.toLowerCase().trim(),
+        token: normalizedCode,
+        type: 'email',
+      })
+
+      if (verifyError) {
+        setError(verifyError.message)
+        return
+      }
+
+      setStep('password')
+      setOtpCode('')
+    } catch (err) {
+      console.error(err)
+      setError(t('unexpectedError'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      const ok = await sendSignupCode(email)
+      if (ok) {
+        setOtpCode('')
+        setResendCooldown(60)
+      }
+    } catch (err) {
+      console.error(err)
+      setError(t('failedToResend'))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -157,19 +248,27 @@ export default function ClientSignupPage() {
     try {
       const supabase = createClient()
       const normalizedEmail = email.toLowerCase().trim()
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: normalizedEmail,
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user || user.email?.toLowerCase() !== normalizedEmail) {
+        setError(t('verifyEmailFirst'))
+        setIsSubmitting(false)
+        setStep('otp')
+        return
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
         password,
-        options: {
-          data: {
-            role: 'client',
-            user_type: 'client',
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/home`,
+        data: {
+          role: 'client',
+          user_type: 'client',
         },
       })
-      if (signUpError) {
-        setError(signUpError.message)
+
+      if (updateError) {
+        setError(updateError.message)
         setIsSubmitting(false)
         return
       }
@@ -291,11 +390,104 @@ export default function ClientSignupPage() {
                   className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('submitting')}</span>
-                    : t('continueToPassword')}
+                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('sendingCode')}</span>
+                    : t('sendCodeButton')}
                 </button>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
+            </motion.div>
+          ) : step === 'otp' ? (
+            <motion.div
+              key="otp"
+              className="flex w-full flex-col gap-[clamp(16px,3vh,40px)] shrink-0"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.25 }}
+            >
+              <button
+                onClick={() => { setStep('email'); setError(null); setOtpCode('') }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center text-[#3d3d3d] hover:opacity-60 transition-opacity"
+                aria-label={t('back')}
+                type="button"
+              >
+                <ArrowLeft className="h-7 w-7" />
+              </button>
+
+              <div className="flex flex-col gap-[4px]">
+                <h1 className="text-[clamp(20px,3vw,36px)] font-normal leading-[1.3] tracking-[-1px] text-[#3d3d3d]">
+                  {t('verifyEmailTitle')}
+                </h1>
+                <p className="text-[clamp(12px,1.3vw,15px)] tracking-[-0.24px] leading-[1.5] text-[rgba(0,0,0,0.55)]">
+                  {t('sentCodeTo')} <span className="text-brand-500">{email}</span>
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
+                <div className="flex w-full gap-2 sm:gap-3">
+                  {Array.from({ length: 8 }, (_, i) => (
+                    <input
+                      key={i}
+                      id={`signup-otp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      disabled={isSubmitting}
+                      value={otpCode[i] ?? ''}
+                      aria-label={t('otpDigitLabel', { digit: i + 1 })}
+                      className="flex-1 h-[clamp(36px,4.8vh,46px)] w-0 min-w-0 rounded-[8px] border border-[#d1d5db] bg-white text-center font-sans text-[clamp(12px,1vw,14px)] text-[#3d3d3d] focus:outline-none focus:border-[#3d3d3d] focus:ring-1 focus:ring-[#3d3d3d]"
+                      onChange={(event) => {
+                        const val = event.target.value.replace(/\D/g, '').slice(-1)
+                        const nextCode = `${otpCode.slice(0, i)}${val}${otpCode.slice(i + 1)}`.slice(0, 8)
+                        setOtpCode(nextCode)
+                        if (val) {
+                          const next = document.getElementById(`signup-otp-${i + 1}`) as HTMLInputElement | null
+                          if (next) next.focus()
+                        }
+                        if (nextCode.length === 8) void verifySignupCode(nextCode)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Backspace' && !otpCode[i]) {
+                          const prev = document.getElementById(`signup-otp-${i - 1}`) as HTMLInputElement | null
+                          if (prev) prev.focus()
+                        }
+                      }}
+                      onPaste={i === 0 ? (event) => {
+                        event.preventDefault()
+                        const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
+                        setOtpCode(pasted)
+                        if (pasted.length === 8) {
+                          void verifySignupCode(pasted)
+                        } else {
+                          const next = document.getElementById(`signup-otp-${pasted.length}`) as HTMLInputElement | null
+                          if (next) next.focus()
+                        }
+                      } : undefined}
+                    />
+                  ))}
+                </div>
+
+                {error && (
+                  <motion.p
+                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || isSubmitting}
+                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-[#dcdcdc] font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-[#989898] transition-all disabled:cursor-not-allowed enabled:bg-black enabled:text-white enabled:hover:opacity-80"
+                >
+                  {isSubmitting
+                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('sendingCode')}</span>
+                    : resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
+                </button>
+                <div className="h-[clamp(24px,4.5vh,48px)]" />
+              </div>
             </motion.div>
           ) : (
             <motion.div

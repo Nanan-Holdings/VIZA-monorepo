@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -225,27 +225,17 @@ function SupportRedirectSection() {
 
   return (
     <motion.div
-      className="w-full"
-      initial={{ opacity: 0, y: 24 }}
+      className="w-full text-center"
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.6 }}
+      transition={{ duration: 0.4, delay: 0.6 }}
     >
       <Link
         href="/client/support"
-        className="group flex flex-col gap-4 rounded-[16px] border border-[#efefef] bg-white p-5 text-center shadow-sm transition hover:border-brand-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-row sm:items-center sm:justify-between sm:text-left"
+        className="inline-flex items-center gap-1.5 text-[15px] font-medium leading-6 text-brand-500 transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <span className="space-y-2">
-          <span className="block text-[22px] font-medium leading-[1.3] tracking-[-0.66px] text-[#2b2b2b]">
-            {t("supportCta.title")}
-          </span>
-          <span className="block text-[16px] leading-[1.6] tracking-[-0.24px] text-[#6f6f6f]">
-            {t("supportCta.description")}
-          </span>
-        </span>
-        <span className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-brand-500 px-5 text-[15px] font-medium text-white transition-colors group-hover:bg-brand-400">
-          {t("supportCta.action")}
-          <ArrowRight className="size-4" />
-        </span>
+        {t("supportCta.title")}
+        <ArrowUpRight className="size-4" />
       </Link>
     </motion.div>
   );
@@ -276,10 +266,10 @@ export default function HelpPage() {
 
   return (
     <div className="bg-[#fcfcfc] relative min-h-screen overflow-x-hidden w-screen left-1/2 -translate-x-1/2 -mt-36 xl:-mt-32">
-      <div className="absolute top-0 left-0 right-0 h-[560px] sm:h-[600px] xl:h-[538px] overflow-hidden z-0">
+      <div className="absolute top-0 left-0 right-0 h-[300px] sm:h-[320px] xl:h-[320px] overflow-hidden z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-[#03346E] to-[#3D6DAD]" />
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.05)] mix-blend-hard-light" />
-        <div className="absolute h-[820px] left-1/2 -translate-x-1/2 bottom-0 w-[560px]">
+        <div className="absolute h-[420px] left-1/2 -translate-x-1/2 bottom-0 w-[300px] opacity-45">
           <img alt="" className="h-full w-full object-contain object-bottom" src="/figma-assets/hero-background.png" />
         </div>
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.08)]" />
@@ -303,7 +293,7 @@ export default function HelpPage() {
           </motion.p>
         </motion.div>
 
-        <div className="w-full max-w-[720px] mt-[28px] sm:mt-[72px] flex flex-col gap-8 sm:gap-12 lg:gap-[64px] pb-[80px] sm:pb-[100px]">
+        <div className="w-full max-w-[720px] mt-[56px] sm:mt-[88px] flex flex-col gap-8 sm:gap-12 lg:gap-[64px] pb-[80px] sm:pb-[100px]">
           <QuickLinksSection />
           <GuidesSection />
           <div className="mt-6 sm:mt-8 lg:mt-12 w-full">

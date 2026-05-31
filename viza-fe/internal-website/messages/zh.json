@@ -1343,7 +1343,7 @@
     },
     "contact": {
       "title": "领事馆如何联系您?",
-      "subtitle": "您的主要联系方式、家庭住址,以及 DS-160 要求的社交平台。",
+      "subtitle": "您的主要联系方式、家庭住址，以及官方表格要求的社交平台信息。",
       "email": "邮箱",
       "emailPlaceholder": "you@example.com",
       "phone": "电话",
@@ -1367,7 +1367,7 @@
       "postalCodePlaceholder": "邮政编码",
       "mailingSame": "邮寄地址与家庭住址相同吗?",
       "socialMedia": "社交媒体",
-      "socialMediaHint": "DS-160 要求申报您使用的平台。选择所有适用项。",
+      "socialMediaHint": "请选择官方表格询问的平台；只有在该签证表单要求时，我们才会带入社交媒体信息。",
       "useSocialMedia": "您使用社交媒体吗?",
       "socialHandlePlaceholder": "{platform} 用户名或账号",
       "otherPlatforms": "更多平台",
@@ -3442,6 +3442,9 @@
       }
     },
     "faqTitle": "常见问题",
+    "supportCta": {
+      "title": "还需要帮助？"
+    },
     "faqs": {
       "resetPassword": {
         "question": "如何重置密码？",
@@ -3511,7 +3514,7 @@
       "failedToResend": "重新发送验证码失败。",
       "checkEmail": "查看您的邮箱",
       "sentCodeTo": "我们已发送8位验证码到",
-      "clickLink": "点击邮件中的链接登录。",
+      "clickLink": "请在下方输入验证码登录。",
       "resendIn": "{seconds}秒后重新发送",
       "resendCode": "重新发送验证码",
       "privacyPolicy": "隐私政策",
@@ -3524,6 +3527,15 @@
       "invalidEmail": "请输入有效的电子邮件地址。",
       "submitting": "提交中...",
       "continueToPassword": "继续",
+      "sendCodeButton": "发送验证码",
+      "sendingCode": "正在发送验证码...",
+      "failedToSendCode": "发送验证码失败",
+      "failedToResend": "重新发送验证码失败。",
+      "verifyEmailTitle": "验证您的邮箱",
+      "sentCodeTo": "我们已发送8位验证码到",
+      "resendIn": "{seconds}秒后重新发送",
+      "resendCode": "重新发送验证码",
+      "otpDigitLabel": "验证码第 {digit} 位",
       "requestInvite": "申请邀请",
       "acceptRequired": "请先同意服务条款和隐私政策。",
       "back": "返回",
@@ -3546,6 +3558,7 @@
       },
       "passwordRequirementError": "密码必须包含字母、数字和特殊符号。",
       "passwordMismatch": "两次输入的密码不一致。",
+      "verifyEmailFirst": "请先验证邮箱，再设置密码。",
       "creatingAccount": "正在创建账户...",
       "createAccount": "创建账户",
       "showPassword": "显示密码",
