@@ -3,7 +3,11 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, FileText, Loader2, ScanLine, UploadCloud, XCircle } from "lucide-react";
 import { useLocale } from "next-intl";
-import { recordDocumentUpload, confirmPassportOcrExtraction } from "@/app/client/documents/actions";
+import {
+  confirmPassportOcrExtraction,
+  ensureApplicationDocumentsBucket,
+  recordDocumentUpload,
+} from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -152,6 +156,9 @@ export function PassportOcrUpload({
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error(copy.notAuthenticated);
+
+      const bucketResult = await ensureApplicationDocumentsBucket();
+      if (!bucketResult.ok) throw new Error(bucketResult.error);
 
       const ext = extensionFromFile(file);
       const safeName = sanitizeFilename(file.name || `passport.${ext}`);

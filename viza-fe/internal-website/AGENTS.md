@@ -26,7 +26,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Website automation server actions under
   `app/actions/internal-automation/**`.
 - Payment, OCR, and external status API boundaries under `app/api/stripe/**`,
-  `app/api/passport-ocr/**`, and `app/api/external-submission/**`.
+  `app/api/payments/**`, `app/api/passport-ocr/**`, and
+  `app/api/external-submission/**`.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.

@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
-import { recordDocumentUpload } from "@/app/client/documents/actions";
+import { uploadApplicationDocument } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import {
   validatePhoto,
@@ -184,38 +184,23 @@ export function PhotoUploadStep({
         (ensureApplicationId ? await ensureApplicationId() : null);
       if (!resolvedApplicationId) throw new Error(t("uploadError"));
 
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("notAuthenticated"));
-
-      const path = `${user.id}/${resolvedApplicationId}/ds160_photo/photo.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from("application-documents")
-        .upload(path, croppedBlob, {
-          upsert: true,
-          contentType: "image/jpeg",
-        });
-
-      if (uploadError) throw uploadError;
-
-      const recordResult = await recordDocumentUpload({
-        applicationId: resolvedApplicationId,
-        documentType: "photo",
-        requirementKey: "photo",
-        filename: "photo.jpg",
-        storagePath: path,
-        required: true,
-      });
-      if (!recordResult.ok) throw new Error(recordResult.error);
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", resolvedApplicationId);
+      uploadForm.set("documentType", "photo");
+      uploadForm.set("requirementKey", "photo");
+      uploadForm.set("filename", "photo.jpg");
+      uploadForm.set("required", "true");
+      uploadForm.set("file", new File([croppedBlob], "photo.jpg", { type: "image/jpeg" }));
+      const uploadResult = await uploadApplicationDocument(uploadForm);
+      if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       // Get a signed URL for preview
+      const supabase = createClient();
       const { data: signedData } = await supabase.storage
         .from("application-documents")
-        .createSignedUrl(path, 3600);
+        .createSignedUrl(uploadResult.storagePath, 3600);
 
-      setUploadedPath(path);
+      setUploadedPath(uploadResult.storagePath);
       setUploadedApplicationId(resolvedApplicationId);
       setPhotoPreviewUrl(signedData?.signedUrl ?? croppedObjectUrl);
       setScreen("confirm");

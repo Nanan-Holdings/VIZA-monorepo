@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "motion/react";
 import { Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,6 +12,7 @@ export interface ActivityEvent {
   sublabel: string;
   timestamp: string;
   icon: "upload" | "check" | "clock" | "alert";
+  href?: string;
 }
 
 function formatRelative(date: Date): string {
@@ -38,24 +40,38 @@ function ActivityIcon({ type }: { type: ActivityEvent["icon"] }) {
 }
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
-  return (
-    <div className="w-full rounded-[16px] border border-[#efefef] bg-white">
-      <div className="flex items-center w-full p-[16px] xl:p-[20px] gap-[16px] xl:gap-[20px]">
-        <div className="flex items-center justify-center shrink-0 size-[56px] rounded-[8px] bg-[#f6f6f6]">
-          <ActivityIcon type={event.icon} />
-        </div>
-        <div className="flex flex-col gap-[4px] min-w-0 flex-1">
-          <p className="font-sans font-medium leading-[1.3] text-[#3d3d3d] text-[16px] tracking-[-0.48px] truncate">
-            {event.label}
-          </p>
-          <p className="font-sans font-normal leading-[1.3] text-[14px] text-[rgba(0,0,0,0.45)] tracking-[-0.42px] truncate">
-            {event.sublabel}
-          </p>
-        </div>
-        <p className="font-sans text-[13px] text-[rgba(0,0,0,0.35)] shrink-0 hidden xl:block">
-          {formatRelative(new Date(event.timestamp))}
+  const content = (
+    <div className="flex items-center w-full p-[16px] xl:p-[20px] gap-[16px] xl:gap-[20px]">
+      <div className="flex items-center justify-center shrink-0 size-[56px] rounded-[8px] bg-[#f6f6f6]">
+        <ActivityIcon type={event.icon} />
+      </div>
+      <div className="flex flex-col gap-[4px] min-w-0 flex-1">
+        <p className="font-sans font-medium leading-[1.3] text-[#3d3d3d] text-[16px] tracking-[-0.48px] truncate">
+          {event.label}
+        </p>
+        <p className="font-sans font-normal leading-[1.3] text-[14px] text-[rgba(0,0,0,0.45)] tracking-[-0.42px] truncate">
+          {event.sublabel}
         </p>
       </div>
+      <p className="font-sans text-[13px] text-[rgba(0,0,0,0.35)] shrink-0 hidden xl:block">
+        {formatRelative(new Date(event.timestamp))}
+      </p>
+    </div>
+  );
+  const className =
+    "block w-full rounded-[16px] border border-[#efefef] bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40";
+
+  if (event.href) {
+    return (
+      <Link href={event.href} className={`${className} hover:border-brand-200 hover:bg-brand-50/40`}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   );
 }
