@@ -2701,6 +2701,11 @@
         "title": "[VI] Personal details",
         "description": "[VI] Review the information VIZA uses to prepare your applications."
       },
+      "travelers": {
+        "title": "[VI] Frequent travelers",
+        "description": "[VI] Add family, colleagues, or companions so future group orders can reuse them.",
+        "badge": "[VI] Group"
+      },
       "language": {
         "title": "[VI] Language",
         "description": "[VI] Use the language switcher in the top bar, or read the profile guide."
@@ -2739,6 +2744,53 @@
           "title": "[VI] WeChat Pay",
           "description": "[VI] Use Chinese payment flow when it is available for the package."
         }
+      }
+    },
+    "travelers": {
+      "title": "[VI] Frequent travelers",
+      "description": "[VI] Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
+      "add": "[VI] Add traveler",
+      "addFirst": "[VI] Add first traveler",
+      "addTitle": "[VI] Add frequent traveler",
+      "editTitle": "[VI] Edit traveler",
+      "formHint": "[VI] Name, nationality, and passport details are the most useful fields for future group applications.",
+      "loading": "[VI] Loading travelers...",
+      "emptyTitle": "[VI] No frequent travelers yet",
+      "emptyDescription": "[VI] Add family, colleagues, or travel companions now so they can be selected later.",
+      "notSet": "[VI] Not set",
+      "edit": "[VI] Edit",
+      "delete": "[VI] Delete",
+      "save": "[VI] Save traveler",
+      "saving": "[VI] Saving...",
+      "cancel": "[VI] Cancel",
+      "created": "[VI] Traveler added.",
+      "updated": "[VI] Traveler updated.",
+      "deleted": "[VI] Traveler deleted.",
+      "loadError": "[VI] We could not load your frequent travelers right now.",
+      "saveError": "[VI] We could not save this traveler. Check the name and try again.",
+      "deleteError": "[VI] We could not delete this traveler right now.",
+      "handoffHint": "[VI] When group-order forms are connected, these travelers can be added as companion applicants under one order.",
+      "fields": {
+        "fullName": "[VI] Full name",
+        "dateOfBirth": "[VI] Date of birth",
+        "nationality": "[VI] Nationality",
+        "passportNumber": "[VI] Passport number",
+        "passportExpiryDate": "[VI] Passport expiry date",
+        "email": "[VI] Email",
+        "phone": "[VI] Phone"
+      },
+      "placeholders": {
+        "fullName": "[VI] For example: ZHANG XIAOMING",
+        "nationality": "[VI] For example: China",
+        "passportNumber": "[VI] As shown on the passport",
+        "email": "[VI] name@example.com",
+        "phone": "[VI] Include country or region code"
+      },
+      "deleteDialog": {
+        "title": "[VI] Delete this traveler?",
+        "description": "[VI] This removes {name} from frequent travelers. Existing applications are not deleted automatically.",
+        "cancel": "[VI] Keep",
+        "confirm": "[VI] Delete"
       }
     },
     "account": {
