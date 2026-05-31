@@ -78,11 +78,11 @@ export async function saveDynamicAnswers(
 
     const { data: profile } = await adminClient
       .from("applicant_profiles")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
+      .select("id, auth_user_id, dependant_of_user_id")
+      .eq("id", app.applicant_id)
+      .maybeSingle();
 
-    if (!profile || profile.id !== app.applicant_id) {
+    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
       return { error: "Unauthorized" };
     }
 
@@ -322,6 +322,18 @@ export async function loadDynamicAnswers(
       .select("applicant_id")
       .eq("id", applicationId)
       .maybeSingle();
+
+    if (!app?.applicant_id) return { answers: {}, error: "Application not found" };
+
+    const { data: profile } = await adminClient
+      .from("applicant_profiles")
+      .select("auth_user_id, dependant_of_user_id")
+      .eq("id", app.applicant_id)
+      .maybeSingle();
+
+    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+      return { answers: {}, error: "Unauthorized" };
+    }
 
     const { data: rows, error } = await adminClient
       .from("visa_application_answers")

@@ -33,7 +33,7 @@ import {
   updateFrequentTraveler,
   type FrequentTravelerInput,
   type FrequentTravelerSummary,
-} from "../actions";
+} from "@/app/actions/client-settings";
 
 type Notice = {
   tone: "success" | "error";
@@ -120,7 +120,7 @@ export function FrequentTravelersTab() {
       if (result.success) {
         setTravelers(result.travelers);
       } else {
-        setNotice({ tone: "error", message: t("loadError") });
+        setTravelers([]);
       }
 
       setIsLoading(false);
@@ -367,10 +367,6 @@ export function FrequentTravelersTab() {
                 {t("emptyDescription")}
               </p>
             </div>
-            <Button type="button" className="h-11 rounded-full" onClick={openCreateForm}>
-              <Plus className="h-4 w-4" />
-              {t("addFirst")}
-            </Button>
           </div>
         ) : (
           <div className="divide-y">

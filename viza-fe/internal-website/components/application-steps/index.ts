@@ -15,6 +15,9 @@ export { ReviewStep, ValidationPanel } from "./review-step";
 export { DynamicReviewStep } from "./dynamic-review-step";
 export type { DynamicReviewStepProps } from "./dynamic-review-step";
 
+export { TeamStep } from "./team-step";
+export type { TeamStepProps } from "./team-step";
+
 export { PhotoUploadStep } from "./photo-upload-step";
 export type { PhotoUploadStepProps } from "./photo-upload-step";
 
