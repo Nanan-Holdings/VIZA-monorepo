@@ -4,9 +4,14 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
+import { useLocale } from "next-intl";
 import {
   SCHENGEN_VISA_DESTINATIONS,
+  getVisaDestinationCountryName,
+  getVisaDestinationDescription,
   getVisaDestinationKey,
+  getVisaDestinationRegionName,
+  getVisaDestinationVisaName,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
@@ -27,6 +32,8 @@ function isSelectedDestination(
 
 export default function SchengenDestinationsPage() {
   const router = useRouter();
+  const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPackages, setSelectedPackages] = useState<UserVisaPackage[]>([]);
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
@@ -68,7 +75,7 @@ export default function SchengenDestinationsPage() {
     startTransition(async () => {
       const result = await selectUserVisaDestination(destination.id);
       if (!result.success) {
-        setSelectionError(result.error ?? "暂时无法选择该目的地，请重试。");
+        setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
         setPendingDestinationId(null);
         return;
       }
@@ -87,7 +94,7 @@ export default function SchengenDestinationsPage() {
           className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-[#03346E] transition hover:border-[#03346E]"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回首页
+          {isZh ? "返回首页" : "Back to Home"}
         </Link>
 
         <section className="rounded-[18px] border border-[#e7edf5] bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
@@ -95,10 +102,12 @@ export default function SchengenDestinationsPage() {
             <div>
               <p className="text-[14px] font-semibold text-[#03346E]">Schengen Area</p>
               <h1 className="mt-2 font-heading text-[34px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
-                选择申根主要目的地
+                {isZh ? "选择申根主要目的地" : "Choose your main Schengen destination"}
               </h1>
               <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#667085]">
-                申根短期签证共用 Type C 表单；请选择你的主要停留国，系统会在申请中保留该国家作为主目的地。
+                {isZh
+                  ? "申根短期签证共用 Type C 表单；请选择你的主要停留国，系统会在申请中保留该国家作为主目的地。"
+                  : "Schengen short-stay visas use the shared Type C form. Choose your main stay country and VIZA will keep it as the primary destination."}
               </p>
             </div>
             <label className="relative w-full lg:w-[340px]">
@@ -107,7 +116,7 @@ export default function SchengenDestinationsPage() {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="搜索申根国家..."
+                placeholder={isZh ? "搜索申根国家..." : "Search Schengen country..."}
                 className="h-11 w-full rounded-full border border-[#dce5f0] bg-white pl-10 pr-4 text-[14px] font-medium text-[#26364a] outline-none transition focus:border-[#03346E] focus:shadow-[0_0_0_3px_rgba(3,52,110,0.08)]"
               />
             </label>
@@ -123,7 +132,11 @@ export default function SchengenDestinationsPage() {
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, selectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
-              const actionLabel = selected ? "打开" : "开始";
+              const actionLabel = selected ? (isZh ? "打开" : "Open") : (isZh ? "开始" : "Start");
+              const countryName = getVisaDestinationCountryName(destination, locale);
+              const visaName = getVisaDestinationVisaName(destination, locale);
+              const description = getVisaDestinationDescription(destination, locale);
+              const regionName = getVisaDestinationRegionName(destination.region, locale);
 
               return (
                 <button
@@ -146,10 +159,10 @@ export default function SchengenDestinationsPage() {
                       </span>
                       <div>
                         <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
-                          {destination.countryNameZh}
+                          {countryName}
                         </p>
                         <p className="mt-1 text-[13px] font-medium text-[#637083]">
-                          {destination.countryName} · Schengen
+                          {countryName} · {regionName}
                         </p>
                       </div>
                     </div>
@@ -159,18 +172,18 @@ export default function SchengenDestinationsPage() {
                   <div className="mt-5 space-y-3">
                     <div>
                       <p className="text-[15px] font-semibold leading-5 text-[#03346E]">
-                        {destination.visaNameZh}
+                        {visaName}
                       </p>
                       <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[rgba(0,0,0,0.55)]">
-                        {destination.descriptionZh}
+                        {description}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
-                        申根 C 类
+                        {isZh ? "申根 C 类" : "Schengen Type C"}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
-                        {loading ? "正在开始" : actionLabel}
+                        {loading ? (isZh ? "正在开始" : "Starting") : actionLabel}
                         {loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -186,7 +199,9 @@ export default function SchengenDestinationsPage() {
 
           {filteredDestinations.length === 0 && (
             <div className="mt-6 rounded-[16px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">
-              <p className="text-[15px] font-medium text-[#526174]">没有找到匹配的申根国家。</p>
+              <p className="text-[15px] font-medium text-[#526174]">
+                {isZh ? "没有找到匹配的申根国家。" : "No matching Schengen country found."}
+              </p>
             </div>
           )}
         </section>

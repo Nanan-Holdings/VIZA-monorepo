@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
 import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
 import { type WizardStep } from "@/types/visa-form-fields";
@@ -31,7 +31,7 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { getVisaPackageTitleZh } from "@/lib/visa-destinations";
+import { getFormVisaType, getVisaPackageTitle } from "@/lib/visa-destinations";
 import type {
   SubmissionResult,
   SubmissionResultStatus,
@@ -797,6 +797,7 @@ interface ApplicationState {
 
 export default function ApplicationPage() {
   const t = useTranslations("application");
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
   const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
@@ -868,6 +869,7 @@ export default function ApplicationPage() {
   const useDynamic = dbSteps.length > 0;
   const tDyn = useTranslations("application.dynamicSteps");
   const tApp = useTranslations("application");
+  const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
   const photoStepIndex = dbSteps.length + 1;
@@ -899,7 +901,7 @@ export default function ApplicationPage() {
         {
           id: documentStepIndex,
           sourceName: "Supporting Documents",
-          name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : "材料 / Documents",
+          name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
           description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
         },
         {
@@ -928,6 +930,7 @@ export default function ApplicationPage() {
       reviewStepIndex,
       statusStepIndex,
       STEPS,
+      isZhInterface,
       tApp,
       tDyn,
       useDynamic,
@@ -946,7 +949,7 @@ export default function ApplicationPage() {
     family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
     workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
     securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
-    documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : "材料 / Documents",
+    documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
     photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
     review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
     confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
@@ -975,13 +978,21 @@ export default function ApplicationPage() {
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    const { data: application } = await supabase
+    const { data: applicationRows } = await supabase
       .from("applications")
       .select("*")
       .eq("applicant_id", profile?.id ?? "")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    const applications = applicationRows ?? [];
+    const application =
+      applications.find(
+        (row) =>
+          String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
+          getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
+      ) ??
+      (preferExplicitPackage ? null : applications[0] ?? null);
 
     if (profile) {
       // Load DS-160 answers from visa_application_answers first (the source of truth)
@@ -1057,9 +1068,12 @@ export default function ApplicationPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [preferExplicitPackage, resolvedCountry, resolvedVisaType]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (!packageLoaded) return;
+    void loadData();
+  }, [loadData, packageLoaded]);
 
   // Honor ?step=review from the simplified-form redirect: once steps + any
   // prefilled answers have loaded, jump directly to the Review step.
@@ -1465,7 +1479,7 @@ export default function ApplicationPage() {
     }
     setAppState((prev) => ({ ...prev, applicationId: result.applicationId ?? prev.applicationId }));
     return result.applicationId;
-  }, [activeCountry, activeVisaType, appState.applicationId, t]);
+  }, [activeCountry, activeVisaType, appState.applicationId, preferExplicitPackage, t]);
 
   useEffect(() => {
     if (loading || !packageLoaded || appState.applicationId) return;
@@ -1507,12 +1521,12 @@ export default function ApplicationPage() {
 
   const hasResolvedPackage = Boolean(explicitCountry || explicitVisaType || visaPackage);
   const pageTitle = hasResolvedPackage
-    ? getVisaPackageTitleZh(resolvedCountry, resolvedVisaType)
+    ? getVisaPackageTitle(resolvedCountry, resolvedVisaType, locale)
     : t("title");
   const isDocumentsStep = currentStep === (useDynamic ? documentStepIndex : 3);
 
   return (
-    <div className="flex min-h-screen lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden pt-3 lg:-ml-5">
+    <div className="flex min-h-screen pt-3 lg:min-h-0 lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
       {/* Left sidebar - desktop only */}
       {useDynamic ? (
         <GroupedStepSidebar
@@ -1527,7 +1541,7 @@ export default function ApplicationPage() {
       )}
 
       {/* Main content area */}
-      <main className="flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:-ml-[60px] lg:overflow-y-auto">
+      <main className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:overflow-y-auto">
         <div
           className={cn(
             "mx-auto max-w-xl sm:max-w-2xl",
@@ -1604,15 +1618,23 @@ export default function ApplicationPage() {
                         )}
 
                         {/* Supporting documents step */}
-                        {step.id === documentStepIndex && appState.applicationId && (
-                          <DocumentCenterClient
-                            initialData={null}
-                            initialError={null}
-                            applicationId={appState.applicationId}
-                            embedded
-                            onContinue={handleDynamicDocumentsContinue}
-                            continueLabel="继续"
-                          />
+                        {step.id === documentStepIndex && (
+                          appState.applicationId ? (
+                            <DocumentCenterClient
+                              initialData={null}
+                              initialError={null}
+                              applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              embedded
+                              onContinue={handleDynamicDocumentsContinue}
+                              continueLabel={t("dynamicButtons.continue")}
+                            />
+                          ) : (
+                            <div className="flex min-h-[240px] items-center justify-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                            </div>
+                          )
                         )}
 
                         {/* Photo upload step */}
@@ -1676,15 +1698,23 @@ export default function ApplicationPage() {
                             onComplete={handleTravelComplete}
                           />
                         )}
-                        {step.id === 3 && appState.applicationId && (
-                          <DocumentCenterClient
-                            initialData={null}
-                            initialError={null}
-                            applicationId={appState.applicationId}
-                            embedded
-                            onContinue={handleFallbackDocumentsContinue}
-                            continueLabel="继续"
-                          />
+                        {step.id === 3 && (
+                          appState.applicationId ? (
+                            <DocumentCenterClient
+                              initialData={null}
+                              initialError={null}
+                              applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
+                              embedded
+                              onContinue={handleFallbackDocumentsContinue}
+                              continueLabel={t("dynamicButtons.continue")}
+                            />
+                          ) : (
+                            <div className="flex min-h-[240px] items-center justify-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-[#03346E]" />
+                            </div>
+                          )
                         )}
                         {step.id === 4 && (
                           <ReviewStep

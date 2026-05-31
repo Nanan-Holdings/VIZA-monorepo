@@ -3,12 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   DESTINATION_REGION_GROUP_DESTINATIONS,
   FEATURED_VISA_DESTINATIONS,
   SEARCHABLE_VISA_DESTINATIONS,
+  getVisaDestinationCountryName,
+  getVisaDestinationDescription,
   getVisaDestinationKey,
+  getVisaDestinationRegionName,
+  getVisaDestinationVisaName,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
@@ -58,6 +62,7 @@ export function PopularDestinationsSection({
   applicationProgress: Record<string, DestinationApplicationProgress>;
 }) {
   const t = useTranslations("home.popularDestinations");
+  const locale = useLocale();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
@@ -93,6 +98,10 @@ export function PopularDestinationsSection({
   }
 
   function renderDestinationCard(destination: PopularVisaDestination) {
+    const countryName = getVisaDestinationCountryName(destination, locale);
+    const visaName = getVisaDestinationVisaName(destination, locale);
+    const description = getVisaDestinationDescription(destination, locale);
+    const regionName = getVisaDestinationRegionName(destination.region, locale);
     const isGroup = destination.kind === "group";
     const progress = isGroup
       ? undefined
@@ -144,10 +153,10 @@ export function PopularDestinationsSection({
             </span>
             <div>
               <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
-                {destination.countryNameZh}
+                {countryName}
               </p>
               <p className="mt-1 text-[13px] font-medium text-[#637083]">
-                {destination.countryName} · {destination.region}
+                {countryName} · {regionName}
               </p>
             </div>
           </div>
@@ -157,10 +166,10 @@ export function PopularDestinationsSection({
         <div className="mt-5 space-y-3">
           <div>
             <p className="text-[15px] font-semibold leading-5 text-[#03346E]">
-              {destination.visaNameZh}
+              {visaName}
             </p>
             <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[rgba(0,0,0,0.55)]">
-              {destination.descriptionZh}
+              {description}
             </p>
           </div>
 

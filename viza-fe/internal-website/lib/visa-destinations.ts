@@ -737,6 +737,23 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   visa_free_or_tourist_visa: "旅游入境 / 签证",
 };
 
+const REGION_LABELS_ZH: Record<string, string> = {
+  Africa: "非洲",
+  Asia: "亚洲",
+  Europe: "欧洲",
+  "Europe / Asia": "欧洲 / 亚洲",
+  "Europe outside Schengen": "欧洲非申根区",
+  "Middle East": "中东",
+  "North America": "北美",
+  Oceania: "大洋洲",
+  Schengen: "申根区",
+  "Schengen Area": "申根区",
+  "South America": "南美",
+  "Southeast Asia": "东南亚",
+  "East Asia": "东亚",
+  "South Asia": "南亚",
+};
+
 export function getPopularVisaDestination(destinationId: string): PopularVisaDestination | null {
   return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => destinationItem.id === destinationId) ?? null;
 }
@@ -773,12 +790,49 @@ export function getDestinationDisplayNameZh(country: string): string {
   return COUNTRY_NAMES_ZH.get(country.toLowerCase()) ?? getDestinationDisplayName(country);
 }
 
+function isChineseDisplayLocale(locale?: string | null): boolean {
+  return locale?.toLowerCase().startsWith("zh") ?? false;
+}
+
+export function getDestinationDisplayNameForLocale(country: string, locale?: string | null): string {
+  return isChineseDisplayLocale(locale) ? getDestinationDisplayNameZh(country) : getDestinationDisplayName(country);
+}
+
 export function getVisaTypeDisplayName(visaType: string): string {
   return VISA_TYPE_LABELS[visaType] ?? visaType.replace(/_/g, " ");
 }
 
 export function getVisaTypeDisplayNameZh(visaType: string): string {
   return VISA_TYPE_LABELS_ZH[visaType] ?? getVisaTypeDisplayName(visaType);
+}
+
+export function getVisaTypeDisplayNameForLocale(visaType: string, locale?: string | null): string {
+  return isChineseDisplayLocale(locale) ? getVisaTypeDisplayNameZh(visaType) : getVisaTypeDisplayName(visaType);
+}
+
+export function getVisaDestinationCountryName(
+  destinationItem: Pick<PopularVisaDestination, "countryName" | "countryNameZh">,
+  locale?: string | null,
+): string {
+  return isChineseDisplayLocale(locale) ? destinationItem.countryNameZh : destinationItem.countryName;
+}
+
+export function getVisaDestinationVisaName(
+  destinationItem: Pick<PopularVisaDestination, "visaName" | "visaNameZh">,
+  locale?: string | null,
+): string {
+  return isChineseDisplayLocale(locale) ? destinationItem.visaNameZh : destinationItem.visaName;
+}
+
+export function getVisaDestinationDescription(
+  destinationItem: Pick<PopularVisaDestination, "description" | "descriptionZh">,
+  locale?: string | null,
+): string {
+  return isChineseDisplayLocale(locale) ? destinationItem.descriptionZh : destinationItem.description;
+}
+
+export function getVisaDestinationRegionName(region: string, locale?: string | null): string {
+  return isChineseDisplayLocale(locale) ? REGION_LABELS_ZH[region] ?? region : region;
 }
 
 export function getFormVisaType(visaType: string): string {
@@ -795,4 +849,12 @@ export function getVisaPackageTitleZh(country: string, visaType: string): string
   const destinationItem = getPopularVisaDestinationByPackage(country, visaType);
   if (destinationItem) return `${destinationItem.countryNameZh}${destinationItem.visaNameZh}`;
   return `${getDestinationDisplayNameZh(country)}${getVisaTypeDisplayNameZh(visaType)}`;
+}
+
+export function getVisaPackageTitle(country: string, visaType: string, locale?: string | null): string {
+  if (isChineseDisplayLocale(locale)) return getVisaPackageTitleZh(country, visaType);
+
+  const destinationItem = getPopularVisaDestinationByPackage(country, visaType);
+  if (destinationItem) return `${destinationItem.countryName} ${destinationItem.visaName}`;
+  return `${getDestinationDisplayName(country)} ${getVisaTypeDisplayName(visaType)}`;
 }

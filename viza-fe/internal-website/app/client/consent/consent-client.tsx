@@ -23,6 +23,7 @@ import {
   PenLine,
   ShieldCheck,
 } from "lucide-react";
+import { useLocale } from "next-intl";
 import { acceptConsentAndSignature } from "./actions";
 import {
   AGENCY_AUTHORISATION_DOCUMENT,
@@ -44,6 +45,7 @@ import {
   brandActionButtonVariants,
 } from "@/components/client/brand-action-button";
 import { cn } from "@/lib/utils";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 interface ConsentClientProps {
   applications: ConsentApplication[];
@@ -69,8 +71,10 @@ function formatDate(value: string | null): string {
   }).format(new Date(value));
 }
 
-function applicationLabel(application: ConsentApplication): string {
-  return `${application.countryFlag} ${application.countryName} ${application.visaTypeLabel}`;
+function applicationLabel(application: ConsentApplication, isZh: boolean): string {
+  const countryName = isZh ? application.countryNameZh : application.countryName;
+  const visaTypeLabel = isZh ? application.visaTypeLabelZh : application.visaTypeLabel;
+  return `${application.countryFlag} ${countryName} ${visaTypeLabel}`;
 }
 
 function statusLabel(status: string): string {
@@ -214,6 +218,8 @@ export function ConsentClient({
   nextStep,
   applicantName,
 }: ConsentClientProps) {
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const router = useRouter();
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [checkedConsents, setCheckedConsents] = useState<Record<string, boolean>>({});
@@ -426,7 +432,7 @@ export function ConsentClient({
                 )}
                 aria-current={selected ? "page" : undefined}
               >
-                {applicationLabel(application)}
+                {applicationLabel(application, isZh)}
               </Link>
             );
           })}
@@ -706,11 +712,11 @@ export function ConsentClient({
             <CardContent className="space-y-4">
               <div>
                 <div className="text-sm font-medium text-foreground">
-                  {applicationLabel(selectedApplication)}
+                  {applicationLabel(selectedApplication, isZh)}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  {selectedApplication.countryNameZh} ·{" "}
-                  {selectedApplication.visaTypeLabelZh}
+                  {isZh ? selectedApplication.countryNameZh : selectedApplication.countryName} ·{" "}
+                  {isZh ? selectedApplication.visaTypeLabelZh : selectedApplication.visaTypeLabel}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">

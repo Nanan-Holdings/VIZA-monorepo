@@ -45,6 +45,8 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [applicationCountry, setApplicationCountry] = useState(config.defaultCountry);
+  const [applicationVisaType, setApplicationVisaType] = useState(config.defaultVisaType);
 
   const visibleSteps = useMemo(
     () => config.steps.filter((s) => !s.showIf || s.showIf(form)),
@@ -77,10 +79,14 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
           : { data: null };
         const pkg = await getUserVisaPackage();
         if (cancelled) return;
+        const country = pkg?.country ?? config.defaultCountry;
+        const visaType = pkg?.visa_type ?? config.defaultVisaType;
+        setApplicationCountry(country);
+        setApplicationVisaType(visaType);
 
         const { applicationId: draftId } = await ensureDraftApplication(
-          pkg?.country ?? config.defaultCountry,
-          pkg?.visa_type ?? config.defaultVisaType,
+          country,
+          visaType,
         );
         if (cancelled || !draftId) {
           if (userEmail && config.seedAuthEmail) {
@@ -231,7 +237,7 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
         ? currentStep.titleKey
         : visibleSteps[0]?.titleKey ?? "";
     const name = onDocuments
-      ? "材料 / Documents"
+      ? tShared("documents")
       : tCountry.has(titleKey as never)
       ? tCountry(titleKey as never)
       : tShared.has(titleKey as never)
@@ -301,9 +307,11 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
                   initialData={null}
                   initialError={null}
                   applicationId={applicationId}
+                  country={applicationCountry}
+                  visaType={applicationVisaType}
                   embedded
                   onContinue={goNext}
-                  continueLabel="继续"
+                  continueLabel={tShared("continue")}
                 />
               ) : (
                 <div className="flex min-h-[240px] items-center justify-center">

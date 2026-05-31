@@ -1,278 +1,594 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
-import { LogOut, Loader2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { motion } from "motion/react";
+import {
+  ArrowRight,
+  Banknote,
+  Check,
+  ChevronRight,
+  CircleHelp,
+  CreditCard,
+  Database,
+  Globe2,
+  Headphones,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  LogOut,
+  Mail,
+  MessageCircle,
+  ReceiptText,
+  ShieldCheck,
+  UserRound,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { geist } from "../../fonts";
-import { BillingTab } from "./components/billing-tab";
+import { cn } from "@/lib/utils";
 import { PrivacyTab } from "./components/privacy-tab";
 
-// =============================================================================
-// Types
-// =============================================================================
+type PaymentPreference = "card" | "bank_transfer" | "wechat_pay";
 
-type Tab = "billing" | "account" | "privacy";
+interface ApplicantSettingsProfile {
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  passport_number: string | null;
+}
 
-// =============================================================================
-// Account Tab (inline — email, display name, sign out)
-// =============================================================================
+const PAYMENT_STORAGE_KEY = "viza.settings.paymentPreference";
 
-function AccountTab({
-  email,
-  displayName,
-  onDisplayNameChange,
-  onSave,
-  isSaving,
-  saveMsg,
-  onSignOut,
+const paymentMethods: Array<{
+  id: PaymentPreference;
+  icon: LucideIcon;
+  accentClass: string;
+}> = [
+  {
+    id: "card",
+    icon: CreditCard,
+    accentClass: "from-brand-700 to-brand-500",
+  },
+  {
+    id: "bank_transfer",
+    icon: Banknote,
+    accentClass: "from-slate-900 to-slate-700",
+  },
+  {
+    id: "wechat_pay",
+    icon: MessageCircle,
+    accentClass: "from-emerald-700 to-emerald-500",
+  },
+];
+
+function initialsFromName(name: string, fallback: string) {
+  const source = name.trim() || fallback.trim();
+  if (!source) return "V";
+
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
+
+function obfuscatePassport(value: string | null) {
+  if (!value) return null;
+  if (value.length <= 4) return value;
+  return `••${value.slice(-4)}`;
+}
+
+function SettingsRow({
+  icon: Icon,
+  title,
+  description,
+  href,
+  badge,
 }: {
-  email: string;
-  displayName: string;
-  onDisplayNameChange: (v: string) => void;
-  onSave: () => void;
-  isSaving: boolean;
-  saveMsg: string;
-  onSignOut: () => void;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  href: string;
+  badge?: string;
 }) {
-  const t = useTranslations("settings");
-
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 w-full">
-      {/* Email & Display Name */}
-      <div className="flex w-full flex-col gap-4">
-        <motion.p
-          className={`${geist.className} text-[22px] sm:text-[26px] md:text-[32px] font-medium text-black tracking-tight`}
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-        >
-          {t("account.title")}
-        </motion.p>
-        <motion.div
-          className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-        >
-          <div className="flex flex-col gap-6 w-full">
-            {/* Email (read-only) */}
-            <div className="flex flex-col gap-2">
-              <p className={`${geist.className} text-[16px] sm:text-[18px] font-medium text-[#989898]`}>
-                {t("account.email")}
-              </p>
-              <input
-                type="email"
-                value={email}
-                readOnly
-                className="w-full rounded-[10px] border border-[#efefef] bg-[rgba(239,239,239,0.25)] px-4 py-2.5 text-[16px] sm:text-[18px] font-medium text-[#989898] tracking-[-0.32px] cursor-not-allowed outline-none"
-              />
-            </div>
-
-            {/* Display Name */}
-            <div className="flex flex-col gap-2">
-              <p className={`${geist.className} text-[16px] sm:text-[18px] font-medium text-[#989898]`}>
-                {t("account.displayName")}
-              </p>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => onDisplayNameChange(e.target.value)}
-                placeholder={t("account.namePlaceholder")}
-                className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-2.5 text-[16px] sm:text-[18px] font-medium text-[#3d3d3d] tracking-[-0.32px] outline-none focus:border-[#03346E] transition-colors"
-              />
-            </div>
-
-            {/* Save */}
-            <div className="flex items-center gap-3">
-              <motion.button
-                type="button"
-                onClick={onSave}
-                disabled={isSaving}
-                className="rounded-full bg-[#03346E] px-6 py-2.5 text-[14px] sm:text-[15px] font-medium text-white disabled:opacity-60"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                {isSaving ? t("account.saving") : t("account.saveChanges")}
-              </motion.button>
-              {saveMsg && (
-                <span
-                  className={`text-[14px] font-medium ${
-                    saveMsg.includes("Failed") ? "text-red-500" : "text-green-600"
-                  }`}
-                >
-                  {saveMsg}
-                </span>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Sign Out */}
-      <div className="flex w-full flex-col gap-4">
-        <motion.p
-          className={`${geist.className} text-[22px] sm:text-[26px] md:text-[32px] font-medium text-black tracking-tight`}
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.05 }}
-        >
-          {t("signOut.title")}
-        </motion.p>
-        <motion.div
-          className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.05 }}
-        >
-          <div className="flex flex-col gap-4">
-            <p className="text-[16px] sm:text-[18px] font-medium text-[#989898] tracking-[-0.32px]">
-              {t("signOut.description")}
-            </p>
-            <motion.button
-              type="button"
-              onClick={onSignOut}
-              className="flex w-fit items-center gap-2 rounded-full border-2 border-red-300 px-5 py-2.5 text-[14px] sm:text-[15px] font-medium text-red-500 transition-all duration-200 hover:bg-red-50"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <LogOut className="h-4 w-4" />
-              {t("signOut.button")}
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+    <Link
+      href={href}
+      className="group flex min-h-[72px] items-center gap-4 border-b border-border px-1 py-4 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-base font-semibold text-foreground">
+          {title}
+        </span>
+        <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      {badge ? (
+        <span className="hidden rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 sm:inline-flex">
+          {badge}
+        </span>
+      ) : null}
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </Link>
   );
 }
 
-// =============================================================================
-// Main Settings Content
-// =============================================================================
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+        {title}
+      </h2>
+      <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+        {children}
+      </div>
+    </section>
+  );
+}
 
 export function SettingsContent() {
   const router = useRouter();
   const t = useTranslations("settings");
-  const locale = useLocale();
-  const [activeTab, setActiveTab] = useState<Tab>("billing");
   const [email, setEmail] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [profile, setProfile] = useState<ApplicantSettingsProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [saveMsg, setSaveMsg] = useState("");
-  const [userId, setUserId] = useState("");
-
-  const TABS: { id: Tab; label: string }[] = [
-    { id: "billing", label: t("tabs.billing") },
-    { id: "account", label: t("tabs.account") },
-    { id: "privacy", label: locale.toLowerCase().startsWith("zh") ? "隐私" : "Privacy" },
-  ];
+  const [paymentPreference, setPaymentPreference] =
+    useState<PaymentPreference>("card");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
+    const storedPreference = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
+    if (
+      storedPreference === "card" ||
+      storedPreference === "bank_transfer" ||
+      storedPreference === "wechat_pay"
+    ) {
+      setPaymentPreference(storedPreference);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSettings() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
         router.replace("/client/login");
         return;
       }
-      setEmail(data.user.email ?? "");
-      setUserId(data.user.id);
-      supabase
+
+      const { data } = await supabase
         .from("applicant_profiles")
-        .select("full_name")
-        .eq("auth_user_id", data.user.id)
-        .single()
-        .then(({ data: profile }) => {
-          if (profile?.full_name) setDisplayName(profile.full_name);
-          setIsLoading(false);
-        });
-    });
+        .select("full_name, email, phone, passport_number")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      setEmail(user.email ?? "");
+      setProfile((data ?? null) as ApplicantSettingsProfile | null);
+      setIsLoading(false);
+    }
+
+    void loadSettings();
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setSaveMsg("");
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("applicant_profiles")
-      .update({ full_name: displayName })
-      .eq("auth_user_id", userId);
-    setIsSaving(false);
-    setSaveMsg(error ? t("account.failedToSave") : t("account.saved"));
-    setTimeout(() => setSaveMsg(""), 3000);
-  };
+  const displayName = profile?.full_name?.trim() || email || t("profile.fallbackName");
+  const profileCompletion = useMemo(() => {
+    const fields = [
+      profile?.full_name,
+      profile?.email ?? email,
+      profile?.phone,
+      profile?.passport_number,
+    ];
+    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  }, [email, profile]);
 
-  const handleSignOut = async () => {
+  function updatePaymentPreference(nextPreference: PaymentPreference) {
+    setPaymentPreference(nextPreference);
+    window.localStorage.setItem(PAYMENT_STORAGE_KEY, nextPreference);
+  }
+
+  async function handlePasswordUpdate() {
+    setSecurityMessage(null);
+
+    if (newPassword.length < 8) {
+      setSecurityMessage({ tone: "error", text: t("security.tooShort") });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setSecurityMessage({ tone: "error", text: t("security.mismatch") });
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setIsUpdatingPassword(false);
+
+    if (error) {
+      setSecurityMessage({ tone: "error", text: t("security.failed") });
+      return;
+    }
+
+    setNewPassword("");
+    setConfirmPassword("");
+    setSecurityMessage({ tone: "success", text: t("security.updated") });
+  }
+
+  async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/client/login");
-  };
+  }
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-[#03346E]" />
-        <p className="text-lg text-[#989898]">{t("loading")}</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
+        <p className="text-lg text-muted-foreground">{t("loading")}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] pb-16">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8">
-        {/* Page heading */}
-        <div className="mb-8 sm:mb-10">
-          <h1 className="font-heading font-medium leading-[1.15] text-[28px] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px] lg:text-[40px] lg:tracking-[-1.6px]">
+    <div className="mx-auto w-full max-w-[1040px] pb-16">
+      <section className="grid gap-5 pt-4 lg:grid-cols-[1.25fr_0.75fr]">
+        <motion.div
+          className="overflow-hidden rounded-xl border bg-white shadow-sm"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <div className="h-24 bg-gradient-to-br from-brand-700 via-brand-500 to-brand-300" />
+          <div className="-mt-10 p-5 sm:p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex items-end gap-4">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-brand-50 text-2xl font-semibold text-brand-700 shadow-sm">
+                  {initialsFromName(displayName, email)}
+                </div>
+                <div className="pb-1">
+                  <p className="text-2xl font-semibold text-foreground sm:text-3xl">
+                    {displayName}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{email}</p>
+                </div>
+              </div>
+              <Button asChild className="h-11 rounded-full">
+                <Link href="/client/universal-info">
+                  {t("profile.editDetails")}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="mt-6 rounded-lg border bg-brand-50/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">
+                    {t("profile.completion")}
+                  </p>
+                  <p className="mt-1 text-sm text-brand-700">
+                    {t("profile.completionHint")}
+                  </p>
+                </div>
+                <span className="text-2xl font-semibold text-brand-700">
+                  {profileCompletion}%
+                </span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                <div
+                  className="h-full rounded-full bg-brand-500 transition-all duration-500"
+                  style={{ width: `${profileCompletion}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="rounded-xl border bg-white p-5 shadow-sm sm:p-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+        >
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
+            {t("quickSnapshot.label")}
+          </p>
+          <dl className="mt-4 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.passport")}</dt>
+              <dd className="text-right text-sm font-semibold text-foreground">
+                {obfuscatePassport(profile?.passport_number ?? null) ?? t("quickSnapshot.notSet")}
+              </dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.phone")}</dt>
+              <dd className="text-right text-sm font-semibold text-foreground">
+                {profile?.phone || t("quickSnapshot.notSet")}
+              </dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.payment")}</dt>
+              <dd className="text-right text-sm font-semibold text-foreground">
+                {t(`payment.methods.${paymentPreference}.title`)}
+              </dd>
+            </div>
+          </dl>
+        </motion.div>
+      </section>
+
+      <section className="mt-8 space-y-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {t("title")}
           </h1>
+          <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">
+            {t("subtitle")}
+          </p>
         </div>
 
-        {/* Tab bar */}
-        <div className="mb-8 flex w-full max-w-full items-center gap-[6px] overflow-x-auto rounded-[12px] bg-[rgba(239,239,239,0.65)] p-[5px] sm:mb-10 sm:w-fit">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={[
-                "relative min-h-11 flex-1 whitespace-nowrap rounded-[8px] px-4 py-[10px] text-[15px] font-medium tracking-[-0.24px] transition-all duration-200 sm:flex-none sm:px-8 sm:text-[16px]",
-                activeTab === tab.id
-                  ? "bg-white text-[#3d3d3d]"
-                  : "text-[#989898] hover:text-[#3d3d3d]",
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="grid gap-4 md:grid-cols-3">
+          {paymentMethods.map((method, index) => {
+            const Icon = method.icon;
+            const selected = paymentPreference === method.id;
+
+            return (
+              <motion.button
+                key={method.id}
+                type="button"
+                onClick={() => updatePaymentPreference(method.id)}
+                className={cn(
+                  "group min-h-[176px] rounded-xl border bg-white p-5 text-left shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selected
+                    ? "border-brand-300 ring-1 ring-brand-200"
+                    : "hover:border-brand-200 hover:shadow-md"
+                )}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: index * 0.04 }}
+              >
+                <span
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br text-white",
+                    method.accentClass
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="mt-5 flex items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-lg font-semibold text-foreground">
+                      {t(`payment.methods.${method.id}.title`)}
+                    </span>
+                    <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+                      {t(`payment.methods.${method.id}.description`)}
+                    </span>
+                  </span>
+                  {selected ? (
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white">
+                      <Check className="h-4 w-4" />
+                    </span>
+                  ) : null}
+                </span>
+                <span className="mt-4 inline-flex text-sm font-semibold text-brand-600">
+                  {selected ? t("payment.selected") : t("payment.setDefault")}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-8">
+          <SectionCard title={t("sections.general")}>
+            <SettingsRow
+              icon={Database}
+              title={t("rows.universalInfo.title")}
+              description={t("rows.universalInfo.description")}
+              href="/client/universal-info"
+              badge={t("rows.universalInfo.badge")}
+            />
+            <SettingsRow
+              icon={UserRound}
+              title={t("rows.account.title")}
+              description={t("rows.account.description")}
+              href="/client/universal-info"
+            />
+            <SettingsRow
+              icon={Globe2}
+              title={t("rows.language.title")}
+              description={t("rows.language.description")}
+              href="/client/help/getting-started/complete-your-profile"
+            />
+          </SectionCard>
+
+          <SectionCard title={t("sections.payments")}>
+            <SettingsRow
+              icon={WalletCards}
+              title={t("rows.paymentMethods.title")}
+              description={t("rows.paymentMethods.description")}
+              href="/client/help/getting-started/add-a-payment-method"
+              badge={t("rows.paymentMethods.badge")}
+            />
+            <SettingsRow
+              icon={ReceiptText}
+              title={t("rows.billing.title")}
+              description={t("rows.billing.description")}
+              href="/client/billing"
+            />
+          </SectionCard>
+
+          <SectionCard title={t("sections.support")}>
+            <SettingsRow
+              icon={CircleHelp}
+              title={t("rows.helpCenter.title")}
+              description={t("rows.helpCenter.description")}
+              href="/client/help"
+            />
+            <SettingsRow
+              icon={Headphones}
+              title={t("rows.feedback.title")}
+              description={t("rows.feedback.description")}
+              href="/client/support"
+            />
+          </SectionCard>
         </div>
 
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "billing" && <BillingTab />}
-            {activeTab === "privacy" && <PrivacyTab />}
-            {activeTab === "account" && (
-              <AccountTab
-                email={email}
-                displayName={displayName}
-                onDisplayNameChange={setDisplayName}
-                onSave={handleSave}
-                isSaving={isSaving}
-                saveMsg={saveMsg}
-                onSignOut={handleSignOut}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <div className="space-y-8">
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+              {t("security.title")}
+            </h2>
+            <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                  <LockKeyhole className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-base font-semibold text-foreground">
+                    {t("security.passwordTitle")}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {t("security.description")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <label className="grid gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {t("security.newPassword")}
+                  </span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {t("security.confirmPassword")}
+                  </span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+
+                {securityMessage ? (
+                  <p
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-sm font-medium",
+                      securityMessage.tone === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                    )}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {securityMessage.text}
+                  </p>
+                ) : null}
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    className="h-11 rounded-full"
+                    onClick={handlePasswordUpdate}
+                    disabled={isUpdatingPassword}
+                  >
+                    {isUpdatingPassword ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="h-4 w-4" />
+                    )}
+                    {isUpdatingPassword ? t("security.saving") : t("security.updatePassword")}
+                  </Button>
+                  <Button asChild variant="outline" className="h-11 rounded-full">
+                    <Link href="/client/help/privacy-and-security/account-security-tips">
+                      <ShieldCheck className="h-4 w-4" />
+                      {t("security.guide")}
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+              {t("account.title")}
+            </h2>
+            <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex items-start gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                  <Mail className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {t("account.email")}
+                  </p>
+                  <p className="mt-1 break-all text-base font-semibold text-foreground">
+                    {email}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {t("signOut.button")}
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
+
+      <section className="mt-10" id="privacy">
+        <PrivacyTab />
+      </section>
     </div>
   );
 }

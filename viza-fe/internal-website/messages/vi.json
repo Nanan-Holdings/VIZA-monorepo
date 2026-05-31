@@ -2662,10 +2662,79 @@
   },
   "settings": {
     "title": "[VI] Settings",
+    "subtitle": "[VI] Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
     "loading": "[VI] Loading your settings...",
     "tabs": {
       "billing": "[VI] Billing",
       "account": "[VI] Account"
+    },
+    "profile": {
+      "fallbackName": "[VI] VIZA applicant",
+      "editDetails": "[VI] Edit details",
+      "completion": "[VI] Reusable profile completion",
+      "completionHint": "[VI] Complete this once so VIZA can prefill repeated visa questions."
+    },
+    "quickSnapshot": {
+      "label": "[VI] Account snapshot",
+      "passport": "[VI] Passport",
+      "phone": "[VI] Phone",
+      "payment": "[VI] Payment",
+      "notSet": "[VI] Not set"
+    },
+    "sections": {
+      "general": "[VI] General",
+      "payments": "[VI] Payments",
+      "support": "[VI] Support"
+    },
+    "rows": {
+      "universalInfo": {
+        "title": "[VI] Universal profile",
+        "description": "[VI] Edit reusable identity, passport, contact, and address details.",
+        "badge": "[VI] Recommended"
+      },
+      "account": {
+        "title": "[VI] Personal details",
+        "description": "[VI] Review the information VIZA uses to prepare your applications."
+      },
+      "language": {
+        "title": "[VI] Language",
+        "description": "[VI] Use the language switcher in the top bar, or read the profile guide."
+      },
+      "paymentMethods": {
+        "title": "[VI] Payment method setup",
+        "description": "[VI] See how to add or update card, bank transfer, or WeChat Pay arrangements.",
+        "badge": "[VI] Guide"
+      },
+      "billing": {
+        "title": "[VI] Receipts and invoices",
+        "description": "[VI] Open billing history, receipts, invoice requests, and refund visibility."
+      },
+      "helpCenter": {
+        "title": "[VI] Help center",
+        "description": "[VI] Read account, payment, privacy, and application support articles."
+      },
+      "feedback": {
+        "title": "[VI] Share feedback",
+        "description": "[VI] Send a support request if something needs human follow-up."
+      }
+    },
+    "payment": {
+      "selected": "[VI] Default",
+      "setDefault": "[VI] Set as default",
+      "methods": {
+        "card": {
+          "title": "[VI] Card",
+          "description": "[VI] Preferred for hosted checkout and receipt tracking."
+        },
+        "bank_transfer": {
+          "title": "[VI] Bank transfer",
+          "description": "[VI] Use support-assisted transfer details for larger cases."
+        },
+        "wechat_pay": {
+          "title": "[VI] WeChat Pay",
+          "description": "[VI] Use Chinese payment flow when it is available for the package."
+        }
+      }
     },
     "account": {
       "title": "[VI] Account",
@@ -2676,6 +2745,20 @@
       "saving": "[VI] Saving...",
       "failedToSave": "[VI] Failed to save.",
       "saved": "[VI] Saved."
+    },
+    "security": {
+      "title": "[VI] Security settings",
+      "passwordTitle": "[VI] Change password",
+      "description": "[VI] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+      "newPassword": "[VI] New password",
+      "confirmPassword": "[VI] Confirm password",
+      "updatePassword": "[VI] Update password",
+      "saving": "[VI] Updating...",
+      "updated": "[VI] Password updated.",
+      "mismatch": "[VI] The two passwords do not match.",
+      "tooShort": "[VI] Password must be at least 8 characters.",
+      "failed": "[VI] Could not update the password. Please try again.",
+      "guide": "[VI] Security guide"
     },
     "signOut": {
       "title": "[VI] Sign Out",

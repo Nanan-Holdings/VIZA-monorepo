@@ -10,6 +10,8 @@ from `/client/chat`, which remains the VIZA AI visa/travel assistant surface.
 ## Key Responsibilities
 
 - Route `/client/support` to a help-center style support bot.
+- Route `/client/support/requests` to the applicant's support request history
+  instead of expanding that history inline on the help center.
 - Let applicants pick common support topics such as refunds, billing,
   application status, documents/OCR, account access, or human support.
 - Provide safe self-service links into `/client/status`, `/client/documents`,

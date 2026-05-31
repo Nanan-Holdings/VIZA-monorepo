@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   Empty,
@@ -25,8 +25,9 @@ import {
 import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
 import {
   getVisaDestinationKey,
-  getVisaPackageTitleZh,
+  getVisaPackageTitle,
 } from "@/lib/visa-destinations";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -144,19 +145,20 @@ function buildUniversalInfoProgress(
   };
 }
 
-function getProgressLabel(status: string, percent: number): string {
-  if (status === "approved") return "已批准";
-  if (status === "submitted") return "已提交";
-  if (status === "rejected") return "需要处理";
-  if (percent >= 70) return "接近完成";
-  if (percent >= 30) return "填写中";
-  return "已开始";
+function getProgressLabel(status: string, percent: number, isZh: boolean): string {
+  if (status === "approved") return isZh ? "已批准" : "Approved";
+  if (status === "submitted") return isZh ? "已提交" : "Submitted";
+  if (status === "rejected") return isZh ? "需要处理" : "Needs attention";
+  if (percent >= 70) return isZh ? "接近完成" : "Almost complete";
+  if (percent >= 30) return isZh ? "填写中" : "In progress";
+  return isZh ? "已开始" : "Started";
 }
 
 function buildApplicationProgress(
   applications: ApplicationRow[],
   documents: DocumentRow[],
   answers: AnswerRow[],
+  isZh: boolean,
 ): Record<string, DestinationApplicationProgress> {
   const docsByApplication = new Map<string, DocumentRow[]>();
   const answersByApplication = new Map<string, AnswerRow[]>();
@@ -197,7 +199,7 @@ function buildApplicationProgress(
       applicationId: application.id,
       status: application.status,
       percent,
-      label: getProgressLabel(application.status, percent),
+      label: getProgressLabel(application.status, percent, isZh),
       updatedAt: application.updated_at ?? application.submitted_at ?? application.created_at,
     };
     return progress;
@@ -210,13 +212,13 @@ function buildApplicationProgress(
 
 export default function HomePage() {
   const t = useTranslations("home");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const PAGE_SCALE = 1;
   const [applicantName, setApplicantName] = useState<string | null>(null);
   
   // 核心业务状态
-  const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [applicationProgress, setApplicationProgress] = useState<Record<string, DestinationApplicationProgress>>({});
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
@@ -307,7 +309,6 @@ export default function HomePage() {
 
           if (!isMounted) return;
           const loadedApplications = (appRows ?? []) as ApplicationRow[];
-          setApplications(loadedApplications);
 
           if (loadedApplications.length > 0) {
             const applicationIds = loadedApplications.map((app) => app.id);
@@ -325,17 +326,16 @@ export default function HomePage() {
             if (!isMounted) return;
             const loadedDocuments = (docs ?? []) as DocumentRow[];
             const loadedAnswers = (answers ?? []) as AnswerRow[];
-            setDocuments(loadedDocuments);
-            setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers));
+            setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, isZh));
+            setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments));
           } else {
-            setDocuments([]);
             setApplicationProgress({});
+            setActivityEvents([]);
           }
         } else if (authName) {
           setApplicantName(authName);
+          setActivityEvents([]);
         }
-
-        setActivityEvents(buildActivityEvents(applications, documents));
       } catch {
         if (isMounted) setError(t("dashboardError"));
       } finally {
@@ -350,7 +350,7 @@ export default function HomePage() {
       const events: ActivityEvent[] = [];
 
       for (const application of appsList) {
-        const applicationName = getVisaPackageTitleZh(application.country, application.visa_type);
+        const applicationName = getVisaPackageTitle(application.country, application.visa_type, locale);
         if (application.submitted_at) {
           events.push({
             id: `app-submitted-${application.id}`,
@@ -391,7 +391,7 @@ export default function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, [authChecked, t]);
+  }, [authChecked, isZh, locale, t]);
 
   // 顶部沉浸式导航颜色动态同步
   useEffect(() => {

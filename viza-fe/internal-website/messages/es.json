@@ -2662,10 +2662,79 @@
   },
   "settings": {
     "title": "[ES] Settings",
+    "subtitle": "[ES] Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
     "loading": "[ES] Loading your settings...",
     "tabs": {
       "billing": "[ES] Billing",
       "account": "[ES] Account"
+    },
+    "profile": {
+      "fallbackName": "[ES] VIZA applicant",
+      "editDetails": "[ES] Edit details",
+      "completion": "[ES] Reusable profile completion",
+      "completionHint": "[ES] Complete this once so VIZA can prefill repeated visa questions."
+    },
+    "quickSnapshot": {
+      "label": "[ES] Account snapshot",
+      "passport": "[ES] Passport",
+      "phone": "[ES] Phone",
+      "payment": "[ES] Payment",
+      "notSet": "[ES] Not set"
+    },
+    "sections": {
+      "general": "[ES] General",
+      "payments": "[ES] Payments",
+      "support": "[ES] Support"
+    },
+    "rows": {
+      "universalInfo": {
+        "title": "[ES] Universal profile",
+        "description": "[ES] Edit reusable identity, passport, contact, and address details.",
+        "badge": "[ES] Recommended"
+      },
+      "account": {
+        "title": "[ES] Personal details",
+        "description": "[ES] Review the information VIZA uses to prepare your applications."
+      },
+      "language": {
+        "title": "[ES] Language",
+        "description": "[ES] Use the language switcher in the top bar, or read the profile guide."
+      },
+      "paymentMethods": {
+        "title": "[ES] Payment method setup",
+        "description": "[ES] See how to add or update card, bank transfer, or WeChat Pay arrangements.",
+        "badge": "[ES] Guide"
+      },
+      "billing": {
+        "title": "[ES] Receipts and invoices",
+        "description": "[ES] Open billing history, receipts, invoice requests, and refund visibility."
+      },
+      "helpCenter": {
+        "title": "[ES] Help center",
+        "description": "[ES] Read account, payment, privacy, and application support articles."
+      },
+      "feedback": {
+        "title": "[ES] Share feedback",
+        "description": "[ES] Send a support request if something needs human follow-up."
+      }
+    },
+    "payment": {
+      "selected": "[ES] Default",
+      "setDefault": "[ES] Set as default",
+      "methods": {
+        "card": {
+          "title": "[ES] Card",
+          "description": "[ES] Preferred for hosted checkout and receipt tracking."
+        },
+        "bank_transfer": {
+          "title": "[ES] Bank transfer",
+          "description": "[ES] Use support-assisted transfer details for larger cases."
+        },
+        "wechat_pay": {
+          "title": "[ES] WeChat Pay",
+          "description": "[ES] Use Chinese payment flow when it is available for the package."
+        }
+      }
     },
     "account": {
       "title": "[ES] Account",
@@ -2676,6 +2745,20 @@
       "saving": "[ES] Saving...",
       "failedToSave": "[ES] Failed to save.",
       "saved": "[ES] Saved."
+    },
+    "security": {
+      "title": "[ES] Security settings",
+      "passwordTitle": "[ES] Change password",
+      "description": "[ES] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+      "newPassword": "[ES] New password",
+      "confirmPassword": "[ES] Confirm password",
+      "updatePassword": "[ES] Update password",
+      "saving": "[ES] Updating...",
+      "updated": "[ES] Password updated.",
+      "mismatch": "[ES] The two passwords do not match.",
+      "tooShort": "[ES] Password must be at least 8 characters.",
+      "failed": "[ES] Could not update the password. Please try again.",
+      "guide": "[ES] Security guide"
     },
     "signOut": {
       "title": "[ES] Sign Out",

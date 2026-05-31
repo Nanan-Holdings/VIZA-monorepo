@@ -1,11 +1,11 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
-  getDestinationDisplayNameZh,
+  getDestinationDisplayNameForLocale,
   getDestinationFlag,
-  getVisaTypeDisplayNameZh,
+  getVisaTypeDisplayNameForLocale,
 } from "@/lib/visa-destinations";
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
@@ -34,11 +34,12 @@ export function ApplicationStatusCard({
   applicationCount = 1,
 }: Props) {
   const t = useTranslations("home");
+  const locale = useLocale();
   const statusLabel = t(`statusLabels.${status}`);
   const badgeClass = STATUS_BADGE_CLASSES[status] ?? STATUS_BADGE_CLASSES.draft;
-  const visaTypeLabel = getVisaTypeDisplayNameZh(visaType);
+  const visaTypeLabel = getVisaTypeDisplayNameForLocale(visaType, locale);
   const countryFlag = getDestinationFlag(country?.toLowerCase?.() ?? "");
-  const countryName = getDestinationDisplayNameZh(country?.toLowerCase?.() ?? "");
+  const countryName = getDestinationDisplayNameForLocale(country?.toLowerCase?.() ?? "", locale);
 
   return (
     <motion.div
@@ -89,7 +90,7 @@ export function ApplicationStatusCard({
           {submittedAt && (
             <p className="text-[rgba(255,255,255,0.5)] text-[12px]">
               {t("submitted", {
-                date: new Date(submittedAt).toLocaleDateString("zh-CN", {
+                date: new Date(submittedAt).toLocaleDateString(locale.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US", {
                   month: "short",
                   day: "numeric",
                   year: "numeric",

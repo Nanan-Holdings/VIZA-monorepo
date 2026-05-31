@@ -55,6 +55,21 @@
       "travelAI": "进入旅行 AI",
       "viewStatus": "查看申请状态"
     },
+    "subscriptionPlan": {
+      "title": "VIZA 申请",
+      "subtitle": "申请方案与订阅状态",
+      "planTitle": "VIZA 申请",
+      "planStatus": "体验版 · 续费暂未启用",
+      "viewPlan": "查看方案",
+      "viewDetails": "查看详情"
+    },
+    "universalInfo": {
+      "title": "通用资料",
+      "subtitle": "自动用于相似签证问题",
+      "saved": "{completed}/{total} 项已保存",
+      "fields": "姓名、生日、护照、联系方式",
+      "edit": "编辑通用资料"
+    },
     "emptyApplication": {
       "noActiveApplication": "暂无活跃申请",
       "subtitle": "请先在下方选择目的地，VIZA 会进入对应的访客签证流程。",
@@ -648,6 +663,7 @@
       "Security and Background: Part 3": "安全与背景：第3部分",
       "Security and Background: Part 4": "安全与背景：第4部分",
       "Security and Background: Part 5": "安全与背景：第5部分",
+      "Supporting Documents": "支持材料",
       "Upload Photo": "上传照片",
       "Review": "审核申请",
       "Confirmation": "确认"
@@ -663,11 +679,13 @@
       "family": "家庭信息",
       "workEducationTraining": "工作/教育/培训",
       "securityAndBackground": "安全与背景",
+      "documents": "材料",
       "photo": "上传照片",
       "review": "审核申请",
       "confirmation": "确认"
     },
     "dynamicStepDescription": "{count, plural, one {# 个字段} other {# 个字段}}",
+    "documentsStepDescription": "上传必需和可选的支持材料",
     "photoStepDescription": "上传您的护照照片",
     "reviewStepDescription": "审核并确认您的信息",
     "statusStepDescription": "申请已提交",
@@ -1939,6 +1957,7 @@
       "progress": "第 {current} 步 / 共 {total} 步 · {name}",
       "back": "返回",
       "continue": "继续",
+      "documents": "材料",
       "submitting": "正在保存…",
       "edit": "编辑",
       "yes": "是",
@@ -2968,10 +2987,79 @@
   },
   "settings": {
     "title": "设置",
+    "subtitle": "在这里管理付款偏好、通用签证资料、账户安全和帮助入口。",
     "loading": "正在加载您的设置...",
     "tabs": {
       "billing": "账单",
       "account": "账户"
+    },
+    "profile": {
+      "fallbackName": "VIZA 申请人",
+      "editDetails": "编辑资料",
+      "completion": "通用资料完整度",
+      "completionHint": "提前补全一次，后续签证表单会优先自动预填。"
+    },
+    "quickSnapshot": {
+      "label": "账户概览",
+      "passport": "护照",
+      "phone": "手机号",
+      "payment": "付款",
+      "notSet": "未设置"
+    },
+    "sections": {
+      "general": "通用",
+      "payments": "付款",
+      "support": "支持"
+    },
+    "rows": {
+      "universalInfo": {
+        "title": "通用资料",
+        "description": "编辑身份、护照、联系方式和地址等可复用信息。",
+        "badge": "推荐"
+      },
+      "account": {
+        "title": "个人资料",
+        "description": "查看 VIZA 准备申请时会使用的基础信息。"
+      },
+      "language": {
+        "title": "语言",
+        "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
+      },
+      "paymentMethods": {
+        "title": "付款方式设置",
+        "description": "了解如何添加或更新银行卡、银行转账或微信支付安排。",
+        "badge": "指南"
+      },
+      "billing": {
+        "title": "回执与发票",
+        "description": "查看付款历史、回执、发票申请和退款状态。"
+      },
+      "helpCenter": {
+        "title": "帮助中心",
+        "description": "阅读账户、付款、隐私和申请流程相关说明。"
+      },
+      "feedback": {
+        "title": "分享反馈",
+        "description": "如需人工跟进，可提交客服请求。"
+      }
+    },
+    "payment": {
+      "selected": "默认",
+      "setDefault": "设为默认",
+      "methods": {
+        "card": {
+          "title": "银行卡",
+          "description": "适合线上结账和回执追踪。"
+        },
+        "bank_transfer": {
+          "title": "银行转账",
+          "description": "大额或复杂订单可由客服协助安排。"
+        },
+        "wechat_pay": {
+          "title": "微信支付",
+          "description": "当套餐支持时，可使用中文支付流程。"
+        }
+      }
     },
     "account": {
       "title": "账户",
@@ -2982,6 +3070,20 @@
       "saving": "保存中...",
       "failedToSave": "保存失败。",
       "saved": "已保存。"
+    },
+    "security": {
+      "title": "安全设置",
+      "passwordTitle": "修改密码",
+      "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "updatePassword": "更新密码",
+      "saving": "更新中...",
+      "updated": "密码已更新。",
+      "mismatch": "两次输入的密码不一致。",
+      "tooShort": "密码至少需要 8 个字符。",
+      "failed": "暂时无法更新密码，请重试。",
+      "guide": "安全指南"
     },
     "signOut": {
       "title": "退出登录",
@@ -3048,6 +3150,18 @@
         "resolved": "已处理"
       }
     },
+    "requestsPage": {
+      "eyebrow": "反馈记录",
+      "title": "我的反馈",
+      "subtitle": "查看已提交的反馈、处理状态，并在需要时进入完整客服对话。",
+      "back": "返回帮助",
+      "newRequest": "提交新反馈",
+      "listTitle": "反馈历史",
+      "listSubtitle": "每条反馈都会集中展示主题、最新状态和客服对话入口。",
+      "emptyTitle": "暂无反馈",
+      "errorTitle": "无法加载反馈",
+      "error": "暂时无法加载你的客服请求，请稍后重试。"
+    },
     "agent": {
       "cardTitle": "智能解答",
       "cardDescription": "先选问题类型，再描述细节，我们会先给出知识库答复。",
@@ -3071,7 +3185,7 @@
       "attachmentsHint": "可上传截图或文件以便我们更快定位问题。",
       "submit": "发送请求",
       "sending": "正在发送...",
-      "helper": "提交后可在左侧查看状态。",
+      "helper": "提交后可在“我的反馈”页面查看状态。",
       "successTitle": "请求已发送",
       "successBody": "我们已收到你的问题，会尽快处理并更新状态。",
       "successMeta": "工单 #{id}",

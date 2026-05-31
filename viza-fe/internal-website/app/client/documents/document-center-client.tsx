@@ -41,6 +41,8 @@ interface DocumentCenterClientProps {
   initialData: DocumentCenterData | null;
   initialError: string | null;
   applicationId?: string | null;
+  country?: string | null;
+  visaType?: string | null;
   embedded?: boolean;
   hideApplicationSelector?: boolean;
   onContinue?: () => void;
@@ -1109,10 +1111,12 @@ function EmptyState({
   error,
   isZh,
   embedded = false,
+  loading = false,
 }: {
   error: string | null;
   isZh: boolean;
   embedded?: boolean;
+  loading?: boolean;
 }) {
   return (
     <main
@@ -1122,25 +1126,41 @@ function EmptyState({
       )}
     >
       <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-        <FileText className="h-7 w-7" />
+        {loading ? (
+          <Loader2 className="h-7 w-7 animate-spin" />
+        ) : (
+          <FileText className="h-7 w-7" />
+        )}
       </div>
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold">
-          {isZh ? "材料清单中心" : "Document Checklist Center"}
+          {loading
+            ? isZh
+              ? "正在加载材料"
+              : "Loading documents"
+            : isZh
+              ? "材料清单中心"
+              : "Document Checklist Center"}
         </h1>
         <p className="text-muted-foreground">
-          {error ??
+          {loading
+            ? isZh
+              ? "正在读取当前表单对应的材料清单。"
+              : "Loading the checklist for the current form."
+            : error ??
             (isZh
               ? "请先创建或重新打开一份申请。系统会在申请存在后生成对应的材料清单。"
               : "Create or reopen an application first. VIZA will generate the matching document checklist after an application exists.")}
         </p>
       </div>
-      <Button asChild className="bg-brand-500 hover:bg-brand-400">
-        <Link href="/client/application">
-          {isZh ? "前往申请" : "Go to application"}
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </Button>
+      {!embedded && !loading && (
+        <Button asChild className="bg-brand-500 hover:bg-brand-400">
+          <Link href="/client/application">
+            {isZh ? "前往申请" : "Go to application"}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      )}
     </main>
   );
 }
@@ -1149,6 +1169,8 @@ export function DocumentCenterClient({
   initialData,
   initialError,
   applicationId,
+  country,
+  visaType,
   embedded = false,
   hideApplicationSelector = embedded,
   onContinue,
@@ -1207,7 +1229,7 @@ export function DocumentCenterClient({
 
     let cancelled = false;
     setBusyTarget({ type: "refresh", key: applicationId });
-    loadDocumentCenterData({ applicationId })
+    loadDocumentCenterData({ applicationId, country, visaType })
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
@@ -1225,7 +1247,7 @@ export function DocumentCenterClient({
     return () => {
       cancelled = true;
     };
-  }, [applicationId, data?.selectedApplication?.id]);
+  }, [applicationId, country, data?.selectedApplication?.id, visaType]);
 
   useEffect(() => {
     setTravelCandidate(
@@ -1238,6 +1260,8 @@ export function DocumentCenterClient({
     setBusyTarget({ type: "refresh", key: selectedApplication.id });
     const result = await loadDocumentCenterData({
       applicationId: selectedApplication.id,
+      country,
+      visaType,
     });
     if (result.ok) {
       setData(result.data);
@@ -1440,7 +1464,14 @@ export function DocumentCenterClient({
   }
 
   if (!data || !selectedApplication) {
-    return <EmptyState error={error} isZh={isZh} embedded={embedded} />;
+    return (
+      <EmptyState
+        error={error}
+        isZh={isZh}
+        embedded={embedded}
+        loading={embedded && busyTarget?.type === "refresh"}
+      />
+    );
   }
 
   const refreshing = busyTarget?.type === "refresh";
@@ -1640,7 +1671,7 @@ export function DocumentCenterClient({
       <div
         className={cn(
           "grid gap-6",
-          embedded ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-[1fr_380px]",
+          embedded ? "2xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-[1fr_380px]",
         )}
       >
         <div className="space-y-6">

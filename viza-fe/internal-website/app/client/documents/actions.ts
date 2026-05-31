@@ -351,17 +351,24 @@ function normalizeApplication(row: ApplicationRow): DocumentApplication {
   };
 }
 
-function matchesRequestedApplication(
-  application: DocumentApplication,
+function selectDocumentApplication(
+  applications: DocumentApplication[],
   params: LoadDocumentCenterParams,
-): boolean {
-  if (params.applicationId) return application.id === params.applicationId;
-  if (!params.country || !params.visaType) return false;
+): DocumentApplication | null {
+  if (params.country && params.visaType) {
+    const countryMatch = applications.find(
+      (application) =>
+        application.country.toLowerCase() === params.country!.toLowerCase() &&
+        application.visaType.toLowerCase() === getFormVisaType(params.visaType!).toLowerCase(),
+    );
+    if (countryMatch) return countryMatch;
+  }
 
-  return (
-    application.country.toLowerCase() === params.country.toLowerCase() &&
-    application.visaType.toLowerCase() === getFormVisaType(params.visaType).toLowerCase()
-  );
+  if (params.applicationId) {
+    return applications.find((application) => application.id === params.applicationId) ?? null;
+  }
+
+  return applications[0] ?? null;
 }
 
 function normalizeRequirementRow(row: DocumentRequirementRow): DocumentRequirement {
@@ -872,8 +879,7 @@ export async function loadDocumentCenterData(params: LoadDocumentCenterParams = 
     ]);
     const applicationRows = await ensureApplicationsForActivePackages(applicantId, activeUserPackages, rawApplicationRows);
     const applications = applicationRows.map(normalizeApplication);
-    const selectedApplication =
-      applications.find((application) => matchesRequestedApplication(application, params)) ?? applications[0] ?? null;
+    const selectedApplication = selectDocumentApplication(applications, params);
 
     if (!selectedApplication) {
       return {
