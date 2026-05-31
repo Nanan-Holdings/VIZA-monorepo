@@ -3,6 +3,7 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { recordDocumentUpload } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -108,20 +109,16 @@ export function DocumentUpload({
         return { ok: false, retry, message };
       }
 
-      const { error: insertError } = await supabase.from("application_documents").upsert(
-        {
-          application_id: applicationId,
-          document_type: kind,
-          storage_path: storagePath,
-          filename: file.name,
-          status: "uploaded",
-          rejection_reason: null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "application_id,document_type" },
-      );
-      if (insertError) {
-        return { ok: false, retry: false, message: insertError.message };
+      const recordResult = await recordDocumentUpload({
+        applicationId,
+        documentType: kind,
+        requirementKey: kind,
+        filename: file.name,
+        storagePath,
+        required: true,
+      });
+      if (!recordResult.ok) {
+        return { ok: false, retry: false, message: recordResult.error };
       }
 
       return { ok: true, storagePath };

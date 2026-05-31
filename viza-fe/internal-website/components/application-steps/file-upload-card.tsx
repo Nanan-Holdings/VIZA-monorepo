@@ -259,7 +259,7 @@ export function FileUploadCard({
           ref={inputRef}
           type="file"
           className="hidden"
-          accept=".pdf,.jpg,.jpeg,.png"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
