@@ -1,5 +1,4 @@
 ﻿import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
 

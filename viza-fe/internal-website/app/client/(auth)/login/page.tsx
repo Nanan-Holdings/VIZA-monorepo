@@ -7,10 +7,11 @@ import { motion, AnimatePresence } from 'motion/react'
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { validateUserEmail } from '@/app/actions/client-auth'
+import { prepareAuthEmailLocale, validateUserEmail } from '@/app/actions/client-auth'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
-import { useTranslations } from 'next-intl'
+import { normalizeAuthEmailLocale } from '@/lib/i18n/locale'
+import { useLocale, useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
@@ -18,6 +19,7 @@ type LoginMethod = 'password' | 'otp'
 function ClientLoginContent() {
   const t = useTranslations('auth.login')
   const tp = useTranslations('auth.polaroids')
+  const locale = useLocale()
   const searchParams = useSearchParams()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerRef = useRef({ dragging: false, startX: 0, startY: 0, phiStart: 0, thetaStart: 0 })
@@ -129,9 +131,18 @@ function ClientLoginContent() {
 
   const sendOtp = async (targetEmail: string): Promise<boolean> => {
     const supabase = createClient()
+    const emailLocale = normalizeAuthEmailLocale(locale)
+    await prepareAuthEmailLocale(targetEmail, emailLocale)
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: targetEmail.toLowerCase().trim(),
-      options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        shouldCreateUser: false,
+        data: {
+          locale: emailLocale,
+          language: emailLocale,
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     if (authError) {
       setError(authError.message.includes('User not found')

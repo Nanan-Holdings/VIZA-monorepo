@@ -2954,6 +2954,7 @@
       "sendingCode": "[ES] Sending code...",
       "failedToSendCode": "[ES] Failed to send code",
       "failedToResend": "[ES] Failed to resend code.",
+      "authFailed": "[ES] Verification failed. Please request a new code and try again.",
       "verifyEmailTitle": "[ES] Verify your email",
       "sentCodeTo": "[ES] We sent an 8-digit code to",
       "resendIn": "[ES] Resend in {seconds}s",

@@ -31,6 +31,8 @@ it updates profile or application answers.
   download, audit metadata, and structured responses.
 - `provider.ts`: server-only OCR adapter. Default provider is `openai_vision`
   and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`.
+- `provider.test.ts`: mocked-provider regression tests for request payloads,
+  model fallback, and structured parsing.
 - `types.ts`: response, proposal, provider, and error contracts.
 
 ## Validation
