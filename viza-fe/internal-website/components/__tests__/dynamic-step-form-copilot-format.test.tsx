@@ -1,7 +1,18 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
+import enMessages from "@/messages/en.json";
+import zhMessages from "@/messages/zh.json";
 import { type WizardStep } from "@/types/visa-form-fields";
+import { auConfig } from "@/components/client/wizards/au/config";
+import { egConfig } from "@/components/client/wizards/eg/config";
+import { idConfig } from "@/components/client/wizards/id/config";
+import { schengenConfig } from "@/components/client/wizards/schengen/config";
+import { ukConfig } from "@/components/client/wizards/uk/config";
+import { usConfig } from "@/components/client/wizards/us/config";
+import { vnConfig } from "@/components/client/wizards/vn/config";
+import type { WizardConfig } from "@/components/client/wizards/shell/types";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -59,6 +70,76 @@ const shortcutStep: WizardStep = {
   ],
 };
 
+const wizardConfigs: Array<WizardConfig<unknown>> = [
+  usConfig as WizardConfig<unknown>,
+  ukConfig as WizardConfig<unknown>,
+  schengenConfig as WizardConfig<unknown>,
+  vnConfig as WizardConfig<unknown>,
+  auConfig as WizardConfig<unknown>,
+  egConfig as WizardConfig<unknown>,
+  idConfig as WizardConfig<unknown>,
+];
+
+const messageSets = [
+  { locale: "en", messages: enMessages },
+  { locale: "zh", messages: zhMessages },
+] as const;
+
+const translationPropNames = new Set([
+  "titleKey",
+  "subtitleKey",
+  "labelKey",
+  "placeholderKey",
+  "descriptionKey",
+  "hintKey",
+  "submitLabelKey",
+  "yesKey",
+  "noKey",
+]);
+
+function getPath(root: unknown, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string, unknown>)[segment];
+  }, root);
+}
+
+function collectTranslationKeys(value: unknown, keys: Set<string>) {
+  if (!value || typeof value !== "object") return;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectTranslationKeys(item, keys));
+    return;
+  }
+
+  if (isValidElement(value)) {
+    collectTranslationKeys((value as { props?: unknown }).props, keys);
+    return;
+  }
+
+  for (const [prop, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (translationPropNames.has(prop) && typeof nested === "string" && nested && !nested.startsWith("literal:")) {
+      keys.add(nested);
+      continue;
+    }
+    collectTranslationKeys(nested, keys);
+  }
+}
+
+function renderWizardStep(config: WizardConfig<unknown>, index: number): ReactNode {
+  const form = config.emptyForm();
+  return config.steps[index].render({
+    form,
+    setForm: () => undefined,
+    applicationId: null,
+    onContinue: () => undefined,
+    onBack: () => undefined,
+    onSubmit: () => undefined,
+    submitting: false,
+    goToStep: () => undefined,
+  });
+}
+
 describe("DynamicStepForm copilot format", () => {
   it("uses the unified Chinese copilot trigger format", () => {
     render(
@@ -112,5 +193,31 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.keyDown(firstYesRadio()!, { key: "Z", metaKey: true, shiftKey: true });
     expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+  });
+
+  it("keeps registered wizard prompts aligned with localized country copy", () => {
+    for (const config of wizardConfigs) {
+      for (const { locale, messages } of messageSets) {
+        const namespace = getPath(messages, config.i18nNamespace);
+        expect.soft(namespace, `${locale} ${config.visaType} is missing ${config.i18nNamespace}`).toBeTruthy();
+
+        const keys = new Set<string>();
+        config.steps.forEach((step, index) => {
+          keys.add(step.titleKey);
+          collectTranslationKeys(renderWizardStep(config, index), keys);
+        });
+
+        config.reviewSections(config.emptyForm()).forEach((section) => {
+          keys.add(section.titleKey);
+        });
+
+        for (const key of keys) {
+          expect.soft(
+            getPath(namespace, key),
+            `${locale} ${config.visaType} missing translation key ${config.i18nNamespace}.${key}`,
+          ).toBeTruthy();
+        }
+      }
+    }
   });
 });
