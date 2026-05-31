@@ -3,11 +3,9 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ensureApplicationDocumentsBucket, recordDocumentUpload } from "@/app/client/documents/actions";
-import { createClient } from "@/lib/supabase/client";
+import { uploadApplicationDocument } from "@/app/client/documents/actions";
 import { cn } from "@/lib/utils";
 
-const STORAGE_BUCKET = "application-documents";
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const DEFAULT_MIN_DIMENSION = 480;
@@ -34,8 +32,6 @@ interface UploadState {
   error?: string;
   uploadedFilename?: string;
 }
-
-const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 async function getImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
   if (!file.type.startsWith("image/")) return null;
@@ -91,40 +87,20 @@ export function DocumentUpload({
 
   const uploadOnce = useCallback(
     async (file: File): Promise<{ ok: true; storagePath: string } | { ok: false; retry: boolean; message: string }> => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return { ok: false, retry: false, message: "Not signed in." };
-
-      const bucketResult = await ensureApplicationDocumentsBucket();
-      if (!bucketResult.ok) return { ok: false, retry: false, message: bucketResult.error };
-
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
-      const storagePath = `${user.id}/${applicationId}/${kind}/${Date.now()}-${safeName}`;
-      const { error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(storagePath, file, { upsert: true, cacheControl: "3600" });
-      if (error) {
-        const status = (error as { status?: number }).status ?? 0;
-        const message = error.message;
-        const retry = status === 0 ? /network|timeout|fetch/i.test(message) : RETRYABLE_STATUSES.has(status);
-        return { ok: false, retry, message };
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", applicationId);
+      uploadForm.set("documentType", kind);
+      uploadForm.set("requirementKey", kind);
+      uploadForm.set("filename", file.name);
+      uploadForm.set("required", "true");
+      uploadForm.set("file", file);
+      const uploadResult = await uploadApplicationDocument(uploadForm);
+      if (!uploadResult.ok) {
+        const retry = /network|timeout|fetch|temporar|502|503|504/i.test(uploadResult.error);
+        return { ok: false, retry, message: uploadResult.error };
       }
 
-      const recordResult = await recordDocumentUpload({
-        applicationId,
-        documentType: kind,
-        requirementKey: kind,
-        filename: file.name,
-        storagePath,
-        required: true,
-      });
-      if (!recordResult.ok) {
-        return { ok: false, retry: false, message: recordResult.error };
-      }
-
-      return { ok: true, storagePath };
+      return { ok: true, storagePath: uploadResult.storagePath };
     },
     [applicationId, kind],
   );
