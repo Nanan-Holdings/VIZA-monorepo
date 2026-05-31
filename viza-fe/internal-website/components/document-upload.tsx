@@ -3,7 +3,7 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { recordDocumentUpload } from "@/app/client/documents/actions";
+import { ensureApplicationDocumentsBucket, recordDocumentUpload } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +96,9 @@ export function DocumentUpload({
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return { ok: false, retry: false, message: "Not signed in." };
+
+      const bucketResult = await ensureApplicationDocumentsBucket();
+      if (!bucketResult.ok) return { ok: false, retry: false, message: bucketResult.error };
 
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
       const storagePath = `${user.id}/${applicationId}/${kind}/${Date.now()}-${safeName}`;

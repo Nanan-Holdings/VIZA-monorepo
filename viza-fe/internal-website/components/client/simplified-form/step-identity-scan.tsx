@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, Loader2, ScanLine, Upload, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { recordDocumentUpload } from "@/app/client/documents/actions";
-import { createClient } from "@/lib/supabase/client";
+import { uploadApplicationDocument } from "@/app/client/documents/actions";
 import type { SimplifiedIdentity, SimplifiedPassport } from "./types";
 
 type Screen = "upload" | "extracting" | "result" | "error";
@@ -38,8 +37,6 @@ export interface StepIdentityScanProps {
   onCancel: () => void;
   onFallbackManual: () => void;
 }
-
-const STORAGE_BUCKET = "application-documents";
 
 export function StepIdentityScan({
   applicationId,
@@ -86,34 +83,21 @@ export function StepIdentityScan({
     setScreen("extracting");
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("scanNotAuthenticated"));
-
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const path = `${user.id}/${applicationId}/passport_scan/scan.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (uploadError) throw uploadError;
-
-      const recordResult = await recordDocumentUpload({
-        applicationId,
-        documentType: "passport_scan",
-        requirementKey: "passport_copy",
-        filename: file.name || `passport.${ext}`,
-        storagePath: path,
-        required: true,
-      });
-      if (!recordResult.ok) throw new Error(recordResult.error);
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", applicationId);
+      uploadForm.set("documentType", "passport_scan");
+      uploadForm.set("requirementKey", "passport_copy");
+      uploadForm.set("filename", file.name || `passport.${ext}`);
+      uploadForm.set("required", "true");
+      uploadForm.set("file", file);
+      const uploadResult = await uploadApplicationDocument(uploadForm);
+      if (!uploadResult.ok) throw new Error(uploadResult.error);
 
       const resp = await fetch("/api/passport-scan/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId, storagePath: path, mediaType: file.type }),
+        body: JSON.stringify({ applicationId, storagePath: uploadResult.storagePath, mediaType: file.type }),
       });
       const payload = (await resp.json()) as { extracted?: ExtractionResult; error?: string };
       if (!resp.ok || !payload.extracted) {

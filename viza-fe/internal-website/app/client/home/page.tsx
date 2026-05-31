@@ -24,6 +24,10 @@ import {
 } from "@/components/client/home/PopularDestinationsSection";
 import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
 import {
+  getApplicationPaymentRecords,
+  type ApplicationPaymentRecord,
+} from "@/app/actions/application-lifecycle";
+import {
   getVisaDestinationKey,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
@@ -70,6 +74,7 @@ interface ApplicationRow {
   status: string;
   country: string;
   visa_type: string;
+  visa_package_id: string | null;
   submitted_at: string | null;
   created_at: string;
   updated_at: string | null;
@@ -90,6 +95,8 @@ interface AnswerRow {
   value_text: string | null;
   updated_at: string | null;
 }
+
+type PaymentRow = ApplicationPaymentRecord;
 
 interface ApplicantProfileSummary {
   full_name: string | null;
@@ -152,6 +159,57 @@ function getProgressLabel(status: string, percent: number, isZh: boolean): strin
   if (percent >= 70) return isZh ? "接近完成" : "Almost complete";
   if (percent >= 30) return isZh ? "填写中" : "In progress";
   return isZh ? "已开始" : "Started";
+}
+
+const FORM_COMPLETE_STATUSES = new Set([
+  "payment_pending",
+  "submitted",
+  "submitted_to_government",
+  "biometrics_pending",
+  "approved",
+  "rejected",
+  "delivered",
+  "staff_action_required",
+]);
+
+const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "success", "complete", "completed"]);
+
+function buildApplicationHref(application: ApplicationRow): string {
+  const params = new URLSearchParams({
+    country: application.country,
+    visaType: application.visa_type,
+  });
+  return `/client/application?${params.toString()}`;
+}
+
+function buildCheckoutHref(application: ApplicationRow): string {
+  const params = new URLSearchParams();
+  if (application.visa_package_id) params.set("packageId", application.visa_package_id);
+  params.set("applicationId", application.id);
+  return `/client/checkout?${params.toString()}`;
+}
+
+function buildStatusHref(application: ApplicationRow): string {
+  const params = new URLSearchParams({ applicationId: application.id });
+  return `/client/status?${params.toString()}`;
+}
+
+function isFormComplete(application: ApplicationRow): boolean {
+  return Boolean(application.submitted_at) || FORM_COMPLETE_STATUSES.has(application.status.toLowerCase());
+}
+
+function isPaymentComplete(application: ApplicationRow, payments: PaymentRow[]): boolean {
+  return payments.some((payment) => {
+    const matchesApplication = payment.application_id === application.id;
+    const matchesPackage = Boolean(application.visa_package_id && payment.visa_package_id === application.visa_package_id);
+    return (matchesApplication || matchesPackage) && PAID_PAYMENT_STATUSES.has(payment.status.toLowerCase());
+  });
+}
+
+function getNextApplicationHref(application: ApplicationRow, payments: PaymentRow[]): string {
+  if (!isFormComplete(application)) return buildApplicationHref(application);
+  if (!isPaymentComplete(application, payments)) return buildCheckoutHref(application);
+  return buildStatusHref(application);
 }
 
 function buildApplicationProgress(
@@ -303,7 +361,7 @@ export default function HomePage() {
 
           const { data: appRows } = await supabase
             .from("applications")
-            .select("id, status, country, visa_type, submitted_at, created_at, updated_at")
+            .select("id, status, country, visa_type, visa_package_id, submitted_at, created_at, updated_at")
             .eq("applicant_id", profileTyped.id)
             .order("created_at", { ascending: false });
 
@@ -312,7 +370,10 @@ export default function HomePage() {
 
           if (loadedApplications.length > 0) {
             const applicationIds = loadedApplications.map((app) => app.id);
-            const [{ data: docs }, { data: answers }] = await Promise.all([
+            const packageIds = loadedApplications
+              .map((app) => app.visa_package_id)
+              .filter((id): id is string => Boolean(id));
+            const [{ data: docs }, { data: answers }, loadedPayments] = await Promise.all([
               supabase
                 .from("application_documents")
                 .select("id, application_id, document_type, status, created_at, updated_at")
@@ -321,13 +382,14 @@ export default function HomePage() {
                 .from("visa_application_answers")
                 .select("application_id, field_name, value_text, updated_at")
                 .in("application_id", applicationIds),
+              getApplicationPaymentRecords(applicationIds, packageIds),
             ]);
 
             if (!isMounted) return;
             const loadedDocuments = (docs ?? []) as DocumentRow[];
             const loadedAnswers = (answers ?? []) as AnswerRow[];
             setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, isZh));
-            setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments));
+            setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments, loadedPayments));
           } else {
             setApplicationProgress({});
             setActivityEvents([]);
@@ -345,12 +407,15 @@ export default function HomePage() {
 
     function buildActivityEvents(
       appsList: ApplicationRow[],
-      docsList: DocumentRow[]
+      docsList: DocumentRow[],
+      paymentsList: PaymentRow[],
     ): ActivityEvent[] {
       const events: ActivityEvent[] = [];
+      const applicationsById = new Map(appsList.map((application) => [application.id, application]));
 
       for (const application of appsList) {
         const applicationName = getVisaPackageTitle(application.country, application.visa_type, locale);
+        const href = getNextApplicationHref(application, paymentsList);
         if (application.submitted_at) {
           events.push({
             id: `app-submitted-${application.id}`,
@@ -359,6 +424,7 @@ export default function HomePage() {
             sublabel: applicationName,
             timestamp: application.submitted_at,
             icon: "check",
+            href,
           });
         }
         events.push({
@@ -368,10 +434,12 @@ export default function HomePage() {
           sublabel: applicationName,
           timestamp: application.created_at,
           icon: "clock",
+          href,
         });
       }
 
       for (const doc of docsList) {
+        const application = applicationsById.get(doc.application_id);
         const docLabel = t(`docLabels.${doc.document_type}`);
         events.push({
           id: `doc-${doc.id}`,
@@ -380,6 +448,11 @@ export default function HomePage() {
           sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
           timestamp: doc.updated_at,
           icon: doc.status === "rejected" ? "alert" : "upload",
+          href: application
+            ? doc.status === "rejected"
+              ? `/client/documents?applicationId=${encodeURIComponent(application.id)}`
+              : getNextApplicationHref(application, paymentsList)
+            : undefined,
         });
       }
 

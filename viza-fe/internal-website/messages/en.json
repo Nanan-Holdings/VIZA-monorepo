@@ -3685,7 +3685,7 @@
     "back": "Back home",
     "eyebrow": "VIZA Application",
     "title": "Choose how you want to use VIZA applications",
-    "subtitle": "Use monthly access for frequent planning, or pay per destination for an occasional trip. This page is a plan preview and will not charge users before payment is enabled.",
+    "subtitle": "Use monthly access for frequent planning, or pay per destination for an occasional trip. All prices are shown in Chinese yuan and can open Stripe, WeChat Pay, or Alipay hosted payment flows.",
     "current": {
       "label": "Current plan",
       "plan": "VIZA Application Trial",
@@ -3693,16 +3693,16 @@
       "renewalLabel": "Renewal",
       "renewalValue": "Not enabled",
       "paymentLabel": "Payment method",
-      "paymentValue": "Not connected"
+      "paymentValue": "Stripe / WeChat / Alipay"
     },
     "highlights": {
       "allCountries": {
         "title": "All-country access",
         "body": "Monthly plans unlock application entry points for every supported country."
       },
-      "twoWays": {
-        "title": "Monthly or per application",
-        "body": "Frequent travelers can subscribe, while occasional travelers can pay by destination."
+      "threeWays": {
+        "title": "Three payment entries",
+        "body": "Use Stripe-hosted Checkout, a WeChat Pay Native QR code, or Alipay web checkout."
       },
       "officialFees": {
         "title": "Clear service pricing",
@@ -3715,6 +3715,7 @@
       "badge": "Global Access",
       "recommended": "Recommended",
       "countryLimit": "Up to {count} countries per month",
+      "cadence": "/mo",
       "cta": "Choose plan",
       "plans": {
         "access": {
@@ -3744,6 +3745,8 @@
       "limitBody": "Each purchase covers 1 country. Users should complete form filling and submission preparation within 1 month.",
       "groupTitle": "Core capabilities included",
       "groupBody": "Pay-per-application includes requirements checks, dynamic checklists, multi-language assistance, AI assistance, group applications, and Travel Agent support.",
+      "paymentNote": "Pay-per-application destinations now follow the same region and form-entry grouping as the Home destination browser.",
+      "regionCountSuffix": "items",
       "feeNote": "All prices are VIZA service fees per application and exclude official visa fees, visa center fees, biometrics, courier fees, or expedited processing.",
       "countries": {
         "singapore": "Singapore",
