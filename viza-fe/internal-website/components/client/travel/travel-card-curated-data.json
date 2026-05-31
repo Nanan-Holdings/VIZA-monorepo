@@ -1,0 +1,1221 @@
+{
+  "cities": [
+    {
+      "cityKeys": [
+        "tokyo",
+        "东京"
+      ],
+      "cityLabel": "东京",
+      "imageSrc": "/travel/cities/tokyo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tokyo"
+    },
+    {
+      "cityKeys": [
+        "singapore",
+        "新加坡"
+      ],
+      "cityLabel": "新加坡",
+      "imageSrc": "/travel/cities/singapore.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Marina_Bay_Singapore-3499.jpg"
+    },
+    {
+      "cityKeys": [
+        "sydney",
+        "悉尼"
+      ],
+      "cityLabel": "悉尼",
+      "imageSrc": "/travel/cities/sydney.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sydney"
+    },
+    {
+      "cityKeys": [
+        "london",
+        "伦敦"
+      ],
+      "cityLabel": "伦敦",
+      "imageSrc": "/travel/cities/london.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/London"
+    },
+    {
+      "cityKeys": [
+        "paris",
+        "巴黎"
+      ],
+      "cityLabel": "巴黎",
+      "imageSrc": "/travel/cities/paris.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Paris"
+    },
+    {
+      "cityKeys": [
+        "newyork",
+        "纽约"
+      ],
+      "cityLabel": "纽约",
+      "imageSrc": "/travel/cities/newyork.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/New_York_City"
+    },
+    {
+      "cityKeys": [
+        "beijing",
+        "北京"
+      ],
+      "cityLabel": "北京",
+      "imageSrc": "/travel/cities/beijing.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Beijing"
+    },
+    {
+      "cityKeys": [
+        "sanfrancisco",
+        "旧金山"
+      ],
+      "cityLabel": "旧金山",
+      "imageSrc": "/travel/cities/sanfrancisco.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/San_Francisco"
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "imageSrc": "/travel/cities/pisa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pisa"
+    },
+    {
+      "cityKeys": [
+        "dubai",
+        "迪拜"
+      ],
+      "cityLabel": "迪拜",
+      "imageSrc": "/travel/cities/dubai.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Burj_Khalifa_from_a_ferry,_Dubai.jpg"
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "imageSrc": "/travel/cities/moscow.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Moscow"
+    },
+    {
+      "cityKeys": [
+        "bali",
+        "巴厘岛"
+      ],
+      "cityLabel": "巴厘岛",
+      "imageSrc": "/travel/cities/bali.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jimbaran_Bay._Bali_(15208714849).jpg"
+    },
+    {
+      "cityKeys": [
+        "istanbul",
+        "伊斯坦布尔"
+      ],
+      "cityLabel": "伊斯坦布尔",
+      "imageSrc": "/travel/cities/istanbul.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Istanbul"
+    },
+    {
+      "cityKeys": [
+        "melbourne",
+        "墨尔本"
+      ],
+      "cityLabel": "墨尔本",
+      "imageSrc": "/travel/cities/melbourne.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Melbourne"
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "imageSrc": "/travel/cities/hawaii.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunset_next_to_Waikiki_Beach,_Oahu,_Hawai,_USA1.jpg"
+    }
+  ],
+  "attractions": [
+    {
+      "cityKeys": [
+        "tokyo",
+        "东京"
+      ],
+      "cityLabel": "东京",
+      "name": "浅草寺与仲见世商店街",
+      "location": "Sensō-ji",
+      "imageSrc": "/travel/attractions/tokyo-senso-ji.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sens%C5%8D-ji",
+      "description": "东京最具代表性的传统寺院与参道街区，适合安排在上午避开人流。",
+      "aliases": [
+        "Senso-ji",
+        "Senso-ji"
+      ],
+      "lat": 35.714722,
+      "lng": 139.79675
+    },
+    {
+      "cityKeys": [
+        "tokyo",
+        "东京"
+      ],
+      "cityLabel": "东京",
+      "name": "东京塔与芝公园",
+      "location": "Tokyo Tower",
+      "imageSrc": "/travel/attractions/tokyo-tokyo-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tokyo_Tower",
+      "description": "东京经典天际线地标，可与芝公园一起安排城市观景和拍照。",
+      "aliases": [
+        "Tokyo Tower",
+        "Tokyo Tower"
+      ],
+      "lat": 35.658611,
+      "lng": 139.745556
+    },
+    {
+      "cityKeys": [
+        "tokyo",
+        "东京"
+      ],
+      "cityLabel": "东京",
+      "name": "明治神宫",
+      "location": "Meiji Shrine",
+      "imageSrc": "/travel/attractions/tokyo-meiji-shrine.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Meiji_Shrine",
+      "description": "代代木森林里的神社，适合放在原宿、表参道动线前后。",
+      "aliases": [
+        "Meiji Shrine",
+        "Meiji Shrine"
+      ],
+      "lat": 35.676111,
+      "lng": 139.699167
+    },
+    {
+      "cityKeys": [
+        "tokyo",
+        "东京"
+      ],
+      "cityLabel": "东京",
+      "name": "涩谷十字路口与忠犬八公像",
+      "location": "Shibuya Crossing",
+      "imageSrc": "/travel/attractions/tokyo-shibuya-crossing.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shibuya_Crossing",
+      "description": "东京高密度城市街景代表，傍晚和夜间灯光氛围最好。",
+      "aliases": [
+        "Shibuya Crossing",
+        "Shibuya Crossing"
+      ],
+      "lat": 35.6595,
+      "lng": 139.70056
+    },
+    {
+      "cityKeys": [
+        "singapore",
+        "新加坡"
+      ],
+      "cityLabel": "新加坡",
+      "name": "滨海湾金沙空中花园",
+      "location": "Marina Bay Sands",
+      "imageSrc": "/travel/attractions/singapore-marina-bay-sands.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Marina_Bay_Sands",
+      "description": "滨海湾天际线核心地标，适合傍晚登高看城市灯光。",
+      "aliases": [
+        "Marina Bay Sands",
+        "Marina Bay Sands"
+      ],
+      "lat": 1.2825,
+      "lng": 103.86
+    },
+    {
+      "cityKeys": [
+        "singapore",
+        "新加坡"
+      ],
+      "cityLabel": "新加坡",
+      "name": "滨海湾花园云雾林与擎天树",
+      "location": "Gardens by the Bay",
+      "imageSrc": "/travel/attractions/singapore-gardens-by-the-bay.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gardens_by_the_Bay",
+      "description": "花园温室与擎天树集中，白天入园、夜间看灯光秀最顺。",
+      "aliases": [
+        "Gardens by the Bay",
+        "Gardens by the Bay"
+      ],
+      "lat": 1.284722,
+      "lng": 103.865
+    },
+    {
+      "cityKeys": [
+        "singapore",
+        "新加坡"
+      ],
+      "cityLabel": "新加坡",
+      "name": "鱼尾狮公园",
+      "location": "Merlion Park",
+      "imageSrc": "/travel/attractions/singapore-merlion-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Merlion_Park",
+      "description": "新加坡经典滨水拍照点，适合与滨海湾步道连成短线。",
+      "aliases": [
+        "Merlion Park",
+        "Merlion Park"
+      ],
+      "lat": 1.286833,
+      "lng": 103.854528
+    },
+    {
+      "cityKeys": [
+        "singapore",
+        "新加坡"
+      ],
+      "cityLabel": "新加坡",
+      "name": "牛车水佛牙寺",
+      "location": "Buddha Tooth Relic Temple and Museum",
+      "imageSrc": "/travel/attractions/singapore-buddha-tooth-relic-temple-and-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Buddha_Tooth_Relic_Temple_and_Museum",
+      "description": "牛车水核心文化地标，适合搭配小吃街和街区步行。",
+      "aliases": [
+        "Buddha Tooth Relic Temple and Museum",
+        "Buddha Tooth Relic Temple and Museum"
+      ],
+      "lat": 1.2815,
+      "lng": 103.8449
+    },
+    {
+      "cityKeys": [
+        "sydney",
+        "悉尼"
+      ],
+      "cityLabel": "悉尼",
+      "name": "悉尼歌剧院",
+      "location": "Sydney Opera House",
+      "imageSrc": "/travel/attractions/sydney-sydney-opera-house.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sydney_Opera_House",
+      "description": "海港最具识别度的建筑，适合预约导览或沿环形码头拍照。",
+      "aliases": [
+        "Sydney Opera House",
+        "Sydney Opera House"
+      ],
+      "lat": -33.8568,
+      "lng": 151.2153
+    },
+    {
+      "cityKeys": [
+        "sydney",
+        "悉尼"
+      ],
+      "cityLabel": "悉尼",
+      "name": "海港大桥观景点",
+      "location": "Sydney Harbour Bridge",
+      "imageSrc": "/travel/attractions/sydney-sydney-harbour-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sydney_Harbour_Bridge",
+      "description": "连接海港两岸的地标桥梁，适合安排桥下步行和观景。",
+      "aliases": [
+        "Sydney Harbour Bridge",
+        "Sydney Harbour Bridge"
+      ],
+      "lat": -33.852222,
+      "lng": 151.210556
+    },
+    {
+      "cityKeys": [
+        "sydney",
+        "悉尼"
+      ],
+      "cityLabel": "悉尼",
+      "name": "岩石区 The Rocks",
+      "location": "The Rocks, New South Wales",
+      "imageSrc": "/travel/attractions/sydney-the-rocks-new-south-wales.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/The_Rocks,_New_South_Wales",
+      "description": "悉尼早期港口街区，适合周末市集、酒吧和海港步行。",
+      "aliases": [
+        "The Rocks, New South Wales",
+        "The Rocks, New South Wales"
+      ],
+      "lat": -33.8599,
+      "lng": 151.209
+    },
+    {
+      "cityKeys": [
+        "sydney",
+        "悉尼"
+      ],
+      "cityLabel": "悉尼",
+      "name": "邦迪海滩与海岸步道",
+      "location": "Bondi Beach",
+      "imageSrc": "/travel/attractions/sydney-bondi-beach.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Bondi_Beach",
+      "description": "悉尼代表性海滩，适合半日海岸步道与咖啡休息。",
+      "aliases": [
+        "Bondi Beach",
+        "Bondi Beach"
+      ],
+      "lat": -33.8915,
+      "lng": 151.2767
+    },
+    {
+      "cityKeys": [
+        "london",
+        "伦敦"
+      ],
+      "cityLabel": "伦敦",
+      "name": "大英博物馆",
+      "location": "British Museum",
+      "imageSrc": "/travel/attractions/london-british-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/British_Museum",
+      "description": "免费博物馆体量很大，建议提前选展厅而不是全馆硬逛。",
+      "aliases": [
+        "British Museum",
+        "British Museum"
+      ],
+      "lat": 51.5194,
+      "lng": -0.1269
+    },
+    {
+      "cityKeys": [
+        "london",
+        "伦敦"
+      ],
+      "cityLabel": "伦敦",
+      "name": "塔桥与伦敦塔",
+      "location": "Tower Bridge",
+      "imageSrc": "/travel/attractions/london-tower-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tower_Bridge",
+      "description": "泰晤士河经典地标，适合与伦敦塔和河岸步行同日安排。",
+      "aliases": [
+        "Tower Bridge",
+        "Tower Bridge"
+      ],
+      "lat": 51.5056,
+      "lng": -0.0753
+    },
+    {
+      "cityKeys": [
+        "london",
+        "伦敦"
+      ],
+      "cityLabel": "伦敦",
+      "name": "威斯敏斯特宫与大本钟",
+      "location": "Palace of Westminster",
+      "imageSrc": "/travel/attractions/london-palace-of-westminster.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Palace_of_Westminster",
+      "description": "伦敦政治与历史建筑群，适合搭配西敏寺和河岸拍照。",
+      "aliases": [
+        "Palace of Westminster",
+        "Palace of Westminster"
+      ],
+      "lat": 51.4995,
+      "lng": -0.1248
+    },
+    {
+      "cityKeys": [
+        "london",
+        "伦敦"
+      ],
+      "cityLabel": "伦敦",
+      "name": "白金汉宫",
+      "location": "Buckingham Palace",
+      "imageSrc": "/travel/attractions/london-buckingham-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Buckingham_Palace",
+      "description": "王室地标，适合关注换岗时间并与圣詹姆斯公园串联。",
+      "aliases": [
+        "Buckingham Palace",
+        "Buckingham Palace"
+      ],
+      "lat": 51.5014,
+      "lng": -0.1419
+    },
+    {
+      "cityKeys": [
+        "paris",
+        "巴黎"
+      ],
+      "cityLabel": "巴黎",
+      "name": "埃菲尔铁塔与战神广场",
+      "location": "Eiffel Tower",
+      "imageSrc": "/travel/attractions/paris-eiffel-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+      "description": "巴黎最经典观景地标，战神广场适合白天拍照和傍晚散步。",
+      "aliases": [
+        "Eiffel Tower",
+        "Eiffel Tower"
+      ],
+      "lat": 48.858222,
+      "lng": 2.2945
+    },
+    {
+      "cityKeys": [
+        "paris",
+        "巴黎"
+      ],
+      "cityLabel": "巴黎",
+      "name": "卢浮宫与玻璃金字塔",
+      "location": "Louvre",
+      "imageSrc": "/travel/attractions/paris-louvre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Louvre",
+      "description": "世界级艺术馆，建议预约时段并按重点展品规划路线。",
+      "aliases": [
+        "Louvre",
+        "Louvre"
+      ],
+      "lat": 48.8611,
+      "lng": 2.3358
+    },
+    {
+      "cityKeys": [
+        "paris",
+        "巴黎"
+      ],
+      "cityLabel": "巴黎",
+      "name": "奥赛博物馆",
+      "location": "Musée d'Orsay",
+      "imageSrc": "/travel/attractions/paris-musee-d-orsay.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mus%C3%A9e_D_Orsay_At_Sunset_(134278411).jpeg",
+      "description": "以印象派和车站建筑空间著名，适合和塞纳河左岸同日安排。",
+      "aliases": [
+        "Musée d'Orsay",
+        "Musée d'Orsay"
+      ],
+      "lat": 48.86,
+      "lng": 2.3266
+    },
+    {
+      "cityKeys": [
+        "paris",
+        "巴黎"
+      ],
+      "cityLabel": "巴黎",
+      "name": "巴黎圣母院与西岱岛",
+      "location": "Notre-Dame de Paris",
+      "imageSrc": "/travel/attractions/paris-notre-dame-de-paris.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Notre-Dame_de_Paris",
+      "description": "西岱岛历史核心，适合与圣礼拜堂和塞纳河步行连线。",
+      "aliases": [
+        "Notre-Dame de Paris",
+        "Notre-Dame de Paris"
+      ],
+      "lat": 48.853056,
+      "lng": 2.35
+    },
+    {
+      "cityKeys": [
+        "newyork",
+        "纽约"
+      ],
+      "cityLabel": "纽约",
+      "name": "中央公园与湖畔步道",
+      "location": "Central Park",
+      "imageSrc": "/travel/attractions/newyork-central-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Central_Park",
+      "description": "曼哈顿核心绿地，适合用半日串联博物馆和湖畔步道。",
+      "aliases": [
+        "Central Park",
+        "Central Park"
+      ],
+      "lat": 40.782222,
+      "lng": -73.965278
+    },
+    {
+      "cityKeys": [
+        "newyork",
+        "纽约"
+      ],
+      "cityLabel": "纽约",
+      "name": "帝国大厦观景台",
+      "location": "Empire State Building",
+      "imageSrc": "/travel/attractions/newyork-empire-state-building.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Empire_State_Building",
+      "description": "纽约经典高空观景点，适合天气清晰时安排日落前后。",
+      "aliases": [
+        "Empire State Building",
+        "Empire State Building"
+      ],
+      "lat": 40.748433,
+      "lng": -73.985656
+    },
+    {
+      "cityKeys": [
+        "newyork",
+        "纽约"
+      ],
+      "cityLabel": "纽约",
+      "name": "时代广场霓虹街区",
+      "location": "Times Square",
+      "imageSrc": "/travel/attractions/newyork-times-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Times_Square",
+      "description": "百老汇与霓虹广告集中，适合夜间短停拍照。",
+      "aliases": [
+        "Times Square",
+        "Times Square"
+      ],
+      "lat": 40.758,
+      "lng": -73.9855
+    },
+    {
+      "cityKeys": [
+        "newyork",
+        "纽约"
+      ],
+      "cityLabel": "纽约",
+      "name": "自由女神像与自由岛",
+      "location": "Statue of Liberty",
+      "imageSrc": "/travel/attractions/newyork-statue-of-liberty.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Statue_of_Liberty",
+      "description": "纽约港标志性地标，需预留渡轮和安检时间。",
+      "aliases": [
+        "Statue of Liberty",
+        "Statue of Liberty"
+      ],
+      "lat": 40.689167,
+      "lng": -74.044444
+    },
+    {
+      "cityKeys": [
+        "beijing",
+        "北京"
+      ],
+      "cityLabel": "北京",
+      "name": "故宫博物院",
+      "location": "Forbidden City",
+      "imageSrc": "/travel/attractions/beijing-forbidden-city.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Forbidden_City",
+      "description": "北京最核心的宫殿建筑群，建议预约并预留半天。",
+      "aliases": [
+        "Forbidden City",
+        "Forbidden City"
+      ],
+      "lat": 39.9163,
+      "lng": 116.3972
+    },
+    {
+      "cityKeys": [
+        "beijing",
+        "北京"
+      ],
+      "cityLabel": "北京",
+      "name": "天安门广场",
+      "location": "Tiananmen Square",
+      "imageSrc": "/travel/attractions/beijing-tiananmen-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tiananmen_Square",
+      "description": "北京中轴线核心广场，适合与故宫、前门区域顺路安排。",
+      "aliases": [
+        "Tiananmen Square",
+        "Tiananmen Square"
+      ],
+      "lat": 39.905963,
+      "lng": 116.391248
+    },
+    {
+      "cityKeys": [
+        "beijing",
+        "北京"
+      ],
+      "cityLabel": "北京",
+      "name": "天坛公园",
+      "location": "Temple of Heaven",
+      "imageSrc": "/travel/attractions/beijing-temple-of-heaven.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Temple_of_Heaven",
+      "description": "明清祭天建筑群，早晨也能体验本地公园生活。",
+      "aliases": [
+        "Temple of Heaven",
+        "Temple of Heaven"
+      ],
+      "lat": 39.8822,
+      "lng": 116.4066
+    },
+    {
+      "cityKeys": [
+        "beijing",
+        "北京"
+      ],
+      "cityLabel": "北京",
+      "name": "颐和园",
+      "location": "Summer Palace",
+      "imageSrc": "/travel/attractions/beijing-summer-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Summer_Palace",
+      "description": "皇家园林与昆明湖景观集中，适合安排慢节奏半日游。",
+      "aliases": [
+        "Summer Palace",
+        "Summer Palace"
+      ],
+      "lat": 39.9999,
+      "lng": 116.2755
+    },
+    {
+      "cityKeys": [
+        "sanfrancisco",
+        "旧金山"
+      ],
+      "cityLabel": "旧金山",
+      "name": "金门大桥游客中心",
+      "location": "Golden Gate Bridge",
+      "imageSrc": "/travel/attractions/sanfrancisco-golden-gate-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Golden_Gate_Bridge",
+      "description": "海湾最经典地标，雾天和晴天都有不同拍摄效果。",
+      "aliases": [
+        "Golden Gate Bridge",
+        "Golden Gate Bridge"
+      ],
+      "lat": 37.8199,
+      "lng": -122.4783
+    },
+    {
+      "cityKeys": [
+        "sanfrancisco",
+        "旧金山"
+      ],
+      "cityLabel": "旧金山",
+      "name": "渔人码头 39 号码头",
+      "location": "Pier 39",
+      "imageSrc": "/travel/attractions/sanfrancisco-pier-39.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pier_39",
+      "description": "海湾游客区和海狮观赏点，适合轻松吃海鲜和散步。",
+      "aliases": [
+        "Pier 39",
+        "Pier 39"
+      ],
+      "lat": 37.8087,
+      "lng": -122.4098
+    },
+    {
+      "cityKeys": [
+        "sanfrancisco",
+        "旧金山"
+      ],
+      "cityLabel": "旧金山",
+      "name": "恶魔岛",
+      "location": "Alcatraz Island",
+      "imageSrc": "/travel/attractions/sanfrancisco-alcatraz-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Alcatraz_Island",
+      "description": "旧监狱岛屿景点，需提前订船票并预留往返时间。",
+      "aliases": [
+        "Alcatraz Island",
+        "Alcatraz Island"
+      ],
+      "lat": 37.8267,
+      "lng": -122.423
+    },
+    {
+      "cityKeys": [
+        "sanfrancisco",
+        "旧金山"
+      ],
+      "cityLabel": "旧金山",
+      "name": "九曲花街",
+      "location": "Lombard Street (San Francisco)",
+      "imageSrc": "/travel/attractions/sanfrancisco-lombard-street-san-francisco.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Lombard_Street_(San_Francisco)",
+      "description": "坡道花街地标，适合短暂停留拍照。",
+      "aliases": [
+        "Lombard Street (San Francisco)",
+        "Lombard Street (San Francisco)"
+      ],
+      "lat": 37.8021,
+      "lng": -122.4187
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "比萨斜塔",
+      "location": "Leaning Tower of Pisa",
+      "imageSrc": "/travel/attractions/pisa-leaning-tower-of-pisa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Leaning_Tower_of_Pisa",
+      "description": "比萨最具识别度的钟楼，适合安排在奇迹广场主线里。",
+      "aliases": [
+        "Leaning Tower of Pisa",
+        "Leaning Tower of Pisa"
+      ],
+      "lat": 43.723056,
+      "lng": 10.396389
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "奇迹广场",
+      "location": "Piazza dei Miracoli",
+      "imageSrc": "/travel/attractions/pisa-piazza-dei-miracoli.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Piazza_dei_Miracoli",
+      "description": "斜塔、主教座堂和洗礼堂所在的核心广场，适合集中半日游。",
+      "aliases": [
+        "Piazza dei Miracoli",
+        "Piazza dei Miracoli"
+      ],
+      "lat": 43.723,
+      "lng": 10.3949
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "比萨主教座堂",
+      "location": "Pisa Cathedral",
+      "imageSrc": "/travel/attractions/pisa-pisa-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pisa_Cathedral",
+      "description": "奇迹广场内的罗曼式主教座堂，和斜塔一起看最完整。",
+      "aliases": [
+        "Pisa Cathedral",
+        "Pisa Cathedral"
+      ],
+      "lat": 43.7229,
+      "lng": 10.3959
+    },
+    {
+      "cityKeys": [
+        "pisa",
+        "比萨"
+      ],
+      "cityLabel": "比萨",
+      "name": "圣若望洗礼堂",
+      "location": "Pisa Baptistery",
+      "imageSrc": "/travel/attractions/pisa-pisa-baptistery.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pisa_Baptistery",
+      "description": "奇迹广场重要宗教建筑，适合和主教座堂连票参观。",
+      "aliases": [
+        "Pisa Baptistery",
+        "Pisa Baptistery"
+      ],
+      "lat": 43.7233,
+      "lng": 10.3944
+    },
+    {
+      "cityKeys": [
+        "dubai",
+        "迪拜"
+      ],
+      "cityLabel": "迪拜",
+      "name": "哈利法塔",
+      "location": "Burj Khalifa",
+      "imageSrc": "/travel/attractions/dubai-burj-khalifa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Burj_Khalifa",
+      "description": "迪拜天际线核心地标，适合日落前后登高观景。",
+      "aliases": [
+        "Burj Khalifa",
+        "Burj Khalifa"
+      ],
+      "lat": 25.1972,
+      "lng": 55.2742
+    },
+    {
+      "cityKeys": [
+        "dubai",
+        "迪拜"
+      ],
+      "cityLabel": "迪拜",
+      "name": "迪拜喷泉",
+      "location": "Dubai Fountain",
+      "imageSrc": "/travel/attractions/dubai-the-dubai-fountain.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Dubai_Fountain",
+      "description": "位于哈利法塔湖畔，适合晚上和迪拜购物中心同线安排。",
+      "aliases": [
+        "The Dubai Fountain",
+        "The Dubai Fountain"
+      ],
+      "lat": 25.195185,
+      "lng": 55.27506
+    },
+    {
+      "cityKeys": [
+        "dubai",
+        "迪拜"
+      ],
+      "cityLabel": "迪拜",
+      "name": "朱美拉海滩",
+      "location": "Jumeirah Beach",
+      "imageSrc": "/travel/attractions/dubai-jumeirah-beach.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jumeirah_Beach",
+      "description": "迪拜城市海滩代表，适合傍晚散步和看帆船酒店外景。",
+      "aliases": [
+        "Jumeirah Beach",
+        "Jumeirah Beach"
+      ],
+      "lat": 25.2048,
+      "lng": 55.2497
+    },
+    {
+      "cityKeys": [
+        "dubai",
+        "迪拜"
+      ],
+      "cityLabel": "迪拜",
+      "name": "迪拜购物中心",
+      "location": "Dubai Mall",
+      "imageSrc": "/travel/attractions/dubai-dubai-mall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:13_Dubai_Mall_night_view_exterior.jpg",
+      "description": "哈利法塔旁的大型购物与娱乐综合体，适合和喷泉夜景同线安排。",
+      "aliases": [
+        "Dubai Mall",
+        "Dubai Mall"
+      ],
+      "lat": 25.1975,
+      "lng": 55.279167
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "红场",
+      "location": "Red Square",
+      "imageSrc": "/travel/attractions/moscow-red-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Red_Square",
+      "description": "莫斯科历史核心广场，适合与克里姆林宫和圣瓦西里教堂同日安排。",
+      "aliases": [
+        "Red Square",
+        "Red Square"
+      ],
+      "lat": 55.7539,
+      "lng": 37.6208
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "圣瓦西里大教堂",
+      "location": "Saint Basil's Cathedral",
+      "imageSrc": "/travel/attractions/moscow-saint-basil-s-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Saint_Basil%27s_Cathedral",
+      "description": "红场最具辨识度的彩色洋葱顶教堂，适合白天拍照。",
+      "aliases": [
+        "Saint Basil's Cathedral",
+        "Saint Basil's Cathedral"
+      ],
+      "lat": 55.7525,
+      "lng": 37.6231
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "克里姆林宫",
+      "location": "Kremlin",
+      "imageSrc": "/travel/attractions/moscow-moscow-kremlin.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kremlin",
+      "description": "俄罗斯政治与历史建筑群，参观需预留安检和票务时间。",
+      "aliases": [
+        "Moscow Kremlin",
+        "Moscow Kremlin"
+      ],
+      "lat": 55.751667,
+      "lng": 37.617778
+    },
+    {
+      "cityKeys": [
+        "moscow",
+        "莫斯科"
+      ],
+      "cityLabel": "莫斯科",
+      "name": "阿尔巴特街",
+      "location": "Arbat Street",
+      "imageSrc": "/travel/attractions/moscow-arbat-street.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Arbat_Street",
+      "description": "传统步行街区，适合安排餐饮、纪念品和轻松散步。",
+      "aliases": [
+        "Arbat Street",
+        "Arbat Street"
+      ],
+      "lat": 55.7494,
+      "lng": 37.5911
+    },
+    {
+      "cityKeys": [
+        "bali",
+        "巴厘岛"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "乌鲁瓦图寺",
+      "location": "Uluwatu Temple",
+      "imageSrc": "/travel/attractions/bali-uluwatu-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Uluwatu_Temple",
+      "description": "海崖寺庙与日落景观结合，适合傍晚观看传统表演。",
+      "aliases": [
+        "Uluwatu Temple",
+        "Uluwatu Temple"
+      ],
+      "lat": -8.8291,
+      "lng": 115.0849
+    },
+    {
+      "cityKeys": [
+        "bali",
+        "巴厘岛"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "德格拉朗梯田",
+      "location": "Tegallalang",
+      "imageSrc": "/travel/attractions/bali-tegallalang.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tegallalang_Rice_Terraces_Bali_1.jpg",
+      "description": "乌布北部梯田景观，清晨光线和人流都更适合拍照。",
+      "aliases": [
+        "Tegallalang",
+        "Tegallalang"
+      ],
+      "lat": -8.4315,
+      "lng": 115.2793
+    },
+    {
+      "cityKeys": [
+        "bali",
+        "巴厘岛"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "库塔海滩",
+      "location": "Kuta, Bali",
+      "imageSrc": "/travel/attractions/bali-kuta-beach.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kuta,_Bali",
+      "description": "巴厘岛热闹海滩之一，适合冲浪入门和日落散步。",
+      "aliases": [
+        "Kuta Beach",
+        "Kuta Beach"
+      ],
+      "lat": -8.7185,
+      "lng": 115.1686
+    },
+    {
+      "cityKeys": [
+        "bali",
+        "巴厘岛"
+      ],
+      "cityLabel": "巴厘岛",
+      "name": "乌布圣猴森林",
+      "location": "Ubud Monkey Forest",
+      "imageSrc": "/travel/attractions/bali-sacred-monkey-forest-sanctuary.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ubud_Monkey_Forest",
+      "description": "乌布核心自然与文化景点，参观时要收好随身小物。",
+      "aliases": [
+        "Sacred Monkey Forest Sanctuary",
+        "Sacred Monkey Forest Sanctuary"
+      ],
+      "lat": -8.518822,
+      "lng": 115.258383
+    },
+    {
+      "cityKeys": [
+        "istanbul",
+        "伊斯坦布尔"
+      ],
+      "cityLabel": "伊斯坦布尔",
+      "name": "圣索菲亚大教堂",
+      "location": "Hagia Sophia",
+      "imageSrc": "/travel/attractions/istanbul-hagia-sophia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hagia_Sophia",
+      "description": "伊斯坦布尔历史核心建筑，适合和蓝色清真寺同区域安排。",
+      "aliases": [
+        "Hagia Sophia",
+        "Hagia Sophia"
+      ],
+      "lat": 41.008333,
+      "lng": 28.98
+    },
+    {
+      "cityKeys": [
+        "istanbul",
+        "伊斯坦布尔"
+      ],
+      "cityLabel": "伊斯坦布尔",
+      "name": "蓝色清真寺",
+      "location": "Blue Mosque, Istanbul",
+      "imageSrc": "/travel/attractions/istanbul-sultan-ahmed-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Blue_Mosque,_Istanbul",
+      "description": "苏丹艾哈迈德区代表清真寺，需留意礼拜时段和着装。",
+      "aliases": [
+        "Sultan Ahmed Mosque",
+        "Sultan Ahmed Mosque"
+      ],
+      "lat": 41.005385,
+      "lng": 28.976825
+    },
+    {
+      "cityKeys": [
+        "istanbul",
+        "伊斯坦布尔"
+      ],
+      "cityLabel": "伊斯坦布尔",
+      "name": "大巴扎",
+      "location": "Grand Bazaar, Istanbul",
+      "imageSrc": "/travel/attractions/istanbul-grand-bazaar-istanbul.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Grand_Bazaar,_Istanbul",
+      "description": "大型室内市集，适合买手工艺品并体验传统商业街区。",
+      "aliases": [
+        "Grand Bazaar, Istanbul",
+        "Grand Bazaar, Istanbul"
+      ],
+      "lat": 41.0106,
+      "lng": 28.9681
+    },
+    {
+      "cityKeys": [
+        "istanbul",
+        "伊斯坦布尔"
+      ],
+      "cityLabel": "伊斯坦布尔",
+      "name": "博斯普鲁斯海峡",
+      "location": "Bosporus",
+      "imageSrc": "/travel/attractions/istanbul-bosphorus.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:15_Temmuz_%C5%9Eehitler_K%C3%B6pr%C3%BCs%C3%BC.jpg",
+      "description": "连接欧亚两岸的海峡，适合安排游船或傍晚岸边散步。",
+      "aliases": [
+        "Bosphorus",
+        "Bosphorus"
+      ],
+      "lat": 41.119444,
+      "lng": 29.075278
+    },
+    {
+      "cityKeys": [
+        "melbourne",
+        "墨尔本"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "联邦广场",
+      "location": "Federation Square",
+      "imageSrc": "/travel/attractions/melbourne-federation-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Federation_Square",
+      "description": "墨尔本市中心文化广场，适合作为城市步行起点。",
+      "aliases": [
+        "Federation Square",
+        "Federation Square"
+      ],
+      "lat": -37.8178,
+      "lng": 144.9691
+    },
+    {
+      "cityKeys": [
+        "melbourne",
+        "墨尔本"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "维多利亚女王市场",
+      "location": "Queen Victoria Market",
+      "imageSrc": "/travel/attractions/melbourne-queen-victoria-market.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Queen_Victoria_Market",
+      "description": "本地市集与美食摊集中，适合上午或午餐时间前往。",
+      "aliases": [
+        "Queen Victoria Market",
+        "Queen Victoria Market"
+      ],
+      "lat": -37.8067,
+      "lng": 144.9567
+    },
+    {
+      "cityKeys": [
+        "melbourne",
+        "墨尔本"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "大洋路",
+      "location": "Great Ocean Road",
+      "imageSrc": "/travel/attractions/melbourne-great-ocean-road.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Great_Ocean_Road",
+      "description": "墨尔本近郊经典海岸自驾线，通常需要安排整日。",
+      "aliases": [
+        "Great Ocean Road",
+        "Great Ocean Road"
+      ],
+      "lat": -38.6806,
+      "lng": 143.3906
+    },
+    {
+      "cityKeys": [
+        "melbourne",
+        "墨尔本"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "霍西尔巷",
+      "location": "Hosier Lane",
+      "imageSrc": "/travel/attractions/melbourne-hosier-lane.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hosier_Lane",
+      "description": "市中心涂鸦巷，适合短暂停留拍照并串联咖啡店。",
+      "aliases": [
+        "Hosier Lane",
+        "Hosier Lane"
+      ],
+      "lat": -37.8165,
+      "lng": 144.9691
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "威基基海滩",
+      "location": "Waikīkī",
+      "imageSrc": "/travel/attractions/hawaii-waikiki.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Waik%C4%ABk%C4%AB",
+      "description": "檀香山最经典海滩区域，适合冲浪入门、日落和海边散步。",
+      "aliases": [
+        "Waikiki",
+        "Waikiki"
+      ],
+      "lat": 21.2752,
+      "lng": -157.8312
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "钻石山",
+      "location": "Diamond Head, Hawaii",
+      "imageSrc": "/travel/attractions/hawaii-diamond-head-hawaii.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Diamond_Head,_Hawaii",
+      "description": "欧胡岛经典火山口徒步点，清晨上山更舒适。",
+      "aliases": [
+        "Diamond Head, Hawaii",
+        "Diamond Head, Hawaii"
+      ],
+      "lat": 21.262,
+      "lng": -157.805
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "珍珠港",
+      "location": "Pearl Harbor",
+      "imageSrc": "/travel/attractions/hawaii-pearl-harbor.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pearl_Harbor",
+      "description": "二战历史纪念地，建议提前预约并预留安检时间。",
+      "aliases": [
+        "Pearl Harbor",
+        "Pearl Harbor"
+      ],
+      "lat": 21.367,
+      "lng": -157.938
+    },
+    {
+      "cityKeys": [
+        "hawaii",
+        "夏威夷"
+      ],
+      "cityLabel": "夏威夷",
+      "name": "哈雷阿卡拉国家公园",
+      "location": "Haleakalā National Park",
+      "imageSrc": "/travel/attractions/hawaii-haleakala-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Haleakal%C4%81_National_Park",
+      "description": "毛伊岛火山国家公园，以日出、云海和高海拔景观著名。",
+      "aliases": [
+        "Haleakalā National Park",
+        "Haleakalā National Park"
+      ],
+      "lat": 20.72,
+      "lng": -156.155
+    }
+  ]
+}

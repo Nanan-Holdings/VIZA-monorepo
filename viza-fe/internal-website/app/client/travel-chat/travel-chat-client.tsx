@@ -36,7 +36,11 @@ import {
   type TravelItinerarySharePayload,
 } from "@/components/client/travel/travel-itinerary-data";
 import { TravelPlannerForm } from "@/components/client/travel/travel-planner-form";
-import { findTravelAttraction } from "@/components/client/travel/travel-attraction-knowledge";
+import {
+  findTravelAttraction,
+  getTravelAttractionNamesForCity,
+  getTravelCityImage,
+} from "@/components/client/travel/travel-attraction-knowledge";
 import {
   TripRouteMap,
   type TripMapPoint,
@@ -242,28 +246,23 @@ const TRAVEL_STAGE_ORDER: readonly TravelField[] = [
 ] as const;
 
 const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
-  tokyo: "/globe/tokyo.jpg",
-  singapore: "/globe/singapore.jpg",
-  sydney: "/globe/sydney.jpg",
-  london: "/globe/london.jpg",
-  paris: "/globe/paris.jpg",
-  newyork: "/globe/nyc.jpg",
-  nyc: "/globe/nyc.jpg",
-  beijing: "/globe/beijing.jpg",
-  sanfrancisco: "/globe/sf.jpg",
-  sf: "/globe/sf.jpg",
-  pisa: "/globe/pisa.jpg",
-  dubai:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Burj_Khalifa_from_a_ferry%2C_Dubai.jpg/960px-Burj_Khalifa_from_a_ferry%2C_Dubai.jpg",
-  moscow:
-    "https://upload.wikimedia.org/wikipedia/commons/5/50/Saint_Basil%27s_Cathedral%2C_Red_Square%2C_Moscow%2C_Russia.jpg",
-  bali: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Jimbaran_Bay._Bali_%2815208714849%29.jpg/960px-Jimbaran_Bay._Bali_%2815208714849%29.jpg",
-  istanbul:
-    "https://upload.wikimedia.org/wikipedia/commons/b/b0/Istanbul_asv2020-02_img45_Hagia_Sophia.jpg",
-  melbourne:
-    "https://upload.wikimedia.org/wikipedia/commons/2/24/Melbourne_skyline_2008.jpg",
-  hawaii:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Waikiki_from_Diamond_Head.jpg/960px-Waikiki_from_Diamond_Head.jpg",
+  tokyo: "/travel/cities/tokyo.jpg",
+  singapore: "/travel/cities/singapore.jpg",
+  sydney: "/travel/cities/sydney.jpg",
+  london: "/travel/cities/london.jpg",
+  paris: "/travel/cities/paris.jpg",
+  newyork: "/travel/cities/newyork.jpg",
+  nyc: "/travel/cities/newyork.jpg",
+  beijing: "/travel/cities/beijing.jpg",
+  sanfrancisco: "/travel/cities/sanfrancisco.jpg",
+  sf: "/travel/cities/sanfrancisco.jpg",
+  pisa: "/travel/cities/pisa.jpg",
+  dubai: "/travel/cities/dubai.jpg",
+  moscow: "/travel/cities/moscow.jpg",
+  bali: "/travel/cities/bali.jpg",
+  istanbul: "/travel/cities/istanbul.jpg",
+  melbourne: "/travel/cities/melbourne.jpg",
+  hawaii: "/travel/cities/hawaii.jpg",
   egypt: "/globe/egypt.jpg",
   japan: "/globe/tokyo.jpg",
   singaporecountry: "/globe/singapore.jpg",
@@ -274,6 +273,18 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   china: "/globe/beijing.jpg",
   italy: "/globe/pisa.jpg",
 };
+
+const DESTINATION_FALLBACK_IMAGES = [
+  "/globe/tokyo.jpg",
+  "/globe/singapore.jpg",
+  "/globe/sydney.jpg",
+  "/globe/london.jpg",
+  "/globe/paris.jpg",
+  "/globe/nyc.jpg",
+  "/globe/beijing.jpg",
+  "/globe/sf.jpg",
+  "/globe/pisa.jpg",
+] as const;
 
 const HOTSPOTS_BY_CITY: Record<string, string[]> = {
   tokyo: ["涩谷十字路口", "浅草寺", "东京晴空塔", "筑地场外市场"],
@@ -1838,13 +1849,10 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-function getRemoteCityImage(city: string): string {
-  const cityTag = encodeURIComponent(city.trim() || "travel");
-  const lock = (hashString(cityTag) % 7000) + 1000;
-  return `https://loremflickr.com/640/420/${cityTag},city,landmark,travel?lock=${lock}`;
-}
-
 function getCityImage(city: string, seed: string = "default"): string {
+  const curatedCityImage = getTravelCityImage(city);
+  if (curatedCityImage) return curatedCityImage;
+
   const key = normalizeCityKey(city);
   const direct = DESTINATION_IMAGE_BY_KEY[key];
   if (direct) return direct;
@@ -1853,7 +1861,9 @@ function getCityImage(city: string, seed: string = "default"): string {
   const seedDirect = DESTINATION_IMAGE_BY_KEY[seedKey];
   if (seedDirect) return seedDirect;
 
-  return getRemoteCityImage(city);
+  const index =
+    hashString(`${key || "travel"}-${seed}`) % DESTINATION_FALLBACK_IMAGES.length;
+  return DESTINATION_FALLBACK_IMAGES[index];
 }
 
 function getAttractionImage(city: string, attraction: string, seed: string): string {
@@ -1975,6 +1985,9 @@ function toCoordinate(value: string | number | undefined): number | null {
 }
 
 function getHotspotsForCity(city: string): string[] {
+  const curatedHotspots = getTravelAttractionNamesForCity(city).slice(0, 4);
+  if (curatedHotspots.length) return curatedHotspots;
+
   const key = normalizeCityKey(city);
   const matched = HOTSPOTS_BY_CITY[key];
   if (matched && matched.length) return matched;
@@ -2537,40 +2550,45 @@ export function TravelChatClient({
     );
     if (!cityCenter) return [];
 
-    return getHotspotsForCity(activeCityForHotspots).map((spot, index) => ({
-      id: `hotspot-${activeCityForHotspots}-${index}`,
-      kind: "hotspot" as const,
-      label: spot,
-      subtitle: `Hotspot in ${activeCityForHotspots}`,
-      localName: getLocalDisplayName(activeCityForHotspots),
-      intro: buildMapIntro("hotspot", spot, activeCityForHotspots),
-      countryLabel: (() => {
-        const context = getCityContext(activeCityForHotspots);
-        return context
-          ? `${context.countryZh} (${context.countryEn})`
-          : undefined;
-      })(),
-      recommendedDays: (() => {
-        const context = getCityContext(activeCityForHotspots);
-        return context?.days;
-      })(),
-      imageSrc: getCityImage(activeCityForHotspots, `hotspot-${index}`),
-      ...(() => {
-        const exactCoordinate = getGoogleCoordinateByKey(
+    return getHotspotsForCity(activeCityForHotspots).map((spot, index) => {
+      const attraction = findTravelAttraction(activeCityForHotspots, spot);
+      const exactCoordinate =
+        getGoogleCoordinateByKey(
           getHotspotGeocodeKey(activeCityForHotspots, spot),
           googleCityCoordinates
+        ) ??
+        (attraction ? ([attraction.lat, attraction.lng] as [number, number]) : null);
+      const [lat, lng] =
+        exactCoordinate ??
+        withOffset(
+          cityCenter,
+          `hotspot-${activeCityForHotspots}-${index}`,
+          0.26
         );
-        const [lat, lng] =
-          exactCoordinate ??
-          withOffset(
-            cityCenter,
-            `hotspot-${activeCityForHotspots}-${index}`,
-            0.26
-          );
-        return { lat, lng };
-      })(),
-      city: activeCityForHotspots,
-    }));
+
+      return {
+        id: `hotspot-${activeCityForHotspots}-${index}`,
+        kind: "hotspot" as const,
+        label: spot,
+        subtitle: `Hotspot in ${activeCityForHotspots}`,
+        localName: getLocalDisplayName(activeCityForHotspots),
+        intro: attraction?.description ?? buildMapIntro("hotspot", spot, activeCityForHotspots),
+        countryLabel: (() => {
+          const context = getCityContext(activeCityForHotspots);
+          return context
+            ? `${context.countryZh} (${context.countryEn})`
+            : undefined;
+        })(),
+        recommendedDays: (() => {
+          const context = getCityContext(activeCityForHotspots);
+          return context?.days;
+        })(),
+        imageSrc: getAttractionImage(activeCityForHotspots, spot, `hotspot-${index}`),
+        lat,
+        lng,
+        city: activeCityForHotspots,
+      };
+    });
   }, [
     activeCityForHotspots,
     googleCityCoordinates,

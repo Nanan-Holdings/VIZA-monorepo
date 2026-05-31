@@ -199,7 +199,13 @@ async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdm
   return { app, profile } as const;
 }
 
-async function resolveVisaPackageId(adminClient: ReturnType<typeof createAdminClient>, userId: string, existingId: string | null) {
+async function resolveVisaPackageId(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+  existingId: string | null,
+  country: string | null,
+  visaType: string | null,
+) {
   if (existingId) return existingId;
 
   const { data: pkg } = await adminClient
@@ -211,7 +217,51 @@ async function resolveVisaPackageId(adminClient: ReturnType<typeof createAdminCl
     .limit(1)
     .maybeSingle();
 
-  return (pkg?.visa_package_id as string | null) ?? null;
+  const activePackageId = (pkg?.visa_package_id as string | null) ?? null;
+  if (activePackageId) return activePackageId;
+
+  if (!country || !visaType) return null;
+
+  const { data: exactPackage } = await adminClient
+    .from("visa_packages")
+    .select("id")
+    .eq("country", country)
+    .eq("visa_type", visaType)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (exactPackage?.id) return exactPackage.id as string;
+
+  if (visaType === "EU_SCHENGEN_C_SHORT_STAY") {
+    const { data: schengenPackage } = await adminClient
+      .from("visa_packages")
+      .select("id")
+      .eq("country", "european_union")
+      .eq("visa_type", visaType)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (schengenPackage?.id) return schengenPackage.id as string;
+  }
+
+  const { data: insertedPackage } = await adminClient
+    .from("visa_packages")
+    .insert({
+      country,
+      visa_type: visaType,
+      name: `${country} ${visaType}`,
+      description: "Created automatically for team companion applications.",
+      is_active: true,
+      metadata: {
+        source: "team_companion_fallback",
+      },
+    })
+    .select("id")
+    .single();
+
+  return (insertedPackage?.id as string | null) ?? null;
 }
 
 export async function createApplicationGroup(input: CreateGroupInput): Promise<CreateGroupResult> {
@@ -432,8 +482,17 @@ export async function createTeamCompanion(
     adminClient,
     user.id,
     (resolved.app.visa_package_id as string | null) ?? null,
+    (resolved.app.country as string | null) ?? null,
+    (resolved.app.visa_type as string | null) ?? null,
   );
   if (!visaPackageId) return { ok: false, reason: "Visa package not found" };
+
+  if (!resolved.app.visa_package_id) {
+    await adminClient
+      .from("applications")
+      .update({ visa_package_id: visaPackageId })
+      .eq("id", resolved.app.id);
+  }
 
   let groupId = resolved.app.group_id as string | null;
   if (!groupId) {

@@ -1,13 +1,32 @@
+import curatedTravelCardData from "./travel-card-curated-data.json";
+
 export type TravelAttractionKnowledgeItem = {
   cityKeys: string[];
   cityLabel: string;
   name: string;
+  aliases?: string[];
   location: string;
   lat: number;
   lng: number;
   imageSrc: string;
   sourceUrl: string;
+  description?: string;
 };
+
+export type TravelCityCardKnowledgeItem = {
+  cityKeys: string[];
+  cityLabel: string;
+  imageSrc: string;
+  sourceUrl: string;
+};
+
+type CuratedTravelCardData = {
+  cities: TravelCityCardKnowledgeItem[];
+  attractions: TravelAttractionKnowledgeItem[];
+};
+
+const CURATED_TRAVEL_CARD_DATA =
+  curatedTravelCardData as CuratedTravelCardData;
 
 export function normalizeTravelKnowledgeKey(value: string | null | undefined): string {
   return String(value ?? "")
@@ -515,10 +534,48 @@ function itemMatchesCity(item: TravelAttractionKnowledgeItem, city: string): boo
   );
 }
 
+function cityMatchesCity(item: TravelCityCardKnowledgeItem, city: string): boolean {
+  const cityKey = normalizeTravelKnowledgeKey(city);
+  return item.cityKeys.some(
+    (key) => normalizeTravelKnowledgeKey(key) === cityKey
+  );
+}
+
+function getCombinedTravelAttractions(): TravelAttractionKnowledgeItem[] {
+  const seen = new Set<string>();
+  return [
+    ...CURATED_TRAVEL_CARD_DATA.attractions,
+    ...TRAVEL_ATTRACTION_KNOWLEDGE,
+  ].filter((item) => {
+    const key = `${normalizeTravelKnowledgeKey(item.cityLabel)}:${normalizeTravelKnowledgeKey(
+      item.name
+    )}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function getTravelCityCard(
+  city: string
+): TravelCityCardKnowledgeItem | null {
+  return (
+    CURATED_TRAVEL_CARD_DATA.cities.find((item) =>
+      cityMatchesCity(item, city)
+    ) ?? null
+  );
+}
+
+export function getTravelCityImage(city: string): string | null {
+  return getTravelCityCard(city)?.imageSrc ?? null;
+}
+
 export function getTravelAttractionsForCity(
   city: string
 ): TravelAttractionKnowledgeItem[] {
-  return TRAVEL_ATTRACTION_KNOWLEDGE.filter((item) => itemMatchesCity(item, city));
+  return getCombinedTravelAttractions().filter((item) =>
+    itemMatchesCity(item, city)
+  );
 }
 
 export function getTravelAttractionNamesForCity(city: string): string[] {
@@ -535,8 +592,15 @@ export function findTravelAttraction(
   const cityAttractions = getTravelAttractionsForCity(city);
   return (
     cityAttractions.find((item) => {
-      const itemKey = normalizeTravelKnowledgeKey(item.name);
-      return itemKey === targetKey || targetKey.includes(itemKey) || itemKey.includes(targetKey);
+      const itemKeys = [item.name, ...(item.aliases ?? [])].map((value) =>
+        normalizeTravelKnowledgeKey(value)
+      );
+      return itemKeys.some(
+        (itemKey) =>
+          itemKey === targetKey ||
+          targetKey.includes(itemKey) ||
+          itemKey.includes(targetKey)
+      );
     }) ?? null
   );
 }
