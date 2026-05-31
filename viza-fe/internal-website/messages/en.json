@@ -11,6 +11,7 @@
     "status": "Status",
     "chat": "Chat",
     "documents": "Documents",
+    "settings": "Settings",
     "support": "Help",
     "visaConsultant": "Visa Consultant",
     "travelAgent": "Travel Agent",
@@ -3047,6 +3048,11 @@
         "title": "Personal details",
         "description": "Review the information VIZA uses to prepare your applications."
       },
+      "travelers": {
+        "title": "Frequent travelers",
+        "description": "Add family, colleagues, or companions so future group orders can reuse them.",
+        "badge": "Group"
+      },
       "language": {
         "title": "Language",
         "description": "Use the language switcher in the top bar, or read the profile guide."
@@ -3085,6 +3091,53 @@
           "title": "WeChat Pay",
           "description": "Use Chinese payment flow when it is available for the package."
         }
+      }
+    },
+    "travelers": {
+      "title": "Frequent travelers",
+      "description": "Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
+      "add": "Add traveler",
+      "addFirst": "Add first traveler",
+      "addTitle": "Add frequent traveler",
+      "editTitle": "Edit traveler",
+      "formHint": "Name, nationality, and passport details are the most useful fields for future group applications.",
+      "loading": "Loading travelers...",
+      "emptyTitle": "No frequent travelers yet",
+      "emptyDescription": "Add family, colleagues, or travel companions now so they can be selected later.",
+      "notSet": "Not set",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save traveler",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "created": "Traveler added.",
+      "updated": "Traveler updated.",
+      "deleted": "Traveler deleted.",
+      "loadError": "We could not load your frequent travelers right now.",
+      "saveError": "We could not save this traveler. Check the name and try again.",
+      "deleteError": "We could not delete this traveler right now.",
+      "handoffHint": "When group-order forms are connected, these travelers can be added as companion applicants under one order.",
+      "fields": {
+        "fullName": "Full name",
+        "dateOfBirth": "Date of birth",
+        "nationality": "Nationality",
+        "passportNumber": "Passport number",
+        "passportExpiryDate": "Passport expiry date",
+        "email": "Email",
+        "phone": "Phone"
+      },
+      "placeholders": {
+        "fullName": "For example: ZHANG XIAOMING",
+        "nationality": "For example: China",
+        "passportNumber": "As shown on the passport",
+        "email": "name@example.com",
+        "phone": "Include country or region code"
+      },
+      "deleteDialog": {
+        "title": "Delete this traveler?",
+        "description": "This removes {name} from frequent travelers. Existing applications are not deleted automatically.",
+        "cancel": "Keep",
+        "confirm": "Delete"
       }
     },
     "account": {
@@ -3527,6 +3580,90 @@
       "contact": {
         "title": "Contact us",
         "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+      }
+    }
+  },
+  "subscription": {
+    "back": "Back home",
+    "eyebrow": "VIZA Application",
+    "title": "Choose how you want to use VIZA applications",
+    "subtitle": "Use monthly access for frequent planning, or pay per destination for an occasional trip. This page is a plan preview and will not charge users before payment is enabled.",
+    "current": {
+      "label": "Current plan",
+      "plan": "VIZA Application Trial",
+      "badge": "Preview",
+      "renewalLabel": "Renewal",
+      "renewalValue": "Not enabled",
+      "paymentLabel": "Payment method",
+      "paymentValue": "Not connected"
+    },
+    "highlights": {
+      "allCountries": {
+        "title": "All-country access",
+        "body": "Monthly plans unlock application entry points for every supported country."
+      },
+      "twoWays": {
+        "title": "Monthly or per application",
+        "body": "Frequent travelers can subscribe, while occasional travelers can pay by destination."
+      },
+      "officialFees": {
+        "title": "Clear service pricing",
+        "body": "Prices shown here are VIZA service fees and exclude official or third-party costs."
+      }
+    },
+    "monthly": {
+      "title": "Monthly plans",
+      "subtitle": "Monthly access is built for travelers preparing multiple destinations. Both plans cover every country, with different monthly limits and advanced tools.",
+      "badge": "Global Access",
+      "recommended": "Recommended",
+      "countryLimit": "Up to {count} countries per month",
+      "cta": "Choose plan",
+      "plans": {
+        "access": {
+          "name": "Access",
+          "description": "For frequent solo travelers who need core application tools and progress tracking."
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "For families, groups, and multi-destination trips that need AI, group applications, and Travel Agent support."
+        }
+      },
+      "features": {
+        "countryAccess": "Application entry points for every country",
+        "requirements": "Visa requirements check",
+        "checklist": "Dynamic document checklist",
+        "multilingual": "Multi-language application assistance",
+        "status": "Progress tracking and reminders",
+        "ai": "AI assistance and autofill support",
+        "group": "Group applications",
+        "travel": "Travel Agent itinerary planning"
+      }
+    },
+    "payPer": {
+      "title": "Pay per application",
+      "subtitle": "Pay one destination at a time when you only need VIZA for an occasional trip.",
+      "limitTitle": "One application window",
+      "limitBody": "Each purchase covers 1 country. Users should complete form filling and submission preparation within 1 month.",
+      "groupTitle": "Core capabilities included",
+      "groupBody": "Pay-per-application includes requirements checks, dynamic checklists, multi-language assistance, AI assistance, group applications, and Travel Agent support.",
+      "feeNote": "All prices are VIZA service fees per application and exclude official visa fees, visa center fees, biometrics, courier fees, or expedited processing.",
+      "countries": {
+        "singapore": "Singapore",
+        "malaysia": "Malaysia",
+        "thailand": "Thailand",
+        "indonesia": "Indonesia",
+        "vietnam": "Vietnam",
+        "cambodia": "Cambodia",
+        "uae": "United Arab Emirates",
+        "turkey": "Turkey",
+        "japan": "Japan",
+        "southKorea": "South Korea",
+        "australia": "Australia",
+        "newZealand": "New Zealand",
+        "schengen": "Schengen Area",
+        "uk": "United Kingdom",
+        "canada": "Canada",
+        "us": "United States"
       }
     }
   }

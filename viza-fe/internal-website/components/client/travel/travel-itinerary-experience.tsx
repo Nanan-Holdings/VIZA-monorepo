@@ -37,13 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -115,21 +108,6 @@ type AttractionChoiceCard = {
 };
 
 type DetailResourceTab = "attractions" | "flights" | "hotels";
-type ApiLoadStatus = "idle" | "loading" | "success" | "error";
-
-type ItineraryOptionPanel =
-  | {
-      type: "flight";
-      leg: FlightLegResult;
-      legIndex: number;
-    }
-  | {
-      type: "hotel";
-      stay: HotelStayResult;
-      stayIndex: number;
-      city: string;
-    }
-  | null;
 
 type TravelItineraryExperienceProps = {
   itinerary: ItineraryDay[];
@@ -432,7 +410,7 @@ const TRAVEL_ITINERARY_COPY = {
     dinner: "晚餐",
     lodging: "住宿",
     cityCenterArea: "市中心区域",
-    bookingContactFallback: "联系电话请通过预订平台确认",
+    bookingContactFallback: "联系方式请通过预订平台确认",
     selected: "已选择",
     apiRecommended: "API 推荐",
     dayPrefix: "天",
@@ -995,12 +973,10 @@ function getTravelTextForLanguage(
   if (!raw) return fallback;
   const localized =
     language === "zh" ? localizeKnownTravelText(raw) : englishizeKnownTravelText(raw);
-  if (language === "en" && containsCjk(localized)) return fallback;
+  if (language === "en" && containsCjk(localized)) {
+    return containsCjk(fallback) ? "Local experience" : fallback;
+  }
   return localized || fallback;
-}
-
-function getLocalizedPlaceLabel(value: string): string {
-  return localizeKnownTravelText(getLocalCityLabel(value));
 }
 
 function getHotelNameForLanguage(
@@ -1059,10 +1035,6 @@ function getLocalizedAirlineName(option: FlightOptionResult | null | undefined):
   const exact = LOCAL_AIRLINE_LABELS[normalizeLookupKey(rawName)];
   if (exact) return exact;
   return localizeKnownTravelText(rawName) || "已选航班";
-}
-
-function formatLocalizedRoute(from: string, to: string): string {
-  return `${getLocalCityLabel(from)} → ${getLocalCityLabel(to)}`;
 }
 
 function getCityImage(city: string, seed: string = "default"): string {
@@ -1388,16 +1360,22 @@ function filterEssentialMapPoints(points: TripMapPoint[]): TripMapPoint[] {
   return essential.length ? essential : points;
 }
 
-function buildFallbackMapPoints(segments: CitySegment[]): TripMapPoint[] {
+function buildFallbackMapPoints(
+  segments: CitySegment[],
+  language: TravelInterfaceLocale
+): TripMapPoint[] {
   return segments.map((segment, index) => {
     const [lat, lng] = getCityCoordinates(segment.city);
     return {
       id: `itinerary-city-${normalizeLookupKey(segment.city)}-${index}`,
       kind: "city",
-      label: segment.city,
+      label: segment.label,
       subtitle: segment.rangeLabel,
       localName: segment.label,
-      intro: `${segment.label}行程节点，建议围绕当天住宿和核心景点安排动线。`,
+      intro:
+        language === "zh"
+          ? `${segment.label}行程节点，建议围绕当天住宿和核心景点安排动线。`
+          : `${segment.label} itinerary node. Plan the route around the hotel and core stops for the day.`,
       imageSrc: segment.imageSrc,
       lat,
       lng,
@@ -1523,7 +1501,9 @@ function getCityIntro(
 ): string {
   const highlights = Array.from(
     new Set(days.flatMap((day) => [...day.activities, ...day.food]).filter(Boolean))
-  ).slice(0, 4);
+  )
+    .map((item) => getTravelTextForLanguage(item, language, item))
+    .slice(0, 4);
   if (language === "en") {
     const highlightText = highlights.length
       ? highlights.join(", ")
@@ -2805,8 +2785,8 @@ export function TravelItineraryExperience({
   );
   const preferFourStarHotel = shouldPreferFourStarHotel(modulePatch);
   const fallbackMapPoints = useMemo(
-    () => buildFallbackMapPoints(segments),
-    [segments]
+    () => buildFallbackMapPoints(segments, interfaceLocale),
+    [interfaceLocale, segments]
   );
   const resolvedMapPoints = useMemo(
     () => [
@@ -2985,9 +2965,16 @@ export function TravelItineraryExperience({
         title,
         editableItinerary,
         effectiveTravelState,
-        editableItineryRows
+        editableItineryRows,
+        interfaceLocale
       ),
-    [editableItinerary, editableItineryRows, effectiveTravelState, title]
+    [
+      editableItinerary,
+      editableItineryRows,
+      effectiveTravelState,
+      interfaceLocale,
+      title,
+    ]
   );
   const exportFilenameSuffix =
     exportLanguage === "zh" ? "" : `-${exportLanguage}`;
@@ -3297,7 +3284,8 @@ export function TravelItineraryExperience({
                     day.city,
                     dayIndex,
                     day.activities.length,
-                    new Set(day.activities.map(normalizeLookupKey))
+                    new Set(day.activities.map(normalizeLookupKey)),
+                    interfaceLocale
                   ),
                 ],
               }
@@ -3305,7 +3293,7 @@ export function TravelItineraryExperience({
         )
       );
     },
-    [updateItineraryList]
+    [interfaceLocale, updateItineraryList]
   );
 
   const addKnowledgeAttractionToDay = useCallback(
@@ -3346,9 +3334,9 @@ export function TravelItineraryExperience({
           (first, second) => first.leg_index - second.leg_index
         );
       });
-      toast.success("已更新这段航班。");
+      toast.success(isZh ? "已更新这段航班。" : "This flight has been updated.");
     },
-    [effectiveSelectedFlights]
+    [effectiveSelectedFlights, isZh]
   );
 
   const selectHotelOption = useCallback(
@@ -3371,9 +3359,9 @@ export function TravelItineraryExperience({
           (first, second) => first.stay_index - second.stay_index
         );
       });
-      toast.success("已更新这段住宿。");
+      toast.success(isZh ? "已更新这段住宿。" : "This hotel stay has been updated.");
     },
-    [effectiveSelectedHotels]
+    [effectiveSelectedHotels, isZh]
   );
 
   const removeItineraryActivity = useCallback(
@@ -3470,14 +3458,16 @@ export function TravelItineraryExperience({
           city,
           insertAfter,
           0,
-          usedAttractions
+          usedAttractions,
+          interfaceLocale
         );
         usedAttractions.add(normalizeLookupKey(firstAttraction));
         const secondAttraction = getSpecificAttraction(
           city,
           insertAfter,
           1,
-          usedAttractions
+          usedAttractions,
+          interfaceLocale
         );
         const newDay: ItineraryDay = {
           day: insertAfter + 1,
@@ -3923,7 +3913,7 @@ export function TravelItineraryExperience({
                             ["route", "城市/路线"],
                             ["name", "名称"],
                             ["details", "详情"],
-                            ["contact", "联系电话/航班号"],
+                            ["contact", copy.tableHeaders[6]],
                           ] as const
                         ).map(([field, label]) => (
                           <td className="px-3 py-2" key={`${field}-${index}`}>
@@ -4795,7 +4785,9 @@ export function TravelItineraryExperience({
                     {customizeDayEditor ? (
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#eadfff] bg-white p-4 text-sm font-semibold text-[#5f5166]">
                         <span>
-                          自定义模式已开启。常规修改优先通过下面的候选卡片完成；只有需要临时补充时再手动输入。
+                          {isZh
+                            ? "自定义模式已开启。常规修改优先通过下面的候选卡片完成；只有需要临时补充时再手动输入。"
+                            : "Custom mode is on. Prefer the option cards below for normal edits; type manually only for temporary additions."}
                         </span>
                         <span className="flex gap-2">
                           <Button
@@ -4806,7 +4798,7 @@ export function TravelItineraryExperience({
                             variant="outline"
                           >
                             <Plus className="h-4 w-4" />
-                            景点
+                            {copy.attraction}
                           </Button>
                           <Button
                             className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
@@ -4816,7 +4808,7 @@ export function TravelItineraryExperience({
                             variant="outline"
                           >
                             <Plus className="h-4 w-4" />
-                            餐饮
+                            {copy.dining}
                           </Button>
                         </span>
                       </div>
@@ -4829,10 +4821,12 @@ export function TravelItineraryExperience({
                         <div className="flex items-center justify-between gap-3">
                           <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
                             <MapPinned className="h-4 w-4 text-[#6f40cc]" />
-                            景点库
+                            {isZh ? "景点库" : "Attraction library"}
                           </p>
                           <span className="text-xs font-semibold text-[#8d8391]">
-                            点击加入当天行程
+                            {isZh
+                              ? "点击加入当天行程"
+                              : "Click to add to this day"}
                           </span>
                         </div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -4850,7 +4844,13 @@ export function TravelItineraryExperience({
                             >
                               <span className="relative h-full min-h-24 overflow-hidden rounded-xl bg-slate-200">
                                 <Image
-                                  alt={attraction.name}
+                                  alt={getTravelTextForLanguage(
+                                    attraction.name,
+                                    interfaceLocale,
+                                    interfaceLocale === "en"
+                                      ? attraction.location.split(",")[0] || "Attraction"
+                                      : attraction.name
+                                  )}
                                   className="h-full w-full object-cover"
                                   height={140}
                                   src={attraction.imageSrc}
@@ -4859,7 +4859,13 @@ export function TravelItineraryExperience({
                               </span>
                               <span className="min-w-0 py-1">
                                 <span className="line-clamp-2 text-sm font-bold text-[#2d1635]">
-                                  {attraction.name}
+                                  {getTravelTextForLanguage(
+                                    attraction.name,
+                                    interfaceLocale,
+                                    interfaceLocale === "en"
+                                      ? attraction.location.split(",")[0] || "Attraction"
+                                      : attraction.name
+                                  )}
                                 </span>
                                 <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
                                   {attraction.location}
@@ -5141,7 +5147,9 @@ export function TravelItineraryExperience({
                           })
                         ) : (
                           <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
-                            这个城市暂时没有 API 航班候选。若这是陆路移动城市，地图会继续显示景点动线。
+                            {isZh
+                              ? "这个城市暂时没有 API 航班候选。若这是陆路移动城市，地图会继续显示景点动线。"
+                              : "No API flight options are available for this city yet. If this is a ground-transfer leg, the map will keep showing the attraction route."}
                           </div>
                         )}
                       </div>
@@ -5274,7 +5282,9 @@ export function TravelItineraryExperience({
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
-                            这个城市暂时没有 API 酒店候选。系统会继续保留当前 itinerary。
+                            {isZh
+                              ? "这个城市暂时没有 API 酒店候选。系统会继续保留当前 itinerary。"
+                              : "No API hotel options are available for this city yet. The current itinerary will stay in place."}
                           </div>
                         )}
                       </div>
@@ -5283,10 +5293,12 @@ export function TravelItineraryExperience({
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
                       <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
                         <Compass className="h-4 w-4 text-[#6f40cc]" />
-                        备注
+                        {isZh ? "备注" : "Note"}
                       </p>
                       <p className="mt-3 text-base font-semibold text-[#2d1635]">
-                        建议把同区域体验排在一起，减少跨城折返。
+                        {isZh
+                          ? "建议把同区域体验排在一起，减少跨城折返。"
+                          : "Group nearby experiences together to reduce backtracking between areas."}
                       </p>
                     </div>
                   </div>
@@ -5313,8 +5325,14 @@ export function TravelItineraryExperience({
           data-testid="travel-itinerary-dynamic-map-dialog"
         >
           <DialogHeader className="sr-only">
-            <DialogTitle>{title}完整地图</DialogTitle>
-            <DialogDescription>动态查看完整行程路线</DialogDescription>
+            <DialogTitle>
+              {isZh ? `${title}完整地图` : `${title} full map`}
+            </DialogTitle>
+            <DialogDescription>
+              {isZh
+                ? "动态查看完整行程路线"
+                : "View the full itinerary route dynamically"}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex h-full min-h-0 flex-col bg-white">
             <div className="shrink-0 border-b border-slate-200 px-6 py-5 text-center">
@@ -5335,7 +5353,15 @@ export function TravelItineraryExperience({
               />
               <div className="absolute bottom-5 left-5 flex max-w-[calc(100%-40px)] items-end gap-3">
                 <Button
-                  aria-label={isRoutePlaying ? "暂停动态行程" : "播放动态行程"}
+                  aria-label={
+                    isRoutePlaying
+                      ? isZh
+                        ? "暂停动态行程"
+                        : "Pause route"
+                      : isZh
+                        ? "播放动态行程"
+                        : "Play route"
+                  }
                   className="h-14 w-14 shrink-0 rounded-full bg-[#d9c2ff] text-[#2d1635] shadow-[0_18px_45px_rgba(32,20,43,0.2)] hover:bg-[#cdb0ff]"
                   data-testid="travel-itinerary-full-map-play-toggle"
                   onClick={() => setIsRoutePlaying((playing) => !playing)}
@@ -5351,7 +5377,7 @@ export function TravelItineraryExperience({
                 <div className="max-w-[min(620px,calc(100vw-150px))] rounded-2xl bg-white/95 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
                   <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
                     <WalletCards className="h-4 w-4 text-[#6f40cc]" />
-                    动态行程
+                    {isZh ? "动态行程" : "Dynamic itinerary"}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {segments.map((segment) => {

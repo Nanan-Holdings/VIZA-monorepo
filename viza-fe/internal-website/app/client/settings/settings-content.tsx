@@ -22,6 +22,7 @@ import {
   ReceiptText,
   ShieldCheck,
   UserRound,
+  UsersRound,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { FrequentTravelersTab } from "./components/frequent-travelers-tab";
 import { PrivacyTab } from "./components/privacy-tab";
 
 type PaymentPreference = "card" | "bank_transfer" | "wechat_pay";
@@ -427,6 +429,13 @@ export function SettingsContent() {
               href="/client/universal-info"
             />
             <SettingsRow
+              icon={UsersRound}
+              title={t("rows.travelers.title")}
+              description={t("rows.travelers.description")}
+              href="#frequent-travelers"
+              badge={t("rows.travelers.badge")}
+            />
+            <SettingsRow
               icon={Globe2}
               title={t("rows.language.title")}
               description={t("rows.language.description")}
@@ -585,6 +594,10 @@ export function SettingsContent() {
           </section>
         </div>
       </div>
+
+      <section className="mt-10 scroll-mt-32" id="frequent-travelers">
+        <FrequentTravelersTab />
+      </section>
 
       <section className="mt-10" id="privacy">
         <PrivacyTab />

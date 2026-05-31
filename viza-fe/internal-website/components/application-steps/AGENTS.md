@@ -16,6 +16,8 @@ review, bilingual review helpers, and status confirmation.
 - `photo-upload-step.tsx`: country/visa-aware photo upload guidance and storage.
 - `dynamic-review-step.tsx`: DB-driven read-only review with translations.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
+- `submission-disclaimer-dialog.tsx`: shared final-submit disclaimer modal used
+  by review steps before an application is submitted.
 - `status-step.tsx` and `status-card.tsx`: post-submission confirmation/status.
 - `bilingual-form-shared.tsx` and `review-shared.tsx`: shared row/format helpers.
 

@@ -34,6 +34,7 @@ export type TravelItinerarySharePayload = {
   itinerary: ItineraryDay[];
   travelState: TravelState;
   itineryRows?: TravelItineryShareRow[];
+  locale?: "zh" | "en";
   createdAt: string;
 };
 
@@ -229,7 +230,8 @@ export function buildTravelItinerarySharePayload(
   title: string,
   itinerary: ItineraryDay[],
   travelState: TravelState,
-  itineryRows: TravelItineryShareRow[] = []
+  itineryRows: TravelItineryShareRow[] = [],
+  locale: "zh" | "en" = "zh"
 ): TravelItinerarySharePayload {
   return {
     version: 1,
@@ -237,6 +239,7 @@ export function buildTravelItinerarySharePayload(
     itinerary,
     travelState,
     itineryRows,
+    locale,
     createdAt: new Date().toISOString(),
   };
 }
@@ -280,6 +283,7 @@ export function decodeTravelItinerarySharePayload(
       itinerary,
       travelState,
       itineryRows: Array.isArray(itineryRows) ? itineryRows : undefined,
+      locale: record.locale === "en" ? "en" : "zh",
       createdAt: record.createdAt,
     };
   } catch {
@@ -311,7 +315,10 @@ export function createTravelShareMessages(
       parts: [
         {
           type: "text",
-          text: `这是分享的最终行程。我已经把每天安排整理到行程卡片里。${rowComment}`,
+          text:
+            payload.locale === "en"
+              ? `This is the shared final itinerary. I organized each day into itinerary cards.${rowComment}`
+              : `这是分享的最终行程。我已经把每天安排整理到行程卡片里。${rowComment}`,
         },
         {
           type: "tool-itinerary",

@@ -8,8 +8,13 @@
   "nav": {
     "home": "[ES] Home",
     "application": "[ES] Application",
+    "status": "[ES] Status",
     "chat": "[ES] Chat",
     "documents": "[ES] Documents",
+    "settings": "[ES] Settings",
+    "support": "[ES] Help",
+    "visaConsultant": "[ES] Visa Consultant",
+    "travelAgent": "[ES] Travel Agent",
     "inviteFriends": "[ES] Invite Friends"
   },
   "menu": {
@@ -2696,6 +2701,11 @@
         "title": "[ES] Personal details",
         "description": "[ES] Review the information VIZA uses to prepare your applications."
       },
+      "travelers": {
+        "title": "[ES] Frequent travelers",
+        "description": "[ES] Add family, colleagues, or companions so future group orders can reuse them.",
+        "badge": "[ES] Group"
+      },
       "language": {
         "title": "[ES] Language",
         "description": "[ES] Use the language switcher in the top bar, or read the profile guide."
@@ -2734,6 +2744,53 @@
           "title": "[ES] WeChat Pay",
           "description": "[ES] Use Chinese payment flow when it is available for the package."
         }
+      }
+    },
+    "travelers": {
+      "title": "[ES] Frequent travelers",
+      "description": "[ES] Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
+      "add": "[ES] Add traveler",
+      "addFirst": "[ES] Add first traveler",
+      "addTitle": "[ES] Add frequent traveler",
+      "editTitle": "[ES] Edit traveler",
+      "formHint": "[ES] Name, nationality, and passport details are the most useful fields for future group applications.",
+      "loading": "[ES] Loading travelers...",
+      "emptyTitle": "[ES] No frequent travelers yet",
+      "emptyDescription": "[ES] Add family, colleagues, or travel companions now so they can be selected later.",
+      "notSet": "[ES] Not set",
+      "edit": "[ES] Edit",
+      "delete": "[ES] Delete",
+      "save": "[ES] Save traveler",
+      "saving": "[ES] Saving...",
+      "cancel": "[ES] Cancel",
+      "created": "[ES] Traveler added.",
+      "updated": "[ES] Traveler updated.",
+      "deleted": "[ES] Traveler deleted.",
+      "loadError": "[ES] We could not load your frequent travelers right now.",
+      "saveError": "[ES] We could not save this traveler. Check the name and try again.",
+      "deleteError": "[ES] We could not delete this traveler right now.",
+      "handoffHint": "[ES] When group-order forms are connected, these travelers can be added as companion applicants under one order.",
+      "fields": {
+        "fullName": "[ES] Full name",
+        "dateOfBirth": "[ES] Date of birth",
+        "nationality": "[ES] Nationality",
+        "passportNumber": "[ES] Passport number",
+        "passportExpiryDate": "[ES] Passport expiry date",
+        "email": "[ES] Email",
+        "phone": "[ES] Phone"
+      },
+      "placeholders": {
+        "fullName": "[ES] For example: ZHANG XIAOMING",
+        "nationality": "[ES] For example: China",
+        "passportNumber": "[ES] As shown on the passport",
+        "email": "[ES] name@example.com",
+        "phone": "[ES] Include country or region code"
+      },
+      "deleteDialog": {
+        "title": "[ES] Delete this traveler?",
+        "description": "[ES] This removes {name} from frequent travelers. Existing applications are not deleted automatically.",
+        "cancel": "[ES] Keep",
+        "confirm": "[ES] Delete"
       }
     },
     "account": {

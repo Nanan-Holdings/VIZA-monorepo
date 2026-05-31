@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandActionButton } from "@/components/client/brand-action-button";
-import { CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
+import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 
 interface ReviewStepProps {
   applicationId: string;
@@ -73,10 +74,30 @@ function displayDate(value?: string) {
   return `${year}年${Number(month)}月${Number(day)}日 / ${day}/${month}/${year}`;
 }
 
-function ReviewSummarySection({ title, rows }: { title: string; rows: ReviewRow[] }) {
+function ReviewSummarySection({
+  title,
+  rows,
+  onEdit,
+}: {
+  title: string;
+  rows: ReviewRow[];
+  onEdit?: () => void;
+}) {
   return (
     <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
-      <h3 className="font-heading text-[15px] font-semibold text-[#03346E]">{title}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-heading text-[15px] font-semibold text-[#03346E]">{title}</h3>
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
+          >
+            <Pencil className="h-4 w-4" />
+            修改
+          </button>
+        ) : null}
+      </div>
       <div className="mt-3 divide-y divide-[#eef1f5]">
         {rows.map((row) => {
           const value = displayValue(row.value);
@@ -213,8 +234,9 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
   );
 }
 
-export function ReviewStep({ applicationId: _applicationId, data, onComplete }: ReviewStepProps) {
+export function ReviewStep({ applicationId: _applicationId, data, onEdit, onComplete }: ReviewStepProps) {
   const t = useTranslations("applicationSteps");
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const personalRows: ReviewRow[] = [
     { label: "姓 / Surname", value: data?.personal?.surname },
     { label: "名 / Given name(s)", value: data?.personal?.givenNames },
@@ -252,18 +274,30 @@ export function ReviewStep({ applicationId: _applicationId, data, onComplete }: 
     <Card>
       <CardHeader>
         <CardTitle className="font-heading text-lg">{t("review.title")} / Review Your Application</CardTitle>
-        <p className="text-sm leading-6 text-muted-foreground">
-          请核对以下信息。此页仅用于审核，不能直接修改；如需更改，请返回前面的步骤。
-          <br />
-          Review the information below. This page is read-only; go back to earlier steps to make changes.
-        </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <ReviewSummarySection title={`${t("review.personalInformation")} / Personal Information`} rows={personalRows} />
-        <ReviewSummarySection title={`${t("review.passportDetails")} / Passport Details`} rows={passportRows} />
-        <ReviewSummarySection title={`${t("review.travelInformation")} / Travel Information`} rows={travelRows} />
+        <ReviewSummarySection
+          title={`${t("review.personalInformation")} / Personal Information`}
+          rows={personalRows}
+          onEdit={onEdit ? () => onEdit("personal") : undefined}
+        />
+        <ReviewSummarySection
+          title={`${t("review.passportDetails")} / Passport Details`}
+          rows={passportRows}
+          onEdit={onEdit ? () => onEdit("passport") : undefined}
+        />
+        <ReviewSummarySection
+          title={`${t("review.travelInformation")} / Travel Information`}
+          rows={travelRows}
+          onEdit={onEdit ? () => onEdit("travel") : undefined}
+        />
 
-        <ValidationPanel applicationId={_applicationId} onProceed={() => onComplete({ confirmed: true })} />
+        <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
+        <SubmissionDisclaimerDialog
+          open={disclaimerOpen}
+          onCancel={() => setDisclaimerOpen(false)}
+          onConfirm={() => onComplete({ confirmed: true })}
+        />
       </CardContent>
     </Card>
   );
