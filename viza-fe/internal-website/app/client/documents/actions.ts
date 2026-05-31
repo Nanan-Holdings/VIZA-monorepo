@@ -950,6 +950,124 @@ export interface RecordDocumentUploadInput {
   source?: "manual_upload" | "travel_ai";
 }
 
+const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
+const APPLICATION_DOCUMENTS_MAX_BYTES = 50 * 1024 * 1024;
+
+function getFormDataString(formData: FormData, key: string): string | null {
+  const value = formData.get(key);
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getFormDataBoolean(formData: FormData, key: string): boolean {
+  return getFormDataString(formData, key) !== "false";
+}
+
+function sanitizeUploadFilename(name: string): string {
+  const cleaned = name.replace(/[^\w.-]+/g, "_").replace(/_+/g, "_");
+  const fallback = cleaned || "document";
+  return fallback.length > 120 ? fallback.slice(fallback.length - 120) : fallback;
+}
+
+async function ensureApplicationDocumentsBucketWithAdmin(adminClient: ReturnType<typeof createAdminClient>) {
+  const { data: bucket, error: bucketError } = await adminClient.storage.getBucket(APPLICATION_DOCUMENTS_BUCKET);
+  if (bucket && !bucketError) return null;
+
+  const { error: createError } = await adminClient.storage.createBucket(APPLICATION_DOCUMENTS_BUCKET, {
+    public: false,
+    fileSizeLimit: APPLICATION_DOCUMENTS_MAX_BYTES,
+  });
+
+  if (createError && !createError.message.toLowerCase().includes("already exists")) {
+    return createError.message;
+  }
+
+  return null;
+}
+
+export async function ensureApplicationDocumentsBucket(): Promise<DocumentMutationResult> {
+  try {
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const adminClient = createAdminClient();
+    const bucketError = await ensureApplicationDocumentsBucketWithAdmin(adminClient);
+    if (bucketError) return { ok: false, code: "server_error", error: bucketError };
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to prepare document storage",
+    };
+  }
+}
+
+export type UploadApplicationDocumentResult =
+  | { ok: true; storagePath: string; filename: string }
+  | {
+      ok: false;
+      code: "not_authenticated" | "not_found" | "invalid_request" | "server_error";
+      error: string;
+    };
+
+export async function uploadApplicationDocument(formData: FormData): Promise<UploadApplicationDocumentResult> {
+  try {
+    const applicationId = getFormDataString(formData, "applicationId");
+    const documentType = getFormDataString(formData, "documentType");
+    const requirementKey = getFormDataString(formData, "requirementKey") ?? documentType;
+    const source = getFormDataString(formData, "source") === "travel_ai" ? "travel_ai" : "manual_upload";
+    const file = formData.get("file");
+
+    if (!applicationId || !documentType || !requirementKey || !(file instanceof File) || file.size === 0) {
+      return { ok: false, code: "invalid_request", error: "Missing upload details" };
+    }
+
+    if (file.size > APPLICATION_DOCUMENTS_MAX_BYTES) {
+      return { ok: false, code: "invalid_request", error: "File exceeds the 50MB upload limit" };
+    }
+
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
+    if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    const adminClient = createAdminClient();
+    const bucketError = await ensureApplicationDocumentsBucketWithAdmin(adminClient);
+    if (bucketError) return { ok: false, code: "server_error", error: bucketError };
+
+    const filename = sanitizeUploadFilename(getFormDataString(formData, "filename") ?? file.name);
+    const ownerSegment = contextResult.context.authUserId ?? contextResult.context.applicantId;
+    const storagePath = `${ownerSegment}/${applicationId}/${documentType}/${Date.now()}-${filename}`;
+    const { error: uploadError } = await adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).upload(storagePath, file, {
+      upsert: true,
+      contentType: file.type || undefined,
+    });
+
+    if (uploadError) return { ok: false, code: "server_error", error: uploadError.message };
+
+    const recordResult = await recordDocumentUpload({
+      applicationId,
+      documentType,
+      requirementKey,
+      filename,
+      storagePath,
+      required: getFormDataBoolean(formData, "required"),
+      source,
+    });
+
+    if (!recordResult.ok) return recordResult;
+    return { ok: true, storagePath, filename };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to upload document",
+    };
+  }
+}
+
 export async function recordDocumentUpload(input: RecordDocumentUploadInput): Promise<DocumentMutationResult> {
   try {
     if (!input.applicationId || !input.documentType || !input.storagePath || !input.filename) {

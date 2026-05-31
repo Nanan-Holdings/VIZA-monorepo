@@ -27,6 +27,8 @@ applicant info, and help pages.
 - `consent/**`: ToS/privacy/agency authorisation acceptance and e-signature
   workflow.
 - `settings/**`: account settings plus privacy export/deletion request surface.
+- `subscription/**`: RMB subscription and pay-per-application pricing, plus
+  Stripe/WeChat Pay/Alipay payment entry points for commercial plans.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `support/**`: customer service help center, self-service support bot, and
   human/email handoff. This must remain separate from the visa/travel AI chat.

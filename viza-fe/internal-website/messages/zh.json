@@ -3745,7 +3745,7 @@
     "back": "返回首页",
     "eyebrow": "VIZA Application",
     "title": "选择适合你的 VIZA 申请方式",
-    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。当前页面为方案预览，正式支付开启前不会产生扣费。",
+    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，可通过 Stripe、微信支付或支付宝进入托管支付流程。",
     "current": {
       "label": "当前方案",
       "plan": "VIZA 申请体验版",
@@ -3753,16 +3753,16 @@
       "renewalLabel": "续费状态",
       "renewalValue": "暂未启用",
       "paymentLabel": "支付方式",
-      "paymentValue": "暂未绑定"
+      "paymentValue": "Stripe / 微信 / 支付宝"
     },
     "highlights": {
       "allCountries": {
         "title": "全国家入口",
         "body": "月付方案覆盖平台支持的所有国家申请入口。"
       },
-      "twoWays": {
-        "title": "月付或次付",
-        "body": "常旅客用月付更省心，单次旅程可以按目的地付费。"
+      "threeWays": {
+        "title": "三种支付入口",
+        "body": "可使用 Stripe 托管页、微信支付 Native 二维码或支付宝电脑网站支付。"
       },
       "officialFees": {
         "title": "费用清晰",
@@ -3775,6 +3775,7 @@
       "badge": "Global Access",
       "recommended": "推荐",
       "countryLimit": "每月最多 {count} 个国家",
+      "cadence": "/月",
       "cta": "选择方案",
       "plans": {
         "access": {
@@ -3804,6 +3805,8 @@
       "limitBody": "每次购买覆盖 1 个国家，用户需要在 1 个月内完成资料填写和提交准备。",
       "groupTitle": "包含核心能力",
       "groupBody": "次付默认包含申请要求核对、动态材料清单、多语言辅助、AI assistance、团单和 Travel Agent。",
+      "paymentNote": "次付目的地按首页相同的大区和表单入口归类，便于从订阅页直接进入对应服务。",
+      "regionCountSuffix": "项",
       "feeNote": "所有价格均为每次申请的 VIZA 服务费，不包含官方签证费、签证中心费、生物信息采集费、快递费或加急费。",
       "countries": {
         "singapore": "新加坡",

@@ -11,9 +11,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { recordDocumentUpload } from "@/app/client/documents/actions";
+import { uploadApplicationDocument } from "@/app/client/documents/actions";
 
 export type DocumentType =
   | "passport_copy"
@@ -125,44 +124,23 @@ export function FileUploadCard({
     setOcrStatus("idle");
     setOcrMessage(null);
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("uploadFailed"));
+      const uploadForm = new FormData();
+      uploadForm.set("applicationId", applicationId);
+      uploadForm.set("documentType", documentType);
+      uploadForm.set("requirementKey", documentType);
+      uploadForm.set("filename", file.name);
+      uploadForm.set("required", String(required));
+      uploadForm.set("file", file);
+      const uploadResult = await uploadApplicationDocument(uploadForm);
+      if (!uploadResult.ok) throw new Error(uploadResult.error);
 
-      const path = `${user.id}/${applicationId}/${documentType}/${file.name}`;
-      const { error } = await supabase.storage
-        .from("application-documents")
-        .upload(path, file, { upsert: true });
-
-      if (error) throw error;
-
-      const recordResult = await recordDocumentUpload({
-        applicationId,
-        documentType,
-        requirementKey: documentType,
-        filename: file.name,
-        storagePath: path,
-        required,
-      });
-
-      if (!recordResult.ok && supportsPassportOcr) {
-        setOcrStatus("failed");
-        setOcrMessage(
-          isZh
-            ? `已上传。由于材料记录未保存，OCR 暂停：${recordResult.error}`
-            : `Uploaded. OCR is waiting because the document record was not saved: ${recordResult.error}`
-        );
-      }
-
-      setFileName(file.name);
-      setStoragePath(path);
+      setFileName(uploadResult.filename);
+      setStoragePath(uploadResult.storagePath);
       setStatus("done");
-      onComplete?.(path);
+      onComplete?.(uploadResult.storagePath);
 
-      if (recordResult.ok && supportsPassportOcr) {
-        await runPassportOcr(path);
+      if (supportsPassportOcr) {
+        await runPassportOcr(uploadResult.storagePath);
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : t("uploadFailed"));

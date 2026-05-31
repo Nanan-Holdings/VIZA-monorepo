@@ -28,6 +28,7 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import {
   confirmPassportOcrExtraction,
+  ensureApplicationDocumentsBucket,
   loadDocumentCenterData,
   recordDocumentUpload,
   type ApplicationDocument,
@@ -1296,6 +1297,9 @@ export function DocumentCenterClient({
             ? "请先登录后再上传材料。"
             : "Please sign in before uploading documents."
         );
+
+      const bucketResult = await ensureApplicationDocumentsBucket();
+      if (!bucketResult.ok) throw new Error(bucketResult.error);
 
       const safeName = sanitizeFilename(file.name);
       const storagePath = `${user.id}/${selectedApplication.id}/${requirement.documentType}/${Date.now()}-${safeName}`;
