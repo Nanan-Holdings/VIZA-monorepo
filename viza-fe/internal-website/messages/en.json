@@ -1191,7 +1191,36 @@
         "work": "Work & education",
         "usContact": "U.S. contact",
         "family": "Family",
-        "background": "Background"
+        "background": "Background",
+        "fields": {
+          "fullName": "Full name",
+          "dob": "Date of birth",
+          "sex": "Sex",
+          "nationality": "Nationality",
+          "maritalStatus": "Marital status",
+          "email": "Email",
+          "phone": "Phone",
+          "homeCountry": "Country of residence",
+          "homeAddress": "Home address",
+          "passportNumber": "Passport number",
+          "passportIssuing": "Issuing country",
+          "passportIssueDate": "Date of issue",
+          "passportExpiry": "Passport expiry date",
+          "arrivalDate": "Arrival date",
+          "departureDate": "Departure date",
+          "purposeOfTrip": "Purpose of trip",
+          "tripPayer": "Trip payer",
+          "occupation": "Occupation",
+          "employerName": "Employer name",
+          "jobTitle": "Job title",
+          "usContactName": "U.S. contact name",
+          "usContactRelationship": "Relationship",
+          "usContactPhone": "U.S. contact phone",
+          "father": "Father",
+          "mother": "Mother",
+          "spouse": "Spouse",
+          "backgroundFlag": "Background answers"
+        }
       }
     },
     "uk": {

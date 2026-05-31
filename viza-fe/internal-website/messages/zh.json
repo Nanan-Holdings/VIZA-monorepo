@@ -2121,6 +2121,61 @@
         "invalid": "离境日期必须晚于抵达日期。"
       }
     },
+    "us": {
+      "steps": {
+        "identity": "身份信息",
+        "contact": "联系方式",
+        "passport": "护照",
+        "travel": "旅行",
+        "usStay": "在美住宿",
+        "work": "工作与教育",
+        "usContact": "美国联系人",
+        "family": "家庭",
+        "background": "背景问题"
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 DS-160 答案",
+        "subtitle": "提交前请修改任何不正确的信息。",
+        "identity": "身份信息",
+        "contact": "联系方式",
+        "passport": "护照",
+        "travel": "旅行",
+        "work": "工作与教育",
+        "usContact": "美国联系人",
+        "family": "家庭",
+        "background": "背景问题",
+        "fields": {
+          "fullName": "姓名",
+          "dob": "出生日期",
+          "sex": "性别",
+          "nationality": "国籍",
+          "maritalStatus": "婚姻状态",
+          "email": "电子邮箱",
+          "phone": "电话",
+          "homeCountry": "居住国家/地区",
+          "homeAddress": "家庭住址",
+          "passportNumber": "护照号码",
+          "passportIssuing": "签发国家/地区",
+          "passportIssueDate": "签发日期",
+          "passportExpiry": "护照有效期至",
+          "arrivalDate": "到达日期",
+          "departureDate": "离境日期",
+          "purposeOfTrip": "旅行目的",
+          "tripPayer": "旅行费用承担人",
+          "occupation": "职业",
+          "employerName": "雇主名称",
+          "jobTitle": "职位",
+          "usContactName": "美国联系人姓名",
+          "usContactRelationship": "关系",
+          "usContactPhone": "美国联系人电话",
+          "father": "父亲",
+          "mother": "母亲",
+          "spouse": "配偶",
+          "backgroundFlag": "背景问题答案"
+        }
+      }
+    },
     "schengen": {
       "steps": {
         "purpose": {
@@ -3000,6 +3055,396 @@
         "awareDataProcessing": "本人知晓个人信息将由澳洲相关机构处理。",
         "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开澳洲。",
         "genuineVisitor": "本人确认为真实访客,仅按所述目的临时停留。"
+      }
+    },
+    "id": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "用于印度尼西亚电子签表单的姓名、出生信息、国籍和婚姻状态。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "请填写您入境印度尼西亚时会使用的同一本旅行证件。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式与居住地址",
+          "subtitle": "家庭住址、联系电话和电子邮箱。"
+        },
+        "occupation": {
+          "label": "职业",
+          "title": "职业信息",
+          "subtitle": "当前工作、学习或职业情况。"
+        },
+        "trip": {
+          "label": "行程",
+          "title": "印度尼西亚行程信息",
+          "subtitle": "B211A 旅游签停留、入境口岸、住宿和费用承担信息。"
+        },
+        "sponsor": {
+          "label": "担保人",
+          "title": "印度尼西亚担保人",
+          "subtitle": "如有印尼个人或公司支持此次访问，请填写本页。"
+        },
+        "travel_history": {
+          "label": "旅行历史",
+          "title": "旅行历史",
+          "subtitle": "过往印尼访问记录，以及签证或入境被拒情况。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "提交前请确认每一项印度尼西亚电子签声明。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的印度尼西亚 B211A 答案",
+        "subtitle": "请修改任何与护照、行程或支持材料不一致的信息。",
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "occupation": "职业",
+        "trip": "行程",
+        "sponsor": "担保人",
+        "travelHistory": "旅行历史",
+        "declaration": "声明"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "hasOtherNamesUsed": "是否使用过其他姓名?",
+        "otherNamesUsed": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "placeOfBirthCity": "出生城市",
+        "placeOfBirthCountry": "出生国家/地区",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "otherNationality": "其他国籍",
+        "idCardNumber": "身份证件号码",
+        "motherFullName": "母亲全名",
+        "maritalStatus": "婚姻状态",
+        "spouseFullName": "配偶全名",
+        "spouseDob": "配偶出生日期",
+        "spouseNationality": "配偶国籍",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuingCountry": "护照签发国家/地区",
+        "passportCountry": "护照签发国家/地区",
+        "passportIssueDate": "护照签发日期",
+        "passportExpiryDate": "护照有效期至",
+        "passportPlaceOfIssue": "护照签发地点",
+        "passportIssuingAuthority": "签发机关",
+        "hasOtherPassports": "是否持有其他护照?",
+        "otherPassportNumber": "其他护照号码",
+        "otherPassportCountry": "其他护照签发国家/地区",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "state": "省/州",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家/地区",
+        "phone": "电话号码",
+        "mobile": "手机号码",
+        "email": "电子邮箱",
+        "currentProfession": "当前职业",
+        "positionTitle": "职位/职称",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "purposeOfVisit": "访问目的",
+        "intendedArrivalDate": "预计到达日期",
+        "intendedLengthOfStay": "预计停留时长",
+        "portOfEntry": "入境口岸",
+        "carrierName": "承运人名称",
+        "flightOrVoyageNumber": "航班或航次号码",
+        "accommodationType": "住宿类型",
+        "accommodationName": "住宿名称",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "住宿城市或区域",
+        "accommodationPhone": "住宿联系电话",
+        "expenseBearer": "谁承担本次旅行费用?",
+        "hasSponsorInIndonesia": "是否有印度尼西亚担保人?",
+        "sponsorType": "担保人类型",
+        "sponsorIndividualFullName": "个人担保人全名",
+        "sponsorIndividualNik": "担保人 NIK",
+        "sponsorIndividualRelationship": "与担保人的关系",
+        "sponsorCorporateName": "公司担保人名称",
+        "sponsorCorporateNib": "公司 NIB",
+        "sponsorCorporateNpwp": "公司 NPWP",
+        "sponsorCorporatePicName": "公司联系人姓名",
+        "sponsorAddress": "担保人地址",
+        "sponsorPhone": "担保人电话",
+        "sponsorEmail": "担保人邮箱",
+        "visitedIndonesiaBefore": "此前是否访问过印度尼西亚?",
+        "priorVisitArrival": "上次到达印尼日期",
+        "priorVisitDeparture": "上次离开印尼日期",
+        "priorVisitPurpose": "上次访问印尼目的",
+        "priorVisitVisaType": "上次印尼签证类型",
+        "refusedVisaIndonesia": "是否曾被拒发印尼签证或被拒绝入境?",
+        "refusedVisaIndonesiaDetails": "印尼拒签/拒入境说明",
+        "refusedVisaOtherCountry": "是否曾被其他国家拒签或拒绝入境?",
+        "refusedVisaOtherDetails": "其他拒签/拒入境说明",
+        "criminalRecordDetails": "犯罪记录说明",
+        "deportationDetails": "遣返或驱逐说明",
+        "overstayDetails": "逾期停留说明",
+        "remarksSpecialCircumstances": "特殊情况说明",
+        "applicationDate": "申请日期"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "official": "公务/官方护照",
+          "travelDocument": "旅行证件",
+          "other": "其他"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "occupation": {
+          "employed": "受雇",
+          "selfEmployed": "自雇",
+          "student": "学生",
+          "retired": "退休",
+          "housewife": "家务/家庭主妇",
+          "unemployed": "无业",
+          "other": "其他"
+        },
+        "purpose": {
+          "tourism": "旅游"
+        },
+        "idAccommodation": {
+          "hotel": "酒店",
+          "villa": "别墅",
+          "friend": "朋友或亲属住所",
+          "other": "其他"
+        },
+        "idExpense": {
+          "self": "本人",
+          "employer": "雇主",
+          "sponsor": "担保人",
+          "family": "家人",
+          "other": "其他"
+        },
+        "sponsorType": {
+          "individual": "个人",
+          "corporate": "公司"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "hasCriminalRecord": "是否曾被判定有刑事犯罪记录?",
+        "hasBeenDeported": "是否曾被任何国家遣返或驱逐?",
+        "hasOverstayedIndonesia": "是否曾在印度尼西亚逾期停留?",
+        "hasDrugOrTrafficking": "是否曾涉及毒品、贩运或相关犯罪?",
+        "finalDeclaration": "本人确认本印度尼西亚电子签申请所填信息真实、完整。"
+      }
+    },
+    "eg": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "用于埃及电子签表单的姓名、出生信息、国籍和家庭信息。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "本线上旅游电子签流程适用于普通护照。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式与居住地址",
+          "subtitle": "家庭住址、联系电话和电子邮箱。"
+        },
+        "occupation": {
+          "label": "职业",
+          "title": "职业信息",
+          "subtitle": "当前工作、学习或职业情况。"
+        },
+        "trip": {
+          "label": "行程",
+          "title": "埃及行程信息",
+          "subtitle": "签证类型、到达日期、入境口岸、住宿和费用承担信息。"
+        },
+        "host": {
+          "label": "接待人",
+          "title": "埃及接待人",
+          "subtitle": "如有埃及当地人员接待或支持此次访问，请填写本页。"
+        },
+        "travel_history": {
+          "label": "旅行历史",
+          "title": "旅行历史",
+          "subtitle": "过往埃及访问记录，以及签证或入境被拒情况。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "提交前请确认每一项埃及电子签声明。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的埃及电子签答案",
+        "subtitle": "请修改任何与护照、行程或支持材料不一致的信息。",
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "occupation": "职业",
+        "trip": "行程",
+        "host": "接待人",
+        "travelHistory": "旅行历史",
+        "declaration": "声明"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "hasOtherNamesUsed": "是否使用过其他姓名?",
+        "otherNamesUsed": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "placeOfBirthCity": "出生城市",
+        "placeOfBirthCountry": "出生国家/地区",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "otherNationality": "其他国籍",
+        "nationalIdNumber": "身份证件号码",
+        "maritalStatus": "婚姻状态",
+        "spouseFullName": "配偶全名",
+        "spouseNationality": "配偶国籍",
+        "fatherFullName": "父亲全名",
+        "motherFullName": "母亲全名",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuingCountry": "护照签发国家/地区",
+        "passportIssueDate": "护照签发日期",
+        "passportExpiryDate": "护照有效期至",
+        "passportPlaceOfIssue": "护照签发地点",
+        "hasOtherPassports": "是否持有其他护照?",
+        "otherPassportNumber": "其他护照号码",
+        "otherPassportCountry": "其他护照签发国家/地区",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "state": "省/州",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家/地区",
+        "phone": "电话号码",
+        "mobile": "手机号码",
+        "email": "电子邮箱",
+        "currentProfession": "当前职业",
+        "positionTitle": "职位/职称",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "visaTypeRequested": "申请签证类型",
+        "purposeOfVisit": "访问目的",
+        "intendedArrivalDate": "预计到达日期",
+        "intendedLengthOfStay": "预计停留时长",
+        "portOfEntry": "入境口岸",
+        "portOfEntryOther": "其他入境口岸",
+        "carrierName": "承运人名称",
+        "accommodationType": "住宿类型",
+        "accommodationName": "住宿名称",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "住宿城市",
+        "accommodationPhone": "住宿联系电话",
+        "expenseBearer": "谁承担本次旅行费用?",
+        "hasHostInEgypt": "是否有埃及接待人?",
+        "hostFullName": "接待人全名",
+        "hostRelationship": "与接待人的关系",
+        "hostAddress": "接待人地址",
+        "hostPhone": "接待人电话",
+        "hostNationality": "接待人国籍",
+        "visitedEgyptBefore": "此前是否访问过埃及?",
+        "priorVisitArrival": "上次到达埃及日期",
+        "priorVisitDeparture": "上次离开埃及日期",
+        "priorVisitPurpose": "上次访问埃及目的",
+        "refusedVisaEgypt": "是否曾被拒发埃及签证或被拒绝入境?",
+        "refusedVisaEgyptDetails": "埃及拒签/拒入境说明",
+        "refusedVisaOtherCountry": "是否曾被其他国家拒签或拒绝入境?",
+        "refusedVisaOtherDetails": "其他拒签/拒入境说明",
+        "criminalRecordDetails": "犯罪记录说明",
+        "deportationDetails": "遣返或驱逐说明",
+        "remarksSpecialCircumstances": "特殊情况说明",
+        "applicationDate": "申请日期"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "passport": {
+          "ordinary": "普通护照"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "occupation": {
+          "employed": "受雇",
+          "selfEmployed": "自雇",
+          "businessperson": "商务人士",
+          "student": "学生",
+          "retired": "退休",
+          "homemaker": "家务",
+          "unemployed": "无业",
+          "other": "其他"
+        },
+        "egVisa": {
+          "single": "单次入境",
+          "multiple": "多次入境"
+        },
+        "purpose": {
+          "tourism": "旅游"
+        },
+        "egPort": {
+          "cairo": "开罗国际机场",
+          "hurghada": "赫尔格达国际机场",
+          "sharm": "沙姆沙伊赫国际机场",
+          "luxor": "卢克索国际机场",
+          "marsaAlam": "阿拉姆港国际机场",
+          "alexAirport": "亚历山大 Borg El Arab 机场",
+          "aswan": "阿斯旺国际机场",
+          "alexSeaport": "亚历山大海港",
+          "portSaid": "塞得港海港",
+          "safaga": "萨法加海港",
+          "other": "其他"
+        },
+        "egAccommodation": {
+          "hotel": "酒店",
+          "resort": "度假村",
+          "rental": "租赁公寓",
+          "host": "接待人住所",
+          "cruise": "邮轮",
+          "other": "其他"
+        },
+        "egExpense": {
+          "self": "本人",
+          "employer": "雇主",
+          "family": "家人",
+          "host": "接待人",
+          "other": "其他"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "hasCriminalRecord": "是否曾被判定有刑事犯罪记录?",
+        "hasBeenDeported": "是否曾被任何国家遣返或驱逐?",
+        "terrorismOrSecurity": "是否曾涉及恐怖主义、安全犯罪或相关活动?",
+        "finalDeclaration": "本人确认本埃及电子签申请所填信息真实、完整。"
       }
     }
   },
