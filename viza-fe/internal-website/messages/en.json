@@ -2075,6 +2075,396 @@
         "genuineVisitor": "I confirm that I am a genuine visitor and intend to stay temporarily for the purpose stated."
       }
     },
+    "id": {
+      "steps": {
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "Names, birth details, nationality, and family status for the Indonesia e-Visa form."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport details",
+          "subtitle": "Use the same travel document you will use to enter Indonesia."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "Your home address, phone numbers, and email."
+        },
+        "occupation": {
+          "label": "Occupation",
+          "title": "Occupation",
+          "subtitle": "Current work, study, or profession details."
+        },
+        "trip": {
+          "label": "Trip",
+          "title": "Indonesia trip details",
+          "subtitle": "Tourist B211A stay details, entry point, accommodation, and expenses."
+        },
+        "sponsor": {
+          "label": "Sponsor",
+          "title": "Sponsor in Indonesia",
+          "subtitle": "Complete this if an individual or company in Indonesia is supporting the visit."
+        },
+        "travel_history": {
+          "label": "History",
+          "title": "Travel history",
+          "subtitle": "Prior Indonesia visits and any visa or entry refusals."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each Indonesia e-Visa declaration before submitting."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Indonesia B211A answers",
+        "subtitle": "Edit anything that does not match your passport, trip, or supporting documents.",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "occupation": "Occupation",
+        "trip": "Trip",
+        "sponsor": "Sponsor",
+        "travelHistory": "Travel history",
+        "declaration": "Declarations"
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenNames": "Given name(s)",
+        "hasOtherNamesUsed": "Have you used any other names?",
+        "otherNamesUsed": "Other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "placeOfBirthCity": "Place of birth city",
+        "placeOfBirthCountry": "Country of birth",
+        "nationality": "Nationality",
+        "hasOtherNationalities": "Do you hold any other nationalities?",
+        "otherNationality": "Other nationality",
+        "idCardNumber": "National ID number",
+        "motherFullName": "Mother's full name",
+        "maritalStatus": "Marital status",
+        "spouseFullName": "Spouse full name",
+        "spouseDob": "Spouse date of birth",
+        "spouseNationality": "Spouse nationality",
+        "passportNumber": "Passport number",
+        "passportType": "Passport type",
+        "passportIssuingCountry": "Passport issuing country",
+        "passportCountry": "Passport issuing country",
+        "passportIssueDate": "Passport issue date",
+        "passportExpiryDate": "Passport expiry date",
+        "passportPlaceOfIssue": "Passport place of issue",
+        "passportIssuingAuthority": "Issuing authority",
+        "hasOtherPassports": "Do you hold any other passports?",
+        "otherPassportNumber": "Other passport number",
+        "otherPassportCountry": "Other passport issuing country",
+        "homeAddress": "Home address",
+        "city": "City",
+        "state": "State / province",
+        "postalCode": "Postal code",
+        "countryOfResidence": "Country of residence",
+        "phone": "Telephone number",
+        "mobile": "Mobile number",
+        "email": "Email address",
+        "currentProfession": "Current profession",
+        "positionTitle": "Position / title",
+        "employerOrSchool": "Employer or school name",
+        "employerAddress": "Employer or school address",
+        "employerPhone": "Employer or school phone",
+        "purposeOfVisit": "Purpose of visit",
+        "intendedArrivalDate": "Intended arrival date",
+        "intendedLengthOfStay": "Intended length of stay",
+        "portOfEntry": "Port of entry",
+        "carrierName": "Carrier name",
+        "flightOrVoyageNumber": "Flight or voyage number",
+        "accommodationType": "Accommodation type",
+        "accommodationName": "Accommodation name",
+        "accommodationAddress": "Accommodation address",
+        "accommodationCity": "Accommodation city or district",
+        "accommodationPhone": "Accommodation phone",
+        "expenseBearer": "Who will pay for the trip?",
+        "hasSponsorInIndonesia": "Do you have a sponsor in Indonesia?",
+        "sponsorType": "Sponsor type",
+        "sponsorIndividualFullName": "Individual sponsor full name",
+        "sponsorIndividualNik": "Sponsor NIK",
+        "sponsorIndividualRelationship": "Relationship to sponsor",
+        "sponsorCorporateName": "Company sponsor name",
+        "sponsorCorporateNib": "Company NIB",
+        "sponsorCorporateNpwp": "Company NPWP",
+        "sponsorCorporatePicName": "Company contact person",
+        "sponsorAddress": "Sponsor address",
+        "sponsorPhone": "Sponsor phone",
+        "sponsorEmail": "Sponsor email",
+        "visitedIndonesiaBefore": "Have you visited Indonesia before?",
+        "priorVisitArrival": "Prior Indonesia visit arrival date",
+        "priorVisitDeparture": "Prior Indonesia visit departure date",
+        "priorVisitPurpose": "Purpose of prior Indonesia visit",
+        "priorVisitVisaType": "Prior Indonesia visa type",
+        "refusedVisaIndonesia": "Have you been refused an Indonesia visa or entry?",
+        "refusedVisaIndonesiaDetails": "Indonesia refusal details",
+        "refusedVisaOtherCountry": "Have you been refused a visa or entry by another country?",
+        "refusedVisaOtherDetails": "Other refusal details",
+        "criminalRecordDetails": "Criminal record details",
+        "deportationDetails": "Deportation details",
+        "overstayDetails": "Overstay details",
+        "remarksSpecialCircumstances": "Special circumstances",
+        "applicationDate": "Application date"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "passport": {
+          "ordinary": "Ordinary",
+          "diplomatic": "Diplomatic",
+          "official": "Official",
+          "travelDocument": "Travel document",
+          "other": "Other"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "occupation": {
+          "employed": "Employed",
+          "selfEmployed": "Self-employed",
+          "student": "Student",
+          "retired": "Retired",
+          "housewife": "Homemaker",
+          "unemployed": "Unemployed",
+          "other": "Other"
+        },
+        "purpose": {
+          "tourism": "Tourism"
+        },
+        "idAccommodation": {
+          "hotel": "Hotel",
+          "villa": "Villa",
+          "friend": "Friend or relative",
+          "other": "Other"
+        },
+        "idExpense": {
+          "self": "Myself",
+          "employer": "Employer",
+          "sponsor": "Sponsor",
+          "family": "Family",
+          "other": "Other"
+        },
+        "sponsorType": {
+          "individual": "Individual",
+          "corporate": "Company"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "hasCriminalRecord": "Have you ever been convicted of a criminal offence?",
+        "hasBeenDeported": "Have you ever been deported or removed from any country?",
+        "hasOverstayedIndonesia": "Have you ever overstayed in Indonesia?",
+        "hasDrugOrTrafficking": "Have you ever been involved in drug offences, trafficking, or related crimes?",
+        "finalDeclaration": "I confirm the information provided for this Indonesia e-Visa application is true and complete."
+      }
+    },
+    "eg": {
+      "steps": {
+        "personal": {
+          "label": "Personal",
+          "title": "Personal details",
+          "subtitle": "Names, birth details, nationality, and family information for the Egypt e-Visa form."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport details",
+          "subtitle": "Egypt e-Visa accepts ordinary passports for this online tourist flow."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact & residence",
+          "subtitle": "Your home address, phone numbers, and email."
+        },
+        "occupation": {
+          "label": "Occupation",
+          "title": "Occupation",
+          "subtitle": "Current work, study, or profession details."
+        },
+        "trip": {
+          "label": "Trip",
+          "title": "Egypt trip details",
+          "subtitle": "Visa type, arrival, entry port, accommodation, and expenses."
+        },
+        "host": {
+          "label": "Host",
+          "title": "Host in Egypt",
+          "subtitle": "Complete this if someone in Egypt is hosting or supporting the visit."
+        },
+        "travel_history": {
+          "label": "History",
+          "title": "Travel history",
+          "subtitle": "Prior Egypt visits and any visa or entry refusals."
+        },
+        "declaration": {
+          "label": "Declare",
+          "title": "Declarations",
+          "subtitle": "Confirm each Egypt e-Visa declaration before submitting."
+        }
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review your Egypt e-Visa answers",
+        "subtitle": "Edit anything that does not match your passport, trip, or supporting documents.",
+        "personal": "Personal",
+        "passport": "Passport",
+        "contact": "Contact",
+        "occupation": "Occupation",
+        "trip": "Trip",
+        "host": "Host",
+        "travelHistory": "Travel history",
+        "declaration": "Declarations"
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenNames": "Given name(s)",
+        "hasOtherNamesUsed": "Have you used any other names?",
+        "otherNamesUsed": "Other names used",
+        "dob": "Date of birth",
+        "sex": "Sex",
+        "placeOfBirthCity": "Place of birth city",
+        "placeOfBirthCountry": "Country of birth",
+        "nationality": "Nationality",
+        "hasOtherNationalities": "Do you hold any other nationalities?",
+        "otherNationality": "Other nationality",
+        "nationalIdNumber": "National ID number",
+        "maritalStatus": "Marital status",
+        "spouseFullName": "Spouse full name",
+        "spouseNationality": "Spouse nationality",
+        "fatherFullName": "Father's full name",
+        "motherFullName": "Mother's full name",
+        "passportNumber": "Passport number",
+        "passportType": "Passport type",
+        "passportIssuingCountry": "Passport issuing country",
+        "passportIssueDate": "Passport issue date",
+        "passportExpiryDate": "Passport expiry date",
+        "passportPlaceOfIssue": "Passport place of issue",
+        "hasOtherPassports": "Do you hold any other passports?",
+        "otherPassportNumber": "Other passport number",
+        "otherPassportCountry": "Other passport issuing country",
+        "homeAddress": "Home address",
+        "city": "City",
+        "state": "State / province",
+        "postalCode": "Postal code",
+        "countryOfResidence": "Country of residence",
+        "phone": "Telephone number",
+        "mobile": "Mobile number",
+        "email": "Email address",
+        "currentProfession": "Current profession",
+        "positionTitle": "Position / title",
+        "employerOrSchool": "Employer or school name",
+        "employerAddress": "Employer or school address",
+        "employerPhone": "Employer or school phone",
+        "visaTypeRequested": "Visa type requested",
+        "purposeOfVisit": "Purpose of visit",
+        "intendedArrivalDate": "Intended arrival date",
+        "intendedLengthOfStay": "Intended length of stay",
+        "portOfEntry": "Port of entry",
+        "portOfEntryOther": "Other port of entry",
+        "carrierName": "Carrier name",
+        "accommodationType": "Accommodation type",
+        "accommodationName": "Accommodation name",
+        "accommodationAddress": "Accommodation address",
+        "accommodationCity": "Accommodation city",
+        "accommodationPhone": "Accommodation phone",
+        "expenseBearer": "Who will pay for the trip?",
+        "hasHostInEgypt": "Do you have a host in Egypt?",
+        "hostFullName": "Host full name",
+        "hostRelationship": "Relationship to host",
+        "hostAddress": "Host address",
+        "hostPhone": "Host phone",
+        "hostNationality": "Host nationality",
+        "visitedEgyptBefore": "Have you visited Egypt before?",
+        "priorVisitArrival": "Prior Egypt visit arrival date",
+        "priorVisitDeparture": "Prior Egypt visit departure date",
+        "priorVisitPurpose": "Purpose of prior Egypt visit",
+        "refusedVisaEgypt": "Have you been refused an Egypt visa or entry?",
+        "refusedVisaEgyptDetails": "Egypt refusal details",
+        "refusedVisaOtherCountry": "Have you been refused a visa or entry by another country?",
+        "refusedVisaOtherDetails": "Other refusal details",
+        "criminalRecordDetails": "Criminal record details",
+        "deportationDetails": "Deportation details",
+        "remarksSpecialCircumstances": "Special circumstances",
+        "applicationDate": "Application date"
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        },
+        "passport": {
+          "ordinary": "Ordinary"
+        },
+        "marital": {
+          "single": "Single",
+          "married": "Married",
+          "divorced": "Divorced",
+          "widowed": "Widowed"
+        },
+        "occupation": {
+          "employed": "Employed",
+          "selfEmployed": "Self-employed",
+          "businessperson": "Businessperson",
+          "student": "Student",
+          "retired": "Retired",
+          "homemaker": "Homemaker",
+          "unemployed": "Unemployed",
+          "other": "Other"
+        },
+        "egVisa": {
+          "single": "Single entry",
+          "multiple": "Multiple entry"
+        },
+        "purpose": {
+          "tourism": "Tourism"
+        },
+        "egPort": {
+          "cairo": "Cairo International Airport",
+          "hurghada": "Hurghada International Airport",
+          "sharm": "Sharm El Sheikh International Airport",
+          "luxor": "Luxor International Airport",
+          "marsaAlam": "Marsa Alam International Airport",
+          "alexAirport": "Alexandria Borg El Arab Airport",
+          "aswan": "Aswan International Airport",
+          "alexSeaport": "Alexandria Seaport",
+          "portSaid": "Port Said Seaport",
+          "safaga": "Safaga Seaport",
+          "other": "Other"
+        },
+        "egAccommodation": {
+          "hotel": "Hotel",
+          "resort": "Resort",
+          "rental": "Rental apartment",
+          "host": "Host residence",
+          "cruise": "Cruise ship",
+          "other": "Other"
+        },
+        "egExpense": {
+          "self": "Myself",
+          "employer": "Employer",
+          "family": "Family",
+          "host": "Host",
+          "other": "Other"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "Briefly explain the circumstances",
+        "hasCriminalRecord": "Have you ever been convicted of a criminal offence?",
+        "hasBeenDeported": "Have you ever been deported or removed from any country?",
+        "terrorismOrSecurity": "Have you ever been involved in terrorism, security offences, or related activities?",
+        "finalDeclaration": "I confirm the information provided for this Egypt e-Visa application is true and complete."
+      }
+    },
     "loading": "Getting your intake form ready…",
     "progress": "Step {current} of {total} · {name}",
     "steps": {
@@ -2190,7 +2580,7 @@
     },
     "contact": {
       "title": "How can the embassy reach you?",
-      "subtitle": "Primary contact, home address, and any social profiles required by DS-160.",
+      "subtitle": "Primary contact, home address, and any social profiles required by the official form.",
       "email": "Email",
       "emailPlaceholder": "you@example.com",
       "phone": "Phone",
@@ -2214,7 +2604,7 @@
       "postalCodePlaceholder": "Postal code",
       "mailingSame": "Is your mailing address the same?",
       "socialMedia": "Social media",
-      "socialMediaHint": "DS-160 requires disclosing the platforms you use. Pick any that apply.",
+      "socialMediaHint": "Select the platforms the official form asks about. We will only include social media details where they are required.",
       "useSocialMedia": "Do you use social media?",
       "socialHandlePlaceholder": "{platform} username or handle",
       "otherPlatforms": "Other platforms",
@@ -3382,6 +3772,9 @@
       }
     },
     "faqTitle": "Frequently Asked Questions",
+    "supportCta": {
+      "title": "Still need help?"
+    },
     "faqs": {
       "resetPassword": {
         "question": "How do I reset my password?",
@@ -3451,7 +3844,7 @@
       "failedToResend": "Failed to resend code.",
       "checkEmail": "Check your email",
       "sentCodeTo": "We sent an 8-digit code to",
-      "clickLink": "Click the link in your email to sign in.",
+      "clickLink": "Enter the code below to sign in.",
       "resendIn": "Resend in {seconds}s",
       "resendCode": "Resend code",
       "privacyPolicy": "Privacy Policy",
@@ -3464,6 +3857,15 @@
       "invalidEmail": "Please enter a valid email address.",
       "submitting": "Submitting...",
       "continueToPassword": "Continue",
+      "sendCodeButton": "Send verification code",
+      "sendingCode": "Sending code...",
+      "failedToSendCode": "Failed to send code",
+      "failedToResend": "Failed to resend code.",
+      "verifyEmailTitle": "Verify your email",
+      "sentCodeTo": "We sent an 8-digit code to",
+      "resendIn": "Resend in {seconds}s",
+      "resendCode": "Resend code",
+      "otpDigitLabel": "Verification code digit {digit}",
       "requestInvite": "Request Invite",
       "acceptRequired": "Please accept the Terms of Service and Privacy Policy to continue.",
       "back": "Back",
@@ -3486,6 +3888,7 @@
       },
       "passwordRequirementError": "Password must include letters, numbers, and a special symbol.",
       "passwordMismatch": "The two passwords do not match.",
+      "verifyEmailFirst": "Please verify your email before setting a password.",
       "creatingAccount": "Creating account...",
       "createAccount": "Create account",
       "showPassword": "Show password",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Upload, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, Clock, AlertCircle, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export interface ActivityEvent {
@@ -40,22 +40,24 @@ function ActivityIcon({ type }: { type: ActivityEvent["icon"] }) {
 }
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
+  const isClickable = Boolean(event.href);
   const content = (
     <div className="flex items-center w-full p-[16px] xl:p-[20px] gap-[16px] xl:gap-[20px]">
-      <div className="flex items-center justify-center shrink-0 size-[56px] rounded-[8px] bg-[#f6f6f6]">
+      <div className={`flex items-center justify-center shrink-0 size-[56px] rounded-[8px] ${isClickable ? "bg-white shadow-sm" : "bg-[#f6f6f6]"}`}>
         <ActivityIcon type={event.icon} />
       </div>
       <div className="flex flex-col gap-[4px] min-w-0 flex-1">
-        <p className="font-sans font-medium leading-[1.3] text-[#3d3d3d] text-[16px] tracking-[-0.48px] truncate">
+        <p className={`font-sans font-medium leading-[1.3] text-[16px] tracking-[-0.48px] truncate ${isClickable ? "text-brand-600" : "text-[#3d3d3d]"}`}>
           {event.label}
         </p>
-        <p className="font-sans font-normal leading-[1.3] text-[14px] text-[rgba(0,0,0,0.45)] tracking-[-0.42px] truncate">
+        <p className={`font-sans font-normal leading-[1.3] text-[14px] tracking-[-0.42px] truncate ${isClickable ? "text-brand-500/75" : "text-[rgba(0,0,0,0.45)]"}`}>
           {event.sublabel}
         </p>
       </div>
-      <p className="font-sans text-[13px] text-[rgba(0,0,0,0.35)] shrink-0 hidden xl:block">
+      <p className={`font-sans text-[13px] shrink-0 hidden xl:block ${isClickable ? "text-brand-500/65" : "text-[rgba(0,0,0,0.35)]"}`}>
         {formatRelative(new Date(event.timestamp))}
       </p>
+      {isClickable ? <ChevronRight className="h-5 w-5 shrink-0 text-brand-500" aria-hidden="true" /> : null}
     </div>
   );
   const className =
@@ -63,7 +65,10 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
 
   if (event.href) {
     return (
-      <Link href={event.href} className={`${className} hover:border-brand-200 hover:bg-brand-50/40`}>
+      <Link
+        href={event.href}
+        className={`${className} border-brand-200 bg-brand-50/50 shadow-sm hover:border-brand-400 hover:bg-brand-50`}
+      >
         {content}
       </Link>
     );
