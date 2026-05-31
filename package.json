@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "dev:help-internal": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1",
+    "dev:help-internal:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1 -Stop",
     "security:install-hooks": "./scripts/install-git-hooks.sh",
     "security:gitleaks": "gitleaks detect --source . --config .gitleaks.toml --redact --no-banner"
   },

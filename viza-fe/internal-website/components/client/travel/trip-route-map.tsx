@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  findTravelAttraction,
+  getTravelAttractionsForCity,
+  getTravelCityImage,
+} from "@/components/client/travel/travel-attraction-knowledge";
 
 export type TripMapPoint = {
   id: string;
@@ -811,30 +816,6 @@ function normalizeLookupKey(input: string | undefined): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function hashLookupString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function buildFallbackNetworkGalleryImages(
-  value: string | undefined
-): string[] {
-  const city = value?.trim();
-  if (!city) return [];
-
-  const encodedCity = encodeURIComponent(city);
-  const lockBase = (hashLookupString(city) % 7000) + 1000;
-
-  return ["city", "landmark", "skyline", "travel"].map(
-    (tag, index) =>
-      `https://loremflickr.com/960/640/${encodedCity},${tag}?lock=${lockBase + index}`
-  );
-}
-
 function getImageLookupKey(imageSrc: string | undefined): string {
   if (!imageSrc) return "";
   return normalizeLookupKey(
@@ -902,17 +883,22 @@ function formatChineseDuration(duration: string | undefined): string {
 
 function getPointGalleryImages(point: TripMapPoint): string[] {
   const orderedImages: string[] = [point.imageSrc];
+  const cityImage = getTravelCityImage(point.city ?? point.label);
+  if (cityImage) orderedImages.push(cityImage);
+  orderedImages.push(
+    ...getTravelAttractionsForCity(point.city ?? point.label).map(
+      (item) => item.imageSrc
+    )
+  );
   getPointLookupKeys(point).forEach((key) => {
-    orderedImages.push(...(GALLERY_IMAGES_BY_KEY[key] ?? []));
+    orderedImages.push(
+      ...(GALLERY_IMAGES_BY_KEY[key] ?? []).filter((imageSrc) =>
+        imageSrc.startsWith("/")
+      )
+    );
   });
 
   const uniqueImages = Array.from(new Set(orderedImages.filter(Boolean)));
-  if (uniqueImages.length < 4) {
-    uniqueImages.push(
-      ...buildFallbackNetworkGalleryImages(point.city ?? point.label)
-    );
-  }
-
   return Array.from(new Set(uniqueImages)).slice(0, GALLERY_MAX_IMAGES);
 }
 
@@ -1440,6 +1426,15 @@ function getPointAttractions(point: TripMapPoint): string {
       : (getLocalNameFromValue(point.city) ??
         point.city ??
         getPointDisplayName(point));
+  const curatedAttractions = getTravelAttractionsForCity(
+    point.city ?? point.label
+  )
+    .slice(0, 4)
+    .map((item) => item.name);
+  if (point.kind === "city" && curatedAttractions.length) {
+    return curatedAttractions.join("、");
+  }
+
   const attractionName = getLocalNameFromValue(point.label) ?? point.label;
   const base =
     point.kind === "city"
@@ -1459,10 +1454,40 @@ function splitDetailItems(value: string): string[] {
 function getCityDetailSamples(
   point: TripMapPoint
 ): Record<DetailSectionId, DetailSectionSample> | null {
+  const cityAttractions = getTravelAttractionsForCity(point.city ?? point.label)
+    .slice(0, 4)
+    .map((item) => item.name);
+  const cityLabel =
+    getLocalNameFromValue(point.city) ?? point.city ?? getPointDisplayName(point);
+
   for (const key of getPointLookupKeys(point)) {
     const sampleKey = CITY_SAMPLE_ALIAS_BY_KEY[key] ?? key;
     const samples = CITY_DETAIL_SAMPLES_BY_KEY[sampleKey];
-    if (samples) return samples;
+    if (samples) {
+      return cityAttractions.length
+        ? {
+            ...samples,
+            attractions: {
+              items: cityAttractions,
+              tip: `${cityLabel}景点卡片已按真实位置和本地图片校准，可直接加入路线。`,
+              tags: ["定位准确", "本地图片", "精选景点"],
+            },
+          }
+        : samples;
+    }
+  }
+
+  if (cityAttractions.length) {
+    return {
+      attractions: {
+        items: cityAttractions,
+        tip: `${cityLabel}景点卡片已按真实位置和本地图片校准，可直接加入路线。`,
+        tags: ["定位准确", "本地图片", "精选景点"],
+      },
+      food: getFallbackDetailSample(point, "food", cityLabel, cityLabel),
+      stay: getFallbackDetailSample(point, "stay", cityLabel, cityLabel),
+      nightlife: getFallbackDetailSample(point, "nightlife", cityLabel, cityLabel),
+    };
   }
 
   return null;
@@ -1545,6 +1570,17 @@ function getDetailItemMedia(
   item: string,
   city: string
 ): DetailItemMedia {
+  const attraction = findTravelAttraction(city, item);
+  if (sectionId === "attractions" && attraction) {
+    return {
+      imageSrc: attraction.imageSrc,
+      description:
+        attraction.description ??
+        getDetailSectionItemDescription(sectionId, item, city),
+      sourceUrl: attraction.sourceUrl,
+    };
+  }
+
   return (
     DETAIL_ITEM_MEDIA_BY_TITLE[item] ?? {
       description: getDetailSectionItemDescription(sectionId, item, city),

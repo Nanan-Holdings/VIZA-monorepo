@@ -115,6 +115,8 @@ Smoke URLs:
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `lib/supabase/*`
+- `supabase/migrations/*`
+- `supabase/templates/*`
 - `lib/i18n/locale.ts`
 - `lib/universal-profile-prefill.ts`
 - `lib/travel/*`

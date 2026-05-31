@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { validateUserEmail } from '@/app/actions/client-auth'
@@ -13,6 +13,7 @@ import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher
 import { useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
+type LoginMethod = 'password' | 'otp'
 
 function ClientLoginContent() {
   const t = useTranslations('auth.login')
@@ -103,15 +104,20 @@ function ClientLoginContent() {
 
   // --- Login state ---
   const [step, setStep] = useState<Step>('email')
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
     if (errorParam === 'not_a_user') setError(t('notRegistered'))
     else if (errorParam === 'auth_failed') setError(t('authFailed'))
+    if (searchParams.get('registered') === '1') setNotice(t('registeredSuccess'))
   }, [searchParams, t])
 
   useEffect(() => {
@@ -125,7 +131,7 @@ function ClientLoginContent() {
     const supabase = createClient()
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: targetEmail.toLowerCase().trim(),
-      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
     if (authError) {
       setError(authError.message.includes('User not found')
@@ -145,9 +151,10 @@ function ClientLoginContent() {
     window.location.href = '/client/home'
   }
 
-  const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
+    setNotice(null)
     setIsSubmitting(true)
     try {
       const result = await validateUserEmail(email)
@@ -155,6 +162,32 @@ function ClientLoginContent() {
       const ok = await sendOtp(email)
       setIsSubmitting(false)
       if (ok) { setStep('otp'); setResendCooldown(60) }
+    } catch (err) {
+      setIsSubmitting(false)
+      setError(t('unexpectedError'))
+      console.error(err)
+    }
+  }
+
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError(null)
+    setNotice(null)
+    setIsSubmitting(true)
+    try {
+      const result = await validateUserEmail(email)
+      if (!result.success) { setError(result.error ?? t('noAccountWithEmail')); setIsSubmitting(false); return }
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      })
+      if (authError) {
+        setError(authError.message || t('authFailed'))
+        setIsSubmitting(false)
+        return
+      }
+      window.location.href = '/client/home'
     } catch (err) {
       setIsSubmitting(false)
       setError(t('unexpectedError'))
@@ -214,7 +247,24 @@ function ClientLoginContent() {
                 </p>
               </div>
 
-              <form onSubmit={handleEmailSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
+              <form
+                onSubmit={loginMethod === 'password' ? handlePasswordSubmit : handleOtpSubmit}
+                className="flex flex-col gap-[clamp(10px,1.5vh,16px)]"
+              >
+                <div className="grid grid-cols-2 gap-2 rounded-[999px] bg-[#f5f5f5] p-1">
+                  {(['password', 'otp'] as const).map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => { setLoginMethod(method); setError(null); setNotice(null) }}
+                      className={`h-9 rounded-[999px] text-[13px] font-medium transition-colors ${
+                        loginMethod === method ? 'bg-white text-[#3d3d3d] shadow-sm' : 'text-[rgba(0,0,0,0.55)] hover:text-[#3d3d3d]'
+                      }`}
+                    >
+                      {method === 'password' ? t('passwordLogin') : t('codeLogin')}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="email"
                   name="email"
@@ -226,6 +276,42 @@ function ClientLoginContent() {
                   disabled={isSubmitting}
                   className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
                 />
+                {loginMethod === 'password' && (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        placeholder={t('passwordPlaceholder')}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        autoComplete="current-password"
+                        disabled={isSubmitting}
+                        className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
+                        aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Link href="/forgot-password" className="block text-right text-[12px] font-medium text-brand-500 underline">
+                      {t('forgotPassword')}
+                    </Link>
+                  </div>
+                )}
+                {notice && (
+                  <motion.p
+                    className="rounded-[12px] border border-[#cfe8d5] bg-[#f0faf4] px-4 py-2 text-[13px] text-[#276749]"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                  >
+                    {notice}
+                  </motion.p>
+                )}
                 {error && (
                   <motion.p
                     className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
@@ -236,12 +322,12 @@ function ClientLoginContent() {
                 )}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (loginMethod === 'password' && !password)}
                   className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('sendingCode')}</span>
-                    : t('loginButton')}
+                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{loginMethod === 'password' ? t('signingIn') : t('sendingCode')}</span>
+                    : loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
                 </button>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>

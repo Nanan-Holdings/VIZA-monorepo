@@ -155,6 +155,7 @@ guides include:
 - `knowledge-base/visa-rag-seeds/AGENTS.md`
 - `docs/AGENTS.md`
 - `docs/internal-automation/AGENTS.md`
+- `scripts/AGENTS.md`
 
 When a file is added, deleted, moved, or renamed, update the nearest relevant
 module `AGENTS.md`. If no module file exists and the change completes a coherent

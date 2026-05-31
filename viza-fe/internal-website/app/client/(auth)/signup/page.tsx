@@ -3,14 +3,28 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import createGlobe from 'cobe'
+import { createClient } from '@/lib/supabase/client'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
 import { useTranslations } from 'next-intl'
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+type SignupStep = 'email' | 'password'
+
+function getPasswordScore(password: string) {
+  const checks = {
+    length: password.length >= 8,
+    letter: /[A-Za-z]/.test(password),
+    digit: /\d/.test(password),
+    symbol: /[^A-Za-z0-9]/.test(password),
+  }
+  const score = Object.values(checks).filter(Boolean).length
+  return { checks, score, isValid: checks.length && checks.letter && checks.digit && checks.symbol }
 }
 
 export default function ClientSignupPage() {
@@ -100,31 +114,73 @@ export default function ClientSignupPage() {
   }, [])
 
   // --- Signup state ---
+  const [step, setStep] = useState<SignupStep>('email')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitted, setIsSubmitted] = useState(false)
   const [acceptTos, setAcceptTos] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const consentReady = acceptTos && acceptPrivacy
+  const passwordStrength = getPasswordScore(password)
+  const passwordsMatch = password.length > 0 && password === confirmPassword
+  const strengthKey =
+    passwordStrength.score >= 4 && password.length >= 12
+      ? 'strong'
+      : passwordStrength.score >= 4
+        ? 'good'
+        : passwordStrength.score >= 2
+          ? 'fair'
+          : 'weak'
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     if (!isValidEmail(email)) { setError(t('invalidEmail')); return }
     if (!consentReady) {
-      setError('Please accept the Terms of Service and Privacy Policy to continue.')
+      setError(t('acceptRequired'))
       return
     }
+    setStep('password')
+  }
+
+  const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(null)
+    if (!passwordStrength.isValid) { setError(t('passwordRequirementError')); return }
+    if (!passwordsMatch) { setError(t('passwordMismatch')); return }
     setIsSubmitting(true)
     try {
+      const supabase = createClient()
+      const normalizedEmail = email.toLowerCase().trim()
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            role: 'client',
+            user_type: 'client',
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/home`,
+        },
+      })
+      if (signUpError) {
+        setError(signUpError.message)
+        setIsSubmitting(false)
+        return
+      }
       const { recordSignupConsent } = await import('@/app/actions/consent')
-      await recordSignupConsent({ email })
-      setIsSubmitted(true)
+      await recordSignupConsent({ email: normalizedEmail })
+      await supabase.auth.signOut()
+      window.location.href = '/client/login?registered=1'
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record consent')
-    } finally {
+      setError(err instanceof Error ? err.message : t('unexpectedError'))
       setIsSubmitting(false)
+    } finally {
+      if (typeof window === 'undefined') setIsSubmitting(false)
     }
   }
 
@@ -146,7 +202,7 @@ export default function ClientSignupPage() {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          {!isSubmitted ? (
+          {step === 'email' ? (
             <motion.div
               key="form"
               className="flex w-full flex-col gap-[clamp(16px,3vh,40px)] shrink-0"
@@ -172,7 +228,7 @@ export default function ClientSignupPage() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
+              <form onSubmit={handleEmailSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
                 <input
                   type="email"
                   name="email"
@@ -231,35 +287,136 @@ export default function ClientSignupPage() {
                 >
                   {isSubmitting
                     ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('submitting')}</span>
-                    : t('requestInvite')}
+                    : t('continueToPassword')}
                 </button>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>
           ) : (
             <motion.div
-              key="success"
+              key="password"
               className="flex w-full flex-col gap-[clamp(16px,3vh,40px)] shrink-0"
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="rounded-[16px] border border-[#d1e7dd] bg-[#f0faf4] px-[clamp(16px,1.5vw,24px)] py-[clamp(14px,2vh,20px)]">
-                <p className="font-sans text-[clamp(13px,1.1vw,16px)] font-medium leading-[1.5] text-[#3d3d3d]">
-                  {t('thankYou')}
-                </p>
-                <p className="mt-2 font-sans text-[clamp(11px,0.9vw,14px)] text-[rgba(0,0,0,0.55)]">
-                  {t('urgentAccess')}
+              <button
+                onClick={() => { setStep('email'); setError(null) }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center text-[#3d3d3d] hover:opacity-60 transition-opacity"
+                aria-label={t('back')}
+                type="button"
+              >
+                <ArrowLeft className="h-7 w-7" />
+              </button>
+
+              <div className="flex flex-col gap-[4px]">
+                <h1 className="text-[clamp(20px,3vw,36px)] font-normal leading-[1.3] tracking-[-1px] text-[#3d3d3d]">
+                  {t('setPasswordTitle')}
+                </h1>
+                <p className="text-[clamp(12px,1.3vw,15px)] tracking-[-0.24px] leading-[1.5] text-[rgba(0,0,0,0.55)]">
+                  {t('setPasswordSubtitle')}
                 </p>
               </div>
 
-              <Link
-                href="/client/login"
-                className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80"
-              >
-                {t('backToLogin')}
-              </Link>
+              <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    placeholder={t('passwordPlaceholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="new-password"
+                    disabled={isSubmitting}
+                    className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
+                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                <div className="space-y-2 rounded-[12px] border border-[#efefef] bg-[#fafafa] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] font-medium text-[#3d3d3d]">{t('passwordStrength')}</span>
+                    <span className="text-[12px] font-medium text-brand-500">{t(`strength.${strengthKey}`)}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <span
+                        key={level}
+                        className={`h-1.5 rounded-full ${passwordStrength.score >= level ? 'bg-brand-500' : 'bg-[#e5e7eb]'}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="grid gap-1 text-[12px] text-[rgba(0,0,0,0.55)]">
+                    {[
+                      ['length', passwordStrength.checks.length],
+                      ['letter', passwordStrength.checks.letter],
+                      ['digit', passwordStrength.checks.digit],
+                      ['symbol', passwordStrength.checks.symbol],
+                    ].map(([key, ok]) => (
+                      <span key={key as string} className="flex items-center gap-2">
+                        <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-brand-500' : 'text-[#bdbdbd]'}`} />
+                        {t(`requirements.${key}`)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirmPassword"
+                    placeholder={t('confirmPasswordPlaceholder')}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    disabled={isSubmitting}
+                    className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
+                    aria-label={showConfirmPassword ? t('hidePassword') : t('showPassword')}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                {confirmPassword && !passwordsMatch && (
+                  <p className="text-[12px] text-[#a13d2d]" role="alert">{t('passwordMismatch')}</p>
+                )}
+
+                {error && (
+                  <motion.p
+                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !passwordStrength.isValid || !passwordsMatch}
+                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting
+                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t('creatingAccount')}</span>
+                    : t('createAccount')}
+                </button>
+                <div className="h-[clamp(24px,4.5vh,48px)]" />
+              </form>
             </motion.div>
           )}
         </AnimatePresence>
