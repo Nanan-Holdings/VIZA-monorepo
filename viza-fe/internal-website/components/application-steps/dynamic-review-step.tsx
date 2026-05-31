@@ -13,6 +13,9 @@ import {
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
 
@@ -83,6 +86,9 @@ export function DynamicReviewStep({
   applicationId,
   dynamicAnswers,
   dbSteps,
+  photoPath,
+  onEdit,
+  onPhotoEdit,
   onComplete,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
@@ -93,6 +99,7 @@ export function DynamicReviewStep({
   const [translationLoading, setTranslationLoading] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [retryingTranslation, setRetryingTranslation] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   /**
    * Format a field's stored value for display.
@@ -172,7 +179,7 @@ export function DynamicReviewStep({
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const rows: ReviewRow[] = [];
 
-    for (const step of dbSteps) {
+    dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
         const safeKey = step.stepName.replace(/\./g, "");
         const localized = tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
@@ -246,10 +253,11 @@ export function DynamicReviewStep({
             badges,
             warnings,
             editable: true,
+            editStepIndex: sourceIndex,
           });
         }
       }
-    }
+    });
 
     return rows;
   }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn, translations]);
@@ -263,6 +271,7 @@ export function DynamicReviewStep({
         error={translationError}
         retrying={retryingTranslation}
         onRetry={() => void runTranslation(true)}
+        onEditSection={onEdit}
         onUpdated={(fieldName, officialValue) => {
           setTranslations((prev) => ({
             ...prev,
@@ -275,10 +284,39 @@ export function DynamicReviewStep({
         }}
       />
 
+      {photoPath ? (
+        <section className="rounded-lg border border-border p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="font-heading text-sm font-semibold text-brand-500">
+              上传照片 / Photo
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
+              onClick={onPhotoEdit}
+            >
+              <Pencil className="mr-1 h-4 w-4" />
+              修改
+            </Button>
+          </div>
+          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
+            {photoPath}
+          </div>
+        </section>
+      ) : null}
+
       {/* Validation + Submit */}
       <ValidationPanel
         applicationId={applicationId}
-        onProceed={onComplete}
+        onProceed={() => setDisclaimerOpen(true)}
+      />
+
+      <SubmissionDisclaimerDialog
+        open={disclaimerOpen}
+        onCancel={() => setDisclaimerOpen(false)}
+        onConfirm={onComplete}
       />
     </div>
   );
