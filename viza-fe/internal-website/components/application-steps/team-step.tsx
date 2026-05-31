@@ -126,6 +126,7 @@ export function TeamStep({
   const [form, setForm] = useState<FrequentTravelerInput>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   const hasCompanions = companions.length > 0;
 
@@ -169,9 +170,11 @@ export function TeamStep({
 
   function resetForm() {
     setForm(EMPTY_FORM);
+    setDialogError(null);
   }
 
   function updateField(field: keyof FrequentTravelerInput, value: string) {
+    setDialogError(null);
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -185,13 +188,17 @@ export function TeamStep({
   }
 
   async function handleCreateFromTraveler(travelerId: string) {
-    if (!applicationId) return;
+    if (!applicationId) {
+      setDialogError(t("noApplication"));
+      return;
+    }
     setCreating(true);
     setNotice(null);
+    setDialogError(null);
     const result = await createTeamCompanion({ applicationId, travelerId });
     setCreating(false);
     if (!result.ok || !result.applicationId) {
-      setNotice({ tone: "error", message: t("createError") });
+      setDialogError(result.reason ?? t("createError"));
       return;
     }
     setDialogOpen(false);
@@ -200,13 +207,17 @@ export function TeamStep({
   }
 
   async function handleCreateFromCustom() {
-    if (!applicationId) return;
+    if (!applicationId) {
+      setDialogError(t("noApplication"));
+      return;
+    }
     setCreating(true);
     setNotice(null);
+    setDialogError(null);
     const result = await createTeamCompanion({ applicationId, traveler: form });
     setCreating(false);
     if (!result.ok || !result.applicationId) {
-      setNotice({ tone: "error", message: t("createError") });
+      setDialogError(result.reason ?? t("createError"));
       return;
     }
     setDialogOpen(false);
@@ -360,12 +371,24 @@ export function TeamStep({
         </Button>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={(next) => setDialogOpen(next)}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(next) => {
+          setDialogOpen(next);
+          if (next) setDialogError(null);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("dialog.title")}</DialogTitle>
             <p className="text-sm text-muted-foreground">{t("dialog.subtitle")}</p>
           </DialogHeader>
+
+          {dialogError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {dialogError}
+            </div>
+          ) : null}
 
           <Tabs value={activeTab} onValueChange={(next) => setActiveTab(next as "frequent" | "custom")}>
             <TabsList className="grid w-full grid-cols-2">

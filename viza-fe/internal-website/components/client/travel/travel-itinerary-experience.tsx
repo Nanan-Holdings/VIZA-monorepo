@@ -70,6 +70,7 @@ import {
   findTravelAttraction,
   getTravelAttractionNamesForCity,
   getTravelAttractionsForCity,
+  getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
 
 type ItineryTableRow = {
@@ -231,36 +232,32 @@ const CITY_IMAGE_POOL = [
 ] as const;
 
 const CITY_IMAGE_BY_KEY: Record<string, string> = {
-  bali: "/globe/singapore.jpg",
-  denpasar: "/globe/singapore.jpg",
+  bali: "/travel/cities/bali.jpg",
+  denpasar: "/travel/cities/bali.jpg",
   chengdu: "/globe/beijing.jpg",
-  tokyo: "/globe/tokyo.jpg",
+  tokyo: "/travel/cities/tokyo.jpg",
   kyoto: "/globe/tokyo.jpg",
   osaka: "/globe/tokyo.jpg",
-  singapore: "/globe/singapore.jpg",
-  sydney: "/globe/sydney.jpg",
-  london: "/globe/london.jpg",
-  paris: "/globe/paris.jpg",
+  singapore: "/travel/cities/singapore.jpg",
+  sydney: "/travel/cities/sydney.jpg",
+  london: "/travel/cities/london.jpg",
+  paris: "/travel/cities/paris.jpg",
   lyon: "/globe/paris.jpg",
   marseille: "/globe/paris.jpg",
   nice: "/globe/paris.jpg",
-  newyork: "/globe/nyc.jpg",
-  nyc: "/globe/nyc.jpg",
-  beijing: "/globe/beijing.jpg",
-  sanfrancisco: "/globe/sf.jpg",
-  sf: "/globe/sf.jpg",
-  pisa: "/globe/pisa.jpg",
+  newyork: "/travel/cities/newyork.jpg",
+  nyc: "/travel/cities/newyork.jpg",
+  beijing: "/travel/cities/beijing.jpg",
+  sanfrancisco: "/travel/cities/sanfrancisco.jpg",
+  sf: "/travel/cities/sanfrancisco.jpg",
+  pisa: "/travel/cities/pisa.jpg",
   naples: "/globe/pisa.jpg",
   rome: "/globe/pisa.jpg",
-  bangkok: "/globe/singapore.jpg",
-  曼谷: "/globe/singapore.jpg",
-  phuket: "/globe/singapore.jpg",
-  普吉岛: "/globe/singapore.jpg",
-  chiangmai: "/globe/singapore.jpg",
-  清迈: "/globe/singapore.jpg",
-  pattaya: "/globe/singapore.jpg",
-  芭提雅: "/globe/singapore.jpg",
-  芭堤雅: "/globe/singapore.jpg",
+  dubai: "/travel/cities/dubai.jpg",
+  moscow: "/travel/cities/moscow.jpg",
+  istanbul: "/travel/cities/istanbul.jpg",
+  melbourne: "/travel/cities/melbourne.jpg",
+  hawaii: "/travel/cities/hawaii.jpg",
 };
 
 const LOCAL_CITY_LABELS: Record<string, string> = {
@@ -1114,6 +1111,12 @@ function getLocalizedAirlineName(
 }
 
 function getCityImage(city: string, seed: string = "default"): string {
+  const curatedCityImage = getTravelCityImage(city);
+  if (curatedCityImage) return curatedCityImage;
+
+  const cityAttractionImage = getTravelAttractionsForCity(city)[0]?.imageSrc;
+  if (cityAttractionImage) return cityAttractionImage;
+
   const key = normalizeLookupKey(city);
   const direct = CITY_IMAGE_BY_KEY[key];
   if (direct) return direct;
@@ -1666,6 +1669,8 @@ function getAttractionChoicesForCity(city: string): AttractionChoiceCard[] {
     lat: item.lat,
     lng: item.lng,
   }));
+  if (knowledgeChoices.length) return knowledgeChoices.slice(0, 10);
+
   const knownKeys = new Set(
     knowledgeChoices.map((item) => normalizeLookupKey(item.name))
   );
@@ -2338,9 +2343,10 @@ function buildAttractionMapPoints(
           : `${cityLabel} stop ${index + 1}`,
       localName: cityLabel,
       intro:
-        language === "zh"
+        attraction?.description ??
+        (language === "zh"
           ? `${activityLabel} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`
-          : `${activityLabel} is near ${locationText}. The map follows the day order.`,
+          : `${activityLabel} is near ${locationText}. The map follows the day order.`),
       imageSrc:
         attraction?.imageSrc ??
         getAttractionImage(city, activity, `${seedPrefix}-${index}`),
