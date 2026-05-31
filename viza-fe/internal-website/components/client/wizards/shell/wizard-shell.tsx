@@ -7,6 +7,10 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
+import {
+  loadDocumentCenterData,
+  type DocumentCenterData,
+} from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +51,8 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [applicationCountry, setApplicationCountry] = useState(config.defaultCountry);
   const [applicationVisaType, setApplicationVisaType] = useState(config.defaultVisaType);
+  const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
+  const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
 
   const visibleSteps = useMemo(
     () => config.steps.filter((s) => !s.showIf || s.showIf(form)),
@@ -116,9 +122,6 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
             profile as UniversalProfileSnapshot | null,
           );
           setForm(merged);
-          if (typeof state.stepIndex === "number" && state.stepIndex >= 0) {
-            setStepIndex(state.stepIndex);
-          }
         } else if (userEmail && config.seedAuthEmail) {
           setForm((prev) =>
             mergeUniversalProfileIntoWizardForm(
@@ -179,6 +182,42 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
     }, 600);
     return () => window.clearTimeout(handle);
   }, [applicationId, form, stepIndex, loading, submitting]);
+
+  useEffect(() => {
+    if (loading || !applicationId) return;
+
+    let cancelled = false;
+    setDocumentCenterData((current) =>
+      current?.selectedApplication?.id === applicationId ? current : null
+    );
+    setDocumentCenterError(null);
+
+    loadDocumentCenterData({
+      applicationId,
+      country: applicationCountry,
+      visaType: applicationVisaType,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setDocumentCenterData(result.data);
+          setDocumentCenterError(null);
+        } else {
+          setDocumentCenterData(null);
+          setDocumentCenterError(result.error);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDocumentCenterData(null);
+          setDocumentCenterError(err instanceof Error ? err.message : tShared("documentsLoadError"));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationCountry, applicationId, applicationVisaType, loading, tShared]);
 
   // Clamp stepIndex if conditional steps drop out beneath us.
   useEffect(() => {
@@ -304,8 +343,8 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
             {onDocuments ? (
               applicationId ? (
                 <DocumentCenterClient
-                  initialData={null}
-                  initialError={null}
+                  initialData={documentCenterData}
+                  initialError={documentCenterError}
                   applicationId={applicationId}
                   country={applicationCountry}
                   visaType={applicationVisaType}

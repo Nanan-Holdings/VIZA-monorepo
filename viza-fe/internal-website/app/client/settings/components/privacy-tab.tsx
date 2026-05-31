@@ -34,7 +34,7 @@ import {
   getDataPrivacyRequests,
   type DataPrivacyRequestSummary,
   type PrivacyRequestType,
-} from "../actions";
+} from "@/app/actions/client-settings";
 
 type NoticeTone = "success" | "info" | "error";
 

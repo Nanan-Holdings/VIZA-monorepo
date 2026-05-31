@@ -1092,6 +1092,7 @@
       "back": "Back",
       "continue": "Continue",
       "documents": "Documents",
+      "documentsLoadError": "Failed to load documents",
       "submitting": "Saving your answers…",
       "edit": "Edit",
       "yes": "Yes",

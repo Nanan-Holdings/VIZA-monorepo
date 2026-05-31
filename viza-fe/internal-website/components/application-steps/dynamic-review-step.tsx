@@ -80,6 +80,8 @@ export interface DynamicReviewStepProps {
   onEdit: (stepIndex: number) => void;
   onPhotoEdit: () => void;
   onComplete: () => void;
+  mode?: "submit" | "continue";
+  continueLabel?: string;
 }
 
 export function DynamicReviewStep({
@@ -90,6 +92,8 @@ export function DynamicReviewStep({
   onEdit,
   onPhotoEdit,
   onComplete,
+  mode = "submit",
+  continueLabel,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const tDyn = useTranslations("application.dynamicSteps");
@@ -100,6 +104,7 @@ export function DynamicReviewStep({
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [retryingTranslation, setRetryingTranslation] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const actionLabel = continueLabel ?? t("review.continueToTeam");
 
   /**
    * Format a field's stored value for display.
@@ -307,17 +312,23 @@ export function DynamicReviewStep({
         </section>
       ) : null}
 
-      {/* Validation + Submit */}
-      <ValidationPanel
-        applicationId={applicationId}
-        onProceed={() => setDisclaimerOpen(true)}
-      />
-
-      <SubmissionDisclaimerDialog
-        open={disclaimerOpen}
-        onCancel={() => setDisclaimerOpen(false)}
-        onConfirm={onComplete}
-      />
+      {mode === "submit" ? (
+        <>
+          <ValidationPanel
+            applicationId={applicationId}
+            onProceed={() => setDisclaimerOpen(true)}
+          />
+          <SubmissionDisclaimerDialog
+            open={disclaimerOpen}
+            onCancel={() => setDisclaimerOpen(false)}
+            onConfirm={onComplete}
+          />
+        </>
+      ) : (
+        <Button onClick={onComplete} size="lg" className="self-stretch">
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }

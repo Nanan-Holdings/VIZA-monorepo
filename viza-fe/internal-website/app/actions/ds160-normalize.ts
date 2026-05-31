@@ -166,10 +166,12 @@ export async function persistDS160AnswerSet(
 
     const { data: profile } = await adminClient
       .from("applicant_profiles")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
-    if (!profile || profile.id !== app.applicant_id) return { error: "Unauthorized" };
+      .select("id, auth_user_id, dependant_of_user_id")
+      .eq("id", app.applicant_id)
+      .maybeSingle();
+    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+      return { error: "Unauthorized" };
+    }
 
     // Flatten hardcoded step data into DS-160 keys
     const hardcodedAnswers = flattenHardcodedSteps(personal, passport, travel);

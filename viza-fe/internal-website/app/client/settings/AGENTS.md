@@ -26,8 +26,9 @@ privacy/data-rights controls.
 
 ## Local Files
 
-- `actions.ts`: compatibility re-export for settings server actions. The
-  trusted implementations live in `app/actions/client-settings.ts`.
+- Server actions for this module live in `app/actions/client-settings.ts`; do
+  not add a local `actions.ts` re-export because `"use server"` files may only
+  export async functions.
 - `components/frequent-travelers-tab.tsx`: common traveler list, add/edit
   form, and soft-delete controls for future group-order selection.
 - `components/privacy-tab.tsx`: client privacy/data-rights controls and request
