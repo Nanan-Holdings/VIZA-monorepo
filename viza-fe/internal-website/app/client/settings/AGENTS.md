@@ -20,13 +20,16 @@ privacy/data-rights controls.
 ## Data Sources
 
 - `applicant_profiles`
+- `applicant_profiles.dependant_of_user_id` for common/frequent travelers
 - `data_privacy_requests`
 - Existing settings/about-me actions
 
 ## Local Files
 
-- `actions.ts`: settings-local server actions for authenticated data-rights
-  request reads and writes.
+- `actions.ts`: compatibility re-export for settings server actions. The
+  trusted implementations live in `app/actions/client-settings.ts`.
+- `components/frequent-travelers-tab.tsx`: common traveler list, add/edit
+  form, and soft-delete controls for future group-order selection.
 - `components/privacy-tab.tsx`: client privacy/data-rights controls and request
   history.
 
