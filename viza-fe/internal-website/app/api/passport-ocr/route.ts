@@ -88,7 +88,7 @@ function inferMimeType(blobType: string, filename: string, storagePath: string):
 }
 
 function isPassportDocumentType(documentType: string): boolean {
-  return ["passport_copy", "passport", "passport_bio_page"].includes(documentType);
+  return ["passport_copy", "passport", "passport_bio_page", "passport_scan"].includes(documentType);
 }
 
 function safeExtractedFieldMetadata(

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, Loader2, ScanLine, Upload, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { recordDocumentUpload } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { SimplifiedIdentity, SimplifiedPassport } from "./types";
 
@@ -98,6 +99,16 @@ export function StepIdentityScan({
         .from(STORAGE_BUCKET)
         .upload(path, file, { upsert: true, contentType: file.type });
       if (uploadError) throw uploadError;
+
+      const recordResult = await recordDocumentUpload({
+        applicationId,
+        documentType: "passport_scan",
+        requirementKey: "passport_copy",
+        filename: file.name || `passport.${ext}`,
+        storagePath: path,
+        required: true,
+      });
+      if (!recordResult.ok) throw new Error(recordResult.error);
 
       const resp = await fetch("/api/passport-scan/extract", {
         method: "POST",

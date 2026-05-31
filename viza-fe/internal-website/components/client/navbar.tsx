@@ -28,7 +28,7 @@ const tabPaths: Record<string, string> = {
   Status: "/client/status",
   Chat: "/client/chat?agent=visa",
   Documents: "/client/documents",
-  Support: "/client/support",
+  Support: "/client/help",
   Settings: "/client/settings",
 };
 

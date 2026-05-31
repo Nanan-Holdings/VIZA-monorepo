@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import { recordDocumentUpload } from "@/app/client/documents/actions";
 import { createClient } from "@/lib/supabase/client";
 import {
   validatePhoto,
@@ -198,6 +199,16 @@ export function PhotoUploadStep({
         });
 
       if (uploadError) throw uploadError;
+
+      const recordResult = await recordDocumentUpload({
+        applicationId: resolvedApplicationId,
+        documentType: "photo",
+        requirementKey: "photo",
+        filename: "photo.jpg",
+        storagePath: path,
+        required: true,
+      });
+      if (!recordResult.ok) throw new Error(recordResult.error);
 
       // Get a signed URL for preview
       const { data: signedData } = await supabase.storage

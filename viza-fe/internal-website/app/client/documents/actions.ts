@@ -190,7 +190,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     description: "Clear scan or photo of the passport bio-data page.",
     required: true,
     sortOrder: 10,
-    accept: [".pdf", ".jpg", ".jpeg", ".png"],
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
   {
@@ -201,7 +201,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     description: "Recent passport-style photo that follows the destination photo rules.",
     required: true,
     sortOrder: 20,
-    accept: [".jpg", ".jpeg", ".png"],
+    accept: [".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
   {
@@ -223,7 +223,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     description: "Recent bank statement or equivalent financial evidence.",
     required: true,
     sortOrder: 40,
-    accept: [".pdf", ".jpg", ".jpeg", ".png"],
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
   {
@@ -234,7 +234,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     description: "Reservation or planned arrival and departure details, if available.",
     required: false,
     sortOrder: 50,
-    accept: [".pdf", ".jpg", ".jpeg", ".png"],
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
   {
@@ -245,7 +245,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     description: "Hotel, host, or accommodation confirmation, if available.",
     required: false,
     sortOrder: 60,
-    accept: [".pdf", ".jpg", ".jpeg", ".png"],
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
 ];
@@ -321,7 +321,7 @@ function fallbackLabelFor(key: string): Pick<DocumentRequirement, "labelEn" | "l
     labelEn: label || "Supporting document",
     labelZh: label || "补充文件",
     description: null,
-    accept: [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"],
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx"],
   };
 }
 

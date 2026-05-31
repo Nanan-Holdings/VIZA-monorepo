@@ -78,7 +78,7 @@ type BusyTarget = {
 } | null;
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
-const DEFAULT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.doc,.docx";
+const DEFAULT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx";
 const REQUIREMENT_LABEL_ZH: Record<string, string> = {
   passport_copy: "护照资料页",
   passport_bio_page: "护照资料页",
@@ -193,9 +193,9 @@ function getDocumentKey(requirement: DocumentRequirement): string {
 
 function isPassportRequirement(requirement: DocumentRequirement): boolean {
   return (
-    ["passport_copy", "passport", "passport_bio_page"].includes(
+    ["passport_copy", "passport", "passport_bio_page", "passport_scan"].includes(
       requirement.documentType
-    ) || requirement.key === "passport_copy"
+    ) || ["passport_copy", "passport_scan"].includes(requirement.key)
   );
 }
 
@@ -405,6 +405,9 @@ function findDocumentForRequirement(
       (document) => document.documentType === requirement.documentType
     ) ??
     documents.find((document) => document.documentType === requirement.key) ??
+    (isPassportRequirement(requirement)
+      ? documents.find((document) => document.documentType === "passport_scan")
+      : null) ??
     null
   );
 }
