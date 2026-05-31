@@ -522,6 +522,10 @@
         "name": "Review",
         "description": "Confirm your details are correct"
       },
+      "team": {
+        "name": "Team",
+        "description": "Add or review travel companions"
+      },
       "status": {
         "name": "Status",
         "description": "Application submitted"
@@ -683,12 +687,14 @@
       "documents": "Documents",
       "photo": "Upload Photo",
       "review": "Review",
+      "team": "Team",
       "confirmation": "Confirmation"
     },
     "dynamicStepDescription": "{count, plural, one {# field} other {# fields}}",
     "documentsStepDescription": "Upload required and optional supporting documents",
     "photoStepDescription": "Upload your passport-style photo",
     "reviewStepDescription": "Review and confirm your details",
+    "teamStepDescription": "Add or review travel companions",
     "statusStepDescription": "Application submitted",
     "dynamicButtons": {
       "continue": "Continue",
@@ -696,6 +702,54 @@
       "selectFallback": "Select…",
       "addAnother": "Add another",
       "remove": "Remove"
+    },
+    "team": {
+      "title": "Team",
+      "subtitle": "Add travel companions if this application is part of a group. Each companion gets their own application form prefilled with shared trip details and their frequent traveler profile.",
+      "listTitle": "Travel companions",
+      "listSubtitle": "Review, edit, or remove companions before the final submission step.",
+      "add": "Add companion",
+      "loading": "Loading companions...",
+      "loadError": "We could not load companions right now.",
+      "createError": "We could not create this companion application.",
+      "deleteError": "We could not remove this companion.",
+      "deleted": "Companion removed.",
+      "addedSuccess": "Companion review finished and added to this team.",
+      "emptyTitle": "No companions added",
+      "emptyDescription": "Continue without adding anyone, or add a frequent/custom traveler.",
+      "hint": "Submit only after your own review and every companion review are finished.",
+      "edit": "Review",
+      "delete": "Remove",
+      "submitting": "Submitting...",
+      "continueToTeam": "Continue to team",
+      "confirmCompanion": "Confirm companion and return",
+      "finalSubmit": "Submit application",
+      "status": {
+        "draft": "Draft",
+        "in_progress": "In progress",
+        "ready_for_submission": "Reviewed",
+        "submitted": "Submitted",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "dialog": {
+        "title": "Add companion",
+        "subtitle": "Choose a frequent traveler or enter a new traveler. Custom travelers are saved for future trips.",
+        "tabs": {
+          "frequent": "Frequent travelers",
+          "custom": "Custom traveler"
+        },
+        "noFrequent": "No frequent travelers yet.",
+        "select": "Select",
+        "cancel": "Cancel",
+        "save": "Save and review"
+      },
+      "deleteDialog": {
+        "title": "Remove companion?",
+        "description": "This removes the companion application from this team. The frequent traveler profile stays available.",
+        "cancel": "Cancel",
+        "confirm": "Remove"
+      }
     }
   },
   "clientStatus": {
@@ -975,6 +1029,7 @@
       "accommodationAddress": "Accommodation address",
       "reviewMessage": "Please review your details carefully before submitting.",
       "confirmAndSubmit": "Confirm & Submit",
+      "continueToTeam": "Continue to team",
       "validation": {
         "failed": "Validation failed",
         "hasErrors": "Application has errors — please fix before submitting",

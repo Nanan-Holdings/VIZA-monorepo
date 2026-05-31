@@ -14,6 +14,8 @@ application lifecycle state.
 - `client-auth.ts`: client auth/session helpers and signout.
 - `application-lifecycle.ts`: lifecycle/status summaries derived from existing
   application, answer, document, and queue tables.
+- `application-group.ts`: group application and team companion creation,
+  companion review state, and authorized companion application reads.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
 - `visa-form-fields.ts`: loads DB-driven visa form fields.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,

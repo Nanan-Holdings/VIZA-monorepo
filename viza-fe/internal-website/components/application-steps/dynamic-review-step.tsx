@@ -72,6 +72,24 @@ function isRomanizationSensitive(fieldName: string, label: string): boolean {
   );
 }
 
+function getDynamicStepTranslationCandidates(stepName: string): string[] {
+  const trimmed = stepName.trim().replace(/\s+/g, " ");
+  const withoutDots = trimmed.replace(/\./g, "");
+  const slashTight = withoutDots.replace(/\s*\/\s*/g, "/");
+  const slashSpaced = withoutDots.replace(/\s*\/\s*/g, " / ");
+  const ampersandAsAnd = withoutDots.replace(/\s*&\s*/g, " and ");
+  const andAsAmpersand = withoutDots.replace(/\s+and\s+/gi, " & ");
+
+  return Array.from(new Set([
+    trimmed,
+    withoutDots,
+    slashTight,
+    slashSpaced,
+    ampersandAsAnd,
+    andAsAmpersand,
+  ]));
+}
+
 export interface DynamicReviewStepProps {
   applicationId: string;
   dynamicAnswers: Record<string, string>;
@@ -186,8 +204,9 @@ export function DynamicReviewStep({
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
-        const safeKey = step.stepName.replace(/\./g, "");
-        const localized = tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+        const translationKey = getDynamicStepTranslationCandidates(step.stepName)
+          .find((key) => tDyn.has(key as never));
+        const localized = translationKey ? tDyn(translationKey as never) : step.stepName;
         return translateLabel(localized, isZh ? "zh" : "en");
       })();
 

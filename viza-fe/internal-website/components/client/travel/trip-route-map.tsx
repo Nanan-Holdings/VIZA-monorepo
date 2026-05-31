@@ -89,6 +89,7 @@ type GoogleMarkerInstance = {
 type GoogleMapInstance = {
   fitBounds: (bounds: GoogleLatLngBoundsInstance, padding?: number) => void;
   setCenter: (center: GoogleLatLngLiteral) => void;
+  setOptions: (options: Partial<GoogleMapOptions>) => void;
   setZoom: (zoom: number) => void;
   getCenter: () => { lat: () => number; lng: () => number } | null;
   getZoom: () => number | undefined;
@@ -130,20 +131,31 @@ type GooglePolylineInstance = {
   setPath: (path: GoogleLatLngLiteral[]) => void;
 };
 
+type GoogleMapOptions = {
+  center: GoogleLatLngLiteral;
+  zoom: number;
+  minZoom?: number;
+  maxZoom?: number;
+  mapTypeControl?: boolean;
+  streetViewControl?: boolean;
+  fullscreenControl?: boolean;
+  zoomControl?: boolean;
+  gestureHandling?: "cooperative" | "greedy" | "none" | "auto";
+  restriction?: {
+    latLngBounds: {
+      north: number;
+      south: number;
+      west: number;
+      east: number;
+    };
+    strictBounds: boolean;
+  };
+};
+
 type GoogleMapsNamespace = {
   Map: new (
     container: HTMLElement,
-    options: {
-      center: GoogleLatLngLiteral;
-      zoom: number;
-      minZoom?: number;
-      maxZoom?: number;
-      mapTypeControl?: boolean;
-      streetViewControl?: boolean;
-      fullscreenControl?: boolean;
-      zoomControl?: boolean;
-      gestureHandling?: "cooperative" | "greedy" | "none" | "auto";
-    }
+    options: GoogleMapOptions
   ) => GoogleMapInstance;
   Marker: new (options: {
     position: GoogleLatLngLiteral;
@@ -203,6 +215,15 @@ const DEFAULT_CENTER: GoogleLatLngLiteral = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 const MIN_ZOOM = 2;
 const MAX_VISIBLE_LAT = 85;
+const VERTICAL_MAP_RESTRICTION = {
+  latLngBounds: {
+    north: MAX_VISIBLE_LAT,
+    south: -MAX_VISIBLE_LAT,
+    west: -180,
+    east: 180,
+  },
+  strictBounds: true,
+};
 const ICON_MIN_SIZE = 44;
 const ICON_MAX_SIZE = 84;
 const GALLERY_MAX_IMAGES = 8;
@@ -1030,6 +1051,12 @@ function getLatitudeBoundedCenter(
   };
 }
 
+function getContainerAwareMinZoom(mapHeight: number): number {
+  if (mapHeight <= 0) return MIN_ZOOM;
+  const requiredZoom = Math.ceil(Math.log2((mapHeight + 2) / 256));
+  return Math.max(MIN_ZOOM, requiredZoom);
+}
+
 function getWrappedLongitudeNearCenter(lng: number, centerLng: number): number {
   let wrappedLng = lng;
   while (wrappedLng - centerLng > 180) wrappedLng -= 360;
@@ -1845,16 +1872,20 @@ export function TripRouteMap({
         if (disposed || !containerRef.current) return;
 
         mapsRef.current = maps;
+        const initialMinZoom = getContainerAwareMinZoom(
+          containerRef.current.clientHeight
+        );
         const map = new maps.Map(containerRef.current, {
           center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
-          minZoom: MIN_ZOOM,
+          zoom: Math.max(DEFAULT_ZOOM, initialMinZoom),
+          minZoom: initialMinZoom,
           maxZoom: 17,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
           zoomControl: true,
           gestureHandling: "greedy",
+          restriction: VERTICAL_MAP_RESTRICTION,
         });
 
         hoverInfoRef.current = new maps.InfoWindow({
@@ -1866,10 +1897,24 @@ export function TripRouteMap({
           hoverInfoRef.current?.close();
         });
         let centerClampRunning = false;
+        let appliedMinZoom = initialMinZoom;
         const clampMapCenterLatitude = () => {
           if (centerClampRunning) return;
           const center = map.getCenter();
           if (!center) return;
+          const minZoom = getContainerAwareMinZoom(
+            containerRef.current?.clientHeight ?? 0
+          );
+          if (minZoom !== appliedMinZoom) {
+            appliedMinZoom = minZoom;
+            map.setOptions({
+              minZoom,
+              restriction: VERTICAL_MAP_RESTRICTION,
+            });
+          }
+          if ((map.getZoom() ?? DEFAULT_ZOOM) < minZoom) {
+            map.setZoom(minZoom);
+          }
           const boundedCenter = getLatitudeBoundedCenter(
             { lat: center.lat(), lng: center.lng() },
             map.getZoom() ?? DEFAULT_ZOOM,
@@ -1914,6 +1959,7 @@ export function TripRouteMap({
             hoverInfoRef.current?.close();
           }),
           map.addListener("drag", clampMapCenterLatitude),
+          map.addListener("bounds_changed", clampMapCenterLatitude),
           map.addListener("center_changed", clampMapCenterLatitude),
           map.addListener("idle", clampMapCenterLatitude),
         ];

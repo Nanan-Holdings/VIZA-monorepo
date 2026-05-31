@@ -1,7 +1,7 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ import {
   ReviewStep,
   PhotoUploadStep,
   DynamicReviewStep,
+  TeamStep,
   type PersonalInfoData,
   type PassportData,
   type TravelInfoData,
@@ -47,6 +48,10 @@ import {
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
+import {
+  getTeamApplicationContext,
+  markTeamCompanionReviewed,
+} from "@/app/actions/application-group";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -80,6 +85,7 @@ type StepSectionKey =
   | "documents"
   | "photo"
   | "review"
+  | "team"
   | "confirmation";
 
 interface StepSectionDef {
@@ -102,10 +108,11 @@ const STEP_SECTION_ORDER: StepSectionKey[] = [
   "documents",
   "photo",
   "review",
+  "team",
   "confirmation",
 ];
 
-const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "status"] as const;
+const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "team", "status"] as const;
 
 /** Map a visa package's visa_type to the submission_queue status that
  *  routes the worker to the right autofill pipeline. Defaults to
@@ -150,6 +157,24 @@ function normalizeStepName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function getDynamicStepTranslationCandidates(stepName: string): string[] {
+  const trimmed = stepName.trim().replace(/\s+/g, " ");
+  const withoutDots = trimmed.replace(/\./g, "");
+  const slashTight = withoutDots.replace(/\s*\/\s*/g, "/");
+  const slashSpaced = withoutDots.replace(/\s*\/\s*/g, " / ");
+  const ampersandAsAnd = withoutDots.replace(/\s*&\s*/g, " and ");
+  const andAsAmpersand = withoutDots.replace(/\s+and\s+/gi, " & ");
+
+  return Array.from(new Set([
+    trimmed,
+    withoutDots,
+    slashTight,
+    slashSpaced,
+    ampersandAsAnd,
+    andAsAmpersand,
+  ]));
+}
+
 function getStepSectionKey(step: StepDef): StepSectionKey {
   const sourceName = normalizeStepName(step.sourceName ?? step.name);
 
@@ -175,6 +200,7 @@ function getStepSectionKey(step: StepDef): StepSectionKey {
   if (sourceName.startsWith("supporting documents") || sourceName.startsWith("upload documents")) return "documents";
   if (sourceName.startsWith("upload photo")) return "photo";
   if (sourceName.startsWith("review")) return "review";
+  if (sourceName.startsWith("team")) return "team";
   if (sourceName.startsWith("confirmation")) return "confirmation";
 
   return "review";
@@ -804,21 +830,53 @@ interface ApplicationState {
   submissionResultStatus: SubmissionResultStatus | null;
 }
 
+type LoadedApplicantProfile = UniversalProfileSnapshot & {
+  id?: string | null;
+  place_of_birth?: string | null;
+  gender?: string | null;
+};
+
+type LoadedApplication = {
+  id?: string | null;
+  country?: string | null;
+  visa_type?: string | null;
+  status?: string | null;
+  confirmation_number?: string | null;
+  submitted_at?: string | null;
+  submission_result?: unknown | null;
+  submission_result_status?: string | null;
+  arrival_date?: string | null;
+  departure_date?: string | null;
+  port_of_entry?: string | null;
+  purpose?: string | null;
+  accommodation_name?: string | null;
+  accommodation_address?: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function ApplicationPage() {
+  const router = useRouter();
   const t = useTranslations("application");
   const locale = useLocale();
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
+  const jumpToTeam = searchParams.get("step") === "team";
+  const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
+  const returnToParam = searchParams.get("returnTo")?.trim() || null;
+  const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
+  const teamNotice = searchParams.get("teamNotice");
   const explicitCountry = searchParams.get("country")?.trim().toLowerCase() || null;
   const explicitVisaType =
     searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
+  const showTeamStep = !isCompanionFlow;
 
-  const STEPS: StepDef[] = STEP_KEYS.map((key, id) => ({
+  const STEPS: StepDef[] = STEP_KEYS
+    .filter((key) => showTeamStep || key !== "team")
+    .map((key, id) => ({
     id,
     name: t(`steps.${key}.name`),
     description: t(`steps.${key}.description`),
@@ -876,6 +934,7 @@ export default function ApplicationPage() {
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
+  const initialStepResolvedRef = useRef(false);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
@@ -889,7 +948,11 @@ export default function ApplicationPage() {
   const documentStepIndex = dbSteps.length;
   const photoStepIndex = dbSteps.length + 1;
   const reviewStepIndex = dbSteps.length + 2;
-  const statusStepIndex = dbSteps.length + 3;
+  const teamStepIndex = dbSteps.length + 3;
+  const statusStepIndex = dbSteps.length + (showTeamStep ? 4 : 3);
+  const fallbackReviewStepIndex = 4;
+  const fallbackTeamStepIndex = 5;
+  const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
 
   const visibleDynamicSteps = useMemo(
     () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswers) : []),
@@ -908,8 +971,9 @@ export default function ApplicationPage() {
           id: sourceIndex,
           sourceName: step.stepName,
           name: (() => {
-            const safeKey = step.stepName.replace(/\./g, "");
-            return tDyn.has(safeKey) ? tDyn(safeKey as never) : step.stepName;
+            const translationKey = getDynamicStepTranslationCandidates(step.stepName)
+              .find((key) => tDyn.has(key as never));
+            return translationKey ? tDyn(translationKey as never) : step.stepName;
           })(),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
@@ -931,6 +995,16 @@ export default function ApplicationPage() {
           name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
+        ...(showTeamStep
+          ? [
+              {
+                id: teamStepIndex,
+                sourceName: "Team",
+                name: tApp.has("steps.team.name") ? tApp("steps.team.name" as never) : "Team",
+                description: tApp.has("teamStepDescription") ? tApp("teamStepDescription" as never) : "Add or review companions",
+              },
+            ]
+          : []),
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
@@ -943,8 +1017,10 @@ export default function ApplicationPage() {
       documentStepIndex,
       photoStepIndex,
       reviewStepIndex,
+      showTeamStep,
       statusStepIndex,
       STEPS,
+      teamStepIndex,
       isZhInterface,
       tApp,
       tDyn,
@@ -967,6 +1043,7 @@ export default function ApplicationPage() {
     documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
     photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
     review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
+    team: tApp.has("dynamicSections.team") ? tApp("dynamicSections.team" as never) : "Team",
     confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
   } satisfies Record<StepSectionKey, string>;
 
@@ -987,27 +1064,43 @@ export default function ApplicationPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    const { data: profile } = await supabase
-      .from("applicant_profiles")
-      .select("*")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
+    let profile: LoadedApplicantProfile | null = null;
+    let application: LoadedApplication | null = null;
 
-    const { data: applicationRows } = await supabase
-      .from("applications")
-      .select("*")
-      .eq("applicant_id", profile?.id ?? "")
-      .order("updated_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false });
+    if (explicitApplicationId) {
+      const context = await getTeamApplicationContext(explicitApplicationId);
+      if (!context.ok || !context.application || !context.profile) {
+        setError(context.reason ?? t("errors.noApplicationFound"));
+        setLoading(false);
+        return;
+      }
+      profile = context.profile as LoadedApplicantProfile;
+      application = context.application as LoadedApplication;
+    } else {
+      const { data: ownerProfile } = await supabase
+        .from("applicant_profiles")
+        .select("*")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
 
-    const applications = applicationRows ?? [];
-    const application =
-      applications.find(
-        (row) =>
-          String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
-          getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
-      ) ??
-      (preferExplicitPackage ? null : applications[0] ?? null);
+      profile = (ownerProfile as LoadedApplicantProfile | null) ?? null;
+
+      const { data: applicationRows } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("applicant_id", profile?.id ?? "")
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+
+      const applications = (applicationRows ?? []) as LoadedApplication[];
+      application =
+        applications.find(
+          (row) =>
+            String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
+            getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
+        ) ??
+        (preferExplicitPackage ? null : applications[0] ?? null);
+    }
 
     if (profile) {
       // Load DS-160 answers from visa_application_answers first (the source of truth)
@@ -1071,7 +1164,10 @@ export default function ApplicationPage() {
 
       const completed = hasPersonal ? (hasPassport ? (hasTravel ? (hasDocuments ? (isSubmitted ? 6 : 4) : 3) : 2) : 1) : 0;
       setCompletedUpTo(completed);
-      setCurrentStep(0);
+      if (!initialStepResolvedRef.current) {
+        setCurrentStep(0);
+        initialStepResolvedRef.current = true;
+      }
 
       // Set dynamic answers for the dynamic form steps
       if (Object.keys(mergedDynamicAnswers).length > 0) {
@@ -1083,7 +1179,7 @@ export default function ApplicationPage() {
     }
 
     setLoading(false);
-  }, [preferExplicitPackage, resolvedCountry, resolvedVisaType]);
+  }, [explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, t]);
 
   useEffect(() => {
     if (!packageLoaded) return;
@@ -1094,14 +1190,30 @@ export default function ApplicationPage() {
   // prefilled answers have loaded, jump directly to the Review step.
   const [reviewJumpHandled, setReviewJumpHandled] = useState(false);
   useEffect(() => {
-    if (!jumpToReview || reviewJumpHandled || loading) return;
-    const targetId = useDynamic
-      ? (effectiveSteps.find((s) => s.sourceName === "Review")?.id ?? reviewStepIndex)
-      : 4; // STEP_KEYS index of "review"
+    if ((!jumpToReview && !jumpToTeam) || reviewJumpHandled || loading) return;
+    const targetId = jumpToTeam && showTeamStep
+      ? (useDynamic
+          ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
+          : fallbackTeamStepIndex)
+      : useDynamic
+        ? (effectiveSteps.find((s) => s.sourceName === "Review")?.id ?? reviewStepIndex)
+        : fallbackReviewStepIndex;
     setCurrentStep(targetId);
     setCompletedUpTo((c) => Math.max(c, targetId));
     setReviewJumpHandled(true);
-  }, [jumpToReview, reviewJumpHandled, loading, useDynamic, effectiveSteps, reviewStepIndex]);
+  }, [
+    effectiveSteps,
+    jumpToReview,
+    jumpToTeam,
+    loading,
+    reviewJumpHandled,
+    reviewStepIndex,
+    showTeamStep,
+    fallbackReviewStepIndex,
+    fallbackTeamStepIndex,
+    teamStepIndex,
+    useDynamic,
+  ]);
 
   useEffect(() => {
     if (!useDynamic || effectiveSteps.length === 0) return;
@@ -1340,6 +1452,55 @@ export default function ApplicationPage() {
     setCurrentStep(reviewStepIndex);
   };
 
+  const returnToTeam = useCallback(() => {
+    const target = new URL(returnToParam ?? "/client/application/long-form", window.location.origin);
+    target.searchParams.set("step", "team");
+    target.searchParams.set("teamNotice", "companion_added");
+    router.push(target.toString().replace(window.location.origin, ""));
+  }, [returnToParam, router]);
+
+  const handleReviewContinueToTeam = useCallback(() => {
+    if (!showTeamStep) return;
+    const targetReviewStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
+    const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
+    const reviewStepPosition = getVisibleStepIndex(effectiveSteps, targetReviewStepIndex);
+    setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
+    setCurrentStep(targetTeamStepIndex);
+  }, [
+    effectiveSteps,
+    fallbackReviewStepIndex,
+    fallbackTeamStepIndex,
+    reviewStepIndex,
+    showTeamStep,
+    teamStepIndex,
+    useDynamic,
+  ]);
+
+  const handleCompanionReviewComplete = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
+
+      const normalizeResult = await persistDS160AnswerSet(
+        appState.applicationId,
+        appState.personal,
+        appState.passport,
+        appState.travel,
+      );
+      if (normalizeResult.error) throw new Error(normalizeResult.error);
+
+      const reviewedResult = await markTeamCompanionReviewed(appState.applicationId);
+      if (!reviewedResult.ok) throw new Error(reviewedResult.reason ?? t("errors.failedToSave"));
+
+      returnToTeam();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+    } finally {
+      setSaving(false);
+    }
+  }, [appState.applicationId, appState.passport, appState.personal, appState.travel, returnToTeam, t]);
+
   // ── Dynamic-mode review complete handler ────────────────────────────
   const handleDynamicReviewComplete = async () => {
     setSaving(true);
@@ -1415,8 +1576,8 @@ export default function ApplicationPage() {
           submissionResultStatus: prev.submissionResultStatus ?? "waiting",
         }));
       }
-      const reviewStepPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
-      setCompletedUpTo((c) => Math.max(c, reviewStepPosition + 1));
+      const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
+      setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
       setCurrentStep(statusStepIndex);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
@@ -1471,8 +1632,8 @@ export default function ApplicationPage() {
         submittedAt: new Date().toISOString(),
         submissionResultStatus: prev.submissionResultStatus ?? "waiting",
       }));
-      setCompletedUpTo((c) => Math.max(c, 5));
-      setCurrentStep(5);
+      setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
+      setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
     } finally {
@@ -1482,6 +1643,18 @@ export default function ApplicationPage() {
 
   const activeCountry = resolvedCountry;
   const activeVisaType = resolvedVisaType;
+  const teamReturnToParams = new URLSearchParams({
+    step: "team",
+    country: activeCountry,
+    visaType: activeVisaType,
+  });
+  if (appState.applicationId) {
+    teamReturnToParams.set("applicationId", appState.applicationId);
+  }
+  const teamReturnTo = `/client/application/long-form?${teamReturnToParams.toString()}`;
+  const initialTeamNotice = teamNotice === "companion_added"
+    ? { tone: "success" as const, message: t("team.addedSuccess") }
+    : null;
 
   const ensurePassportOcrApplication = useCallback(async () => {
     if (appState.applicationId) return appState.applicationId;
@@ -1710,7 +1883,27 @@ export default function ApplicationPage() {
                             photoPath={appState.photo}
                             onEdit={(stepIdx) => setCurrentStep(stepIdx)}
                             onPhotoEdit={() => setCurrentStep(photoStepIndex)}
-                            onComplete={handleDynamicReviewComplete}
+                            onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
+                            mode="continue"
+                            continueLabel={
+                              isCompanionFlow
+                                ? t("team.confirmCompanion")
+                                : t("team.continueToTeam")
+                            }
+                          />
+                        )}
+
+                        {/* Team management and final submit step */}
+                        {step.id === teamStepIndex && showTeamStep && (
+                          <TeamStep
+                            applicationId={appState.applicationId}
+                            country={activeCountry}
+                            visaType={activeVisaType}
+                            returnTo={teamReturnTo}
+                            submitLabel={t("team.finalSubmit")}
+                            submitting={saving}
+                            onSubmit={handleDynamicReviewComplete}
+                            initialNotice={initialTeamNotice ?? undefined}
                           />
                         )}
 
@@ -1778,10 +1971,28 @@ export default function ApplicationPage() {
                               };
                               setCurrentStep(sectionMap[section] ?? 0);
                             }}
-                            onComplete={handleReviewComplete}
+                            onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
+                            mode="continue"
+                            continueLabel={
+                              isCompanionFlow
+                                ? t("team.confirmCompanion")
+                                : t("team.continueToTeam")
+                            }
                           />
                         )}
-                        {step.id === 5 && appState.submittedAt && (
+                        {step.id === fallbackTeamStepIndex && showTeamStep && (
+                          <TeamStep
+                            applicationId={appState.applicationId}
+                            country={activeCountry}
+                            visaType={activeVisaType}
+                            returnTo={teamReturnTo}
+                            submitLabel={t("team.finalSubmit")}
+                            submitting={saving}
+                            onSubmit={handleReviewComplete}
+                            initialNotice={initialTeamNotice ?? undefined}
+                          />
+                        )}
+                        {step.id === fallbackStatusStepIndex && appState.submittedAt && (
                           <SubmissionStatusStep
                             applicationId={appState.applicationId}
                             status={appState.submissionResultStatus}

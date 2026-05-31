@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
@@ -37,8 +37,58 @@ interface WizardShellProps<TForm> {
 const REVIEW_STEP_KEY = "__review";
 const DOCUMENT_STEP_KEY = "__documents";
 
+const ZH_WIZARD_KEY_LABELS: Record<string, string> = {
+  identity: "身份",
+  personal: "个人信息",
+  contact: "联系方式",
+  passport: "护照",
+  document: "证件",
+  travel: "旅行",
+  trip: "行程",
+  tripDates: "行程日期",
+  tripDestination: "目的地",
+  accommodation: "住宿",
+  occupation: "职业",
+  work: "工作与教育",
+  usStay: "美国住宿",
+  usContact: "美国联系人",
+  family: "家庭",
+  familyEu: "欧盟亲属",
+  background: "背景",
+  purpose: "目的",
+  funding: "资金",
+  declaration: "声明",
+  sponsor: "担保人",
+  host: "联系人",
+  travelHistory: "旅行历史",
+  stream: "签证类别",
+  applicationContext: "申请背景",
+  visit: "访问",
+  companions: "同行人",
+  health: "健康",
+  character: "品格",
+};
+
+function fallbackWizardLabel(key: string, locale: string): string {
+  const parts = key.split(".");
+  const last = parts.at(-1) ?? key;
+  const semanticKey = ["label", "title", "subtitle"].includes(last)
+    ? parts.at(-2) ?? last
+    : last;
+
+  if (locale.toLowerCase().startsWith("zh")) {
+    return ZH_WIZARD_KEY_LABELS[semanticKey] ?? semanticKey;
+  }
+
+  return semanticKey
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
   const router = useRouter();
+  const locale = useLocale();
   const tShared = useTranslations("simplifiedForm.shared");
   const tCountry = useTranslations(config.i18nNamespace);
   const shouldReduceMotion = useReducedMotion();
@@ -281,9 +331,9 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
       ? tCountry(titleKey as never)
       : tShared.has(titleKey as never)
         ? tShared(titleKey as never)
-        : "";
+        : fallbackWizardLabel(titleKey, locale);
     return tShared("progress", { current: stepIndex + 1, total: totalSteps, name });
-  }, [currentStep, onDocuments, onReview, stepIndex, tCountry, tShared, totalSteps, visibleSteps]);
+  }, [currentStep, locale, onDocuments, onReview, stepIndex, tCountry, tShared, totalSteps, visibleSteps]);
 
   if (loading) {
     return (
