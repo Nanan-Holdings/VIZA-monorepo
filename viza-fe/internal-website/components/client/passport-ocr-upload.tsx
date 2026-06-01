@@ -9,7 +9,6 @@ import {
   FileImage,
   FileText,
   Loader2,
-  ScanLine,
   ShieldCheck,
   Sun,
   UploadCloud,
@@ -349,71 +348,146 @@ export function PassportOcrUpload({
   };
 
   return (
-    <section className={cn("rounded-xl border border-brand-100 bg-brand-50/60 p-4 sm:p-5", className)}>
-      <div className="grid gap-4 lg:grid-cols-[1fr,280px] lg:items-center">
-        <div className="flex items-start gap-3">
-          <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
-            {status === "done" ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            ) : status === "error" ? (
-              <XCircle className="h-5 w-5 text-destructive" />
-            ) : busy ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ScanLine className="h-5 w-5" />
-            )}
-          </span>
-          <div className="min-w-0">
-            <h3 className="font-heading text-[18px] font-medium text-brand-700">{resolvedTitle}</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{resolvedDescription}</p>
-            {fileName ? (
-              <p className="mt-2 inline-flex max-w-full items-center gap-2 truncate text-xs font-medium text-brand-600">
-                <FileText className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{fileName}</span>
-              </p>
-            ) : null}
-            {message ? (
-              <p
-                className={cn(
-                  "mt-2 text-sm",
-                  status === "error" ? "text-destructive" : status === "done" ? "text-emerald-700" : "text-brand-600",
-                )}
-              >
-                {message}
-              </p>
-            ) : null}
-          </div>
+    <section className={cn("rounded-xl border bg-white p-5 shadow-sm sm:p-8", className)}>
+      <header className="mb-7">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand-500">
+          {copy.stepEyebrow}
         </div>
+        <h3 className="font-heading text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
+          {resolvedTitle}
+        </h3>
+        <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">{resolvedDescription}</p>
+        {fileName ? (
+          <p className="mt-3 inline-flex max-w-full items-center gap-2 truncate text-xs font-medium text-brand-600">
+            <FileText className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{fileName}</span>
+          </p>
+        ) : null}
+        {message ? (
+          <p
+            className={cn(
+              "mt-3 inline-flex items-center gap-2 text-sm",
+              status === "error" ? "text-destructive" : status === "done" ? "text-emerald-700" : "text-brand-600",
+            )}
+          >
+            {status === "done" ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {status === "error" ? <XCircle className="h-4 w-4" /> : null}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            <span>{message}</span>
+          </p>
+        ) : null}
+      </header>
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          disabled={busy}
-          className={cn(
-            "flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-white px-4 py-5 text-center transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-70",
-            isDragging ? "border-brand-500 bg-brand-50" : "border-brand-200 hover:border-brand-500 hover:bg-brand-50",
-          )}
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-500">
-            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
-          </span>
-          <span className="text-sm font-semibold text-foreground">{copy.dropLabel}</span>
-          <span className="text-xs text-muted-foreground">{copy.formats}</span>
-        </button>
-      </div>
+      {busy ? (
+        <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} />
+      ) : (
+        <div className="flex flex-col gap-5">
+          <div className="inline-flex w-fit rounded-full bg-muted p-1">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium text-brand-500 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <UploadCloud className="h-4 w-4" />
+              {copy.uploadFile}
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Camera className="h-4 w-4" />
+              {copy.takePhoto}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            className={cn(
+              "flex min-h-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-gradient-to-b from-slate-50 to-slate-100 px-6 py-10 text-center transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              isDragging ? "border-brand-500 from-brand-50 to-brand-100" : "border-slate-300 hover:border-brand-500 hover:from-brand-50 hover:to-brand-100",
+            )}
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-border bg-white text-brand-500 shadow-sm">
+              <FileImage className="h-7 w-7" />
+            </span>
+            <span className="mt-5 text-lg font-medium text-foreground">{copy.dropTitle}</span>
+            <span className="mt-2 text-sm text-muted-foreground">{copy.dropSubtitle}</span>
+            <span className="mt-5 inline-flex h-10 items-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-medium text-white">
+              <UploadCloud className="h-4 w-4" />
+              {copy.chooseFile}
+            </span>
+            <span className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded border bg-white px-2 py-1 font-medium">JPG</span>
+              <span className="rounded border bg-white px-2 py-1 font-medium">PNG</span>
+              <span className="rounded border bg-white px-2 py-1 font-medium">WebP</span>
+              <span className="rounded border bg-white px-2 py-1 font-medium">PDF</span>
+              <span>{copy.formatsLimit}</span>
+            </span>
+          </button>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                <CheckCircle2 className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">{copy.tipCornersTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipCornersBody}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                <Sun className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">{copy.tipLightTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipLightBody}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-xl border bg-white p-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                <Ban className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">{copy.tipGlareTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.tipGlareBody}</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-brand-500" />
+            {copy.privacy}
+          </p>
+        </div>
+      )}
 
       <input
         ref={inputRef}
         type="file"
         className="hidden"
         accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void handleFile(file);
+          event.target.value = "";
+        }}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        className="hidden"
+        accept="image/*"
+        capture="environment"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) void handleFile(file);
