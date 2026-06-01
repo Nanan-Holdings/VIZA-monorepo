@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { ADMIN_APPLICATION_COPY } from "../copy";
 
 /**
  * Live application-status pill (OPS-001).
@@ -17,8 +20,11 @@ export function RealtimeApplicationStatus({
   applicationId: string;
   initialStatus: string;
 }) {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const copy = ADMIN_APPLICATION_COPY[locale];
   const [status, setStatus] = useState(initialStatus);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const lifecycleLabels = copy.status.lifecycle as Record<string, string>;
 
   useEffect(() => {
     const supabase = createClient();
@@ -48,16 +54,19 @@ export function RealtimeApplicationStatus({
     <div className="bg-white rounded-lg border border-[#efefef] shadow-sm p-4 flex items-center justify-between text-sm">
       <div>
         <p className="text-[#6b6b6b] uppercase tracking-wider text-xs">
-          Application status (live)
+          {locale === "zh" ? "申请状态（实时）" : "Application status (live)"}
         </p>
         <p className="text-base font-semibold text-[#232323] font-mono">
-          {status}
+          {lifecycleLabels[status] ?? status.replaceAll("_", " ")}
         </p>
       </div>
       <p className="text-xs text-[#6b6b6b]">
         {updatedAt
-          ? `updated ${new Date(updatedAt).toLocaleTimeString()}`
-          : "subscribed"}
+          ? `${copy.common.updated} ${new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-SG", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(new Date(updatedAt))}`
+          : locale === "zh" ? "已订阅" : "subscribed"}
       </p>
     </div>
   );

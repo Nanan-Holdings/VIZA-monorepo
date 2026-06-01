@@ -1,7 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/rbac";
+import { getLocale } from "next-intl/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 
 interface UserRow {
   id: string;
@@ -29,9 +31,42 @@ interface ApplicationRow {
   status: string;
 }
 
+const COPY = {
+  en: {
+    title: "User Accounts",
+    subtitle: "All registered users and their active visa packages",
+    headings: {
+      name: "Name",
+      email: "Email",
+      nationality: "Nationality",
+      activePackage: "Active package",
+      applicationStatus: "Application status",
+      joined: "Joined",
+    },
+    none: "None",
+    noUsers: "No users found",
+  },
+  zh: {
+    title: "用户账户",
+    subtitle: "所有注册用户及其启用中的签证套餐",
+    headings: {
+      name: "姓名",
+      email: "邮箱",
+      nationality: "国籍",
+      activePackage: "启用套餐",
+      applicationStatus: "申请状态",
+      joined: "加入时间",
+    },
+    none: "无",
+    noUsers: "暂无用户",
+  },
+} as const;
+
 export default async function AdminUsersPage() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/admin/login");
+  const locale = normalizeInterfaceLocale(await getLocale());
+  const copy = COPY[locale];
 
   const adminClient = createAdminClient();
 
@@ -69,9 +104,9 @@ export default async function AdminUsersPage() {
   return (
     <div className="w-full p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#232323]">User Accounts</h1>
+        <h1 className="text-2xl font-semibold text-[#232323]">{copy.title}</h1>
         <p className="text-sm text-[#6b6b6b] mt-1">
-          All registered users and their active visa packages
+          {copy.subtitle}
         </p>
       </div>
 
@@ -80,12 +115,12 @@ export default async function AdminUsersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-[#fafafa]">
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Nationality</th>
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Active Package</th>
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Application Status</th>
-                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">Joined</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.name}</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.email}</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.nationality}</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.activePackage}</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.applicationStatus}</th>
+                <th className="text-left px-4 py-3 font-medium text-[#6b6b6b]">{copy.headings.joined}</th>
               </tr>
             </thead>
             <tbody>
@@ -111,19 +146,19 @@ export default async function AdminUsersPage() {
                           {Array.isArray(pkg.visa_packages) ? pkg.visa_packages[0]?.name : pkg.visa_packages.name}
                         </span>
                       ) : (
-                        <span className="text-[#9ca3af]">None</span>
+                        <span className="text-[#9ca3af]">{copy.none}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {appStatus ? (
-                        <StatusBadge status={appStatus} />
+                        <StatusBadge status={appStatus} locale={locale} />
                       ) : (
                         <span className="text-[#9ca3af]">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-[#6b6b6b]">
                       {row.created_at
-                        ? new Date(row.created_at).toLocaleDateString()
+                        ? formatDate(row.created_at, locale)
                         : "—"}
                     </td>
                   </tr>
@@ -132,7 +167,7 @@ export default async function AdminUsersPage() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-[#9ca3af]">
-                    No users found
+                    {copy.noUsers}
                   </td>
                 </tr>
               )}
@@ -144,7 +179,7 @@ export default async function AdminUsersPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: InterfaceLocale }) {
   const colors: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700",
     submitted: "bg-blue-50 text-blue-700",
@@ -160,7 +195,26 @@ function StatusBadge({ status }: { status: string }) {
         colors[status] ?? "bg-gray-100 text-gray-700"
       }`}
     >
-      {status}
+      {localizeStatus(status, locale)}
     </span>
   );
+}
+
+function formatDate(value: string, locale: InterfaceLocale) {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-SG", {
+    dateStyle: "medium",
+  }).format(new Date(value));
+}
+
+function localizeStatus(status: string, locale: InterfaceLocale) {
+  if (locale === "en") return status.replaceAll("_", " ");
+  const labels: Record<string, string> = {
+    draft: "草稿",
+    submitted: "已提交",
+    processing: "处理中",
+    approved: "已批准",
+    rejected: "已拒绝",
+    completed: "已完成",
+  };
+  return labels[status.toLowerCase()] ?? status.replaceAll("_", " ");
 }

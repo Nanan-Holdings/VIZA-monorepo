@@ -14,15 +14,19 @@ interface CsQueueClientProps {
 
 const TABS: Array<{ key: TicketTab; label: string }> = [
   { key: "open", label: "Open" },
+  { key: "p2", label: "P2" },
   { key: "mine", label: "Mine" },
   { key: "unassigned", label: "Unassigned" },
   { key: "breaching", label: "Breaching" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
-  open: "Sent",
-  staff_replied: "Pending",
-  closed: "Processed",
+  unresolved: "Unresolved",
+  open: "Unresolved",
+  in_progress: "In progress",
+  staff_replied: "In progress",
+  resolved: "Resolved",
+  closed: "Resolved",
 };
 
 function formatTicketStatus(status: string) {

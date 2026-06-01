@@ -27,6 +27,8 @@ application workflow.
   applications, progress, missing support items, events, notifications, result
   file references, and support actions.
 - `data.ts`: server-side admin data loader and lifecycle derivation helpers.
+- `copy.ts`: English/Chinese admin monitoring copy and formatting helpers
+  keyed by the global interface language.
 - `actions.ts`: audited support-only server actions for this route.
 - `support-actions.tsx`: client-side copy/email helper controls.
 - `ui.tsx`: route-local admin display primitives.

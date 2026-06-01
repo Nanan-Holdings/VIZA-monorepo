@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,6 +11,7 @@ export interface SupportTicketRow {
   subject: string;
   body: string;
   status: string;
+  priority: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +71,8 @@ export async function createSupportTicket(input: {
       application_id: input.applicationId ?? null,
       subject: input.subject.trim(),
       body: input.body.trim(),
+      status: "unresolved",
+      priority: "p2",
     })
     .select("id")
     .single();
@@ -84,6 +88,10 @@ export async function createSupportTicket(input: {
     outcome: "queued",
     payload: { subject: input.subject, ticket_id: row.id },
   });
+
+  revalidatePath("/client/support/requests");
+  revalidatePath("/admin/support");
+  revalidatePath("/admin/cs");
 
   return { ticketId: row.id as string };
 }
@@ -157,7 +165,7 @@ export async function postTicketMessage(input: {
 
   await adminClient
     .from("support_ticket")
-    .update({ updated_at: new Date().toISOString(), status: staff ? "staff_replied" : "open" })
+    .update({ updated_at: new Date().toISOString(), status: staff ? "in_progress" : "unresolved" })
     .eq("id", input.ticketId);
 
   return { messageId: row.id as string };

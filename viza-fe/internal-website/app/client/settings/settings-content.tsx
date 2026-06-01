@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
   ArrowRight,
-  Banknote,
   Check,
   ChevronRight,
   CircleHelp,
@@ -19,22 +18,28 @@ import {
   LogOut,
   Mail,
   MessageCircle,
+  Pencil,
+  Plus,
   ReceiptText,
   ShieldCheck,
+  Trash2,
   UserRound,
   UsersRound,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
+import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { FrequentTravelersTab } from "./components/frequent-travelers-tab";
 import { PrivacyTab } from "./components/privacy-tab";
 
-type PaymentPreference = "card" | "bank_transfer" | "wechat_pay";
+type PaymentMethodId = "bank_card" | "wechat_pay" | "alipay";
+type SecurityPanel = "password" | "email" | null;
 
 interface ApplicantSettingsProfile {
   full_name: string | null;
@@ -43,27 +48,35 @@ interface ApplicantSettingsProfile {
   passport_number: string | null;
 }
 
-const PAYMENT_STORAGE_KEY = "viza.settings.paymentPreference";
+interface PaymentAccount {
+  id: string;
+  method: PaymentMethodId;
+  label: string;
+  identifier: string;
+  isDefault: boolean;
+}
+
+const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
 
 const paymentMethods: Array<{
-  id: PaymentPreference;
+  id: PaymentMethodId;
   icon: LucideIcon;
   accentClass: string;
 }> = [
   {
-    id: "card",
+    id: "bank_card",
     icon: CreditCard,
     accentClass: "from-brand-700 to-brand-500",
-  },
-  {
-    id: "bank_transfer",
-    icon: Banknote,
-    accentClass: "from-slate-900 to-slate-700",
   },
   {
     id: "wechat_pay",
     icon: MessageCircle,
     accentClass: "from-emerald-700 to-emerald-500",
+  },
+  {
+    id: "alipay",
+    icon: WalletCards,
+    accentClass: "from-sky-700 to-sky-500",
   },
 ];
 
@@ -90,19 +103,18 @@ function SettingsRow({
   title,
   description,
   href,
+  onClick,
   badge,
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   badge?: string;
 }) {
-  return (
-    <Link
-      href={href}
-      className="group flex min-h-[72px] items-center gap-4 border-b border-border px-1 py-4 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
+  const content = (
+    <>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
         <Icon className="h-5 w-5" />
       </span>
@@ -120,6 +132,23 @@ function SettingsRow({
         </span>
       ) : null}
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </>
+  );
+
+  const className =
+    "group flex min-h-[72px] items-center gap-4 border-b border-border px-1 py-4 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(className, "w-full text-left")}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href ?? "#"} className={className}>
+      {content}
     </Link>
   );
 }
@@ -143,30 +172,105 @@ function SectionCard({
   );
 }
 
+function createPaymentAccountId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizePaymentAccounts(value: unknown): PaymentAccount[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((account): PaymentAccount[] => {
+    if (
+      typeof account !== "object" ||
+      account === null ||
+      !("id" in account) ||
+      !("method" in account) ||
+      !("label" in account) ||
+      !("identifier" in account)
+    ) {
+      return [];
+    }
+
+    const method = account.method;
+    if (method !== "bank_card" && method !== "wechat_pay" && method !== "alipay") {
+      return [];
+    }
+
+    return [
+      {
+        id: String(account.id),
+        method,
+        label: String(account.label),
+        identifier: String(account.identifier),
+        isDefault: Boolean("isDefault" in account ? account.isDefault : false),
+      },
+    ];
+  });
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function getPasswordChecks(password: string) {
+  const checks = {
+    length: password.length >= 8,
+    letter: /[A-Za-z]/.test(password),
+    digit: /\d/.test(password),
+    symbol: /[^A-Za-z0-9]/.test(password),
+  };
+
+  return {
+    ...checks,
+    isValid: checks.length && checks.letter && checks.digit && checks.symbol,
+  };
+}
+
 export function SettingsContent() {
   const router = useRouter();
   const t = useTranslations("settings");
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<ApplicantSettingsProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [paymentPreference, setPaymentPreference] =
-    useState<PaymentPreference>("card");
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
+  const [activePaymentMethod, setActivePaymentMethod] =
+    useState<PaymentMethodId>("bank_card");
+  const [paymentForm, setPaymentForm] = useState({ label: "", identifier: "" });
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [activeSecurityPanel, setActiveSecurityPanel] =
+    useState<SecurityPanel>(null);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [securityVerified, setSecurityVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [securityMessage, setSecurityMessage] = useState<{
     tone: "success" | "error";
     text: string;
   } | null>(null);
 
   useEffect(() => {
-    const storedPreference = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
-    if (
-      storedPreference === "card" ||
-      storedPreference === "bank_transfer" ||
-      storedPreference === "wechat_pay"
-    ) {
-      setPaymentPreference(storedPreference);
+    const storedAccounts = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
+    if (!storedAccounts) return;
+
+    try {
+      setPaymentAccounts(normalizePaymentAccounts(JSON.parse(storedAccounts)));
+    } catch {
+      setPaymentAccounts([]);
     }
   }, []);
 
@@ -215,16 +319,197 @@ export function SettingsContent() {
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   }, [email, profile]);
 
-  function updatePaymentPreference(nextPreference: PaymentPreference) {
-    setPaymentPreference(nextPreference);
-    window.localStorage.setItem(PAYMENT_STORAGE_KEY, nextPreference);
+  const paymentSummary = useMemo(() => {
+    const defaultAccount = paymentAccounts.find((account) => account.isDefault);
+    if (!defaultAccount) return t("quickSnapshot.notSet");
+
+    return `${t(`payment.methods.${defaultAccount.method}.title`)} · ${defaultAccount.label}`;
+  }, [paymentAccounts, t]);
+
+  const activeMethodAccounts = paymentAccounts.filter(
+    (account) => account.method === activePaymentMethod
+  );
+
+  const editingPaymentAccount = editingPaymentId
+    ? paymentAccounts.find((account) => account.id === editingPaymentId) ?? null
+    : null;
+
+  const passwordChecks = getPasswordChecks(newPassword);
+
+  function savePaymentAccounts(nextAccounts: PaymentAccount[]) {
+    setPaymentAccounts(nextAccounts);
+    window.localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(nextAccounts));
+  }
+
+  function resetPaymentForm() {
+    setPaymentForm({ label: "", identifier: "" });
+    setEditingPaymentId(null);
+  }
+
+  function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPaymentMessage(null);
+
+    const label = paymentForm.label.trim();
+    const identifier = paymentForm.identifier.trim();
+
+    if (!label || !identifier) {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.required") });
+      return;
+    }
+
+    if (editingPaymentAccount) {
+      savePaymentAccounts(
+        paymentAccounts.map((account) =>
+          account.id === editingPaymentAccount.id
+            ? { ...account, label, identifier }
+            : account
+        )
+      );
+      setPaymentMessage({ tone: "success", text: t("payment.messages.updated") });
+      resetPaymentForm();
+      return;
+    }
+
+    const shouldBeDefault = activeMethodAccounts.length === 0;
+    const nextAccount: PaymentAccount = {
+      id: createPaymentAccountId(),
+      method: activePaymentMethod,
+      label,
+      identifier,
+      isDefault: shouldBeDefault,
+    };
+
+    savePaymentAccounts([...paymentAccounts, nextAccount]);
+    setPaymentMessage({ tone: "success", text: t("payment.messages.added") });
+    resetPaymentForm();
+  }
+
+  function editPaymentAccount(account: PaymentAccount) {
+    setActivePaymentMethod(account.method);
+    setEditingPaymentId(account.id);
+    setPaymentForm({ label: account.label, identifier: account.identifier });
+    setPaymentMessage(null);
+  }
+
+  function deletePaymentAccount(accountId: string) {
+    const deletedAccount = paymentAccounts.find((account) => account.id === accountId);
+    if (!deletedAccount) return;
+
+    const remainingAccounts = paymentAccounts.filter((account) => account.id !== accountId);
+    const methodAccounts = remainingAccounts.filter(
+      (account) => account.method === deletedAccount.method
+    );
+
+    const nextAccounts =
+      deletedAccount.isDefault && methodAccounts.length > 0
+        ? remainingAccounts.map((account) =>
+            account.id === methodAccounts[0].id ? { ...account, isDefault: true } : account
+          )
+        : remainingAccounts;
+
+    savePaymentAccounts(nextAccounts);
+    if (editingPaymentId === accountId) resetPaymentForm();
+    setPaymentMessage({ tone: "success", text: t("payment.messages.deleted") });
+  }
+
+  function setDefaultPaymentAccount(accountId: string) {
+    const targetAccount = paymentAccounts.find((account) => account.id === accountId);
+    if (!targetAccount) return;
+
+    savePaymentAccounts(
+      paymentAccounts.map((account) =>
+        account.method === targetAccount.method
+          ? { ...account, isDefault: account.id === accountId }
+          : account
+      )
+    );
+    setPaymentMessage({ tone: "success", text: t("payment.messages.defaultUpdated") });
+  }
+
+  function resetSecurityFlow() {
+    setVerificationCode("");
+    setVerificationSent(false);
+    setSecurityVerified(false);
+    setSecurityMessage(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setNewEmail("");
+  }
+
+  function openSecurityPanel(panel: Exclude<SecurityPanel, null>) {
+    setActiveSecurityPanel(panel);
+    resetSecurityFlow();
+  }
+
+  async function handleSendVerificationCode() {
+    setSecurityMessage(null);
+
+    if (!email || !isValidEmail(email)) {
+      setSecurityMessage({ tone: "error", text: t("security.emailMissing") });
+      return;
+    }
+
+    setIsSendingVerification(true);
+    const supabase = createClient();
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailLocale = normalizeAuthEmailLocale(locale);
+    await prepareAuthEmailLocale(normalizedEmail, emailLocale);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/settings`,
+      },
+    });
+    setIsSendingVerification(false);
+
+    if (error) {
+      setSecurityMessage({ tone: "error", text: t("security.verificationSendFailed") });
+      return;
+    }
+
+    setVerificationSent(true);
+    setSecurityMessage({ tone: "success", text: t("security.verificationSent") });
+  }
+
+  async function handleVerifySecurityCode() {
+    setSecurityMessage(null);
+    const normalizedCode = verificationCode.replace(/\D/g, "").slice(0, 8);
+
+    if (normalizedCode.length !== 8) {
+      setSecurityMessage({ tone: "error", text: t("security.codeInvalid") });
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase().trim(),
+      token: normalizedCode,
+      type: "email",
+    });
+    setIsVerifyingCode(false);
+
+    if (error) {
+      setSecurityMessage({ tone: "error", text: t("security.codeFailed") });
+      return;
+    }
+
+    setSecurityVerified(true);
+    setSecurityMessage({ tone: "success", text: t("security.verified") });
   }
 
   async function handlePasswordUpdate() {
     setSecurityMessage(null);
 
-    if (newPassword.length < 8) {
-      setSecurityMessage({ tone: "error", text: t("security.tooShort") });
+    if (!securityVerified) {
+      setSecurityMessage({ tone: "error", text: t("security.verifyFirst") });
+      return;
+    }
+
+    if (!passwordChecks.isValid) {
+      setSecurityMessage({ tone: "error", text: t("security.requirementError") });
       return;
     }
 
@@ -246,6 +531,53 @@ export function SettingsContent() {
     setNewPassword("");
     setConfirmPassword("");
     setSecurityMessage({ tone: "success", text: t("security.updated") });
+  }
+
+  async function handleEmailUpdate() {
+    setSecurityMessage(null);
+
+    if (!securityVerified) {
+      setSecurityMessage({ tone: "error", text: t("security.verifyFirst") });
+      return;
+    }
+
+    const normalizedEmail = newEmail.toLowerCase().trim();
+    if (!isValidEmail(normalizedEmail)) {
+      setSecurityMessage({ tone: "error", text: t("security.emailInvalid") });
+      return;
+    }
+
+    if (normalizedEmail === email.toLowerCase().trim()) {
+      setSecurityMessage({ tone: "error", text: t("security.emailSame") });
+      return;
+    }
+
+    setIsUpdatingEmail(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ email: normalizedEmail });
+
+    if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("applicant_profiles")
+          .update({ email: normalizedEmail })
+          .eq("auth_user_id", user.id);
+      }
+    }
+
+    setIsUpdatingEmail(false);
+
+    if (error) {
+      setSecurityMessage({ tone: "error", text: t("security.emailUpdateFailed") });
+      return;
+    }
+
+    setEmail(normalizedEmail);
+    setNewEmail("");
+    setSecurityMessage({ tone: "success", text: t("security.emailUpdated") });
   }
 
   async function handleSignOut() {
@@ -343,14 +675,14 @@ export function SettingsContent() {
             <div className="flex items-start justify-between gap-4">
               <dt className="text-sm text-muted-foreground">{t("quickSnapshot.payment")}</dt>
               <dd className="text-right text-sm font-semibold text-foreground">
-                {t(`payment.methods.${paymentPreference}.title`)}
+                {paymentSummary}
               </dd>
             </div>
           </dl>
         </motion.div>
       </section>
 
-      <section className="mt-8 space-y-4">
+      <section className="mt-8 space-y-4" id="payment-methods">
         <div>
           <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {t("title")}
@@ -363,13 +695,19 @@ export function SettingsContent() {
         <div className="grid gap-4 md:grid-cols-3">
           {paymentMethods.map((method, index) => {
             const Icon = method.icon;
-            const selected = paymentPreference === method.id;
+            const selected = activePaymentMethod === method.id;
+            const accounts = paymentAccounts.filter((account) => account.method === method.id);
+            const defaultAccount = accounts.find((account) => account.isDefault);
 
             return (
               <motion.button
                 key={method.id}
                 type="button"
-                onClick={() => updatePaymentPreference(method.id)}
+                onClick={() => {
+                  setActivePaymentMethod(method.id);
+                  resetPaymentForm();
+                  setPaymentMessage(null);
+                }}
                 className={cn(
                   "group min-h-[176px] rounded-xl border bg-white p-5 text-left shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selected
@@ -394,7 +732,12 @@ export function SettingsContent() {
                       {t(`payment.methods.${method.id}.title`)}
                     </span>
                     <span className="mt-2 block text-sm leading-6 text-muted-foreground">
-                      {t(`payment.methods.${method.id}.description`)}
+                      {defaultAccount
+                        ? t("payment.defaultAccount", { account: defaultAccount.label })
+                        : t(`payment.methods.${method.id}.description`)}
+                    </span>
+                    <span className="mt-2 block text-xs font-semibold text-brand-700">
+                      {t("payment.boundCount", { count: accounts.length })}
                     </span>
                   </span>
                   {selected ? (
@@ -404,11 +747,160 @@ export function SettingsContent() {
                   ) : null}
                 </span>
                 <span className="mt-4 inline-flex text-sm font-semibold text-brand-600">
-                  {selected ? t("payment.selected") : t("payment.setDefault")}
+                  {selected ? t("payment.manageSelected") : t("payment.manage")}
                 </span>
               </motion.button>
             );
           })}
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">
+                {t(`payment.methods.${activePaymentMethod}.title`)}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {t("payment.managerHint")}
+              </p>
+            </div>
+            <span className="w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              {t("payment.boundCount", { count: activeMethodAccounts.length })}
+            </span>
+          </div>
+
+          {paymentMessage ? (
+            <p
+              className={cn(
+                "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
+                paymentMessage.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              {paymentMessage.text}
+            </p>
+          ) : null}
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
+            <div className="space-y-3">
+              {activeMethodAccounts.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-5 text-sm leading-6 text-muted-foreground">
+                  {t("payment.empty")}
+                </div>
+              ) : (
+                activeMethodAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">{account.label}</p>
+                        {account.isDefault ? (
+                          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                            {t("payment.selected")}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 break-all text-sm text-muted-foreground">
+                        {account.identifier}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {!account.isDefault ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 rounded-full"
+                          onClick={() => setDefaultPaymentAccount(account.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                          {t("payment.setDefault")}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-full"
+                        onClick={() => editPaymentAccount(account)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        {t("payment.edit")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => deletePaymentAccount(account.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {t("payment.delete")}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form className="rounded-lg border bg-muted/20 p-4" onSubmit={handlePaymentSubmit}>
+              <h3 className="font-semibold text-foreground">
+                {editingPaymentAccount ? t("payment.editTitle") : t("payment.addTitle")}
+              </h3>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {t("payment.fields.label")}
+                  </span>
+                  <input
+                    value={paymentForm.label}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({ ...current, label: event.target.value }))
+                    }
+                    placeholder={t(`payment.placeholders.${activePaymentMethod}.label`)}
+                    className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {t("payment.fields.identifier")}
+                  </span>
+                  <input
+                    value={paymentForm.identifier}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({
+                        ...current,
+                        identifier: event.target.value,
+                      }))
+                    }
+                    placeholder={t(`payment.placeholders.${activePaymentMethod}.identifier`)}
+                    className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </label>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {t("payment.safeHint")}
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="submit" className="h-10 rounded-full">
+                    <Plus className="h-4 w-4" />
+                    {editingPaymentAccount ? t("payment.saveEdit") : t("payment.addAccount")}
+                  </Button>
+                  {editingPaymentAccount ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full"
+                      onClick={resetPaymentForm}
+                    >
+                      {t("payment.cancelEdit")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -448,7 +940,7 @@ export function SettingsContent() {
               icon={WalletCards}
               title={t("rows.paymentMethods.title")}
               description={t("rows.paymentMethods.description")}
-              href="/client/help/getting-started/add-a-payment-method"
+              href="#payment-methods"
               badge={t("rows.paymentMethods.badge")}
             />
             <SettingsRow
@@ -480,85 +972,202 @@ export function SettingsContent() {
             <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
               {t("security.title")}
             </h2>
-            <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
-              <div className="flex gap-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                  <LockKeyhole className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-base font-semibold text-foreground">
-                    {t("security.passwordTitle")}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {t("security.description")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {t("security.newPassword")}
-                  </span>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {t("security.confirmPassword")}
-                  </span>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                  />
-                </label>
-
-                {securityMessage ? (
-                  <p
-                    className={cn(
-                      "rounded-lg border px-3 py-2 text-sm font-medium",
-                      securityMessage.tone === "success"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-red-200 bg-red-50 text-red-700"
-                    )}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {securityMessage.text}
-                  </p>
-                ) : null}
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    className="h-11 rounded-full"
-                    onClick={handlePasswordUpdate}
-                    disabled={isUpdatingPassword}
-                  >
-                    {isUpdatingPassword ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <KeyRound className="h-4 w-4" />
-                    )}
-                    {isUpdatingPassword ? t("security.saving") : t("security.updatePassword")}
-                  </Button>
-                  <Button asChild variant="outline" className="h-11 rounded-full">
-                    <Link href="/client/help/privacy-and-security/account-security-tips">
-                      <ShieldCheck className="h-4 w-4" />
-                      {t("security.guide")}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+            <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+              <SettingsRow
+                icon={LockKeyhole}
+                title={t("security.passwordTitle")}
+                description={t("security.passwordDescription")}
+                onClick={() => openSecurityPanel("password")}
+              />
+              <SettingsRow
+                icon={Mail}
+                title={t("security.emailTitle")}
+                description={t("security.emailDescription")}
+                onClick={() => openSecurityPanel("email")}
+              />
+              <SettingsRow
+                icon={ShieldCheck}
+                title={t("security.guide")}
+                description={t("security.guideDescription")}
+                href="/client/help/privacy-and-security/account-security-tips"
+              />
             </div>
+
+            {activeSecurityPanel ? (
+              <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                    {activeSecurityPanel === "password" ? (
+                      <KeyRound className="h-5 w-5" />
+                    ) : (
+                      <Mail className="h-5 w-5" />
+                    )}
+                  </span>
+                  <div>
+                    <p className="text-base font-semibold text-foreground">
+                      {activeSecurityPanel === "password"
+                        ? t("security.passwordTitle")
+                        : t("security.emailTitle")}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      {t("security.verifyDescription", { email })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <div className="grid gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {t("security.verificationCode")}
+                    </span>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <input
+                        inputMode="numeric"
+                        value={verificationCode}
+                        onChange={(event) =>
+                          setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 8))
+                        }
+                        placeholder={t("security.codePlaceholder")}
+                        disabled={securityVerified}
+                        className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-muted"
+                      />
+                      <Button
+                        type="button"
+                        variant={verificationSent ? "outline" : "default"}
+                        className="h-12 rounded-full"
+                        onClick={handleSendVerificationCode}
+                        disabled={isSendingVerification || securityVerified}
+                      >
+                        {isSendingVerification ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                        {verificationSent ? t("security.resendCode") : t("security.sendCode")}
+                      </Button>
+                    </div>
+                    {!securityVerified ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 w-fit rounded-full"
+                        onClick={handleVerifySecurityCode}
+                        disabled={!verificationSent || isVerifyingCode}
+                      >
+                        {isVerifyingCode ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                        {t("security.verifyCode")}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {securityVerified && activeSecurityPanel === "password" ? (
+                    <>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t("security.newPassword")}
+                        </span>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                          className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </label>
+                      <div className="grid gap-1 text-xs text-muted-foreground">
+                        {(["length", "letter", "digit", "symbol"] as const).map((key) => (
+                          <span
+                            key={key}
+                            className={cn(
+                              "flex items-center gap-2",
+                              passwordChecks[key] && "text-emerald-700"
+                            )}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            {t(`security.passwordRequirements.${key}`)}
+                          </span>
+                        ))}
+                      </div>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t("security.confirmPassword")}
+                        </span>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={confirmPassword}
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        className="h-11 w-fit rounded-full"
+                        onClick={handlePasswordUpdate}
+                        disabled={isUpdatingPassword}
+                      >
+                        {isUpdatingPassword ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <KeyRound className="h-4 w-4" />
+                        )}
+                        {isUpdatingPassword ? t("security.saving") : t("security.updatePassword")}
+                      </Button>
+                    </>
+                  ) : null}
+
+                  {securityVerified && activeSecurityPanel === "email" ? (
+                    <>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t("security.newEmail")}
+                        </span>
+                        <input
+                          type="email"
+                          autoComplete="email"
+                          value={newEmail}
+                          onChange={(event) => setNewEmail(event.target.value)}
+                          placeholder={t("security.newEmailPlaceholder")}
+                          className="h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        className="h-11 w-fit rounded-full"
+                        onClick={handleEmailUpdate}
+                        disabled={isUpdatingEmail}
+                      >
+                        {isUpdatingEmail ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                        {isUpdatingEmail ? t("security.savingEmail") : t("security.updateEmail")}
+                      </Button>
+                    </>
+                  ) : null}
+
+                  {securityMessage ? (
+                    <p
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-sm font-medium",
+                        securityMessage.tone === "success"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-red-200 bg-red-50 text-red-700"
+                      )}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {securityMessage.text}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-3">

@@ -25,7 +25,7 @@ const COPY = {
 } as const;
 
 function normalizeTab(value?: string): TicketTab {
-  if (value === "mine" || value === "unassigned" || value === "breaching") return value;
+  if (value === "p2" || value === "mine" || value === "unassigned" || value === "breaching") return value;
   return "open";
 }
 
