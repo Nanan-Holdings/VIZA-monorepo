@@ -88,6 +88,19 @@ function modelNotFoundResponse() {
   );
 }
 
+function invalidKeyResponse() {
+  return Response.json(
+    {
+      error: {
+        type: "invalid_request_error",
+        code: "invalid_api_key",
+        message: "Incorrect API key provided.",
+      },
+    },
+    { status: 401 },
+  );
+}
+
 function requestBodies(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) {
   return fetchMock.mock.calls.map((call) => {
     const init = call[1];
@@ -166,5 +179,22 @@ describe("passport OCR provider", () => {
     expect(JSON.stringify(bodies[1].input)).toContain("Rotate it mentally");
     expect(result.isReadable).toBe(true);
     expect(result.fields.passportNumber.value).toBe("L898902C3");
+  });
+
+  it("reports credential failures as provider unavailable instead of unreadable", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(invalidKeyResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    await expect(extractPassportOcr(file)).rejects.toMatchObject({
+      code: "provider_unavailable",
+      message: "Passport OCR provider credentials or billing are not available.",
+      retryable: false,
+    });
   });
 });

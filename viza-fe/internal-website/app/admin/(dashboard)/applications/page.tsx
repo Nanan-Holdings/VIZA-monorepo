@@ -40,6 +40,8 @@ interface PageProps {
   searchParams?: Promise<SearchParams>;
 }
 
+export const dynamic = "force-dynamic";
+
 interface ActiveFilters {
   lifecycle: LifecycleState | "all";
   payment: PaymentState | "all";
