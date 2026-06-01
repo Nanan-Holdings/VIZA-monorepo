@@ -1,7 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, FileText, Loader2, ScanLine, UploadCloud, XCircle } from "lucide-react";
+import {
+  Ban,
+  Camera,
+  Check,
+  CheckCircle2,
+  FileImage,
+  FileText,
+  Loader2,
+  ScanLine,
+  ShieldCheck,
+  Sun,
+  UploadCloud,
+  XCircle,
+} from "lucide-react";
 import { useLocale } from "next-intl";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -9,7 +22,8 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
-type UploadStatus = "idle" | "uploading" | "ocr" | "done" | "error";
+type UploadStatus = "idle" | "uploading" | "ocr" | "verifying" | "done" | "error";
+type ScanStage = "reading" | "extracting" | "verifying";
 
 interface PassportOcrFieldProposal {
   value: string | null;
@@ -98,11 +112,29 @@ const PASSPORT_OCR_COPY = {
     uploading: "正在上传护照资料页...",
     notAuthenticated: "请先登录后再上传护照。",
     extracting: "正在识别护照字段...",
+    verifying: "正在核验识别结果...",
     ocrFallback: "护照 OCR 暂时无法读取这份文件，请换一张更清晰的护照资料页。",
     done: "已识别并填入护照信息，请核对后继续。",
     failed: "上传或识别失败，请稍后重试。",
     dropLabel: "拖拽文件到这里，或点击上传",
     formats: "PDF、JPG、PNG、WebP，建议四角清晰可见",
+    stepEyebrow: "第 1 步 / 共 3 步",
+    uploadFile: "上传文件",
+    takePhoto: "拍照",
+    dropTitle: "将护照照片拖到这里",
+    dropSubtitle: "或点击选择文件，文件会加密传输",
+    chooseFile: "选择文件",
+    formatsLimit: "最大 10 MB",
+    readingDocument: "正在读取文件",
+    extractingDetails: "正在提取您的信息",
+    verifyingAuthenticity: "正在验证真实性",
+    privacy: "扫描件经加密传输，仅用于识别。",
+    tipCornersTitle: "四个角都清晰可见",
+    tipCornersBody: "请完整拍入资料页，包括底部机读区。",
+    tipLightTitle: "光线明亮均匀",
+    tipLightBody: "避免手或手机壳造成阴影。",
+    tipGlareTitle: "避免反光",
+    tipGlareBody: "如果防伪膜反光，请稍微调整拍摄角度。",
   },
   en: {
     title: "Upload passport bio page",
@@ -112,11 +144,29 @@ const PASSPORT_OCR_COPY = {
     uploading: "Uploading passport bio page...",
     notAuthenticated: "Please sign in before uploading your passport.",
     extracting: "Reading passport fields...",
+    verifying: "Verifying extracted details...",
     ocrFallback: "Passport OCR could not read this file. Please upload a clearer passport bio page.",
     done: "Passport details were extracted and filled in. Please review them before continuing.",
     failed: "Upload or OCR failed. Please try again later.",
     dropLabel: "Drop file here, or click to upload",
     formats: "PDF, JPG, PNG, or WebP. Make sure all four corners are visible.",
+    stepEyebrow: "Step 1 of 3",
+    uploadFile: "Upload file",
+    takePhoto: "Take a photo",
+    dropTitle: "Drop your passport photo here",
+    dropSubtitle: "Or click to browse. Your file is encrypted in transit.",
+    chooseFile: "Choose file",
+    formatsLimit: "Up to 10 MB",
+    readingDocument: "Reading document",
+    extractingDetails: "Extracting your details",
+    verifyingAuthenticity: "Verifying authenticity",
+    privacy: "Your scan is encrypted in transit and used only for extraction.",
+    tipCornersTitle: "All four corners visible",
+    tipCornersBody: "Frame the entire bio page including the bottom MRZ.",
+    tipLightTitle: "Bright, even lighting",
+    tipLightBody: "Avoid shadows from your hand or phone case.",
+    tipGlareTitle: "No glare or reflections",
+    tipGlareBody: "Tilt slightly if your seal is reflecting.",
   },
 } as const;
 
@@ -135,6 +185,86 @@ function getResponseError(payload: PassportOcrResponse | null, fallbackMessage: 
   return message;
 }
 
+const SCAN_STAGES: ScanStage[] = ["reading", "extracting", "verifying"];
+
+function stageFromStatus(status: UploadStatus): ScanStage {
+  if (status === "uploading") return "reading";
+  if (status === "verifying") return "verifying";
+  return "extracting";
+}
+
+function ScanDocumentPreview() {
+  return (
+    <div className="relative h-[116px] w-[180px] shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-[#1a2849] to-[#0d1729] shadow-[0_4px_8px_rgba(3,52,110,0.10),0_18px_28px_-14px_rgba(3,52,110,0.32)]">
+      <div className="absolute inset-[10px] rounded-lg bg-gradient-to-br from-[#4172b8] to-[#1e3a6b] p-3">
+        <span className="mb-1 block h-1 w-4/5 rounded-full bg-white/40" />
+        <span className="mb-1 block h-1 w-3/5 rounded-full bg-white/40" />
+        <span className="mb-3 block h-1 w-[70%] rounded-full bg-white/40" />
+        <span className="mb-1 block h-1 w-[45%] rounded-full bg-white/40" />
+        <span className="block h-1 w-3/4 rounded-full bg-white/40" />
+        <span className="absolute right-5 top-5 h-[30px] w-6 rounded bg-white/20" />
+      </div>
+      <span className="absolute left-0 right-0 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-sky-300 to-transparent opacity-90 shadow-[0_0_12px_rgba(125,211,252,0.9)] motion-safe:animate-pulse" />
+    </div>
+  );
+}
+
+function ScanProgressPanel({
+  stage,
+  copy,
+}: {
+  stage: ScanStage;
+  copy: typeof PASSPORT_OCR_COPY.en | typeof PASSPORT_OCR_COPY.zh;
+}) {
+  const activeIndex = SCAN_STAGES.indexOf(stage);
+  const labels: Record<ScanStage, string> = {
+    reading: copy.readingDocument,
+    extracting: copy.extractingDetails,
+    verifying: copy.verifyingAuthenticity,
+  };
+
+  return (
+    <div className="grid gap-8 rounded-xl border border-brand-100 bg-gradient-to-br from-brand-50/60 to-brand-100/70 p-6 sm:grid-cols-[180px,1fr] sm:items-center">
+      <ScanDocumentPreview />
+      <div className="flex min-w-0 flex-col gap-3">
+        {SCAN_STAGES.map((item, index) => {
+          const done = activeIndex > index;
+          const active = activeIndex === index;
+
+          return (
+            <div key={item} className="flex items-center gap-4">
+              <span
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors",
+                  done && "bg-brand-500 text-white",
+                  active && "bg-brand-100 text-brand-500",
+                  !done && !active && "bg-slate-200 text-transparent",
+                )}
+              >
+                {done ? (
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                ) : active ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                ) : (
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                )}
+              </span>
+              <span
+                className={cn(
+                  "text-base font-medium sm:text-lg",
+                  active || done ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {labels[item]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PassportOcrUpload({
   applicationId,
   className,
@@ -148,12 +278,13 @@ export function PassportOcrUpload({
   const resolvedTitle = title ?? copy.title;
   const resolvedDescription = description ?? copy.description;
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [fileName, setFileName] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const busy = status === "uploading" || status === "ocr";
+  const busy = status === "uploading" || status === "ocr" || status === "verifying";
 
   const handleFile = async (file: File) => {
     if (!applicationId) {
@@ -191,6 +322,8 @@ export function PassportOcrUpload({
       if (!response.ok || !payload?.success) throw new Error(getResponseError(payload, copy.ocrFallback, isZh));
 
       const profileFields = buildProfileFields(payload);
+      setStatus("verifying");
+      setMessage(copy.verifying);
       if (payload.extractionId) {
         const confirmResult = await confirmPassportOcrExtraction({
           applicationId,

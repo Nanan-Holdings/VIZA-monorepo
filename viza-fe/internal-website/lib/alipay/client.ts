@@ -18,10 +18,18 @@ interface AlipayConfig {
   gatewayUrl: string;
 }
 
+function wrapPem(base64Body: string, label: string): string {
+  const keyType = label === "ALIPAY_PRIVATE_KEY" ? "PRIVATE KEY" : "PUBLIC KEY";
+  const normalizedBody = base64Body.replace(/\s+/g, "");
+  const lines = normalizedBody.match(/.{1,64}/g)?.join("\n") ?? normalizedBody;
+  return `-----BEGIN ${keyType}-----\n${lines}\n-----END ${keyType}-----`;
+}
+
 function normalizePem(value: string | undefined, label: string): string {
   const normalized = value?.replace(/\\n/g, "\n").trim();
   if (!normalized) throw new AlipayConfigError(`${label} is not configured.`);
-  return normalized;
+  if (normalized.includes("-----BEGIN ")) return normalized;
+  return wrapPem(normalized, label);
 }
 
 function loadConfig(): AlipayConfig {
@@ -34,6 +42,21 @@ function loadConfig(): AlipayConfig {
     alipayPublicKeyPem: normalizePem(process.env.ALIPAY_PUBLIC_KEY, "ALIPAY_PUBLIC_KEY"),
     gatewayUrl: process.env.ALIPAY_GATEWAY_URL?.trim() || DEFAULT_GATEWAY,
   };
+}
+
+export function isAlipayConfigReady(): boolean {
+  try {
+    const config = loadConfig();
+    createPrivateKey(config.privateKeyPem);
+    createPublicKey(config.alipayPublicKeyPem);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getAlipayAppId(): string {
+  return loadConfig().appId;
 }
 
 function alipayTimestamp(): string {
@@ -109,7 +132,11 @@ export function verifyAlipayNotify(params: Record<string, string>): boolean {
   const signature = params.sign;
   if (!signature) return false;
 
-  const verifier = createVerify("RSA-SHA256");
-  verifier.update(canonicalize(params), "utf8");
-  return verifier.verify(createPublicKey(config.alipayPublicKeyPem), signature, "base64");
+  try {
+    const verifier = createVerify("RSA-SHA256");
+    verifier.update(canonicalize(params), "utf8");
+    return verifier.verify(createPublicKey(config.alipayPublicKeyPem), signature, "base64");
+  } catch {
+    return false;
+  }
 }

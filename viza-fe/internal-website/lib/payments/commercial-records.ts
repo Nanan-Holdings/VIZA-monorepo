@@ -3,6 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { isAlipayConfigReady } from "@/lib/alipay/client";
 
 type Json =
   | string
@@ -79,11 +80,7 @@ export function isWechatPayConfigured(): boolean {
 }
 
 export function isAlipayConfigured(): boolean {
-  return Boolean(
-    process.env.ALIPAY_APP_ID?.trim() &&
-      process.env.ALIPAY_PRIVATE_KEY?.trim() &&
-      process.env.ALIPAY_PUBLIC_KEY?.trim(),
-  );
+  return isAlipayConfigReady();
 }
 
 export function getPaymentProviderReadiness() {
