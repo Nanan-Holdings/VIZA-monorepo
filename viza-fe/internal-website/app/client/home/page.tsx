@@ -549,7 +549,7 @@ export default function HomePage() {
 
         {/* Recent Activity Heading */}
         <motion.p
-          className="font-heading font-medium leading-[1.3] not-italic text-[#3d3d3d] text-[30px] mt-10 tracking-[-0.9px] w-full max-w-[1090px]"
+          className="my-8 w-full max-w-[1090px] font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d] sm:my-10"
           initial="hidden"
           animate="visible"
           variants={activityHeadingVariants}

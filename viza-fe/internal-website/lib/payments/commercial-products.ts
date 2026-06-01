@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  SEARCHABLE_VISA_DESTINATIONS,
+  type PopularVisaDestination,
+} from "@/lib/visa-destinations";
+
 export type CommercialPaymentProvider = "stripe" | "wechat_pay" | "alipay";
 
 export type CommercialProductKind = "monthly" | "pay_per_application";
@@ -16,7 +21,7 @@ export interface CommercialProduct {
   visaType?: string;
 }
 
-export const COMMERCIAL_PRODUCTS: CommercialProduct[] = [
+const MONTHLY_PRODUCTS: CommercialProduct[] = [
   {
     id: "monthly_access",
     kind: "monthly",
@@ -35,182 +40,78 @@ export const COMMERCIAL_PRODUCTS: CommercialProduct[] = [
     descriptionZh: "每月最多 14 个目的地国家，并包含 AI、团单和 Travel Agent 能力。",
     amountFen: 34900,
   },
-  {
-    id: "pay_singapore",
+];
+
+function slug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function productIdForDestination(destination: Pick<PopularVisaDestination, "country" | "visaType">): string {
+  return `pay_${slug(destination.country)}_${slug(destination.visaType)}`;
+}
+
+function amountFenForDestination(destination: PopularVisaDestination): number {
+  if (destination.region === "Schengen") return 63900;
+
+  const countryPrices: Record<string, number> = {
+    singapore: 13900,
+    malaysia: 13900,
+    thailand: 13900,
+    cambodia: 20900,
+    indonesia: 20900,
+    philippines: 20900,
+    vietnam: 20900,
+    united_arab_emirates: 27900,
+    turkey: 27900,
+    japan: 34900,
+    south_korea: 34900,
+    australia: 56900,
+    new_zealand: 56900,
+    canada: 63900,
+    united_kingdom: 63900,
+    united_states: 71900,
+  };
+
+  if (countryPrices[destination.country]) return countryPrices[destination.country];
+
+  const regionPrices: Record<string, number> = {
+    "North America": 63900,
+    "South America": 41900,
+    "Middle East": 27900,
+    Africa: 34900,
+    "Europe outside Schengen": 63900,
+    Asia: 27900,
+    "Europe / Asia": 27900,
+    "Southeast Asia": 20900,
+    "East Asia": 34900,
+    "South Asia": 27900,
+    Oceania: 56900,
+  };
+
+  return regionPrices[destination.region] ?? 34900;
+}
+
+function productForDestination(destination: PopularVisaDestination): CommercialProduct {
+  return {
+    id: productIdForDestination(destination),
     kind: "pay_per_application",
-    name: "Singapore pay-per-application",
-    nameZh: "新加坡次付申请",
-    description: "One VIZA service window for Singapore visitor intake.",
-    descriptionZh: "新加坡访客入境资料的一次 VIZA 服务周期。",
-    amountFen: 13900,
-    country: "singapore",
-    visaType: "entry_visa_or_visit_pass",
-  },
-  {
-    id: "pay_malaysia",
-    kind: "pay_per_application",
-    name: "Malaysia pay-per-application",
-    nameZh: "马来西亚次付申请",
-    description: "One VIZA service window for Malaysia visitor intake.",
-    descriptionZh: "马来西亚访客入境资料的一次 VIZA 服务周期。",
-    amountFen: 13900,
-    country: "malaysia",
-    visaType: "visa_exemption_or_evisa_tourism",
-  },
-  {
-    id: "pay_thailand",
-    kind: "pay_per_application",
-    name: "Thailand pay-per-application",
-    nameZh: "泰国次付申请",
-    description: "One VIZA service window for Thailand visitor intake.",
-    descriptionZh: "泰国访客入境资料的一次 VIZA 服务周期。",
-    amountFen: 13900,
-    country: "thailand",
-    visaType: "visa_exemption_or_tourist_visa",
-  },
-  {
-    id: "pay_indonesia",
-    kind: "pay_per_application",
-    name: "Indonesia pay-per-application",
-    nameZh: "印度尼西亚次付申请",
-    description: "One VIZA service window for Indonesia visitor intake.",
-    descriptionZh: "印度尼西亚访客签证的一次 VIZA 服务周期。",
-    amountFen: 20900,
-    country: "indonesia",
-    visaType: "B211A",
-  },
-  {
-    id: "pay_vietnam",
-    kind: "pay_per_application",
-    name: "Vietnam pay-per-application",
-    nameZh: "越南次付申请",
-    description: "One VIZA service window for Vietnam visitor intake.",
-    descriptionZh: "越南旅游电子签证的一次 VIZA 服务周期。",
-    amountFen: 20900,
-    country: "vietnam",
-    visaType: "evisa_tourism",
-  },
-  {
-    id: "pay_cambodia",
-    kind: "pay_per_application",
-    name: "Cambodia pay-per-application",
-    nameZh: "柬埔寨次付申请",
-    description: "One VIZA service window for Cambodia visitor intake.",
-    descriptionZh: "柬埔寨电子签证和入境资料的一次 VIZA 服务周期。",
-    amountFen: 20900,
-    country: "cambodia",
-    visaType: "tourist_evisa",
-  },
-  {
-    id: "pay_united_arab_emirates",
-    kind: "pay_per_application",
-    name: "United Arab Emirates pay-per-application",
-    nameZh: "阿联酋次付申请",
-    description: "One VIZA service window for UAE visitor intake.",
-    descriptionZh: "阿联酋访客入境资料的一次 VIZA 服务周期。",
-    amountFen: 27900,
-    country: "united_arab_emirates",
-    visaType: "visa_free_or_tourist_visa",
-  },
-  {
-    id: "pay_turkey",
-    kind: "pay_per_application",
-    name: "Turkiye pay-per-application",
-    nameZh: "土耳其次付申请",
-    description: "One VIZA service window for Turkiye visitor intake.",
-    descriptionZh: "土耳其电子签证的一次 VIZA 服务周期。",
-    amountFen: 27900,
-    country: "turkey",
-    visaType: "evisa_tourism_business",
-  },
-  {
-    id: "pay_japan",
-    kind: "pay_per_application",
-    name: "Japan pay-per-application",
-    nameZh: "日本次付申请",
-    description: "One VIZA service window for Japan visitor intake.",
-    descriptionZh: "日本短期电子签证和入境资料的一次 VIZA 服务周期。",
-    amountFen: 34900,
-    country: "japan",
-    visaType: "short_term_tourism_evisa",
-  },
-  {
-    id: "pay_south_korea",
-    kind: "pay_per_application",
-    name: "South Korea pay-per-application",
-    nameZh: "韩国次付申请",
-    description: "One VIZA service window for South Korea visitor intake.",
-    descriptionZh: "韩国 C-3/K-ETA 路线的一次 VIZA 服务周期。",
-    amountFen: 34900,
-    country: "south_korea",
-    visaType: "c3_or_keta",
-  },
-  {
-    id: "pay_australia",
-    kind: "pay_per_application",
-    name: "Australia pay-per-application",
-    nameZh: "澳大利亚次付申请",
-    description: "One VIZA service window for Australia visitor intake.",
-    descriptionZh: "澳大利亚访客签证的一次 VIZA 服务周期。",
-    amountFen: 56900,
-    country: "australia",
-    visaType: "visitor_subclass_600",
-  },
-  {
-    id: "pay_new_zealand",
-    kind: "pay_per_application",
-    name: "New Zealand pay-per-application",
-    nameZh: "新西兰次付申请",
-    description: "One VIZA service window for New Zealand visitor intake.",
-    descriptionZh: "新西兰访客签证和旅客申报的一次 VIZA 服务周期。",
-    amountFen: 56900,
-    country: "new_zealand",
-    visaType: "visitor_visa",
-  },
-  {
-    id: "pay_schengen",
-    kind: "pay_per_application",
-    name: "Schengen Area pay-per-application",
-    nameZh: "申根区次付申请",
-    description: "One VIZA service window for a Schengen Type C destination.",
-    descriptionZh: "一个申根 C 类主要目的地的一次 VIZA 服务周期。",
-    amountFen: 63900,
-    country: "schengen_area",
-    visaType: "EU_SCHENGEN_C_SHORT_STAY",
-  },
-  {
-    id: "pay_united_kingdom",
-    kind: "pay_per_application",
-    name: "United Kingdom pay-per-application",
-    nameZh: "英国次付申请",
-    description: "One VIZA service window for UK visitor intake.",
-    descriptionZh: "英国标准访客签证的一次 VIZA 服务周期。",
-    amountFen: 63900,
-    country: "united_kingdom",
-    visaType: "UK_STANDARD_VISITOR",
-  },
-  {
-    id: "pay_canada",
-    kind: "pay_per_application",
-    name: "Canada pay-per-application",
-    nameZh: "加拿大次付申请",
-    description: "One VIZA service window for Canada visitor intake.",
-    descriptionZh: "加拿大访客签证的一次 VIZA 服务周期。",
-    amountFen: 63900,
-    country: "canada",
-    visaType: "visitor_visa",
-  },
-  {
-    id: "pay_united_states",
-    kind: "pay_per_application",
-    name: "United States pay-per-application",
-    nameZh: "美国次付申请",
-    description: "One VIZA service window for the DS-160 visitor workflow.",
-    descriptionZh: "美国 DS-160 访客签证流程的一次 VIZA 服务周期。",
-    amountFen: 71900,
-    country: "united_states",
-    visaType: "DS160",
-  },
+    name: `${destination.countryName} pay-per-application`,
+    nameZh: `${destination.countryNameZh}次付申请`,
+    description: `One VIZA service window for ${destination.countryName} ${destination.visaName}.`,
+    descriptionZh: `${destination.countryNameZh}${destination.visaNameZh}的一次 VIZA 服务周期。`,
+    amountFen: amountFenForDestination(destination),
+    country: destination.country,
+    visaType: destination.visaType,
+  };
+}
+
+export const PAY_PER_APPLICATION_PRODUCTS: CommercialProduct[] = SEARCHABLE_VISA_DESTINATIONS
+  .filter((destination) => destination.kind !== "group")
+  .map(productForDestination);
+
+export const COMMERCIAL_PRODUCTS: CommercialProduct[] = [
+  ...MONTHLY_PRODUCTS,
+  ...PAY_PER_APPLICATION_PRODUCTS,
 ];
 
 export function getCommercialProduct(productId: string): CommercialProduct | null {

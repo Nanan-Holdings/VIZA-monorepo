@@ -25,23 +25,23 @@ import {
 } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
-type RequestStatusKey = "sent" | "pending" | "resolved";
+type RequestStatusKey = "unresolved" | "inProgress" | "resolved";
 
 function statusKey(status: string): RequestStatusKey {
-  if (status === "closed") return "resolved";
-  if (status === "staff_replied") return "pending";
-  return "sent";
+  if (status === "resolved" || status === "closed") return "resolved";
+  if (status === "in_progress" || status === "staff_replied") return "inProgress";
+  return "unresolved";
 }
 
 function statusClasses(status: string) {
-  if (status === "closed") return "bg-emerald-50 text-emerald-700";
-  if (status === "staff_replied") return "bg-amber-50 text-amber-700";
+  if (status === "resolved" || status === "closed") return "bg-emerald-50 text-emerald-700";
+  if (status === "in_progress" || status === "staff_replied") return "bg-blue-50 text-blue-700";
   return "bg-brand-50 text-brand-600";
 }
 
 function statusIcon(status: string) {
-  if (status === "closed") return CheckCircle2;
-  if (status === "staff_replied") return Clock3;
+  if (status === "resolved" || status === "closed") return CheckCircle2;
+  if (status === "in_progress" || status === "staff_replied") return Clock3;
   return Send;
 }
 
@@ -67,7 +67,7 @@ export default function SupportRequestsPage() {
         acc[statusKey(ticket.status)] += 1;
         return acc;
       },
-      { sent: 0, pending: 0, resolved: 0 } satisfies Record<RequestStatusKey, number>,
+      { unresolved: 0, inProgress: 0, resolved: 0 } satisfies Record<RequestStatusKey, number>,
     );
   }, [tickets]);
 
@@ -124,7 +124,7 @@ export default function SupportRequestsPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        {(["sent", "pending", "resolved"] as const).map((key) => (
+        {(["unresolved", "inProgress", "resolved"] as const).map((key) => (
           <div key={key} className="rounded-lg border border-border bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-muted-foreground">{t(`requests.status.${key}`)}</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{counts[key]}</p>

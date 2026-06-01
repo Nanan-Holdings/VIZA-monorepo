@@ -3538,11 +3538,11 @@
         "title": "Language",
         "description": "Use the language switcher in the top bar, or read the profile guide."
       },
-      "paymentMethods": {
-        "title": "Payment method setup",
-        "description": "See how to add or update card, bank transfer, or WeChat Pay arrangements.",
-        "badge": "Guide"
-      },
+    "paymentMethods": {
+      "title": "Payment method setup",
+      "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+      "badge": "Manage"
+    },
       "billing": {
         "title": "Receipts and invoices",
         "description": "Open billing history, receipts, invoice requests, and refund visibility."
@@ -3556,24 +3556,63 @@
         "description": "Send a support request if something needs human follow-up."
       }
     },
-    "payment": {
-      "selected": "Default",
-      "setDefault": "Set as default",
-      "methods": {
-        "card": {
-          "title": "Card",
-          "description": "Preferred for hosted checkout and receipt tracking."
-        },
-        "bank_transfer": {
-          "title": "Bank transfer",
-          "description": "Use support-assisted transfer details for larger cases."
-        },
-        "wechat_pay": {
-          "title": "WeChat Pay",
-          "description": "Use Chinese payment flow when it is available for the package."
-        }
+  "payment": {
+    "selected": "Default",
+    "setDefault": "Set as default",
+    "manage": "Manage accounts",
+    "manageSelected": "Managing",
+    "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
+    "boundCount": "{count} bound",
+    "defaultAccount": "Default: {account}",
+    "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
+    "addTitle": "Add payment account",
+    "editTitle": "Edit payment account",
+    "addAccount": "Add account",
+    "saveEdit": "Save changes",
+    "cancelEdit": "Cancel edit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+    "fields": {
+      "label": "Account name",
+      "identifier": "Identifier"
+    },
+    "placeholders": {
+      "bank_card": {
+        "label": "For example: DBS debit card",
+        "identifier": "For example: ending in 5857"
+      },
+      "wechat_pay": {
+        "label": "For example: My WeChat",
+        "identifier": "For example: WeChat nickname or phone suffix"
+      },
+      "alipay": {
+        "label": "For example: My Alipay",
+        "identifier": "For example: Alipay account note"
       }
     },
+    "messages": {
+      "required": "Enter an account name and identifier.",
+      "added": "Payment account added.",
+      "updated": "Payment account updated.",
+      "deleted": "Payment account deleted.",
+      "defaultUpdated": "Default payment account updated."
+    },
+    "methods": {
+      "bank_card": {
+        "title": "Card",
+        "description": "Bind cards used for hosted checkout and receipt tracking."
+      },
+      "wechat_pay": {
+        "title": "WeChat Pay",
+        "description": "Bind a WeChat account to use first when supported."
+      },
+      "alipay": {
+        "title": "Alipay",
+        "description": "Bind an Alipay account for future payment selection."
+      }
+    }
+  },
     "travelers": {
       "title": "Frequent travelers",
       "description": "Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
@@ -3631,20 +3670,52 @@
       "failedToSave": "Failed to save.",
       "saved": "Saved."
     },
-    "security": {
-      "title": "Security settings",
-      "passwordTitle": "Change password",
-      "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm password",
-      "updatePassword": "Update password",
-      "saving": "Updating...",
-      "updated": "Password updated.",
-      "mismatch": "The two passwords do not match.",
-      "tooShort": "Password must be at least 8 characters.",
-      "failed": "Could not update the password. Please try again.",
-      "guide": "Security guide"
+  "security": {
+    "title": "Security settings",
+    "passwordTitle": "Change password",
+    "passwordDescription": "Verify your current email code first, then set a new password.",
+    "emailTitle": "Change bound email",
+    "emailDescription": "Confirm your identity with a code sent to the current email. Your password stays the same.",
+    "guideDescription": "Review password, email, and account protection tips.",
+    "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+    "verifyDescription": "We will send an 8-digit code to {email}. Verify it to continue.",
+    "verificationCode": "Email verification code",
+    "codePlaceholder": "Enter 8-digit code",
+    "sendCode": "Send code",
+    "resendCode": "Resend",
+    "verifyCode": "Verify email",
+    "verificationSent": "Verification code sent. Check your email.",
+    "verificationSendFailed": "Could not send the verification code. Please try again later.",
+    "codeInvalid": "Enter the 8-digit verification code.",
+    "codeFailed": "The code is invalid or expired. Please try again.",
+    "verified": "Email verified.",
+    "verifyFirst": "Verify your email code first.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "newEmail": "New bound email",
+    "newEmailPlaceholder": "name@example.com",
+    "updatePassword": "Update password",
+    "updateEmail": "Update email",
+    "saving": "Updating...",
+    "savingEmail": "Updating...",
+    "updated": "Password updated.",
+    "emailUpdated": "Bound email updated. Your password was not changed.",
+    "mismatch": "The two passwords do not match.",
+    "tooShort": "Password must be at least 8 characters.",
+    "requirementError": "Password must include letters, numbers, and a special symbol.",
+    "failed": "Could not update the password. Please try again.",
+    "emailMissing": "Your current account email is unavailable. Sign in again and try later.",
+    "emailInvalid": "Enter a valid new email address.",
+    "emailSame": "The new email must be different from the current email.",
+    "emailUpdateFailed": "Could not update the email. Please try again.",
+    "passwordRequirements": {
+      "length": "At least 8 characters",
+      "letter": "Includes a letter",
+      "digit": "Includes a number",
+      "symbol": "Includes a special symbol"
     },
+    "guide": "Security guide"
+  },
     "signOut": {
       "title": "Sign Out",
       "description": "Sign out of your account on this device.",
@@ -3696,7 +3767,7 @@
       },
       "requests": {
         "title": "My requests",
-        "description": "Track sent, pending, and resolved feedback."
+        "description": "Track unresolved, in-progress, and resolved feedback."
       }
     },
     "requests": {
@@ -3705,9 +3776,11 @@
       "empty": "No feedback yet. Your support requests will show up here.",
       "ticketMeta": "Ticket #{id}",
       "status": {
-        "sent": "Sent",
-        "pending": "Pending",
-        "resolved": "Processed"
+        "unresolved": "Unresolved",
+        "inProgress": "In progress",
+        "sent": "Unresolved",
+        "pending": "In progress",
+        "resolved": "Resolved"
       }
     },
     "requestsPage": {
@@ -4179,6 +4252,12 @@
       "groupTitle": "Core capabilities included",
       "groupBody": "Pay-per-application includes requirements checks, dynamic checklists, multi-language assistance, AI assistance, group applications, and Travel Agent support.",
       "paymentNote": "Pay-per-application destinations now follow the same region and form-entry grouping as the Home destination browser.",
+      "searchPlaceholder": "Search country or visa form",
+      "searchResults": "Search results",
+      "noResults": "No matching country or form found.",
+      "chooseRegion": "Select a region card to view every pay-per-application country form in that region, or search a country directly.",
+      "collapse": "Collapse",
+      "expand": "Expand",
       "regionCountSuffix": "items",
       "feeNote": "All prices are VIZA service fees per application and exclude official visa fees, visa center fees, biometrics, courier fees, or expedited processing.",
       "countries": {
