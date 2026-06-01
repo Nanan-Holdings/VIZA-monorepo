@@ -17,6 +17,8 @@ supports inside VIZA's website automation loop.
   `visa_packages.metadata.government_fee` in a structured way.
 - Show which package has document requirements configured.
 - Help client destination cards avoid over-promising unsupported capabilities.
+- Keep the admin-facing coverage UI copy bound to the global interface language
+  (`NEXT_LOCALE`) for English/Chinese switching.
 
 ## Data Sources
 

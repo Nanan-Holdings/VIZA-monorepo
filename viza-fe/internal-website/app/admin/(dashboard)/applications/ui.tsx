@@ -92,16 +92,18 @@ export function FieldValue({
   label,
   value,
   mono = false,
+  fallback = "Not recorded",
 }: {
   label: string;
   value: React.ReactNode;
   mono?: boolean;
+  fallback?: string;
 }) {
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-[0.04em] text-[#7a7a7a]">{label}</dt>
       <dd className={cn("mt-1 break-words text-sm font-medium text-[#232323]", mono && "font-mono text-xs")}>
-        {value || "Not recorded"}
+        {value || fallback}
       </dd>
     </div>
   );
@@ -142,13 +144,19 @@ export function EmptyState({
   );
 }
 
-export function ErrorPanel({ message }: { message: string }) {
+export function ErrorPanel({
+  message,
+  title = "Unable to load application monitoring",
+}: {
+  message: string;
+  title?: string;
+}) {
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <p className="font-semibold">Unable to load application monitoring</p>
+          <p className="font-semibold">{title}</p>
           <p className="mt-1">{message}</p>
         </div>
       </div>

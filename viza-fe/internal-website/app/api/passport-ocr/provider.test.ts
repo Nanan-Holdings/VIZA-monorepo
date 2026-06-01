@@ -51,6 +51,30 @@ function successResponse() {
   });
 }
 
+function unreadableResponse() {
+  const fields = Object.fromEntries(FIELD_NAMES.map((field) => [field, null]));
+  const fieldConfidence = Object.fromEntries(FIELD_NAMES.map((field) => [field, null]));
+
+  return Response.json({
+    output: [
+      {
+        type: "message",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify({
+              is_readable: false,
+              confidence: 0.2,
+              fields,
+              field_confidence: fieldConfidence,
+            }),
+          },
+        ],
+      },
+    ],
+  });
+}
+
 function modelNotFoundResponse() {
   return Response.json(
     {
@@ -118,6 +142,28 @@ describe("passport OCR provider", () => {
 
     const bodies = requestBodies(fetchMock);
     expect(bodies.map((body) => body.model)).toEqual(["gpt-4.1-mini", "gpt-4o-mini"]);
+    expect(result.isReadable).toBe(true);
+    expect(result.fields.passportNumber.value).toBe("L898902C3");
+  });
+
+  it("retries with rotated-document guidance before returning unreadable", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(unreadableResponse())
+      .mockResolvedValueOnce(successResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("sideways passport image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    const result = await extractPassportOcr(file);
+
+    const bodies = requestBodies(fetchMock);
+    expect(bodies).toHaveLength(2);
+    expect(JSON.stringify(bodies[1].input)).toContain("Rotate it mentally");
     expect(result.isReadable).toBe(true);
     expect(result.fields.passportNumber.value).toBe("L898902C3");
   });

@@ -3,13 +3,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-export type TicketTab = "open" | "mine" | "unassigned" | "breaching";
+export type TicketTab = "open" | "p2" | "mine" | "unassigned" | "breaching";
 
 export interface AdminTicketRow {
   id: string;
   subject: string;
   body: string;
   status: string;
+  priority: string;
   applicant_id: string;
   application_id: string | null;
   assigned_to: string | null;
@@ -60,14 +61,19 @@ export async function listAdminTickets(
   let query = adminClient
     .from("support_ticket")
     .select(
-      "id, subject, body, status, applicant_id, application_id, assigned_to, first_response_at, sla_due_at, created_at, updated_at",
+      "id, subject, body, status, priority, applicant_id, application_id, assigned_to, first_response_at, sla_due_at, created_at, updated_at",
     )
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (tab === "open") query = query.neq("status", "closed");
-  else if (tab === "mine") query = query.eq("assigned_to", guard.userId).neq("status", "closed");
-  else if (tab === "unassigned") query = query.is("assigned_to", null).neq("status", "closed");
+  if (tab === "open") query = query.neq("status", "resolved").neq("status", "closed");
+  else if (tab === "p2") {
+    query = query.eq("priority", "p2").neq("status", "resolved").neq("status", "closed");
+  } else if (tab === "mine") {
+    query = query.eq("assigned_to", guard.userId).neq("status", "resolved").neq("status", "closed");
+  } else if (tab === "unassigned") {
+    query = query.is("assigned_to", null).neq("status", "resolved").neq("status", "closed");
+  }
   else if (tab === "breaching") {
     query = query.is("first_response_at", null).lt("sla_due_at", new Date().toISOString());
   }
@@ -180,7 +186,7 @@ export async function postAdminTicketReply(input: {
     .update({
       assigned_to: guard.userId,
       first_response_at: new Date().toISOString(),
-      status: "staff_replied",
+      status: "in_progress",
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.ticketId)
@@ -190,7 +196,7 @@ export async function postAdminTicketReply(input: {
     .from("support_ticket")
     .update({
       assigned_to: guard.userId,
-      status: "staff_replied",
+      status: "in_progress",
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.ticketId);
@@ -204,7 +210,7 @@ export async function closeAdminTicket(ticketId: string): Promise<{ ok: boolean;
   const adminClient = createAdminClient();
   const { error } = await adminClient
     .from("support_ticket")
-    .update({ status: "closed", updated_at: new Date().toISOString() })
+    .update({ status: "resolved", updated_at: new Date().toISOString() })
     .eq("id", ticketId);
   if (error) return { ok: false, reason: error.message };
   return { ok: true };
@@ -385,7 +391,7 @@ export async function loadKpis(windowDays: number = 7): Promise<{ snapshot?: Kpi
     responseTimes.length === 0
       ? null
       : responseTimes[Math.floor(responseTimes.length / 2)];
-  const resolved = rows.filter((r) => r.status === "closed").length;
+  const resolved = rows.filter((r) => r.status === "resolved" || r.status === "closed").length;
   const slaBreach = rows.filter((r) => !r.first_response_at && r.sla_due_at && Date.parse(r.sla_due_at) < Date.now()).length;
   const wow = previous && previous.length > 0 ? (rows.length - previous.length) / previous.length : 0;
 

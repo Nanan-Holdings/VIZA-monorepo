@@ -8,7 +8,7 @@ export default async function AdminCsPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const tab = ((await searchParams).tab as "open" | "mine" | "unassigned" | "breaching") || "open";
+  const tab = ((await searchParams).tab as "open" | "p2" | "mine" | "unassigned" | "breaching") || "open";
   const { rows, error } = await listAdminTickets(tab);
   return (
     <main className="min-h-screen bg-[#fafafa] px-6 py-10">

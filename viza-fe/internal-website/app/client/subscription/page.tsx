@@ -6,8 +6,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   CreditCard,
-  FileText,
-  Globe2,
   MessageCircle,
   Plane,
   ShieldCheck,
@@ -22,16 +20,15 @@ import {
   reconcileStripeSubscriptionReturn,
   type SubscriptionReturnState,
 } from "./data";
+import { PayPerApplicationBrowser, type PayPerRegion } from "./pay-per-application-browser";
 import {
-  COMMERCIAL_PRODUCTS,
+  PAY_PER_APPLICATION_PRODUCTS,
   formatCny,
   getCommercialProduct,
   type CommercialPaymentProvider,
-  type CommercialProduct,
 } from "@/lib/payments/commercial-products";
 import {
   VISA_DESTINATION_REGION_GROUPS,
-  getVisaDestinationCountryName,
   getVisaDestinationsForRegion,
 } from "@/lib/visa-destinations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -75,12 +72,6 @@ const monthlyPlans = [
     ],
     unavailableKeys: [],
   },
-] as const;
-
-const planHighlights = [
-  { icon: Globe2, labelKey: "allCountries" },
-  { icon: CreditCard, labelKey: "threeWays" },
-  { icon: FileText, labelKey: "officialFees" },
 ] as const;
 
 const providerLabels: Record<CommercialPaymentProvider, string> = {
@@ -235,35 +226,52 @@ function PaymentButtons({
   );
 }
 
-function productCountryKey(product: CommercialProduct): string {
-  return product.country === "schengen_area" ? "schengen" : product.country ?? product.id;
-}
-
-function buildPayPerGroups() {
-  const payProducts = COMMERCIAL_PRODUCTS.filter((product) => product.kind === "pay_per_application");
-  const productsByCountry = new Map(payProducts.map((product) => [productCountryKey(product), product]));
+function buildPayPerGroups(): PayPerRegion[] {
+  const productsByDestination = new Map(
+    PAY_PER_APPLICATION_PRODUCTS.map((product) => [
+      `${product.country ?? ""}::${product.visaType ?? ""}`.toLowerCase(),
+      product,
+    ]),
+  );
 
   return VISA_DESTINATION_REGION_GROUPS.map((region) => {
-    if (region.id === "schengen") {
-      const schengenProduct = productsByCountry.get("schengen");
-      return schengenProduct ? { region, items: [{ product: schengenProduct, name: region.name, nameZh: region.nameZh }] } : null;
-    }
-
     const destinations = getVisaDestinationsForRegion(region.id);
     const items = destinations
       .map((destination) => {
-        const product = productsByCountry.get(destination.country);
+        const product = productsByDestination.get(`${destination.country}::${destination.visaType}`.toLowerCase());
         if (!product) return null;
         return {
-          product,
+          id: destination.id,
+          productId: product.id,
           name: destination.countryName,
           nameZh: destination.countryNameZh,
+          visaName: destination.visaName,
+          visaNameZh: destination.visaNameZh,
+          amountLabel: formatCny(product.amountFen),
+          searchText: [
+            destination.countryName,
+            destination.countryNameZh,
+            destination.visaName,
+            destination.visaNameZh,
+            destination.region,
+            region.name,
+            region.nameZh,
+            ...(destination.searchAliases ?? []),
+          ].join(" ").toLowerCase(),
         };
       })
-      .filter((item): item is { product: CommercialProduct; name: string; nameZh: string } => Boolean(item));
+      .filter((item): item is PayPerRegion["items"][number] => Boolean(item));
 
-    return items.length > 0 ? { region, items } : null;
-  }).filter((group): group is NonNullable<typeof group> => Boolean(group));
+    return {
+      id: region.id,
+      name: region.name,
+      nameZh: region.nameZh,
+      description: region.description,
+      descriptionZh: region.descriptionZh,
+      flag: region.flag,
+      items,
+    };
+  }).filter((group) => group.items.length > 0);
 }
 
 export default async function SubscriptionPage({ searchParams }: SubscriptionPageProps) {
@@ -331,24 +339,6 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
           </div>
 
           <div className="grid gap-0 divide-y">
-            <section className="grid gap-4 p-6 md:grid-cols-3 lg:p-8">
-              {planHighlights.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div key={item.labelKey} className="rounded-xl border bg-white p-5">
-                    <Icon className="h-5 w-5 text-brand-500" />
-                    <p className="mt-4 text-base font-semibold text-foreground">
-                      {t(`highlights.${item.labelKey}.title`)}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {t(`highlights.${item.labelKey}.body`)}
-                    </p>
-                  </div>
-                );
-              })}
-            </section>
-
             <section className="p-6 lg:p-8">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -462,51 +452,20 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                 </div>
 
                 <div className="space-y-4">
-                  {payPerGroups.map((group) => (
-                    <div key={group.region.id} className="rounded-xl border bg-white p-4 shadow-sm sm:p-5">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h3 className="text-base font-semibold text-foreground">
-                            {isZh ? group.region.nameZh : group.region.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {isZh ? group.region.descriptionZh : group.region.description}
-                          </p>
-                        </div>
-                        <span className="w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
-                          {group.items.length} {t("payPer.regionCountSuffix")}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid gap-3">
-                        {group.items.map((item) => {
-                          const destination = getVisaDestinationsForRegion(group.region.id).find(
-                            (entry) => entry.country === item.product.country,
-                          );
-                          const displayName = destination
-                            ? getVisaDestinationCountryName(destination, locale)
-                            : isZh
-                              ? item.nameZh
-                              : item.name;
-
-                          return (
-                            <div
-                              key={item.product.id}
-                              className="grid gap-3 rounded-lg border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                            >
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{formatCny(item.product.amountFen)}</p>
-                              </div>
-                              <div className="min-w-[260px]">
-                                <PaymentButtons productId={item.product.id} readiness={readiness} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                  <PayPerApplicationBrowser
+                    isZh={isZh}
+                    readiness={readiness}
+                    regions={payPerGroups}
+                    labels={{
+                      searchPlaceholder: t("payPer.searchPlaceholder"),
+                      searchResults: t("payPer.searchResults"),
+                      noResults: t("payPer.noResults"),
+                      chooseRegion: t("payPer.chooseRegion"),
+                      collapse: t("payPer.collapse"),
+                      expand: t("payPer.expand"),
+                      itemSuffix: t("payPer.regionCountSuffix"),
+                    }}
+                  />
                   <p className="text-xs leading-5 text-muted-foreground">{t("payPer.feeNote")}</p>
                 </div>
               </div>

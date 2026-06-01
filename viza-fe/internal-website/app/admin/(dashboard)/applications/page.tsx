@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -11,14 +12,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/rbac";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import {
-  CONSENT_LABELS,
-  DOCUMENT_LABELS,
-  EXTERNAL_LABELS,
-  LIFECYCLE_LABELS,
-  PACKET_LABELS,
-  PAYMENT_LABELS,
-  RESULT_LABELS,
   type AdminApplicantOverview,
   type AdminApplicationModel,
   type ConsentState,
@@ -29,10 +24,15 @@ import {
   type PaymentState,
   type ResultState,
   fetchAdminApplicantQueue,
-  formatDateTime,
   getLifecycleProgressPercent,
 } from "./data";
 import { EmptyState, ErrorPanel, MetricTile, StatusPill, getToneForState } from "./ui";
+import {
+  ADMIN_APPLICATION_COPY,
+  type AdminApplicationCopy,
+  formatAdminDateTime,
+  localizeMissingItem,
+} from "./copy";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -51,13 +51,32 @@ interface ActiveFilters {
   q: string; // 融合：加入模糊搜索字段
 }
 
-const LIFECYCLE_OPTIONS = Object.keys(LIFECYCLE_LABELS) as LifecycleState[];
-const PAYMENT_OPTIONS = Object.keys(PAYMENT_LABELS) as PaymentState[];
-const CONSENT_OPTIONS = Object.keys(CONSENT_LABELS) as ConsentState[];
-const DOCUMENT_OPTIONS = Object.keys(DOCUMENT_LABELS) as DocumentState[];
-const PACKET_OPTIONS = Object.keys(PACKET_LABELS) as PacketState[];
-const EXTERNAL_OPTIONS = Object.keys(EXTERNAL_LABELS) as ExternalState[];
-const RESULT_OPTIONS = Object.keys(RESULT_LABELS) as ResultState[];
+const LIFECYCLE_OPTIONS: LifecycleState[] = [
+  "intake",
+  "payment_pending",
+  "consent_pending",
+  "document_collection",
+  "packet_generation",
+  "ready_for_external_handoff",
+  "external_submission",
+  "result_delivery",
+  "completed",
+  "attention",
+];
+const PAYMENT_OPTIONS: PaymentState[] = ["missing", "pending", "paid", "failed", "refunded"];
+const CONSENT_OPTIONS: ConsentState[] = ["missing", "missing_signature", "complete", "declined"];
+const DOCUMENT_OPTIONS: DocumentState[] = ["not_started", "missing", "complete", "rejected"];
+const PACKET_OPTIONS: PacketState[] = ["not_started", "generating", "ready", "failed"];
+const EXTERNAL_OPTIONS: ExternalState[] = [
+  "not_handed_off",
+  "ready_for_handoff",
+  "in_progress",
+  "submitted",
+  "approved",
+  "rejected",
+  "attention",
+];
+const RESULT_OPTIONS: ResultState[] = ["none", "pending", "received", "delivered", "approved", "rejected"];
 
 function firstParam(searchParams: SearchParams, key: string): string | undefined {
   const value = searchParams[key];
@@ -130,12 +149,14 @@ function FilterSelect<T extends string>({
   value,
   options,
   labels,
+  allLabel,
 }: {
   label: string;
   name: keyof ActiveFilters;
   value: T | "all";
   options: readonly T[];
   labels: Record<T, string>;
+  allLabel: string;
 }) {
   return (
     <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-xs font-medium text-[#6b6b6b]">
@@ -145,7 +166,7 @@ function FilterSelect<T extends string>({
         defaultValue={value}
         className="h-10 rounded-md border border-[#d7d7d7] bg-white px-3 text-sm font-medium text-[#232323] outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
       >
-        <option value="all">All</option>
+        <option value="all">{allLabel}</option>
         {options.map((option) => (
           <option key={option} value={option}>
             {labels[option]}
@@ -156,21 +177,27 @@ function FilterSelect<T extends string>({
   );
 }
 
-function QueueFilters({ filters }: { filters: ActiveFilters }) {
+function QueueFilters({
+  filters,
+  copy,
+}: {
+  filters: ActiveFilters;
+  copy: AdminApplicationCopy;
+}) {
   return (
     <form method="get" className="rounded-lg border border-[#efefef] bg-white p-4 shadow-sm space-y-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-[#232323]">
         <Filter className="h-4 w-4 text-brand-500" />
-        User filters
+        {copy.list.filtersTitle}
       </div>
       
       {/* 融合：在筛选器上方单开一行放搜索框，体验更好 */}
       <div className="flex flex-col gap-1 text-xs font-medium text-[#6b6b6b]">
-        <span className="mb-1">Search Applicant</span>
+        <span className="mb-1">{copy.list.search}</span>
         <input
           type="search"
           name="q"
-          placeholder="Search by ID, name, or email..."
+          placeholder={copy.list.searchPlaceholder}
           defaultValue={filters.q}
           className="h-10 w-full rounded-md border border-[#d7d7d7] bg-white px-3 text-sm font-medium text-[#232323] outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
@@ -178,62 +205,69 @@ function QueueFilters({ filters }: { filters: ActiveFilters }) {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <FilterSelect
-          label="Lifecycle"
+          label={copy.list.lifecycle}
           name="lifecycle"
           value={filters.lifecycle}
           options={LIFECYCLE_OPTIONS}
-          labels={LIFECYCLE_LABELS}
+          labels={copy.status.lifecycle}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="Payment"
+          label={copy.list.payment}
           name="payment"
           value={filters.payment}
           options={PAYMENT_OPTIONS}
-          labels={PAYMENT_LABELS}
+          labels={copy.status.payment}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="Consent"
+          label={copy.list.consent}
           name="consent"
           value={filters.consent}
           options={CONSENT_OPTIONS}
-          labels={CONSENT_LABELS}
+          labels={copy.status.consent}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="Missing documents"
+          label={copy.list.missingDocuments}
           name="documents"
           value={filters.documents}
           options={DOCUMENT_OPTIONS}
-          labels={DOCUMENT_LABELS}
+          labels={copy.status.documents}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="Packet"
+          label={copy.list.packet}
           name="packet"
           value={filters.packet}
           options={PACKET_OPTIONS}
-          labels={PACKET_LABELS}
+          labels={copy.status.packet}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="External status"
+          label={copy.list.externalStatus}
           name="external"
           value={filters.external}
           options={EXTERNAL_OPTIONS}
-          labels={EXTERNAL_LABELS}
+          labels={copy.status.external}
+          allLabel={copy.common.all}
         />
         <FilterSelect
-          label="Result"
+          label={copy.list.result}
           name="result"
           value={filters.result}
           options={RESULT_OPTIONS}
-          labels={RESULT_LABELS}
+          labels={copy.status.result}
+          allLabel={copy.common.all}
         />
         <div className="flex items-end gap-2">
           <Button type="submit" className="h-10 bg-brand-500 text-white hover:bg-brand-600 flex-1">
-            Apply
+            {copy.list.apply}
           </Button>
           <Button asChild variant="outline" className="h-10 border-[#d7d7d7]">
             <Link href="/admin/applications">
               <RotateCcw className="h-4 w-4" />
-              Reset
+              {copy.list.reset}
             </Link>
           </Button>
         </div>
@@ -242,7 +276,15 @@ function QueueFilters({ filters }: { filters: ActiveFilters }) {
   );
 }
 
-function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
+function UserCard({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   const profile = applicant.profile;
   const primaryPackage = applicant.packages[0] ?? null;
   const latestApplication = applicant.latestApplication;
@@ -261,19 +303,19 @@ function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-lg font-semibold text-brand-500 group-hover:underline">
-                {profile?.full_name || "Unnamed applicant"}
+                {profile?.full_name || copy.common.unnamedApplicant}
               </h2>
-              <p className="mt-1 truncate text-sm text-[#6b6b6b]">{profile?.email || "No email recorded"}</p>
+              <p className="mt-1 truncate text-sm text-[#6b6b6b]">{profile?.email || copy.common.noEmail}</p>
               <p className="mt-1 text-xs text-[#9ca3af]">{applicant.applicantId.slice(0, 8)}...</p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <StatusPill tone={getToneForState(applicant.lifecycleState)}>
-              {LIFECYCLE_LABELS[applicant.lifecycleState]}
+              {copy.status.lifecycle[applicant.lifecycleState]}
             </StatusPill>
             {applicant.needsSupportCount > 0 && (
-              <StatusPill tone="warning">{applicant.needsSupportCount} needs support</StatusPill>
+              <StatusPill tone="warning">{copy.list.needsSupport(applicant.needsSupportCount)}</StatusPill>
             )}
           </div>
         </div>
@@ -282,39 +324,39 @@ function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
               <PackageCheck className="h-4 w-4" />
-              Package
+              {copy.list.package}
             </div>
             <p className="mt-2 truncate text-sm font-semibold text-[#232323]">
-              {primaryPackage?.packageName || "No package assigned"}
+              {primaryPackage?.packageName || copy.common.noPackageAssigned}
             </p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
-              {applicant.activePackageCount} active / {applicant.packages.length} total
+              {applicant.activePackageCount} {copy.common.active} / {applicant.packages.length} {copy.common.total}
             </p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
-              Expires: {applicant.earliestExpiryAt ? formatDateTime(applicant.earliestExpiryAt) : "No expiry set"}
+              {copy.common.expires}: {applicant.earliestExpiryAt ? formatAdminDateTime(applicant.earliestExpiryAt, locale, copy.common.notRecorded) : copy.common.noExpiry}
             </p>
           </div>
 
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
               <FileText className="h-4 w-4" />
-              Applications
+              {copy.list.applications}
             </div>
             <p className="mt-2 text-sm font-semibold text-[#232323]">
-              {applicant.applicationCount} application{applicant.applicationCount === 1 ? "" : "s"}
+              {applicant.applicationCount} {applicant.applicationCount === 1 ? copy.common.applicationSingular : copy.common.applicationPlural}
             </p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
-              {applicant.countries.join(", ") || "No destination"}
+              {applicant.countries.join(", ") || copy.common.noDestination}
             </p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
-              Latest: {latestApplication?.countryLabel || "No application"}
+              {copy.common.latest}: {latestApplication?.countryLabel || copy.common.noApplication}
             </p>
           </div>
 
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">
               <CalendarClock className="h-4 w-4" />
-              Progress
+              {copy.common.progress}
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
               <div
@@ -322,34 +364,34 @@ function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
                 style={{ width: `${applicant.completionPercent}%` }}
               />
             </div>
-            <p className="mt-2 text-sm font-semibold text-[#232323]">{applicant.completionPercent}% complete</p>
+            <p className="mt-2 text-sm font-semibold text-[#232323]">{applicant.completionPercent}% {copy.common.complete}</p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
-              Best app: {latestApplication ? getLifecycleProgressPercent(latestApplication) : 0}%
+              {copy.common.bestApplication}: {latestApplication ? getLifecycleProgressPercent(latestApplication) : 0}%
             </p>
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">Support notes</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.04em] text-[#7a7a7a]">{copy.list.supportNotes}</p>
             {visibleMissingItems.length > 0 ? (
               <ul className="mt-2 space-y-1 text-xs leading-5 text-[#6b6b6b]">
                 {visibleMissingItems.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{localizeMissingItem(item, copy)}</li>
                 ))}
                 {applicant.missingItems.length > visibleMissingItems.length && (
-                  <li>{applicant.missingItems.length - visibleMissingItems.length} more</li>
+                  <li>{copy.list.needsSupport(applicant.missingItems.length - visibleMissingItems.length)}</li>
                 )}
               </ul>
             ) : (
-              <p className="mt-2 text-xs font-medium text-emerald-700">No blocking support items</p>
+              <p className="mt-2 text-xs font-medium text-emerald-700">{copy.common.noBlockingItems}</p>
             )}
             <p className="mt-3 text-xs text-[#9ca3af]">
-              Updated {formatDateTime(applicant.latestUpdatedAt)}
+              {copy.common.updated} {formatAdminDateTime(applicant.latestUpdatedAt, locale, copy.common.notRecorded)}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center justify-end text-sm font-semibold text-brand-500">
-          View overview
+          {copy.common.viewOverview}
           <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
         </div>
       </div>
@@ -360,6 +402,8 @@ function UserCard({ applicant }: { applicant: AdminApplicantOverview }) {
 export default async function AdminApplicationsPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/admin/login");
+  const locale = normalizeInterfaceLocale(await getLocale());
+  const copy = ADMIN_APPLICATION_COPY[locale];
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = parseFilters(resolvedSearchParams);
@@ -371,15 +415,15 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
   const filteredApplicants = applicants.filter((applicant) => matchesApplicantFilters(applicant, filters));
 
   const metrics = [
-    { label: "Users", value: applicants.length, tone: "neutral" as const },
-    { label: "Applications", value: applications.length, tone: "brand" as const },
+    { label: copy.list.metrics.users, value: applicants.length, tone: "neutral" as const },
+    { label: copy.list.metrics.applications, value: applications.length, tone: "brand" as const },
     {
-      label: "Need support",
+      label: copy.list.metrics.needSupport,
       value: applicants.filter((applicant) => applicant.needsSupportCount > 0).length,
       tone: "warning" as const,
     },
     {
-      label: "Avg progress",
+      label: copy.list.metrics.avgProgress,
       value: `${averageProgress(applicants)}%`,
       tone: "success" as const,
     },
@@ -389,18 +433,18 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
     <div className="w-full space-y-6 p-6 md:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#232323]">Application Monitoring</h1>
+          <h1 className="text-2xl font-semibold text-[#232323]">{copy.list.title}</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#6b6b6b]">
-            One card per user with package, expiry, application count, progress, and support status.
+            {copy.list.subtitle}
           </p>
         </div>
         <p className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
-          Monitor and support only
+          {copy.list.badge}
         </p>
       </div>
 
       {error ? (
-        <ErrorPanel message={error} />
+        <ErrorPanel title={copy.errors.applicationLoadTitle} message={error} />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -409,32 +453,32 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
             ))}
           </div>
 
-          <QueueFilters filters={filters} />
+          <QueueFilters filters={filters} copy={copy} />
 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[#232323]">User overview cards</h2>
+                <h2 className="text-base font-semibold text-[#232323]">{copy.list.cardsTitle}</h2>
                 <p className="mt-1 text-sm text-[#6b6b6b]">
-                  Showing {filteredApplicants.length} of {applicants.length} users
+                  {copy.list.showingUsers(filteredApplicants.length, applicants.length)}
                 </p>
               </div>
             </div>
 
             {applicants.length === 0 ? (
               <EmptyState
-                title="No users with applications"
-                body="Users will appear here once an applicant starts a visa workflow."
+                title={copy.list.noUsersTitle}
+                body={copy.list.noUsersBody}
               />
             ) : filteredApplicants.length === 0 ? (
               <EmptyState
-                title="No matching users"
-                body="Adjust the filters or search term to see more user overview cards."
+                title={copy.list.noMatchesTitle}
+                body={copy.list.noMatchesBody}
               />
             ) : (
               <div className="space-y-3">
                 {filteredApplicants.map((applicant) => (
-                  <UserCard key={applicant.applicantId} applicant={applicant} />
+                  <UserCard key={applicant.applicantId} applicant={applicant} copy={copy} locale={locale} />
                 ))}
               </div>
             )}

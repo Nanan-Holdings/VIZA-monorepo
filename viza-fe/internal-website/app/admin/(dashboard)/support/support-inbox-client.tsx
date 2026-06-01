@@ -28,6 +28,7 @@ const COPY = {
   en: {
     tabs: {
       open: "Open",
+      p2: "P2",
       mine: "Mine",
       unassigned: "Unassigned",
       breaching: "SLA risk",
@@ -42,6 +43,7 @@ const COPY = {
     customerQuestion: "Customer question",
     conversation: "Reply window",
     openCase: "Open case",
+    accessUser: "Access user",
     email: "Email",
     resolve: "Resolve",
     resolved: "Resolved",
@@ -54,8 +56,9 @@ const COPY = {
     updated: "Updated",
     firstResponse: "First response",
     waiting: "Waiting",
-    replied: "Replied",
-    closed: "Closed",
+    unresolved: "Unresolved",
+    inProgress: "In progress",
+    closed: "Resolved",
     slaBreached: "SLA breached",
     slaDue: "SLA due",
     noThread: "No thread messages yet. The original question is shown above.",
@@ -66,6 +69,7 @@ const COPY = {
   zh: {
     tabs: {
       open: "未关闭",
+      p2: "P2",
       mine: "我的",
       unassigned: "未分配",
       breaching: "SLA 风险",
@@ -80,6 +84,7 @@ const COPY = {
     customerQuestion: "客户问题",
     conversation: "回答窗口",
     openCase: "打开案例",
+    accessUser: "查看用户申请",
     email: "邮件",
     resolve: "标记解决",
     resolved: "已解决",
@@ -92,8 +97,9 @@ const COPY = {
     updated: "更新时间",
     firstResponse: "首次回复",
     waiting: "等待回复",
-    replied: "已回复",
-    closed: "已关闭",
+    unresolved: "未解决",
+    inProgress: "正在解决",
+    closed: "已解决",
     slaBreached: "SLA 已超时",
     slaDue: "SLA 截止",
     noThread: "暂无对话消息。原始问题已显示在上方。",
@@ -103,7 +109,7 @@ const COPY = {
   },
 } as const;
 
-const TABS: TicketTab[] = ["open", "mine", "unassigned", "breaching"];
+const TABS: TicketTab[] = ["open", "p2", "mine", "unassigned", "breaching"];
 
 interface AdminSupportInboxClientProps {
   initialTab: TicketTab;
@@ -122,14 +128,14 @@ function formatDate(value: string | null, locale: string) {
 }
 
 function statusLabel(status: string, copy: (typeof COPY)["en" | "zh"]) {
-  if (status === "staff_replied") return copy.replied;
-  if (status === "closed") return copy.closed;
-  return copy.waiting;
+  if (status === "in_progress" || status === "staff_replied") return copy.inProgress;
+  if (status === "resolved" || status === "closed") return copy.closed;
+  return copy.unresolved;
 }
 
 function statusTone(status: string) {
-  if (status === "closed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "staff_replied") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (status === "resolved" || status === "closed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "in_progress" || status === "staff_replied") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
@@ -158,7 +164,10 @@ export function AdminSupportInboxClient({
 
   const selectedTicket = rows.find((row) => row.id === selectedId) ?? null;
   const selectedMessages = selectedTicket ? messagesByTicket[selectedTicket.id] ?? [] : [];
-  const openCount = useMemo(() => rows.filter((row) => row.status !== "closed").length, [rows]);
+  const openCount = useMemo(
+    () => rows.filter((row) => row.status !== "resolved" && row.status !== "closed").length,
+    [rows],
+  );
 
   useEffect(() => {
     setTab(initialTab);
@@ -212,7 +221,7 @@ export function AdminSupportInboxClient({
           row.id === selectedTicket.id
             ? {
                 ...row,
-                status: "staff_replied",
+                status: "in_progress",
                 first_response_at: row.first_response_at ?? message.created_at,
                 updated_at: message.created_at,
               }
@@ -236,7 +245,7 @@ export function AdminSupportInboxClient({
       setRows((current) =>
         current.map((row) =>
           row.id === selectedTicket.id
-            ? { ...row, status: "closed", updated_at: new Date().toISOString() }
+            ? { ...row, status: "resolved", updated_at: new Date().toISOString() }
             : row,
         ),
       );
@@ -305,9 +314,14 @@ export function AdminSupportInboxClient({
                   <p className="mt-3 line-clamp-2 text-sm font-medium text-[#334155]">{row.subject}</p>
                   <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#64748b]">{row.body}</p>
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", statusTone(row.status))}>
-                      {statusLabel(row.status, copy)}
-                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-semibold uppercase text-brand-700">
+                        {row.priority}
+                      </span>
+                      <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", statusTone(row.status))}>
+                        {statusLabel(row.status, copy)}
+                      </span>
+                    </div>
                     <span className="text-xs text-[#94a3b8]">{formatDate(row.updated_at, locale)}</span>
                   </div>
                 </button>
@@ -335,7 +349,13 @@ export function AdminSupportInboxClient({
                   <div className="min-w-0">
                     <h2 className="truncate text-xl font-semibold text-[#232323]">{selectedTicket.subject}</h2>
                     <p className="mt-1 truncate text-sm text-[#64748b]">
-                      {selectedTicket.applicantName} · {selectedTicket.applicationLabel || copy.generalSupport}
+                      <a
+                        href={`/admin/applications/${selectedTicket.applicant_id}`}
+                        className="font-semibold text-brand-500 hover:underline"
+                      >
+                        {selectedTicket.applicantName}
+                      </a>{" "}
+                      · {selectedTicket.applicationLabel || copy.generalSupport}
                     </p>
                     <p className="mt-1 truncate text-sm text-[#64748b]">
                       {selectedTicket.applicantEmail ?? copy.generalSupport}
@@ -343,6 +363,12 @@ export function AdminSupportInboxClient({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline">
+                    <a href={`/admin/applications/${selectedTicket.applicant_id}`}>
+                      <UserRound className="h-4 w-4" />
+                      {copy.accessUser}
+                    </a>
+                  </Button>
                   {selectedTicket.application_id && (
                     <Button asChild variant="outline">
                       <a href={`/admin/applications/${selectedTicket.application_id}`}>
@@ -359,9 +385,13 @@ export function AdminSupportInboxClient({
                       </a>
                     </Button>
                   )}
-                  <Button variant="outline" onClick={resolveTicket} disabled={isPending || selectedTicket.status === "closed"}>
+                  <Button
+                    variant="outline"
+                    onClick={resolveTicket}
+                    disabled={isPending || selectedTicket.status === "resolved" || selectedTicket.status === "closed"}
+                  >
                     <CheckCircle2 className="h-4 w-4" />
-                    {selectedTicket.status === "closed" ? copy.resolved : copy.resolve}
+                    {selectedTicket.status === "resolved" || selectedTicket.status === "closed" ? copy.resolved : copy.resolve}
                   </Button>
                 </div>
               </div>

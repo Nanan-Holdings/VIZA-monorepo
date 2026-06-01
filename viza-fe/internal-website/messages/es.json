@@ -2710,11 +2710,11 @@
         "title": "[ES] Language",
         "description": "[ES] Use the language switcher in the top bar, or read the profile guide."
       },
-      "paymentMethods": {
-        "title": "[ES] Payment method setup",
-        "description": "[ES] See how to add or update card, bank transfer, or WeChat Pay arrangements.",
-        "badge": "[ES] Guide"
-      },
+    "paymentMethods": {
+      "title": "[ES] Payment method setup",
+      "description": "[ES] Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+      "badge": "[ES] Manage"
+    },
       "billing": {
         "title": "[ES] Receipts and invoices",
         "description": "[ES] Open billing history, receipts, invoice requests, and refund visibility."
@@ -2728,24 +2728,63 @@
         "description": "[ES] Send a support request if something needs human follow-up."
       }
     },
-    "payment": {
-      "selected": "[ES] Default",
-      "setDefault": "[ES] Set as default",
-      "methods": {
-        "card": {
-          "title": "[ES] Card",
-          "description": "[ES] Preferred for hosted checkout and receipt tracking."
-        },
-        "bank_transfer": {
-          "title": "[ES] Bank transfer",
-          "description": "[ES] Use support-assisted transfer details for larger cases."
-        },
-        "wechat_pay": {
-          "title": "[ES] WeChat Pay",
-          "description": "[ES] Use Chinese payment flow when it is available for the package."
-        }
+  "payment": {
+    "selected": "[ES] Default",
+    "setDefault": "[ES] Set as default",
+    "manage": "[ES] Manage accounts",
+    "manageSelected": "[ES] Managing",
+    "managerHint": "[ES] Bind multiple accounts for this payment method and choose the default account to try first.",
+    "boundCount": "[ES] {count} bound",
+    "defaultAccount": "[ES] Default: {account}",
+    "empty": "[ES] No account is bound yet. Add one to edit, delete, or set it as default here.",
+    "addTitle": "[ES] Add payment account",
+    "editTitle": "[ES] Edit payment account",
+    "addAccount": "[ES] Add account",
+    "saveEdit": "[ES] Save changes",
+    "cancelEdit": "[ES] Cancel edit",
+    "edit": "[ES] Edit",
+    "delete": "[ES] Delete",
+    "safeHint": "[ES] Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+    "fields": {
+      "label": "[ES] Account name",
+      "identifier": "[ES] Identifier"
+    },
+    "placeholders": {
+      "bank_card": {
+        "label": "[ES] For example: DBS debit card",
+        "identifier": "[ES] For example: ending in 5857"
+      },
+      "wechat_pay": {
+        "label": "[ES] For example: My WeChat",
+        "identifier": "[ES] For example: WeChat nickname or phone suffix"
+      },
+      "alipay": {
+        "label": "[ES] For example: My Alipay",
+        "identifier": "[ES] For example: Alipay account note"
       }
     },
+    "messages": {
+      "required": "[ES] Enter an account name and identifier.",
+      "added": "[ES] Payment account added.",
+      "updated": "[ES] Payment account updated.",
+      "deleted": "[ES] Payment account deleted.",
+      "defaultUpdated": "[ES] Default payment account updated."
+    },
+    "methods": {
+      "bank_card": {
+        "title": "[ES] Card",
+        "description": "[ES] Bind cards used for hosted checkout and receipt tracking."
+      },
+      "wechat_pay": {
+        "title": "[ES] WeChat Pay",
+        "description": "[ES] Bind a WeChat account to use first when supported."
+      },
+      "alipay": {
+        "title": "[ES] Alipay",
+        "description": "[ES] Bind an Alipay account for future payment selection."
+      }
+    }
+  },
     "travelers": {
       "title": "[ES] Frequent travelers",
       "description": "[ES] Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
@@ -2803,20 +2842,52 @@
       "failedToSave": "[ES] Failed to save.",
       "saved": "[ES] Saved."
     },
-    "security": {
-      "title": "[ES] Security settings",
-      "passwordTitle": "[ES] Change password",
-      "description": "[ES] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
-      "newPassword": "[ES] New password",
-      "confirmPassword": "[ES] Confirm password",
-      "updatePassword": "[ES] Update password",
-      "saving": "[ES] Updating...",
-      "updated": "[ES] Password updated.",
-      "mismatch": "[ES] The two passwords do not match.",
-      "tooShort": "[ES] Password must be at least 8 characters.",
-      "failed": "[ES] Could not update the password. Please try again.",
-      "guide": "[ES] Security guide"
+  "security": {
+    "title": "[ES] Security settings",
+    "passwordTitle": "[ES] Change password",
+    "passwordDescription": "[ES] Verify your current email code first, then set a new password.",
+    "emailTitle": "[ES] Change bound email",
+    "emailDescription": "[ES] Confirm your identity with a code sent to the current email. Your password stays the same.",
+    "guideDescription": "[ES] Review password, email, and account protection tips.",
+    "description": "[ES] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+    "verifyDescription": "[ES] We will send an 8-digit code to {email}. Verify it to continue.",
+    "verificationCode": "[ES] Email verification code",
+    "codePlaceholder": "[ES] Enter 8-digit code",
+    "sendCode": "[ES] Send code",
+    "resendCode": "[ES] Resend",
+    "verifyCode": "[ES] Verify email",
+    "verificationSent": "[ES] Verification code sent. Check your email.",
+    "verificationSendFailed": "[ES] Could not send the verification code. Please try again later.",
+    "codeInvalid": "[ES] Enter the 8-digit verification code.",
+    "codeFailed": "[ES] The code is invalid or expired. Please try again.",
+    "verified": "[ES] Email verified.",
+    "verifyFirst": "[ES] Verify your email code first.",
+    "newPassword": "[ES] New password",
+    "confirmPassword": "[ES] Confirm password",
+    "newEmail": "[ES] New bound email",
+    "newEmailPlaceholder": "[ES] name@example.com",
+    "updatePassword": "[ES] Update password",
+    "updateEmail": "[ES] Update email",
+    "saving": "[ES] Updating...",
+    "savingEmail": "[ES] Updating...",
+    "updated": "[ES] Password updated.",
+    "emailUpdated": "[ES] Bound email updated. Your password was not changed.",
+    "mismatch": "[ES] The two passwords do not match.",
+    "tooShort": "[ES] Password must be at least 8 characters.",
+    "requirementError": "[ES] Password must include letters, numbers, and a special symbol.",
+    "failed": "[ES] Could not update the password. Please try again.",
+    "emailMissing": "[ES] Your current account email is unavailable. Sign in again and try later.",
+    "emailInvalid": "[ES] Enter a valid new email address.",
+    "emailSame": "[ES] The new email must be different from the current email.",
+    "emailUpdateFailed": "[ES] Could not update the email. Please try again.",
+    "passwordRequirements": {
+      "length": "[ES] At least 8 characters",
+      "letter": "[ES] Includes a letter",
+      "digit": "[ES] Includes a number",
+      "symbol": "[ES] Includes a special symbol"
     },
+    "guide": "[ES] Security guide"
+  },
     "signOut": {
       "title": "[ES] Sign Out",
       "description": "[ES] Sign out of your account on this device.",

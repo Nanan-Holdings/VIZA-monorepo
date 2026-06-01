@@ -3624,11 +3624,11 @@
         "title": "语言",
         "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
       },
-      "paymentMethods": {
-        "title": "付款方式设置",
-        "description": "了解如何添加或更新银行卡、银行转账或微信支付安排。",
-        "badge": "指南"
-      },
+    "paymentMethods": {
+      "title": "付款方式设置",
+      "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
+      "badge": "管理"
+    },
       "billing": {
         "title": "回执与发票",
         "description": "查看付款历史、回执、发票申请和退款状态。"
@@ -3642,24 +3642,63 @@
         "description": "如需人工跟进，可提交客服请求。"
       }
     },
-    "payment": {
-      "selected": "默认",
-      "setDefault": "设为默认",
-      "methods": {
-        "card": {
-          "title": "银行卡",
-          "description": "适合线上结账和回执追踪。"
-        },
-        "bank_transfer": {
-          "title": "银行转账",
-          "description": "大额或复杂订单可由客服协助安排。"
-        },
-        "wechat_pay": {
-          "title": "微信支付",
-          "description": "当套餐支持时，可使用中文支付流程。"
-        }
+  "payment": {
+    "selected": "默认",
+    "setDefault": "设为默认",
+    "manage": "管理账号",
+    "manageSelected": "正在管理",
+    "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+    "boundCount": "已绑定 {count} 个",
+    "defaultAccount": "默认：{account}",
+    "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
+    "addTitle": "添加付款账号",
+    "editTitle": "编辑付款账号",
+    "addAccount": "添加账号",
+    "saveEdit": "保存修改",
+    "cancelEdit": "取消编辑",
+    "edit": "编辑",
+    "delete": "删除",
+    "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
+    "fields": {
+      "label": "账号名称",
+      "identifier": "识别信息"
+    },
+    "placeholders": {
+      "bank_card": {
+        "label": "例如：招商银行储蓄卡",
+        "identifier": "例如：尾号 5857"
+      },
+      "wechat_pay": {
+        "label": "例如：我的微信",
+        "identifier": "例如：微信昵称或手机号后四位"
+      },
+      "alipay": {
+        "label": "例如：我的支付宝",
+        "identifier": "例如：支付宝账号备注"
       }
     },
+    "messages": {
+      "required": "请填写账号名称和识别信息。",
+      "added": "付款账号已添加。",
+      "updated": "付款账号已更新。",
+      "deleted": "付款账号已删除。",
+      "defaultUpdated": "默认付款账号已更新。"
+    },
+    "methods": {
+      "bank_card": {
+        "title": "银行卡",
+        "description": "绑定可用于线上结账和回执追踪的银行卡。"
+      },
+      "wechat_pay": {
+        "title": "微信支付",
+        "description": "绑定常用微信账号，套餐支持时优先使用。"
+      },
+      "alipay": {
+        "title": "支付宝",
+        "description": "绑定常用支付宝账号，便于后续付款选择。"
+      }
+    }
+  },
     "travelers": {
       "title": "常用出行人",
       "description": "保存经常一起出行的申请人资料。这里的资料不会自动提交，只是为后续团单选择做准备。",
@@ -3717,20 +3756,52 @@
       "failedToSave": "保存失败。",
       "saved": "已保存。"
     },
-    "security": {
-      "title": "安全设置",
-      "passwordTitle": "修改密码",
-      "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
-      "newPassword": "新密码",
-      "confirmPassword": "确认密码",
-      "updatePassword": "更新密码",
-      "saving": "更新中...",
-      "updated": "密码已更新。",
-      "mismatch": "两次输入的密码不一致。",
-      "tooShort": "密码至少需要 8 个字符。",
-      "failed": "暂时无法更新密码，请重试。",
-      "guide": "安全指南"
+  "security": {
+    "title": "安全设置",
+    "passwordTitle": "修改密码",
+    "passwordDescription": "先验证当前邮箱验证码，验证后即可设置新密码。",
+    "emailTitle": "更改绑定邮箱",
+    "emailDescription": "通过当前邮箱验证码确认身份，保留原有密码。",
+    "guideDescription": "查看密码、邮箱和账号保护建议。",
+    "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
+    "verifyDescription": "我们会向 {email} 发送 8 位验证码，验证后继续操作。",
+    "verificationCode": "邮箱验证码",
+    "codePlaceholder": "输入 8 位验证码",
+    "sendCode": "发送验证码",
+    "resendCode": "重新发送",
+    "verifyCode": "验证邮箱",
+    "verificationSent": "验证码已发送，请查看邮箱。",
+    "verificationSendFailed": "暂时无法发送验证码，请稍后重试。",
+    "codeInvalid": "请输入 8 位验证码。",
+    "codeFailed": "验证码无效或已过期，请重试。",
+    "verified": "邮箱验证已通过。",
+    "verifyFirst": "请先完成邮箱验证码验证。",
+    "newPassword": "新密码",
+    "confirmPassword": "确认密码",
+    "newEmail": "新绑定邮箱",
+    "newEmailPlaceholder": "name@example.com",
+    "updatePassword": "更新密码",
+    "updateEmail": "更新邮箱",
+    "saving": "更新中...",
+    "savingEmail": "更新中...",
+    "updated": "密码已更新。",
+    "emailUpdated": "绑定邮箱已更新，原密码保持不变。",
+    "mismatch": "两次输入的密码不一致。",
+    "tooShort": "密码至少需要 8 个字符。",
+    "requirementError": "密码必须包含字母、数字和特殊符号。",
+    "failed": "暂时无法更新密码，请重试。",
+    "emailMissing": "当前账号邮箱不可用，请重新登录后再试。",
+    "emailInvalid": "请输入有效的新邮箱地址。",
+    "emailSame": "新邮箱不能与当前邮箱相同。",
+    "emailUpdateFailed": "暂时无法更新邮箱，请重试。",
+    "passwordRequirements": {
+      "length": "至少 8 个字符",
+      "letter": "包含字母",
+      "digit": "包含数字",
+      "symbol": "包含特殊符号"
     },
+    "guide": "安全指南"
+  },
     "signOut": {
       "title": "退出登录",
       "description": "从此设备退出您的账户。",
@@ -3782,7 +3853,7 @@
       },
       "requests": {
         "title": "我的反馈",
-        "description": "查看已发送、处理中和已处理的问题。"
+        "description": "查看未解决、正在解决和已解决的问题。"
       }
     },
     "requests": {
@@ -3791,9 +3862,11 @@
       "empty": "还没有反馈记录。提交客服请求后会显示在这里。",
       "ticketMeta": "工单 #{id}",
       "status": {
-        "sent": "已发送",
-        "pending": "处理中",
-        "resolved": "已处理"
+        "unresolved": "未解决",
+        "inProgress": "正在解决",
+        "sent": "未解决",
+        "pending": "正在解决",
+        "resolved": "已解决"
       }
     },
     "requestsPage": {
@@ -4265,6 +4338,12 @@
       "groupTitle": "包含核心能力",
       "groupBody": "次付默认包含申请要求核对、动态材料清单、多语言辅助、AI assistance、团单和 Travel Agent。",
       "paymentNote": "次付目的地按首页相同的大区和表单入口归类，便于从订阅页直接进入对应服务。",
+      "searchPlaceholder": "搜索国家或签证表单",
+      "searchResults": "搜索结果",
+      "noResults": "没有找到匹配的国家或表单。",
+      "chooseRegion": "选择一个大区卡片，查看该大区下全部可次付的国家表单；也可以直接搜索国家。",
+      "collapse": "收起",
+      "expand": "展开",
       "regionCountSuffix": "项",
       "feeNote": "所有价格均为每次申请的 VIZA 服务费，不包含官方签证费、签证中心费、生物信息采集费、快递费或加急费。",
       "countries": {

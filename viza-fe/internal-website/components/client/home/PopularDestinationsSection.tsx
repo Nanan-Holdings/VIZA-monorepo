@@ -206,7 +206,7 @@ export function PopularDestinationsSection({
 
   return (
     <section className="mt-10 w-full max-w-[1090px] xl:mt-12">
-      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d]">
             {t("heading")}

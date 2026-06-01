@@ -2710,11 +2710,11 @@
         "title": "[VI] Language",
         "description": "[VI] Use the language switcher in the top bar, or read the profile guide."
       },
-      "paymentMethods": {
-        "title": "[VI] Payment method setup",
-        "description": "[VI] See how to add or update card, bank transfer, or WeChat Pay arrangements.",
-        "badge": "[VI] Guide"
-      },
+    "paymentMethods": {
+      "title": "[VI] Payment method setup",
+      "description": "[VI] Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+      "badge": "[VI] Manage"
+    },
       "billing": {
         "title": "[VI] Receipts and invoices",
         "description": "[VI] Open billing history, receipts, invoice requests, and refund visibility."
@@ -2728,24 +2728,63 @@
         "description": "[VI] Send a support request if something needs human follow-up."
       }
     },
-    "payment": {
-      "selected": "[VI] Default",
-      "setDefault": "[VI] Set as default",
-      "methods": {
-        "card": {
-          "title": "[VI] Card",
-          "description": "[VI] Preferred for hosted checkout and receipt tracking."
-        },
-        "bank_transfer": {
-          "title": "[VI] Bank transfer",
-          "description": "[VI] Use support-assisted transfer details for larger cases."
-        },
-        "wechat_pay": {
-          "title": "[VI] WeChat Pay",
-          "description": "[VI] Use Chinese payment flow when it is available for the package."
-        }
+  "payment": {
+    "selected": "[VI] Default",
+    "setDefault": "[VI] Set as default",
+    "manage": "[VI] Manage accounts",
+    "manageSelected": "[VI] Managing",
+    "managerHint": "[VI] Bind multiple accounts for this payment method and choose the default account to try first.",
+    "boundCount": "[VI] {count} bound",
+    "defaultAccount": "[VI] Default: {account}",
+    "empty": "[VI] No account is bound yet. Add one to edit, delete, or set it as default here.",
+    "addTitle": "[VI] Add payment account",
+    "editTitle": "[VI] Edit payment account",
+    "addAccount": "[VI] Add account",
+    "saveEdit": "[VI] Save changes",
+    "cancelEdit": "[VI] Cancel edit",
+    "edit": "[VI] Edit",
+    "delete": "[VI] Delete",
+    "safeHint": "[VI] Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+    "fields": {
+      "label": "[VI] Account name",
+      "identifier": "[VI] Identifier"
+    },
+    "placeholders": {
+      "bank_card": {
+        "label": "[VI] For example: DBS debit card",
+        "identifier": "[VI] For example: ending in 5857"
+      },
+      "wechat_pay": {
+        "label": "[VI] For example: My WeChat",
+        "identifier": "[VI] For example: WeChat nickname or phone suffix"
+      },
+      "alipay": {
+        "label": "[VI] For example: My Alipay",
+        "identifier": "[VI] For example: Alipay account note"
       }
     },
+    "messages": {
+      "required": "[VI] Enter an account name and identifier.",
+      "added": "[VI] Payment account added.",
+      "updated": "[VI] Payment account updated.",
+      "deleted": "[VI] Payment account deleted.",
+      "defaultUpdated": "[VI] Default payment account updated."
+    },
+    "methods": {
+      "bank_card": {
+        "title": "[VI] Card",
+        "description": "[VI] Bind cards used for hosted checkout and receipt tracking."
+      },
+      "wechat_pay": {
+        "title": "[VI] WeChat Pay",
+        "description": "[VI] Bind a WeChat account to use first when supported."
+      },
+      "alipay": {
+        "title": "[VI] Alipay",
+        "description": "[VI] Bind an Alipay account for future payment selection."
+      }
+    }
+  },
     "travelers": {
       "title": "[VI] Frequent travelers",
       "description": "[VI] Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
@@ -2803,20 +2842,52 @@
       "failedToSave": "[VI] Failed to save.",
       "saved": "[VI] Saved."
     },
-    "security": {
-      "title": "[VI] Security settings",
-      "passwordTitle": "[VI] Change password",
-      "description": "[VI] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
-      "newPassword": "[VI] New password",
-      "confirmPassword": "[VI] Confirm password",
-      "updatePassword": "[VI] Update password",
-      "saving": "[VI] Updating...",
-      "updated": "[VI] Password updated.",
-      "mismatch": "[VI] The two passwords do not match.",
-      "tooShort": "[VI] Password must be at least 8 characters.",
-      "failed": "[VI] Could not update the password. Please try again.",
-      "guide": "[VI] Security guide"
+  "security": {
+    "title": "[VI] Security settings",
+    "passwordTitle": "[VI] Change password",
+    "passwordDescription": "[VI] Verify your current email code first, then set a new password.",
+    "emailTitle": "[VI] Change bound email",
+    "emailDescription": "[VI] Confirm your identity with a code sent to the current email. Your password stays the same.",
+    "guideDescription": "[VI] Review password, email, and account protection tips.",
+    "description": "[VI] Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+    "verifyDescription": "[VI] We will send an 8-digit code to {email}. Verify it to continue.",
+    "verificationCode": "[VI] Email verification code",
+    "codePlaceholder": "[VI] Enter 8-digit code",
+    "sendCode": "[VI] Send code",
+    "resendCode": "[VI] Resend",
+    "verifyCode": "[VI] Verify email",
+    "verificationSent": "[VI] Verification code sent. Check your email.",
+    "verificationSendFailed": "[VI] Could not send the verification code. Please try again later.",
+    "codeInvalid": "[VI] Enter the 8-digit verification code.",
+    "codeFailed": "[VI] The code is invalid or expired. Please try again.",
+    "verified": "[VI] Email verified.",
+    "verifyFirst": "[VI] Verify your email code first.",
+    "newPassword": "[VI] New password",
+    "confirmPassword": "[VI] Confirm password",
+    "newEmail": "[VI] New bound email",
+    "newEmailPlaceholder": "[VI] name@example.com",
+    "updatePassword": "[VI] Update password",
+    "updateEmail": "[VI] Update email",
+    "saving": "[VI] Updating...",
+    "savingEmail": "[VI] Updating...",
+    "updated": "[VI] Password updated.",
+    "emailUpdated": "[VI] Bound email updated. Your password was not changed.",
+    "mismatch": "[VI] The two passwords do not match.",
+    "tooShort": "[VI] Password must be at least 8 characters.",
+    "requirementError": "[VI] Password must include letters, numbers, and a special symbol.",
+    "failed": "[VI] Could not update the password. Please try again.",
+    "emailMissing": "[VI] Your current account email is unavailable. Sign in again and try later.",
+    "emailInvalid": "[VI] Enter a valid new email address.",
+    "emailSame": "[VI] The new email must be different from the current email.",
+    "emailUpdateFailed": "[VI] Could not update the email. Please try again.",
+    "passwordRequirements": {
+      "length": "[VI] At least 8 characters",
+      "letter": "[VI] Includes a letter",
+      "digit": "[VI] Includes a number",
+      "symbol": "[VI] Includes a special symbol"
     },
+    "guide": "[VI] Security guide"
+  },
     "signOut": {
       "title": "[VI] Sign Out",
       "description": "[VI] Sign out of your account on this device.",

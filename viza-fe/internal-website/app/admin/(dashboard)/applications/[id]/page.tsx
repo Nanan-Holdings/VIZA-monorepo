@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getLocale } from "next-intl/server";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -11,22 +12,13 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { RealtimeApplicationStatus } from "./realtime-status";
 import {
-  CONSENT_LABELS,
-  DOCUMENT_LABELS,
-  EXTERNAL_LABELS,
-  LIFECYCLE_LABELS,
-  PACKET_LABELS,
-  PAYMENT_LABELS,
-  RESULT_LABELS,
   type AdminApplicantOverview,
   type AdminApplicationModel,
-  buildStatusSummary,
   fetchAdminApplicantDetail,
-  formatDateTime,
   getLifecycleProgressPercent,
-  maskPassport,
   shortenId,
 } from "../data";
 import {
@@ -38,6 +30,14 @@ import {
   getToneForState,
 } from "../ui";
 import { SupportActions } from "../support-actions";
+import {
+  ADMIN_APPLICATION_COPY,
+  type AdminApplicationCopy,
+  buildLocalizedStatusSummary,
+  formatAdminDateTime,
+  localizeMissingItem,
+  maskPassportForLocale,
+} from "../copy";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +83,38 @@ function firstParam(
   return Array.isArray(value) ? value[0] : value;
 }
 
-function ActionMessage({ queued, error }: { queued: boolean; error: boolean }) {
+function localizeStatusText(status: string, locale: InterfaceLocale): string {
+  if (locale === "en") return status.replaceAll("_", " ");
+
+  const labels: Record<string, string> = {
+    active: "启用",
+    linked: "已关联",
+    draft: "草稿",
+    pending: "待处理",
+    processing: "处理中",
+    submitted: "已提交",
+    approved: "已批准",
+    rejected: "已拒绝",
+    completed: "已完成",
+    failed: "失败",
+    queued: "排队中",
+    running: "运行中",
+    paid: "已付款",
+    refunded: "已退款",
+  };
+
+  return labels[status.toLowerCase()] ?? status.replaceAll("_", " ");
+}
+
+function ActionMessage({
+  queued,
+  error,
+  copy,
+}: {
+  queued: boolean;
+  error: boolean;
+  copy: AdminApplicationCopy;
+}) {
   if (!queued && !error) return null;
   return (
     <div
@@ -94,17 +125,21 @@ function ActionMessage({ queued, error }: { queued: boolean; error: boolean }) {
           : "border-red-200 bg-red-50 text-red-700",
       ].join(" ")}
     >
-      {queued
-        ? "Status notification queued and logged to the application timeline."
-        : "The support action could not be completed. Try again after checking the user overview."}
+      {queued ? copy.detail.queued : copy.detail.actionError}
     </div>
   );
 }
 
-function UserSummaryHeader({ applicant }: { applicant: AdminApplicantOverview }) {
+function UserSummaryHeader({
+  applicant,
+  copy,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+}) {
   const profile = applicant.profile;
   const latestApplication = applicant.latestApplication;
-  const summary = latestApplication ? buildStatusSummary(latestApplication) : "";
+  const summary = latestApplication ? buildLocalizedStatusSummary(latestApplication, copy) : "";
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-[#efefef] bg-white p-5 shadow-sm xl:flex-row xl:items-start xl:justify-between">
@@ -116,19 +151,19 @@ function UserSummaryHeader({ applicant }: { applicant: AdminApplicantOverview })
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold text-[#232323]">
-                {profile?.full_name || "Unnamed applicant"}
+                {profile?.full_name || copy.common.unnamedApplicant}
               </h1>
               <StatusPill tone={getToneForState(applicant.lifecycleState)}>
-                {LIFECYCLE_LABELS[applicant.lifecycleState]}
+                {copy.status.lifecycle[applicant.lifecycleState]}
               </StatusPill>
             </div>
             <p className="mt-2 text-sm text-[#6b6b6b]">
-              {applicant.packageNames.join(", ") || "No package assigned"} - {applicant.applicationCount} application
-              {applicant.applicationCount === 1 ? "" : "s"}
+              {applicant.packageNames.join(", ") || copy.common.noPackageAssigned} - {applicant.applicationCount}{" "}
+              {applicant.applicationCount === 1 ? copy.common.applicationSingular : copy.common.applicationPlural}
             </p>
             <p className="mt-2 flex items-center gap-2 text-sm text-[#6b6b6b]">
               <Mail className="h-4 w-4" />
-              {profile?.email || "No customer email recorded"}
+              {profile?.email || copy.common.noEmail}
             </p>
           </div>
         </div>
@@ -146,40 +181,50 @@ function UserSummaryHeader({ applicant }: { applicant: AdminApplicantOverview })
   );
 }
 
-function OverviewMetrics({ applicant }: { applicant: AdminApplicantOverview }) {
+function OverviewMetrics({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">
           <FileText className="h-4 w-4 text-brand-500" />
-          Applications
+          {copy.detail.metrics.applications}
         </div>
         <p className="mt-2 text-2xl font-semibold text-[#232323]">{applicant.applicationCount}</p>
-        <p className="mt-1 text-xs text-[#6b6b6b]">{applicant.countries.join(", ") || "No destination"}</p>
+        <p className="mt-1 text-xs text-[#6b6b6b]">{applicant.countries.join(", ") || copy.common.noDestination}</p>
       </div>
 
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">
           <PackageCheck className="h-4 w-4 text-brand-500" />
-          Packages
+          {copy.detail.metrics.packages}
         </div>
         <p className="mt-2 text-2xl font-semibold text-[#232323]">{applicant.packages.length}</p>
-        <p className="mt-1 text-xs text-[#6b6b6b]">{applicant.activePackageCount} active</p>
+        <p className="mt-1 text-xs text-[#6b6b6b]">{applicant.activePackageCount} {copy.common.active}</p>
       </div>
 
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">
           <CalendarClock className="h-4 w-4 text-brand-500" />
-          Earliest expiry
+          {copy.detail.metrics.earliestExpiry}
         </div>
         <p className="mt-2 text-sm font-semibold text-[#232323]">
-          {applicant.earliestExpiryAt ? formatDateTime(applicant.earliestExpiryAt) : "No expiry set"}
+          {applicant.earliestExpiryAt ? formatAdminDateTime(applicant.earliestExpiryAt, locale, copy.common.notRecorded) : copy.common.noExpiry}
         </p>
-        <p className="mt-1 text-xs text-[#6b6b6b]">Latest update {formatDateTime(applicant.latestUpdatedAt)}</p>
+        <p className="mt-1 text-xs text-[#6b6b6b]">
+          {copy.detail.metrics.latestUpdate} {formatAdminDateTime(applicant.latestUpdatedAt, locale, copy.common.notRecorded)}
+        </p>
       </div>
 
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">Overall progress</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">{copy.detail.metrics.overallProgress}</p>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
           <div
             className="h-full rounded-full bg-brand-500"
@@ -192,30 +237,46 @@ function OverviewMetrics({ applicant }: { applicant: AdminApplicantOverview }) {
   );
 }
 
-function ApplicantProfile({ applicant }: { applicant: AdminApplicantOverview }) {
+function ApplicantProfile({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   const profile = applicant.profile;
 
   return (
-    <SectionPanel title="User overview" description="Support contact and identity summary. Sensitive document numbers are masked.">
+    <SectionPanel title={copy.detail.userOverview} description={copy.detail.userOverviewDescription}>
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <FieldValue label="Name" value={profile?.full_name || "Unnamed applicant"} />
-        <FieldValue label="Email" value={profile?.email || "Not provided"} />
-        <FieldValue label="Phone" value={profile?.phone || "Not provided"} />
-        <FieldValue label="Nationality" value={profile?.nationality || "Not provided"} />
-        <FieldValue label="Passport" value={maskPassport(profile?.passport_number ?? null)} />
-        <FieldValue label="Passport expiry" value={profile?.passport_expiry_date || "Not provided"} />
-        <FieldValue label="Language" value={profile?.language_pref || "Not provided"} />
-        <FieldValue label="Profile created" value={formatDateTime(profile?.created_at)} />
+        <FieldValue label={copy.detail.profile.name} value={profile?.full_name || copy.common.unnamedApplicant} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.email} value={profile?.email || copy.common.notProvided} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.phone} value={profile?.phone || copy.common.notProvided} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.nationality} value={profile?.nationality || copy.common.notProvided} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.passport} value={maskPassportForLocale(profile?.passport_number ?? null, copy)} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.passportExpiry} value={profile?.passport_expiry_date || copy.common.notProvided} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.language} value={profile?.language_pref || copy.common.notProvided} fallback={copy.common.notRecorded} />
+        <FieldValue label={copy.detail.profile.created} value={formatAdminDateTime(profile?.created_at, locale, copy.common.notRecorded)} fallback={copy.common.notRecorded} />
       </dl>
     </SectionPanel>
   );
 }
 
-function PackageOverview({ applicant }: { applicant: AdminApplicantOverview }) {
+function PackageOverview({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   return (
-    <SectionPanel title="Packages" description="Assigned packages and expiry visibility for this user.">
+    <SectionPanel title={copy.detail.packages} description={copy.detail.packagesDescription}>
       {applicant.packages.length === 0 ? (
-        <EmptyState title="No packages" body="No package assignment is linked to this user yet." />
+        <EmptyState title={copy.detail.noPackagesTitle} body={copy.detail.noPackagesBody} />
       ) : (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {applicant.packages.map((pkg) => (
@@ -227,12 +288,12 @@ function PackageOverview({ applicant }: { applicant: AdminApplicantOverview }) {
                     {pkg.countryLabel} - {pkg.visaTypeLabel}
                   </p>
                 </div>
-                <StatusPill tone={pkg.status === "active" ? "success" : "neutral"}>{pkg.status}</StatusPill>
+                <StatusPill tone={pkg.status === "active" ? "success" : "neutral"}>{localizeStatusText(pkg.status, locale)}</StatusPill>
               </div>
               <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <FieldValue label="Assigned" value={formatDateTime(pkg.assignedAt)} />
-                <FieldValue label="Expires" value={pkg.expiresAt ? formatDateTime(pkg.expiresAt) : "No expiry set"} />
-                <FieldValue label="Price" value={pkg.priceLabel} />
+                <FieldValue label={copy.detail.assigned} value={formatAdminDateTime(pkg.assignedAt, locale, copy.common.notRecorded)} fallback={copy.common.notRecorded} />
+                <FieldValue label={copy.common.expires} value={pkg.expiresAt ? formatAdminDateTime(pkg.expiresAt, locale, copy.common.notRecorded) : copy.common.noExpiry} fallback={copy.common.notRecorded} />
+                <FieldValue label={copy.detail.price} value={pkg.priceLabel} fallback={copy.common.notRecorded} />
               </dl>
             </div>
           ))}
@@ -242,19 +303,25 @@ function PackageOverview({ applicant }: { applicant: AdminApplicantOverview }) {
   );
 }
 
-function SupportItems({ applicant }: { applicant: AdminApplicantOverview }) {
+function SupportItems({
+  applicant,
+  copy,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+}) {
   return (
-    <SectionPanel title="Support items" description="Aggregated blockers across all applications for this user.">
+    <SectionPanel title={copy.common.supportItems} description={copy.detail.supportItemsDescription}>
       {applicant.missingItems.length === 0 ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-          No blocking support items detected across this user's applications.
+          {copy.common.noBlockingItemsLong}
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {applicant.missingItems.map((item) => (
             <li key={item} className="flex items-start gap-2 text-sm leading-6 text-[#45556c]">
               <CircleDot className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
-              <span>{item}</span>
+              <span>{localizeMissingItem(item, copy)}</span>
             </li>
           ))}
         </ul>
@@ -263,7 +330,15 @@ function SupportItems({ applicant }: { applicant: AdminApplicantOverview }) {
   );
 }
 
-function ApplicationCard({ application }: { application: AdminApplicationModel }) {
+function ApplicationCard({
+  application,
+  copy,
+  locale,
+}: {
+  application: AdminApplicationModel;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   const progress = getLifecycleProgressPercent(application);
 
   return (
@@ -275,49 +350,51 @@ function ApplicationCard({ application }: { application: AdminApplicationModel }
               {application.countryLabel} - {application.visaTypeLabel}
             </h3>
             <StatusPill tone={getToneForState(application.lifecycleState)}>
-              {LIFECYCLE_LABELS[application.lifecycleState]}
+              {copy.status.lifecycle[application.lifecycleState]}
             </StatusPill>
           </div>
           <p className="mt-2 font-mono text-xs text-[#9ca3af]">{shortenId(application.id)}</p>
         </div>
-        <p className="text-sm text-[#6b6b6b]">Updated {formatDateTime(application.updatedAt ?? application.createdAt)}</p>
+        <p className="text-sm text-[#6b6b6b]">
+          {copy.common.updated} {formatAdminDateTime(application.updatedAt ?? application.createdAt, locale, copy.common.notRecorded)}
+        </p>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">Package</p>
-          <p className="mt-1 text-sm font-medium text-[#232323]">{application.visaPackage?.name || "No package linked"}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.package}</p>
+          <p className="mt-1 text-sm font-medium text-[#232323]">{application.visaPackage?.name || copy.common.noPackageLinked}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">Payment / Consent</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.paymentConsent}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <StatusPill tone={getToneForState(application.payment.state)}>
-              {PAYMENT_LABELS[application.payment.state]}
+              {copy.status.payment[application.payment.state]}
             </StatusPill>
             <StatusPill tone={getToneForState(application.consent.state)}>
-              {CONSENT_LABELS[application.consent.state]}
+              {copy.status.consent[application.consent.state]}
             </StatusPill>
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">Documents / Packet</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.documentsPacket}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <StatusPill tone={getToneForState(application.documents.state)}>
-              {DOCUMENT_LABELS[application.documents.state]}
+              {copy.status.documents[application.documents.state]}
             </StatusPill>
             <StatusPill tone={getToneForState(application.packet.state)}>
-              {PACKET_LABELS[application.packet.state]}
+              {copy.status.packet[application.packet.state]}
             </StatusPill>
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">External / Result</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[#7a7a7a]">{copy.detail.applicationCard.externalResult}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <StatusPill tone={getToneForState(application.external.state)}>
-              {EXTERNAL_LABELS[application.external.state]}
+              {copy.status.external[application.external.state]}
             </StatusPill>
             <StatusPill tone={getToneForState(application.result.state)}>
-              {RESULT_LABELS[application.result.state]}
+              {copy.status.result[application.result.state]}
             </StatusPill>
           </div>
         </div>
@@ -325,7 +402,7 @@ function ApplicationCard({ application }: { application: AdminApplicationModel }
 
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs font-medium text-[#6b6b6b]">
-          <span>Progress</span>
+          <span>{copy.common.progress}</span>
           <span>{progress}%</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
@@ -336,19 +413,35 @@ function ApplicationCard({ application }: { application: AdminApplicationModel }
   );
 }
 
-function ApplicationsOverview({ applicant }: { applicant: AdminApplicantOverview }) {
+function ApplicationsOverview({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   return (
-    <SectionPanel title="Applications" description="All visa applications linked to this user.">
+    <SectionPanel title={copy.detail.applications} description={copy.detail.applicationsDescription}>
       <div className="space-y-3">
         {applicant.applications.map((application) => (
-          <ApplicationCard key={application.id} application={application} />
+          <ApplicationCard key={application.id} application={application} copy={copy} locale={locale} />
         ))}
       </div>
     </SectionPanel>
   );
 }
 
-function EventTimeline({ applicant }: { applicant: AdminApplicantOverview }) {
+function EventTimeline({
+  applicant,
+  copy,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
+}) {
   const events = applicant.applications
     .flatMap((application) =>
       application.events.map((event) => ({
@@ -360,9 +453,9 @@ function EventTimeline({ applicant }: { applicant: AdminApplicantOverview }) {
     .slice(0, 12);
 
   return (
-    <SectionPanel title="Recent events" description="Latest lifecycle and support events across this user's applications.">
+    <SectionPanel title={copy.detail.recentEvents} description={copy.detail.recentEventsDescription}>
       {events.length === 0 ? (
-        <EmptyState title="No events yet" body="Lifecycle events will appear here as automation and support actions run." />
+        <EmptyState title={copy.detail.noEventsTitle} body={copy.detail.noEventsBody} />
       ) : (
         <div className="space-y-4">
           {events.map((event) => (
@@ -375,9 +468,9 @@ function EventTimeline({ applicant }: { applicant: AdminApplicantOverview }) {
                   <p className="font-mono text-xs font-semibold text-[#232323]">{event.event_type}</p>
                   <StatusPill tone={event.actor_type === "admin" ? "brand" : "neutral"}>{event.actor_type}</StatusPill>
                 </div>
-                <p className="mt-1 text-sm leading-6 text-[#45556c]">{event.message || "No message"}</p>
+                <p className="mt-1 text-sm leading-6 text-[#45556c]">{event.message || copy.common.notRecorded}</p>
                 <p className="mt-1 text-xs text-[#9ca3af]">
-                  {event.applicationLabel} - {formatDateTime(event.created_at)}
+                  {event.applicationLabel} - {formatAdminDateTime(event.created_at, locale, copy.common.notRecorded)}
                 </p>
               </div>
             </div>
@@ -391,8 +484,10 @@ function EventTimeline({ applicant }: { applicant: AdminApplicantOverview }) {
 export default async function AdminApplicantOverviewPage({ params, searchParams }: PageProps) {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/admin/login");
+  const locale = normalizeInterfaceLocale(await getLocale());
+  const copy = ADMIN_APPLICATION_COPY[locale];
 
-  let { id } = await params;
+  const { id } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
   const admin = createAdminClient();
 
@@ -418,7 +513,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   if (error) {
     return (
       <div className="w-full p-6 md:p-8">
-        <ErrorPanel message={error} />
+        <ErrorPanel title={copy.errors.applicationLoadTitle} message={error} />
       </div>
     );
   }
@@ -426,10 +521,10 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   if (!applicant) {
     return (
       <div className="w-full p-6 md:p-8">
-        <EmptyState title="User not found" body="This applicant does not exist or has no application records." />
+        <EmptyState title={copy.detail.userNotFoundTitle} body={copy.detail.userNotFoundBody} />
         <Link href="/admin/applications" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-brand-500">
           <ArrowLeft className="h-4 w-4" />
-          Back to users
+          {copy.common.backToUsers}
         </Link>
       </div>
     );
@@ -476,12 +571,12 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <div>
         <Link href="/admin/applications" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:underline">
           <ArrowLeft className="h-4 w-4" />
-          Back to user cards
+          {copy.common.backToCards}
         </Link>
       </div>
 
-      <UserSummaryHeader applicant={applicant} />
-      <ActionMessage queued={queued} error={actionError} />
+      <UserSummaryHeader applicant={applicant} copy={copy} />
+      <ActionMessage queued={queued} error={actionError} copy={copy} />
       
       {applicant.latestApplication && (
         <RealtimeApplicationStatus
@@ -490,27 +585,27 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
         />
       )}
 
-      <OverviewMetrics applicant={applicant} />
-      <ApplicantProfile applicant={applicant} />
-      <PackageOverview applicant={applicant} />
-      <SupportItems applicant={applicant} />
-      <ApplicationsOverview applicant={applicant} />
-      <EventTimeline applicant={applicant} />
+      <OverviewMetrics applicant={applicant} copy={copy} locale={locale} />
+      <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />
+      <PackageOverview applicant={applicant} copy={copy} locale={locale} />
+      <SupportItems applicant={applicant} copy={copy} />
+      <ApplicationsOverview applicant={applicant} copy={copy} locale={locale} />
+      <EventTimeline applicant={applicant} copy={copy} locale={locale} />
 
       {/* ———————————————————————————————————————————————————————————————— */}
       {/* 下置的技术底层日志与运维诊断面板 (System Diagnostics) */}
       {/* ———————————————————————————————————————————————————————————————— */}
       <div className="pt-6 border-t border-[#e5e7eb] space-y-6">
-        <h2 className="text-lg font-bold text-[#232323] tracking-tight">System Diagnostics & Logs</h2>
+        <h2 className="text-lg font-bold text-[#232323] tracking-tight">{copy.detail.diagnostics.title}</h2>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Runner 任务执行追踪队列 */}
           <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b bg-[#fafafa]">
-              <h3 className="font-semibold text-sm text-[#232323]">Runner pipeline timeline</h3>
+              <h3 className="font-semibold text-sm text-[#232323]">{copy.detail.diagnostics.runnerTimeline}</h3>
             </div>
             {jobRows.length === 0 ? (
-              <p className="p-6 text-sm text-[#9ca3af]">No runner jobs yet.</p>
+              <p className="p-6 text-sm text-[#9ca3af]">{copy.detail.diagnostics.noRunnerJobs}</p>
             ) : (
               <ul className="divide-y text-sm">
                 {jobRows.map((j) => (
@@ -520,13 +615,13 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
                         {j.id.slice(0, 8)}
                       </Link>
                       <span className="text-xs text-[#6b6b6b]">
-                        {new Date(j.enqueued_at).toLocaleString()}
+                        {formatAdminDateTime(j.enqueued_at, locale, copy.common.notRecorded)}
                       </span>
                     </div>
                     <div className="text-xs text-[#6b6b6b] mt-1 flex flex-wrap gap-x-2">
-                      <span className="font-medium text-[#232323]">{j.status}</span>
-                      <span>· attempts: {j.attempts}</span>
-                      {appIds.length > 1 && <span className="text-brand-600">· app: {shortenId(j.application_id)}</span>}
+                      <span className="font-medium text-[#232323]">{localizeStatusText(j.status, locale)}</span>
+                      <span>· {copy.detail.diagnostics.attempts}: {j.attempts}</span>
+                      {appIds.length > 1 && <span className="text-brand-600">· {copy.detail.diagnostics.app}: {shortenId(j.application_id)}</span>}
                     </div>
                     {j.last_error && (
                       <p className="text-[11px] font-mono text-red-600 bg-red-50 rounded mt-1.5 p-1 max-w-full overflow-x-auto">
@@ -542,10 +637,10 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           {/* 详细交易扣费订单 */}
           <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b bg-[#fafafa]">
-              <h3 className="font-semibold text-sm text-[#232323]">Payment orders & Transactions</h3>
+              <h3 className="font-semibold text-sm text-[#232323]">{copy.detail.diagnostics.paymentOrders}</h3>
             </div>
             {orderRows.length === 0 ? (
-              <p className="p-6 text-sm text-[#9ca3af]">No records found.</p>
+              <p className="p-6 text-sm text-[#9ca3af]">{copy.detail.diagnostics.noRecords}</p>
             ) : (
               <ul className="divide-y text-sm">
                 {orderRows.map((o) => (
@@ -554,8 +649,8 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
                       <Link href={`/client/orders/${o.id}`} className="font-mono text-xs text-brand-500 hover:underline">
                         {o.id.slice(0, 8)}
                       </Link>
-                      <span className="ml-2 text-xs font-medium bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{o.status}</span>
-                      {appIds.length > 1 && <span className="block text-[11px] text-[#6b6b6b] mt-0.5">App: {shortenId(o.application_id)}</span>}
+                      <span className="ml-2 text-xs font-medium bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">{localizeStatusText(o.status, locale)}</span>
+                      {appIds.length > 1 && <span className="block text-[11px] text-[#6b6b6b] mt-0.5">{copy.detail.diagnostics.app}: {shortenId(o.application_id)}</span>}
                     </div>
                     <span className="font-mono text-xs text-[#232323] font-semibold">
                       {((o.agency_fee_cents + o.govt_fee_cents) / 100).toFixed(2)} {o.currency}
@@ -570,27 +665,27 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
         {/* 专属别名电子邮箱日志 */}
         <section className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b bg-[#fafafa] flex justify-between items-center">
-            <h3 className="font-semibold text-sm text-[#232323]">Inbound email communications</h3>
+            <h3 className="font-semibold text-sm text-[#232323]">{copy.detail.diagnostics.inboundEmail}</h3>
             {profileWithAlias?.inbox_alias ? (
               <span className="text-xs font-mono bg-brand-50 text-brand-600 px-2 py-0.5 rounded border border-brand-100">
-                alias: {profileWithAlias.inbox_alias}
+                {copy.detail.diagnostics.alias}: {profileWithAlias.inbox_alias}
               </span>
             ) : (
-              <span className="text-xs italic text-[#9ca3af]">no email alias allocated</span>
+              <span className="text-xs italic text-[#9ca3af]">{copy.detail.diagnostics.noAlias}</span>
             )}
           </div>
           {inboundRows.length === 0 ? (
-            <p className="p-6 text-sm text-[#9ca3af]">No external mail recorded for this user alias.</p>
+            <p className="p-6 text-sm text-[#9ca3af]">{copy.detail.diagnostics.noMail}</p>
           ) : (
             <ul className="divide-y text-sm">
               {inboundRows.map((m) => (
                 <li key={m.id} className="px-4 py-3 hover:bg-[#fafafa] transition">
                   <p className="font-medium text-[#232323] truncate">
-                    {m.subject ?? "(no subject)"}
+                    {m.subject ?? copy.detail.diagnostics.noSubject}
                   </p>
                   <p className="text-xs text-[#6b6b6b] mt-1">
-                    {new Date(m.received_at).toLocaleString()} · from: <span className="text-[#232323]">{m.from_addr}</span>
-                    {m.processed && <span className="ml-2 text-emerald-600 bg-emerald-50 px-1 rounded font-medium">processed</span>}
+                    {formatAdminDateTime(m.received_at, locale, copy.common.notRecorded)} · {copy.detail.diagnostics.from}: <span className="text-[#232323]">{m.from_addr}</span>
+                    {m.processed && <span className="ml-2 text-emerald-600 bg-emerald-50 px-1 rounded font-medium">{copy.detail.diagnostics.processed}</span>}
                   </p>
                 </li>
               ))}
