@@ -46,7 +46,7 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
       return;
     }
 
-    const context = await getCheckoutContext(packageId);
+    const context = await getCheckoutContext({ packageId });
     if (!context.user) {
       destination = "/client/login";
       return;
@@ -76,6 +76,26 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
     }
 
     const adminClient = createCheckoutAdminClient();
+
+    if (
+      selectedPackage.latestPayment?.status === "pending" &&
+      selectedPackage.latestPayment.provider_session_id
+    ) {
+      const existingSession = await stripe.checkout.sessions.retrieve(
+        selectedPackage.latestPayment.provider_session_id,
+      );
+      if (existingSession.status === "open" && existingSession.url) {
+        destination = existingSession.url;
+        return;
+      }
+      if (existingSession.status === "expired") {
+        await adminClient
+          .from("payment_records")
+          .update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("id", selectedPackage.latestPayment.id);
+      }
+    }
+
     const now = new Date().toISOString();
     const { data: paymentRecord, error: paymentError } = await adminClient
       .from("payment_records")
@@ -114,11 +134,17 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
     const successUrl = new URL("/client/checkout", appBaseUrl);
     successUrl.searchParams.set("status", "success");
     successUrl.searchParams.set("packageId", selectedPackage.packageId);
+    if (selectedPackage.applicationId) {
+      successUrl.searchParams.set("applicationId", selectedPackage.applicationId);
+    }
     successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
 
     const cancelUrl = new URL("/client/checkout", appBaseUrl);
     cancelUrl.searchParams.set("status", "cancelled");
     cancelUrl.searchParams.set("packageId", selectedPackage.packageId);
+    if (selectedPackage.applicationId) {
+      cancelUrl.searchParams.set("applicationId", selectedPackage.applicationId);
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -155,6 +181,20 @@ export async function startStripeCheckout(formData: FormData): Promise<void> {
           applicationId: selectedPackage.applicationId ?? "",
           visaPackageId: selectedPackage.packageId,
           feeType: "agency_fee",
+        },
+      },
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: `${selectedPackage.packageName} VIZA agency fee`,
+          metadata: {
+            paymentRecordId: paymentRecord.id,
+            userId: context.user.id,
+            applicantId: context.applicantProfile?.id ?? "",
+            applicationId: selectedPackage.applicationId ?? "",
+            visaPackageId: selectedPackage.packageId,
+            feeType: "agency_fee",
+          },
         },
       },
       custom_text: {

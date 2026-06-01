@@ -31,6 +31,8 @@ interface ApplicationRow {
   status: string;
 }
 
+export const dynamic = "force-dynamic";
+
 const COPY = {
   en: {
     title: "User Accounts",

@@ -38,7 +38,7 @@ website automation monitoring, coverage, and billing support.
   and this file.
 - Staff monitoring pages should observe and support cases; they must not become
   required manual approval gates for the happy path.
-- Admin shell and support inbox copy should follow the global interface
+- Admin shell and dashboard page copy should follow the global interface
   language (`NEXT_LOCALE`) for English/Chinese switching.
 
 ## Validation

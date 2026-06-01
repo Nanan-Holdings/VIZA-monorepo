@@ -70,12 +70,21 @@ interface QueryIssue {
   message: string;
 }
 
+interface PagedQueryResult<T> {
+  data: T[];
+  error: unknown;
+}
+
 type QueryErrorLike = {
   code?: string;
   message?: string;
   details?: string;
   hint?: string;
 };
+
+export const dynamic = "force-dynamic";
+
+const COVERAGE_PAGE_SIZE = 1000;
 
 interface PackageCoverageCopy {
   eyebrow: string;
@@ -327,19 +336,11 @@ export default async function AdminPackagesPage() {
 
   const adminClient = createAdminClient();
 
-  const [packagesResult, fieldsResult, documentsResult] = await Promise.all([
-    adminClient
-      .from("visa_packages")
-      .select(
-        "id, country, visa_type, name, description, price_cents, currency, metadata, updated_at, created_at"
-      )
-      .eq("is_active", true)
-      .order("country", { ascending: true })
-      .order("visa_type", { ascending: true }),
-    adminClient.from("visa_form_fields").select("visa_type, field_name"),
-    adminClient
-      .from("document_requirements")
-      .select("visa_package_id, country, visa_type, required"),
+  const packagesResult = await fetchActivePackages(adminClient);
+  const packages = packagesResult.data;
+  const [fieldsResult, documentsResult] = await Promise.all([
+    fetchVisaFormFields(adminClient, packages.map((pkg) => pkg.visa_type)),
+    fetchDocumentRequirements(adminClient),
   ]);
 
   const issues = collectIssues([
@@ -351,9 +352,8 @@ export default async function AdminPackagesPage() {
     ],
   ], copy);
 
-  const packages = (packagesResult.data ?? []) as VisaPackageRow[];
-  const formFields = (fieldsResult.data ?? []) as VisaFormFieldRow[];
-  const requirements = (documentsResult.data ?? []) as DocumentRequirementRow[];
+  const formFields = fieldsResult.data;
+  const requirements = documentsResult.data;
   const formFieldCounts = buildFieldCounts(formFields);
   const documentStats = buildDocumentStats(requirements, packages);
   const rows = packages.map((pkg) =>
@@ -558,6 +558,91 @@ export default async function AdminPackagesPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+async function fetchActivePackages(
+  adminClient: ReturnType<typeof createAdminClient>
+): Promise<PagedQueryResult<VisaPackageRow>> {
+  return fetchPagedRows<VisaPackageRow>((from, to) =>
+    adminClient
+      .from("visa_packages")
+      .select(
+        "id, country, visa_type, name, description, price_cents, currency, metadata, updated_at, created_at"
+      )
+      .eq("is_active", true)
+      .order("country", { ascending: true })
+      .order("visa_type", { ascending: true })
+      .range(from, to)
+  );
+}
+
+async function fetchVisaFormFields(
+  adminClient: ReturnType<typeof createAdminClient>,
+  visaTypes: string[]
+): Promise<PagedQueryResult<VisaFormFieldRow>> {
+  const uniqueVisaTypes = uniqueNonEmpty(visaTypes);
+  if (uniqueVisaTypes.length === 0) return { data: [], error: null };
+
+  return fetchPagedRows<VisaFormFieldRow>((from, to) =>
+    adminClient
+      .from("visa_form_fields")
+      .select("visa_type, field_name")
+      .in("visa_type", uniqueVisaTypes)
+      .order("visa_type", { ascending: true })
+      .range(from, to)
+  );
+}
+
+async function fetchDocumentRequirements(
+  adminClient: ReturnType<typeof createAdminClient>
+): Promise<PagedQueryResult<DocumentRequirementRow>> {
+  return fetchPagedRows<DocumentRequirementRow>((from, to) =>
+    adminClient
+      .from("document_requirements")
+      .select("visa_package_id, country, visa_type, required")
+      .order("visa_package_id", { ascending: true, nullsFirst: true })
+      .order("country", { ascending: true })
+      .order("visa_type", { ascending: true })
+      .range(from, to)
+  );
+}
+
+async function fetchPagedRows<T>(
+  queryPage: (from: number, to: number) => PromiseLike<unknown>
+): Promise<PagedQueryResult<T>> {
+  const rows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + COVERAGE_PAGE_SIZE - 1;
+    const result = (await queryPage(from, to)) as {
+      data: T[] | null;
+      error: unknown;
+    };
+
+    if (result.error) {
+      return { data: rows, error: result.error };
+    }
+
+    const page = result.data ?? [];
+    rows.push(...page);
+
+    if (page.length < COVERAGE_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+
+    from += COVERAGE_PAGE_SIZE;
+  }
+}
+
+function uniqueNonEmpty(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
   );
 }
 

@@ -230,6 +230,9 @@ export function getStripeClient(): Stripe {
   if (!secretKey) {
     throw new StripeRouteConfigError("Stripe secret key is not configured.");
   }
+  if (!secretKey.startsWith("sk_")) {
+    throw new StripeRouteConfigError("STRIPE_SECRET_KEY must be a Stripe secret key that starts with sk_.");
+  }
 
   return new Stripe(secretKey);
 }
@@ -238,6 +241,9 @@ export function getStripeWebhookSecret(): string {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     throw new StripeRouteConfigError("Stripe webhook secret is not configured.");
+  }
+  if (!webhookSecret.startsWith("whsec_")) {
+    throw new StripeRouteConfigError("STRIPE_WEBHOOK_SECRET must be a Stripe webhook signing secret that starts with whsec_.");
   }
 
   return webhookSecret;

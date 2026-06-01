@@ -385,6 +385,21 @@ function isOpenAIModelAccessError(response: Response, body: OpenAIErrorBody | nu
   );
 }
 
+function isOpenAIConfigurationError(response: Response, body: OpenAIErrorBody | null): boolean {
+  const code = body?.error?.code ?? "";
+  const message = body?.error?.message?.toLowerCase() ?? "";
+  return (
+    response.status === 401 ||
+    response.status === 402 ||
+    code === "invalid_api_key" ||
+    code === "insufficient_quota" ||
+    message.includes("api key") ||
+    message.includes("credit") ||
+    message.includes("quota") ||
+    message.includes("billing")
+  );
+}
+
 async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProviderResult> {
   const apiKey = process.env.PASSPORT_OCR_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "your_openai_api_key_here") {
@@ -425,6 +440,14 @@ async function extractWithOpenAI(file: PassportOcrFile): Promise<PassportOcrProv
         const errorBody = await parseOpenAIErrorBody(response);
         const isModelError = isOpenAIModelAccessError(response, errorBody);
         if (isModelError && index < modelCandidates.length - 1) break;
+
+        if (isOpenAIConfigurationError(response, errorBody)) {
+          throw new PassportOcrProviderError(
+            "provider_unavailable",
+            "Passport OCR provider credentials or billing are not available.",
+            false,
+          );
+        }
 
         const retryable = response.status === 429 || response.status >= 500;
         throw new PassportOcrProviderError(

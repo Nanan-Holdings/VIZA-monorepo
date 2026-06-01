@@ -2,6 +2,13 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isSupportTableMissing,
+  listStoredTicketMessages,
+  listStoredTicketsForTab,
+  postStoredTicketMessage,
+  resolveStoredSupportTicket,
+} from "./support-storage";
 
 export type TicketTab = "open" | "p2" | "mine" | "unassigned" | "breaching";
 
@@ -79,6 +86,9 @@ export async function listAdminTickets(
   }
 
   const { data, error } = await query;
+  if (isSupportTableMissing(error)) {
+    return { rows: (await listStoredTicketsForTab(tab, guard.userId)) as AdminTicketRow[] };
+  }
   if (error) return { error: error.message };
   return { rows: (data ?? []) as AdminTicketRow[] };
 }
@@ -154,6 +164,9 @@ export async function listAdminTicketMessages(
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true });
 
+  if (isSupportTableMissing(error)) {
+    return { rows: (await listStoredTicketMessages(ticketId)) as AdminSupportMessageRow[] };
+  }
   if (error) return { error: error.message };
   return { rows: (data ?? []) as AdminSupportMessageRow[] };
 }
@@ -179,6 +192,17 @@ export async function postAdminTicketReply(input: {
     .select("id, ticket_id, author_kind, author_id, body, created_at")
     .single();
 
+  if (isSupportTableMissing(error)) {
+    const result = await postStoredTicketMessage({
+      ticketId: input.ticketId,
+      authorKind: "staff",
+      authorId: guard.userId,
+      body,
+    });
+    return result.message
+      ? { ok: true, message: result.message as AdminSupportMessageRow }
+      : { ok: false, reason: result.error };
+  }
   if (error || !message) return { ok: false, reason: error?.message ?? "Reply failed" };
 
   await adminClient
@@ -212,6 +236,7 @@ export async function closeAdminTicket(ticketId: string): Promise<{ ok: boolean;
     .from("support_ticket")
     .update({ status: "resolved", updated_at: new Date().toISOString() })
     .eq("id", ticketId);
+  if (isSupportTableMissing(error)) return resolveStoredSupportTicket(ticketId);
   if (error) return { ok: false, reason: error.message };
   return { ok: true };
 }

@@ -18,6 +18,8 @@ refund records, and payment-related customer support context.
 - Link from payment rows to `/admin/applications/[id]`.
 - Keep `page.tsx` as the server data loader and
   `billing-support-workspace.tsx` as the interactive staff support surface.
+- Keep billing support UI copy bound to the global interface language
+  (`NEXT_LOCALE`) for English/Chinese switching.
 
 ## Data Sources
 

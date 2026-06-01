@@ -75,6 +75,10 @@ interface InboundRow {
   processed: boolean;
 }
 
+interface ApplicantProfileWithAlias {
+  inbox_alias?: string | null;
+}
+
 function firstParam(
   searchParams: Record<string, string | string[] | undefined>,
   key: string,
@@ -533,7 +537,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const appIds = applicant.applications.map((a) => a.id);
   
   // 安全提取并兼容未知属性的 inbox_alias
-  const profileWithAlias = applicant.profile as any;
+  const profileWithAlias = applicant.profile as ApplicantProfileWithAlias | null;
   const aliasEmailStr = profileWithAlias?.inbox_alias ? String(profileWithAlias.inbox_alias).toLowerCase() : null;
 
   const [{ data: jobs }, { data: orders }, inbound] = await Promise.all([

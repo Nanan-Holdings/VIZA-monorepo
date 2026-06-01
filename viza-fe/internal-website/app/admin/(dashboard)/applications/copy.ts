@@ -9,7 +9,11 @@ import type {
   PaymentState,
   ResultState,
 } from "./data";
-import { shortenId } from "./data";
+
+function shortenId(value: string | null | undefined) {
+  if (!value) return "-";
+  return value.slice(0, 8);
+}
 
 export interface AdminApplicationCopy {
   status: {
@@ -609,17 +613,20 @@ export function buildLocalizedStatusSummary(
     application.missingItems.length > 0
       ? application.missingItems.map((item) => localizeMissingItem(item, copy)).join("; ")
       : copy.common.noBlockingItems;
+  const isZh = copy === ADMIN_APPLICATION_COPY.zh;
 
   return [
-    `Application ${shortenId(application.id)} for ${applicantName}`,
+    isZh
+      ? `申请 ${shortenId(application.id)}，申请人：${applicantName}`
+      : `Application ${shortenId(application.id)} for ${applicantName}`,
     `${application.countryLabel} - ${application.visaTypeLabel}`,
-    `Lifecycle: ${copy.status.lifecycle[application.lifecycleState]}`,
-    `Payment: ${copy.status.payment[application.payment.state]}`,
-    `Consent: ${copy.status.consent[application.consent.state]}`,
-    `Documents: ${copy.status.documents[application.documents.state]}`,
-    `Packet: ${copy.status.packet[application.packet.state]}`,
-    `External: ${copy.status.external[application.external.state]}`,
-    `Result: ${copy.status.result[application.result.state]}`,
-    `Missing/support items: ${missingItems}`,
+    `${isZh ? "生命周期" : "Lifecycle"}: ${copy.status.lifecycle[application.lifecycleState]}`,
+    `${isZh ? "付款" : "Payment"}: ${copy.status.payment[application.payment.state]}`,
+    `${isZh ? "授权" : "Consent"}: ${copy.status.consent[application.consent.state]}`,
+    `${isZh ? "材料" : "Documents"}: ${copy.status.documents[application.documents.state]}`,
+    `${isZh ? "材料包" : "Packet"}: ${copy.status.packet[application.packet.state]}`,
+    `${isZh ? "外部状态" : "External"}: ${copy.status.external[application.external.state]}`,
+    `${isZh ? "结果" : "Result"}: ${copy.status.result[application.result.state]}`,
+    `${isZh ? "缺失/客服事项" : "Missing/support items"}: ${missingItems}`,
   ].join("\n");
 }
