@@ -42,6 +42,7 @@ export const metadata: Metadata = {
 };
 
 type CheckoutSearchParams = {
+  applicationId?: string | string[];
   error?: string | string[];
   packageId?: string | string[];
   session_id?: string | string[];
@@ -90,7 +91,7 @@ function getErrorReturnState(error: string | null): CheckoutReturnState {
     stripe_unconfigured: {
       tone: "warning",
       title: "Stripe Checkout is not configured",
-      description: "Production payment requires Stripe secrets and an app URL. No card details are collected here.",
+      description: "Production payment requires STRIPE_SECRET_KEY (sk_...), STRIPE_WEBHOOK_SECRET, and an app URL. No card details are collected here.",
     },
   };
 
@@ -450,7 +451,10 @@ function CheckoutContent({
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const params = await searchParams;
   const returnState = await getReturnState(params);
-  const context = await getCheckoutContext(getParam(params, "packageId"));
+  const context = await getCheckoutContext({
+    packageId: getParam(params, "packageId"),
+    applicationId: getParam(params, "applicationId"),
+  });
 
   if (!context.user) {
     redirect("/client/login");

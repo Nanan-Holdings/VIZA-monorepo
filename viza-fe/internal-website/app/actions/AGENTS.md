@@ -28,6 +28,10 @@ application lifecycle state.
 - `client-settings.ts`: client settings privacy requests and frequent traveler
   CRUD backed by applicant profiles.
 - `form-requests.ts`: first-login/about-me form request flow.
+- `support.ts`, `admin-cs.ts`, `support-storage.ts`: applicant support
+  ticket submission, admin P2 support inbox reads/replies, and the temporary
+  Storage fallback used when a Supabase project has not applied
+  `support_ticket` migrations yet.
 
 ## Ownership Boundaries
 

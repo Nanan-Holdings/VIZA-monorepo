@@ -7,6 +7,10 @@ import {
   getDestinationDisplayName,
   getVisaTypeDisplayName,
 } from "@/lib/visa-destinations";
+import {
+  advanceApplicationAfterConfirmedPayment,
+  type StripeSupabaseClient,
+} from "@/app/api/stripe/_shared";
 
 type Json =
   | string
@@ -189,6 +193,11 @@ export interface CheckoutContext {
   error: string | null;
 }
 
+export interface CheckoutSelection {
+  packageId?: string | null;
+  applicationId?: string | null;
+}
+
 export type CheckoutReturnState =
   | {
       tone: "success" | "warning" | "error";
@@ -202,11 +211,17 @@ export function createCheckoutAdminClient(): CheckoutAdminClient {
 }
 
 export function isStripeConfigured(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return Boolean(getStripeSecretKey());
+}
+
+function getStripeSecretKey(): string | null {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!secretKey || !secretKey.startsWith("sk_")) return null;
+  return secretKey;
 }
 
 export function createStripeClient(): Stripe | null {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const secretKey = getStripeSecretKey();
   if (!secretKey) return null;
   return new Stripe(secretKey);
 }
@@ -425,13 +440,13 @@ function selectLatestPayment(
   applicationId: string | null,
   payments: PaymentRecordRow[],
 ): PaymentRecordRow | null {
-  return (
-    payments.find(
-      (payment) =>
-        payment.visa_package_id === packageId &&
-        (payment.application_id === applicationId || !payment.application_id || !applicationId),
-    ) ?? null
+  const matchingPayments = payments.filter(
+    (payment) =>
+      payment.visa_package_id === packageId &&
+      (payment.application_id === applicationId || !payment.application_id || !applicationId),
   );
+
+  return matchingPayments.find((payment) => isPaidStatus(payment.status)) ?? matchingPayments[0] ?? null;
 }
 
 function buildPackageSummaries({
@@ -502,7 +517,7 @@ function buildPackageSummaries({
     .filter((summary): summary is CheckoutPackageSummary => Boolean(summary));
 }
 
-export async function getCheckoutContext(selectedPackageId?: string | null): Promise<CheckoutContext> {
+export async function getCheckoutContext(selection: CheckoutSelection = {}): Promise<CheckoutContext> {
   const authenticatedUser = await getAuthenticatedUser();
   if (!authenticatedUser) {
     return {
@@ -643,7 +658,12 @@ export async function getCheckoutContext(selectedPackageId?: string | null): Pro
       signatures,
     });
     const selectedPackage =
-      packages.find((packageSummary) => packageSummary.packageId === selectedPackageId) ??
+      packages.find(
+        (packageSummary) =>
+          Boolean(selection.applicationId) &&
+          packageSummary.applicationId === selection.applicationId,
+      ) ??
+      packages.find((packageSummary) => packageSummary.packageId === selection.packageId) ??
       packages[0] ??
       null;
 
@@ -711,12 +731,20 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
     const paymentIntentId =
       typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
     const now = new Date().toISOString();
+    const { data: existingPayment } = await adminClient
+      .from("payment_records")
+      .select("id, metadata")
+      .eq("provider_session_id", session.id)
+      .eq("fee_type", "agency_fee")
+      .maybeSingle();
+    const existingMetadata = asRecord(existingPayment?.metadata ?? undefined) ?? {};
 
     const updatePayload: Partial<PaymentRecordRow> = {
       provider_payment_id: paymentIntentId,
       status: isPaid ? "paid" : "pending",
       updated_at: now,
       metadata: {
+        ...existingMetadata,
         user_id: authenticatedUser.id,
         applicant_id: session.metadata?.applicantId ?? null,
         application_id: session.metadata?.applicationId ?? null,
@@ -754,6 +782,19 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
             session_id: session.id,
           },
           created_at: now,
+        });
+      }
+
+      const paymentRecordId =
+        session.metadata?.paymentRecordId ??
+        (typeof existingPayment?.id === "string" ? existingPayment.id : null);
+
+      if (paymentRecordId) {
+        await advanceApplicationAfterConfirmedPayment(adminClient as unknown as StripeSupabaseClient, {
+          applicationId: session.metadata.applicationId,
+          applicantId: session.metadata.applicantId || null,
+          paymentRecordId,
+          stripeEventId: `checkout-return:${session.id}`,
         });
       }
     }

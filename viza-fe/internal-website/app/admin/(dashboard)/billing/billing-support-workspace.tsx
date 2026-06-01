@@ -411,7 +411,7 @@ function SupportPanel({
             </h2>
             <p className="text-xs text-[#8a8a8a]">{record.id}</p>
           </div>
-          <EligibilityBadge status={record.refundEligibility.status} copy={copy} locale={locale} />
+          <EligibilityBadge status={record.refundEligibility.status} locale={locale} />
         </div>
       </div>
 
@@ -636,12 +636,14 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 function ReferenceRow({
   label,
   reference,
+  copy,
 }: {
   label: string;
   reference: { label: string; secondary?: string | null; href?: string } | null;
+  copy: BillingCopy;
 }) {
   if (!reference) {
-    return <DetailRow label={label} value="Not linked" />;
+    return <DetailRow label={label} value={copy.notLinked} />;
   }
 
   return (
@@ -671,7 +673,7 @@ function ReferenceRow({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: InterfaceLocale }) {
   const normalized = status.toLowerCase();
   const className =
     STATUS_COLORS[normalized] ?? "border-gray-200 bg-gray-100 text-gray-700";
@@ -680,19 +682,19 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}
     >
-      {status.replaceAll("_", " ")}
+      {localizeStatus(status, locale)}
     </span>
   );
 }
 
-function EligibilityBadge({ status }: { status: RefundEligibilityStatus }) {
-  const labels: Record<RefundEligibilityStatus, string> = {
-    eligible: "Eligible",
-    manual_review: "Review",
-    not_eligible: "Not eligible",
-  };
-
-  return <StatusBadge status={labels[status]} />;
+function EligibilityBadge({
+  status,
+  locale,
+}: {
+  status: RefundEligibilityStatus;
+  locale: InterfaceLocale;
+}) {
+  return <StatusBadge status={status} locale={locale} />;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -719,17 +721,115 @@ const STATUS_COLORS: Record<string, string> = {
   not_requested: "border-gray-200 bg-gray-100 text-gray-700",
 };
 
-function formatDateTime(value: string | null) {
-  if (!value) return "Not recorded";
+function formatDateTime(value: string | null, locale: InterfaceLocale, fallback: string) {
+  if (!value) return fallback;
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not recorded";
+  if (Number.isNaN(date.getTime())) return fallback;
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function localizeEligibility(status: RefundEligibilityStatus, copy: BillingCopy) {
+  if (status === "eligible") return copy.eligible;
+  if (status === "manual_review") return copy.review;
+  return copy.notEligible;
+}
+
+function localizeNotice(notice: BillingDataNotice, copy: BillingCopy) {
+  if (notice.title === COPY.en.billingMissingTitle) {
+    return {
+      title: copy.billingMissingTitle,
+      description: copy.billingMissingDescription,
+    };
+  }
+  if (notice.title === COPY.en.queryErrorTitle) {
+    return {
+      title: copy.queryErrorTitle,
+      description: copy.queryErrorDescription,
+    };
+  }
+  return notice;
+}
+
+function localizeStatus(status: string, locale: InterfaceLocale) {
+  const normalized = status.toLowerCase();
+  if (locale === "en") return status.replaceAll("_", " ");
+
+  const labels: Record<string, string> = {
+    paid: "已付款",
+    succeeded: "成功",
+    complete: "已完成",
+    completed: "已完成",
+    sent: "已发送",
+    eligible: "可退款",
+    pending: "待处理",
+    requested: "已申请",
+    processing: "处理中",
+    review: "需审核",
+    manual_review: "人工审核",
+    refunded: "已退款",
+    partial_refund: "部分退款",
+    failed: "失败",
+    canceled: "已取消",
+    cancelled: "已取消",
+    not_eligible: "不可退款",
+    "not eligible": "不可退款",
+    none: "无",
+    missing: "缺失",
+    not_requested: "未申请",
+  };
+
+  return labels[normalized] ?? status.replaceAll("_", " ");
+}
+
+function localizeMetadataLabel(label: string, locale: InterfaceLocale) {
+  if (locale === "en") return label;
+  const labels: Record<string, string> = {
+    "Checkout mode": "结账模式",
+    "Customer email": "客户邮箱",
+    "Customer name": "客户姓名",
+    Package: "套餐",
+    Country: "国家",
+    "Visa type": "签证类型",
+    "Government fee mode": "官方费用模式",
+    "Government fee currency": "官方费用币种",
+    "Invoice requested at": "发票申请时间",
+    "Refund policy version": "退款政策版本",
+    "Government fee": "官方费用",
+    "Package list price": "套餐标价",
+  };
+  return labels[label] ?? label;
+}
+
+function localizeTimelineLabel(label: string, locale: InterfaceLocale) {
+  if (locale === "en") return label;
+  const labels: Record<string, string> = {
+    "Payment record created": "付款记录已创建",
+    "Payment status updated": "付款状态已更新",
+    "Invoice request": "发票申请",
+    "Refund request": "退款申请",
+  };
+  return labels[label] ?? label;
+}
+
+function localizeRefundReason(ruleCode: string, reason: string, locale: InterfaceLocale) {
+  if (locale === "en") return reason;
+  const labels: Record<string, string> = {
+    NO_PAYMENT: "尚未关联付款记录，无法评估退款。",
+    NON_AGENCY_FEE: "这不是 VIZA 服务费付款。官方费用不在后台账单中处理。",
+    PAYMENT_NOT_SETTLED: "只有已结算的 VIZA 服务费付款才能评估退款。",
+    FULLY_REFUNDED: "该笔 VIZA 服务费已全部退款。",
+    OPEN_REFUND_REQUEST: "已有退款申请正在处理。员工可查看状态，但这里不提供新的退款操作。",
+    UNLINKED_APPLICATION: "付款未关联申请，需要人工审核。",
+    APPLICATION_IN_PROGRESS: "申请已进入后续流程。退款前需确认政策和已完成工作。",
+    PAID_AGENCY_FEE_PRE_SUBMISSION: "该笔服务费已结算，且关联申请尚未提交。",
+  };
+  return labels[ruleCode] ?? reason;
 }
