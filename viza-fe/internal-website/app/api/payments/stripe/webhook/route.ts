@@ -17,6 +17,11 @@ function getPaymentRecordId(metadata: Stripe.Metadata | null | undefined): strin
 }
 
 function statusFromSession(session: Stripe.Checkout.Session): string {
+  if (session.mode === "setup") {
+    if (session.status === "complete") return "bound";
+    if (session.status === "expired") return "expired";
+    return "requires_action";
+  }
   if (session.payment_status === "paid") return "paid";
   if (session.status === "expired") return "expired";
   return "pending";
@@ -69,7 +74,9 @@ async function handleCheckoutSession(event: Stripe.Event) {
     paymentRecordId,
     providerSessionId: session.id,
     providerPaymentId:
-      typeof session.payment_intent === "string"
+      typeof session.setup_intent === "string"
+        ? session.setup_intent
+        : typeof session.payment_intent === "string"
         ? session.payment_intent
         : typeof session.subscription === "string"
           ? session.subscription
@@ -79,8 +86,10 @@ async function handleCheckoutSession(event: Stripe.Event) {
     status: statusFromSession(session),
     metadata: metadataPatch(event, {
       checkout_session_id: session.id,
+      setup_intent_id: typeof session.setup_intent === "string" ? session.setup_intent : null,
       payment_status: session.payment_status,
       session_status: session.status,
+      session_mode: session.mode,
       subscription_id: typeof session.subscription === "string" ? session.subscription : null,
     }),
   });

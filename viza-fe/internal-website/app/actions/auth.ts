@@ -3,14 +3,43 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClientSession } from "@/lib/client-session";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
+function authErrorMessage(message: string, locale: InterfaceLocale): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("invalid email or password")
+  ) {
+    return locale === "zh" ? "邮箱或密码不正确。" : "Invalid email or password.";
+  }
+
+  if (normalized.includes("email not confirmed")) {
+    return locale === "zh" ? "请先完成邮箱验证后再登录。" : "Please confirm your email before signing in.";
+  }
+
+  if (normalized.includes("too many requests") || normalized.includes("rate limit")) {
+    return locale === "zh" ? "尝试次数过多，请稍后再试。" : "Too many attempts. Please try again later.";
+  }
+
+  return locale === "zh" ? "登录失败，请检查账号后重试。" : message || "Sign in failed. Please try again.";
+}
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const locale = normalizeInterfaceLocale(formData.get("locale")?.toString());
+  const email = formData.get("email")?.toString().trim() ?? "";
+  const password = formData.get("password")?.toString() ?? "";
+
+  if (!email || !password) {
+    return {
+      error: locale === "zh" ? "请输入邮箱和密码。" : "Enter your email and password.",
+    };
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -18,7 +47,7 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error.message, locale) };
   }
 
   // Get user role to redirect appropriately
@@ -60,7 +89,9 @@ export async function signIn(formData: FormData) {
     }
   }
 
-  return { error: "Authentication failed" };
+  return {
+    error: locale === "zh" ? "登录失败，请重试。" : "Authentication failed. Please try again.",
+  };
 }
 
 export async function changeOwnPassword(

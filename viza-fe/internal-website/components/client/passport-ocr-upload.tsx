@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Ban,
   Camera,
@@ -51,9 +51,12 @@ interface PassportOcrResponse {
 export interface PassportOcrUploadProps {
   applicationId: string | null;
   className?: string;
+  initialFileName?: string | null;
+  initialUploaded?: boolean;
   title?: string;
   description?: string;
   onFieldsApplied?: (fields: UniversalProfileSnapshot) => void;
+  onUploaded?: (fileName: string) => void;
 }
 
 function proposalValue(field: PassportOcrFieldProposal | undefined): string | null {
@@ -123,6 +126,9 @@ const PASSPORT_OCR_COPY = {
     dropSubtitle: "或点击选择文件，文件会加密传输",
     chooseFile: "选择文件",
     formatsLimit: "最大 10 MB",
+    replaceFile: "重新上传",
+    replacePhoto: "重新拍照",
+    uploadedFromProfile: "已从通用资料读取护照信息，请核对后继续。",
     readingDocument: "正在读取文件",
     extractingDetails: "正在提取您的信息",
     verifyingAuthenticity: "正在验证真实性",
@@ -154,6 +160,9 @@ const PASSPORT_OCR_COPY = {
     dropSubtitle: "Or click to browse. Your file is encrypted in transit.",
     chooseFile: "Choose file",
     formatsLimit: "Up to 10 MB",
+    replaceFile: "Replace file",
+    replacePhoto: "Retake photo",
+    uploadedFromProfile: "Passport information was loaded from your universal profile. Please review it before continuing.",
     readingDocument: "Reading document",
     extractingDetails: "Extracting your details",
     verifyingAuthenticity: "Verifying authenticity",
@@ -265,9 +274,12 @@ function ScanProgressPanel({
 export function PassportOcrUpload({
   applicationId,
   className,
+  initialFileName,
+  initialUploaded = false,
   title,
   description,
   onFieldsApplied,
+  onUploaded,
 }: PassportOcrUploadProps) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
@@ -276,12 +288,21 @@ export function PassportOcrUpload({
   const resolvedDescription = description ?? copy.description;
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "done" : "idle");
+  const [fileName, setFileName] = useState<string | null>(initialUploaded ? initialFileName ?? null : null);
+  const [message, setMessage] = useState<string | null>(
+    initialUploaded ? (initialFileName ? copy.done : copy.uploadedFromProfile) : null,
+  );
   const [isDragging, setIsDragging] = useState(false);
 
   const busy = status === "uploading" || status === "ocr" || status === "verifying";
+
+  useEffect(() => {
+    if (!initialUploaded || busy) return;
+    setStatus("done");
+    setFileName(initialFileName ?? null);
+    setMessage(initialFileName ? copy.done : copy.uploadedFromProfile);
+  }, [busy, copy.done, copy.uploadedFromProfile, initialFileName, initialUploaded]);
 
   const handleFile = async (file: File) => {
     if (!applicationId) {
@@ -330,6 +351,7 @@ export function PassportOcrUpload({
       }
 
       onFieldsApplied?.(profileFields);
+      onUploaded?.(file.name);
       setStatus("done");
       setMessage(copy.done);
     } catch (error) {
@@ -375,6 +397,50 @@ export function PassportOcrUpload({
 
       {busy ? (
         <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} />
+      ) : status === "done" ? (
+        <div className="flex flex-col gap-5">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-emerald-900">{message ?? copy.done}</p>
+                  {fileName ? (
+                    <p className="mt-1 flex max-w-full items-center gap-2 truncate text-sm text-emerald-800">
+                      <FileText className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{fileName}</span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  {copy.replaceFile}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <Camera className="h-4 w-4" />
+                  {copy.replacePhoto}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-brand-500" />
+            {copy.privacy}
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-5">
           <div className="inline-flex w-fit rounded-full bg-muted p-1">

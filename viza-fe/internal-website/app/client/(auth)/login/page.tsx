@@ -16,6 +16,21 @@ import { useLocale, useTranslations } from 'next-intl'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
+function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof useTranslations>) {
+  const normalized = message?.toLowerCase() ?? ''
+  if (
+    normalized.includes('invalid login credentials') ||
+    normalized.includes('invalid credentials') ||
+    normalized.includes('email not confirmed')
+  ) {
+    return t('invalidCredentials')
+  }
+  if (normalized.includes('too many') || normalized.includes('rate limit')) {
+    return t('tooManyRequests')
+  }
+  return message || t('authFailed')
+}
+
 function ClientLoginContent() {
   const t = useTranslations('auth.login')
   const tp = useTranslations('auth.polaroids')
@@ -196,7 +211,7 @@ function ClientLoginContent() {
         password,
       })
       if (authError) {
-        setError(authError.message || t('authFailed'))
+        setError(getLocalizedAuthError(authError.message, t))
         setIsSubmitting(false)
         return
       }

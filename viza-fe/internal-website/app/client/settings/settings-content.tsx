@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
@@ -10,6 +11,7 @@ import {
   CircleHelp,
   CreditCard,
   Database,
+  ExternalLink,
   Globe2,
   Headphones,
   KeyRound,
@@ -19,7 +21,7 @@ import {
   Mail,
   MessageCircle,
   Pencil,
-  Plus,
+  QrCode,
   ReceiptText,
   ShieldCheck,
   Trash2,
@@ -54,6 +56,22 @@ interface PaymentAccount {
   label: string;
   identifier: string;
   isDefault: boolean;
+  verificationStatus?: "bound" | "requires_action";
+  providerReference?: string;
+}
+
+interface PaymentFormState {
+  label: string;
+  identifier: string;
+  cardNumber: string;
+  cvv: string;
+}
+
+interface WalletBindingIntent {
+  bindingId: string;
+  method: Exclude<PaymentMethodId, "bank_card">;
+  qrCodeDataUrl: string;
+  expiresAt: string;
 }
 
 const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
@@ -79,6 +97,18 @@ const paymentMethods: Array<{
     accentClass: "from-sky-700 to-sky-500",
   },
 ];
+
+function isWalletMethod(method: PaymentMethodId): method is Exclude<PaymentMethodId, "bank_card"> {
+  return method === "wechat_pay" || method === "alipay";
+}
+
+function normalizeCardDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function cardLastFour(value: string) {
+  return normalizeCardDigits(value).slice(-4);
+}
 
 function initialsFromName(name: string, fallback: string) {
   const source = name.trim() || fallback.trim();
@@ -172,14 +202,6 @@ function SectionCard({
   );
 }
 
-function createPaymentAccountId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function normalizePaymentAccounts(value: unknown): PaymentAccount[] {
   if (!Array.isArray(value)) return [];
 
@@ -207,6 +229,14 @@ function normalizePaymentAccounts(value: unknown): PaymentAccount[] {
         label: String(account.label),
         identifier: String(account.identifier),
         isDefault: Boolean("isDefault" in account ? account.isDefault : false),
+        verificationStatus:
+          "verificationStatus" in account && account.verificationStatus === "requires_action"
+            ? "requires_action"
+            : "bound",
+        providerReference:
+          "providerReference" in account && typeof account.providerReference === "string"
+            ? account.providerReference
+            : undefined,
       },
     ];
   });
@@ -240,8 +270,16 @@ export function SettingsContent() {
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [activePaymentMethod, setActivePaymentMethod] =
     useState<PaymentMethodId>("bank_card");
-  const [paymentForm, setPaymentForm] = useState({ label: "", identifier: "" });
+  const [paymentForm, setPaymentForm] = useState<PaymentFormState>({
+    label: "",
+    identifier: "",
+    cardNumber: "",
+    cvv: "",
+  });
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [activeQrBinding, setActiveQrBinding] = useState<WalletBindingIntent | null>(null);
+  const [isStartingPaymentBinding, setIsStartingPaymentBinding] = useState(false);
+  const [isCheckingPaymentBinding, setIsCheckingPaymentBinding] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState<{
     tone: "success" | "error";
     text: string;
@@ -265,14 +303,23 @@ export function SettingsContent() {
 
   useEffect(() => {
     const storedAccounts = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
-    if (!storedAccounts) return;
 
-    try {
-      setPaymentAccounts(normalizePaymentAccounts(JSON.parse(storedAccounts)));
-    } catch {
-      setPaymentAccounts([]);
+    if (storedAccounts) {
+      try {
+        setPaymentAccounts(normalizePaymentAccounts(JSON.parse(storedAccounts)));
+      } catch {
+        setPaymentAccounts([]);
+      }
     }
-  }, []);
+
+    const params = new URLSearchParams(window.location.search);
+    const paymentBind = params.get("payment_bind");
+    if (paymentBind === "success") {
+      setPaymentMessage({ tone: "success", text: t("payment.messages.stripeReturned") });
+    } else if (paymentBind === "cancelled") {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.stripeCancelled") });
+    }
+  }, [t]);
 
   useEffect(() => {
     let mounted = true;
@@ -342,19 +389,18 @@ export function SettingsContent() {
   }
 
   function resetPaymentForm() {
-    setPaymentForm({ label: "", identifier: "" });
+    setPaymentForm({ label: "", identifier: "", cardNumber: "", cvv: "" });
     setEditingPaymentId(null);
   }
 
-  function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPaymentMessage(null);
 
     const label = paymentForm.label.trim();
-    const identifier = paymentForm.identifier.trim();
 
-    if (!label || !identifier) {
-      setPaymentMessage({ tone: "error", text: t("payment.messages.required") });
+    if (!label) {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.nicknameRequired") });
       return;
     }
 
@@ -362,7 +408,7 @@ export function SettingsContent() {
       savePaymentAccounts(
         paymentAccounts.map((account) =>
           account.id === editingPaymentAccount.id
-            ? { ...account, label, identifier }
+            ? { ...account, label }
             : account
         )
       );
@@ -371,24 +417,162 @@ export function SettingsContent() {
       return;
     }
 
+    const normalizedCardNumber = normalizeCardDigits(paymentForm.cardNumber);
+    const normalizedCvv = normalizeCardDigits(paymentForm.cvv);
+
+    if (normalizedCardNumber.length < 12 || normalizedCardNumber.length > 19) {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.cardNumberInvalid") });
+      return;
+    }
+
+    if (!/^\d{3,4}$/.test(normalizedCvv)) {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.cvvInvalid") });
+      return;
+    }
+
+    setIsStartingPaymentBinding(true);
+    const response = await fetch("/api/payments/bind/stripe-card", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nickname: label,
+        cardLast4: cardLastFour(paymentForm.cardNumber),
+      }),
+    });
+    setIsStartingPaymentBinding(false);
+
+    const result = (await response.json().catch(() => null)) as {
+      bindingId?: string;
+      checkoutUrl?: string;
+      error?: string;
+    } | null;
+
+    if (!response.ok || !result?.bindingId || !result.checkoutUrl) {
+      setPaymentMessage({
+        tone: "error",
+        text:
+          response.status === 503
+            ? t("payment.messages.stripeUnavailable")
+            : result?.error ?? t("payment.messages.stripeStartFailed"),
+      });
+      return;
+    }
+
     const shouldBeDefault = activeMethodAccounts.length === 0;
     const nextAccount: PaymentAccount = {
-      id: createPaymentAccountId(),
+      id: result.bindingId,
       method: activePaymentMethod,
       label,
-      identifier,
+      identifier: t("payment.cardIdentifier", { last4: cardLastFour(paymentForm.cardNumber) }),
       isDefault: shouldBeDefault,
+      verificationStatus: "requires_action",
+      providerReference: result.bindingId,
     };
 
     savePaymentAccounts([...paymentAccounts, nextAccount]);
-    setPaymentMessage({ tone: "success", text: t("payment.messages.added") });
+    setPaymentMessage({ tone: "success", text: t("payment.messages.stripeRedirect") });
+    resetPaymentForm();
+    window.location.href = result.checkoutUrl;
+  }
+
+  async function startWalletBinding() {
+    if (!isWalletMethod(activePaymentMethod)) return;
+
+    setPaymentMessage(null);
+    setIsStartingPaymentBinding(true);
+    const response = await fetch("/api/payments/bind/qr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method: activePaymentMethod }),
+    });
+    setIsStartingPaymentBinding(false);
+
+    const result = (await response.json().catch(() => null)) as WalletBindingIntent & {
+      error?: string;
+    } | null;
+
+    if (!response.ok || !result?.bindingId || !result.qrCodeDataUrl) {
+      setPaymentMessage({
+        tone: "error",
+        text: result?.error ?? t("payment.messages.qrStartFailed"),
+      });
+      return;
+    }
+
+    setActiveQrBinding({
+      bindingId: result.bindingId,
+      method: result.method,
+      qrCodeDataUrl: result.qrCodeDataUrl,
+      expiresAt: result.expiresAt,
+    });
+    setPaymentMessage({ tone: "success", text: t("payment.messages.qrReady") });
+  }
+
+  async function checkWalletBindingStatus() {
+    if (!activeQrBinding) return;
+
+    setPaymentMessage(null);
+    setIsCheckingPaymentBinding(true);
+    const response = await fetch(`/api/payments/bind/status/${activeQrBinding.bindingId}`);
+    setIsCheckingPaymentBinding(false);
+
+    const result = (await response.json().catch(() => null)) as {
+      bindingId?: string;
+      method?: PaymentMethodId;
+      status?: string;
+      accountLabel?: string;
+      identifier?: string | null;
+      error?: string;
+    } | null;
+
+    if (!response.ok || !result?.bindingId) {
+      setPaymentMessage({
+        tone: "error",
+        text: result?.error ?? t("payment.messages.qrStatusFailed"),
+      });
+      return;
+    }
+
+    if (result.status === "expired") {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.qrExpired") });
+      return;
+    }
+
+    if (result.status !== "bound" || !result.identifier || !result.method) {
+      setPaymentMessage({ tone: "error", text: t("payment.messages.qrPending") });
+      return;
+    }
+
+    if (!paymentAccounts.some((account) => account.id === result.bindingId)) {
+      const methodAccounts = paymentAccounts.filter((account) => account.method === result.method);
+      savePaymentAccounts([
+        ...paymentAccounts,
+        {
+          id: result.bindingId,
+          method: result.method,
+          label: result.accountLabel ?? t(`payment.methods.${result.method}.title`),
+          identifier: result.identifier,
+          isDefault: methodAccounts.length === 0,
+          verificationStatus: "bound",
+          providerReference: result.bindingId,
+        },
+      ]);
+    }
+
+    setActiveQrBinding(null);
+    setPaymentMessage({ tone: "success", text: t("payment.messages.qrBound") });
     resetPaymentForm();
   }
 
   function editPaymentAccount(account: PaymentAccount) {
     setActivePaymentMethod(account.method);
     setEditingPaymentId(account.id);
-    setPaymentForm({ label: account.label, identifier: account.identifier });
+    setPaymentForm({
+      label: account.label,
+      identifier: account.identifier,
+      cardNumber: "",
+      cvv: "",
+    });
     setPaymentMessage(null);
   }
 
@@ -711,6 +895,7 @@ export function SettingsContent() {
                 onClick={() => {
                   setActivePaymentMethod(method.id);
                   resetPaymentForm();
+                  setActiveQrBinding(null);
                   setPaymentMessage(null);
                 }}
                 className={cn(
@@ -766,7 +951,7 @@ export function SettingsContent() {
                 {t(`payment.methods.${activePaymentMethod}.title`)}
               </h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {t("payment.managerHint")}
+                {t(`payment.managerHints.${activePaymentMethod}`)}
               </p>
             </div>
             <span className="w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
@@ -809,6 +994,11 @@ export function SettingsContent() {
                             {t("payment.selected")}
                           </span>
                         ) : null}
+                        {account.verificationStatus === "requires_action" ? (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            {t("payment.pendingVerification")}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 break-all text-sm text-muted-foreground">
                         {account.identifier}
@@ -826,15 +1016,17 @@ export function SettingsContent() {
                           {t("payment.setDefault")}
                         </Button>
                       ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 rounded-full"
-                        onClick={() => editPaymentAccount(account)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        {t("payment.edit")}
-                      </Button>
+                      {account.method === "bank_card" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 rounded-full"
+                          onClick={() => editPaymentAccount(account)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          {t("payment.edit")}
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="outline"
@@ -850,61 +1042,160 @@ export function SettingsContent() {
               )}
             </div>
 
-            <form className="rounded-lg border bg-muted/20 p-4" onSubmit={handlePaymentSubmit}>
-              <h3 className="font-semibold text-foreground">
-                {editingPaymentAccount ? t("payment.editTitle") : t("payment.addTitle")}
-              </h3>
-              <div className="mt-4 grid gap-3">
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {t("payment.fields.label")}
-                  </span>
-                  <input
-                    value={paymentForm.label}
-                    onChange={(event) =>
-                      setPaymentForm((current) => ({ ...current, label: event.target.value }))
-                    }
-                    placeholder={t(`payment.placeholders.${activePaymentMethod}.label`)}
-                    className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {t("payment.fields.identifier")}
-                  </span>
-                  <input
-                    value={paymentForm.identifier}
-                    onChange={(event) =>
-                      setPaymentForm((current) => ({
-                        ...current,
-                        identifier: event.target.value,
-                      }))
-                    }
-                    placeholder={t(`payment.placeholders.${activePaymentMethod}.identifier`)}
-                    className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                  />
-                </label>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  {t("payment.safeHint")}
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button type="submit" className="h-10 rounded-full">
-                    <Plus className="h-4 w-4" />
-                    {editingPaymentAccount ? t("payment.saveEdit") : t("payment.addAccount")}
-                  </Button>
-                  {editingPaymentAccount ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 rounded-full"
-                      onClick={resetPaymentForm}
-                    >
-                      {t("payment.cancelEdit")}
-                    </Button>
+            {activePaymentMethod === "bank_card" ? (
+              <form className="rounded-lg border bg-muted/20 p-4" onSubmit={handlePaymentSubmit}>
+                <h3 className="font-semibold text-foreground">
+                  {editingPaymentAccount ? t("payment.editTitle") : t("payment.cardAddTitle")}
+                </h3>
+                <div className="mt-4 grid gap-3">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {t("payment.fields.nickname")}
+                    </span>
+                    <input
+                      value={paymentForm.label}
+                      onChange={(event) =>
+                        setPaymentForm((current) => ({ ...current, label: event.target.value }))
+                      }
+                      placeholder={t("payment.placeholders.bank_card.nickname")}
+                      className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    />
+                  </label>
+                  {!editingPaymentAccount ? (
+                    <>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t("payment.fields.cardNumber")}
+                        </span>
+                        <input
+                          inputMode="numeric"
+                          autoComplete="cc-number"
+                          value={paymentForm.cardNumber}
+                          onChange={(event) =>
+                            setPaymentForm((current) => ({
+                              ...current,
+                              cardNumber: event.target.value.replace(/[^\d\s-]/g, ""),
+                            }))
+                          }
+                          placeholder={t("payment.placeholders.bank_card.cardNumber")}
+                          className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {t("payment.fields.cvv")}
+                        </span>
+                        <input
+                          inputMode="numeric"
+                          autoComplete="cc-csc"
+                          value={paymentForm.cvv}
+                          onChange={(event) =>
+                            setPaymentForm((current) => ({
+                              ...current,
+                              cvv: normalizeCardDigits(event.target.value).slice(0, 4),
+                            }))
+                          }
+                          placeholder={t("payment.placeholders.bank_card.cvv")}
+                          className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                        />
+                      </label>
+                    </>
                   ) : null}
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {t("payment.stripeHint")}
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="submit"
+                      className="h-10 rounded-full"
+                      disabled={isStartingPaymentBinding}
+                    >
+                      {isStartingPaymentBinding ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : editingPaymentAccount ? (
+                        <Pencil className="h-4 w-4" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4" />
+                      )}
+                      {editingPaymentAccount
+                        ? t("payment.saveEdit")
+                        : t("payment.verifyWithStripe")}
+                    </Button>
+                    {editingPaymentAccount ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full"
+                        onClick={resetPaymentForm}
+                      >
+                        {t("payment.cancelEdit")}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <h3 className="font-semibold text-foreground">{t("payment.qrAddTitle")}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {t(`payment.qrHint.${activePaymentMethod}`)}
+                </p>
+
+                {activeQrBinding ? (
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex justify-center rounded-lg border bg-white p-4">
+                      <Image
+                        src={activeQrBinding.qrCodeDataUrl}
+                        alt={t("payment.qrAlt")}
+                        width={192}
+                        height={192}
+                        unoptimized
+                        className="h-48 w-48"
+                      />
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {t("payment.qrExpires", {
+                        time: new Date(activeQrBinding.expiresAt).toLocaleTimeString(),
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-lg border border-dashed bg-white p-5 text-sm leading-6 text-muted-foreground">
+                    {t("payment.qrEmpty")}
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    className="h-10 rounded-full"
+                    onClick={startWalletBinding}
+                    disabled={isStartingPaymentBinding}
+                  >
+                    {isStartingPaymentBinding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <QrCode className="h-4 w-4" />
+                    )}
+                    {activeQrBinding ? t("payment.regenerateQr") : t("payment.generateQr")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-full"
+                    onClick={checkWalletBindingStatus}
+                    disabled={!activeQrBinding || isCheckingPaymentBinding}
+                  >
+                    {isCheckingPaymentBinding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    {t("payment.checkQrStatus")}
+                  </Button>
                 </div>
               </div>
-            </form>
+            )}
           </div>
         </div>
       </section>

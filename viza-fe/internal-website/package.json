@@ -9,6 +9,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "init:admin": "node scripts/init-admin-account.mjs",
+    "sync:auth-emails": "node scripts/sync-supabase-auth-email-templates.mjs",
     "sync:check": "npx tsx scripts/check-sync.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",

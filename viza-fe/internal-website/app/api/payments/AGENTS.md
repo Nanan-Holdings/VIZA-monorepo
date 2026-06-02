@@ -10,11 +10,22 @@ callbacks that are not tied to an existing visa application checkout.
 ## Key Responsibilities
 
 - Poll authenticated `payment_records` for subscription payment status.
+- Create settings payment-method binding intents for QR wallets and Stripe card
+  verification.
 - Receive Stripe webhooks for subscription and pay-per-application checkout
   sessions created from `/client/subscription`.
 - Receive WeChat Pay v3 notifications for subscription/native QR orders.
 - Receive Alipay page-pay notifications and verify RSA2 signatures.
 - Update `payment_records` idempotently by provider session/order id.
+
+## Route Handlers
+
+- `bind/qr/route.ts`: authenticated QR binding intent creation for WeChat Pay
+  and Alipay accounts.
+- `bind/status/[bindingId]/route.ts`: wallet QR completion callback and
+  authenticated status polling for settings.
+- `bind/stripe-card/route.ts`: authenticated Stripe Checkout setup-session
+  creation for card verification.
 
 ## Guardrails
 

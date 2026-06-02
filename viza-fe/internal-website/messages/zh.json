@@ -3662,29 +3662,56 @@
     },
   "payment": {
     "selected": "默认",
+    "pendingVerification": "待验证",
     "setDefault": "设为默认",
     "manage": "管理账号",
     "manageSelected": "正在管理",
     "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+    "managerHints": {
+      "bank_card": "银行卡需要通过 Stripe 托管验证后才能用于后续付款选择。",
+      "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
+      "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
+    },
     "boundCount": "已绑定 {count} 个",
     "defaultAccount": "默认：{account}",
     "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
     "addTitle": "添加付款账号",
+    "cardAddTitle": "添加银行卡",
+    "qrAddTitle": "扫码绑定账号",
     "editTitle": "编辑付款账号",
     "addAccount": "添加账号",
+    "verifyWithStripe": "通过 Stripe 验证",
+    "generateQr": "生成绑定二维码",
+    "regenerateQr": "重新生成二维码",
+    "checkQrStatus": "检查绑定状态",
     "saveEdit": "保存修改",
     "cancelEdit": "取消编辑",
     "edit": "编辑",
     "delete": "删除",
     "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
+    "stripeHint": "卡号和 CVV 仅用于启动 Stripe 托管验证；VIZA 不会保存完整卡号或 CVV。",
+    "cardIdentifier": "尾号 {last4} · Stripe 验证中",
+    "qrAlt": "付款账号绑定二维码",
+    "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
+    "qrExpires": "二维码有效期至 {time}。",
+    "qrHint": {
+      "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
+      "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
+    },
     "fields": {
       "label": "账号名称",
-      "identifier": "识别信息"
+      "identifier": "识别信息",
+      "nickname": "昵称",
+      "cardNumber": "卡号",
+      "cvv": "CVV"
     },
     "placeholders": {
       "bank_card": {
         "label": "例如：招商银行储蓄卡",
-        "identifier": "例如：尾号 5857"
+        "identifier": "例如：尾号 5857",
+        "nickname": "例如：招商银行储蓄卡",
+        "cardNumber": "请输入银行卡号",
+        "cvv": "卡背面 3 或 4 位安全码"
       },
       "wechat_pay": {
         "label": "例如：我的微信",
@@ -3697,23 +3724,37 @@
     },
     "messages": {
       "required": "请填写账号名称和识别信息。",
+      "nicknameRequired": "请填写银行卡昵称。",
+      "cardNumberInvalid": "请输入有效的银行卡号。",
+      "cvvInvalid": "请输入有效的 CVV。",
       "added": "付款账号已添加。",
       "updated": "付款账号已更新。",
       "deleted": "付款账号已删除。",
-      "defaultUpdated": "默认付款账号已更新。"
+      "defaultUpdated": "默认付款账号已更新。",
+      "stripeUnavailable": "Stripe 尚未配置，暂时无法验证银行卡。",
+      "stripeStartFailed": "暂时无法启动 Stripe 验证，请稍后重试。",
+      "stripeRedirect": "正在打开 Stripe 托管验证页面。",
+      "stripeReturned": "Stripe 验证已返回，绑定状态会在支付服务确认后更新。",
+      "stripeCancelled": "Stripe 验证已取消，银行卡尚未完成绑定。",
+      "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
+      "qrReady": "二维码已生成，请使用对应 App 扫码。",
+      "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
+      "qrExpired": "二维码已过期，请重新生成。",
+      "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
+      "qrBound": "扫码绑定已完成。"
     },
     "methods": {
       "bank_card": {
         "title": "银行卡",
-        "description": "绑定可用于线上结账和回执追踪的银行卡。"
+        "description": "填写卡号、CVV 和昵称后，通过 Stripe 验证绑定。"
       },
       "wechat_pay": {
         "title": "微信支付",
-        "description": "绑定常用微信账号，套餐支持时优先使用。"
+        "description": "通过微信扫码授权绑定账号。"
       },
       "alipay": {
         "title": "支付宝",
-        "description": "绑定常用支付宝账号，便于后续付款选择。"
+        "description": "通过支付宝扫码授权绑定账号。"
       }
     }
   },
@@ -4047,6 +4088,8 @@
       "noAccountWithEmail": "未找到与此电子邮件关联的账户",
       "notRegistered": "此电子邮件未注册为申请人。",
       "authFailed": "认证失败。请重试。",
+      "invalidCredentials": "邮箱或密码不正确，请重新输入。",
+      "tooManyRequests": "尝试次数过多，请稍后再试。",
       "unexpectedError": "发生意外错误。请重试。",
       "failedToResend": "重新发送验证码失败。",
       "checkEmail": "查看您的邮箱",
