@@ -146,7 +146,7 @@ flowchart TD
 4. 调用 `buildCompactAnswerInterpretation()`，把 `中国护照，中国，7天，法国，意大利` 或 `2，5` 这类短答案映射回上一轮问题。
 5. 调用 `retrieveVisaKnowledge()`，按当前用户问题 + 最近 user-only context + 兼容的 application country/visa type 检索 `visa_chunks`。
 6. 调用 `buildSystemPrompt(context, knowledgeContext, conversationInterpretation)` 拼出动态 system prompt。
-7. 调用 `streamChat()`，通过 Anthropic streaming 逐 token 返回。
+7. 调用 `streamChat()`，通过 OpenAI streaming 逐 token 返回。
 8. 完成后保存 assistant message，并 emit `response_complete`。
 9. 当用户明确要开始申请/填表时，后端 emit `application_block`，payload 使用 `blockType="application_redirect"`，前端渲染跳转按钮。
 
@@ -156,7 +156,7 @@ Agent 核心：
   - `BASE_SYSTEM_PROMPT` 定义 VIZA AI 的角色和边界。
   - `buildApplicationContext()` 读取用户资料和 application。
   - `buildSystemPrompt()` 把用户上下文、结构化 conversation state、RAG sources 注入 system prompt。
-  - `streamChat()` 调用 Anthropic。VIZA chat 不暴露 inline form-collection tool；申请字段收集交给 `/client/application`。
+  - `streamChat()` 调用 OpenAI。VIZA chat 不暴露 inline form-collection tool；申请字段收集交给 `/client/application`。
 
 RAG 检索服务：
 
@@ -271,13 +271,12 @@ Agent Backend:
 ```env
 PORT=3002
 CORS_ORIGINS=http://localhost:3000
-ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-如果 `ANTHROPIC_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。`OPENAI_API_KEY` 用于生成 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
+如果 `OPENAI_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。`OPENAI_API_KEY` 用于 VIZA chat 生成、field guidance、application validation、passport OCR 和 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
 
 ## 10. 做到什么程度了
 

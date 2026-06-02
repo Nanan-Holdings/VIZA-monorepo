@@ -1,10 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 
 const logger = new Logger({ serviceName: "VisaAgent" });
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 export const BASE_SYSTEM_PROMPT = `You are VIZA, a friendly and knowledgeable AI assistant that helps people understand and prepare visa applications for supported destinations. You are not limited to Indonesia.
 
@@ -310,8 +311,8 @@ export async function streamChat(
   systemPrompt?: string
 ): Promise<void> {
   if (
-    !ANTHROPIC_API_KEY ||
-    ANTHROPIC_API_KEY === "your_anthropic_api_key_here"
+    !OPENAI_API_KEY ||
+    OPENAI_API_KEY === "your_openai_api_key_here"
   ) {
     const fallback =
       "I'm sorry, the AI service is not configured yet. Please contact support.";
@@ -320,25 +321,28 @@ export async function streamChat(
     return;
   }
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
   try {
-    const stream = await client.messages.stream({
-      model: "claude-sonnet-4-6",
+    const stream = await client.chat.completions.create({
+      model: OPENAI_CHAT_MODEL,
       max_tokens: 1024,
-      system: systemPrompt ?? BASE_SYSTEM_PROMPT,
-      messages,
+      stream: true,
+      messages: [
+        { role: "system", content: systemPrompt ?? BASE_SYSTEM_PROMPT },
+        ...messages,
+      ],
     });
 
     let fullResponse = "";
     const toolsUsed: string[] = [];
 
-    stream.on("text", (text) => {
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content ?? "";
+      if (!text) continue;
       fullResponse += text;
       callbacks.onToken(sanitizeAgentPlainText(text));
-    });
-
-    await stream.finalMessage();
+    }
 
     await callbacks.onComplete(sanitizeAgentPlainText(fullResponse), toolsUsed);
   } catch (err) {

@@ -56,6 +56,17 @@ function readTemplateConfig(configToml, type) {
   };
 }
 
+function readNumberFromSection(configToml, sectionName, key) {
+  const sectionPattern = new RegExp(
+    `\\[${escapeRegex(sectionName)}\\]([\\s\\S]*?)(?=\\n\\[|$)`
+  );
+  const sectionMatch = configToml.match(sectionPattern);
+  if (!sectionMatch) return null;
+
+  const valueMatch = sectionMatch[1].match(new RegExp(`${escapeRegex(key)}\\s*=\\s*(\\d+)`));
+  return valueMatch ? Number(valueMatch[1]) : null;
+}
+
 const configToml = await fs.readFile(configPath, "utf8");
 
 const payload = {};
@@ -67,6 +78,11 @@ for (const type of templateTypes) {
   payload[`mailer_subjects_${type}`] = subject;
   payload[`mailer_templates_${type}_content`] = content;
 }
+
+const otpLength = readNumberFromSection(configToml, "auth.email", "otp_length");
+const otpExpiry = readNumberFromSection(configToml, "auth.email", "otp_expiry");
+if (otpLength) payload.mailer_otp_length = otpLength;
+if (otpExpiry) payload.mailer_otp_exp = otpExpiry;
 
 if (dryRun) {
   console.log(`Prepared ${Object.keys(payload).length} Supabase auth email template fields.`);

@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import {
   retrieveVisaKnowledge,
   type VisaKnowledgeChunk,
@@ -15,7 +15,12 @@ import { Logger } from "../utils/logger.js";
 const router = Router();
 const logger = new Logger({ serviceName: "FieldGuidance" });
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_FIELD_GUIDANCE_MODEL =
+  process.env.OPENAI_FIELD_GUIDANCE_MODEL ||
+  process.env.OPENAI_CHAT_MODEL ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4o-mini";
 const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 const MAX_HISTORY_MESSAGES = 8;
@@ -540,16 +545,6 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
   }
 }
 
-function extractTextContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
-  for (const block of content) {
-    if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
-      return block.text;
-    }
-  }
-  return "";
-}
-
 function mapSources(chunks: VisaKnowledgeChunk[]): SourceBody[] {
   return chunks.slice(0, 3).map((chunk) => ({
     title: chunk.title ?? "Visa knowledge",
@@ -775,30 +770,52 @@ async function generateAiGuidance(
   locale: "zh" | "en",
   chunks: VisaKnowledgeChunk[]
 ): Promise<AiGuidanceJson | null> {
-  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "your_anthropic_api_key_here") {
+  if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
   const context = chunks
     .slice(0, 5)
     .map((chunk, index) => `Source ${index + 1}: ${chunk.content.slice(0, 1200)}`)
     .join("\n\n");
 
   try {
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 700,
-      system: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Return only JSON with keys summary, examples, hints, officialWarnings, formatHints, confidence. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
-      messages: [
-        {
-          role: "user",
-          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${context || "No source context found."}`,
+    const message = await client.responses.create({
+      model: OPENAI_FIELD_GUIDANCE_MODEL,
+      max_output_tokens: 700,
+      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${context || "No source context found."}`,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "field_guidance",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              summary: { type: "string" },
+              examples: { type: "array", items: { type: "string" } },
+              hints: { type: "array", items: { type: "string" } },
+              officialWarnings: { type: "array", items: { type: "string" } },
+              formatHints: { type: "array", items: { type: "string" } },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+            },
+            required: [
+              "summary",
+              "examples",
+              "hints",
+              "officialWarnings",
+              "formatHints",
+              "confidence",
+            ],
+          },
         },
-      ],
+      },
     });
 
-    const parsed = parseJsonObject(extractTextContent(message.content));
+    const parsed = parseJsonObject(message.output_text);
     return parsed;
   } catch (error) {
     logger.warn("AI field guidance generation failed", error as Error, {
@@ -824,11 +841,11 @@ async function generateQuestionReply(
       : `For "${field.label}": ${guidance.summary} Examples: ${guidance.examples.slice(0, 2).join("; ")}. ${validation.messages[0] ?? ""}`;
   const scopedFallback = stripOutOfScopeFormReferences(fallback, reqBody);
 
-  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "your_anthropic_api_key_here") {
+  if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return { reply: scopedFallback, aiUsed: false };
   }
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
   const context = chunks
     .slice(0, 3)
     .map((chunk, index) => `Source ${index + 1}: ${chunk.content.slice(0, 900)}`)
@@ -839,11 +856,14 @@ async function generateQuestionReply(
   }));
 
   try {
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5",
+    const message = await client.chat.completions.create({
+      model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_tokens: 350,
-      system: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
       messages: [
+        {
+          role: "system",
+          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+        },
         ...conversation,
         {
           role: "user",
@@ -853,7 +873,7 @@ async function generateQuestionReply(
     });
 
     const reply = stripOutOfScopeFormReferences(
-      stripMarkdown(extractTextContent(message.content).trim()),
+      stripMarkdown(message.choices[0]?.message?.content?.trim() ?? ""),
       reqBody
     );
     if (locale === "zh" && isLikelyNonChineseSentence(reply)) {

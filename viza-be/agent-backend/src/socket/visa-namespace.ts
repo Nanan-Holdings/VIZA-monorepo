@@ -151,7 +151,7 @@ export function buildRecentUserContext(
 
 function splitCompactAnswer(message: string): string[] {
   return message
-    .split(/[,，;；\n]/)
+    .split(/[,，、;；\n]/)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -160,7 +160,7 @@ function isCompactFollowUp(message: string): boolean {
   const trimmed = message.trim();
   if (!trimmed || trimmed.length > 80) return false;
   if (/[?？]/.test(trimmed)) return false;
-  return /[,，;；]/.test(trimmed) || /^[\d\s,，.．、;；天日days]+$/i.test(trimmed);
+  return /[,，、;；]/.test(trimmed) || /^[\d\s,，.．、;；天日days]+$/i.test(trimmed);
 }
 
 function extractNumberedQuestions(content: string): string[] {
@@ -835,7 +835,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
             .limit(50);
 
           if (history.length > 0) {
-            // Only include user/assistant messages (skip 'block' role for Anthropic API)
+            // Only include user/assistant messages (skip 'block' role for OpenAI API)
             const databaseHistory = history
               .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
               .map((msg) => ({
@@ -1007,7 +1007,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
           timestamp: Date.now(),
         });
 
-        // 4. Stream response from Claude with dynamic prompt + tool support
+        // 4. Stream response from OpenAI with dynamic prompt + tool support
         let fullResponse = '';
 
         await streamChat(

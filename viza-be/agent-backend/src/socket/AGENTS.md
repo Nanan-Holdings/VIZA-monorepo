@@ -13,7 +13,7 @@ namespace `/visa` and sends/receives streaming events.
 2. `registerVisaNamespace()` handles connection lifecycle.
 3. `visa_chat_message` saves the user message, assembles history, loads
    application context, updates structured conversation state, retrieves RAG
-   chunks, emits optional application redirect blocks, and streams Claude tokens.
+   chunks, emits optional application redirect blocks, and streams OpenAI tokens.
 4. Assistant output is persisted to `visa_chat_messages`.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.

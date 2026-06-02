@@ -10,7 +10,7 @@ import { getSupabaseClient } from "../src/db/supabase-client.js";
 
 process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL ??= "1";
 if (process.env.FIELD_GUIDANCE_EVAL_USE_AI !== "1") {
-  process.env.ANTHROPIC_API_KEY = "";
+  process.env.OPENAI_API_KEY = "";
 }
 
 type Locale = "zh" | "en";
