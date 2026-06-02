@@ -71,6 +71,7 @@ export async function prepareAuthEmailLocale(
               ...existingMetadata,
               locale: authEmailLocale,
               language: authEmailLocale,
+              preferred_language: authEmailLocale,
             },
           });
 

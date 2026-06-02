@@ -162,6 +162,7 @@ export default function ClientSignupPage() {
           user_type: 'client',
           locale: emailLocale,
           language: emailLocale,
+          preferred_language: emailLocale,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/login`,
       },
@@ -287,6 +288,7 @@ export default function ClientSignupPage() {
           user_type: 'client',
           locale: emailLocale,
           language: emailLocale,
+          preferred_language: emailLocale,
         },
       })
 
@@ -376,9 +378,9 @@ export default function ClientSignupPage() {
                     required
                   />
                   <span>
-                    I accept the{' '}
+                    {t('acceptTos')}{' '}
                     <Link href="/terms" className="underline hover:opacity-70">
-                      Terms of Service
+                      {t('termsOfService')}
                     </Link>
                     .
                   </span>
@@ -392,9 +394,9 @@ export default function ClientSignupPage() {
                     required
                   />
                   <span>
-                    I accept the{' '}
+                    {t('acceptPrivacy')}{' '}
                     <Link href="/privacy" className="underline hover:opacity-70">
-                      Privacy Policy
+                      {t('privacyPolicy')}
                     </Link>
                     .
                   </span>

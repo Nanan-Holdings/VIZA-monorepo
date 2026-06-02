@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ paymentId: string }> },
 ) {
-  const user = await getAuthenticatedUser();
+  const user = await getCommercialAuthenticatedUser();
   if (!user) return NextResponse.json({ status: "failed" }, { status: 401 });
 
   const { paymentId } = await context.params;

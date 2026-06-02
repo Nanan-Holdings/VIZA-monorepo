@@ -2,61 +2,92 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 
-export async function requestPasswordReset(email: string) {
+type PasswordResetResult = {
+  success?: boolean;
+  error?: string;
+  errorCode?: "invalid_email" | "send_failed";
+};
+
+export async function requestPasswordReset(
+  email: string,
+  locale?: string
+): Promise<PasswordResetResult> {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email.trim())) {
-    return { error: "Please enter a valid email address" };
+    return { errorCode: "invalid_email" };
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  const authEmailLocale = normalizeAuthEmailLocale(locale);
 
-  let adminClient;
+  let adminClient: ReturnType<typeof createAdminClient> | null = null;
   try {
     adminClient = createAdminClient();
   } catch (err) {
     console.error("Failed to create admin client:", err);
-    // Fail closed - don't send email if we can't verify
-    return { success: true };
   }
 
-  // SECURITY: Only allow password reset for staff users in public.users table
-  // Users use OTP authentication only and should never have passwords
-  const { data: staffUser, error: queryError } = await adminClient
-    .from("users")
-    .select("id, email")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
+  if (adminClient) {
+    for (let page = 1; page <= 10; page += 1) {
+      const { data, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
 
-  if (queryError) {
-    console.error("Error checking staff user:", queryError.message);
-    // Fail closed - don't send email if we can't verify
-    return { success: true };
+      if (error) {
+        console.error("Error preparing password reset locale:", error);
+        break;
+      }
+
+      const authUser = data.users.find(
+        (user) => user.email?.toLowerCase() === normalizedEmail
+      );
+
+      if (authUser) {
+        const existingMetadata =
+          typeof authUser.user_metadata === "object" &&
+          authUser.user_metadata !== null &&
+          !Array.isArray(authUser.user_metadata)
+            ? authUser.user_metadata
+            : {};
+
+        const { error: updateError } =
+          await adminClient.auth.admin.updateUserById(authUser.id, {
+            user_metadata: {
+              ...existingMetadata,
+              locale: authEmailLocale,
+              language: authEmailLocale,
+              preferred_language: authEmailLocale,
+            },
+          });
+
+        if (updateError) {
+          console.error("Error updating password reset locale:", updateError);
+        }
+
+        break;
+      }
+
+      if (data.users.length < 1000) break;
+    }
   }
 
-  // If email not found in public.users, return error
-  if (!staffUser) {
-    console.log(`Password reset blocked: ${normalizedEmail} not found in public.users`);
-    return { error: "No staff account found with this email address" };
-  }
-
-  console.log(`Password reset allowed: ${normalizedEmail} found in public.users`);
-
-  // Only send reset email if user exists in public.users (staff/admin/admin)
   const supabase = await createClient();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const redirectTo = `${siteUrl}/auth/reset-password`;
+  const redirectTo = `${siteUrl}/forgot-password`;
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
     redirectTo,
   });
 
   if (error) {
     console.error("Password reset error:", error.message);
+    return { errorCode: "send_failed", error: error.message };
   }
 
-  // Always return success to prevent email enumeration
   return { success: true };
 }
 
