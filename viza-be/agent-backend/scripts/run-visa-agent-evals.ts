@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  buildVisaConversationStatePrompt,
   createEmptyVisaConversationState,
   parseVisaConversationStateMarker,
   summarizeVisaConversationState,
@@ -9,8 +10,10 @@ import {
 } from '../src/services/visa-conversation-state.service.js';
 import {
   COUNTRY_DISPLAY_NAMES,
+  VISA_DESTINATION_REGISTRY,
   VISA_SERVICE_COUNTRIES,
   getDefaultVisitorVisaType,
+  isVisaServiceSupportedCountry,
   type SupportedKnowledgeCountry,
 } from '../src/config/visa-destination-registry.js';
 import {
@@ -100,6 +103,14 @@ interface ProductQaCase {
 
 function countryList(countries: SupportedKnowledgeCountry[]): string {
   return countries.map((country) => COUNTRY_DISPLAY_NAMES[country]).join(', ');
+}
+
+function uniqueCountryList(
+  countries: Array<SupportedKnowledgeCountry | null | undefined>
+): SupportedKnowledgeCountry[] {
+  return Array.from(
+    new Set(countries.filter((country): country is SupportedKnowledgeCountry => Boolean(country)))
+  );
 }
 
 function schengenCase(
@@ -389,6 +400,7 @@ const productQaCases: ProductQaCase[] = [
       residenceCountry: 'Singapore',
       tripPurpose: 'tourism',
       stayLengthDays: 7,
+      shouldAskClarification: false,
     },
   },
   { id: 'VIZA-002', input: '去韩国旅游签证一般多久能下来？', expected: { intent: 'fees_timing', resolvedCountry: 'south_korea' } },
@@ -1298,7 +1310,7 @@ function evaluateBranchTests(): BranchResult[] {
 }
 
 const results = evalCases.map(evaluateCase);
-const productResults = productQaCases.map(evaluateProductQaCase);
+const productResults = allProductQaCases.map(evaluateProductQaCase);
 const branchResults = evaluateBranchTests();
 const passed = results.filter((result) => result.passed).length;
 const productPassed = productResults.filter((result) => result.passed).length;
@@ -1308,6 +1320,12 @@ const branchPassed = branchResults.filter((result) => result.passed).length;
 const branchPassRate = branchPassed / branchResults.length;
 const combinedPassed = passed + productPassed + branchPassed;
 const combinedTotal = results.length + productResults.length + branchResults.length;
+const countryPopularMatrixTotal =
+  serviceCountryList.length * HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length;
+const countryPopularCoverageRate =
+  countryPopularMatrixTotal === 0
+    ? 0
+    : countryPopularQaCases.length / countryPopularMatrixTotal;
 const byCategory = results.reduce<Record<string, { passed: number; total: number }>>(
   (acc, result) => {
     const entry = acc[result.category] ?? { passed: 0, total: 0 };
@@ -1354,6 +1372,14 @@ console.log(
       branchPassed,
       branchFailed: branchResults.length - branchPassed,
       branchPassRate: Number((branchPassRate * 100).toFixed(2)),
+      countryPopularQuestionCoverage: {
+        serviceCountries: serviceCountryList.length,
+        highFrequencyTemplates: HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length,
+        expectedMatrixTotal: countryPopularMatrixTotal,
+        generatedMatrixTotal: countryPopularQaCases.length,
+        coverageRate: Number((countryPopularCoverageRate * 100).toFixed(2)),
+        unsupportedRecognizedCountries: unsupportedRecognizedCountries.length,
+      },
       combinedTotal,
       combinedPassed,
       combinedFailed: combinedTotal - combinedPassed,
@@ -1379,6 +1405,20 @@ if (branchResults.length < 35) {
 
 if (productResults.length < 60) {
   console.error(`Expected at least 60 product QA cases, got ${productResults.length}`);
+  process.exit(1);
+}
+
+if (HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length < 5) {
+  console.error(
+    `Expected at least 5 high-frequency question templates, got ${HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length}`
+  );
+  process.exit(1);
+}
+
+if (countryPopularCoverageRate < 0.95) {
+  console.error(
+    `Country popular-question matrix coverage is below 95%: ${Number((countryPopularCoverageRate * 100).toFixed(2))}%`
+  );
   process.exit(1);
 }
 
