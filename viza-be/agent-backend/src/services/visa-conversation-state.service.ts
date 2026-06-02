@@ -221,7 +221,8 @@ function extractContextOnlyCountries(message: string): SupportedKnowledgeCountry
 }
 
 function extractFirstEntryCountry(message: string): SupportedKnowledgeCountry | null {
-  const firstEntryMatch = message.match(/(?:首入境|第一入境|先到|first entry|enter first|arrive first)([^,，、;；。.!?\n]*)/iu)
+  const firstEntryMatch = message.match(/(?:改成|换成|更正为|改为)\s*([^,，、;；。.!?\n]+?)\s*(?:先入境|首入境|第一入境|先到)/iu)
+    ?? message.match(/(?:首入境|第一入境|先到|先入境|first entry|enter first|arrive first)([^,，、;；。.!?\n]*)/iu)
     ?? message.match(/(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:入境|进入申根)/iu);
   if (!firstEntryMatch?.[1]) return null;
   return detectKnowledgeCountriesInOrder(firstEntryMatch[1])[0] ?? null;
@@ -471,7 +472,7 @@ function buildDirectPatch(message: string): VisaConversationStatePatch {
 }
 
 function isCorrectionMessage(message: string): boolean {
-  return /(不对|不是|改成|更正|纠正|actually|instead|change to|changed to)/i.test(
+  return /(不对|不是|改成|换成|改为|更正|纠正|actually|instead|change to|changed to)/i.test(
     message
   );
 }
@@ -618,11 +619,19 @@ export function updateVisaConversationState(
       ...(compactPatch.destinationCountries ?? []),
     ]),
     schengenDaySplit: {
-      ...previous.schengenDaySplit,
+      ...(replacesDestinations ? {} : previous.schengenDaySplit),
       ...(directPatch.schengenDaySplit ?? {}),
       ...(compactPatch.schengenDaySplit ?? {}),
     },
   };
+
+  if (
+    replacesDestinations &&
+    directPatch.firstEntryCountry === undefined &&
+    compactPatch.firstEntryCountry === undefined
+  ) {
+    patch.firstEntryCountry = null;
+  }
 
   const merged: VisaConversationState = {
     ...previous,

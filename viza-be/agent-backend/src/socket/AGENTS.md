@@ -40,8 +40,9 @@ namespace `/visa` and sends/receives streaming events.
   not opened that country/region service yet and do not provide detailed RAG
   requirements or application links for it.
 - `npm run test:visa-agent-evals` is the required regression gate for this
-  namespace. It includes the 50 VIZA product QA prompts, 10 edge prompts, mixed
-  Schengen/non-Schengen flows, and service-country-to-RAG-seed coverage.
+  namespace. It includes 1200+ product QA assertions, a 54 service country by
+  21 high-frequency question matrix, 14 long-conversation memory branches,
+  mixed Schengen/non-Schengen flows, and service-country-to-RAG-seed coverage.
 - Persist visible user/assistant messages idempotently. The frontend also has a
   Supabase-side `ensureSessionMessage()` fallback, so Socket.IO persistence must
   check for an existing exact session/role/content row before inserting.

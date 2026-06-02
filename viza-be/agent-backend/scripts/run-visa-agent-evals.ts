@@ -486,8 +486,8 @@ interface CountryPopularQuestionTemplate {
   input: (country: SupportedKnowledgeCountry) => string;
   assertVisaType?: boolean;
   assertNationality?: boolean;
-  assertTripPurpose?: boolean;
-  assertStayLength?: boolean;
+  expectedTripPurpose?: VisaConversationState['tripPurpose'];
+  expectedStayLengthDays?: number;
 }
 
 const HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES: CountryPopularQuestionTemplate[] = [
@@ -497,36 +497,131 @@ const HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES: CountryPopularQuestionTemplate[
     input: (country) => `中国护照去 ${COUNTRY_DISPLAY_NAMES[country]} 旅游 7 天，需要签证吗？`,
     assertVisaType: true,
     assertNationality: true,
-    assertTripPurpose: true,
-    assertStayLength: true,
+    expectedTripPurpose: 'tourism',
+    expectedStayLengthDays: 7,
   },
   {
     key: 'documents',
     intent: 'requirements',
     input: (country) => `申请 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证需要准备什么材料？`,
     assertVisaType: true,
-    assertTripPurpose: true,
+    expectedTripPurpose: 'tourism',
   },
   {
     key: 'fees-timing',
     intent: 'fees_timing',
     input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 旅游签证一般多久能下来，费用多少？`,
     assertVisaType: true,
-    assertTripPurpose: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'validity-stay',
+    intent: 'fees_timing',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 旅游签证有效期一般多久，可以停留多久？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'urgent-travel',
+    intent: 'fees_timing',
+    input: (country) => `我下周五飞 ${COUNTRY_DISPLAY_NAMES[country]} 旅游，现在申请还来得及吗？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'status-check',
+    intent: 'fees_timing',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证申请怎么查询进度？`,
+  },
+  {
+    key: 'withdraw-refund',
+    intent: 'fees_timing',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证申请可以撤回吗，费用退吗？`,
+  },
+  {
+    key: 'bank-statement',
+    intent: 'requirements',
+    input: (country) => `申请 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证需要银行流水吗，要几个月？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'employment-letter',
+    intent: 'eligibility',
+    input: (country) => `没有在职证明，可以申请 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证吗？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'invitation-letter',
+    intent: 'requirements',
+    input: (country) => `去 ${COUNTRY_DISPLAY_NAMES[country]} 看朋友需要邀请函吗？`,
+    expectedTripPurpose: 'family_visit',
+  },
+  {
+    key: 'interview-biometrics',
+    intent: 'requirements',
+    input: (country) => `申请 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证需要面签或录指纹吗？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'online-submit',
+    intent: 'eligibility',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证可以线上提交吗，还是要递交护照？`,
+  },
+  {
+    key: 'photo',
+    intent: 'requirements',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证照片有什么要求？`,
+  },
+  {
+    key: 'passport-validity',
+    intent: 'eligibility',
+    input: (country) => `护照还有 5 个月过期，可以申请 ${COUNTRY_DISPLAY_NAMES[country]} 签证吗？`,
+  },
+  {
+    key: 'insurance',
+    intent: 'requirements',
+    input: (country) => `去 ${COUNTRY_DISPLAY_NAMES[country]} 旅游需要买旅行保险吗？`,
+    assertVisaType: true,
+    expectedTripPurpose: 'tourism',
+  },
+  {
+    key: 'translation-notary',
+    intent: 'requirements',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证材料需要翻译、公证或认证吗？`,
+  },
+  {
+    key: 'itinerary-change',
+    intent: 'eligibility',
+    input: (country) => `${COUNTRY_DISPLAY_NAMES[country]} 签证下来以后可以改酒店和机票吗？`,
+  },
+  {
+    key: 'transit',
+    intent: 'requirements',
+    input: (country) => `我只是在 ${COUNTRY_DISPLAY_NAMES[country]} 转机 8 小时，不出机场，需要过境签吗？`,
+    expectedTripPurpose: 'transit',
+  },
+  {
+    key: 'long-stay',
+    intent: 'route_recommendation',
+    input: (country) => `我想长期住在 ${COUNTRY_DISPLAY_NAMES[country]}，有什么签证？`,
+    expectedTripPurpose: 'long_stay',
   },
   {
     key: 'start-application',
     intent: 'form_intake',
     input: (country) => `我准备好了，想开始申请 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证`,
     assertVisaType: true,
-    assertTripPurpose: true,
+    expectedTripPurpose: 'tourism',
   },
   {
     key: 'official-source',
     intent: 'source_check',
     input: (country) => `请给我 ${COUNTRY_DISPLAY_NAMES[country]} 旅游签证的官方来源`,
     assertVisaType: true,
-    assertTripPurpose: true,
+    expectedTripPurpose: 'tourism',
   },
 ];
 
@@ -545,8 +640,8 @@ const countryPopularQaCases: ProductQaCase[] = serviceCountryList.flatMap((count
       knowledgeCountry: country,
       visaType: template.assertVisaType ? getDefaultVisitorVisaType(country) : undefined,
       nationality: template.assertNationality ? 'China' : undefined,
-      tripPurpose: template.assertTripPurpose ? 'tourism' : undefined,
-      stayLengthDays: template.assertStayLength ? 7 : undefined,
+      tripPurpose: template.expectedTripPurpose ?? undefined,
+      stayLengthDays: template.expectedStayLengthDays,
     },
   }))
 );
@@ -1197,6 +1292,119 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('Chinese UI prompt still requires Chinese answer', prompt.includes('Respond primarily in Simplified Chinese even if the user writes in English'), true),
       ];
     }),
+    branch('LONG-007', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照，人在新加坡，去法国 5 天，再去英国 3 天旅游' },
+        { role: 'assistant', content: '法国属于申根，英国需要单独路线。' },
+        { role: 'user', content: '英国那边需要银行流水几个月？' },
+      ]);
+      return [
+        expectEqual('UK follow-up becomes active country', state.mainDestination, 'uk'),
+        expectEqual('France remains in mixed itinerary memory', state.destinationCountries.includes('france'), true),
+        expectEqual('Singapore residence retained for UK follow-up', state.residenceCountry, 'Singapore'),
+        expectEqual('UK bank-statement follow-up intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'requirements'),
+      ];
+    }),
+    branch('LONG-008', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照去日本旅游7天' },
+        { role: 'assistant', content: '日本短期旅游路线已记录。' },
+        { role: 'user', content: '不是旅游，是商务会议' },
+      ]);
+      return [
+        expectEqual('Japan destination retained after purpose correction', state.mainDestination, 'japan'),
+        expectEqual('purpose correction changes tourism to business', state.tripPurpose, 'business'),
+        expectEqual('business correction intent remains route recommendation', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'route_recommendation'),
+      ];
+    }),
+    branch('LONG-009', 'long_conversation_memory_branch', () => {
+      const { state } = applyMessages([
+        { role: 'user', content: '中国护照，旅游，去法国和德国各5天，从法国入境' },
+        { role: 'assistant', content: '停留相同时通常按首入境法国申请。' },
+        { role: 'user', content: '改成德国先入境' },
+      ]);
+      return [
+        expectEqual('first-entry correction updates destination to Germany', state.mainDestination, 'germany'),
+        expectEqual('first-entry correction updates first entry country', state.firstEntryCountry, 'germany'),
+        expectEqual('old France first entry is cleared', state.firstEntryCountry === 'france', false),
+      ];
+    }),
+    branch('LONG-010', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照去墨西哥旅游7天' },
+        { role: 'assistant', content: 'VIZA 尚未开放墨西哥申请服务。' },
+        { role: 'user', content: '那换成加拿大' },
+      ]);
+      return [
+        expectEqual('unsupported country correction moves to Canada', state.mainDestination, 'canada'),
+        expectEqual('old Mexico removed after 换成 correction', state.destinationCountries.includes('mexico'), false),
+        expectEqual('Canada visitor route after correction', state.recommendedVisaType, 'visitor_visa'),
+        expectArrayEqual('Canada follow-up has no unsupported service country', detectUnsupportedServiceCountries(lastUserMessage), []),
+      ];
+    }),
+    branch('LONG-011', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照去美国旅游7天' },
+        { role: 'assistant', content: '美国旅游通常走 B1/B2 路线。' },
+        { role: 'user', content: '其实我是去参加会议' },
+        { role: 'assistant', content: '参加会议通常仍属于访问/商务方向。' },
+        { role: 'user', content: '那要面签吗？' },
+      ]);
+      return [
+        expectEqual('US destination retained across purpose correction', state.mainDestination, 'us'),
+        expectEqual('US purpose corrected to business', state.tripPurpose, 'business'),
+        expectEqual('US B1/B2 retained for conference', state.recommendedVisaType, 'b1_b2'),
+        expectEqual('interview follow-up uses requirements intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'requirements'),
+      ];
+    }),
+    branch('LONG-012', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '我人在新加坡，中国护照，想去澳大利亚旅游 12 天' },
+        { role: 'assistant', content: '澳大利亚旅游通常走 visitor subclass 600。' },
+        { role: 'user', content: '需要什么材料？' },
+        { role: 'assistant', content: '需要按澳大利亚访客签证准备材料。' },
+        { role: 'user', content: '如果我是自由职业者，怎么证明收入？' },
+      ]);
+      return [
+        expectEqual('Australia retained after generic document follow-up', state.mainDestination, 'australia'),
+        expectEqual('Singapore residence retained for Australia', state.residenceCountry, 'Singapore'),
+        expectEqual('Australia stay length retained', state.stayLengthDays, 12),
+        expectEqual('freelancer income follow-up uses requirements intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'requirements'),
+      ];
+    }),
+    branch('LONG-013', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照去韩国旅游 5 天' },
+        { role: 'assistant', content: '韩国短期访问路线已记录。' },
+        { role: 'user', content: '处理时间一般多久？' },
+        { role: 'assistant', content: '处理时间需按官方来源确认。' },
+        { role: 'user', content: '官方来源给我' },
+      ]);
+      return [
+        expectEqual('South Korea retained through timing then source follow-up', state.mainDestination, 'south_korea'),
+        expectEqual('source follow-up intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'source_check'),
+      ];
+    }),
+    branch('LONG-014', 'long_conversation_memory_branch', () => {
+      const { state, lastUserMessage } = applyMessages([
+        { role: 'user', content: '中国护照、人在新加坡、去日本 7 天' },
+        { role: 'assistant', content: '日本短期旅游路线已确认。' },
+        { role: 'user', content: '费用多少？' },
+        { role: 'assistant', content: '费用需要按官方或受理渠道确认。' },
+        { role: 'user', content: '我准备好了，给我表单链接' },
+      ]);
+      const blocks = buildApplicationRedirectBlocks(
+        state,
+        state.mainDestination,
+        state.recommendedVisaType
+      );
+      const urls = blocks.map((block) => block.redirectUrl);
+      return [
+        expectEqual('Japan retained until final form handoff', state.mainDestination, 'japan'),
+        expectEqual('final form-link intent', inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots), 'form_intake'),
+        expectEqual('Japan application redirect emitted', urls.includes('/client/application?country=japan&visaType=short_term_tourism_evisa'), true),
+      ];
+    }),
 
     branch('COMPACT-001', 'compact_interpretation_branch', () => [
       expectEqual('non-compact returns null', buildCompactAnswerInterpretation([], '我想去日本旅游'), null),
@@ -1403,14 +1611,21 @@ if (branchResults.length < 35) {
   process.exit(1);
 }
 
-if (productResults.length < 60) {
-  console.error(`Expected at least 60 product QA cases, got ${productResults.length}`);
+if ((branchByCategory.long_conversation_memory_branch?.total ?? 0) < 14) {
+  console.error(
+    `Expected at least 14 long-conversation memory branch tests, got ${branchByCategory.long_conversation_memory_branch?.total ?? 0}`
+  );
   process.exit(1);
 }
 
-if (HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length < 5) {
+if (productResults.length < 1000) {
+  console.error(`Expected at least 1000 product QA cases, got ${productResults.length}`);
+  process.exit(1);
+}
+
+if (HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length < 20) {
   console.error(
-    `Expected at least 5 high-frequency question templates, got ${HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length}`
+    `Expected at least 20 high-frequency question templates, got ${HIGH_FREQUENCY_COUNTRY_QUESTION_TEMPLATES.length}`
   );
   process.exit(1);
 }
