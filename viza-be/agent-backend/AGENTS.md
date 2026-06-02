@@ -9,6 +9,11 @@ routes, Socket.IO streaming chat, RAG retrieval, field guidance, application
 translation/validation, Supabase service-role access, Drizzle migrations, and
 form/RAG seed scripts.
 
+OpenAI is the backend AI provider for chat generation, field guidance,
+application semantic validation, passport OCR, and embeddings. Keep
+`OPENAI_API_KEY` as the single model-provider key unless a future task
+explicitly reintroduces another provider.
+
 ## Key Flows
 
 - Startup: `src/index.ts` loads `.env`, creates HTTP server, attaches Socket.IO,

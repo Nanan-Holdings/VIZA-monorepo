@@ -81,7 +81,7 @@ function normalizeFreeTextCountry(value: string): string {
 
 function splitCompactAnswer(message: string): string[] {
   return message
-    .split(/[,，;；\n]/)
+    .split(/[,，、;；\n]/)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -90,7 +90,7 @@ function isCompactFollowUp(message: string): boolean {
   const trimmed = message.trim();
   if (!trimmed || trimmed.length > 100) return false;
   if (/[?？]/.test(trimmed)) return false;
-  return /[,，;；]/.test(trimmed) || /^[\d\s,，.．、;；天日days]+$/i.test(trimmed);
+  return /[,，、;；]/.test(trimmed) || /^[\d\s,，.．、;；天日days]+$/i.test(trimmed);
 }
 
 function extractNumberedQuestions(content: string): string[] {
@@ -146,7 +146,7 @@ function extractNationality(message: string): string | null {
 
   const passportIsMatch =
     message.match(/(?:持有|持)\s*([\p{Script=Han}A-Za-z\s]+?)(?:的)?(?:护照|passport)/iu) ??
-    message.match(/(?:护照是)\s*([\p{Script=Han}A-Za-z\s]+?)(?:的)?(?:[,，;；。.!?\n]|$)/iu);
+    message.match(/(?:护照是)\s*([\p{Script=Han}A-Za-z\s]+?)(?:的)?(?:[,，、;；。.!?\n]|$)/iu);
   if (passportIsMatch?.[1]) {
     return normalizeFreeTextCountry(passportIsMatch[1]);
   }
@@ -166,10 +166,10 @@ function extractNationality(message: string): string | null {
 
 function extractResidenceCountry(message: string): string | null {
   const residencePatterns = [
-    /(?:人在|目前在|现在在|当前在|我在)\s*([^,，;；。.!?\n]+)/iu,
-    /(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，;；。.!?\n]+)/iu,
-    /(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/iu,
-    /([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/iu,
+    /(?:人在|目前在|现在在|当前在|我在)\s*([^,，、;；。.!?\n]+)/iu,
+    /(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，、;；。.!?\n]+)/iu,
+    /(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:出发|申请)/iu,
+    /([^,，、;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/iu,
     /(?:live in|living in|resident in|reside in|apply from)\s+([A-Za-z\s]+)/iu,
   ];
 
@@ -187,11 +187,11 @@ function extractResidenceCountry(message: string): string | null {
 
 function extractResidenceCountries(message: string): SupportedKnowledgeCountry[] {
   const residenceTextMatches = [
-    ...message.matchAll(/(?:人在|目前在|现在在|当前在|我在)([^,，;；。.!?\n]*)/giu),
-    ...message.matchAll(/(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，;；。.!?\n]*)/giu),
-    ...message.matchAll(/(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/giu),
-    ...message.matchAll(/([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/giu),
-    ...message.matchAll(/(?:live in|living in|resident in|reside in|apply from)\s+([^,，;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:人在|目前在|现在在|当前在|我在)([^,，、;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，、;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:出发|申请)/giu),
+    ...message.matchAll(/([^,，、;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/giu),
+    ...message.matchAll(/(?:live in|living in|resident in|reside in|apply from)\s+([^,，、;；。.!?\n]*)/giu),
   ];
   return uniqueCountries(
     residenceTextMatches.flatMap((match) =>
@@ -210,8 +210,8 @@ function extractContextOnlyCountries(message: string): SupportedKnowledgeCountry
 }
 
 function extractFirstEntryCountry(message: string): SupportedKnowledgeCountry | null {
-  const firstEntryMatch = message.match(/(?:首入境|第一入境|先到|first entry|enter first|arrive first)([^,，;；。.!?\n]*)/iu)
-    ?? message.match(/(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:入境|进入申根)/iu);
+  const firstEntryMatch = message.match(/(?:首入境|第一入境|先到|first entry|enter first|arrive first)([^,，、;；。.!?\n]*)/iu)
+    ?? message.match(/(?:从)\s*([^,，、;；。.!?\n]+?)\s*(?:入境|进入申根)/iu);
   if (!firstEntryMatch?.[1]) return null;
   return detectKnowledgeCountriesInOrder(firstEntryMatch[1])[0] ?? null;
 }
