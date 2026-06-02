@@ -14,9 +14,68 @@ import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
 
-// sessionStorage keys for tracking impersonation session state
-const SESSION_USER_KEY = "impersonation_user_id";
-const SESSION_INVALIDATED_KEY = "impersonation_session_invalidated";
+// sessionStorage keys for tracking the session this browser tab has verified.
+// Browsers can copy sessionStorage into target=_blank tabs, so every stored
+// record is tied to a per-tab window.name id before it can be trusted.
+const CLIENT_SESSION_RECORD_KEY = "client_session_record";
+const CLIENT_TAB_NAME_PREFIX = "viza-client-tab:";
+const LEGACY_SESSION_USER_KEY = "impersonation_user_id";
+const LEGACY_SESSION_INVALIDATED_KEY = "impersonation_session_invalidated";
+
+type ClientSessionKind = "impersonation" | "supabase";
+
+type ClientSessionRecord = {
+  tabId: string;
+  sessionKind: ClientSessionKind;
+  sessionId: string;
+  userId: string;
+};
+
+type ClientSessionResponse = {
+  valid: boolean;
+  userId?: string | null;
+  sessionKind?: ClientSessionKind | null;
+  sessionId?: string | null;
+};
+
+function getOrCreateTabId() {
+  if (window.name.startsWith(CLIENT_TAB_NAME_PREFIX)) {
+    return window.name.slice(CLIENT_TAB_NAME_PREFIX.length);
+  }
+
+  const tabId = crypto.randomUUID();
+  window.name = `${CLIENT_TAB_NAME_PREFIX}${tabId}`;
+  return tabId;
+}
+
+function readStoredSession(tabId: string): ClientSessionRecord | null {
+  const rawRecord = sessionStorage.getItem(CLIENT_SESSION_RECORD_KEY);
+  if (!rawRecord) {
+    return null;
+  }
+
+  try {
+    const record = JSON.parse(rawRecord) as Partial<ClientSessionRecord>;
+    if (
+      record.tabId === tabId &&
+      (record.sessionKind === "impersonation" || record.sessionKind === "supabase") &&
+      typeof record.sessionId === "string" &&
+      typeof record.userId === "string"
+    ) {
+      return record as ClientSessionRecord;
+    }
+  } catch {
+    sessionStorage.removeItem(CLIENT_SESSION_RECORD_KEY);
+  }
+
+  return null;
+}
+
+function writeStoredSession(record: ClientSessionRecord) {
+  sessionStorage.setItem(CLIENT_SESSION_RECORD_KEY, JSON.stringify(record));
+  sessionStorage.removeItem(LEGACY_SESSION_USER_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_INVALIDATED_KEY);
+}
 
 // Wrapper component to provide Suspense boundary for useSearchParams
 export default function ClientLayout({
@@ -76,10 +135,10 @@ function ClientLayoutContent({
   const [sessionValid, setSessionValid] = useState<boolean | null | "invalidated">(null);
   // Form request checking state
   const [formRequestChecked, setFormRequestChecked] = useState(false);
-  const [pendingFormRequestId, setPendingFormRequestId] = useState<string | null>(null);
   const isCheckingRef = useRef(false);
   const isInvalidatedRef = useRef(false);
   const formRequestCheckRef = useRef(false);
+  const tabIdRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -109,20 +168,13 @@ function ClientLayoutContent({
   const isAboutMeForm = pathname.startsWith("/client/about-me-form");
   const isApplicationFlow = pathname.startsWith("/client/application");
 
-  // Check session validity on tab focus/visibility change
-  // This handles the case where another tab starts a new impersonation
-  // Uses sessionStorage to detect if the cookie's user changed from what this tab expects
+  // Check session validity.
+  // A per-tab id prevents new target=_blank tabs from inheriting another tab's
+  // stored expected session and invalidating themselves immediately.
   // IMPORTANT: This BLOCKS rendering until session is verified to prevent data race conditions
   const checkSessionValidity = useCallback(async (blockRendering: boolean = false) => {
     // Skip check on client auth pages
     if (pathname.startsWith("/client/login") || pathname.startsWith("/client/signup") || pathname.startsWith("/client/register")) {
-      return;
-    }
-
-    // Check if this tab was previously invalidated (persists across refresh)
-    if (sessionStorage.getItem(SESSION_INVALIDATED_KEY) === "true") {
-      isInvalidatedRef.current = true;
-      setSessionValid("invalidated");
       return;
     }
 
@@ -137,9 +189,9 @@ function ClientLayoutContent({
     }
     isCheckingRef.current = true;
 
-    // IMPORTANT: Read expected user ID BEFORE async call
-    // This ensures we capture what this tab originally had
-    const expectedUserId = sessionStorage.getItem(SESSION_USER_KEY);
+    const tabId = tabIdRef.current ?? getOrCreateTabId();
+    tabIdRef.current = tabId;
+    const expectedSession = readStoredSession(tabId);
 
     // If blocking, set session to null (checking state) to show loading
     if (blockRendering) {
@@ -152,10 +204,7 @@ function ClientLayoutContent({
         throw new Error("Failed to check session");
       }
 
-      const result = (await response.json()) as {
-        valid: boolean;
-        userId?: string | null;
-      };
+      const result = (await response.json()) as ClientSessionResponse;
 
       if (!result.valid) {
         // No valid session — redirect to login instead of showing invalidated state.
@@ -166,28 +215,39 @@ function ClientLayoutContent({
       }
 
       const currentUserId = result.userId ?? null;
+      const currentSessionKind = result.sessionKind ?? null;
+      const currentSessionId = result.sessionId ?? null;
 
-      if (!expectedUserId) {
-        // First time this tab is checking - store the user ID we're viewing
-        // This only happens once per tab (sessionStorage persists until tab closes)
-        if (currentUserId) {
-          sessionStorage.setItem(SESSION_USER_KEY, currentUserId);
-        }
+      if (!currentUserId || !currentSessionKind || !currentSessionId) {
+        isCheckingRef.current = false;
+        router.replace("/client/login");
+        return;
+      }
+
+      const currentSession: ClientSessionRecord = {
+        tabId,
+        sessionKind: currentSessionKind,
+        sessionId: currentSessionId,
+        userId: currentUserId,
+      };
+
+      if (!expectedSession) {
+        writeStoredSession(currentSession);
         setSessionValid(true);
-      } else if (currentUserId !== expectedUserId) {
-        // User ID mismatch! Another tab started a new impersonation
-        // The cookie now has a different user than what this tab was opened for
-        // We can't redirect because the new session cookie would just log us back in
-        // Instead, show an invalidated state - user should close this tab
+      } else if (
+        expectedSession.sessionKind === "impersonation" &&
+        currentSession.sessionKind === "impersonation" &&
+        currentSession.sessionId !== expectedSession.sessionId
+      ) {
+        // Another impersonation replaced this tab's verified impersonation
+        // cookie. Avoid rendering data under the wrong applicant identity.
         isInvalidatedRef.current = true;
         setSessionValid("invalidated");
-        // Mark this tab as invalidated (persists across refresh)
-        sessionStorage.setItem(SESSION_INVALIDATED_KEY, "true");
-        sessionStorage.removeItem(SESSION_USER_KEY);
+        sessionStorage.removeItem(CLIENT_SESSION_RECORD_KEY);
         isCheckingRef.current = false;
         return;
       } else {
-        // User IDs match, session is valid
+        writeStoredSession(currentSession);
         setSessionValid(true);
       }
     } catch (error) {
@@ -199,7 +259,7 @@ function ClientLayoutContent({
     }
 
     isCheckingRef.current = false;
-  }, [pathname]);
+  }, [pathname, router]);
 
   // Run a single session validity check on mount; skip focus/visibility re-checks to avoid remounts
   useEffect(() => {
@@ -249,7 +309,6 @@ function ClientLayoutContent({
         if (result.success && result.data && result.data.length > 0) {
           const aboutMeRequest = result.data.find((r) => r.form_type === "about_me");
           if (aboutMeRequest) {
-            setPendingFormRequestId(aboutMeRequest.id);
             // Redirect to the form with the request ID
             const returnTo = encodeURIComponent(pathname);
             router.push(`/client/about-me-form?requestId=${aboutMeRequest.id}&returnTo=${returnTo}`);
@@ -269,9 +328,10 @@ function ClientLayoutContent({
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    // Clear sessionStorage before logout
-    sessionStorage.removeItem(SESSION_USER_KEY);
-    sessionStorage.removeItem(SESSION_INVALIDATED_KEY);
+    // Clear this tab's remembered session before logout.
+    sessionStorage.removeItem(CLIENT_SESSION_RECORD_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_USER_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_INVALIDATED_KEY);
     await userSignOut();
   };
 

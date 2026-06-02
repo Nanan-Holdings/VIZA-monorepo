@@ -20,17 +20,13 @@ import {
   reconcileStripeSubscriptionReturn,
   type SubscriptionReturnState,
 } from "./data";
-import { PayPerApplicationBrowser, type PayPerRegion } from "./pay-per-application-browser";
+import { buildPayPerGroups } from "./pay-per-data";
+import { PayPerApplicationBrowser } from "./pay-per-application-browser";
 import {
-  PAY_PER_APPLICATION_PRODUCTS,
   formatCny,
   getCommercialProduct,
   type CommercialPaymentProvider,
 } from "@/lib/payments/commercial-products";
-import {
-  VISA_DESTINATION_REGION_GROUPS,
-  getVisaDestinationsForRegion,
-} from "@/lib/visa-destinations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -207,14 +203,14 @@ function PaymentButtons({
             <input type="hidden" name="provider" value={provider} />
             <button
               type="submit"
-              disabled={!enabled}
               className={cn(
                 "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-1",
                 featured
-                  ? "bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-white disabled:bg-white/20 disabled:text-white/50"
-                  : "border border-brand-500 bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-ring disabled:border-border disabled:text-muted-foreground",
+                  ? "bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-white"
+                  : "border border-brand-500 bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-ring",
+                !enabled && (featured ? "bg-white/80 text-brand-500/80" : "border-border text-muted-foreground"),
               )}
-              title={enabled ? `使用${providerLabels[provider]}支付` : `${providerLabels[provider]}尚未配置`}
+              title={enabled ? `使用${providerLabels[provider]}支付` : `检查${providerLabels[provider]}配置并支付`}
             >
               <Icon className="h-4 w-4" />
               {providerLabels[provider]}
@@ -224,54 +220,6 @@ function PaymentButtons({
       })}
     </div>
   );
-}
-
-function buildPayPerGroups(): PayPerRegion[] {
-  const productsByDestination = new Map(
-    PAY_PER_APPLICATION_PRODUCTS.map((product) => [
-      `${product.country ?? ""}::${product.visaType ?? ""}`.toLowerCase(),
-      product,
-    ]),
-  );
-
-  return VISA_DESTINATION_REGION_GROUPS.map((region) => {
-    const destinations = getVisaDestinationsForRegion(region.id);
-    const items = destinations
-      .map((destination) => {
-        const product = productsByDestination.get(`${destination.country}::${destination.visaType}`.toLowerCase());
-        if (!product) return null;
-        return {
-          id: destination.id,
-          productId: product.id,
-          name: destination.countryName,
-          nameZh: destination.countryNameZh,
-          visaName: destination.visaName,
-          visaNameZh: destination.visaNameZh,
-          amountLabel: formatCny(product.amountFen),
-          searchText: [
-            destination.countryName,
-            destination.countryNameZh,
-            destination.visaName,
-            destination.visaNameZh,
-            destination.region,
-            region.name,
-            region.nameZh,
-            ...(destination.searchAliases ?? []),
-          ].join(" ").toLowerCase(),
-        };
-      })
-      .filter((item): item is PayPerRegion["items"][number] => Boolean(item));
-
-    return {
-      id: region.id,
-      name: region.name,
-      nameZh: region.nameZh,
-      description: region.description,
-      descriptionZh: region.descriptionZh,
-      flag: region.flag,
-      items,
-    };
-  }).filter((group) => group.items.length > 0);
 }
 
 export default async function SubscriptionPage({ searchParams }: SubscriptionPageProps) {
@@ -461,8 +409,6 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                       searchResults: t("payPer.searchResults"),
                       noResults: t("payPer.noResults"),
                       chooseRegion: t("payPer.chooseRegion"),
-                      collapse: t("payPer.collapse"),
-                      expand: t("payPer.expand"),
                       itemSuffix: t("payPer.regionCountSuffix"),
                     }}
                   />
