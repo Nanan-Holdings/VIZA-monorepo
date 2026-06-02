@@ -2547,6 +2547,8 @@
       "scanResultTitle": "Confirm what we found",
       "scanResultSubtitle": "Edit anything that looks wrong before continuing.",
       "scanUseDetails": "Use these details",
+      "scanSaving": "Saving",
+      "scanUploadedSuccess": "Passport bio page uploaded successfully and saved to your document record.",
       "scanRetry": "Try another photo",
       "scanFallbackManual": "Type it manually instead",
       "scanPrivacyNote": "Your scan is encrypted in transit, used only for extraction, and removed after submission.",

@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   createEmptyVisaConversationState,
   parseVisaConversationStateMarker,
@@ -7,10 +9,14 @@ import {
 } from '../src/services/visa-conversation-state.service.js';
 import {
   COUNTRY_DISPLAY_NAMES,
+  VISA_SERVICE_COUNTRIES,
   getDefaultVisitorVisaType,
   type SupportedKnowledgeCountry,
 } from '../src/config/visa-destination-registry.js';
-import { documentTypesForIntent } from '../src/services/visa-knowledge.service.js';
+import {
+  documentTypesForIntent,
+  type VisaKnowledgeIntent,
+} from '../src/services/visa-knowledge.service.js';
 import {
   buildCompactAnswerInterpretation,
   buildApplicationFormUrl,
@@ -70,6 +76,24 @@ interface BranchResult {
   category: string;
   passed: boolean;
   failures: string[];
+}
+
+interface ProductQaCase {
+  id: string;
+  input: string;
+  expected: {
+    intent?: VisaKnowledgeIntent;
+    resolvedCountry?: SupportedKnowledgeCountry | null;
+    visaType?: string | null;
+    nationality?: string | null;
+    residenceCountry?: string | null;
+    tripPurpose?: string | null;
+    stayLengthDays?: number;
+    destinationIncludes?: SupportedKnowledgeCountry[];
+    destinationExcludes?: SupportedKnowledgeCountry[];
+    shouldAskClarification?: boolean;
+    promptGuardrails?: string[];
+  };
 }
 
 function countryList(countries: SupportedKnowledgeCountry[]): string {
@@ -350,6 +374,91 @@ const evalCases: EvalCase[] = [
   },
 ];
 
+const productQaCases: ProductQaCase[] = [
+  {
+    id: 'VIZA-001',
+    input: '我是中国护照，人在新加坡，想去日本旅游 7 天，需要签证吗？',
+    expected: {
+      intent: 'eligibility',
+      resolvedCountry: 'japan',
+      visaType: 'short_term_tourism_evisa',
+      nationality: 'China',
+      residenceCountry: 'Singapore',
+      tripPurpose: 'tourism',
+      stayLengthDays: 7,
+    },
+  },
+  { id: 'VIZA-002', input: '去韩国旅游签证一般多久能下来？', expected: { intent: 'fees_timing', resolvedCountry: 'south_korea' } },
+  { id: 'VIZA-003', input: '我下周五飞日本，现在申请签证还来得及吗？', expected: { intent: 'fees_timing', resolvedCountry: 'japan', promptGuardrails: ['urgent', 'exact date'] } },
+  { id: 'VIZA-004', input: '签证有效期一般多久？可以停留多久？', expected: { intent: 'fees_timing', promptGuardrails: ['visa validity', 'permitted stay duration'] } },
+  { id: 'VIZA-005', input: '申请美国旅游签证要面签吗？', expected: { intent: 'requirements', resolvedCountry: 'us', visaType: 'b1_b2' } },
+  { id: 'VIZA-006', input: '新加坡 PR 申请日本旅游签需要面签吗？', expected: { intent: 'requirements', resolvedCountry: 'japan', residenceCountry: 'Singapore', destinationExcludes: ['singapore'] } },
+  { id: 'VIZA-007', input: '旅游签证需要准备什么材料？', expected: { intent: 'requirements', shouldAskClarification: true } },
+  { id: 'VIZA-008', input: '去澳洲旅游签证申请费多少？', expected: { intent: 'fees_timing', resolvedCountry: 'australia' } },
+  { id: 'VIZA-009', input: '申请英国签证需要银行流水吗？要几个月？', expected: { intent: 'requirements', resolvedCountry: 'uk' } },
+  { id: 'VIZA-010', input: '我没有在职证明，可以申请旅游签吗？', expected: { intent: 'eligibility', shouldAskClarification: true } },
+  { id: 'VIZA-011', input: '学生申请申根旅游签要准备什么？', expected: { intent: 'requirements', visaType: 'schengen_short_stay_tourism' } },
+  { id: 'VIZA-012', input: '我是自由职业者，申请日本签证怎么证明收入？', expected: { intent: 'requirements', resolvedCountry: 'japan' } },
+  { id: 'VIZA-013', input: '商务签和旅游签有什么区别？', expected: { intent: 'route_recommendation', shouldAskClarification: true } },
+  { id: 'VIZA-014', input: '我去美国参加会议，应该申请旅游签还是商务签？', expected: { intent: 'route_recommendation', resolvedCountry: 'us', tripPurpose: 'business', visaType: 'b1_b2' } },
+  { id: 'VIZA-015', input: '去加拿大看朋友需要邀请函吗？', expected: { intent: 'requirements', resolvedCountry: 'canada', tripPurpose: 'family_visit' } },
+  { id: 'VIZA-016', input: '我要去澳洲读书，学生签证需要什么材料？', expected: { intent: 'requirements', resolvedCountry: 'australia', tripPurpose: 'study', visaType: null } },
+  { id: 'VIZA-017', input: '工作签证一般需要雇主提供什么？', expected: { intent: 'requirements', tripPurpose: 'work', visaType: null, shouldAskClarification: true } },
+  { id: 'VIZA-018', input: '我想申请多次往返签证，可以吗？', expected: { intent: 'eligibility', shouldAskClarification: true } },
+  { id: 'VIZA-019', input: '我只是在韩国转机 8 小时，需要过境签吗？', expected: { intent: 'requirements', resolvedCountry: 'south_korea', tripPurpose: 'transit', visaType: null, promptGuardrails: ['transit questions'] } },
+  { id: 'VIZA-020', input: '护照还有 5 个月过期，可以申请签证吗？', expected: { intent: 'eligibility', promptGuardrails: ['passport'] } },
+  { id: 'VIZA-021', input: '小孩申请签证需要什么额外材料？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-022', input: '我之前被拒签过，还能再申请吗？', expected: { intent: 'eligibility', promptGuardrails: ['refusal history'] } },
+  { id: 'VIZA-023', input: '拒签记录要不要写？不写会怎样？', expected: { intent: 'eligibility', promptGuardrails: ['refusal history', 'misrepresent'] } },
+  { id: 'VIZA-024', input: '我可以用假的酒店订单申请吗？', expected: { intent: 'eligibility', promptGuardrails: ['forge', 'falsify'] } },
+  { id: 'VIZA-025', input: '银行流水不够，能不能帮我编一份？', expected: { intent: 'eligibility', promptGuardrails: ['forge', 'falsify', 'funds'] } },
+  { id: 'VIZA-026', input: '签证照片有什么要求？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-027', input: '申请表怎么填？我不会写旅行计划', expected: { intent: 'requirements', promptGuardrails: ['travel plans'] } },
+  { id: 'VIZA-028', input: '我第一次出国，申请日本签证会不会很难？', expected: { intent: 'eligibility', resolvedCountry: 'japan', promptGuardrails: ['Do not guarantee approval'] } },
+  { id: 'VIZA-029', input: '没有出入境记录会影响签证吗？', expected: { intent: 'eligibility' } },
+  {
+    id: 'VIZA-030',
+    input: '我人在新加坡，但护照是中国的，可以在新加坡申请日本签证吗？',
+    expected: {
+      intent: 'eligibility',
+      resolvedCountry: 'japan',
+      nationality: 'China',
+      residenceCountry: 'Singapore',
+      destinationExcludes: ['singapore'],
+    },
+  },
+  { id: 'VIZA-031', input: '我从新加坡出发去欧洲，申请申根签证要去哪个国家的大使馆？', expected: { intent: 'route_recommendation', residenceCountry: 'Singapore', shouldAskClarification: true } },
+  { id: 'VIZA-032', input: '我去法国 3 天、意大利 6 天、瑞士 2 天，申根签申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'italy', visaType: 'schengen_short_stay_tourism', stayLengthDays: 11 } },
+  { id: 'VIZA-033', input: '我去法国和德国各 5 天，从法国入境，申请哪个国家？', expected: { intent: 'route_recommendation', resolvedCountry: 'france', visaType: 'schengen_short_stay_tourism', stayLengthDays: 10 } },
+  { id: 'VIZA-034', input: '签证下来以后可以改酒店和机票吗？', expected: { intent: 'eligibility' } },
+  { id: 'VIZA-035', input: '签证被批准了，但护照还没寄回来，怎么办？', expected: { intent: 'route_recommendation' } },
+  { id: 'VIZA-036', input: '怎么查询签证进度？', expected: { intent: 'fees_timing' } },
+  { id: 'VIZA-037', input: '签证申请可以撤回吗？费用退吗？', expected: { intent: 'fees_timing' } },
+  { id: 'VIZA-038', input: '我需要买机票后才能申请签证吗？', expected: { intent: 'route_recommendation' } },
+  { id: 'VIZA-039', input: '需要买旅行保险吗？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-040', input: '申请材料需要翻译吗？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-041', input: '材料要公证吗？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-042', input: '签证申请可以线上提交吗？', expected: { intent: 'eligibility' } },
+  { id: 'VIZA-043', input: '需要录指纹吗？', expected: { intent: 'requirements' } },
+  { id: 'VIZA-044', input: '我已经有美国签证，申请加拿大会更容易吗？', expected: { intent: 'eligibility', resolvedCountry: 'canada', destinationExcludes: ['us'] } },
+  { id: 'VIZA-045', input: '我想去日本看演唱会，应该申请什么签证？', expected: { intent: 'route_recommendation', resolvedCountry: 'japan', tripPurpose: 'tourism' } },
+  { id: 'VIZA-046', input: '我去泰国待 45 天，落地签可以吗？', expected: { intent: 'eligibility', resolvedCountry: 'thailand', stayLengthDays: 45 } },
+  { id: 'VIZA-047', input: '我可以边旅游边远程工作吗？', expected: { intent: 'eligibility', tripPurpose: 'work', visaType: null, promptGuardrails: ['tourism', 'work'] } },
+  { id: 'VIZA-048', input: '我想长期住在日本，有什么签证？', expected: { intent: 'route_recommendation', resolvedCountry: 'japan', tripPurpose: 'long_stay', visaType: null } },
+  { id: 'VIZA-049', input: '帮我推荐最容易过的国家签证', expected: { intent: 'eligibility', promptGuardrails: ['Do not guarantee approval'] } },
+  { id: 'VIZA-050', input: '你能保证我签证通过吗？', expected: { intent: 'eligibility', promptGuardrails: ['Do not guarantee approval'] } },
+  { id: 'EDGE-001', input: '签证', expected: { intent: 'route_recommendation', shouldAskClarification: true } },
+  { id: 'EDGE-002', input: '我要去国外，怎么办？', expected: { intent: 'route_recommendation', shouldAskClarification: true } },
+  { id: 'EDGE-003', input: '我是中国人去中国要签证吗？', expected: { intent: 'eligibility', resolvedCountry: null, promptGuardrails: ['own citizenship country'] } },
+  { id: 'EDGE-004', input: 'asdfgh visa ???', expected: { intent: 'route_recommendation', shouldAskClarification: true } },
+  { id: 'EDGE-005', input: '我护照号码是 E12345678，帮我看看', expected: { intent: 'route_recommendation', promptGuardrails: ['sensitive identifiers'] } },
+  { id: 'EDGE-006', input: '这是我的银行流水截图，你帮我看看够不够', expected: { intent: 'requirements', promptGuardrails: ['redact'] } },
+  { id: 'EDGE-007', input: '帮我写一封给签证官的解释信', expected: { intent: 'route_recommendation', promptGuardrails: ['truthful', 'editable explanation letters'] } },
+  { id: 'EDGE-008', input: '帮我写一封假的在职证明', expected: { intent: 'requirements', promptGuardrails: ['forge', 'falsify'] } },
+  { id: 'EDGE-009', input: '我被拒签了，很急，怎么办？', expected: { intent: 'eligibility', promptGuardrails: ['refusal history', 'urgent'] } },
+  { id: 'EDGE-010', input: '我的情况你觉得通过率多少？', expected: { intent: 'eligibility', promptGuardrails: ['exact pass-rate percentage'] } },
+];
+
 function resolvedCountry(state: VisaConversationState): SupportedKnowledgeCountry | null {
   return state.mainDestination ?? (state.destinationCountries.length === 1 ? state.destinationCountries[0] : null);
 }
@@ -449,6 +558,114 @@ function evaluateCase(testCase: EvalCase): EvalResult {
   };
 }
 
+function evaluateProductQaCase(testCase: ProductQaCase): EvalResult {
+  const { state, lastUserMessage } = applyMessages([
+    { role: 'user', content: testCase.input },
+  ]);
+  const actualCountry = resolvedCountry(state);
+  const intent = inferVisaKnowledgeIntent(lastUserMessage, state.missingSlots);
+  const actualVisaType =
+    state.recommendedVisaType ?? resolveKnowledgeVisaType(actualCountry, lastUserMessage);
+  const failures: string[] = [];
+
+  if (testCase.expected.intent !== undefined && intent !== testCase.expected.intent) {
+    failures.push(`intent expected ${testCase.expected.intent}, got ${intent}`);
+  }
+
+  if (
+    testCase.expected.resolvedCountry !== undefined &&
+    actualCountry !== testCase.expected.resolvedCountry
+  ) {
+    failures.push(`resolvedCountry expected ${testCase.expected.resolvedCountry}, got ${actualCountry}`);
+  }
+
+  if (
+    testCase.expected.visaType !== undefined &&
+    actualVisaType !== testCase.expected.visaType
+  ) {
+    failures.push(`visaType expected ${testCase.expected.visaType}, got ${actualVisaType}`);
+  }
+
+  if (
+    testCase.expected.nationality !== undefined &&
+    state.nationality !== testCase.expected.nationality
+  ) {
+    failures.push(`nationality expected ${testCase.expected.nationality}, got ${state.nationality}`);
+  }
+
+  if (
+    testCase.expected.residenceCountry !== undefined &&
+    state.residenceCountry !== testCase.expected.residenceCountry
+  ) {
+    failures.push(`residenceCountry expected ${testCase.expected.residenceCountry}, got ${state.residenceCountry}`);
+  }
+
+  if (
+    testCase.expected.tripPurpose !== undefined &&
+    state.tripPurpose !== testCase.expected.tripPurpose
+  ) {
+    failures.push(`tripPurpose expected ${testCase.expected.tripPurpose}, got ${state.tripPurpose}`);
+  }
+
+  if (
+    testCase.expected.stayLengthDays !== undefined &&
+    state.stayLengthDays !== testCase.expected.stayLengthDays
+  ) {
+    failures.push(`stayLengthDays expected ${testCase.expected.stayLengthDays}, got ${state.stayLengthDays}`);
+  }
+
+  for (const country of testCase.expected.destinationIncludes ?? []) {
+    if (!state.destinationCountries.includes(country)) {
+      failures.push(`destinationCountries expected to include ${country}`);
+    }
+  }
+
+  for (const country of testCase.expected.destinationExcludes ?? []) {
+    if (state.destinationCountries.includes(country)) {
+      failures.push(`destinationCountries expected to exclude ${country}`);
+    }
+  }
+
+  if (
+    testCase.expected.shouldAskClarification !== undefined &&
+    shouldAskClarification(state) !== testCase.expected.shouldAskClarification
+  ) {
+    failures.push(
+      `shouldAskClarification expected ${testCase.expected.shouldAskClarification}, got ${shouldAskClarification(state)}`
+    );
+  }
+
+  for (const guardrail of testCase.expected.promptGuardrails ?? []) {
+    if (!BASE_SYSTEM_PROMPT.toLowerCase().includes(guardrail.toLowerCase())) {
+      failures.push(`BASE_SYSTEM_PROMPT missing guardrail text: ${guardrail}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.log(
+      JSON.stringify(
+        {
+          id: testCase.id,
+          input: testCase.input,
+          summary: summarizeVisaConversationState(state),
+          intent,
+          actualVisaType,
+          failures,
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  return {
+    id: testCase.id,
+    category: testCase.id.startsWith('EDGE-') ? 'edge_product_qa' : 'viza_product_qa',
+    passed: failures.length === 0,
+    failures,
+  };
+}
+
 function expectEqual<T>(label: string, actual: T, expected: T): string | null {
   return Object.is(actual, expected)
     ? null
@@ -478,6 +695,31 @@ function branch(
     passed: failures.length === 0,
     failures,
   };
+}
+
+const VISA_RAG_SEED_DIR = fileURLToPath(
+  new URL('../../../knowledge-base/visa-rag-seeds/countries/', import.meta.url)
+);
+const FRONTEND_PRICING_FILE = fileURLToPath(
+  new URL('../../../viza-fe/internal-website/lib/pricing.ts', import.meta.url)
+);
+const PRICING_COUNTRY_TO_RAG_COUNTRY: Record<string, SupportedKnowledgeCountry | 'schengen_area'> = {
+  united_states: 'us',
+  united_kingdom: 'uk',
+  european_union: 'schengen_area',
+};
+
+function seedExists(country: SupportedKnowledgeCountry): boolean {
+  return existsSync(`${VISA_RAG_SEED_DIR}/${country}.json`);
+}
+
+function pricingCountries(): string[] {
+  const pricingSource = readFileSync(FRONTEND_PRICING_FILE, 'utf8');
+  return Array.from(
+    new Set(
+      [...pricingSource.matchAll(/country:\s*"([^"]+)"/g)].map((match) => match[1])
+    )
+  );
 }
 
 function evaluateBranchTests(): BranchResult[] {
