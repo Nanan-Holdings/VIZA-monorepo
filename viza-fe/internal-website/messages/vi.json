@@ -2730,29 +2730,56 @@
     },
   "payment": {
     "selected": "[VI] Default",
+    "pendingVerification": "[VI] Verification pending",
     "setDefault": "[VI] Set as default",
     "manage": "[VI] Manage accounts",
     "manageSelected": "[VI] Managing",
     "managerHint": "[VI] Bind multiple accounts for this payment method and choose the default account to try first.",
+    "managerHints": {
+      "bank_card": "[VI] Cards must complete hosted Stripe verification before they are available for future payment selection.",
+      "wechat_pay": "[VI] WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
+      "alipay": "[VI] Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
+    },
     "boundCount": "[VI] {count} bound",
     "defaultAccount": "[VI] Default: {account}",
     "empty": "[VI] No account is bound yet. Add one to edit, delete, or set it as default here.",
     "addTitle": "[VI] Add payment account",
+    "cardAddTitle": "[VI] Add card",
+    "qrAddTitle": "[VI] Scan to bind account",
     "editTitle": "[VI] Edit payment account",
     "addAccount": "[VI] Add account",
+    "verifyWithStripe": "[VI] Verify with Stripe",
+    "generateQr": "[VI] Generate binding QR",
+    "regenerateQr": "[VI] Regenerate QR",
+    "checkQrStatus": "[VI] Check binding status",
     "saveEdit": "[VI] Save changes",
     "cancelEdit": "[VI] Cancel edit",
     "edit": "[VI] Edit",
     "delete": "[VI] Delete",
     "safeHint": "[VI] Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+    "stripeHint": "[VI] Card number and CVV are used only to start hosted Stripe verification; VIZA does not store the full card number or CVV.",
+    "cardIdentifier": "[VI] Ending in {last4} · Stripe verification pending",
+    "qrAlt": "[VI] Payment account binding QR code",
+    "qrEmpty": "[VI] Generate a QR code, then scan it with the matching app to bind the account.",
+    "qrExpires": "[VI] QR code expires at {time}.",
+    "qrHint": {
+      "wechat_pay": "[VI] Scan with WeChat to authorize account binding, then return here and check the status.",
+      "alipay": "[VI] Scan with Alipay to authorize account binding, then return here and check the status."
+    },
     "fields": {
       "label": "[VI] Account name",
-      "identifier": "[VI] Identifier"
+      "identifier": "[VI] Identifier",
+      "nickname": "[VI] Nickname",
+      "cardNumber": "[VI] Card number",
+      "cvv": "[VI] CVV"
     },
     "placeholders": {
       "bank_card": {
         "label": "[VI] For example: DBS debit card",
-        "identifier": "[VI] For example: ending in 5857"
+        "identifier": "[VI] For example: ending in 5857",
+        "nickname": "[VI] For example: DBS debit card",
+        "cardNumber": "[VI] Enter card number",
+        "cvv": "[VI] 3 or 4 digit security code"
       },
       "wechat_pay": {
         "label": "[VI] For example: My WeChat",
@@ -2765,23 +2792,37 @@
     },
     "messages": {
       "required": "[VI] Enter an account name and identifier.",
+      "nicknameRequired": "[VI] Enter a card nickname.",
+      "cardNumberInvalid": "[VI] Enter a valid card number.",
+      "cvvInvalid": "[VI] Enter a valid CVV.",
       "added": "[VI] Payment account added.",
       "updated": "[VI] Payment account updated.",
       "deleted": "[VI] Payment account deleted.",
-      "defaultUpdated": "[VI] Default payment account updated."
+      "defaultUpdated": "[VI] Default payment account updated.",
+      "stripeUnavailable": "[VI] Stripe is not configured, so card verification is unavailable.",
+      "stripeStartFailed": "[VI] Could not start Stripe verification. Please try again later.",
+      "stripeRedirect": "[VI] Opening the hosted Stripe verification page.",
+      "stripeReturned": "[VI] Stripe verification returned. The payment service will update the binding status after confirmation.",
+      "stripeCancelled": "[VI] Stripe verification was cancelled. The card is not fully bound yet.",
+      "qrStartFailed": "[VI] Could not generate a binding QR code. Please try again later.",
+      "qrReady": "[VI] QR code generated. Scan it with the matching app.",
+      "qrStatusFailed": "[VI] Could not check binding status. Please try again later.",
+      "qrExpired": "[VI] This QR code has expired. Generate a new one.",
+      "qrPending": "[VI] No scan result has been received yet. Scan first, then check again.",
+      "qrBound": "[VI] QR binding completed."
     },
     "methods": {
       "bank_card": {
         "title": "[VI] Card",
-        "description": "[VI] Bind cards used for hosted checkout and receipt tracking."
+        "description": "[VI] Enter card number, CVV, and nickname, then verify through Stripe."
       },
       "wechat_pay": {
         "title": "[VI] WeChat Pay",
-        "description": "[VI] Bind a WeChat account to use first when supported."
+        "description": "[VI] Bind by scanning a QR code with WeChat."
       },
       "alipay": {
         "title": "[VI] Alipay",
-        "description": "[VI] Bind an Alipay account for future payment selection."
+        "description": "[VI] Bind by scanning a QR code with Alipay."
       }
     }
   },
