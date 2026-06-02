@@ -4,6 +4,7 @@ import { visaChatMessages } from '../db/schema.js';
 import {
   COUNTRY_DISPLAY_NAMES,
   detectKnowledgeCountriesInOrder,
+  earliestCountryIndex,
   getDefaultVisitorVisaType,
   isSchengenKnowledgeCountry,
   type SupportedKnowledgeCountry,
@@ -19,6 +20,7 @@ export type TripPurpose =
   | 'work'
   | 'family_visit'
   | 'transit'
+  | 'long_stay'
   | 'unknown';
 
 export interface VisaConversationState {
@@ -68,7 +70,7 @@ function uniqueCountries(
 }
 
 function normalizeFreeTextCountry(value: string): string {
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/^在/, '').replace(/的$/, '').trim();
   if (!trimmed) return trimmed;
   if (/^(中国|china|chinese|中国大陆|大陆)$/i.test(trimmed)) return 'China';
   if (/^(新加坡|singapore)$/i.test(trimmed)) return 'Singapore';
@@ -123,6 +125,9 @@ function parseStayDays(value: string): number | null {
 
 function inferTripPurpose(message: string): TripPurpose | null {
   const normalized = message.toLowerCase();
+  if (/(长期居留|长期住|长期生活|定居|移民|永居|long[-\s]?term|long stay|residence)/i.test(normalized)) {
+    return 'long_stay';
+  }
   if (/(工作|work|employment|上班)/i.test(normalized)) return 'work';
   if (/(学习|留学|study|student|school)/i.test(normalized)) return 'study';
   if (/(探亲|访友|family|friend|relative)/i.test(normalized)) return 'family_visit';
@@ -137,6 +142,13 @@ function inferTripPurpose(message: string): TripPurpose | null {
 function extractNationality(message: string): string | null {
   if (/(中国护照|中国国籍|我是中国人|chinese passport|chinese citizen)/i.test(message)) {
     return 'China';
+  }
+
+  const passportIsMatch =
+    message.match(/(?:持有|持)\s*([\p{Script=Han}A-Za-z\s]+?)(?:的)?(?:护照|passport)/iu) ??
+    message.match(/(?:护照是)\s*([\p{Script=Han}A-Za-z\s]+?)(?:的)?(?:[,，;；。.!?\n]|$)/iu);
+  if (passportIsMatch?.[1]) {
+    return normalizeFreeTextCountry(passportIsMatch[1]);
   }
 
   const passportMatch = message.match(/([\p{Script=Han}A-Za-z\s]+?)(?:护照|passport)/iu);
@@ -154,7 +166,10 @@ function extractNationality(message: string): string | null {
 
 function extractResidenceCountry(message: string): string | null {
   const residencePatterns = [
-    /(?:住在|居住在|目前在|现在在|我住|居住|常住)\s*([\p{Script=Han}A-Za-z\s]+)/iu,
+    /(?:人在|目前在|现在在|当前在|我在)\s*([^,，;；。.!?\n]+)/iu,
+    /(?:我(?:住在|居住在)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，;；。.!?\n]+)/iu,
+    /(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/iu,
+    /([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/iu,
     /(?:live in|living in|resident in|reside in|apply from)\s+([A-Za-z\s]+)/iu,
   ];
 
@@ -172,7 +187,10 @@ function extractResidenceCountry(message: string): string | null {
 
 function extractResidenceCountries(message: string): SupportedKnowledgeCountry[] {
   const residenceTextMatches = [
-    ...message.matchAll(/(?:住在|居住在|目前在|现在在|我住|居住|常住)([^,，;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:人在|目前在|现在在|当前在|我在)([^,，;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:我(?:住在|居住在)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/giu),
+    ...message.matchAll(/([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/giu),
     ...message.matchAll(/(?:live in|living in|resident in|reside in|apply from)\s+([^,，;；。.!?\n]*)/giu),
   ];
   return uniqueCountries(
@@ -182,10 +200,53 @@ function extractResidenceCountries(message: string): SupportedKnowledgeCountry[]
   );
 }
 
+function extractContextOnlyCountries(message: string): SupportedKnowledgeCountry[] {
+  const contextMatches = [
+    ...message.matchAll(/(?:已有|已经有|有|持有|valid|existing).{0,12}?(?:签证|visa)/giu),
+  ];
+  return uniqueCountries(
+    contextMatches.flatMap((match) => detectKnowledgeCountriesInOrder(match[0]))
+  );
+}
+
 function extractFirstEntryCountry(message: string): SupportedKnowledgeCountry | null {
-  const firstEntryMatch = message.match(/(?:首入境|第一入境|先到|first entry|enter first|arrive first)([^,，;；。.!?\n]*)/iu);
+  const firstEntryMatch = message.match(/(?:首入境|第一入境|先到|first entry|enter first|arrive first)([^,，;；。.!?\n]*)/iu)
+    ?? message.match(/(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:入境|进入申根)/iu);
   if (!firstEntryMatch?.[1]) return null;
   return detectKnowledgeCountriesInOrder(firstEntryMatch[1])[0] ?? null;
+}
+
+function extractCountryDaySplit(
+  message: string,
+  countries: SupportedKnowledgeCountry[]
+): Partial<Record<SupportedKnowledgeCountry, number>> {
+  if (countries.length < 2) return {};
+
+  const equalDaysMatch = message.match(/各\s*(\d+(?:[.．]\d+)?)\s*(?:天|日|days?)/i);
+  if (equalDaysMatch?.[1] && countries.length > 1) {
+    const days = Number(equalDaysMatch[1].replace('．', '.'));
+    return Object.fromEntries(countries.map((country) => [country, days])) as Partial<
+      Record<SupportedKnowledgeCountry, number>
+    >;
+  }
+
+  const normalized = message.toLowerCase();
+  const ordered = countries
+    .map((country) => ({ country, index: earliestCountryIndex(normalized, country) }))
+    .filter((entry) => entry.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  const daySplit: Partial<Record<SupportedKnowledgeCountry, number>> = {};
+
+  ordered.forEach((entry, index) => {
+    const nextIndex = ordered[index + 1]?.index ?? message.length;
+    const segment = message.slice(entry.index, nextIndex);
+    const daysMatch = segment.match(/(\d+(?:[.．]\d+)?)\s*(?:天|日|days?)/i);
+    if (daysMatch?.[1]) {
+      daySplit[entry.country] = Number(daysMatch[1].replace('．', '.'));
+    }
+  });
+
+  return daySplit;
 }
 
 function findLastAssistant(history: ChatTurn[]): ChatTurn | null {
@@ -350,13 +411,31 @@ function buildDirectPatch(message: string): VisaConversationStatePatch {
   const patch: VisaConversationStatePatch = {};
   const mentionedCountries = detectKnowledgeCountriesInOrder(message);
   const residenceCountries = extractResidenceCountries(message);
+  const contextOnlyCountries = extractContextOnlyCountries(message);
   const destinationCountries = mentionedCountries.filter(
-    (country) => !residenceCountries.includes(country)
+    (country) =>
+      !residenceCountries.includes(country) &&
+      !(
+        contextOnlyCountries.includes(country) &&
+        mentionedCountries.some((mentionedCountry) => mentionedCountry !== country)
+      )
   );
 
   if (destinationCountries.length > 0) {
     patch.destinationCountries = uniqueCountries(destinationCountries);
     if (destinationCountries.length === 1) patch.mainDestination = destinationCountries[0];
+
+    const daySplit = extractCountryDaySplit(message, destinationCountries);
+    const daySplitEntries = Object.entries(daySplit);
+    if (daySplitEntries.length > 0) {
+      patch.schengenDaySplit = daySplit;
+      if (daySplitEntries.length === destinationCountries.length) {
+        patch.stayLengthDays = daySplitEntries.reduce(
+          (sum, [, days]) => sum + Number(days),
+          0
+        );
+      }
+    }
   }
 
   const nationality = extractNationality(message);
@@ -369,7 +448,7 @@ function buildDirectPatch(message: string): VisaConversationStatePatch {
   if (tripPurpose) patch.tripPurpose = tripPurpose;
 
   const stayMatch = message.match(/(\d+(?:[.．]\d+)?)\s*(?:天|日|days?)/i);
-  if (stayMatch?.[1]) {
+  if (stayMatch?.[1] && patch.stayLengthDays === undefined) {
     patch.stayLengthDays = Number(stayMatch[1].replace('．', '.'));
   }
 
@@ -459,7 +538,7 @@ function resolveMainDestination(
 function shouldUseVisitorRoute(state: VisaConversationState): boolean {
   return (
     !state.tripPurpose ||
-    ['tourism', 'business', 'family_visit', 'transit', 'unknown'].includes(
+    ['tourism', 'business', 'family_visit', 'unknown'].includes(
       state.tripPurpose
     )
   );

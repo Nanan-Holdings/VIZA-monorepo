@@ -432,8 +432,9 @@ export function inferVisaKnowledgeIntent(
       '帮我申请',
       '帮我填',
       '填表',
-      '表格',
-      '申请表',
+      '申请表链接',
+      '表格链接',
+      '申请页面',
       '下一步',
       '继续申请',
       '前往申请',
@@ -450,17 +451,120 @@ export function inferVisaKnowledgeIntent(
   ) {
     return 'form_intake';
   }
-  if (includesAny(normalized, ['费用', '多少钱', '处理时间', '多久', 'fee', 'cost', 'processing time'])) {
+  if (
+    includesAny(normalized, [
+      '费用',
+      '多少钱',
+      '申请费',
+      '处理时间',
+      '一般多久',
+      '多久能',
+      '来得及',
+      '有效期',
+      '停留多久',
+      '签证进度',
+      '查询进度',
+      '状态',
+      '撤回',
+      '退款',
+      'fee',
+      'cost',
+      'processing time',
+      'validity',
+      'status',
+      'withdraw',
+      'refund',
+    ])
+  ) {
     return 'fees_timing';
   }
-  if (includesAny(normalized, ['材料', '文件', 'documents', 'requirements', '需要什么'])) {
-    return 'requirements';
-  }
-  if (includesAny(normalized, ['能不能', '是否可以', 'eligible', 'eligibility', 'qualify'])) {
+  if (
+    includesAny(normalized, [
+      '需要签证吗',
+      '要签证吗',
+      '能不能',
+      '是否可以',
+      '可以吗',
+      '可以在',
+      '可以申请',
+      '可不可以',
+      '会不会影响',
+      '会不会很难',
+      '难不难',
+      '更容易',
+      '容易过',
+      '保证',
+      '通过率',
+      '申请地',
+      '拒签',
+      'eligible',
+      'eligibility',
+      'qualify',
+      'can i apply',
+      'do i need a visa',
+    ])
+  ) {
     return 'eligibility';
   }
   if (includesAny(normalized, ['官方', '来源', '链接', 'source', 'official'])) {
     return 'source_check';
+  }
+  if (
+    includesAny(normalized, [
+      '材料',
+      '文件',
+      '银行流水',
+      '资金证明',
+      '在职证明',
+      '收入证明',
+      '证明收入',
+      '邀请函',
+      '面签',
+      '免面签',
+      '录指纹',
+      '指纹',
+      '生物信息',
+      '照片',
+      '护照有效期',
+      '护照还有',
+      '旅行保险',
+      '保险',
+      '翻译',
+      '公证',
+      '认证',
+      '小孩',
+      '儿童',
+      '未成年人',
+      '过境签',
+      '过境',
+      '转机',
+      '申请表怎么填',
+      '申请表',
+      '旅行计划',
+      '准备什么',
+      '线上提交',
+      '在线提交',
+      'documents',
+      'requirements',
+      'bank statement',
+      'proof of funds',
+      'employment letter',
+      'invitation letter',
+      'interview',
+      'biometrics',
+      'fingerprint',
+      'photo',
+      'passport validity',
+      'insurance',
+      'translate',
+      'notar',
+      'minor',
+      'child',
+      'transit',
+      '需要什么',
+    ])
+  ) {
+    return 'requirements';
   }
   if (missingSlots.length === 0 && includesAny(normalized, ['申请', 'apply'])) {
     return 'form_intake';
