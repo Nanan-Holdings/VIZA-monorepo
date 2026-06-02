@@ -136,6 +136,9 @@ function inferTripPurpose(message: string): TripPurpose | null {
   if (/(旅游|旅行|观光|度假|演唱会|concert|touris|holiday|vacation|visit)/i.test(normalized)) {
     return 'tourism';
   }
+  if (/(?:去|前往|计划去|想去|到|visit).{0,40}(?:签证|visa|停留|\d+(?:[.．]\d+)?\s*(?:天|日|days?))/i.test(normalized)) {
+    return 'tourism';
+  }
   return null;
 }
 
@@ -164,6 +167,12 @@ function extractNationality(message: string): string | null {
   return null;
 }
 
+function isTravelActionResidenceSegment(value: string): boolean {
+  return /(转机|过境|入境|旅游|旅行|观光|度假|visit|transit|travel|touris|holiday|vacation)/i.test(
+    value
+  );
+}
+
 function extractResidenceCountry(message: string): string | null {
   const residencePatterns = [
     /(?:人在|目前在|现在在|当前在|我在)\s*([^,，、;；。.!?\n]+)/iu,
@@ -176,6 +185,7 @@ function extractResidenceCountry(message: string): string | null {
   for (const pattern of residencePatterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
+      if (isTravelActionResidenceSegment(match[1])) continue;
       const countries = detectKnowledgeCountriesInOrder(match[1]);
       if (countries[0]) return COUNTRY_DISPLAY_NAMES[countries[0]];
       return normalizeFreeTextCountry(match[1]);
@@ -194,9 +204,10 @@ function extractResidenceCountries(message: string): SupportedKnowledgeCountry[]
     ...message.matchAll(/(?:live in|living in|resident in|reside in|apply from)\s+([^,，、;；。.!?\n]*)/giu),
   ];
   return uniqueCountries(
-    residenceTextMatches.flatMap((match) =>
-      match[1] ? detectKnowledgeCountriesInOrder(match[1]) : []
-    )
+    residenceTextMatches.flatMap((match) => {
+      if (!match[1] || isTravelActionResidenceSegment(match[1])) return [];
+      return detectKnowledgeCountriesInOrder(match[1]);
+    })
   );
 }
 

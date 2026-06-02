@@ -79,11 +79,17 @@ const PASSPORT_EXTRACT_SCHEMA = {
       "dob",
       "sex",
       "nationality",
+      "cityOfBirth",
+      "countryOfBirth",
       "passportNumber",
+      "passportType",
       "issuingCountry",
+      "issuanceCity",
+      "issuanceProvince",
       "issueDate",
       "expiryDate",
       "confidence",
+      "warnings",
     ],
   };
 
