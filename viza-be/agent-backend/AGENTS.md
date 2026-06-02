@@ -26,6 +26,7 @@ form/RAG seed scripts.
   `drizzle/0013_internal_automation_loop.sql`.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 
 ## Ownership Boundaries
 
@@ -79,4 +80,5 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `scripts/ingest-country-visa-rag.ts`
 - `scripts/ingest-photo-requirements-rag.ts`
 - `scripts/seed-*-form-fields.ts`
+- `tests/setup.ts`
 - `drizzle/*.sql`

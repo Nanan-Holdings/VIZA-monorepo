@@ -10,6 +10,8 @@ This module holds shared payment-domain helpers used by client and API routes.
 
 - `commercial-products.ts`: CNY subscription and pay-per-application product
   catalog used by `/client/subscription`.
+- `commercial-session.ts`: resolves the current client portal applicant session
+  for commercial subscription payment records.
 - `refund-rules.ts`: refund eligibility helpers for existing payment records.
 
 ## Guardrails

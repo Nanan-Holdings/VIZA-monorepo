@@ -459,6 +459,11 @@ export function SettingsContent() {
       email: normalizedEmail,
       options: {
         shouldCreateUser: false,
+        data: {
+          locale: emailLocale,
+          language: emailLocale,
+          preferred_language: emailLocale,
+        },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/settings`,
       },
     });

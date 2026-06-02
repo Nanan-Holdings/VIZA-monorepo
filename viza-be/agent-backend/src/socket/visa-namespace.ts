@@ -363,7 +363,32 @@ export function resolveKnowledgeVisaType(
     return applicationVisaType ?? null;
   }
 
-  if (includesAny(normalized, ['工作', '学习', '留学', 'work', 'study', 'student', 'employment'])) {
+  if (
+    includesAny(normalized, [
+      '工作',
+      '读书',
+      '学习',
+      '留学',
+      '学生签证',
+      '长期',
+      '长期居留',
+      '长期住',
+      '定居',
+      '移民',
+      '永居',
+      '转机',
+      '过境',
+      'work',
+      'study',
+      'student',
+      'employment',
+      'long-term',
+      'long term',
+      'long stay',
+      'residence',
+      'transit',
+    ])
+  ) {
     return null;
   }
 
@@ -497,6 +522,15 @@ export function inferVisaKnowledgeIntent(
       '通过率',
       '申请地',
       '拒签',
+      '假的',
+      '造假',
+      '伪造',
+      '编一份',
+      '影响签证',
+      '出入境记录',
+      '可以改',
+      '可以线上',
+      '远程工作',
       'eligible',
       'eligibility',
       'qualify',
@@ -518,6 +552,8 @@ export function inferVisaKnowledgeIntent(
       '在职证明',
       '收入证明',
       '证明收入',
+      '工作签证',
+      '雇主',
       '邀请函',
       '面签',
       '免面签',

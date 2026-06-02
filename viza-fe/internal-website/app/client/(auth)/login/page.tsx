@@ -120,6 +120,7 @@ function ClientLoginContent() {
     if (errorParam === 'not_a_user') setError(t('notRegistered'))
     else if (errorParam === 'auth_failed') setError(t('authFailed'))
     if (searchParams.get('registered') === '1') setNotice(t('registeredSuccess'))
+    if (searchParams.get('reset') === '1') setNotice(t('resetSuccess'))
   }, [searchParams, t])
 
   useEffect(() => {
@@ -140,6 +141,7 @@ function ClientLoginContent() {
         data: {
           locale: emailLocale,
           language: emailLocale,
+          preferred_language: emailLocale,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
