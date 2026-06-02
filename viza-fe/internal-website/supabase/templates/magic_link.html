@@ -1,8 +1,8 @@
-{{ if or (eq .Data.locale "zh") (eq .Data.language "zh") (eq .Data.preferred_language "zh") }}
-<h2>您的 VIZA 登录验证码</h2>
-<p>请输入此 8 位验证码登录：</p>
+{{ if or (eq .Data.locale "en") (eq .Data.language "en") (eq .Data.preferred_language "en") }}
+<h2>Your VIZA login code</h2>
+<p>Enter this 8-digit code to sign in:</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
-<p>验证码将在 1 小时后失效。请勿分享给任何人。</p>
+<p>This code expires in 1 hour. Do not share it with anyone.</p>
 {{ else if or (eq .Data.locale "vi") (eq .Data.language "vi") (eq .Data.preferred_language "vi") }}
 <h2>Mã đăng nhập VIZA của bạn</h2>
 <p>Nhập mã gồm 8 chữ số này để đăng nhập:</p>
@@ -14,8 +14,8 @@
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
 <p>Este código vence en 1 hora. No lo compartas con nadie.</p>
 {{ else }}
-<h2>Your VIZA login code</h2>
-<p>Enter this 8-digit code to sign in:</p>
+<h2>您的 VIZA 登录验证码</h2>
+<p>请输入此 8 位验证码登录：</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
-<p>This code expires in 1 hour. Do not share it with anyone.</p>
+<p>验证码将在 1 小时后失效。请勿分享给任何人。</p>
 {{ end }}

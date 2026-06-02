@@ -5,31 +5,33 @@
  *
  * Accepts a base64-encoded passport data-page image and returns the
  * structured fields needed to prefill the simplified-form identity step.
- * The actual OCR is delegated to Claude Sonnet vision via the Anthropic SDK
- * with tool-call structured output, so the response always conforms to the
- * `PassportExtraction` schema below.
+ * The actual OCR is delegated to OpenAI vision with JSON schema structured
+ * output, so the response always conforms to the `PassportExtraction` schema
+ * below.
  *
  * The caller (Next.js API proxy) is expected to have already verified that
  * the user owns the source image — this route does not enforce auth itself.
  */
 
 import { Router } from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { Logger } from "../utils/logger.js";
 import { maskPII } from "../utils/phi-masker.js";
 
 const logger = new Logger({ serviceName: "PassportScanRoutes" });
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-4-6";
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // Anthropic accepts up to 5MB base64-decoded; we cap raw input at 8MB
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const MODEL =
+  process.env.OPENAI_PASSPORT_SCAN_MODEL ||
+  process.env.OPENAI_VISION_MODEL ||
+  process.env.OPENAI_CHAT_MODEL ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4o-mini";
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-const PASSPORT_EXTRACT_TOOL: Anthropic.Tool = {
-  name: "extract_passport",
-  description:
-    "Return the fields visible on the passport biographic data page, formatted for a U.S. DS-160 visa intake form.",
-  input_schema: {
+const PASSPORT_EXTRACT_SCHEMA = {
     type: "object",
+    additionalProperties: false,
     properties: {
       surname: { type: "string", description: "Family / last name as printed on the passport, uppercase." },
       givenNames: { type: "string", description: "Given / first names as printed on the passport, uppercase." },
@@ -83,12 +85,11 @@ const PASSPORT_EXTRACT_TOOL: Anthropic.Tool = {
       "expiryDate",
       "confidence",
     ],
-  },
-};
+  };
 
 const PASSPORT_EXTRACT_PROMPT = `You are a passport data-page OCR engine. The user has uploaded a single image that should be the photo / biographic data page of their passport.
 
-Read every visible field — including the MRZ (machine-readable zone) at the bottom — and return the structured payload via the extract_passport tool. Rules:
+Read every visible field — including the MRZ (machine-readable zone) at the bottom — and return the structured payload. Rules:
 
 - Convert nationalities and countries to ISO 3166-1 alpha-3 codes (e.g. "CHN" not "China", "USA" not "United States"). Use the MRZ codes if the printed name is in a foreign script.
 - Dates are ISO 8601 (YYYY-MM-DD). If the year prefix is ambiguous (MRZ uses 2-digit years), use the modern century by checking against the issue/expiry pair.
@@ -103,8 +104,8 @@ export const passportScanRouter = Router();
 
 passportScanRouter.post("/extract", async (req, res) => {
   try {
-    if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "your_anthropic_api_key_here") {
-      logger.error("anthropic_key_missing", new Error("ANTHROPIC_API_KEY not configured"));
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
+      logger.error("openai_key_missing", new Error("OPENAI_API_KEY not configured"));
       res.status(500).json({ error: true, message: "OCR service not configured" });
       return;
     }
@@ -130,41 +131,41 @@ passportScanRouter.post("/extract", async (req, res) => {
       return;
     }
 
-    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
     const start = Date.now();
-    const response = await client.messages.create({
+    const response = await client.responses.create({
       model: MODEL,
-      max_tokens: 1024,
-      tools: [PASSPORT_EXTRACT_TOOL],
-      tool_choice: { type: "tool", name: "extract_passport" },
-      messages: [
+      max_output_tokens: 1024,
+      input: [
         {
           role: "user",
           content: [
+            { type: "input_text", text: PASSPORT_EXTRACT_PROMPT },
             {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: declaredMedia as "image/jpeg" | "image/png" | "image/webp",
-                data: imageBase64,
-              },
+              type: "input_image",
+              image_url: `data:${declaredMedia};base64,${imageBase64}`,
+              detail: "high",
             },
-            { type: "text", text: PASSPORT_EXTRACT_PROMPT },
           ],
         },
       ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "passport_extraction",
+          strict: true,
+          schema: PASSPORT_EXTRACT_SCHEMA,
+        },
+      },
     });
 
     const elapsedMs = Date.now() - start;
 
-    const toolBlock = response.content.find(
-      (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
-    );
-    if (!toolBlock || toolBlock.name !== "extract_passport") {
-      logger.error("extract_no_tool_use", new Error("Claude did not return the expected tool call"), {
+    const responseText = response.output_text.trim();
+    if (!responseText) {
+      logger.error("extract_no_structured_output", new Error("OpenAI did not return structured output"), {
         elapsedMs,
-        stopReason: response.stop_reason,
       });
       res
         .status(502)
@@ -172,7 +173,7 @@ passportScanRouter.post("/extract", async (req, res) => {
       return;
     }
 
-    const extracted = toolBlock.input as Record<string, unknown>;
+    const extracted = JSON.parse(responseText) as Record<string, unknown>;
 
     // Mask passport number in logs — never write it in clear.
     logger.info("passport_extracted", {

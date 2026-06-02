@@ -4,13 +4,13 @@
  *
  * Validates a VIZA application against:
  *  1. Hard rules (passport expiry, date ranges, required docs)
- *  2. Claude-powered semantic check against pgvector knowledge base
+ *  2. OpenAI-powered semantic check against pgvector knowledge base
  *
  * Returns: { valid: boolean, errors: FieldError[], warnings: FieldError[], blocked: boolean }
  */
 
 import { Router, Request, Response } from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 
@@ -29,10 +29,14 @@ interface ValidationResult {
   blocked: boolean;
 }
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_VALIDATION_MODEL =
+  process.env.OPENAI_VALIDATION_MODEL ||
+  process.env.OPENAI_CHAT_MODEL ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4o-mini";
 
-// Hard-coded rule checks (run before Claude)
+// Hard-coded rule checks (run before AI semantic validation)
 function runHardRules(app: Record<string, unknown>, docs: string[]): {
   errors: FieldError[];
   warnings: FieldError[];
@@ -167,14 +171,14 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   // Run hard rules first
   const { errors: hardErrors, warnings: hardWarnings } = runHardRules(fullProfile, docs);
 
-  // Run Claude validation if API key is available
+  // Run OpenAI validation if API key is available
   const allErrors: FieldError[] = [...hardErrors];
   const allWarnings: FieldError[] = [...hardWarnings];
 
-  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== "your_anthropic_api_key_here") {
+  if (OPENAI_API_KEY && OPENAI_API_KEY !== "your_openai_api_key_here") {
     try {
       const knowledgeContext = await getKnowledgeContext(supabase);
-      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+      const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
       const appSummary = JSON.stringify({
         full_name: applicant.full_name,
@@ -189,18 +193,54 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         uploaded_documents: docs,
       }, null, 2);
 
-      const message = await client.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: `You are a visa application validator for Indonesia B211A tourist visa. Review the application data against the requirements context provided. Return ONLY valid JSON in this exact format, no other text:
-{"valid":boolean,"errors":[{"field":"string","message":"string"}],"warnings":[{"field":"string","message":"string"}]}`,
-        messages: [{
-          role: "user",
-          content: `Requirements context:\n${knowledgeContext}\n\nApplication data:\n${appSummary}\n\nValidate this application. Check for: passport validity, stay duration, document completeness, and any other issues. Return JSON only.`,
-        }],
+      const message = await client.responses.create({
+        model: OPENAI_VALIDATION_MODEL,
+        max_output_tokens: 1024,
+        instructions:
+          "You are a visa application validator for Indonesia B211A tourist visa. Review the application data against the requirements context provided. Return only structured JSON. Do not add prose outside the JSON.",
+        input: `Requirements context:\n${knowledgeContext}\n\nApplication data:\n${appSummary}\n\nValidate this application. Check for: passport validity, stay duration, document completeness, and any other issues.`,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "application_validation",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                valid: { type: "boolean" },
+                errors: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      field: { type: "string" },
+                      message: { type: "string" },
+                    },
+                    required: ["field", "message"],
+                  },
+                },
+                warnings: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      field: { type: "string" },
+                      message: { type: "string" },
+                    },
+                    required: ["field", "message"],
+                  },
+                },
+              },
+              required: ["valid", "errors", "warnings"],
+            },
+          },
+        },
       });
 
-      const responseText = (message.content[0] as {type: string; text: string}).text.trim();
+      const responseText = message.output_text.trim();
 
       // Extract JSON even if there's surrounding text
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -210,9 +250,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         if (Array.isArray(parsed.warnings)) allWarnings.push(...parsed.warnings);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown Claude validation error";
-      logger.error("Claude validation failed", new Error("Claude validation failed"), { error: message });
-      // Don't block submission on Claude failure — hard rules already ran
+      const message = err instanceof Error ? err.message : "Unknown OpenAI validation error";
+      logger.error("OpenAI validation failed", new Error("OpenAI validation failed"), { error: message });
+      // Don't block submission on OpenAI failure — hard rules already ran
     }
   }
 
