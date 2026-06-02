@@ -46,6 +46,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
 - Local admin test-account bootstrap through
   `scripts/init-admin-account.mjs`.
+- Hosted Supabase auth email template sync through
+  `scripts/sync-supabase-auth-email-templates.mjs`.
 
 ## Source Of Truth
 
@@ -134,4 +136,5 @@ Smoke URLs:
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`
+- `scripts/sync-supabase-auth-email-templates.mjs`
 - `types/*`
