@@ -85,9 +85,9 @@ function alipayTimestamp(): string {
   ].join("");
 }
 
-function canonicalize(params: Record<string, string>): string {
+function canonicalize(params: Record<string, string>, options?: { excludeSignType?: boolean }): string {
   return Object.keys(params)
-    .filter((key) => key !== "sign" && key !== "sign_type" && params[key] !== "")
+    .filter((key) => key !== "sign" && (!options?.excludeSignType || key !== "sign_type") && params[key] !== "")
     .sort()
     .map((key) => `${key}=${params[key]}`)
     .join("&");
@@ -142,7 +142,7 @@ export function verifyAlipayNotify(params: Record<string, string>): boolean {
 
   try {
     const verifier = createVerify("RSA-SHA256");
-    verifier.update(canonicalize(params), "utf8");
+    verifier.update(canonicalize(params, { excludeSignType: true }), "utf8");
     return verifier.verify(createPublicKey(config.alipayPublicKeyPem), signature, "base64");
   } catch {
     return false;
