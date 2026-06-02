@@ -1,14 +1,14 @@
-{{ if eq .Data.locale "zh" }}
+{{ if or (eq .Data.locale "zh") (eq .Data.language "zh") (eq .Data.preferred_language "zh") }}
 <h2>您的 VIZA 验证码</h2>
 <p>请输入此 8 位验证码完成邮箱验证：</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
 <p>验证码将在 1 小时后失效。请勿分享给任何人。</p>
-{{ else if eq .Data.locale "vi" }}
+{{ else if or (eq .Data.locale "vi") (eq .Data.language "vi") (eq .Data.preferred_language "vi") }}
 <h2>Mã xác minh VIZA của bạn</h2>
 <p>Nhập mã gồm 8 chữ số này để xác minh email của bạn:</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>
 <p>Mã này hết hạn sau 1 giờ. Không chia sẻ mã này với bất kỳ ai.</p>
-{{ else if eq .Data.locale "es" }}
+{{ else if or (eq .Data.locale "es") (eq .Data.language "es") (eq .Data.preferred_language "es") }}
 <h2>Tu código de verificación de VIZA</h2>
 <p>Ingresa este código de 8 dígitos para verificar tu correo electrónico:</p>
 <h1 style="letter-spacing: 8px; font-size: 40px; font-family: monospace; color: #03346E;">{{ .Token }}</h1>

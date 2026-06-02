@@ -5,7 +5,7 @@
  * These tests require a live database connection and are skipped by default.
  */
 
-import { describe, it, expect } from "@jest/globals";
+import { describe, expect, it } from "vitest";
 
 describe("Memory Conflict Resolution", () => {
 	describe("LLM-Based Deduplication", () => {

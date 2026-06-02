@@ -128,12 +128,12 @@ function inferTripPurpose(message: string): TripPurpose | null {
   if (/(长期居留|长期住|长期生活|定居|移民|永居|long[-\s]?term|long stay|residence)/i.test(normalized)) {
     return 'long_stay';
   }
-  if (/(工作|work|employment|上班)/i.test(normalized)) return 'work';
-  if (/(学习|留学|study|student|school)/i.test(normalized)) return 'study';
-  if (/(探亲|访友|family|friend|relative)/i.test(normalized)) return 'family_visit';
+  if (/(远程工作|工作|work|employment|上班)/i.test(normalized)) return 'work';
+  if (/(读书|学习|留学|学生签证|study|student|school)/i.test(normalized)) return 'study';
+  if (/(探亲|访友|看朋友|看亲戚|family|friend|relative)/i.test(normalized)) return 'family_visit';
   if (/(商务|会议|business|conference|meeting)/i.test(normalized)) return 'business';
   if (/(转机|过境|transit)/i.test(normalized)) return 'transit';
-  if (/(旅游|旅行|观光|度假|touris|holiday|vacation|visit)/i.test(normalized)) {
+  if (/(旅游|旅行|观光|度假|演唱会|concert|touris|holiday|vacation|visit)/i.test(normalized)) {
     return 'tourism';
   }
   return null;
@@ -167,7 +167,7 @@ function extractNationality(message: string): string | null {
 function extractResidenceCountry(message: string): string | null {
   const residencePatterns = [
     /(?:人在|目前在|现在在|当前在|我在)\s*([^,，;；。.!?\n]+)/iu,
-    /(?:我(?:住在|居住在)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，;；。.!?\n]+)/iu,
+    /(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)\s*([^,，;；。.!?\n]+)/iu,
     /(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/iu,
     /([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/iu,
     /(?:live in|living in|resident in|reside in|apply from)\s+([A-Za-z\s]+)/iu,
@@ -188,7 +188,7 @@ function extractResidenceCountry(message: string): string | null {
 function extractResidenceCountries(message: string): SupportedKnowledgeCountry[] {
   const residenceTextMatches = [
     ...message.matchAll(/(?:人在|目前在|现在在|当前在|我在)([^,，;；。.!?\n]*)/giu),
-    ...message.matchAll(/(?:我(?:住在|居住在)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，;；。.!?\n]*)/giu),
+    ...message.matchAll(/(?:我(?:住在|居住在|住)|目前(?:住在|居住在)|现在(?:住在|居住在)|常住(?:在)?)([^,，;；。.!?\n]*)/giu),
     ...message.matchAll(/(?:从)\s*([^,，;；。.!?\n]+?)\s*(?:出发|申请)/giu),
     ...message.matchAll(/([^,，;；。.!?\n]+?)\s*(?:PR|pr|永久居民)/giu),
     ...message.matchAll(/(?:live in|living in|resident in|reside in|apply from)\s+([^,，;；。.!?\n]*)/giu),
@@ -241,7 +241,8 @@ function extractCountryDaySplit(
     const nextIndex = ordered[index + 1]?.index ?? message.length;
     const segment = message.slice(entry.index, nextIndex);
     const daysMatch = segment.match(/(\d+(?:[.．]\d+)?)\s*(?:天|日|days?)/i);
-    if (daysMatch?.[1]) {
+    const isTotalTripDuration = /(总共|总计|共|一共|total)\s*\d/i.test(segment);
+    if (daysMatch?.[1] && !isTotalTripDuration) {
       daySplit[entry.country] = Number(daysMatch[1].replace('．', '.'));
     }
   });

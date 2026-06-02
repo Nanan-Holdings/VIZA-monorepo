@@ -1,6 +1,6 @@
 "use server";
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAlipayPagePayUrl } from "@/lib/alipay/client";
@@ -10,7 +10,7 @@ import {
   getCommercialProduct,
   type CommercialPaymentProvider,
 } from "@/lib/payments/commercial-products";
-import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { createNativeOrder } from "@/lib/wechatpay/client";
 import {
   createStripeClient,
@@ -83,7 +83,7 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
       return;
     }
 
-    const user = await getAuthenticatedUser();
+    const user = await getCommercialAuthenticatedUser();
     if (!user) {
       destination = "/client/login";
       return;
@@ -122,7 +122,6 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
         fee_type: commercialProductFeeType(product),
         receipt_url: null,
         auth_user_id: user.id,
-        idempotency_key: randomUUID(),
         metadata,
         created_at: now,
         updated_at: now,
@@ -131,6 +130,9 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
       .single();
 
     if (insertError || !paymentRecord) {
+      if (insertError) {
+        console.error("[subscription-payment] Failed to insert payment record:", insertError.message);
+      }
       destination = subscriptionUrl({ error: "payment_record_failed" });
       return;
     }

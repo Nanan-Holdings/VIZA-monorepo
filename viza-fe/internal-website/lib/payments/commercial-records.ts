@@ -2,8 +2,8 @@ import "server-only";
 
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 import { isAlipayConfigReady } from "@/lib/alipay/client";
+import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 
 type Json =
   | string
@@ -98,7 +98,7 @@ export function createStripeClient(): Stripe | null {
 }
 
 export async function getPaymentRecordForCurrentUser(paymentId: string): Promise<PaymentRecordRow | null> {
-  const user = await getAuthenticatedUser();
+  const user = await getCommercialAuthenticatedUser();
   if (!user) return null;
 
   const { data, error } = await createSubscriptionAdminClient()
@@ -120,7 +120,7 @@ export async function reconcileStripeSubscriptionReturn(
 ): Promise<SubscriptionReturnState> {
   if (!paymentId || !sessionId) return null;
 
-  const user = await getAuthenticatedUser();
+  const user = await getCommercialAuthenticatedUser();
   if (!user) {
     return {
       tone: "error",
