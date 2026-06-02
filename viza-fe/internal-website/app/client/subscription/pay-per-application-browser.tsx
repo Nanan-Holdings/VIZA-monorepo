@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  ChevronDown,
   ChevronRight,
   CreditCard,
   MessageCircle,
@@ -10,30 +10,10 @@ import {
   WalletCards,
 } from "lucide-react";
 import { startCommercialCheckout } from "./actions";
+import type { PayPerItem, PayPerRegion } from "./pay-per-types";
 import { cn } from "@/lib/utils";
 
 type CommercialPaymentProvider = "stripe" | "wechat_pay" | "alipay";
-
-export interface PayPerItem {
-  id: string;
-  productId: string;
-  name: string;
-  nameZh: string;
-  visaName: string;
-  visaNameZh: string;
-  amountLabel: string;
-  searchText: string;
-}
-
-export interface PayPerRegion {
-  id: string;
-  name: string;
-  nameZh: string;
-  description: string;
-  descriptionZh: string;
-  flag: string;
-  items: PayPerItem[];
-}
 
 interface PayPerApplicationBrowserProps {
   isZh: boolean;
@@ -44,8 +24,6 @@ interface PayPerApplicationBrowserProps {
     searchResults: string;
     noResults: string;
     chooseRegion: string;
-    collapse: string;
-    expand: string;
     itemSuffix: string;
   };
 }
@@ -81,9 +59,11 @@ function PaymentButtons({
             <input type="hidden" name="provider" value={provider} />
             <button
               type="submit"
-              disabled={!enabled}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-500 bg-white px-4 py-2 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:border-border disabled:text-muted-foreground"
-              title={enabled ? `使用${providerLabels[provider]}支付` : `${providerLabels[provider]}尚未配置`}
+              className={cn(
+                "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-500 bg-white px-4 py-2 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                !enabled && "border-border text-muted-foreground",
+              )}
+              title={enabled ? `使用${providerLabels[provider]}支付` : `检查${providerLabels[provider]}配置并支付`}
             >
               <Icon className="h-4 w-4" />
               {providerLabels[provider]}
@@ -95,7 +75,7 @@ function PaymentButtons({
   );
 }
 
-function PayPerRow({
+export function PayPerRow({
   item,
   isZh,
   readiness,
@@ -128,7 +108,6 @@ export function PayPerApplicationBrowser({
   labels,
 }: PayPerApplicationBrowserProps) {
   const [query, setQuery] = useState("");
-  const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
 
   const allItems = useMemo(() => regions.flatMap((region) => region.items), [regions]);
@@ -137,7 +116,6 @@ export function PayPerApplicationBrowser({
     return allItems.filter((item) => item.searchText.includes(normalizedQuery));
   }, [allItems, normalizedQuery]);
 
-  const activeRegion = regions.find((region) => region.id === activeRegionId) ?? null;
   const showingSearch = normalizedQuery.length > 0;
 
   return (
@@ -177,18 +155,11 @@ export function PayPerApplicationBrowser({
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             {regions.map((region) => {
-              const active = activeRegionId === region.id;
-              const Icon = active ? ChevronDown : ChevronRight;
-
               return (
-                <button
+                <Link
                   key={region.id}
-                  type="button"
-                  onClick={() => setActiveRegionId(active ? null : region.id)}
-                  className={cn(
-                    "min-h-32 rounded-xl border bg-white p-5 text-left shadow-sm transition hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                    active && "border-brand-500 bg-brand-50",
-                  )}
+                  href={region.href}
+                  className="min-h-32 rounded-xl border bg-white p-5 text-left shadow-sm transition hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <span className="text-2xl" aria-hidden>
@@ -196,7 +167,7 @@ export function PayPerApplicationBrowser({
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
                       {region.items.length} {labels.itemSuffix}
-                      <Icon className="h-3.5 w-3.5" />
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </span>
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-foreground">
@@ -205,42 +176,14 @@ export function PayPerApplicationBrowser({
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
                     {isZh ? region.descriptionZh : region.description}
                   </p>
-                </button>
+                </Link>
               );
             })}
           </div>
 
-          {activeRegion ? (
-            <section className="rounded-xl border bg-white p-4 shadow-sm sm:p-5">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">
-                    {isZh ? activeRegion.nameZh : activeRegion.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {isZh ? activeRegion.descriptionZh : activeRegion.description}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveRegionId(null)}
-                  className="inline-flex min-h-10 w-fit items-center justify-center rounded-full border px-4 text-sm font-medium text-brand-500 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  {labels.collapse}
-                </button>
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                {activeRegion.items.map((item) => (
-                  <PayPerRow key={item.id} item={item} isZh={isZh} readiness={readiness} />
-                ))}
-              </div>
-            </section>
-          ) : (
-            <p className="rounded-lg border bg-brand-50 p-4 text-sm leading-6 text-brand-900">
-              {labels.chooseRegion}
-            </p>
-          )}
+          <p className="rounded-lg border bg-brand-50 p-4 text-sm leading-6 text-brand-900">
+            {labels.chooseRegion}
+          </p>
         </>
       )}
     </div>

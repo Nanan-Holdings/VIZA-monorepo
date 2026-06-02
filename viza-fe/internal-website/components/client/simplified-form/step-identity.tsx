@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ScanLine, Keyboard, Info, X } from "lucide-react";
+import { CheckCircle2, ScanLine, Keyboard, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -35,6 +35,7 @@ export function StepIdentity({
   const [mode, setMode] = useState<"choose" | "scan" | "manual">(
     value.firstName || value.lastName ? "manual" : "choose",
   );
+  const [passportUploadSaved, setPassportUploadSaved] = useState(false);
 
   const set = <K extends keyof SimplifiedIdentity>(key: K, next: SimplifiedIdentity[K]) =>
     onChange({ ...value, [key]: next });
@@ -97,6 +98,7 @@ export function StepIdentity({
           if (onPassportExtracted && Object.keys(passportPatch).length > 0) {
             onPassportExtracted(passportPatch);
           }
+          setPassportUploadSaved(true);
           setMode("manual");
         }}
         onCancel={() => setMode("choose")}
@@ -154,6 +156,12 @@ export function StepIdentity({
         </h1>
         <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
       </header>
+      {passportUploadSaved ? (
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <p className="text-sm font-medium">{t("scanUploadedSuccess")}</p>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <BrandField label={t("firstName")} htmlFor="first-name" required>

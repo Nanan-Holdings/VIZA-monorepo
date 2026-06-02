@@ -26,8 +26,8 @@
   },
   "session": {
     "invalidatedTitle": "[VI] Session No Longer Active",
-    "invalidatedBody": "[VI] Another user view was opened in a different tab. This session has been invalidated for security.",
-    "invalidatedHint": "[VI] Please close this tab and use the new user view tab."
+    "invalidatedBody": "[VI] Another applicant view was opened in a different tab. This session has stopped displaying for security.",
+    "invalidatedHint": "[VI] Please close this tab and use the new applicant view tab."
   },
   "home": {
     "welcomeBack": "[VI] Welcome back, {name}.",

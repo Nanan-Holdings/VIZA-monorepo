@@ -29,8 +29,8 @@
   },
   "session": {
     "invalidatedTitle": "会话已失效",
-    "invalidatedBody": "另一个患者视图已在其他标签页中打开。出于安全原因，此会话已被终止。",
-    "invalidatedHint": "请关闭此标签页并使用新的患者视图标签页。"
+    "invalidatedBody": "另一个申请人视图已在其他标签页中打开。出于安全原因，此会话已停止显示。",
+    "invalidatedHint": "请关闭此标签页并使用新的申请人视图标签页。"
   },
   "home": {
     "welcomeBack": "欢迎回来，{name}。",
@@ -1281,6 +1281,8 @@
       "scanResultTitle": "确认识别结果",
       "scanResultSubtitle": "如有不正确的字段,请在继续前修改。",
       "scanUseDetails": "使用这些信息",
+      "scanSaving": "正在保存",
+      "scanUploadedSuccess": "护照页已上传成功，并已保存到材料记录。",
       "scanRetry": "重新拍摄",
       "scanFallbackManual": "改为手动输入",
       "scanPrivacyNote": "扫描件经加密传输,仅用于识别,提交后即删除。",
@@ -4357,9 +4359,11 @@
       "searchPlaceholder": "搜索国家或签证表单",
       "searchResults": "搜索结果",
       "noResults": "没有找到匹配的国家或表单。",
-      "chooseRegion": "选择一个大区卡片，查看该大区下全部可次付的国家表单；也可以直接搜索国家。",
+      "chooseRegion": "选择一个大区卡片进入独立页面，查看该大区下全部可次付的国家表单；也可以直接搜索国家。",
       "collapse": "收起",
       "expand": "展开",
+      "backToSubscription": "返回订阅方案",
+      "regionDetailEyebrow": "次付申请大区",
       "regionCountSuffix": "项",
       "feeNote": "所有价格均为每次申请的 VIZA 服务费，不包含官方签证费、签证中心费、生物信息采集费、快递费或加急费。",
       "countries": {

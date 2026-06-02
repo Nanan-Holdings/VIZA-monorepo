@@ -26,8 +26,8 @@
   },
   "session": {
     "invalidatedTitle": "[ES] Session No Longer Active",
-    "invalidatedBody": "[ES] Another user view was opened in a different tab. This session has been invalidated for security.",
-    "invalidatedHint": "[ES] Please close this tab and use the new user view tab."
+    "invalidatedBody": "[ES] Another applicant view was opened in a different tab. This session has stopped displaying for security.",
+    "invalidatedHint": "[ES] Please close this tab and use the new applicant view tab."
   },
   "home": {
     "welcomeBack": "[ES] Welcome back, {name}.",

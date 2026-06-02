@@ -9,12 +9,14 @@ import {
   Check,
   CheckCircle2,
   FileImage,
+  Loader2,
   ShieldCheck,
   Sun,
   Upload,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { cn } from "@/lib/utils";
 import type { SimplifiedIdentity, SimplifiedPassport } from "./types";
@@ -29,6 +31,7 @@ interface PassportOcrFieldProposal {
 
 interface PassportOcrResponse {
   success: boolean;
+  extractionId?: string | null;
   confidence?: number;
   warnings?: string[];
   proposedFields?: {
@@ -65,6 +68,9 @@ interface ExtractionResult {
   expiryDate?: string;
   confidence?: "high" | "medium" | "low";
   warnings?: string[];
+  extractionId?: string | null;
+  storagePath?: string;
+  filename?: string;
 }
 
 export interface StepIdentityScanProps {
@@ -213,6 +219,7 @@ export function StepIdentityScan({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractionResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -254,7 +261,7 @@ export function StepIdentityScan({
       const ext = extensionFromFile(file);
       const uploadForm = new FormData();
       uploadForm.set("applicationId", applicationId);
-      uploadForm.set("documentType", "passport_scan");
+      uploadForm.set("documentType", "passport_copy");
       uploadForm.set("requirementKey", "passport_copy");
       uploadForm.set("filename", file.name || `passport.${ext}`);
       uploadForm.set("required", "true");
@@ -274,7 +281,12 @@ export function StepIdentityScan({
       }
 
       setScanStage("verifying");
-      setExtracted(extractionFromPassportOcr(payload));
+      setExtracted({
+        ...extractionFromPassportOcr(payload),
+        extractionId: payload.extractionId,
+        storagePath: uploadResult.storagePath,
+        filename: uploadResult.filename,
+      });
       setScreen("result");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : t("scanExtractError"));
@@ -282,8 +294,10 @@ export function StepIdentityScan({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!extracted) return;
+    setIsConfirming(true);
+    setErrorMsg(null);
     const identity: Partial<SimplifiedIdentity> = {};
     const passport: Partial<SimplifiedPassport> = {};
     if (extracted.givenNames) identity.firstName = extracted.givenNames;
@@ -300,7 +314,22 @@ export function StepIdentityScan({
     if (extracted.issuanceProvince) passport.issuanceProvince = extracted.issuanceProvince;
     if (extracted.issueDate) passport.issueDate = extracted.issueDate;
     if (extracted.expiryDate) passport.expiryDate = extracted.expiryDate;
-    onExtracted(identity, passport);
+
+    try {
+      if (applicationId && extracted.extractionId) {
+        const confirmResult = await confirmPassportOcrExtraction({
+          applicationId,
+          extractionId: extracted.extractionId,
+        });
+        if (!confirmResult.ok) throw new Error(confirmResult.error);
+      }
+      onExtracted(identity, passport);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : t("scanExtractError"));
+      setScreen("error");
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const reset = () => {
@@ -324,9 +353,6 @@ export function StepIdentityScan({
       <div className="flex flex-col gap-8">
         <header className="flex items-start justify-between gap-3">
           <div>
-            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand-500">
-              {t("scanStepEyebrow")}
-            </div>
             <h1 className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {t("scanUploadTitle")}
             </h1>
@@ -434,8 +460,15 @@ export function StepIdentityScan({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleConfirm} size="lg">
-            {t("scanUseDetails")}
+          <Button onClick={handleConfirm} size="lg" disabled={isConfirming}>
+            {isConfirming ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("scanSaving")}
+              </>
+            ) : (
+              t("scanUseDetails")
+            )}
           </Button>
           <Button variant="outline" onClick={reset}>
             {t("scanRetry")}
@@ -452,9 +485,6 @@ export function StepIdentityScan({
     <div className="flex flex-col gap-8">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand-500">
-            {t("scanStepEyebrow")}
-          </div>
           <h1 className="text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
             {t("scanUploadTitle")}
           </h1>

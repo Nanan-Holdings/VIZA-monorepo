@@ -32,9 +32,17 @@ function normalizePem(value: string | undefined, label: string): string {
   return wrapPem(normalized, label);
 }
 
-function loadConfig(): AlipayConfig {
-  const appId = process.env.ALIPAY_APP_ID?.trim();
+function normalizeAppId(value: string | undefined): string {
+  const appId = value?.trim();
   if (!appId) throw new AlipayConfigError("ALIPAY_APP_ID is not configured.");
+  if (!/^\d{10,32}$/.test(appId)) {
+    throw new AlipayConfigError("ALIPAY_APP_ID must be the numeric Alipay Open Platform application ID.");
+  }
+  return appId;
+}
+
+function loadConfig(): AlipayConfig {
+  const appId = normalizeAppId(process.env.ALIPAY_APP_ID);
 
   return {
     appId,

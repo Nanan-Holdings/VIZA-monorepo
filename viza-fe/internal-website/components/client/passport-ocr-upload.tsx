@@ -113,11 +113,10 @@ const PASSPORT_OCR_COPY = {
     extracting: "正在识别护照字段...",
     verifying: "正在核验识别结果...",
     ocrFallback: "护照 OCR 暂时无法读取这份文件，请换一张更清晰的护照资料页。",
-    done: "已识别并填入护照信息，请核对后继续。",
+    done: "护照页已上传成功，已识别并填入护照信息，请核对后继续。",
     failed: "上传或识别失败，请稍后重试。",
     dropLabel: "拖拽文件到这里，或点击上传",
     formats: "PDF、JPG、PNG、WebP，建议四角清晰可见",
-    stepEyebrow: "第 1 步 / 共 3 步",
     uploadFile: "上传文件",
     takePhoto: "拍照",
     dropTitle: "将护照照片拖到这里",
@@ -145,11 +144,10 @@ const PASSPORT_OCR_COPY = {
     extracting: "Reading passport fields...",
     verifying: "Verifying extracted details...",
     ocrFallback: "Passport OCR could not read this file. Please upload a clearer passport bio page.",
-    done: "Passport details were extracted and filled in. Please review them before continuing.",
+    done: "Passport bio page uploaded successfully. Details were extracted and filled in for review.",
     failed: "Upload or OCR failed. Please try again later.",
     dropLabel: "Drop file here, or click to upload",
     formats: "PDF, JPG, PNG, or WebP. Make sure all four corners are visible.",
-    stepEyebrow: "Step 1 of 3",
     uploadFile: "Upload file",
     takePhoto: "Take a photo",
     dropTitle: "Drop your passport photo here",
@@ -350,9 +348,6 @@ export function PassportOcrUpload({
   return (
     <section className={cn("rounded-xl border bg-white p-5 shadow-sm sm:p-8", className)}>
       <header className="mb-7">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-brand-500">
-          {copy.stepEyebrow}
-        </div>
         <h3 className="font-heading text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
           {resolvedTitle}
         </h3>
