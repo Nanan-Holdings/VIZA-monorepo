@@ -31,6 +31,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
+- Commercial and agency payment records are stored in `payment_records`,
+  created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
