@@ -107,6 +107,7 @@ export function PopularDestinationsSection({
       ? undefined
       : applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
     const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
+    const highlighted = selected && !isGroup;
     const loading = isPending && pendingDestinationId === destination.id;
     const actionLabel = isGroup
       ? t("browseRegion")
@@ -140,7 +141,7 @@ export function PopularDestinationsSection({
         disabled={loading}
         className={[
           "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
-          selected || isGroup
+          highlighted
             ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
             : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
           loading ? "cursor-wait opacity-80" : "cursor-pointer",
@@ -181,7 +182,7 @@ export function PopularDestinationsSection({
             <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
               <div
                 className="h-full rounded-full bg-[#03346E] transition-all duration-500"
-                style={{ width: `${isGroup ? (destination.countryCount ?? 0) > 0 ? 100 : 0 : progress?.percent ?? 0}%` }}
+                style={{ width: `${progress?.percent ?? 0}%` }}
               />
             </div>
           </div>
