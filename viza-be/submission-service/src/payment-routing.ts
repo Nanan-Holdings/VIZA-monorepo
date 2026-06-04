@@ -125,6 +125,7 @@ export function policyFor(mechanism: GovtFeeMechanism): FeePolicy {
 export const GOVT_FEE_CENTS: Record<string, Record<string, number>> = {
   indonesia: { B211A: 15000, ID_C1_TOURIST: 18500 },
   egypt: { EG_E_VISA: 2500 },
+  malaysia: { MY_TOURIST_E_VISA: 1500 },
 };
 
 export function feeCentsFor(country: string, visaType: string): number | null {

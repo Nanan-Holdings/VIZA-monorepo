@@ -2652,3 +2652,10 @@ acknowledgment).
 - Files: src/sa/*, src/sa/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts + __tests__/dispatch.spec.ts, prd.json. Typecheck passes.
 - Limitation: selectors best-effort pending recon (DATA-001); SA fee pending pricing.ts (PAYP-001); halts before pay (escrow not integrated).
 ---
+
+## 2026-06-04 - RUN-MY-001/002
+- Built Malaysia eVISA/MDAC runner src/my/{field-mappings,fillers,form-recon,runner}.ts (template). runOne fills + halts before gov pay (online-pay/runner_escrow_card; escrow not integrated). Bound malaysia -> my/runner.runOne (replaced generic t3 runMyPrefill; removed unused import; meta updated).
+- RUN-MY-002: malaysia already in GOVT_FEE_ROUTING (MY_TOURIST_E_VISA=runner_escrow_card); added GOVT_FEE_CENTS.malaysia=1500 (pricing.ts). Tests src/my/__tests__/field-mappings.spec.ts (4: date xform, mapping, required, recon-parse fixture). dispatch 5/5.
+- Files: src/my/*, src/my/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (DATA-001); halts before pay.
+---
