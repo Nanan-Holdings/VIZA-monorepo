@@ -4669,7 +4669,7 @@
         "Files are committed templates only"
       ],
       "priority": 324,
-      "passes": false,
+      "passes": true,
       "notes": "Findings confirmed agent-backend has NO .env.example. Derive keys from cloudbuild.yaml and code references."
     },
     {
