@@ -5067,7 +5067,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 352,
-      "passes": false,
+      "passes": true,
       "notes": "france-visas already drives the FR halt flow via submission_queue; this exposes it to runner_job too (QUE-005)."
     },
     {
