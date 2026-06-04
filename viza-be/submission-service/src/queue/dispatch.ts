@@ -32,6 +32,7 @@ import { runOne as runFrance } from "../france-visas/runner.js";
 import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
+import { runOne as runSaudi } from "../sa/runner.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -312,8 +313,9 @@ export const DISPATCH: Record<string, RunOne> = {
   united_kingdom: (a, j) => runUkHalt(a, j),
   france: (a, j) => runFrance(a, j),
   australia: (a, j) => runAuHalt(a, j),
+  // RUN-SA-001: Saudi Arabia e-Visa runner (built from scratch).
+  saudi_arabia: (a, j) => runSaudi(a, j),
   // No runner yet:
-  saudi_arabia: unsupported("saudi_arabia"),
   japan: unsupported("japan"),
 };
 
@@ -340,7 +342,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   united_kingdom: { runner: "resumeUkApplication", implemented: true },
   france: { runner: "france-visas/runner.runOne", implemented: true },
   australia: { runner: "fillVisitor600Application", implemented: true },
-  saudi_arabia: { runner: "(none)", implemented: false },
+  saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "(paper renderer)", implemented: false },
 };
 
