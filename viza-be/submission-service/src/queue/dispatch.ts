@@ -14,7 +14,6 @@
  */
 import {
   runThPrefill,
-  runMyPrefill,
   runTrPrefill,
   runAePrefill,
   runCaEtaPrefill,
@@ -33,6 +32,7 @@ import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
+import { runOne as runMalaysia } from "../my/runner.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -298,7 +298,8 @@ export const DISPATCH: Record<string, RunOne> = {
   // RUN-IT-001: dedicated Italy VFS (CN corridor) runner (replaces generic t3 scaffold).
   italy: (a, j) => runItaly(a, j),
   thailand: genericAdapter(runThPrefill),
-  malaysia: genericAdapter(runMyPrefill),
+  // RUN-MY-001: dedicated Malaysia eVISA/MDAC runner (replaces generic t3 scaffold).
+  malaysia: (a, j) => runMalaysia(a, j),
   turkey: genericAdapter(runTrPrefill),
   united_arab_emirates: genericAdapter(runAePrefill),
   canada: genericAdapter(runCaEtaPrefill),
@@ -328,7 +329,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
   thailand: { runner: "runThPrefill", implemented: true },
-  malaysia: { runner: "runMyPrefill", implemented: true },
+  malaysia: { runner: "my/runner.runOne", implemented: true },
   turkey: { runner: "runTrPrefill", implemented: true },
   united_arab_emirates: { runner: "runAePrefill", implemented: true },
   canada: { runner: "runCaEtaPrefill", implemented: true },
