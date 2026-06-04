@@ -5822,7 +5822,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 406,
-      "passes": false,
+      "passes": true,
       "notes": "Extends existing US-041 status hub to the unified queue."
     },
     {

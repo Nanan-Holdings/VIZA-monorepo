@@ -2827,3 +2827,10 @@ acknowledgment).
 - Files: lib/launched-countries.ts, components/client/home/PopularDestinationsSection.tsx, prd.json. Typecheck passes.
 - Note: deep-link to a coming-soon country still routes to the application flow; the picker is the primary gate. Full deep-link guard is a follow-up.
 ---
+
+## 2026-06-04 - POR-011
+- Added lib/status/runner-lifecycle.ts: mapRunnerJobStatus (queued/running/succeeded/failed/dead_letter/paused -> lifecycle phase) + getRunnerLifecycle(applicationId) reader. Halt-before-gov-pay (succeeded+outcome halted_before_pay) -> actionable "pay the government fee"; dead_letter/failed -> support-contact state. Complements submission_queue-derived steps in status-data.ts.
+- Test lib/status/runner-lifecycle.test.ts (vitest, 4): halt->action, dead_letter->support, failed->support, queued/running/succeeded phases.
+- Files: lib/status/runner-lifecycle.ts + .test.ts, prd.json. Typecheck + vitest pass. POR block COMPLETE (11/11).
+- Note: reusable read+mapping delivered & tested; rendering the new phase into the existing 7-step status UI is follow-up polish.
+---
