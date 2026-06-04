@@ -3477,7 +3477,7 @@
       "not_authenticated": "Please sign in again before sending an invite.",
       "invalid_email": "Enter a valid email address.",
       "missing_referral_code": "Your referral code is still loading. Please try again in a moment.",
-      "email_not_configured": "Email sending is not configured yet. Add RESEND_API_KEY to the local environment.",
+      "email_not_configured": "Email sending is not configured yet. Check the Supabase Auth email settings.",
       "send_failed": "We could not send this invite. Please try again."
     },
     "orInviteViaEmail": "or invite via email",
