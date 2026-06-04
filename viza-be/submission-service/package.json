@@ -15,6 +15,8 @@
     "audit:ds160-parity": "ts-node scripts/audit-ds160-field-parity.ts",
     "imap:smoke": "ts-node scripts/imap-smoke.ts",
     "inbox:smoke": "ts-node scripts/inbox-smoke.ts",
+    "au:smoke": "ts-node scripts/run-au-smoke.ts",
+    "vn:smoke": "ts-node scripts/run-vn-smoke.ts",
     "recon:kh": "ts-node src/kh/form-recon.ts",
     "recon:la": "ts-node src/la/form-recon.ts",
     "recon:lk": "ts-node src/lk/form-recon.ts",

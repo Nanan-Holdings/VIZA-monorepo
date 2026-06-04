@@ -148,6 +148,15 @@ type TravelItineraryExperienceProps = {
   activeVersionSummary?: string;
   onPointSelect?: (id: string) => void;
   onVersionSelect?: (versionId: string) => void;
+  onItineraryChange?: (update: TravelItineraryStateUpdate) => void;
+};
+
+export type TravelItineraryStateUpdate = {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  reason: string;
 };
 
 type TravelItineraryVersionOption = {
@@ -1440,10 +1449,19 @@ function buildFallbackFlightLegsForDisplay(
       continue;
 
     const priorCities = index === 0 ? [] : cities.slice(0, index);
-    const offsetDays = priorCities.reduce(
-      (sum, city) => sum + (travelState.city_days[city] ?? 1),
-      0
-    );
+    const totalTripDays =
+      travelState.travel_days ??
+      cities.reduce((sum, city) => sum + (travelState.city_days[city] ?? 1), 0);
+    const isFinalReturnLeg =
+      index === route.length - 2 &&
+      Boolean(travelState.return_city?.trim()) &&
+      normalizeLookupKey(to) === normalizeLookupKey(travelState.return_city ?? "");
+    const offsetDays = isFinalReturnLeg
+      ? Math.max(0, totalTripDays - 1)
+      : priorCities.reduce(
+          (sum, city) => sum + (travelState.city_days[city] ?? 1),
+          0
+        );
 
     legs.push({
       from,
@@ -1480,6 +1498,229 @@ function buildFallbackHotelStaysForDisplay(
   });
 
   return stays;
+}
+
+function travelRouteKey(from: string | null | undefined, to: string | null | undefined): string {
+  return `${normalizeLookupKey(from ?? "")}->${normalizeLookupKey(to ?? "")}`;
+}
+
+function replaceDatePart(
+  value: string | undefined,
+  nextDate: string
+): string | undefined {
+  if (!value) return value;
+  const timeMatch = value.match(/(?:T|\s)(\d{1,2}:\d{2}(?::\d{2})?)/);
+  const time = timeMatch?.[1]?.padStart(5, "0");
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return `${nextDate}T${time ?? "00:00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}\s/.test(value)) {
+    return `${nextDate} ${time ?? "00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return nextDate;
+  }
+  return value;
+}
+
+function shiftDateByOriginalOffset(
+  originalDeparture: string | undefined,
+  originalTarget: string | undefined,
+  nextDepartureDate: string
+): string {
+  const originalStart = parseIsoDate(originalDeparture);
+  const originalEnd = parseIsoDate(originalTarget);
+  const nextStart = parseIsoDate(nextDepartureDate);
+  if (!originalStart || !originalEnd || !nextStart) return nextDepartureDate;
+
+  const offsetDays = Math.max(
+    0,
+    Math.round((originalEnd.getTime() - originalStart.getTime()) / 86_400_000)
+  );
+  return toIsoDate(addDays(nextStart, offsetDays));
+}
+
+function realignFlightOptionDate(
+  option: FlightOptionResult | null | undefined,
+  leg: FlightLegResult
+): FlightOptionResult | null | undefined {
+  if (!option) return option;
+  const arrivalDate = shiftDateByOriginalOffset(
+    option.departure,
+    option.arrival,
+    leg.departure_date
+  );
+  return {
+    ...option,
+    from: option.from ?? leg.from,
+    to: option.to ?? leg.to,
+    departure: replaceDatePart(option.departure, leg.departure_date),
+    arrival: replaceDatePart(option.arrival, arrivalDate),
+  };
+}
+
+function realignHotelOptionDate(
+  option: HotelOptionResult,
+  stay: HotelStayResult
+): HotelOptionResult {
+  return {
+    ...option,
+    city: option.city ?? stay.city,
+    check_in: stay.check_in,
+    check_out: stay.check_out,
+  };
+}
+
+function reconcileSelectedFlightsForSchedule(
+  selectedFlights: SelectedFlightOption[],
+  legs: FlightLegResult[]
+): SelectedFlightOption[] {
+  const byRoute = new Map<string, SelectedFlightOption>();
+  selectedFlights.forEach((flight) => {
+    byRoute.set(travelRouteKey(flight.from, flight.to), flight);
+  });
+
+  return legs
+    .map((leg, index): SelectedFlightOption | null => {
+      const legIndex = index + 1;
+      const existing =
+        byRoute.get(travelRouteKey(leg.from, leg.to)) ??
+        selectedFlights.find((flight) => flight.leg_index === legIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        leg_index: legIndex,
+        from: leg.from,
+        to: leg.to,
+        departure_date: leg.departure_date,
+        option: existing.skip
+          ? null
+          : realignFlightOptionDate(existing.option, leg) ?? undefined,
+      };
+    })
+    .filter((flight): flight is SelectedFlightOption => Boolean(flight));
+}
+
+function reconcileSelectedHotelsForSchedule(
+  selectedHotels: SelectedHotelOption[],
+  stays: HotelStayResult[]
+): SelectedHotelOption[] {
+  const byCity = new Map<string, SelectedHotelOption>();
+  selectedHotels.forEach((hotel) => {
+    byCity.set(normalizeLookupKey(hotel.city), hotel);
+  });
+
+  return stays
+    .map((stay, index): SelectedHotelOption | null => {
+      const stayIndex = index + 1;
+      const existing =
+        byCity.get(normalizeLookupKey(stay.city)) ??
+        selectedHotels.find((hotel) => hotel.stay_index === stayIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        stay_index: stayIndex,
+        city: stay.city,
+        check_in: stay.check_in,
+        check_out: stay.check_out,
+        nights: stay.nights,
+        option: realignHotelOptionDate(existing.option, stay),
+      };
+    })
+    .filter((hotel): hotel is SelectedHotelOption => Boolean(hotel));
+}
+
+function reconcileTravelAgentState(options: {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  orderedCities: string[];
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  language: TravelInterfaceLocale;
+}): TravelItineraryStateUpdate {
+  const itinerary = renumberItineraryDays(options.itinerary);
+  const statePatch = buildItineraryTravelStatePatch(
+    itinerary,
+    options.travelState,
+    options.orderedCities
+  );
+  const baseState: TravelState = {
+    ...options.travelState,
+    ...statePatch,
+    city_days: statePatch.city_days,
+    selected_flights: [],
+    selected_hotels: [],
+  };
+  const segments = buildCitySegments(
+    itinerary,
+    statePatch.travel_order,
+    baseState,
+    options.language
+  );
+  const flightLegs = buildFallbackFlightLegsForDisplay(
+    baseState,
+    statePatch.travel_order,
+    segments
+  );
+  const hotelStays = buildFallbackHotelStaysForDisplay(
+    baseState,
+    statePatch.travel_order,
+    segments
+  );
+  const selectedFlights = reconcileSelectedFlightsForSchedule(
+    options.selectedFlights,
+    flightLegs
+  );
+  const selectedHotels = reconcileSelectedHotelsForSchedule(
+    options.selectedHotels,
+    hotelStays
+  );
+  const travelState: TravelState = {
+    ...baseState,
+    selected_flights: selectedFlights,
+    selected_hotels: selectedHotels,
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    validateTravelAgentState({ itinerary, travelState });
+  }
+
+  return {
+    itinerary,
+    travelState,
+    selectedFlights,
+    selectedHotels,
+    reason: "local_itinerary_edit",
+  };
+}
+
+function validateTravelAgentState(update: {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+}): void {
+  const totalDays = update.itinerary.length;
+  if (update.travelState.travel_days !== totalDays) {
+    console.warn("Travel itinerary day count mismatch after reconciliation.", {
+      itineraryDays: totalDays,
+      travelDays: update.travelState.travel_days,
+    });
+  }
+
+  const start = parseIsoDate(update.travelState.departure_date);
+  if (!start) return;
+  const end = addDays(start, Math.max(0, totalDays - 1));
+  update.travelState.selected_flights.forEach((flight) => {
+    const date = parseIsoDate(flight.departure_date);
+    if (!date || date < start || date > end) {
+      console.warn("Travel flight date is outside itinerary date range.", {
+        flight,
+        itineraryStart: toIsoDate(start),
+        itineraryEnd: toIsoDate(end),
+      });
+    }
+  });
 }
 
 function createRouteNodes(
@@ -2475,6 +2716,18 @@ function renumberItineraryDays(days: ItineraryDay[]): ItineraryDay[] {
   }));
 }
 
+function itineraryStateSignature(days: ItineraryDay[]): string {
+  return JSON.stringify(
+    days.map((day) => ({
+      day: getDayNumber(day),
+      city: day.city,
+      activities: day.activities,
+      food: day.food,
+      cost: day.cost,
+    }))
+  );
+}
+
 function buildItineraryTravelStatePatch(
   days: ItineraryDay[],
   travelState: TravelState,
@@ -3227,8 +3480,10 @@ export function TravelItineraryExperience({
   routeCoordinates,
   mapPoints,
   activePointId,
+  activeVersionId,
   modulePatch,
   onPointSelect,
+  onItineraryChange,
 }: TravelItineraryExperienceProps) {
   const isZh = interfaceLocale === "zh";
   const copy = getCopy(interfaceLocale);
@@ -3652,8 +3907,24 @@ export function TravelItineraryExperience({
   );
   const exportFilenameSuffix =
     exportLanguage === "zh" ? "" : `-${exportLanguage}`;
+  const incomingItinerarySignature = useMemo(
+    () => itineraryStateSignature(itinerary),
+    [itinerary]
+  );
+  const editableItinerarySignature = useMemo(
+    () => itineraryStateSignature(editableItinerary),
+    [editableItinerary]
+  );
+  const lastLoadedVersionIdRef = useRef(activeVersionId ?? "");
 
   useEffect(() => {
+    const nextVersionId = activeVersionId ?? "";
+    const versionChanged = lastLoadedVersionIdRef.current !== nextVersionId;
+    if (!versionChanged && incomingItinerarySignature === editableItinerarySignature) {
+      return;
+    }
+
+    lastLoadedVersionIdRef.current = nextVersionId;
     setEditableItinerary(itinerary);
     setActiveDayIndex(0);
     setLocalSelectedFlights(null);
@@ -3662,7 +3933,12 @@ export function TravelItineraryExperience({
     setActivityTimesByDay({});
     setDetailResourceTab("attractions");
     setCustomizeDayEditor(false);
-  }, [itinerary]);
+  }, [
+    activeVersionId,
+    editableItinerarySignature,
+    incomingItinerarySignature,
+    itinerary,
+  ]);
 
   useEffect(() => {
     setExportLanguage(interfaceLocale === "en" ? "en" : "zh");
@@ -3945,13 +4221,27 @@ export function TravelItineraryExperience({
   const updateItineraryList = useCallback(
     (updater: (days: ItineraryDay[]) => ItineraryDay[]) => {
       setEditableItinerary((days) => {
-        const nextDays = renumberItineraryDays(updater(days));
+        const reconciliation = reconcileTravelAgentState({
+          itinerary: updater(days),
+          travelState,
+          orderedCities,
+          selectedFlights: effectiveSelectedFlights,
+          selectedHotels: effectiveSelectedHotels,
+          language: interfaceLocale,
+        });
+        const nextDays = reconciliation.itinerary;
         setActivityTimesByDay((currentTimes) =>
           remapActivityTimesForItinerary(days, nextDays, currentTimes)
         );
-        setLocalTravelStatePatch(
-          buildItineraryTravelStatePatch(nextDays, travelState, orderedCities)
-        );
+        setLocalSelectedFlights(reconciliation.selectedFlights);
+        setLocalSelectedHotels(reconciliation.selectedHotels);
+        setLocalTravelStatePatch({
+          cities: reconciliation.travelState.cities,
+          city_days: reconciliation.travelState.city_days,
+          travel_days: reconciliation.travelState.travel_days ?? nextDays.length,
+          travel_order: reconciliation.travelState.travel_order,
+        });
+        onItineraryChange?.(reconciliation);
         const nextActiveIndex = Math.min(
           activeDayIndex,
           Math.max(0, nextDays.length - 1)
@@ -3962,7 +4252,15 @@ export function TravelItineraryExperience({
         return nextDays;
       });
     },
-    [activeDayIndex, orderedCities, travelState]
+    [
+      activeDayIndex,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      interfaceLocale,
+      onItineraryChange,
+      orderedCities,
+      travelState,
+    ]
   );
 
   const updateActivityTimesForDay = useCallback(
@@ -4113,20 +4411,36 @@ export function TravelItineraryExperience({
         option,
         optionIndex
       );
-      setLocalSelectedFlights((current) => {
-        const seed = current ?? effectiveSelectedFlights;
-        const withoutLeg = seed.filter(
-          (flight) => flight.leg_index !== legIndex
-        );
-        return [...withoutLeg, nextFlight].sort(
-          (first, second) => first.leg_index - second.leg_index
-        );
+      const seed = localSelectedFlights ?? effectiveSelectedFlights;
+      const withoutLeg = seed.filter((flight) => flight.leg_index !== legIndex);
+      const nextFlights = [...withoutLeg, nextFlight].sort(
+        (first, second) => first.leg_index - second.leg_index
+      );
+      setLocalSelectedFlights(nextFlights);
+      onItineraryChange?.({
+        itinerary: editableItinerary,
+        travelState: {
+          ...effectiveTravelState,
+          selected_flights: nextFlights,
+          selected_hotels: effectiveSelectedHotels,
+        },
+        selectedFlights: nextFlights,
+        selectedHotels: effectiveSelectedHotels,
+        reason: "flight_selection",
       });
       toast.success(
         isZh ? "已更新这段航班。" : "This flight has been updated."
       );
     },
-    [effectiveSelectedFlights, isZh]
+    [
+      editableItinerary,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+      isZh,
+      localSelectedFlights,
+      onItineraryChange,
+    ]
   );
 
   const selectHotelOption = useCallback(
@@ -4142,20 +4456,36 @@ export function TravelItineraryExperience({
         option,
         optionIndex
       );
-      setLocalSelectedHotels((current) => {
-        const seed = current ?? effectiveSelectedHotels;
-        const withoutStay = seed.filter(
-          (hotel) => hotel.stay_index !== stayIndex
-        );
-        return [...withoutStay, nextHotel].sort(
-          (first, second) => first.stay_index - second.stay_index
-        );
+      const seed = localSelectedHotels ?? effectiveSelectedHotels;
+      const withoutStay = seed.filter((hotel) => hotel.stay_index !== stayIndex);
+      const nextHotels = [...withoutStay, nextHotel].sort(
+        (first, second) => first.stay_index - second.stay_index
+      );
+      setLocalSelectedHotels(nextHotels);
+      onItineraryChange?.({
+        itinerary: editableItinerary,
+        travelState: {
+          ...effectiveTravelState,
+          selected_flights: effectiveSelectedFlights,
+          selected_hotels: nextHotels,
+        },
+        selectedFlights: effectiveSelectedFlights,
+        selectedHotels: nextHotels,
+        reason: "hotel_selection",
       });
       toast.success(
         isZh ? "已更新这段住宿。" : "This hotel stay has been updated."
       );
     },
-    [effectiveSelectedHotels, isZh]
+    [
+      editableItinerary,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+      isZh,
+      localSelectedHotels,
+      onItineraryChange,
+    ]
   );
 
   const removeItineraryActivity = useCallback(
