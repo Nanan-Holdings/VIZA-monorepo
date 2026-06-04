@@ -5850,7 +5850,7 @@
         "Typecheck passes in the owning workspace"
       ],
       "priority": 408,
-      "passes": false,
+      "passes": true,
       "notes": "Brief: Airwallex currently demo; provider readiness needed. Artifact = validator + doc."
     },
     {
@@ -5864,7 +5864,7 @@
         "Cross-references SEC-003 rotation runbook"
       ],
       "priority": 409,
-      "passes": false,
+      "passes": true,
       "notes": "Artifact-framed go-live doc."
     },
     {
@@ -5878,7 +5878,7 @@
         "Typecheck passes in the owning workspace"
       ],
       "priority": 410,
-      "passes": false,
+      "passes": true,
       "notes": "Brief: WeChat only Indonesia today. Make method availability a config matrix."
     },
     {
@@ -5892,7 +5892,7 @@
         "Typecheck passes in the owning workspace"
       ],
       "priority": 411,
-      "passes": false,
+      "passes": true,
       "notes": "Brief: PAY-004 claims refund done; verify with a test + doc."
     },
     {
@@ -5906,7 +5906,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 412,
-      "passes": false,
+      "passes": true,
       "notes": "Closes the SGD-vs-USD mismatch on the charging side."
     },
     {
@@ -5934,7 +5934,7 @@
         "Typecheck passes in the owning workspace"
       ],
       "priority": 414,
-      "passes": false,
+      "passes": true,
       "notes": "Protects QUE idempotency at the payment boundary."
     },
     {
