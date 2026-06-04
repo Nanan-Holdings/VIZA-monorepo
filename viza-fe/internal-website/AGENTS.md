@@ -67,6 +67,10 @@ comments.
 - Server mutations belong in `app/actions/**` unless a real HTTP boundary is
   needed.
 - Shared browser/server helpers belong in `lib/**`.
+- User-facing filling/editing UI must align with the application form controls:
+  reuse `components/application-steps/bilingual-form-shared.tsx`,
+  `components/dynamic-form-field.tsx`, or canonical client form primitives for
+  dates, countries, options, and text fields instead of adding one-off inputs.
 - Keep `components/ui/**` as shadcn-style primitives; do not hide feature logic
   there.
 - Do not expose service-role Supabase keys in client components.

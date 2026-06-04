@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email/resend";
+import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
+import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 
 type InviteLocale = "en" | "zh";
 
@@ -77,26 +78,6 @@ function textFor(locale: InviteLocale, input: { inviterName: string; referralCod
   };
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function renderHtmlEmail(copy: ReturnType<typeof textFor>, signupUrl: string) {
-  return `
-    <div style="font-family: Inter, Arial, sans-serif; color: #172033; line-height: 1.6; max-width: 560px; margin: 0 auto;">
-      <h1 style="color: #03346E; font-size: 24px; line-height: 1.25; margin: 0 0 16px;">VIZA referral</h1>
-      <p style="font-size: 16px; margin: 0 0 12px;">${escapeHtml(copy.intro)}</p>
-      <p style="font-size: 16px; margin: 0 0 24px;">${escapeHtml(copy.body)}</p>
-      <a href="${escapeHtml(signupUrl)}" style="display: inline-block; background: #03346E; color: #ffffff; text-decoration: none; border-radius: 999px; padding: 12px 20px; font-weight: 600;">${escapeHtml(copy.cta)}</a>
-      <p style="font-size: 13px; color: #667085; margin: 24px 0 0;">${escapeHtml(signupUrl)}</p>
-    </div>
-  `;
-}
-
 export async function sendReferralInvite(
   email: string,
   locale: string,
@@ -128,21 +109,32 @@ export async function sendReferralInvite(
     profile?.full_name?.trim() || user.email?.split("@")[0] || "A VIZA user";
   const signupUrl = `${await getAppBaseUrl()}/client/signup?referral=${encodeURIComponent(code)}`;
   const copy = textFor(normalizeLocale(locale), { inviterName, referralCode: code, signupUrl });
+  const emailLocale = normalizeAuthEmailLocale(locale);
 
   try {
-    await sendEmail({
-      from: "VIZA <updates@haggstorm.com>",
-      to: recipient,
-      subject: copy.subject,
-      text: copy.text,
-      html: renderHtmlEmail(copy, signupUrl),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("RESEND_API_KEY")) {
-      return { success: false, error: "email_not_configured" };
-    }
+    await prepareAuthEmailLocale(recipient, emailLocale);
 
+    const { error } = await supabase.auth.signInWithOtp({
+      email: recipient,
+      options: {
+        shouldCreateUser: true,
+        data: {
+          role: "client",
+          user_type: "client",
+          locale: emailLocale,
+          language: emailLocale,
+          preferred_language: emailLocale,
+          referral_code: code,
+          referral_inviter_name: inviterName,
+          referral_invite_subject: copy.subject,
+          referral_invite_text: copy.text,
+        },
+        emailRedirectTo: signupUrl,
+      },
+    });
+
+    if (error) throw error;
+  } catch (error) {
     console.error("[referrals] failed to send invite", error);
     return { success: false, error: "send_failed" };
   }

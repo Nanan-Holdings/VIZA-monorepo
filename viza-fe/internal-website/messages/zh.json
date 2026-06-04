@@ -3563,7 +3563,7 @@
       "not_authenticated": "请重新登录后再发送邀请。",
       "invalid_email": "请输入有效的电子邮件地址。",
       "missing_referral_code": "您的 referral code 还在加载，请稍后再试。",
-      "email_not_configured": "邮件发送还没有配置，请在本地环境中添加 RESEND_API_KEY。",
+      "email_not_configured": "邮件发送还没有配置，请检查 Supabase Auth 邮件设置。",
       "send_failed": "暂时无法发送邀请，请稍后重试。"
     },
     "orInviteViaEmail": "或通过电子邮件邀请",

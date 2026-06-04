@@ -41,6 +41,10 @@ applicant info, and help pages.
 
 - Shared client UI belongs in `components/client/**`, not directly in route
   files, once it is reused or grows beyond route orchestration.
+- Filling/editing pages in the client portal must visually and behaviorally
+  align with the application form. Reuse the bilingual form shared controls for
+  Chinese-language two-column fields and the same date, country, and option
+  controls before introducing any local input/select/date UI.
 - Application form internals are governed by
   `app/client/application/AGENTS.md`.
 - Chat internals are governed by `app/client/chat/AGENTS.md`.

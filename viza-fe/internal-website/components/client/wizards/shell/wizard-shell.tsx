@@ -206,7 +206,7 @@ export function WizardShell<TForm>({
     const params = new URLSearchParams();
     params.set("country", applicationCountry);
     params.set("visaType", applicationVisaType);
-    setRecentApplicationFormHref(`/client/simplified-form?${params.toString()}`);
+    setRecentApplicationFormHref(`/client/application/long-form?${params.toString()}`);
   }, [applicationCountry, applicationVisaType, loading]);
 
   useEffect(() => {
