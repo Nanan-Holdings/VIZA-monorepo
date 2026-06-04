@@ -2532,3 +2532,9 @@ acknowledgment).
 - Files: src/queue/dispatch.ts, src/queue/answers.ts, prd.json. Typecheck passes.
 - Limitation: field-name mapping answers->portal may need per-country recon tuning; documented for QUE-004.
 ---
+
+## 2026-06-04 - QUE-002
+- Wired runner_job consumer into src/index.ts main(): imports pollAndRun (queue/worker) + runnerJobHandler (queue/handler); starts after legacy poll without blocking it; AbortController aborted on SIGTERM/SIGINT for graceful Cloud Run shutdown; startup log confirms consumer active with workerId.
+- Added src/queue/handler.ts: JobHandler delegating to getRunOne(job.country)(application_id, job.id).
+- Files: src/index.ts, src/queue/handler.ts, prd.json. Typecheck passes.
+---
