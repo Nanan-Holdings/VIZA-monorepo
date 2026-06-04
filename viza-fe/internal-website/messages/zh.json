@@ -104,24 +104,24 @@
       "daysAgo": "{count}天前"
     },
     "popularDestinations": {
-        "heading": "选择热门目的地",
-        "subheading": "从目的地卡片开始，VIZA 会绑定对应的申请流程。申根国家会共用 C 类短期签证表单，同时保留所选国家作为主要目的地。",
-        "featuredHeading": "热门目的地",
-        "regionHeading": "按区域浏览",
-        "searchResultsHeading": "搜索结果",
-        "schemaReady": "官方表单结构已接入",
-        "start": "开始",
-        "open": "打开",
-        "continue": "继续",
-        "starting": "正在开始",
-        "browseRegion": "查看分区",
-        "selected": "已选择",
-        "readyToStart": "可开始",
-        "addedNotStarted": "已添加 · 尚未开始",
-        "chooseCountry": "选择国家",
-        "comingSoon": "待接入",
-        "countriesCount": "{count} 个国家",
-        "progressPill": "{pct}% 已填写",
+      "heading": "选择热门目的地",
+      "subheading": "从目的地卡片开始，VIZA 会绑定对应的申请流程。申根国家会共用 C 类短期签证表单，同时保留所选国家作为主要目的地。",
+      "featuredHeading": "热门目的地",
+      "regionHeading": "按区域浏览",
+      "searchResultsHeading": "搜索结果",
+      "schemaReady": "官方表单结构已接入",
+      "start": "开始",
+      "open": "打开",
+      "continue": "继续",
+      "starting": "正在开始",
+      "browseRegion": "查看分区",
+      "selected": "已选择",
+      "readyToStart": "可开始",
+      "addedNotStarted": "已添加 · 尚未开始",
+      "chooseCountry": "选择国家",
+      "comingSoon": "待接入",
+      "countriesCount": "{count} 个国家",
+      "progressPill": "{pct}% 已填写",
       "selectedNotFilled": "已选择，未填写",
       "fillable": "可填写",
       "searchPlaceholder": "搜索国家、签证或表单...",
@@ -3464,6 +3464,75 @@
         "terrorismOrSecurity": "是否曾涉及恐怖主义、安全犯罪或相关活动?",
         "finalDeclaration": "本人确认本埃及电子签申请所填信息真实、完整。"
       }
+    },
+    "standardEvisa": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "请填写以下字段。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照",
+          "subtitle": "请填写以下字段。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式",
+          "subtitle": "请填写以下字段。"
+        },
+        "trip": {
+          "label": "行程信息",
+          "title": "行程信息",
+          "subtitle": "请填写以下字段。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "请填写以下字段。"
+        }
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "sex": "性别",
+        "dob": "出生日期",
+        "dateOfBirth": "出生日期",
+        "placeOfBirthCity": "出生城市",
+        "nationality": "国籍",
+        "passportNumber": "护照号码",
+        "passportIssuingCountry": "护照签发国",
+        "passportExpiryDate": "护照到期日",
+        "email": "电子邮箱",
+        "phone": "电话",
+        "homeAddress": "家庭住址",
+        "intendedArrival": "计划入境日期",
+        "intendedArrivalDate": "计划入境日期",
+        "intendedDeparture": "计划离境日期",
+        "intendedDepartureDate": "计划离境日期",
+        "purposeOfVisit": "访问目的",
+        "occupation": "职业",
+        "hasCriminalRecord": "您有犯罪记录吗？",
+        "finalDeclaration": "我确认以上信息真实准确。"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        }
+      },
+      "declarations": {
+        "hasCriminalRecord": "您有犯罪记录吗？",
+        "finalDeclaration": "我确认以上信息真实准确。"
+      },
+      "review": {
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "trip": "行程信息",
+        "declaration": "声明"
+      }
     }
   },
   "documents": {
@@ -3687,11 +3756,11 @@
         "title": "语言",
         "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
       },
-    "paymentMethods": {
-      "title": "付款方式设置",
-      "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
-      "badge": "管理"
-    },
+      "paymentMethods": {
+        "title": "付款方式设置",
+        "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
+        "badge": "管理"
+      },
       "billing": {
         "title": "回执与发票",
         "description": "查看付款历史、回执、发票申请和退款状态。"
@@ -3705,104 +3774,104 @@
         "description": "如需人工跟进，可提交客服请求。"
       }
     },
-  "payment": {
-    "selected": "默认",
-    "pendingVerification": "待验证",
-    "setDefault": "设为默认",
-    "manage": "管理账号",
-    "manageSelected": "正在管理",
-    "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
-    "managerHints": {
-      "bank_card": "银行卡需要通过 Stripe 托管验证后才能用于后续付款选择。",
-      "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
-      "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
-    },
-    "boundCount": "已绑定 {count} 个",
-    "defaultAccount": "默认：{account}",
-    "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
-    "addTitle": "添加付款账号",
-    "cardAddTitle": "添加银行卡",
-    "qrAddTitle": "扫码绑定账号",
-    "editTitle": "编辑付款账号",
-    "addAccount": "添加账号",
-    "verifyWithStripe": "通过 Stripe 验证",
-    "generateQr": "生成绑定二维码",
-    "regenerateQr": "重新生成二维码",
-    "checkQrStatus": "检查绑定状态",
-    "saveEdit": "保存修改",
-    "cancelEdit": "取消编辑",
-    "edit": "编辑",
-    "delete": "删除",
-    "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
-    "stripeHint": "卡号和 CVV 仅用于启动 Stripe 托管验证；VIZA 不会保存完整卡号或 CVV。",
-    "cardIdentifier": "尾号 {last4} · Stripe 验证中",
-    "qrAlt": "付款账号绑定二维码",
-    "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
-    "qrExpires": "二维码有效期至 {time}。",
-    "qrHint": {
-      "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
-      "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
-    },
-    "fields": {
-      "label": "账号名称",
-      "identifier": "识别信息",
-      "nickname": "昵称",
-      "cardNumber": "卡号",
-      "cvv": "CVV"
-    },
-    "placeholders": {
-      "bank_card": {
-        "label": "例如：招商银行储蓄卡",
-        "identifier": "例如：尾号 5857",
-        "nickname": "例如：招商银行储蓄卡",
-        "cardNumber": "请输入银行卡号",
-        "cvv": "卡背面 3 或 4 位安全码"
+    "payment": {
+      "selected": "默认",
+      "pendingVerification": "待验证",
+      "setDefault": "设为默认",
+      "manage": "管理账号",
+      "manageSelected": "正在管理",
+      "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+      "managerHints": {
+        "bank_card": "银行卡需要通过 Stripe 托管验证后才能用于后续付款选择。",
+        "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
+        "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
       },
-      "wechat_pay": {
-        "label": "例如：我的微信",
-        "identifier": "例如：微信昵称或手机号后四位"
+      "boundCount": "已绑定 {count} 个",
+      "defaultAccount": "默认：{account}",
+      "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
+      "addTitle": "添加付款账号",
+      "cardAddTitle": "添加银行卡",
+      "qrAddTitle": "扫码绑定账号",
+      "editTitle": "编辑付款账号",
+      "addAccount": "添加账号",
+      "verifyWithStripe": "通过 Stripe 验证",
+      "generateQr": "生成绑定二维码",
+      "regenerateQr": "重新生成二维码",
+      "checkQrStatus": "检查绑定状态",
+      "saveEdit": "保存修改",
+      "cancelEdit": "取消编辑",
+      "edit": "编辑",
+      "delete": "删除",
+      "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
+      "stripeHint": "卡号和 CVV 仅用于启动 Stripe 托管验证；VIZA 不会保存完整卡号或 CVV。",
+      "cardIdentifier": "尾号 {last4} · Stripe 验证中",
+      "qrAlt": "付款账号绑定二维码",
+      "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
+      "qrExpires": "二维码有效期至 {time}。",
+      "qrHint": {
+        "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
+        "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
       },
-      "alipay": {
-        "label": "例如：我的支付宝",
-        "identifier": "例如：支付宝账号备注"
+      "fields": {
+        "label": "账号名称",
+        "identifier": "识别信息",
+        "nickname": "昵称",
+        "cardNumber": "卡号",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "例如：招商银行储蓄卡",
+          "identifier": "例如：尾号 5857",
+          "nickname": "例如：招商银行储蓄卡",
+          "cardNumber": "请输入银行卡号",
+          "cvv": "卡背面 3 或 4 位安全码"
+        },
+        "wechat_pay": {
+          "label": "例如：我的微信",
+          "identifier": "例如：微信昵称或手机号后四位"
+        },
+        "alipay": {
+          "label": "例如：我的支付宝",
+          "identifier": "例如：支付宝账号备注"
+        }
+      },
+      "messages": {
+        "required": "请填写账号名称和识别信息。",
+        "nicknameRequired": "请填写银行卡昵称。",
+        "cardNumberInvalid": "请输入有效的银行卡号。",
+        "cvvInvalid": "请输入有效的 CVV。",
+        "added": "付款账号已添加。",
+        "updated": "付款账号已更新。",
+        "deleted": "付款账号已删除。",
+        "defaultUpdated": "默认付款账号已更新。",
+        "stripeUnavailable": "Stripe 尚未配置，暂时无法验证银行卡。",
+        "stripeStartFailed": "暂时无法启动 Stripe 验证，请稍后重试。",
+        "stripeRedirect": "正在打开 Stripe 托管验证页面。",
+        "stripeReturned": "Stripe 验证已返回，绑定状态会在支付服务确认后更新。",
+        "stripeCancelled": "Stripe 验证已取消，银行卡尚未完成绑定。",
+        "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
+        "qrReady": "二维码已生成，请使用对应 App 扫码。",
+        "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
+        "qrExpired": "二维码已过期，请重新生成。",
+        "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
+        "qrBound": "扫码绑定已完成。"
+      },
+      "methods": {
+        "bank_card": {
+          "title": "银行卡",
+          "description": "填写卡号、CVV 和昵称后，通过 Stripe 验证绑定。"
+        },
+        "wechat_pay": {
+          "title": "微信支付",
+          "description": "通过微信扫码授权绑定账号。"
+        },
+        "alipay": {
+          "title": "支付宝",
+          "description": "通过支付宝扫码授权绑定账号。"
+        }
       }
     },
-    "messages": {
-      "required": "请填写账号名称和识别信息。",
-      "nicknameRequired": "请填写银行卡昵称。",
-      "cardNumberInvalid": "请输入有效的银行卡号。",
-      "cvvInvalid": "请输入有效的 CVV。",
-      "added": "付款账号已添加。",
-      "updated": "付款账号已更新。",
-      "deleted": "付款账号已删除。",
-      "defaultUpdated": "默认付款账号已更新。",
-      "stripeUnavailable": "Stripe 尚未配置，暂时无法验证银行卡。",
-      "stripeStartFailed": "暂时无法启动 Stripe 验证，请稍后重试。",
-      "stripeRedirect": "正在打开 Stripe 托管验证页面。",
-      "stripeReturned": "Stripe 验证已返回，绑定状态会在支付服务确认后更新。",
-      "stripeCancelled": "Stripe 验证已取消，银行卡尚未完成绑定。",
-      "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
-      "qrReady": "二维码已生成，请使用对应 App 扫码。",
-      "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
-      "qrExpired": "二维码已过期，请重新生成。",
-      "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
-      "qrBound": "扫码绑定已完成。"
-    },
-    "methods": {
-      "bank_card": {
-        "title": "银行卡",
-        "description": "填写卡号、CVV 和昵称后，通过 Stripe 验证绑定。"
-      },
-      "wechat_pay": {
-        "title": "微信支付",
-        "description": "通过微信扫码授权绑定账号。"
-      },
-      "alipay": {
-        "title": "支付宝",
-        "description": "通过支付宝扫码授权绑定账号。"
-      }
-    }
-  },
     "travelers": {
       "title": "常用出行人",
       "description": "保存经常一起出行的申请人资料。这里的资料不会自动提交，只是为后续团单选择做准备。",
@@ -3860,52 +3929,52 @@
       "failedToSave": "保存失败。",
       "saved": "已保存。"
     },
-  "security": {
-    "title": "安全设置",
-    "passwordTitle": "修改密码",
-    "passwordDescription": "先验证当前邮箱验证码，验证后即可设置新密码。",
-    "emailTitle": "更改绑定邮箱",
-    "emailDescription": "通过当前邮箱验证码确认身份，保留原有密码。",
-    "guideDescription": "查看密码、邮箱和账号保护建议。",
-    "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
-    "verifyDescription": "我们会向 {email} 发送 8 位验证码，验证后继续操作。",
-    "verificationCode": "邮箱验证码",
-    "codePlaceholder": "输入 8 位验证码",
-    "sendCode": "发送验证码",
-    "resendCode": "重新发送",
-    "verifyCode": "验证邮箱",
-    "verificationSent": "验证码已发送，请查看邮箱。",
-    "verificationSendFailed": "暂时无法发送验证码，请稍后重试。",
-    "codeInvalid": "请输入 8 位验证码。",
-    "codeFailed": "验证码无效或已过期，请重试。",
-    "verified": "邮箱验证已通过。",
-    "verifyFirst": "请先完成邮箱验证码验证。",
-    "newPassword": "新密码",
-    "confirmPassword": "确认密码",
-    "newEmail": "新绑定邮箱",
-    "newEmailPlaceholder": "name@example.com",
-    "updatePassword": "更新密码",
-    "updateEmail": "更新邮箱",
-    "saving": "更新中...",
-    "savingEmail": "更新中...",
-    "updated": "密码已更新。",
-    "emailUpdated": "绑定邮箱已更新，原密码保持不变。",
-    "mismatch": "两次输入的密码不一致。",
-    "tooShort": "密码至少需要 8 个字符。",
-    "requirementError": "密码必须包含字母、数字和特殊符号。",
-    "failed": "暂时无法更新密码，请重试。",
-    "emailMissing": "当前账号邮箱不可用，请重新登录后再试。",
-    "emailInvalid": "请输入有效的新邮箱地址。",
-    "emailSame": "新邮箱不能与当前邮箱相同。",
-    "emailUpdateFailed": "暂时无法更新邮箱，请重试。",
-    "passwordRequirements": {
-      "length": "至少 8 个字符",
-      "letter": "包含字母",
-      "digit": "包含数字",
-      "symbol": "包含特殊符号"
+    "security": {
+      "title": "安全设置",
+      "passwordTitle": "修改密码",
+      "passwordDescription": "先验证当前邮箱验证码，验证后即可设置新密码。",
+      "emailTitle": "更改绑定邮箱",
+      "emailDescription": "通过当前邮箱验证码确认身份，保留原有密码。",
+      "guideDescription": "查看密码、邮箱和账号保护建议。",
+      "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
+      "verifyDescription": "我们会向 {email} 发送 8 位验证码，验证后继续操作。",
+      "verificationCode": "邮箱验证码",
+      "codePlaceholder": "输入 8 位验证码",
+      "sendCode": "发送验证码",
+      "resendCode": "重新发送",
+      "verifyCode": "验证邮箱",
+      "verificationSent": "验证码已发送，请查看邮箱。",
+      "verificationSendFailed": "暂时无法发送验证码，请稍后重试。",
+      "codeInvalid": "请输入 8 位验证码。",
+      "codeFailed": "验证码无效或已过期，请重试。",
+      "verified": "邮箱验证已通过。",
+      "verifyFirst": "请先完成邮箱验证码验证。",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "newEmail": "新绑定邮箱",
+      "newEmailPlaceholder": "name@example.com",
+      "updatePassword": "更新密码",
+      "updateEmail": "更新邮箱",
+      "saving": "更新中...",
+      "savingEmail": "更新中...",
+      "updated": "密码已更新。",
+      "emailUpdated": "绑定邮箱已更新，原密码保持不变。",
+      "mismatch": "两次输入的密码不一致。",
+      "tooShort": "密码至少需要 8 个字符。",
+      "requirementError": "密码必须包含字母、数字和特殊符号。",
+      "failed": "暂时无法更新密码，请重试。",
+      "emailMissing": "当前账号邮箱不可用，请重新登录后再试。",
+      "emailInvalid": "请输入有效的新邮箱地址。",
+      "emailSame": "新邮箱不能与当前邮箱相同。",
+      "emailUpdateFailed": "暂时无法更新邮箱，请重试。",
+      "passwordRequirements": {
+        "length": "至少 8 个字符",
+        "letter": "包含字母",
+        "digit": "包含数字",
+        "symbol": "包含特殊符号"
+      },
+      "guide": "安全指南"
     },
-    "guide": "安全指南"
-  },
     "signOut": {
       "title": "退出登录",
       "description": "从此设备退出您的账户。",

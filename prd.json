@@ -5683,7 +5683,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 396,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed registry only imports us, uk, schengen, vn, au, eg, id configs."
     },
     {
@@ -5710,7 +5710,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 398,
-      "passes": false,
+      "passes": true,
       "notes": "Model on existing au/config or vn/config."
     },
     {
@@ -5724,7 +5724,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 399,
-      "passes": false,
+      "passes": true,
       "notes": "Grouped: similar e-visa shapes. Keep each config single-file."
     },
     {
@@ -5738,7 +5738,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 400,
-      "passes": false,
+      "passes": true,
       "notes": "Completes the 16-country wizard set (US/UK/Schengen/VN/AU/EG/ID already present)."
     },
     {

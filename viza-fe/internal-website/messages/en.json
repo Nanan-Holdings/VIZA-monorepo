@@ -104,24 +104,24 @@
       "daysAgo": "{count}d ago"
     },
     "popularDestinations": {
-        "heading": "Choose a popular destination",
-        "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
-        "featuredHeading": "Featured destinations",
-        "regionHeading": "Browse by region",
-        "searchResultsHeading": "Search results",
-        "schemaReady": "Official-form schemas ready",
-        "start": "Start",
-        "open": "Open",
-        "continue": "Continue",
-        "starting": "Starting",
-        "browseRegion": "Browse region",
-        "selected": "Selected",
-        "readyToStart": "Ready to start",
-        "addedNotStarted": "Added · not started",
-        "chooseCountry": "Choose country",
-        "comingSoon": "Coming soon",
-        "countriesCount": "{count} countries",
-        "progressPill": "{pct}% filled",
+      "heading": "Choose a popular destination",
+      "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
+      "featuredHeading": "Featured destinations",
+      "regionHeading": "Browse by region",
+      "searchResultsHeading": "Search results",
+      "schemaReady": "Official-form schemas ready",
+      "start": "Start",
+      "open": "Open",
+      "continue": "Continue",
+      "starting": "Starting",
+      "browseRegion": "Browse region",
+      "selected": "Selected",
+      "readyToStart": "Ready to start",
+      "addedNotStarted": "Added · not started",
+      "chooseCountry": "Choose country",
+      "comingSoon": "Coming soon",
+      "countriesCount": "{count} countries",
+      "progressPill": "{pct}% filled",
       "selectedNotFilled": "Selected, not filled",
       "fillable": "Fillable",
       "searchPlaceholder": "Search country, visa, or form...",
@@ -3378,6 +3378,75 @@
       "specializedSkillsExplain": "Please explain",
       "specializedSkillsExplainPlaceholder": "Describe your specialized skills or training...",
       "submit": "Continue to review"
+    },
+    "standardEvisa": {
+      "steps": {
+        "personal": {
+          "label": "Personal details",
+          "title": "Personal details",
+          "subtitle": "Please complete the fields below."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Please complete the fields below."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact",
+          "subtitle": "Please complete the fields below."
+        },
+        "trip": {
+          "label": "Trip details",
+          "title": "Trip details",
+          "subtitle": "Please complete the fields below."
+        },
+        "declaration": {
+          "label": "Declaration",
+          "title": "Declaration",
+          "subtitle": "Please complete the fields below."
+        }
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenNames": "Given names",
+        "sex": "Sex",
+        "dob": "Date of birth",
+        "dateOfBirth": "Date of birth",
+        "placeOfBirthCity": "Place of birth (city)",
+        "nationality": "Nationality",
+        "passportNumber": "Passport number",
+        "passportIssuingCountry": "Passport issuing country",
+        "passportExpiryDate": "Passport expiry date",
+        "email": "Email",
+        "phone": "Phone",
+        "homeAddress": "Home address",
+        "intendedArrival": "Intended arrival date",
+        "intendedArrivalDate": "Intended arrival date",
+        "intendedDeparture": "Intended departure date",
+        "intendedDepartureDate": "Intended departure date",
+        "purposeOfVisit": "Purpose of visit",
+        "occupation": "Occupation",
+        "hasCriminalRecord": "Do you have a criminal record?",
+        "finalDeclaration": "I confirm the information is true and correct."
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        }
+      },
+      "declarations": {
+        "hasCriminalRecord": "Do you have a criminal record?",
+        "finalDeclaration": "I confirm the information is true and correct."
+      },
+      "review": {
+        "personal": "Personal details",
+        "passport": "Passport",
+        "contact": "Contact",
+        "trip": "Trip details",
+        "declaration": "Declaration"
+      }
     }
   },
   "documents": {
@@ -3601,11 +3670,11 @@
         "title": "Language",
         "description": "Use the language switcher in the top bar, or read the profile guide."
       },
-    "paymentMethods": {
-      "title": "Payment method setup",
-      "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
-      "badge": "Manage"
-    },
+      "paymentMethods": {
+        "title": "Payment method setup",
+        "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+        "badge": "Manage"
+      },
       "billing": {
         "title": "Receipts and invoices",
         "description": "Open billing history, receipts, invoice requests, and refund visibility."
@@ -3619,104 +3688,104 @@
         "description": "Send a support request if something needs human follow-up."
       }
     },
-  "payment": {
-    "selected": "Default",
-    "pendingVerification": "Verification pending",
-    "setDefault": "Set as default",
-    "manage": "Manage accounts",
-    "manageSelected": "Managing",
-    "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
-    "managerHints": {
-      "bank_card": "Cards must complete hosted Stripe verification before they are available for future payment selection.",
-      "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
-      "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
-    },
-    "boundCount": "{count} bound",
-    "defaultAccount": "Default: {account}",
-    "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
-    "addTitle": "Add payment account",
-    "cardAddTitle": "Add card",
-    "qrAddTitle": "Scan to bind account",
-    "editTitle": "Edit payment account",
-    "addAccount": "Add account",
-    "verifyWithStripe": "Verify with Stripe",
-    "generateQr": "Generate binding QR",
-    "regenerateQr": "Regenerate QR",
-    "checkQrStatus": "Check binding status",
-    "saveEdit": "Save changes",
-    "cancelEdit": "Cancel edit",
-    "edit": "Edit",
-    "delete": "Delete",
-    "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
-    "stripeHint": "Card number and CVV are used only to start hosted Stripe verification; VIZA does not store the full card number or CVV.",
-    "cardIdentifier": "Ending in {last4} · Stripe verification pending",
-    "qrAlt": "Payment account binding QR code",
-    "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
-    "qrExpires": "QR code expires at {time}.",
-    "qrHint": {
-      "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
-      "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
-    },
-    "fields": {
-      "label": "Account name",
-      "identifier": "Identifier",
-      "nickname": "Nickname",
-      "cardNumber": "Card number",
-      "cvv": "CVV"
-    },
-    "placeholders": {
-      "bank_card": {
-        "label": "For example: DBS debit card",
-        "identifier": "For example: ending in 5857",
-        "nickname": "For example: DBS debit card",
-        "cardNumber": "Enter card number",
-        "cvv": "3 or 4 digit security code"
+    "payment": {
+      "selected": "Default",
+      "pendingVerification": "Verification pending",
+      "setDefault": "Set as default",
+      "manage": "Manage accounts",
+      "manageSelected": "Managing",
+      "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
+      "managerHints": {
+        "bank_card": "Cards must complete hosted Stripe verification before they are available for future payment selection.",
+        "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
+        "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
       },
-      "wechat_pay": {
-        "label": "For example: My WeChat",
-        "identifier": "For example: WeChat nickname or phone suffix"
+      "boundCount": "{count} bound",
+      "defaultAccount": "Default: {account}",
+      "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
+      "addTitle": "Add payment account",
+      "cardAddTitle": "Add card",
+      "qrAddTitle": "Scan to bind account",
+      "editTitle": "Edit payment account",
+      "addAccount": "Add account",
+      "verifyWithStripe": "Verify with Stripe",
+      "generateQr": "Generate binding QR",
+      "regenerateQr": "Regenerate QR",
+      "checkQrStatus": "Check binding status",
+      "saveEdit": "Save changes",
+      "cancelEdit": "Cancel edit",
+      "edit": "Edit",
+      "delete": "Delete",
+      "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+      "stripeHint": "Card number and CVV are used only to start hosted Stripe verification; VIZA does not store the full card number or CVV.",
+      "cardIdentifier": "Ending in {last4} · Stripe verification pending",
+      "qrAlt": "Payment account binding QR code",
+      "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
+      "qrExpires": "QR code expires at {time}.",
+      "qrHint": {
+        "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
+        "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
       },
-      "alipay": {
-        "label": "For example: My Alipay",
-        "identifier": "For example: Alipay account note"
+      "fields": {
+        "label": "Account name",
+        "identifier": "Identifier",
+        "nickname": "Nickname",
+        "cardNumber": "Card number",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "For example: DBS debit card",
+          "identifier": "For example: ending in 5857",
+          "nickname": "For example: DBS debit card",
+          "cardNumber": "Enter card number",
+          "cvv": "3 or 4 digit security code"
+        },
+        "wechat_pay": {
+          "label": "For example: My WeChat",
+          "identifier": "For example: WeChat nickname or phone suffix"
+        },
+        "alipay": {
+          "label": "For example: My Alipay",
+          "identifier": "For example: Alipay account note"
+        }
+      },
+      "messages": {
+        "required": "Enter an account name and identifier.",
+        "nicknameRequired": "Enter a card nickname.",
+        "cardNumberInvalid": "Enter a valid card number.",
+        "cvvInvalid": "Enter a valid CVV.",
+        "added": "Payment account added.",
+        "updated": "Payment account updated.",
+        "deleted": "Payment account deleted.",
+        "defaultUpdated": "Default payment account updated.",
+        "stripeUnavailable": "Stripe is not configured, so card verification is unavailable.",
+        "stripeStartFailed": "Could not start Stripe verification. Please try again later.",
+        "stripeRedirect": "Opening the hosted Stripe verification page.",
+        "stripeReturned": "Stripe verification returned. The payment service will update the binding status after confirmation.",
+        "stripeCancelled": "Stripe verification was cancelled. The card is not fully bound yet.",
+        "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
+        "qrReady": "QR code generated. Scan it with the matching app.",
+        "qrStatusFailed": "Could not check binding status. Please try again later.",
+        "qrExpired": "This QR code has expired. Generate a new one.",
+        "qrPending": "No scan result has been received yet. Scan first, then check again.",
+        "qrBound": "QR binding completed."
+      },
+      "methods": {
+        "bank_card": {
+          "title": "Card",
+          "description": "Enter card number, CVV, and nickname, then verify through Stripe."
+        },
+        "wechat_pay": {
+          "title": "WeChat Pay",
+          "description": "Bind by scanning a QR code with WeChat."
+        },
+        "alipay": {
+          "title": "Alipay",
+          "description": "Bind by scanning a QR code with Alipay."
+        }
       }
     },
-    "messages": {
-      "required": "Enter an account name and identifier.",
-      "nicknameRequired": "Enter a card nickname.",
-      "cardNumberInvalid": "Enter a valid card number.",
-      "cvvInvalid": "Enter a valid CVV.",
-      "added": "Payment account added.",
-      "updated": "Payment account updated.",
-      "deleted": "Payment account deleted.",
-      "defaultUpdated": "Default payment account updated.",
-      "stripeUnavailable": "Stripe is not configured, so card verification is unavailable.",
-      "stripeStartFailed": "Could not start Stripe verification. Please try again later.",
-      "stripeRedirect": "Opening the hosted Stripe verification page.",
-      "stripeReturned": "Stripe verification returned. The payment service will update the binding status after confirmation.",
-      "stripeCancelled": "Stripe verification was cancelled. The card is not fully bound yet.",
-      "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
-      "qrReady": "QR code generated. Scan it with the matching app.",
-      "qrStatusFailed": "Could not check binding status. Please try again later.",
-      "qrExpired": "This QR code has expired. Generate a new one.",
-      "qrPending": "No scan result has been received yet. Scan first, then check again.",
-      "qrBound": "QR binding completed."
-    },
-    "methods": {
-      "bank_card": {
-        "title": "Card",
-        "description": "Enter card number, CVV, and nickname, then verify through Stripe."
-      },
-      "wechat_pay": {
-        "title": "WeChat Pay",
-        "description": "Bind by scanning a QR code with WeChat."
-      },
-      "alipay": {
-        "title": "Alipay",
-        "description": "Bind by scanning a QR code with Alipay."
-      }
-    }
-  },
     "travelers": {
       "title": "Frequent travelers",
       "description": "Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
@@ -3774,52 +3843,52 @@
       "failedToSave": "Failed to save.",
       "saved": "Saved."
     },
-  "security": {
-    "title": "Security settings",
-    "passwordTitle": "Change password",
-    "passwordDescription": "Verify your current email code first, then set a new password.",
-    "emailTitle": "Change bound email",
-    "emailDescription": "Confirm your identity with a code sent to the current email. Your password stays the same.",
-    "guideDescription": "Review password, email, and account protection tips.",
-    "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
-    "verifyDescription": "We will send an 8-digit code to {email}. Verify it to continue.",
-    "verificationCode": "Email verification code",
-    "codePlaceholder": "Enter 8-digit code",
-    "sendCode": "Send code",
-    "resendCode": "Resend",
-    "verifyCode": "Verify email",
-    "verificationSent": "Verification code sent. Check your email.",
-    "verificationSendFailed": "Could not send the verification code. Please try again later.",
-    "codeInvalid": "Enter the 8-digit verification code.",
-    "codeFailed": "The code is invalid or expired. Please try again.",
-    "verified": "Email verified.",
-    "verifyFirst": "Verify your email code first.",
-    "newPassword": "New password",
-    "confirmPassword": "Confirm password",
-    "newEmail": "New bound email",
-    "newEmailPlaceholder": "name@example.com",
-    "updatePassword": "Update password",
-    "updateEmail": "Update email",
-    "saving": "Updating...",
-    "savingEmail": "Updating...",
-    "updated": "Password updated.",
-    "emailUpdated": "Bound email updated. Your password was not changed.",
-    "mismatch": "The two passwords do not match.",
-    "tooShort": "Password must be at least 8 characters.",
-    "requirementError": "Password must include letters, numbers, and a special symbol.",
-    "failed": "Could not update the password. Please try again.",
-    "emailMissing": "Your current account email is unavailable. Sign in again and try later.",
-    "emailInvalid": "Enter a valid new email address.",
-    "emailSame": "The new email must be different from the current email.",
-    "emailUpdateFailed": "Could not update the email. Please try again.",
-    "passwordRequirements": {
-      "length": "At least 8 characters",
-      "letter": "Includes a letter",
-      "digit": "Includes a number",
-      "symbol": "Includes a special symbol"
+    "security": {
+      "title": "Security settings",
+      "passwordTitle": "Change password",
+      "passwordDescription": "Verify your current email code first, then set a new password.",
+      "emailTitle": "Change bound email",
+      "emailDescription": "Confirm your identity with a code sent to the current email. Your password stays the same.",
+      "guideDescription": "Review password, email, and account protection tips.",
+      "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+      "verifyDescription": "We will send an 8-digit code to {email}. Verify it to continue.",
+      "verificationCode": "Email verification code",
+      "codePlaceholder": "Enter 8-digit code",
+      "sendCode": "Send code",
+      "resendCode": "Resend",
+      "verifyCode": "Verify email",
+      "verificationSent": "Verification code sent. Check your email.",
+      "verificationSendFailed": "Could not send the verification code. Please try again later.",
+      "codeInvalid": "Enter the 8-digit verification code.",
+      "codeFailed": "The code is invalid or expired. Please try again.",
+      "verified": "Email verified.",
+      "verifyFirst": "Verify your email code first.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "newEmail": "New bound email",
+      "newEmailPlaceholder": "name@example.com",
+      "updatePassword": "Update password",
+      "updateEmail": "Update email",
+      "saving": "Updating...",
+      "savingEmail": "Updating...",
+      "updated": "Password updated.",
+      "emailUpdated": "Bound email updated. Your password was not changed.",
+      "mismatch": "The two passwords do not match.",
+      "tooShort": "Password must be at least 8 characters.",
+      "requirementError": "Password must include letters, numbers, and a special symbol.",
+      "failed": "Could not update the password. Please try again.",
+      "emailMissing": "Your current account email is unavailable. Sign in again and try later.",
+      "emailInvalid": "Enter a valid new email address.",
+      "emailSame": "The new email must be different from the current email.",
+      "emailUpdateFailed": "Could not update the email. Please try again.",
+      "passwordRequirements": {
+        "length": "At least 8 characters",
+        "letter": "Includes a letter",
+        "digit": "Includes a number",
+        "symbol": "Includes a special symbol"
+      },
+      "guide": "Security guide"
     },
-    "guide": "Security guide"
-  },
     "signOut": {
       "title": "Sign Out",
       "description": "Sign out of your account on this device.",
