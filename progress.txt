@@ -2699,3 +2699,10 @@ acknowledgment).
 - Files: src/ceac/runner.ts, src/uk/runner.ts, src/au/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
 - Limitation: runtime success needs provisioned uk_accounts/au_accounts + complete answers (PROV-*, onHold); else NeedsHumanError. US CEAC needs 2captcha + answers.
 ---
+
+## 2026-06-04 - RUN-CORE-001
+- Shared recon retry/backoff + captcha hooks consolidated in src/runners/standard-evisa.ts: withRetry (exponential backoff), discoverFields (recon field inventory), detectAndSolveCaptcha (2captcha reCAPTCHA-v2 hook, no-op without key).
+- Consumed by CA/TR/TH/AE (makeStandardEvisaRunner) AND refactored SA/MY form-recon to import shared withRetry+discoverFields (removed local copies; re-export ReconField for tests). Satisfies "consumed by SA/MY/CA/TR/TH/AE" + ">=2 refactored".
+- Test src/runners/__tests__/standard-evisa.spec.ts (4): date transforms, mapAnswers/missingRequired, withRetry retry, captcha hook no-key path. 14 tests pass (incl sa/my).
+- Files: src/runners/standard-evisa.ts (+test), src/sa/form-recon.ts, src/my/form-recon.ts, prd.json. Typecheck passes.
+---
