@@ -27,7 +27,11 @@
     "derive:question-sets": "ts-node scripts/derive-question-sets.ts",
     "queue:list-stuck": "ts-node scripts/queue/list-stuck-jobs.ts",
     "queue:requeue": "ts-node scripts/queue/requeue-jobs.ts",
-    "queue:backfill": "ts-node scripts/queue/backfill-paid-orders.ts"
+    "queue:backfill": "ts-node scripts/queue/backfill-paid-orders.ts",
+    "db:verify-queue": "ts-node scripts/db/verify-queue-schema.ts",
+    "db:verify-inputs": "ts-node scripts/db/verify-runner-inputs.ts",
+    "db:verify": "npm run db:verify-queue && npm run db:verify-inputs",
+    "db:diff-migrations": "ts-node scripts/db/diff-migrations.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
