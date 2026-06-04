@@ -2761,3 +2761,12 @@ acknowledgment).
 - Files: marketing lib/pricing.ts, app/[locale]/page.tsx, docs/shared/pricing-currency-policy.md, prd.json. Both packages typecheck.
 - Limitation: marketing pricing is a hand-synced mirror (no workspace pkg); display-only, never drives a charge.
 ---
+
+## 2026-06-04 - MKT-003/004/005
+- MKT-004: components/VisaCountryTemplate.tsx — reusable data-driven visa page (hero/process/docs/nearby + sticky price card with displayFeeSGD + PayByCard/WechatPay buttons using portalCountry, /signup CTA). Real sibling nearby links (no '#'). visa-template.css.
+- MKT-003: components/ComingSoon.tsx (localized) + app/[locale]/visa/[country]/page.tsx (useParams -> countryBySlug; launched->template, unlaunched/unknown->ComingSoon, no 404).
+- MKT-005: all 16 launch slugs resolve — indonesia via bespoke static page, other 15 via [country] template. Content (type/validity/fee) from shared data, not hardcoded SGD.
+- Localized en+zh-CN: added `visa` message namespace (template labels + coming-soon) to messages/en.json + zh-CN.json.
+- Added portalCountry to CountryMeta (turkiye->turkey etc) so payment buttons get the portal code.
+- Files: components/{VisaCountryTemplate,ComingSoon}.tsx + visa-template.css, app/[locale]/visa/[country]/page.tsx, lib/countries.ts, messages/*.json, prd.json. Typecheck passes.
+---

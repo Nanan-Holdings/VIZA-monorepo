@@ -5529,7 +5529,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 385,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed only /visa/indonesia exists; other 15 would 404."
     },
     {
@@ -5543,7 +5543,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 386,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed nearby links and 'See all 84' are '#' (page.tsx:503)."
     },
     {
@@ -5557,7 +5557,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 387,
-      "passes": false,
+      "passes": true,
       "notes": "Can be implemented as a dynamic [country] route consuming countries.ts; no per-file duplication required."
     },
     {

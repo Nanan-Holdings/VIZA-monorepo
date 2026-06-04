@@ -88,5 +88,28 @@
     "applyNow": "立即申请",
     "talkToHuman": "联系顾问",
     "viewAll": "查看全部"
+  },
+  "visa": {
+    "heroTitle": "{country}签证",
+    "validity": "有效期",
+    "fromFee": "{fee}起",
+    "seePricing": "查看价格",
+    "howItWorks": "办理流程",
+    "step1": "告诉我们您的行程并上传护照。",
+    "step2": "我们按最新规则完成并核对您的申请。",
+    "step3": "我们提交至政府门户并跟踪审批进度。",
+    "step4": "获批签证将通过电子邮件送达——全程由我们监控。",
+    "documents": "所需材料",
+    "doc1": "有效期至少6个月的护照。",
+    "doc2": "近期护照照片。",
+    "doc3": "您的出行日期与住宿信息。",
+    "doc4": "用于支付服务费和政府费用的付款方式。",
+    "nearby": "邻近目的地",
+    "allInclusive": "服务费 + 政府费用，全包",
+    "startApplication": "开始申请",
+    "comingSoonTitle": "{country}——即将上线",
+    "comingSoonBody": "我们正在完善{country}的办理流程。注册账户，上线后第一时间通知您。",
+    "browseDestinations": "浏览目的地",
+    "notifyMe": "通知我"
   }
 }

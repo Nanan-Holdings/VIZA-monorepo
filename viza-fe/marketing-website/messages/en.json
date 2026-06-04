@@ -88,5 +88,28 @@
     "applyNow": "Apply now",
     "talkToHuman": "Talk to a human",
     "viewAll": "View all"
+  },
+  "visa": {
+    "heroTitle": "{country} visa",
+    "validity": "Validity",
+    "fromFee": "from {fee}",
+    "seePricing": "See pricing",
+    "howItWorks": "How it works",
+    "step1": "Tell us your trip details and upload your passport.",
+    "step2": "We complete and check your application against the latest rules.",
+    "step3": "We submit to the government portal and track the decision.",
+    "step4": "Your approved visa arrives by email — we monitor it end to end.",
+    "documents": "What you'll need",
+    "doc1": "A passport valid for at least 6 months.",
+    "doc2": "A recent passport-style photo.",
+    "doc3": "Your travel dates and accommodation.",
+    "doc4": "A payment method for the agency + government fee.",
+    "nearby": "Nearby destinations",
+    "allInclusive": "Agency + government fee, all-inclusive",
+    "startApplication": "Start your application",
+    "comingSoonTitle": "{country} — coming soon",
+    "comingSoonBody": "We're putting the finishing touches on {country}. Create an account and we'll let you know the moment it's live.",
+    "browseDestinations": "Browse destinations",
+    "notifyMe": "Notify me"
   }
 }
