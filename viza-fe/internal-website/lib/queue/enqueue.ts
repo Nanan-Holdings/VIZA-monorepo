@@ -1,4 +1,5 @@
 import { withAdmin } from "@/lib/auth/with-admin";
+import { assertKnownCountry } from "@/lib/queue/countries";
 
 /**
  * Producer for the runner_job queue (INFRA-002).
@@ -24,6 +25,9 @@ export async function enqueueRunnerJob(
   country: string,
   opts: EnqueueOpts = {},
 ): Promise<{ id: string; created: boolean }> {
+  // QUE-004: validate + normalize the country against the shared contract
+  // so the consumer's dispatch table never sees an unroutable value.
+  const normalizedCountry = assertKnownCountry(country);
   return withAdmin("system", "lib/queue:enqueue", async (admin) => {
     const { data: existing } = await admin
       .from("runner_job")
@@ -40,7 +44,7 @@ export async function enqueueRunnerJob(
       .from("runner_job")
       .insert({
         application_id: applicationId,
-        country,
+        country: normalizedCountry,
         status: "queued",
         attempts: 0,
         max_attempts: opts.maxAttempts ?? 3,

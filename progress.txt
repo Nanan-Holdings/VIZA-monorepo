@@ -2545,3 +2545,10 @@ acknowledgment).
 - Files: src/queue/__tests__/dispatch.spec.ts, prd.json. Typecheck passes.
 - Learning: src/supabase.ts throws at import without SUPABASE_URL/KEY; tests need dummy env. Run tests: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx --test <spec>.
 ---
+
+## 2026-06-04 - QUE-004
+- Reconciled producer/consumer on runner_job contract. Added viza-fe/internal-website/lib/queue/countries.ts (LAUNCH_COUNTRIES + EXTRA + COUNTRY_ALIASES + normalizeCountry + assertKnownCountry) mirroring submission-service dispatch.ts.
+- enqueue.ts now assertKnownCountry()+normalize before insert (writes canonical country).
+- Documented contract in docs/infra/queue.md: row table, shared country codes (edit both sides), normalization, halt-vs-submit outcome semantics, ops scripts.
+- Files: lib/queue/countries.ts, lib/queue/enqueue.ts, docs/infra/queue.md, prd.json. internal-website typecheck passes.
+---
