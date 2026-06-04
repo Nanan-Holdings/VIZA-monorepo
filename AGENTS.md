@@ -31,6 +31,20 @@ cd viza-fe\internal-website
 npm run init:admin -- --email admin@viza.test --password "<temporary-password>"
 ```
 
+## Local Test Client
+
+Use this client account for local applicant portal smoke testing when a test
+session needs an existing user:
+
+```text
+Email: czz19974931995@gmail.com
+Login URL: http://127.0.0.1:3000/client/login
+```
+
+Do not store the plaintext client password in this repo guide. Use the password
+provided out-of-band for the current test run, or reset the local test password
+before testing if needed.
+
 ## Repository Map
 
 ```text

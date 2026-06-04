@@ -2,19 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, DollarSign, UserRound, ShoppingBag, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Copy, Mail, Gift, UserRound, ShoppingBag, Loader2 } from 'lucide-react';
 import { InviteHistory } from '@/components/client/invite-history';
 import { toast } from 'sonner';
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { createClient } from '@/lib/supabase/client';
+import { sendReferralInvite } from "@/app/actions/referrals";
 
 // Stubs — referral system removed during domain migration
 async function getReferralCode() {
-  return { success: false as const, link: undefined };
-}
-async function sendReferralInvite(_email: string) {
-  return { success: false as const, error: "Referral system is not available" };
-}
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  if (!user) return { success: false as const, code: undefined };
+
+  return { success: true as const, code: `VIZA-${user.id.toUpperCase()}` };
+}
 // SVG paths from Figma
 const svgPaths = {
   p10c3c700: "M12 20.1667H28.3333M20.1667 12V28.3333",
@@ -22,9 +27,10 @@ const svgPaths = {
 
 function ReferralSection() {
   const t = useTranslations("inviteFriends");
+  const locale = useLocale();
   const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState('');
-  const [referralLink, setReferralLink] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loadingLink, setLoadingLink] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
 
@@ -32,19 +38,19 @@ function ReferralSection() {
   useEffect(() => {
     async function loadCode() {
       const result = await getReferralCode();
-      if (result.success && result.link) {
-        setReferralLink(result.link);
+      if (result.success && result.code) {
+        setReferralCode(result.code);
       }
       setLoadingLink(false);
     }
     loadCode();
   }, []);
 
-  const handleCopyLink = () => {
-    if (!referralLink) return;
-    navigator.clipboard.writeText(referralLink);
+  const handleCopyCode = () => {
+    if (!referralCode) return;
+    navigator.clipboard.writeText(referralCode);
     setCopied(true);
-    toast.success('Referral link copied!');
+    toast.success(t("codeCopiedToast"));
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -52,14 +58,14 @@ function ReferralSection() {
     if (!email) return;
 
     setSendingInvite(true);
-    const result = await sendReferralInvite(email);
+    const result = await sendReferralInvite(email, referralCode, locale);
     setSendingInvite(false);
 
     if (result.success) {
-      toast.success(`Invite sent to ${email}!`);
+      toast.success(t("inviteSentToast", { email }));
       setEmail('');
     } else {
-      toast.error(result.error || 'Failed to send invite');
+      toast.error(t(`errors.${result.error}`));
     }
   };
 
@@ -89,12 +95,12 @@ function ReferralSection() {
       <div className="content-stretch flex flex-col gap-[16px] items-end justify-end relative shrink-0 w-full">
         <div className="relative shrink-0 w-full">
           <p className="font-medium leading-[1.5] not-italic pl-[8px] text-[#989898] text-[16px] tracking-[-0.24px]">
-            {t("referralLink")}
+            {t("referralCode")}
           </p>
         </div>
 
         <motion.div
-          className="relative rounded-[12px] shrink-0 w-full"
+          className="relative rounded-[12px] shrink-0 w-full bg-white"
           whileHover={{ scale: 1.01 }}
           transition={{ duration: 0.2 }}
         >
@@ -107,25 +113,40 @@ function ReferralSection() {
                   <span className="text-[14px] text-[#989898]">{t("loadingLink")}</span>
                 </div>
               ) : (
-                <p className="font-normal leading-[1.3] not-italic relative min-w-0 max-w-full text-[16px] text-black tracking-[-0.48px] break-all">
-                  {referralLink}
+                <p className="font-heading font-semibold leading-[1.15] not-italic relative min-w-0 max-w-full text-[26px] text-[#03346E] tracking-normal break-all sm:text-[32px]">
+                  {referralCode}
                 </p>
               )}
               <motion.button
-                onClick={handleCopyLink}
-                disabled={loadingLink || !referralLink}
-                className="content-stretch flex gap-[8px] items-center relative shrink-0 cursor-pointer bg-transparent border-0 disabled:opacity-50"
+                onClick={handleCopyCode}
+                disabled={loadingLink || !referralCode}
+                className="content-stretch flex min-h-11 gap-[8px] items-center relative shrink-0 cursor-pointer rounded-full bg-brand-50 px-4 text-brand-500 border-0 disabled:opacity-50"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <p className="font-medium leading-[1.5] not-italic relative shrink-0 text-[#03346E] text-[16px] tracking-[-0.24px]">
-                  {copied ? t("copied") : t("copyLink")}
+                <p className="font-medium leading-[1.5] not-italic relative shrink-0 text-[16px] tracking-normal">
+                  {copied ? t("copied") : t("copyCode")}
                 </p>
-                <LinkIcon className="size-[16px] text-[#03346E]" />
+                <Copy className="size-[16px]" />
               </motion.button>
             </div>
           </div>
         </motion.div>
+
+        <div className="grid w-full gap-3 rounded-[12px] border border-brand-100 bg-brand-50/70 p-4 sm:grid-cols-2">
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-normal text-brand-500">
+              {t("rewardForYouLabel")}
+            </p>
+            <p className="mt-1 text-[24px] font-semibold text-brand-900">{t("pointsAmount")}</p>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-normal text-brand-500">
+              {t("rewardForFriendLabel")}
+            </p>
+            <p className="mt-1 text-[24px] font-semibold text-brand-900">{t("pointsAmount")}</p>
+          </div>
+        </div>
 
         <div className="relative shrink-0 w-full">
           <p className="font-medium leading-[1.5] not-italic pl-[8px] text-[#989898] text-[16px] tracking-[-0.24px]">
@@ -188,7 +209,7 @@ function HowItWorks() {
       description: t("steps.share.description")
     },
     {
-      icon: DollarSign,
+      icon: Gift,
       title: t("steps.give.title"),
       description: t("steps.give.description")
     },

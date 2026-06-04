@@ -3460,13 +3460,26 @@
   },
   "inviteFriends": {
     "heroTitle": "Refer your friends",
-    "heroSubtitle": "Earn rewards",
-    "referHeading": "Refer your friends and earn ₱9,999",
-    "referDescription": "Share your unique referral link with friends and family. When they sign up, you'll each receive ₱9,999 to spend in VIZA Services.",
-    "referralLink": "Referral link",
-    "loadingLink": "Loading your link...",
-    "copyLink": "Copy link",
+    "heroSubtitle": "Earn VIZA points",
+    "referHeading": "Share your referral code and earn 99 points",
+    "referDescription": "Give your referral code to friends and family. When a new user signs up with it, both of you receive 99 VIZA points.",
+    "referralCode": "Referral code",
+    "loadingLink": "Loading your code...",
+    "copyCode": "Copy code",
     "copied": "Copied!",
+    "codeCopiedToast": "Referral code copied.",
+    "inviteSentToast": "Invite sent to {email}.",
+    "inviteFailedToast": "Failed to send invite.",
+    "rewardForYouLabel": "You receive",
+    "rewardForFriendLabel": "Friend receives",
+    "pointsAmount": "99 points",
+    "errors": {
+      "not_authenticated": "Please sign in again before sending an invite.",
+      "invalid_email": "Enter a valid email address.",
+      "missing_referral_code": "Your referral code is still loading. Please try again in a moment.",
+      "email_not_configured": "Email sending is not configured yet. Add RESEND_API_KEY to the local environment.",
+      "send_failed": "We could not send this invite. Please try again."
+    },
     "orInviteViaEmail": "or invite via email",
     "emailPlaceholder": "Your friend's email",
     "sendInvite": "Send invite",
@@ -3474,20 +3487,20 @@
     "howItWorks": "How it works",
     "steps": {
       "share": {
-        "title": "Share your unique link",
-        "description": "Invite your friends to join VIZA using your unique referral link"
+        "title": "Share your referral code",
+        "description": "Invite your friends to join VIZA with your personal code."
       },
       "give": {
-        "title": "Give ₱9,999 to your friends",
-        "description": "When your friends join VIZA, they get ₱9,999 to spend in the VIZA Services"
+        "title": "Give your friend 99 points",
+        "description": "New users receive 99 points when they register with your code."
       },
       "earn": {
-        "title": "Earn ₱9,999 in credit",
-        "description": "You'll also receive ₱9,999 for every friend who signs up with your link."
+        "title": "Earn 99 points",
+        "description": "You also receive 99 points for each new user who signs up with your code."
       },
       "redeem": {
-        "title": "Redeem your credits",
-        "description": "Use your credits in the VIZA Services page."
+        "title": "Redeem rewards",
+        "description": "Use points in the points marketplace inside Settings."
       }
     },
     "faqTitle": "Frequently Asked Questions",
@@ -3499,11 +3512,11 @@
     "faqs": {
       "whenReward": {
         "question": "When do I get my reward?",
-        "answer": "Your reward will be credited to your account within 24 hours after your friend completes their first purchase."
+        "answer": "Your 99 points are added after a new user successfully registers with your referral code."
       },
       "howUseCredit": {
-        "question": "How do I use the credit?",
-        "answer": "Credits can be applied at checkout when purchasing any service from VIZA Services page."
+        "question": "How do I use points?",
+        "answer": "Open the points center in Settings and redeem available rewards from the points marketplace."
       },
       "whoEligible": {
         "question": "Who's eligible?",
@@ -3532,6 +3545,33 @@
       "payment": "Payment",
       "notSet": "Not set"
     },
+    "pointsCenter": {
+      "eyebrow": "Points center",
+      "title": "VIZA points",
+      "totalLabel": "Current balance",
+      "referralRule": "When a new user signs up with your referral code, both accounts receive 99 points.",
+      "lifetimeEarned": "Lifetime earned",
+      "lifetimeSpent": "Lifetime spent",
+      "marketplaceTitle": "Points marketplace",
+      "marketplaceDescription": "Redeem points for useful VIZA rewards. Rewards unlock automatically when your balance is high enough.",
+      "cost": "{points} points",
+      "redeem": "Redeem",
+      "notEnough": "Need more",
+      "rewards": {
+        "applicationReview": {
+          "title": "Application review voucher",
+          "description": "Use points toward one VIZA application review before submission."
+        },
+        "priorityChecklist": {
+          "title": "Priority checklist preparation",
+          "description": "Get a faster document checklist review for your next application."
+        },
+        "consultationCredit": {
+          "title": "Consultation credit",
+          "description": "Redeem a discount toward a human visa consultation."
+        }
+      }
+    },
     "sections": {
       "general": "General",
       "payments": "Payments",
@@ -3551,6 +3591,11 @@
         "title": "Frequent travelers",
         "description": "Add family, colleagues, or companions so future group orders can reuse them.",
         "badge": "Group"
+      },
+      "pointsCenter": {
+        "title": "Points center",
+        "description": "View your VIZA points balance and redeem rewards.",
+        "badge": "Rewards"
       },
       "language": {
         "title": "Language",
@@ -4018,6 +4063,8 @@
       "title": "Create your account",
       "subtitle": "Enter your email to begin your VIZA account setup.",
       "emailPlaceholder": "Enter your email",
+      "referralCodePlaceholder": "Referral code (optional)",
+      "referralCodeHint": "New users who register with a referral code get 99 points, and the referrer gets 99 points too.",
       "invalidEmail": "Please enter a valid email address.",
       "submitting": "Submitting...",
       "continueToPassword": "Continue",
@@ -4117,7 +4164,7 @@
       "accountCreatedMessage": "Your account has been created successfully. You can now log in to start using VIZA.",
       "goToLogin": "Go to Login",
       "validatingReferral": "Validating referral...",
-      "referredBy": "Referred by {name} — you'll get ₱9,999 credit!",
+      "referredBy": "Referred by {name} — you will get 99 points!",
       "noReferralCode": "No referral code found. Please use a valid referral link to sign up.",
       "invalidReferralCode": "Invalid referral code. Please check your link and try again.",
       "createAccount": "Create your account",

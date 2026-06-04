@@ -3546,13 +3546,26 @@
   },
   "inviteFriends": {
     "heroTitle": "邀请您的朋友",
-    "heroSubtitle": "赚取奖励",
-    "referHeading": "推荐朋友赚取 ₱9,999",
-    "referDescription": "与朋友和家人分享您的专属推荐链接。当他们注册后，你们各自将获得 ₱9,999 可在VIZA服务中使用。",
-    "referralLink": "推荐链接",
-    "loadingLink": "正在加载您的链接...",
-    "copyLink": "复制链接",
+    "heroSubtitle": "赚取 VIZA 积分",
+    "referHeading": "分享 referral code，赚取 99 积分",
+    "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
+    "referralCode": "Referral code",
+    "loadingLink": "正在加载您的 code...",
+    "copyCode": "复制 code",
     "copied": "已复制！",
+    "codeCopiedToast": "Referral code 已复制。",
+    "inviteSentToast": "邀请已发送至 {email}。",
+    "inviteFailedToast": "发送邀请失败。",
+    "rewardForYouLabel": "您获得",
+    "rewardForFriendLabel": "朋友获得",
+    "pointsAmount": "99 积分",
+    "errors": {
+      "not_authenticated": "请重新登录后再发送邀请。",
+      "invalid_email": "请输入有效的电子邮件地址。",
+      "missing_referral_code": "您的 referral code 还在加载，请稍后再试。",
+      "email_not_configured": "邮件发送还没有配置，请在本地环境中添加 RESEND_API_KEY。",
+      "send_failed": "暂时无法发送邀请，请稍后重试。"
+    },
     "orInviteViaEmail": "或通过电子邮件邀请",
     "emailPlaceholder": "您朋友的电子邮件",
     "sendInvite": "发送邀请",
@@ -3560,20 +3573,20 @@
     "howItWorks": "如何运作",
     "steps": {
       "share": {
-        "title": "分享您的专属链接",
-        "description": "使用您的专属推荐链接邀请朋友加入VIZA"
+        "title": "分享您的 referral code",
+        "description": "邀请朋友使用您的专属 code 加入 VIZA。"
       },
       "give": {
-        "title": "赠送朋友 ₱9,999",
-        "description": "当您的朋友加入VIZA时，他们将获得 ₱9,999 在VIZA服务中使用"
+        "title": "赠送朋友 99 积分",
+        "description": "新用户注册时填写您的 code，即可获得 99 积分。"
       },
       "earn": {
-        "title": "赚取 ₱9,999 积分",
-        "description": "您的每位朋友使用您的链接注册，您也将获得 ₱9,999。"
+        "title": "赚取 99 积分",
+        "description": "每位新用户使用您的 code 注册后，您也将获得 99 积分。"
       },
       "redeem": {
-        "title": "兑换您的积分",
-        "description": "在VIZA服务页面使用您的积分。"
+        "title": "兑换积分奖励",
+        "description": "在设置里的积分中心使用积分商城兑换奖励。"
       }
     },
     "faqTitle": "常见问题",
@@ -3585,11 +3598,11 @@
     "faqs": {
       "whenReward": {
         "question": "我什么时候能获得奖励？",
-        "answer": "您的奖励将在您的朋友完成首次购买后24小时内计入您的账户。"
+        "answer": "新用户成功使用您的 referral code 注册后，99 积分会计入您的账户。"
       },
       "howUseCredit": {
         "question": "如何使用积分？",
-        "answer": "积分可在购买VIZA服务页面的任何服务时在结账时使用。"
+        "answer": "打开设置里的积分中心，即可在积分商城兑换可用奖励。"
       },
       "whoEligible": {
         "question": "谁有资格？",
@@ -3618,6 +3631,33 @@
       "payment": "付款",
       "notSet": "未设置"
     },
+    "pointsCenter": {
+      "eyebrow": "积分中心",
+      "title": "VIZA 积分",
+      "totalLabel": "当前积分总额",
+      "referralRule": "新用户注册时使用您的 referral code 后，两边账号各获得 99 积分。",
+      "lifetimeEarned": "累计获得",
+      "lifetimeSpent": "累计使用",
+      "marketplaceTitle": "积分商城",
+      "marketplaceDescription": "使用积分兑换 VIZA 奖励；余额足够时即可兑换。",
+      "cost": "{points} 积分",
+      "redeem": "兑换",
+      "notEnough": "积分不足",
+      "rewards": {
+        "applicationReview": {
+          "title": "申请审核券",
+          "description": "用于抵扣一次递交前的 VIZA 申请审核服务。"
+        },
+        "priorityChecklist": {
+          "title": "优先材料清单整理",
+          "description": "为下一次申请加速材料清单核对。"
+        },
+        "consultationCredit": {
+          "title": "顾问咨询抵扣",
+          "description": "兑换人工签证顾问咨询的费用抵扣。"
+        }
+      }
+    },
     "sections": {
       "general": "通用",
       "payments": "付款",
@@ -3637,6 +3677,11 @@
         "title": "常用出行人",
         "description": "添加家人、同事或同行人资料，后续团单可直接选择。",
         "badge": "团单"
+      },
+      "pointsCenter": {
+        "title": "积分中心",
+        "description": "查看 VIZA 积分总额，并在积分商城兑换奖励。",
+        "badge": "奖励"
       },
       "language": {
         "title": "语言",
@@ -4104,6 +4149,8 @@
       "title": "创建您的账户",
       "subtitle": "输入电子邮件，开始设置您的 VIZA 账户。",
       "emailPlaceholder": "输入您的电子邮件",
+      "referralCodePlaceholder": "Referral code（选填）",
+      "referralCodeHint": "新用户注册时填写 referral code，两边账号各获得 99 积分。",
       "invalidEmail": "请输入有效的电子邮件地址。",
       "submitting": "提交中...",
       "continueToPassword": "继续",
@@ -4203,7 +4250,7 @@
       "accountCreatedMessage": "您的账户已成功创建。您现在可以登录开始使用VIZA。",
       "goToLogin": "前往登录",
       "validatingReferral": "正在验证推荐...",
-      "referredBy": "由 {name} 推荐——您将获得 ₱9,999 积分！",
+      "referredBy": "由 {name} 推荐——您将获得 99 积分！",
       "noReferralCode": "未找到推荐码。请使用有效的推荐链接注册。",
       "invalidReferralCode": "无效的推荐码。请检查您的链接并重试。",
       "createAccount": "创建您的账户",

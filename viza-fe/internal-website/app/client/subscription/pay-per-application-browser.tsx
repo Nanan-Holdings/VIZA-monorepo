@@ -13,7 +13,7 @@ import { startCommercialCheckout } from "./actions";
 import type { PayPerItem, PayPerRegion } from "./pay-per-types";
 import { cn } from "@/lib/utils";
 
-type CommercialPaymentProvider = "stripe" | "wechat_pay" | "alipay";
+type CommercialPaymentProvider = "airwallex_card" | "airwallex_wechat" | "airwallex_alipay";
 
 interface PayPerApplicationBrowserProps {
   isZh: boolean;
@@ -29,15 +29,15 @@ interface PayPerApplicationBrowserProps {
 }
 
 const providerLabels: Record<CommercialPaymentProvider, string> = {
-  stripe: "Stripe",
-  wechat_pay: "微信",
-  alipay: "支付宝",
+  airwallex_card: "银行卡",
+  airwallex_wechat: "微信",
+  airwallex_alipay: "支付宝",
 };
 
 const providerIcons = {
-  stripe: CreditCard,
-  wechat_pay: MessageCircle,
-  alipay: WalletCards,
+  airwallex_card: CreditCard,
+  airwallex_wechat: MessageCircle,
+  airwallex_alipay: WalletCards,
 } satisfies Record<CommercialPaymentProvider, typeof CreditCard>;
 
 function PaymentButtons({
