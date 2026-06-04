@@ -4699,7 +4699,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 326,
-      "passes": false,
+      "passes": true,
       "notes": "Findings: pollAndRun exists in src/queue/worker.ts:146+ but is never instantiated in index.ts. This is the core fix for orphaned paid orders."
     },
     {

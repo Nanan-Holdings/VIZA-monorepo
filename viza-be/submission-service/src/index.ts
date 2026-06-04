@@ -36,6 +36,8 @@ import {
   type ConfirmApplicationResult,
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
+import { pollAndRun } from "./queue/worker";
+import { runnerJobHandler } from "./queue/handler";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -1633,6 +1635,18 @@ async function poll(): Promise<void> {
   }
 }
 
+// QUE-002: runner_job consumer wiring. Runs alongside the legacy
+// submission_queue poll. Stops cleanly on SIGTERM for Cloud Run shutdown.
+const RUNNER_WORKER_ID = `submission-service-${process.pid}`;
+const runnerAbort = new AbortController();
+
+function shutdownRunner(signal: string): void {
+  console.log(`[main] ${signal} received — stopping runner_job consumer`);
+  runnerAbort.abort();
+}
+process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
+process.on("SIGINT", () => shutdownRunner("SIGINT"));
+
 async function main(): Promise<void> {
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
@@ -1640,6 +1654,14 @@ async function main(): Promise<void> {
   // Run immediately on start, then on interval
   await poll();
   setInterval(poll, POLL_INTERVAL_MS);
+
+  // QUE-002: start the runner_job consumer (does not block the legacy poll).
+  console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
+  void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
+    signal: runnerAbort.signal,
+  }).catch((err) => {
+    console.error("[main] runner_job consumer crashed", err);
+  });
 }
 
 main().catch((err) => {
