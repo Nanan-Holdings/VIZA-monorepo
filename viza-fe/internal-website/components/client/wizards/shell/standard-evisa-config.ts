@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { StepGenericFields, type GenericField } from "./shared-steps/step-generic-fields";
 import { StepYesNoChecklist, type ChecklistItem } from "./shared-steps/step-yesno-checklist";
 import type { WizardConfig, WizardReviewSection } from "./types";
+import { CANONICAL } from "./canonical-fields";
 
 /**
  * Shared standard-e-Visa wizard factory (POR-003/004/005).
@@ -24,34 +25,34 @@ export type StandardForm = Record<string, string>;
 const NAMESPACE = "simplifiedForm.standardEvisa";
 
 const PERSONAL_FIELDS: GenericField[] = [
-  { kind: "text", key: "surname", labelKey: "fields.surname", required: true },
-  { kind: "text", key: "given_names", labelKey: "fields.givenNames", required: true },
-  { kind: "select", key: "sex", labelKey: "fields.sex", options: [
+  { kind: "text", key: CANONICAL.SURNAME, labelKey: "fields.surname", required: true },
+  { kind: "text", key: CANONICAL.GIVEN_NAMES, labelKey: "fields.givenNames", required: true },
+  { kind: "select", key: CANONICAL.SEX, labelKey: "fields.sex", options: [
     { value: "male", labelKey: "options.sex.male" },
     { value: "female", labelKey: "options.sex.female" },
   ] },
-  { kind: "date", key: "date_of_birth", labelKey: "fields.dob" },
-  { kind: "text", key: "place_of_birth_city", labelKey: "fields.placeOfBirthCity" },
-  { kind: "country", key: "nationality", labelKey: "fields.nationality" },
+  { kind: "date", key: CANONICAL.DATE_OF_BIRTH, labelKey: "fields.dob" },
+  { kind: "text", key: CANONICAL.PLACE_OF_BIRTH_CITY, labelKey: "fields.placeOfBirthCity" },
+  { kind: "country", key: CANONICAL.NATIONALITY, labelKey: "fields.nationality" },
 ];
 
 const PASSPORT_FIELDS: GenericField[] = [
-  { kind: "text", key: "passport_number", labelKey: "fields.passportNumber", required: true },
-  { kind: "country", key: "passport_issuing_country", labelKey: "fields.passportIssuingCountry" },
-  { kind: "date", key: "passport_expiry_date", labelKey: "fields.passportExpiryDate" },
+  { kind: "text", key: CANONICAL.PASSPORT_NUMBER, labelKey: "fields.passportNumber", required: true },
+  { kind: "country", key: CANONICAL.PASSPORT_ISSUING_COUNTRY, labelKey: "fields.passportIssuingCountry" },
+  { kind: "date", key: CANONICAL.PASSPORT_EXPIRY_DATE, labelKey: "fields.passportExpiryDate" },
 ];
 
 const CONTACT_FIELDS: GenericField[] = [
-  { kind: "email", key: "email", labelKey: "fields.email" },
-  { kind: "phone", key: "phone", labelKey: "fields.phone" },
-  { kind: "text", key: "home_address", labelKey: "fields.homeAddress" },
+  { kind: "email", key: CANONICAL.EMAIL, labelKey: "fields.email" },
+  { kind: "phone", key: CANONICAL.PHONE, labelKey: "fields.phone" },
+  { kind: "text", key: CANONICAL.HOME_ADDRESS, labelKey: "fields.homeAddress" },
 ];
 
 const TRIP_FIELDS: GenericField[] = [
-  { kind: "date", key: "intended_arrival_date", labelKey: "fields.intendedArrival" },
-  { kind: "date", key: "intended_departure_date", labelKey: "fields.intendedDeparture" },
-  { kind: "text", key: "purpose_of_visit", labelKey: "fields.purposeOfVisit" },
-  { kind: "text", key: "occupation", labelKey: "fields.occupation" },
+  { kind: "date", key: CANONICAL.INTENDED_ARRIVAL_DATE, labelKey: "fields.intendedArrival" },
+  { kind: "date", key: CANONICAL.INTENDED_DEPARTURE_DATE, labelKey: "fields.intendedDeparture" },
+  { kind: "text", key: CANONICAL.PURPOSE_OF_VISIT, labelKey: "fields.purposeOfVisit" },
+  { kind: "text", key: CANONICAL.OCCUPATION, labelKey: "fields.occupation" },
 ];
 
 const DECLARATION_ITEMS: ChecklistItem[] = [
