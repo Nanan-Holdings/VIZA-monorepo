@@ -250,6 +250,9 @@ checks:
 
 ## Product Guardrails
 
+- In client settings, new user-facing functionality should default to a single
+  tab/entry point, with the full detail surface shown only after selection.
+  Keep the points center and points marketplace behind one Points Center tab.
 - Dynamic visa forms must preserve the bilingual Chinese/English two-column
   contract.
 - All user-facing copy must observe the current user's selected language and
