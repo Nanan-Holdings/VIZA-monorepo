@@ -15,7 +15,7 @@ country needs at least one `(country, visa_type)` row whose keys match `pricing.
 | indonesia | `B211A` / `ID_C1_TOURIST` | ✅ |
 | egypt | `EG_E_VISA` | ✅ |
 | australia | `AU_VISITOR_600` | ✅ |
-| **saudi_arabia** | `SA_E_VISA` *(proposed key)* | ❌ **MISSING — add (PAYP-001/PAYP-007)** |
+| saudi_arabia | `SA_E_VISA` | ✅ (added MKT-007) |
 | united_kingdom | `UK_STANDARD_VISITOR` | ✅ |
 | vietnam | `VN_E_VISA` | ✅ |
 | malaysia | `MY_TOURIST_E_VISA` | ✅ |
@@ -25,8 +25,8 @@ country needs at least one `(country, visa_type)` row whose keys match `pricing.
 | turkey | `TR_E_VISA` | ✅ |
 | thailand | `TH_TOURIST_E_VISA` | ✅ |
 | united_arab_emirates | `AE_TOURIST_VISA` | ✅ |
-| **france** | `EU_SCHENGEN_C_SHORT_STAY` (FR deposit) *(proposed key)* | ❌ **MISSING — add (PAYP-001)** |
-| **italy** | `IT_VFS_CN` / `EU_SCHENGEN_C_SHORT_STAY` (IT deposit) *(proposed key)* | ❌ **MISSING — add (PAYP-001)** |
+| france | `EU_SCHENGEN_C_SHORT_STAY` (FR deposit) | ✅ (added MKT-007) |
+| italy | `EU_SCHENGEN_C_SHORT_STAY` (IT deposit) | ✅ (added MKT-007) |
 | india | `IN_E_VISA` | ✅ |
 
 ## Gaps to close before launch
