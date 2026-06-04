@@ -5585,7 +5585,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 389,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed pricing.ts has NO saudi/italy/france entries."
     },
     {
