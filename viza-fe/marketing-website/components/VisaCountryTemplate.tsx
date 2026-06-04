@@ -20,8 +20,13 @@ const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
  */
 export default function VisaCountryTemplate({ country }: { country: CountryMeta }) {
   const t = useTranslations("visa");
+  const tc = useTranslations("countries");
+  const tt = useTranslations("visaTypes");
   const fee = displayFeeSGD(country.visaType) ?? t("seePricing");
   const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
+  // Localized name/type with English data as the fallback.
+  const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
+  const localType = tt.has(country.type) ? tt(country.type) : country.type;
 
   return (
     <>
@@ -31,10 +36,10 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
           <div className="vt-photo" style={{ backgroundImage: `url('${country.image}')` }} />
           <div className="vt-scrim" />
           <div className="vt-hero-inner">
-            <h1>{t("heroTitle", { country: country.name })}</h1>
+            <h1>{t("heroTitle", { country: localName })}</h1>
             <div className="vt-sub">{country.city}</div>
             <div className="vt-badges">
-              <span className="vt-badge">{country.type}</span>
+              <span className="vt-badge">{localType}</span>
               <span className="vt-badge">{t("validity")}: {country.validity}</span>
               <span className="vt-badge">{t("fromFee", { fee })}</span>
             </div>
@@ -71,7 +76,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
                 {nearby.map((c) => (
                   <a key={c.slug} href={visaHref(c.slug)}>
                     <img src={`${FLAG_CDN}/${c.flagCode}.svg`} alt={c.name} />
-                    <span>{c.name}</span>
+                    <span>{tc.has(c.slug) ? tc(c.slug) : c.name}</span>
                   </a>
                 ))}
               </div>

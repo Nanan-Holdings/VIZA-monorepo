@@ -5599,7 +5599,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 390,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed en.json + zh-CN.json exist but only Indonesia localized."
     },
     {
