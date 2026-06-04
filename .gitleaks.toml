@@ -10,6 +10,29 @@
 [extend]
 useDefault = true
 
+# Project-specific rules (explicit coverage required by SEC-004).
+# These augment the default ruleset so the three credential families we
+# care most about are guaranteed to be detected even if upstream defaults
+# change.
+
+[[rules]]
+id = "viza-anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "viza-stripe-live-secret"
+description = "Stripe live secret/restricted key"
+regex = '''(?:sk|rk)_live_[A-Za-z0-9]{20,}'''
+keywords = ["sk_live_", "rk_live_"]
+
+[[rules]]
+id = "viza-supabase-service-role-jwt"
+description = "Supabase service-role JWT"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]*?(?:service_role|c2VydmljZV9yb2xl)[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{20,}'''
+keywords = ["service_role", "eyJ"]
+
 [allowlist]
 description = "VIZA placeholder values + docs/test fixtures that aren't real secrets"
 
