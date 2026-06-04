@@ -16,7 +16,6 @@ import {
   runThPrefill,
   runTrPrefill,
   runAePrefill,
-  runCaEtaPrefill,
   type CommonAnswers,
 } from "../t3/index.js";
 import { runInPrefill } from "../in/runner.js";
@@ -34,41 +33,25 @@ import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
 import { runOne as runMalaysia } from "../my/runner.js";
 import { runOne as runJapan } from "../jp/runner.js";
+import { runOne as runCanada } from "../ca/runner.js";
 
-/** Thrown when no runner is wired for a country — worker dead-letters. */
-export class UnsupportedCountryError extends Error {
-  constructor(public readonly country: string) {
-    super(`No runner implemented for country '${country}'`);
-    this.name = "UnsupportedCountryError";
-  }
-}
-
-/** Retryable portal failure (blocked / anti-bot). Worker retries to max_attempts. */
-export class RetryableRunnerError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RetryableRunnerError";
-  }
-}
-
-/** Applicant intervention required (e.g. bad credentials, manual review). */
-export class NeedsHumanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NeedsHumanError";
-  }
-}
-
-export interface DispatchOutcome {
-  outcome: "halted_before_pay" | "submitted_pending_pay" | "paper_ready";
-  reachedStep: string;
-  artefacts: string[];
-}
-
-export type RunOne = (
-  applicationId: string,
-  jobId?: string,
-) => Promise<DispatchOutcome>;
+// Types + error classes live in the leaf module ./types.js to avoid an
+// import cycle (runners import these; dispatch imports runners). Re-exported
+// here for back-compat with existing `from "./dispatch.js"` imports.
+export {
+  UnsupportedCountryError,
+  RetryableRunnerError,
+  NeedsHumanError,
+  type DispatchOutcome,
+  type RunOne,
+} from "./types.js";
+import {
+  UnsupportedCountryError,
+  RetryableRunnerError,
+  NeedsHumanError,
+  type DispatchOutcome,
+  type RunOne,
+} from "./types.js";
 
 /** Standard runner result shape shared by the generic + dedicated runners. */
 interface StandardResult {
@@ -303,7 +286,8 @@ export const DISPATCH: Record<string, RunOne> = {
   malaysia: (a, j) => runMalaysia(a, j),
   turkey: genericAdapter(runTrPrefill),
   united_arab_emirates: genericAdapter(runAePrefill),
-  canada: genericAdapter(runCaEtaPrefill),
+  // RUN-CA-001: dedicated Canada runner (shared core).
+  canada: (a, j) => runCanada(a, j),
   india: runIndia,
   sri_lanka: runSriLanka,
   cambodia: runCambodia,
@@ -333,7 +317,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   malaysia: { runner: "my/runner.runOne", implemented: true },
   turkey: { runner: "runTrPrefill", implemented: true },
   united_arab_emirates: { runner: "runAePrefill", implemented: true },
-  canada: { runner: "runCaEtaPrefill", implemented: true },
+  canada: { runner: "ca/runner.runOne", implemented: true },
   india: { runner: "runInPrefill", implemented: true },
   sri_lanka: { runner: "runLkPrefill", implemented: true },
   cambodia: { runner: "runKhPrefill", implemented: true },

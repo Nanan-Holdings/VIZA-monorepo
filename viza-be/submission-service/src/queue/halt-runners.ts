@@ -35,7 +35,7 @@ import {
   NeedsHumanError,
   type RunOne,
   type DispatchOutcome,
-} from "./dispatch.js";
+} from "./types.js";
 
 const HALTED: (reachedStep: string, artefacts?: string[]) => DispatchOutcome = (
   reachedStep,
