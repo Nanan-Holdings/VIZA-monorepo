@@ -5193,7 +5193,7 @@
         "Unit test + Typecheck passes in viza-be/submission-service"
       ],
       "priority": 361,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no Türkiye runner. turkey present in pricing.ts but brief flagged it missing from older pricing; verify PAYP-001."
     },
     {
@@ -5207,7 +5207,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 362,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-TR-001."
     },
     {
@@ -5221,7 +5221,7 @@
         "Unit test + Typecheck passes in viza-be/submission-service"
       ],
       "priority": 363,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no Thailand runner. thailand present in pricing.ts."
     },
     {
@@ -5235,7 +5235,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 364,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-TH-001."
     },
     {
@@ -5249,7 +5249,7 @@
         "Unit test + Typecheck passes in viza-be/submission-service"
       ],
       "priority": 365,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no UAE runner. united_arab_emirates present in pricing.ts."
     },
     {
@@ -5263,7 +5263,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 366,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-AE-001."
     },
     {
