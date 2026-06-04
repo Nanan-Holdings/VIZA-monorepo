@@ -2,6 +2,7 @@
 import "./explore.css";
 import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
+import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
 
 export default function ExplorePage() {
   useEffect(() => {
@@ -43,35 +44,33 @@ export default function ExplorePage() {
       type: string;
       valid: string;
       fee: string;
-      eta: string;
+      slug: string;
       tag: string;
       img: string;
       featured?: boolean;
     };
     const FLAG_CDN = 'https://hatscripts.github.io/circle-flags/flags';
-    const COUNTRIES: Country[] = [
-      { name: 'Indonesia',     city: 'Bali · Jakarta',         code: 'id', flag: '🇮🇩', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 40',  eta: '5 May, 12:03 AM', tag: 'fast', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&auto=format&fit=crop&q=70', featured: true },
-      { name: 'Egypt',         city: 'Cairo · Giza',           code: 'eg', flag: '🇪🇬', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 40',  eta: '10 May, 5:56 PM',  tag: 'fast', img: '/assets/egypt-giza.avif' },
-      { name: 'Australia',     city: 'Sydney · Melbourne',     code: 'au', flag: '🇦🇺', type: 'e-Visa',  valid: '1 year',   fee: 'SGD 303', eta: '15 Jun, 5:50 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Saudi Arabia',  city: 'Riyadh · AlUla',         code: 'sa', flag: '🇸🇦', type: 'e-Visa',  valid: '365 days', fee: 'SGD 219', eta: '7 May, 6:21 PM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c6?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United Kingdom',city: 'London · Edinburgh',     code: 'gb', flag: '🇬🇧', type: 'Standard',valid: '6 months', fee: 'SGD 401', eta: '10 Jun, 5:59 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Vietnam',       city: 'Hanoi · Hoi An',         code: 'vn', flag: '🇻🇳', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 64',  eta: '8 May, 11:02 AM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Malaysia',      city: 'KL · Penang',            code: 'my', flag: '🇲🇾', type: 'e-Visa',  valid: '30 days',  fee: 'SGD 28',  eta: '6 May, 9:14 AM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Japan',         city: 'Tokyo · Kyoto',          code: 'jp', flag: '🇯🇵', type: 'Standard',valid: '90 days',  fee: 'SGD 78',  eta: '14 May, 2:00 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1492571350019-22de08371fd3?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United States', city: 'NYC · LA',               code: 'us', flag: '🇺🇸', type: 'B1/B2',   valid: '10 years', fee: 'SGD 285', eta: '24 Jul, 4:00 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Canada',        city: 'Toronto · Vancouver',    code: 'ca', flag: '🇨🇦', type: 'eTA',     valid: '5 years',  fee: 'SGD 122', eta: '20 May, 10:30 AM', tag: 'evisa', img: 'https://images.unsplash.com/photo-1503614472-8c93d56e92ce?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Türkiye',       city: 'Istanbul · Cappadocia',  code: 'tr', flag: '🇹🇷', type: 'e-Visa',  valid: '180 days', fee: 'SGD 92',  eta: '11 May, 3:45 PM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1527838832700-5059252407fa?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Thailand',      city: 'Bangkok · Phuket',       code: 'th', flag: '🇹🇭', type: 'eVOA',    valid: '60 days',  fee: 'SGD 35',  eta: '5 May, 8:00 AM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United Arab Emirates', city: 'Dubai · Abu Dhabi',  code: 'ae', flag: '🇦🇪', type: 'e-Visa', valid: '60 days', fee: 'SGD 145', eta: '6 May, 1:18 PM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&auto=format&fit=crop&q=70' },
-      { name: 'France',        city: 'Paris · Nice',           code: 'fr', flag: '🇫🇷', type: 'Schengen',valid: '90 days',  fee: 'SGD 117', eta: '4 Jun, 11:00 AM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1431274172761-fca41d930114?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Italy',         city: 'Rome · Florence',        code: 'it', flag: '🇮🇹', type: 'Schengen',valid: '90 days',  fee: 'SGD 117', eta: '8 Jun, 9:00 AM',   tag: 'evisa', img: 'https://images.unsplash.com/photo-1531572753322-ad063cecc140?w=600&auto=format&fit=crop&q=70' },
-      { name: 'India',         city: 'Delhi · Mumbai',         code: 'in', flag: '🇮🇳', type: 'e-Visa',  valid: '60 days',  fee: 'SGD 67',  eta: '7 May, 4:30 PM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&auto=format&fit=crop&q=70' },
-    ];
+    // Card display fees (SGD). Temporary until MKT-006 wires the shared
+    // portal pricing source; the canonical fees live in
+    // viza-fe/internal-website/lib/pricing.ts.
+    const FEE_SGD: Record<string, string> = {
+      indonesia: 'SGD 119', egypt: 'SGD 113', australia: 'SGD 303',
+      'saudi-arabia': 'SGD 219', 'united-kingdom': 'SGD 401', vietnam: 'SGD 64',
+      malaysia: 'SGD 28', japan: 'SGD 78', 'united-states': 'SGD 285',
+      canada: 'SGD 122', turkiye: 'SGD 92', thailand: 'SGD 35',
+      'united-arab-emirates': 'SGD 145', france: 'SGD 117', italy: 'SGD 117', india: 'SGD 67',
+    };
+    // Derived from the shared country metadata module (MKT-002). No fabricated eta.
+    const COUNTRIES: Country[] = COUNTRY_META.map((c) => ({
+      name: c.name, city: c.city, code: c.flagCode, flag: '', type: c.type,
+      valid: c.validity, fee: FEE_SGD[c.slug] ?? 'See pricing', tag: c.tag,
+      img: c.image, slug: c.slug, featured: c.featured,
+    }));
 
     function makeCard(c: Country, opts: { featured?: boolean } = {}) {
       const tagLabel = c.tag === 'fast' ? 'Fast track' : c.type;
       const tagClass = c.tag === 'fast' ? 'tag-fast' : 'tag-evisa';
-      const href = c.name === 'Indonesia' ? '/visa/indonesia' : '/visa/indonesia';
+      const href = visaHref(c.slug);
       return `
         <a class="card-c ${opts.featured ? 'featured' : ''}" href="${href}" style="text-decoration:none;color:inherit;">
           <div class="card-img">
@@ -97,7 +96,7 @@ export default function ExplorePage() {
             <div class="card-foot">
               <div class="foot-eta">
                 <span class="lk">Guaranteed by</span>
-                <span class="lv">${c.eta}</span>
+                <span class="lv">VIZA</span>
               </div>
               <button class="foot-cta" aria-label="Start application">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -500,7 +499,7 @@ export default function ExplorePage() {
 
         <div className="section-head">
           <h2>For Singapore passports</h2>
-          <a href="#" className="seeall">See all 84 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
+          <a href="#grid" className="seeall">See all {COUNTRY_META.length} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
         </div>
         <div className="grid" id="grid2"></div>
 
