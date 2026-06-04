@@ -2509,3 +2509,8 @@ acknowledgment).
 - Files: .gitleaks.toml, prd.json
 - Learning: the pre-commit hook is real and fired on a doc false-positive (KEY-equals-value pattern) — use spaced "KEY = ref" in docs to avoid.
 ---
+
+## 2026-06-04 - SEC-005
+- Added .github/workflows/secret-scan.yml: gitleaks detect --config .gitleaks.toml --redact --no-banner on push+PR to main; fetch-depth 0 for full history; fails build on finding. YAML validated.
+- Files: .github/workflows/secret-scan.yml, prd.json
+---

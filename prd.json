@@ -4655,7 +4655,7 @@
         "YAML is valid (parseable by `python3 -c 'import yaml,sys;yaml.safe_load(open(...))'`)"
       ],
       "priority": 323,
-      "passes": false,
+      "passes": true,
       "notes": "Add alongside existing .github/workflows/qa-gates.yml. Reuse root security:gitleaks script."
     },
     {
