@@ -2577,3 +2577,14 @@ acknowledgment).
 - Files: scripts/queue/*.ts, package.json, prd.json.
 - Assumption: paid indicator is order.status='paid'; "terminal submission_queue" treated conservatively as any submission_queue row present (avoids double-processing).
 ---
+
+## 2026-06-04 - MIG-001..006
+- MIG-001 scripts/db/verify-queue-schema.ts: read-only column probes (PostgREST select limit 0; information_schema not exposed via supabase client) for runner_job (11 cols) + submission_queue; exits non-zero listing missing. Exports verifyTable.
+- MIG-004 scripts/db/verify-runner-inputs.ts: probes applicant_secret, secret_access_log, visa_application_answers, applicant_profiles, applications, order(status). Derived from applicant-vault.ts + answers.ts + post-paid path (payment-routing.ts is in-memory).
+- MIG-003 scripts/db/diff-migrations.ts: filesystem scan of 3 sources (drizzle=93, supabase=12, db/=0); flags cross-source filename divergence. Ran OK.
+- MIG-002 docs/db/migration-reconciliation-runbook.md: 3 sources table, queue-object migration files, backup-first idempotent ordered procedure, rollback, diverged-lineage note.
+- MIG-006 docs/db/launch-seed-checklist.md: visa_packages rows per 16 launch countries vs pricing.ts; flags saudi_arabia/italy/france MISSING (cross-ref PAYP-001).
+- MIG-005 .github/workflows/db-verify.yml: runs db:verify-queue + db:verify-inputs on push/PR with SUPABASE_*/DATABASE_URL secrets; fails on missing object. YAML valid.
+- npm scripts db:verify-queue/inputs/verify + db:diff-migrations. db scripts typecheck via temp tsconfig.
+- Files: scripts/db/*.ts, docs/db/*.md, .github/workflows/db-verify.yml, package.json, prd.json.
+---

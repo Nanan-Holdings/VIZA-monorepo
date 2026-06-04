@@ -1,0 +1,40 @@
+name: db-verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  db-verify:
+    name: verify queue + runner-input schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: viza-be/submission-service
+    env:
+      # Injected via CI provider secrets — never committed. The verify
+      # scripts read SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (the Supabase
+      # client) to probe the live schema; DATABASE_URL is accepted as an
+      # alternative connection secret for future pg-based checks.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: viza-be/submission-service/package-lock.json
+      - run: npm ci
+      # Fails the build (non-zero exit) on any missing schema object.
+      - name: Verify queue schema (MIG-001)
+        run: npm run db:verify-queue
+      - name: Verify runner inputs (MIG-004)
+        run: npm run db:verify-inputs
