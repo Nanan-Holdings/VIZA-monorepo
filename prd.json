@@ -5501,7 +5501,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 383,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed bug at page.tsx:74 `const href = c.name === 'Indonesia' ? '/visa/indonesia' : '/visa/indonesia';`"
     },
     {
@@ -5515,7 +5515,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 384,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed mock 'eta' timestamps in page.tsx:53-68. Centralize country data."
     },
     {

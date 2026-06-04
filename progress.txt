@@ -2740,3 +2740,10 @@ acknowledgment).
 - Test src/runners/__tests__/evisa-inbox.spec.ts (3): matches TR delivery, rejects wrong sender/subject, configs present.
 - Files: src/runners/evisa-inbox.ts (+test), prd.json. Typecheck passes. RUN block COMPLETE (all RUN-* + RUN-CORE done).
 ---
+
+## 2026-06-04 - MKT-001/002
+- MKT-002: viza-fe/marketing-website/lib/countries.ts — CountryMeta (slug/name/city/flagCode/type/visaType/validity/image/tag/launched/featured) for all 16; LAUNCHED_COUNTRIES, countryBySlug, visaHref. No fabricated eta.
+- page.tsx country array now derived from COUNTRY_META (mapped); removed inline 16-entry array + fabricated eta foot ("Guaranteed by VIZA" static); temp FEE_SGD map documented (superseded by MKT-006).
+- MKT-001: card href = visaHref(c.slug) -> /visa/<slug> for all 16 (was hardcoded /visa/indonesia). Coming-soon for unlaunched handled by MKT-003 [country] route. "See all 84" -> dynamic count.
+- Files: lib/countries.ts, app/[locale]/page.tsx, prd.json. Marketing typecheck passes.
+---
