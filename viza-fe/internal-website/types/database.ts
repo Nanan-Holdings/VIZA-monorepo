@@ -3773,6 +3773,246 @@ export type Database = {
           },
         ]
       }
+      travel_destinations: {
+        Row: {
+          canonical_name: string
+          city: string | null
+          confidence_score: number | null
+          country_code: string | null
+          country_name: string | null
+          created_at: string | null
+          currency: string | null
+          display_name: string
+          geonames_id: string | null
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          is_searchable: boolean | null
+          is_verified: boolean | null
+          latitude: number | null
+          longitude: number | null
+          normalized_name: string | null
+          osm_id: string | null
+          place_type: string | null
+          popularity_score: number | null
+          population: number | null
+          region: string | null
+          show_on_home: boolean | null
+          source: string | null
+          source_updated_at: string | null
+          timezone: string | null
+          updated_at: string | null
+          wikidata_qid: string | null
+        }
+        Insert: {
+          canonical_name: string
+          city?: string | null
+          confidence_score?: number | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          display_name: string
+          geonames_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          is_searchable?: boolean | null
+          is_verified?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          normalized_name?: string | null
+          osm_id?: string | null
+          place_type?: string | null
+          popularity_score?: number | null
+          population?: number | null
+          region?: string | null
+          show_on_home?: boolean | null
+          source?: string | null
+          source_updated_at?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          wikidata_qid?: string | null
+        }
+        Update: {
+          canonical_name?: string
+          city?: string | null
+          confidence_score?: number | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          display_name?: string
+          geonames_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          is_searchable?: boolean | null
+          is_verified?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          normalized_name?: string | null
+          osm_id?: string | null
+          place_type?: string | null
+          popularity_score?: number | null
+          population?: number | null
+          region?: string | null
+          show_on_home?: boolean | null
+          source?: string | null
+          source_updated_at?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          wikidata_qid?: string | null
+        }
+        Relationships: []
+      }
+      travel_destination_aliases: {
+        Row: {
+          alias: string
+          created_at: string | null
+          destination_id: string
+          id: string
+          language: string | null
+          normalized_alias: string | null
+          source: string | null
+        }
+        Insert: {
+          alias: string
+          created_at?: string | null
+          destination_id: string
+          id?: string
+          language?: string | null
+          normalized_alias?: string | null
+          source?: string | null
+        }
+        Update: {
+          alias?: string
+          created_at?: string | null
+          destination_id?: string
+          id?: string
+          language?: string | null
+          normalized_alias?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
+      travel_destination_cards: {
+        Row: {
+          card_type: string
+          confidence_score: number | null
+          created_at: string | null
+          destination_id: string
+          id: string
+          image_url: string | null
+          is_generated: boolean | null
+          payload_json: Json
+          source: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          card_type: string
+          confidence_score?: number | null
+          created_at?: string | null
+          destination_id: string
+          id?: string
+          image_url?: string | null
+          is_generated?: boolean | null
+          payload_json?: Json
+          source?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          card_type?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          destination_id?: string
+          id?: string
+          image_url?: string | null
+          is_generated?: boolean | null
+          payload_json?: Json
+          source?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      travel_itinerary_sessions: {
+        Row: {
+          application_id: string | null
+          card_state_json: Json
+          conversation_memory_json: Json
+          created_at: string | null
+          destination_id: string | null
+          id: string
+          itinerary_json: Json
+          map_state_json: Json
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          card_state_json?: Json
+          conversation_memory_json?: Json
+          created_at?: string | null
+          destination_id?: string | null
+          id?: string
+          itinerary_json?: Json
+          map_state_json?: Json
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          card_state_json?: Json
+          conversation_memory_json?: Json
+          created_at?: string | null
+          destination_id?: string | null
+          id?: string
+          itinerary_json?: Json
+          map_state_json?: Json
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      travel_unresolved_destinations: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          llm_guess_json: Json | null
+          resolved_name: string | null
+          status: string
+          updated_at: string | null
+          user_input: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          llm_guess_json?: Json | null
+          resolved_name?: string | null
+          status?: string
+          updated_at?: string | null
+          user_input: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          llm_guess_json?: Json | null
+          resolved_name?: string | null
+          status?: string
+          updated_at?: string | null
+          user_input?: string
+        }
+        Relationships: []
+      }
       triage_decisions: {
         Row: {
           created_at: string | null

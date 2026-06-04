@@ -21,6 +21,14 @@ service URL off the client.
 - `locations/countries/route.ts` and `locations/cities/route.ts`: location
   options.
 - `ip-location/route.ts`: approximate origin city helper.
+- `destinations/search/route.ts`: paginated destination index search with
+  featured-only support and no unfiltered full-table responses.
+- `destinations/resolve/route.ts`: exact, alias, fuzzy, ambiguous, and
+  temporary destination resolution.
+- `destinations/cards/route.ts`: lazy destination card cache/generation for a
+  selected destination only.
+- `sessions/route.ts`: authenticated Travel chat/itinerary archive persistence
+  with localStorage fallback in the client.
 
 ## Ownership Boundaries
 
