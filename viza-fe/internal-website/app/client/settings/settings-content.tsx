@@ -9,9 +9,11 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
+  Coins,
   CreditCard,
   Database,
   ExternalLink,
+  Gift,
   Globe2,
   Headphones,
   KeyRound,
@@ -24,6 +26,9 @@ import {
   QrCode,
   ReceiptText,
   ShieldCheck,
+  Sparkles,
+  TicketPercent,
+  Trophy,
   Trash2,
   UserRound,
   UsersRound,
@@ -74,6 +79,12 @@ interface WalletBindingIntent {
   expiresAt: string;
 }
 
+interface RewardWalletSummary {
+  balance: number;
+  lifetime_earned: number;
+  lifetime_spent: number;
+}
+
 const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
 
 const paymentMethods: Array<{
@@ -97,6 +108,12 @@ const paymentMethods: Array<{
     accentClass: "from-sky-700 to-sky-500",
   },
 ];
+
+const rewardItems = [
+  { key: "applicationReview", cost: 99, icon: TicketPercent },
+  { key: "priorityChecklist", cost: 199, icon: Sparkles },
+  { key: "consultationCredit", cost: 499, icon: Gift },
+] as const;
 
 function isWalletMethod(method: PaymentMethodId): method is Exclude<PaymentMethodId, "bank_card"> {
   return method === "wechat_pay" || method === "alipay";
@@ -300,6 +317,11 @@ export function SettingsContent() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
+  const [rewardWallet, setRewardWallet] = useState<RewardWalletSummary>({
+    balance: 0,
+    lifetime_earned: 0,
+    lifetime_spent: 0,
+  });
 
   useEffect(() => {
     const storedAccounts = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
@@ -341,10 +363,21 @@ export function SettingsContent() {
         .eq("auth_user_id", user.id)
         .maybeSingle();
 
+      const { data: walletData } = await supabase
+        .from("reward_wallets")
+        .select("balance, lifetime_earned, lifetime_spent")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       if (!mounted) return;
 
       setEmail(user.email ?? "");
       setProfile((data ?? null) as ApplicantSettingsProfile | null);
+      setRewardWallet({
+        balance: walletData?.balance ?? 0,
+        lifetime_earned: walletData?.lifetime_earned ?? 0,
+        lifetime_spent: walletData?.lifetime_spent ?? 0,
+      });
       setIsLoading(false);
     }
 
@@ -382,6 +415,13 @@ export function SettingsContent() {
     : null;
 
   const passwordChecks = getPasswordChecks(newPassword);
+  const pointsFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        maximumFractionDigits: 0,
+      }),
+    [locale]
+  );
 
   function savePaymentAccounts(nextAccounts: PaymentAccount[]) {
     setPaymentAccounts(nextAccounts);
@@ -881,6 +921,114 @@ export function SettingsContent() {
           </p>
         </div>
 
+        <section className="scroll-mt-32 rounded-xl border bg-white p-5 shadow-sm sm:p-6" id="points-center">
+          <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+            <div className="rounded-xl bg-brand-50 p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-500 text-white">
+                  <Coins className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-normal text-brand-600">
+                    {t("pointsCenter.eyebrow")}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold text-brand-900 sm:text-3xl">
+                    {t("pointsCenter.title")}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <p className="text-sm font-medium text-brand-700">
+                  {t("pointsCenter.totalLabel")}
+                </p>
+                <p className="mt-2 text-5xl font-semibold leading-none text-brand-900">
+                  {pointsFormatter.format(rewardWallet.balance)}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-brand-700">
+                  {t("pointsCenter.referralRule")}
+                </p>
+              </div>
+
+              <dl className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-white p-3">
+                  <dt className="text-xs font-medium text-muted-foreground">
+                    {t("pointsCenter.lifetimeEarned")}
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold text-foreground">
+                    {pointsFormatter.format(rewardWallet.lifetime_earned)}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-white p-3">
+                  <dt className="text-xs font-medium text-muted-foreground">
+                    {t("pointsCenter.lifetimeSpent")}
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold text-foreground">
+                    {pointsFormatter.format(rewardWallet.lifetime_spent)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground">
+                    {t("pointsCenter.marketplaceTitle")}
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {t("pointsCenter.marketplaceDescription")}
+                  </p>
+                </div>
+                <Trophy className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                {rewardItems.map((item) => {
+                  const Icon = item.icon;
+                  const canRedeem = rewardWallet.balance >= item.cost;
+
+                  return (
+                    <div
+                      key={item.key}
+                      className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                    >
+                      <div className="flex gap-3">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            {t(`pointsCenter.rewards.${item.key}.title`)}
+                          </p>
+                          <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                            {t(`pointsCenter.rewards.${item.key}.description`)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
+                        <span className="text-sm font-semibold text-brand-700">
+                          {t("pointsCenter.cost", {
+                            points: pointsFormatter.format(item.cost),
+                          })}
+                        </span>
+                        <Button
+                          type="button"
+                          variant={canRedeem ? "default" : "outline"}
+                          className="h-10 rounded-full"
+                          disabled={!canRedeem}
+                        >
+                          {canRedeem ? t("pointsCenter.redeem") : t("pointsCenter.notEnough")}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid gap-4 md:grid-cols-3">
           {paymentMethods.map((method, index) => {
             const Icon = method.icon;
@@ -1222,6 +1370,13 @@ export function SettingsContent() {
               description={t("rows.travelers.description")}
               href="#frequent-travelers"
               badge={t("rows.travelers.badge")}
+            />
+            <SettingsRow
+              icon={Coins}
+              title={t("rows.pointsCenter.title")}
+              description={t("rows.pointsCenter.description")}
+              href="#points-center"
+              badge={t("rows.pointsCenter.badge")}
             />
             <SettingsRow
               icon={Globe2}

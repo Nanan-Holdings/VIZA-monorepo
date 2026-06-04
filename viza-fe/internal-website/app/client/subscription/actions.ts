@@ -26,7 +26,16 @@ function getFormString(formData: FormData, key: string): string {
 }
 
 function normalizeProvider(value: string): CommercialPaymentProvider | null {
-  if (value === "stripe" || value === "wechat_pay" || value === "alipay") return value;
+  if (
+    value === "stripe" ||
+    value === "wechat_pay" ||
+    value === "alipay" ||
+    value === "airwallex_card" ||
+    value === "airwallex_wechat" ||
+    value === "airwallex_alipay"
+  ) {
+    return value;
+  }
   return null;
 }
 
@@ -92,6 +101,14 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
       destination = subscriptionUrl({ error: "alipay_unconfigured" });
       return;
     }
+    if (provider.startsWith("airwallex_") && !process.env.AIRWALLEX_CLIENT_ID?.trim()) {
+      destination = subscriptionUrl({ error: "airwallex_unconfigured" });
+      return;
+    }
+    if (provider.startsWith("airwallex_") && !process.env.AIRWALLEX_API_KEY?.trim()) {
+      destination = subscriptionUrl({ error: "airwallex_unconfigured" });
+      return;
+    }
 
     const user = await getCommercialAuthenticatedUser();
     if (!user) {
@@ -123,7 +140,7 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
         application_id: null,
         applicant_id: null,
         visa_package_id: null,
-        provider,
+        provider: provider.startsWith("airwallex_") ? "airwallex" : provider,
         provider_session_id: null,
         provider_payment_id: null,
         amount_cents: product.amountFen,
@@ -243,6 +260,30 @@ export async function startCommercialCheckout(formData: FormData): Promise<void>
       }
 
       destination = session.url;
+      return;
+    }
+
+    if (provider.startsWith("airwallex_")) {
+      if (!paymentId) {
+        destination = subscriptionUrl({ error: "payment_record_failed" });
+        return;
+      }
+
+      const method = provider.replace("airwallex_", "");
+      await createSubscriptionAdminClient()
+        .from("payment_records")
+        .update({
+          metadata: {
+            ...metadata,
+            airwallex: {
+              requested_method: method,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", paymentId);
+
+      destination = `/payments/checkout?paymentId=${encodeURIComponent(paymentId)}&method=${encodeURIComponent(method)}`;
       return;
     }
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
+import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefill";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
 import { type WizardStep } from "@/types/visa-form-fields";
@@ -65,6 +66,28 @@ const shortcutStep: WizardStep = {
         { value: "YES", text: "Yes" },
         { value: "NO", text: "No" },
       ],
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const placeOfBirthStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Personal Information",
+  fields: [
+    {
+      id: "field-place-of-birth",
+      visaType: "SCHENGEN_C",
+      fieldName: "place_of_birth",
+      label: "Place of birth (city or town)",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Personal Information",
+      displayOrder: 1,
+      placeholder: "City and country of birth",
+      validationRules: null,
+      options: null,
       conditionalLogic: null,
     },
   ],
@@ -193,6 +216,27 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.keyDown(firstYesRadio()!, { key: "Z", metaKey: true, shiftKey: true });
     expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
+  });
+
+  it("autofills bilingual values from universal profile without submitting helper keys", () => {
+    const onComplete = vi.fn();
+    const prefill = buildUniversalProfileAnswerPatch({ place_of_birth: "海南" });
+
+    render(
+      <DynamicStepForm
+        step={placeOfBirthStep}
+        prefill={prefill}
+        onComplete={onComplete}
+        visaType="SCHENGEN_C"
+      />,
+    );
+
+    expect(screen.getByDisplayValue("海南")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Hainan")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+
+    expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Hainan" });
   });
 
   it("keeps registered wizard prompts aligned with localized country copy", () => {

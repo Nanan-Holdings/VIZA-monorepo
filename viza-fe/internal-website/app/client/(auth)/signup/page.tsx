@@ -18,6 +18,9 @@ function isValidEmail(v: string) {
 
 type SignupStep = 'email' | 'otp' | 'password'
 type PasswordRequirementKey = 'length' | 'letter' | 'digit' | 'symbol'
+type BrowserSupabaseClient = ReturnType<typeof createClient>
+
+const REFERRAL_POINTS = 99
 
 function getPasswordScore(password: string) {
   const checks = {
@@ -28,6 +31,101 @@ function getPasswordScore(password: string) {
   }
   const score = Object.values(checks).filter(Boolean).length
   return { checks, score, isValid: checks.length && checks.letter && checks.digit && checks.symbol }
+}
+
+function parseReferralCode(value: string) {
+  const match = value
+    .trim()
+    .toLowerCase()
+    .match(/^viza-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/)
+
+  return match?.[1] ?? null
+}
+
+async function ensureRewardWallet(supabase: BrowserSupabaseClient, userId: string) {
+  const { data: existingWallet } = await supabase
+    .from('reward_wallets')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (existingWallet?.id) return existingWallet.id
+
+  const { data: createdWallet } = await supabase
+    .from('reward_wallets')
+    .insert({ user_id: userId })
+    .select('id')
+    .single()
+
+  return createdWallet?.id ?? null
+}
+
+async function hasReferralReward(
+  supabase: BrowserSupabaseClient,
+  walletId: string,
+  referredUserId: string
+) {
+  const { data } = await supabase
+    .from('reward_transactions')
+    .select('id')
+    .eq('wallet_id', walletId)
+    .eq('source', 'referral')
+    .eq('reference_type', 'referral_signup')
+    .eq('reference_id', referredUserId)
+    .maybeSingle()
+
+  return Boolean(data?.id)
+}
+
+async function awardReferralSignupPoints(
+  supabase: BrowserSupabaseClient,
+  referralCode: string,
+  newUserId: string
+) {
+  const referrerUserId = parseReferralCode(referralCode)
+
+  if (!referrerUserId || referrerUserId === newUserId) return
+
+  const [referrerWalletId, newUserWalletId] = await Promise.all([
+    ensureRewardWallet(supabase, referrerUserId),
+    ensureRewardWallet(supabase, newUserId),
+  ])
+
+  if (!referrerWalletId || !newUserWalletId) return
+
+  const [referrerAlreadyRewarded, newUserAlreadyRewarded] = await Promise.all([
+    hasReferralReward(supabase, referrerWalletId, newUserId),
+    hasReferralReward(supabase, newUserWalletId, newUserId),
+  ])
+
+  const transactions = [
+    !referrerAlreadyRewarded
+      ? {
+          wallet_id: referrerWalletId,
+          amount: REFERRAL_POINTS,
+          type: 'earned',
+          source: 'referral',
+          reason: 'Referral signup reward',
+          reference_type: 'referral_signup',
+          reference_id: newUserId,
+        }
+      : null,
+    !newUserAlreadyRewarded
+      ? {
+          wallet_id: newUserWalletId,
+          amount: REFERRAL_POINTS,
+          type: 'earned',
+          source: 'referral',
+          reason: 'New user referral code reward',
+          reference_type: 'referral_signup',
+          reference_id: newUserId,
+        }
+      : null,
+  ].filter((transaction): transaction is NonNullable<typeof transaction> => Boolean(transaction))
+
+  if (transactions.length > 0) {
+    await supabase.from('reward_transactions').insert(transactions)
+  }
 }
 
 export default function ClientSignupPage() {
@@ -120,6 +218,7 @@ export default function ClientSignupPage() {
   // --- Signup state ---
   const [step, setStep] = useState<SignupStep>('email')
   const [email, setEmail] = useState('')
+  const [referralCode, setReferralCode] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -149,6 +248,12 @@ export default function ClientSignupPage() {
     }
   }, [resendCooldown])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('referral') ?? params.get('ref') ?? params.get('invite')
+    if (code) setReferralCode(code.toUpperCase())
+  }, [])
+
   const sendSignupCode = async (targetEmail: string) => {
     const supabase = createClient()
     const emailLocale = normalizeAuthEmailLocale(locale)
@@ -163,6 +268,7 @@ export default function ClientSignupPage() {
           locale: emailLocale,
           language: emailLocale,
           preferred_language: emailLocale,
+          referral_code: referralCode.trim().toUpperCase() || undefined,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/login`,
       },
@@ -289,6 +395,7 @@ export default function ClientSignupPage() {
           locale: emailLocale,
           language: emailLocale,
           preferred_language: emailLocale,
+          referral_code: referralCode.trim().toUpperCase() || undefined,
         },
       })
 
@@ -302,6 +409,11 @@ export default function ClientSignupPage() {
         await recordSignupConsent({ email: normalizedEmail })
       } catch (consentError) {
         console.error('Could not record signup consent:', consentError)
+      }
+      try {
+        await awardReferralSignupPoints(supabase, referralCode, user.id)
+      } catch (referralError) {
+        console.error('Could not award referral points:', referralError)
       }
       await supabase.auth.signOut()
       window.location.href = '/client/login?registered=1'
@@ -369,6 +481,18 @@ export default function ClientSignupPage() {
                   disabled={isSubmitting}
                   className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
                 />
+                <input
+                  type="text"
+                  name="referralCode"
+                  placeholder={t('referralCodePlaceholder')}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  disabled={isSubmitting}
+                  className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-normal text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                />
+                <p className="-mt-1 text-[12px] leading-5 text-[rgba(0,0,0,0.55)]">
+                  {t('referralCodeHint')}
+                </p>
                 <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
                   <input
                     type="checkbox"

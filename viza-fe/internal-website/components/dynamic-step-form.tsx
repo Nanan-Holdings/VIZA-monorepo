@@ -92,6 +92,22 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
 }
 
+function getBilingualPrefillText(
+  key: string,
+  prefill: Record<string, string>,
+  fallbackValue?: string,
+): BilingualTextValue {
+  const zh = prefill[`${key}_zh`]?.trim();
+  const en = prefill[`${key}_en`]?.trim();
+  if (zh || en) {
+    return {
+      zh: zh || toChineseSourceValue(en ?? fallbackValue ?? ""),
+      en: en || toOfficialEnglishValue(zh ?? fallbackValue ?? ""),
+    };
+  }
+  return toInitialBilingualText(fallbackValue);
+}
+
 function toInitialBilingualText(value?: string): BilingualTextValue {
   const storedValue = value ?? "";
   if (!storedValue.trim()) return { zh: "", en: "" };
@@ -173,6 +189,36 @@ function normaliseFieldOptions(options: VisaFormFieldRow["options"]): Array<{ va
     if (typeof option === "string") return { value: option, text: option };
     return { value: option.value, text: option.text || option.value };
   });
+}
+
+function isAuxiliaryBilingualKey(key: string): boolean {
+  return /_(zh|en)$/.test(key);
+}
+
+function filterCurrentStepValues(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+  groupCounts: Record<string, number>,
+): Record<string, string> {
+  const allowedKeys = new Set<string>();
+  for (const field of fields) {
+    const group = getRepeatGroup(field);
+    if (group) {
+      const count = groupCounts[group] ?? 1;
+      for (let i = 0; i < count; i++) {
+        allowedKeys.add(instanceKey(field.fieldName, i));
+      }
+    } else {
+      allowedKeys.add(field.fieldName);
+    }
+  }
+
+  const filtered: Record<string, string> = {};
+  for (const key of allowedKeys) {
+    if (isAuxiliaryBilingualKey(key)) continue;
+    filtered[key] = values[key] ?? "";
+  }
+  return filtered;
 }
 
 function getLocalFieldIssue(
@@ -473,10 +519,10 @@ export function DynamicStepForm({
         const count = groupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           const key = instanceKey(field.fieldName, i);
-          init[key] = toInitialBilingualText(prefill[key]);
+          init[key] = getBilingualPrefillText(key, prefill, prefill[key]);
         }
       } else {
-        init[field.fieldName] = toInitialBilingualText(prefill[field.fieldName]);
+        init[field.fieldName] = getBilingualPrefillText(field.fieldName, prefill, prefill[field.fieldName]);
       }
     }
     return init;
@@ -537,7 +583,7 @@ export function DynamicStepForm({
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
-          nextTextPairs[key] = toInitialBilingualText(nextPrefill);
+          nextTextPairs[key] = getBilingualPrefillText(key, prefill, nextPrefill);
           textPairsChanged = true;
         }
       }
@@ -783,7 +829,7 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete(values);
+    onComplete(filterCurrentStepValues(step.fields, values, groupCounts));
   };
 
   // Detect yes/no toggles that gate subsequent fields until answered.
@@ -878,7 +924,7 @@ export function DynamicStepForm({
     const isLockedPurpose = isPurposeOfTripField(field);
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const isTextLike = isTextLikeField(field);
-    const pair = textPairs[valueKey] ?? toInitialBilingualText(values[valueKey]);
+    const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
 
     const renderSide = (side: BilingualSide) => {
       const sideField: VisaFormFieldRow = {
