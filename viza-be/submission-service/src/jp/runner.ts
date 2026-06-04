@@ -2,7 +2,7 @@ import { artifact } from "../artifact.js";
 import { renderPdf } from "../paper/simple-pdf.js";
 import { buildJpPaperLines, JP_PAPER_TITLE } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
-import { type DispatchOutcome } from "../queue/dispatch.js";
+import { type DispatchOutcome } from "../queue/types.js";
 
 /**
  * Japan paper-pack runner (RUN-JP-001).

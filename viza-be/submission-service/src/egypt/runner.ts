@@ -11,7 +11,7 @@ import {
   NeedsHumanError,
   RetryableRunnerError,
   type DispatchOutcome,
-} from "../queue/dispatch.js";
+} from "../queue/types.js";
 
 /**
  * Egypt e-Visa runner (RUN-EG-001) — promoted from recon-only stub.

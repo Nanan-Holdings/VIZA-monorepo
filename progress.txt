@@ -2668,3 +2668,12 @@ acknowledgment).
 - Files: src/jp/*, src/jp/__tests__/*, src/queue/dispatch.ts + __tests__, prd.json. Typecheck passes.
 - Note: uses simple-pdf renderer + local JP layout (self-contained); DB-seeded paper_template path via renderPaperPdf remains available when seeded.
 ---
+
+## 2026-06-04 - RUN-CA-001/002 (+ shared core)
+- Added src/runners/standard-evisa.ts shared core (RUN-CORE-001 foundation): standardFieldMappings, mapAnswers, missingRequired, withRetry backoff, discoverFields recon, detectAndSolveCaptcha (2captcha hook), makeStandardEvisaRunner factory (fill+halt+routing+DispatchOutcome).
+- Extracted queue/types.ts (leaf: UnsupportedCountryError/RetryableRunnerError/NeedsHumanError/DispatchOutcome/RunOne) to break import cycle (runners imported error classes from dispatch.ts which imports runners -> top-level makeStandardEvisaRunner call crashed). Repointed all runner imports (id/egypt/italy/sa/my/jp/vietnam/halt-runners/standard-evisa) to types.js; dispatch re-exports for back-compat.
+- Built Canada src/ca/{field-mappings,fillers,form-recon,runner}.ts as thin wrappers over shared core. Bound canada -> ca/runner.runOne (replaced generic t3 runCaEtaPrefill; removed unused import). Canada routing=client_in_portal (halt). Added GOVT_FEE_CENTS canada/turkey/thailand/uae.
+- Test src/ca/__tests__/field-mappings.spec.ts (3). dispatch 5/5; id 5/5.
+- Files: src/runners/standard-evisa.ts, src/queue/types.ts, src/ca/*, src/queue/dispatch.ts + 9 runner imports, src/payment-routing.ts, prd.json. Typecheck passes.
+- Learning: top-level factory calls + dispatch<->runner cycle crash at load; keep shared types in a leaf module.
+---

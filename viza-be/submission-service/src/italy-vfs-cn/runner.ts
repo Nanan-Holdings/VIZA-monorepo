@@ -10,7 +10,7 @@ import {
   NeedsHumanError,
   RetryableRunnerError,
   type DispatchOutcome,
-} from "../queue/dispatch.js";
+} from "../queue/types.js";
 
 /**
  * Italy Schengen-via-VFS (China corridor) runner (RUN-IT-001).

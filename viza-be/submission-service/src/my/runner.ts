@@ -11,7 +11,7 @@ import {
   NeedsHumanError,
   RetryableRunnerError,
   type DispatchOutcome,
-} from "../queue/dispatch.js";
+} from "../queue/types.js";
 
 /**
  * Malaysia eVISA/MDAC runner (RUN-MY-001).

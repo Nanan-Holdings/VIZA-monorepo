@@ -11,7 +11,7 @@ import {
   NeedsHumanError,
   RetryableRunnerError,
   type DispatchOutcome,
-} from "../queue/dispatch.js";
+} from "../queue/types.js";
 
 /**
  * Saudi Arabia e-Visa runner (RUN-SA-001) — built from scratch.

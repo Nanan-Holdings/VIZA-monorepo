@@ -10,7 +10,7 @@ import {
   NeedsHumanError,
   RetryableRunnerError,
   type DispatchOutcome,
-} from "../queue/dispatch.js";
+} from "../queue/types.js";
 
 /**
  * Indonesia e-Visa runner (RUN-ID-001) — the marketing flagship.
