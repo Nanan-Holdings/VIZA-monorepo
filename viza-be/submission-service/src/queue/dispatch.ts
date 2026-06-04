@@ -13,7 +13,6 @@
  * conditions throw `NeedsHumanError`.
  */
 import {
-  runIdPrefill,
   runEgPrefill,
   runItPrefill,
   runThPrefill,
@@ -31,6 +30,7 @@ import { runZaPrefill } from "../za/runner.js";
 import { fillVietnamApplication } from "../vietnam/run.js";
 import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
 import { runUsHalt, runUkHalt, runFranceHalt, runAuHalt } from "./halt-runners.js";
+import { runOne as runIndonesia } from "../id/runner.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -304,7 +304,8 @@ export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
  * QUE-005; `saudi_arabia` and `japan` have no runner yet.
  */
 export const DISPATCH: Record<string, RunOne> = {
-  indonesia: genericAdapter(runIdPrefill),
+  // RUN-ID-001: dedicated Indonesia flagship runner (replaces the generic t3 scaffold).
+  indonesia: (a, j) => runIndonesia(a, j),
   egypt: genericAdapter(runEgPrefill),
   italy: genericAdapter(runItPrefill),
   thailand: genericAdapter(runThPrefill),
@@ -333,7 +334,7 @@ export const DISPATCH: Record<string, RunOne> = {
  * country and whether it is live. Kept in sync with DISPATCH by hand.
  */
 export const DISPATCH_META: Record<string, { runner: string; implemented: boolean }> = {
-  indonesia: { runner: "runIdPrefill", implemented: true },
+  indonesia: { runner: "id/runner.runOne", implemented: true },
   egypt: { runner: "runEgPrefill", implemented: true },
   italy: { runner: "runItPrefill", implemented: true },
   thailand: { runner: "runThPrefill", implemented: true },
