@@ -40,6 +40,7 @@ interface PassportOcrResponse {
     surname: PassportOcrFieldProposal;
     passportNumber: PassportOcrFieldProposal;
     dateOfBirth: PassportOcrFieldProposal;
+    placeOfBirth?: PassportOcrFieldProposal;
     nationality: PassportOcrFieldProposal;
     issuingCountry: PassportOcrFieldProposal;
     issueDate: PassportOcrFieldProposal;
@@ -113,6 +114,7 @@ function extractionFromPassportOcr(payload: PassportOcrResponse): ExtractionResu
     dob: valueOf(fields.dateOfBirth),
     sex: genderFromOcr(valueOf(fields.gender)),
     nationality: valueOf(fields.nationality),
+    cityOfBirth: valueOf(fields.placeOfBirth),
     passportNumber: valueOf(fields.passportNumber),
     issuingCountry: valueOf(fields.issuingCountry),
     issueDate: valueOf(fields.issueDate),

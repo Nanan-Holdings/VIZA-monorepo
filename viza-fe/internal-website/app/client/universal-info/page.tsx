@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { ArrowLeft, CheckCircle2, Database, Loader2, Save } from "lucide-react";
 import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
@@ -83,8 +85,14 @@ function cleanValue(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+function copy(isZh: boolean, zh: string, en: string) {
+  return isZh ? `${zh} / ${en}` : en;
+}
+
 export default function UniversalInfoPage() {
   const router = useRouter();
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const [form, setForm] = useState<UniversalProfileForm>(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -119,7 +127,7 @@ export default function UniversalInfoPage() {
       if (!isMounted) return;
 
       if (profileError) {
-        setError("读取通用资料失败，请稍后重试。");
+        setError(isZh ? "读取通用资料失败，请稍后重试。" : "Could not load your universal profile. Please try again later.");
         setIsLoading(false);
         return;
       }
@@ -162,7 +170,7 @@ export default function UniversalInfoPage() {
 
     void loadProfile();
     return () => { isMounted = false; };
-  }, [router]);
+  }, [isZh, router]);
 
   function updateField(field: keyof UniversalProfileForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -182,7 +190,7 @@ export default function UniversalInfoPage() {
       passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
       passport_issuing_country: fields.passport_issuing_country ?? current.passport_issuing_country,
     }));
-    setMessage("护照 OCR 已填入可识别字段，请核对后保存或继续编辑。");
+    setMessage(isZh ? "护照 OCR 已填入可识别字段，请核对后保存或继续编辑。" : "Passport OCR filled the readable fields. Please review before saving or editing.");
     setError(null);
   }
 
@@ -221,9 +229,9 @@ export default function UniversalInfoPage() {
         );
 
       if (saveError) throw saveError;
-      setMessage("已保存。之后相似签证问题会优先使用这些资料预填。");
+      setMessage(isZh ? "已保存。之后相似签证问题会优先使用这些资料预填。" : "Saved. Similar visa forms will use this profile for prefilling.");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "保存失败，请稍后重试。");
+      setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
     } finally {
       setIsSaving(false);
     }
@@ -233,7 +241,9 @@ export default function UniversalInfoPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-[#fcfcfc]">
         <Loader2 className="h-10 w-10 animate-spin text-[#03346E]" />
-        <p className="text-[16px] text-[#667085]">正在读取通用资料...</p>
+        <p className="text-[16px] text-[#667085]">
+          {isZh ? "正在读取通用资料..." : "Loading universal profile..."}
+        </p>
       </div>
     );
   }
@@ -246,7 +256,7 @@ export default function UniversalInfoPage() {
           className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-[#03346E] transition hover:border-[#03346E]"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回首页
+          {isZh ? "返回首页 / Back home" : "Back home"}
         </Link>
 
         <section className="overflow-hidden rounded-[18px] border border-[#e7edf5] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
@@ -257,16 +267,18 @@ export default function UniversalInfoPage() {
               </span>
               <div>
                 <h1 className="font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[34px]">
-                  通用资料
+                  {copy(isZh, "通用资料", "Universal profile")}
                 </h1>
                 <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#667085]">
-                  保存你反复会填到的姓名、生日、护照和联系方式。以后进入相似签证表单时，系统会优先用这里的信息自动预填。
+                  {isZh
+                    ? "保存你反复会填到的姓名、生日、护照和联系方式。以后进入相似签证表单时，系统会优先用这里的信息自动预填。 / Save the name, birthday, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling."
+                    : "Save the name, birthday, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling."}
                 </p>
               </div>
             </div>
             <div className="min-w-[180px] rounded-[14px] border border-[#d7e3f2] bg-white p-4">
               <div className="flex items-center justify-between text-[13px] font-medium text-[#526174]">
-                <span>完整度</span>
+                <span>{copy(isZh, "完整度", "Completeness")}</span>
                 <span>{completionPercent}%</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf2f7]">
@@ -276,7 +288,9 @@ export default function UniversalInfoPage() {
                 />
               </div>
               <p className="mt-2 text-[12px] text-[#667085]">
-                {completedCount}/{PROFILE_FIELDS.length} 项已保存
+                {isZh
+                  ? `${completedCount}/${PROFILE_FIELDS.length} 项已保存 / saved`
+                  : `${completedCount}/${PROFILE_FIELDS.length} saved`}
               </p>
             </div>
           </div>
@@ -291,17 +305,19 @@ export default function UniversalInfoPage() {
 
             <section className="grid gap-5 p-6 lg:grid-cols-2">
               <div className="lg:col-span-2">
-                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">基本身份信息</h2>
+                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">
+                  {copy(isZh, "基本身份信息", "Basic identity information")}
+                </h2>
               </div>
-              <Field label="姓名">
+              <Field label={copy(isZh, "姓名", "Full name")}>
                 <input
                   className={inputClass}
                   value={form.full_name}
                   onChange={(event) => updateField("full_name", event.target.value)}
-                  placeholder="例如：张小明 / ZHANG XIAOMING"
+                  placeholder={isZh ? "例如：HONGYU CHEN" : "For example: HONGYU CHEN"}
                 />
               </Field>
-              <Field label="出生日期">
+              <Field label={copy(isZh, "出生日期", "Date of birth")}>
                 <input
                   className={inputClass}
                   type="date"
@@ -309,65 +325,67 @@ export default function UniversalInfoPage() {
                   onChange={(event) => updateField("date_of_birth", event.target.value)}
                 />
               </Field>
-              <Field label="出生地">
+              <Field label={copy(isZh, "出生地", "Place of birth")}>
                 <input
                   className={inputClass}
                   value={form.place_of_birth}
                   onChange={(event) => updateField("place_of_birth", event.target.value)}
-                  placeholder="例如：北京"
+                  placeholder={isZh ? "例如：HUNAN / 湖南" : "For example: HUNAN"}
                 />
               </Field>
-              <Field label="性别">
+              <Field label={copy(isZh, "性别", "Gender")}>
                 <select
                   className={inputClass}
                   value={form.gender}
                   onChange={(event) => updateField("gender", event.target.value)}
                 >
-                  <option value="">请选择</option>
+                  <option value="">{isZh ? "请选择 / Select" : "Select"}</option>
                   <option value="male">男 / Male</option>
                   <option value="female">女 / Female</option>
                   <option value="other">其他 / Other</option>
                 </select>
               </Field>
-              <Field label="国籍">
+              <Field label={copy(isZh, "国籍", "Nationality")}>
                 <input
                   className={inputClass}
                   value={form.nationality}
                   onChange={(event) => updateField("nationality", event.target.value)}
-                  placeholder="例如：中国 / China"
+                  placeholder={isZh ? "例如：中国 / China" : "For example: China"}
                 />
               </Field>
-              <Field label="职业">
+              <Field label={copy(isZh, "职业", "Occupation")}>
                 <input
                   className={inputClass}
                   value={form.occupation}
                   onChange={(event) => updateField("occupation", event.target.value)}
-                  placeholder="例如：软件工程师"
+                  placeholder={isZh ? "例如：软件工程师 / Software engineer" : "For example: Software engineer"}
                 />
               </Field>
             </section>
 
             <section className="grid gap-5 p-6 lg:grid-cols-2">
               <div className="lg:col-span-2">
-                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">护照信息</h2>
+                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">
+                  {copy(isZh, "护照信息", "Passport information")}
+                </h2>
               </div>
-              <Field label="护照号码">
+              <Field label={copy(isZh, "护照号码", "Passport number")}>
                 <input
                   className={inputClass}
                   value={form.passport_number}
                   onChange={(event) => updateField("passport_number", event.target.value)}
-                  placeholder="按护照填写"
+                  placeholder={isZh ? "按护照填写 / As shown on passport" : "As shown on passport"}
                 />
               </Field>
-              <Field label="签发国家">
+              <Field label={copy(isZh, "签发国家", "Issuing country")}>
                 <input
                   className={inputClass}
                   value={form.passport_issuing_country}
                   onChange={(event) => updateField("passport_issuing_country", event.target.value)}
-                  placeholder="例如：中国 / China"
+                  placeholder={isZh ? "例如：中国 / China" : "For example: China"}
                 />
               </Field>
-              <Field label="签发日期">
+              <Field label={copy(isZh, "签发日期", "Issue date")}>
                 <input
                   className={inputClass}
                   type="date"
@@ -375,7 +393,7 @@ export default function UniversalInfoPage() {
                   onChange={(event) => updateField("passport_issue_date", event.target.value)}
                 />
               </Field>
-              <Field label="有效期至">
+              <Field label={copy(isZh, "有效期至", "Expiry date")}>
                 <input
                   className={inputClass}
                   type="date"
@@ -387,9 +405,11 @@ export default function UniversalInfoPage() {
 
             <section className="grid gap-5 p-6 lg:grid-cols-2">
               <div className="lg:col-span-2">
-                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">联系方式</h2>
+                <h2 className="font-heading text-[22px] font-medium text-[#03346E]">
+                  {copy(isZh, "联系方式", "Contact information")}
+                </h2>
               </div>
-              <Field label="电子邮箱">
+              <Field label={copy(isZh, "电子邮箱", "Email")}>
                 <input
                   className={inputClass}
                   type="email"
@@ -398,28 +418,28 @@ export default function UniversalInfoPage() {
                   placeholder="name@example.com"
                 />
               </Field>
-              <Field label="手机号">
+              <Field label={copy(isZh, "手机号", "Phone number")}>
                 <input
                   className={inputClass}
                   value={form.phone}
                   onChange={(event) => updateField("phone", event.target.value)}
-                  placeholder="包含国家/地区号码"
+                  placeholder={isZh ? "包含国家/地区号码 / Include country or region code" : "Include country or region code"}
                 />
               </Field>
-              <Field label="微信">
+              <Field label={copy(isZh, "微信", "WeChat")}>
                 <input
                   className={inputClass}
                   value={form.wechat}
                   onChange={(event) => updateField("wechat", event.target.value)}
-                  placeholder="可选"
+                  placeholder={isZh ? "可选 / Optional" : "Optional"}
                 />
               </Field>
-              <Field label="常住地址">
+              <Field label={copy(isZh, "常住地址", "Residential address")}>
                 <textarea
                   className="min-h-[110px] w-full rounded-[10px] border border-[#e6e6e6] bg-white px-4 py-3 text-[15px] text-[#252525] outline-none transition-colors placeholder:text-[#9a9a9a] focus:border-[#03346E]"
                   value={form.address}
                   onChange={(event) => updateField("address", event.target.value)}
-                  placeholder="例如：北京市朝阳区示例路1号"
+                  placeholder={isZh ? "例如：北京市朝阳区示例路1号 / Example address" : "For example: 1 Example Road"}
                 />
               </Field>
             </section>
@@ -442,7 +462,9 @@ export default function UniversalInfoPage() {
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#03346E] px-7 text-[15px] font-semibold text-white transition hover:bg-[#06498f] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isSaving ? "保存中" : "保存通用资料"}
+              {isSaving
+                ? isZh ? "保存中 / Saving" : "Saving"
+                : isZh ? "保存通用资料 / Save profile" : "Save profile"}
             </button>
           </div>
         </section>

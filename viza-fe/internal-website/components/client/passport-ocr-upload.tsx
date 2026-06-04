@@ -34,8 +34,11 @@ interface PassportOcrResponse {
   extractionId?: string | null;
   proposedFields?: {
     fullName: PassportOcrFieldProposal;
+    givenNames: PassportOcrFieldProposal;
+    surname: PassportOcrFieldProposal;
     passportNumber: PassportOcrFieldProposal;
     dateOfBirth: PassportOcrFieldProposal;
+    placeOfBirth?: PassportOcrFieldProposal;
     nationality: PassportOcrFieldProposal;
     issuingCountry: PassportOcrFieldProposal;
     issueDate: PassportOcrFieldProposal;
@@ -80,10 +83,14 @@ function extensionFromFile(file: File) {
 function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnapshot {
   const fields = payload.proposedFields;
   if (!fields) return {};
+  const givenNames = proposalValue(fields.givenNames);
+  const surname = proposalValue(fields.surname);
+  const fullName = [givenNames, surname].filter(Boolean).join(" ") || proposalValue(fields.fullName);
 
   return {
-    full_name: proposalValue(fields.fullName),
+    full_name: fullName,
     date_of_birth: proposalValue(fields.dateOfBirth),
+    place_of_birth: proposalValue(fields.placeOfBirth),
     gender: proposalValue(fields.gender),
     nationality: proposalValue(fields.nationality),
     passport_number: proposalValue(fields.passportNumber),
