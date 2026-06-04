@@ -2770,3 +2770,9 @@ acknowledgment).
 - Added portalCountry to CountryMeta (turkiye->turkey etc) so payment buttons get the portal code.
 - Files: components/{VisaCountryTemplate,ComingSoon}.tsx + visa-template.css, app/[locale]/visa/[country]/page.tsx, lib/countries.ts, messages/*.json, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - MKT-008
+- Added `countries` (16 slug->name) + `visaTypes` translation namespaces to messages/en.json + zh-CN.json. Template renders localName/localType/nearby names via tc/tt with English data fallback. Section labels already localized (visa namespace, MKT-004).
+- No untranslated hardcoded English remains in the template body (all via i18n hooks; country data localized).
+- Files: messages/en.json, messages/zh-CN.json, components/VisaCountryTemplate.tsx, prd.json. Typecheck passes.
+---

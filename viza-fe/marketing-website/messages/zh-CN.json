@@ -111,5 +111,33 @@
     "comingSoonBody": "我们正在完善{country}的办理流程。注册账户，上线后第一时间通知您。",
     "browseDestinations": "浏览目的地",
     "notifyMe": "通知我"
+  },
+  "countries": {
+    "indonesia": "印度尼西亚",
+    "egypt": "埃及",
+    "australia": "澳大利亚",
+    "saudi-arabia": "沙特阿拉伯",
+    "united-kingdom": "英国",
+    "vietnam": "越南",
+    "malaysia": "马来西亚",
+    "japan": "日本",
+    "united-states": "美国",
+    "canada": "加拿大",
+    "turkiye": "土耳其",
+    "thailand": "泰国",
+    "united-arab-emirates": "阿联酋",
+    "france": "法国",
+    "italy": "意大利",
+    "india": "印度"
+  },
+  "visaTypes": {
+    "e-Visa": "电子签证",
+    "Standard Visitor": "标准访客签证",
+    "Visitor 600": "600类访客签证",
+    "Tourist": "旅游签证",
+    "B1/B2": "B1/B2签证",
+    "eTA": "电子旅行授权",
+    "Schengen": "申根签证",
+    "eVisa": "电子签证"
   }
 }
