@@ -2588,3 +2588,12 @@ acknowledgment).
 - npm scripts db:verify-queue/inputs/verify + db:diff-migrations. db scripts typecheck via temp tsconfig.
 - Files: scripts/db/*.ts, docs/db/*.md, .github/workflows/db-verify.yml, package.json, prd.json.
 ---
+
+## 2026-06-04 - DEP-001..005
+- DEP-003 src/config/validate-env.ts: REQUIRED (SUPABASE_URL/KEY, SUBMISSION_RESULT_SECRET_KEY) throws listing missing; OPTIONAL warns; PORT numeric check. Called at top of main().
+- DEP-004 src/health-server.ts: node:http (no new dep) GET /health (200 ok) + /ready (DB reachable via runner_job head + worker-started flag -> 200/503). PORT env. Wired in index.ts (runnerStarted flag).
+- DEP-001 deploy/cloudrun-service.yaml: Knative Service, minScale=1 (persistent poller), cpu-throttling off, env by name + Secret Manager secretKeyRef, startup/liveness=/health, readiness=/ready. YAML valid.
+- DEP-005 .github/workflows/submission-service-image.yml: path-scoped GHCR build+push, SHA+latest tags, PR=build-only, GITHUB_TOKEN auth. (Complements existing runner-image.yml.) YAML valid.
+- DEP-002 docs/infra/submission-service-deploy.md: build->secrets->deploy->env list->SIGTERM graceful shutdown (QUE-002)->verify curl.
+- Files: src/config/validate-env.ts, src/health-server.ts, src/index.ts, deploy/cloudrun-service.yaml, .github/workflows/submission-service-image.yml, docs/infra/submission-service-deploy.md, prd.json. Typecheck passes.
+---

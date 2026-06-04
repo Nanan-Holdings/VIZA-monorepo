@@ -4895,7 +4895,7 @@
         "YAML parses validly"
       ],
       "priority": 340,
-      "passes": false,
+      "passes": true,
       "notes": "Findings: submission-service has Dockerfile but no deploy target. min-instances>=1 because it is a poller, not request-driven."
     },
     {
@@ -4909,7 +4909,7 @@
         "Deliverable is committed docs only"
       ],
       "priority": 341,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on SEC-006 .env.example and DEP-001 manifest."
     },
     {
@@ -4923,7 +4923,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 342,
-      "passes": false,
+      "passes": true,
       "notes": "Artifact-framed env validation per the ops constraint."
     },
     {
@@ -4937,7 +4937,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 343,
-      "passes": false,
+      "passes": true,
       "notes": "submission-service is currently a headless loop; add a tiny health server for Cloud Run probes."
     },
     {
@@ -4951,7 +4951,7 @@
         "YAML parses validly"
       ],
       "priority": 344,
-      "passes": false,
+      "passes": true,
       "notes": "Brief notes a GHCR build exists; confirm/standardize it scoped to submission-service. Cross-ref existing runner-image.yml."
     },
     {
