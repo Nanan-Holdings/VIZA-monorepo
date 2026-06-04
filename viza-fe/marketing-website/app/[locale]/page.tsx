@@ -3,6 +3,7 @@ import "./explore.css";
 import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
+import { displayFeeSGD } from "@/lib/pricing";
 
 export default function ExplorePage() {
   useEffect(() => {
@@ -50,20 +51,10 @@ export default function ExplorePage() {
       featured?: boolean;
     };
     const FLAG_CDN = 'https://hatscripts.github.io/circle-flags/flags';
-    // Card display fees (SGD). Temporary until MKT-006 wires the shared
-    // portal pricing source; the canonical fees live in
-    // viza-fe/internal-website/lib/pricing.ts.
-    const FEE_SGD: Record<string, string> = {
-      indonesia: 'SGD 119', egypt: 'SGD 113', australia: 'SGD 303',
-      'saudi-arabia': 'SGD 219', 'united-kingdom': 'SGD 401', vietnam: 'SGD 64',
-      malaysia: 'SGD 28', japan: 'SGD 78', 'united-states': 'SGD 285',
-      canada: 'SGD 122', turkiye: 'SGD 92', thailand: 'SGD 35',
-      'united-arab-emirates': 'SGD 145', france: 'SGD 117', italy: 'SGD 117', india: 'SGD 67',
-    };
     // Derived from the shared country metadata module (MKT-002). No fabricated eta.
     const COUNTRIES: Country[] = COUNTRY_META.map((c) => ({
       name: c.name, city: c.city, code: c.flagCode, flag: '', type: c.type,
-      valid: c.validity, fee: FEE_SGD[c.slug] ?? 'See pricing', tag: c.tag,
+      valid: c.validity, fee: displayFeeSGD(c.visaType) ?? 'See pricing', tag: c.tag,
       img: c.image, slug: c.slug, featured: c.featured,
     }));
 
