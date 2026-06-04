@@ -13,6 +13,7 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
+import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -78,6 +79,18 @@ export function SubmissionStatusStep({
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
+    // POR-006: standard e-Visa launch countries share one generic card.
+    case "ID":
+    case "EG":
+    case "SA":
+    case "MY":
+    case "TH":
+    case "AE":
+    case "CA":
+    case "TR":
+    case "IT":
+    case "IN":
+      return <GenericEvisaResultCard applicationId={applicationId} result={result} />;
     default:
       return <WaitingCard status={status} />;
   }

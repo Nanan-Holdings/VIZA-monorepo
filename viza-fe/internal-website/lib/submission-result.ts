@@ -24,7 +24,25 @@ export type SubmissionResult =
   | UkSubmissionResult
   | VnSubmissionResult
   | AuSubmissionResult
-  | JpSubmissionResult;
+  | JpSubmissionResult
+  | GenericEvisaSubmissionResult;
+
+/**
+ * POR-006: generic e-Visa result for the launch countries that share the
+ * standard halt/submit/paper outcome shape (no bespoke card needed): ID, EG,
+ * SA, MY, TH, AE, CA, TR, IT, IN. Rendered by GenericEvisaResultCard.
+ * NOTE: the BE mirror (agent-backend submission-result.ts) should add the same
+ * member to stay byte-equivalent — tracked sync (the BE drives what's written).
+ */
+export interface GenericEvisaSubmissionResult {
+  country: "ID" | "EG" | "SA" | "MY" | "TH" | "AE" | "CA" | "TR" | "IT" | "IN";
+  /** submitted = filed to pre-pay step; stopped_at_pay = halted before gov pay; form_ready_for_agency = paper/VFS pack. */
+  status: "submitted" | "stopped_at_pay" | "form_ready_for_agency";
+  /** Portal reference / registration code, when captured. */
+  reference?: string;
+  /** submission-artifacts bucket path for the e-visa / confirmation PDF. */
+  artifactStoragePath?: string;
+}
 
 export interface UsSubmissionResult {
   country: "US";
