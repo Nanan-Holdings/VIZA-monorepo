@@ -4995,7 +4995,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 347,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/egypt has only form-recon.ts (recon-only). Model fill on src/vietnam/fillers.ts."
     },
     {
@@ -5009,7 +5009,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 348,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-EG-001."
     },
     {
