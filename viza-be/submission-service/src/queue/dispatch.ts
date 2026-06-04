@@ -14,7 +14,9 @@
  */
 import { runOne as runVietnam } from "../vietnam/runner.js";
 import { runIndia, runSriLanka, runCambodia, runLaos, runSouthAfrica } from "../runners/legacy-prefill-adapters.js";
-import { runUsHalt, runUkHalt, runAuHalt } from "./halt-runners.js";
+import { runOne as runUs } from "../ceac/runner.js";
+import { runOne as runUk } from "../uk/runner.js";
+import { runOne as runAu } from "../au/runner.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
 import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
@@ -108,10 +110,10 @@ export const DISPATCH: Record<string, RunOne> = {
   south_africa: runSouthAfrica,
   vietnam: (a, j) => runVietnam(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
-  united_states: (a, j) => runUsHalt(a, j),
-  united_kingdom: (a, j) => runUkHalt(a, j),
+  united_states: (a, j) => runUs(a, j),
+  united_kingdom: (a, j) => runUk(a, j),
   france: (a, j) => runFrance(a, j),
-  australia: (a, j) => runAuHalt(a, j),
+  australia: (a, j) => runAu(a, j),
   // RUN-SA-001: Saudi Arabia e-Visa runner (built from scratch).
   saudi_arabia: (a, j) => runSaudi(a, j),
   // RUN-JP-001: Japan paper-pack runner (paper_ready terminal, no online submit).
@@ -137,10 +139,10 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   laos: { runner: "runLaPrefill", implemented: true },
   south_africa: { runner: "runZaPrefill", implemented: true },
   vietnam: { runner: "vietnam/runner.runOne", implemented: true },
-  united_states: { runner: "orchestrateFill (ceac)", implemented: true },
-  united_kingdom: { runner: "resumeUkApplication", implemented: true },
+  united_states: { runner: "ceac/runner.runOne", implemented: true },
+  united_kingdom: { runner: "uk/runner.runOne", implemented: true },
   france: { runner: "france-visas/runner.runOne", implemented: true },
-  australia: { runner: "fillVisitor600Application", implemented: true },
+  australia: { runner: "au/runner.runOne", implemented: true },
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
 };

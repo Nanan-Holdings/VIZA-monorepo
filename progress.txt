@@ -2692,3 +2692,10 @@ acknowledgment).
 - Integration contract test src/queue/__tests__/terminal-status.spec.ts (5): every runner outcome reaches a terminal runner_job status (halt/submit/paper -> succeeded; blocked/anti_bot -> retry->failed; needs_human -> failed). 10 queue tests pass.
 - Files: src/runners/{result-map,legacy-prefill-adapters}.ts, in/lk/kh/la/za runner.ts (runOne re-export), src/queue/dispatch.ts + terminal-status.spec.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-US/UK/AU-001
+- Exposed halt runners as runner_job runOne under their country dirs: src/ceac/runner.ts (runUsHalt), src/uk/runner.ts (runUkHalt), src/au/runner.ts append (runAuHalt) — all re-export from queue/halt-runners.ts (QUE-005). Rebound dispatch united_states/united_kingdom/australia to these; meta updated to ceac/uk/au runner.runOne.
+- Halt-before-gov-pay: US handoff_ready / UK stopped_at_pay|halted_before_pay / AU review_reached -> halted_before_pay -> succeeded. Legacy index.ts submission_queue transitions untouched.
+- Files: src/ceac/runner.ts, src/uk/runner.ts, src/au/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
+- Limitation: runtime success needs provisioned uk_accounts/au_accounts + complete answers (PROV-*, onHold); else NeedsHumanError. US CEAC needs 2captcha + answers.
+---

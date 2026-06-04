@@ -228,3 +228,11 @@ export async function runAuPrefill(input: AuRunInput): Promise<AuRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+/**
+ * RUN-AU-001: runner_job dispatch entrypoint. Wraps the au-visitor halt flow
+ * (loadAuAccount + fillVisitor600Application, outcome "review_reached" ->
+ * halted_before_pay) from src/queue/halt-runners.ts (QUE-005). Legacy
+ * submission_queue AU transitions in index.ts remain compatible.
+ */
+export { runAuHalt as runOne } from "../queue/halt-runners.js";
