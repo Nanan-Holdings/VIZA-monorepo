@@ -5696,7 +5696,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 397,
-      "passes": false,
+      "passes": true,
       "notes": "id and eg configs exist; ensure they match the new runners."
     },
     {

@@ -2796,3 +2796,8 @@ acknowledgment).
 - Added simplifiedForm.standardEvisa i18n namespace (steps/fields/options/declarations/review) to messages/en.json + zh.json.
 - Files: shell/standard-evisa-config.ts, {sa,my,th,ae,ca,tr,in,jp}/config.ts, shell/registry.ts, messages/en.json+zh.json, prd.json. internal-website typecheck passes.
 ---
+
+## 2026-06-04 - POR-002
+- Added components/client/wizards/shell/canonical-fields.ts: CANONICAL field-key constants + CANONICAL_FIELD_KEYS shared contract mirroring runner field-mappings (src/<cc>/field-mappings). standard-evisa factory now uses CANONICAL.* (no string-literal drift). id/eg configs already use the same canonical keys (parity documented).
+- Files: shell/canonical-fields.ts, shell/standard-evisa-config.ts, prd.json. Typecheck passes.
+---
