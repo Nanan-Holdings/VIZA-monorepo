@@ -2834,3 +2834,10 @@ acknowledgment).
 - Files: lib/status/runner-lifecycle.ts + .test.ts, prd.json. Typecheck + vitest pass. POR block COMPLETE (11/11).
 - Note: reusable read+mapping delivered & tested; rendering the new phase into the existing 7-step status UI is follow-up polish.
 ---
+
+## 2026-06-04 - PAYP-001/007
+- PAYP-001: payment-routing.ts decisionFor(country,visaType) -> typed RoutingDecision {mechanism, collector, policy, agencyFeeCents, govtFeeCents, currency, collectedTotalCents} for all 16 launch countries via PACKAGE_FEES table (mirrors pricing.ts/MKT-006; currencies USD/GBP/AUD/CAD). Unknown -> UnknownPackageError. Added france/italy to GOVT_FEE_ROUTING (client_in_portal).
+- PAYP-007: collectedTotalCents = agency + gov only when collector=viza (runner_escrow_card); else agency-only (applicant pays gov fee on portal/VAC — documented). Test asserts per-country.
+- Tests src/__tests__/payment-routing.spec.ts extended (8 pass): all-16 decision, pass-through correctness, unknown throws. Updated PRICING mirror with saudi/france/italy.
+- Files: src/payment-routing.ts, src/__tests__/payment-routing.spec.ts, prd.json. Typecheck passes.
+---
