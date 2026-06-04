@@ -4713,7 +4713,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 327,
-      "passes": false,
+      "passes": true,
       "notes": "Connects QUE-001 + QUE-002. runInPrefill in src/in/runner.ts:143 and runLkPrefill in src/lk/runner.ts:120 were previously never called."
     },
     {
