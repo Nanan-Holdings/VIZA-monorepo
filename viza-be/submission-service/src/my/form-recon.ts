@@ -1,49 +1,21 @@
 import "dotenv/config";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { chromium, type Page } from "@playwright/test";
+import { chromium } from "@playwright/test";
+import { discoverFields, withRetry } from "../runners/standard-evisa.js";
 
 /**
  * Malaysia eVISA/MDAC form recon (RUN-MY-001 / RUN-MY-002 / DATA-001).
  *
  *   npx ts-node src/my/form-recon.ts
  *
- * Field discovery with retry/backoff (local stopgap until RUN-CORE-001
- * consolidates a shared helper). Read-only. MY_RECON_HEADFUL=1 to watch.
+ * Uses the shared recon retry/backoff + field-discovery helpers
+ * (RUN-CORE-001). Read-only. MY_RECON_HEADFUL=1 to watch.
  */
+export type { ReconField } from "../runners/standard-evisa.js";
 
 const BASE_URL = process.env.MY_PORTAL_URL ?? "https://malaysiavisa.imi.gov.my";
 const OUT_DIR = path.join(process.cwd(), "recon-out", "my");
-
-export async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseMs = 1000): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastErr = err;
-      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));
-    }
-  }
-  throw lastErr;
-}
-
-export interface ReconField {
-  tag: string;
-  name: string;
-  id: string;
-  type: string;
-  placeholder: string;
-}
-
-export async function discoverFields(page: Page): Promise<ReconField[]> {
-  return page.$$eval("input, select, textarea", (els) =>
-    els.map((el) => {
-      const e = el as HTMLInputElement;
-      return { tag: e.tagName.toLowerCase(), name: e.name, id: e.id, type: e.type, placeholder: e.placeholder };
-    }),
-  );
-}
 
 async function main(): Promise<void> {
   fs.mkdirSync(OUT_DIR, { recursive: true });

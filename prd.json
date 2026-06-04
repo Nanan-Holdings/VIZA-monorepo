@@ -5389,7 +5389,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 375,
-      "passes": false,
+      "passes": true,
       "notes": "src/recon, src/captcha, src/generic already exist; consolidate to reduce per-country duplication."
     },
     {

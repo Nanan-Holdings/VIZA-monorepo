@@ -1,56 +1,21 @@
 import "dotenv/config";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { chromium, type Page } from "@playwright/test";
+import { chromium } from "@playwright/test";
+import { discoverFields, withRetry } from "../runners/standard-evisa.js";
 
 /**
  * Saudi e-Visa form recon (RUN-SA-001 / RUN-SA-002 / DATA-001).
  *
  *   npx ts-node src/sa/form-recon.ts
  *
- * Field discovery with retry/backoff. Dumps input/select fields + screenshot
- * to recon-out/sa/ so the best-effort selectors in field-mappings.ts can be
- * promoted. Read-only on the portal. SA_RECON_HEADFUL=1 to watch.
- *
- * The withRetry helper here is a local stopgap; RUN-CORE-001 consolidates a
- * shared recon retry/backoff helper that this should adopt.
+ * Uses the shared recon retry/backoff + field-discovery helpers
+ * (RUN-CORE-001). Read-only on the portal. SA_RECON_HEADFUL=1 to watch.
  */
+export type { ReconField } from "../runners/standard-evisa.js";
 
 const BASE_URL = process.env.SA_PORTAL_URL ?? "https://visa.visitsaudi.com";
 const OUT_DIR = path.join(process.cwd(), "recon-out", "sa");
-
-export async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseMs = 1000): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastErr = err;
-      const wait = baseMs * 2 ** i;
-      console.warn(`[sa-recon] attempt ${i + 1}/${attempts} failed, backing off ${wait}ms`);
-      await new Promise((r) => setTimeout(r, wait));
-    }
-  }
-  throw lastErr;
-}
-
-export interface ReconField {
-  tag: string;
-  name: string;
-  id: string;
-  type: string;
-  placeholder: string;
-}
-
-/** Parse the recon field inventory from a page. Exported for fixture tests. */
-export async function discoverFields(page: Page): Promise<ReconField[]> {
-  return page.$$eval("input, select, textarea", (els) =>
-    els.map((el) => {
-      const e = el as HTMLInputElement;
-      return { tag: e.tagName.toLowerCase(), name: e.name, id: e.id, type: e.type, placeholder: e.placeholder };
-    }),
-  );
-}
 
 async function main(): Promise<void> {
   fs.mkdirSync(OUT_DIR, { recursive: true });
