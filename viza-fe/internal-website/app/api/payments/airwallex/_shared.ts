@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { createPaymentIntent, normalizeAirwallexStatus, retrievePaymentIntent } from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type JsonObject = Record<string, unknown>;
@@ -141,7 +142,7 @@ export async function handleAirwallexPaymentSucceeded(recordId: string, intentId
   const now = new Date().toISOString();
   const { data: record, error } = await admin
     .from("payment_records")
-    .select("id, status, application_id, metadata, paid_at")
+    .select("id, status, application_id, applicant_id, auth_user_id, amount_cents, currency, provider, metadata, paid_at")
     .eq("id", recordId)
     .maybeSingle();
 
@@ -164,6 +165,15 @@ export async function handleAirwallexPaymentSucceeded(recordId: string, intentId
     .eq("id", record.id);
 
   if (updateError) throw new Error(updateError.message);
+
+  await awardPurchasePointsForPayment({
+    paymentRecordId: record.id,
+    applicantId: record.applicant_id,
+    userId: record.auth_user_id,
+    amountCents: record.amount_cents,
+    currency: record.currency,
+    provider: record.provider,
+  });
 
   if (record.application_id) {
     await admin

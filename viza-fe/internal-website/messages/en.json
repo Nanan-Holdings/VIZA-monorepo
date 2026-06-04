@@ -3527,10 +3527,14 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
+    "backToSettings": "Back to Settings",
     "loading": "Loading your settings...",
     "tabs": {
       "billing": "Billing",
       "account": "Account"
+    },
+    "privacy": {
+      "title": "Privacy and data rights"
     },
     "profile": {
       "fallbackName": "VIZA applicant",
@@ -3550,6 +3554,7 @@
       "title": "VIZA points",
       "totalLabel": "Current balance",
       "referralRule": "When a new user signs up with your referral code, both accounts receive 99 points.",
+      "purchaseRule": "Earn 100 VIZA points for every RMB 100 you spend. Points are added to your current balance after payment is confirmed.",
       "lifetimeEarned": "Lifetime earned",
       "lifetimeSpent": "Lifetime spent",
       "marketplaceTitle": "Points marketplace",
@@ -3558,9 +3563,9 @@
       "redeem": "Redeem",
       "notEnough": "Need more",
       "rewards": {
-        "applicationReview": {
-          "title": "Application review voucher",
-          "description": "Use points toward one VIZA application review before submission."
+        "arrivalCardSubmission": {
+          "title": "Free arrival card submission",
+          "description": "Redeem 1,000 points for one free arrival card submission for visa-free destinations such as Singapore, Malaysia, and Thailand."
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",

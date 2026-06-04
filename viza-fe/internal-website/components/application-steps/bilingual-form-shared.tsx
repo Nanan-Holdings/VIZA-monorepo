@@ -41,6 +41,7 @@ export type BilingualSide = "zh" | "en";
 
 export interface BilingualOptionPair {
   code: string;
+  alpha3?: string;
   zh: string;
   en: string;
 }
@@ -61,6 +62,7 @@ export interface BilingualFieldCopilotConfig {
 
 interface CountryRecord {
   alpha2: string;
+  alpha3: string;
   emoji?: string;
   ioc: string;
   name: string;
@@ -90,6 +92,7 @@ function buildCountryOptions(): BilingualOptionPair[] {
     .filter((country) => country.emoji && country.status !== "deleted" && country.ioc !== "PRK")
     .map((country) => ({
       code: country.alpha2,
+      alpha3: country.alpha3,
       zh: getLocalizedRegionName(country.alpha2) || country.name,
       en: country.name,
     }))
@@ -107,6 +110,7 @@ export function findBilingualOption(options: BilingualOptionPair[], value?: stri
   return options.find(
     (option) =>
       normalizeLookup(option.code) === lookup ||
+      normalizeLookup(option.alpha3 ?? "") === lookup ||
       normalizeLookup(option.zh) === lookup ||
       normalizeLookup(option.en) === lookup,
   );

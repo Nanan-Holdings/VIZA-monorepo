@@ -3613,10 +3613,14 @@
   "settings": {
     "title": "设置",
     "subtitle": "在这里管理付款偏好、通用签证资料、账户安全和帮助入口。",
+    "backToSettings": "返回设置",
     "loading": "正在加载您的设置...",
     "tabs": {
       "billing": "账单",
       "account": "账户"
+    },
+    "privacy": {
+      "title": "隐私和数据权利"
     },
     "profile": {
       "fallbackName": "VIZA 申请人",
@@ -3636,6 +3640,7 @@
       "title": "VIZA 积分",
       "totalLabel": "当前积分总额",
       "referralRule": "新用户注册时使用您的 referral code 后，两边账号各获得 99 积分。",
+      "purchaseRule": "每实际消费 100 元人民币可获得 100 VIZA 积分，付款确认后会自动计入当前积分总额。",
       "lifetimeEarned": "累计获得",
       "lifetimeSpent": "累计使用",
       "marketplaceTitle": "积分商城",
@@ -3644,9 +3649,9 @@
       "redeem": "兑换",
       "notEnough": "积分不足",
       "rewards": {
-        "applicationReview": {
-          "title": "申请审核券",
-          "description": "用于抵扣一次递交前的 VIZA 申请审核服务。"
+        "arrivalCardSubmission": {
+          "title": "入境卡免费提交",
+          "description": "1000 积分可兑换一次新加坡、马来西亚、泰国等免签入境卡国家的免费提交服务。"
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",

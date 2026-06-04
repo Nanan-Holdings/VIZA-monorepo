@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { ArrowLeft, AtSign, CheckCircle2, Database, Loader2, MapPin, Phone, Save, ShieldCheck, User, WalletCards } from "lucide-react";
-import { ensureDraftApplication } from "@/app/actions/visa-application-answers";
+import {
+  ensureDraftApplication,
+  saveUniversalProfileWithSharedAnswers,
+} from "@/app/actions/visa-application-answers";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -98,11 +101,13 @@ function normalizeGender(value?: string | null) {
 }
 
 function normalizeCountryCode(value?: string | null) {
-  return findBilingualOption(COUNTRY_OPTIONS, value ?? "")?.code ?? "";
+  const normalized = value?.trim();
+  if (!normalized) return "";
+  return findBilingualOption(COUNTRY_OPTIONS, normalized)?.code ?? normalized;
 }
 
-function countryEnglishName(code: string) {
-  return findBilingualOption(COUNTRY_OPTIONS, code)?.en ?? "";
+function countryEnglishName(value: string) {
+  return findBilingualOption(COUNTRY_OPTIONS, value)?.en ?? value;
 }
 
 function updateMirroredValue(value: string) {
@@ -254,32 +259,35 @@ export default function UniversalInfoPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error: saveError } = await supabase
-        .from("applicant_profiles")
-        .upsert(
-          {
-            auth_user_id: user.id,
-            full_name: cleanValue(form.full_name),
-            date_of_birth: cleanValue(form.date_of_birth),
-            place_of_birth: cleanValue(form.place_of_birth),
-            gender: cleanValue(form.gender),
-            nationality: cleanValue(countryEnglishName(form.nationality)),
-            occupation: cleanValue(form.occupation),
-            address: cleanValue(form.address),
-            passport_number: cleanValue(form.passport_number),
-            passport_issue_date: cleanValue(form.passport_issue_date),
-            passport_expiry_date: cleanValue(form.passport_expiry_date),
-            passport_issuing_country: cleanValue(countryEnglishName(form.passport_issuing_country)),
-            email: cleanValue(form.email) ?? user.email ?? null,
-            phone: cleanValue(form.phone),
-            wechat: cleanValue(form.wechat),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "auth_user_id" },
-        );
+      const result = await saveUniversalProfileWithSharedAnswers({
+        applicationId: passportOcrApplicationId,
+        country: "us",
+        visaType: "b1_b2",
+        profile: {
+          full_name: cleanValue(form.full_name),
+          date_of_birth: cleanValue(form.date_of_birth),
+          place_of_birth: cleanValue(form.place_of_birth),
+          gender: cleanValue(form.gender),
+          nationality: cleanValue(countryEnglishName(form.nationality)),
+          occupation: cleanValue(form.occupation),
+          address: cleanValue(form.address),
+          passport_number: cleanValue(form.passport_number),
+          passport_issue_date: cleanValue(form.passport_issue_date),
+          passport_expiry_date: cleanValue(form.passport_expiry_date),
+          passport_issuing_country: cleanValue(countryEnglishName(form.passport_issuing_country)),
+          email: cleanValue(form.email) ?? user.email ?? null,
+          phone: cleanValue(form.phone),
+          wechat: cleanValue(form.wechat),
+        },
+      });
 
-      if (saveError) throw saveError;
-      setMessage(isZh ? "已保存。之后相似签证问题会优先使用这些资料预填。" : "Saved. Similar visa forms will use this profile for prefilling.");
+      if (result.error) throw new Error(result.error);
+      if (result.applicationId) setPassportOcrApplicationId(result.applicationId);
+      setMessage(
+        isZh
+          ? "已保存，并同步到申请答案。之后相似签证问题会优先使用这些资料预填。"
+          : "Saved and synced to application answers. Similar visa forms will use this profile for prefilling.",
+      );
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
     } finally {

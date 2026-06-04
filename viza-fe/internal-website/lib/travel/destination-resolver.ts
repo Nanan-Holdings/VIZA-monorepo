@@ -103,6 +103,32 @@ type LocalDestination = TravelDestinationSearchResult & {
 
 const LOCAL_DESTINATIONS: LocalDestination[] = [
   {
+    id: "local-europe-classic-route",
+    canonicalName: "Europe Classic Route",
+    displayName: "Europe Classic Route",
+    normalizedName: "europe classic route",
+    countryCode: null,
+    countryName: "Europe",
+    region: "Europe",
+    city: "Paris",
+    placeType: "route",
+    latitude: 48.8566,
+    longitude: 2.3522,
+    popularityScore: 93,
+    source: "curated_fallback",
+    confidenceScore: 0.94,
+    isVerified: true,
+    aliases: [
+      "europe",
+      "europe trip",
+      "europe route",
+      "欧洲",
+      "欧洲旅行",
+      "欧洲路线",
+    ],
+    imageKey: "paris",
+  },
+  {
     id: "local-tokyo",
     canonicalName: "Tokyo",
     displayName: "Tokyo",
@@ -120,7 +146,16 @@ const LOCAL_DESTINATIONS: LocalDestination[] = [
     isVerified: true,
     isFeatured: true,
     showOnHome: true,
-    aliases: ["tokyo", "tokio", "东京", "東京", "とうきょう"],
+    aliases: [
+      "tokyo",
+      "tokio",
+      "东京",
+      "東京",
+      "とうきょう",
+      "japan",
+      "日本",
+      "日本旅行",
+    ],
     imageKey: "tokyo",
   },
   {
@@ -742,6 +777,25 @@ const STOP_WORDS = new Set([
   "做一个",
 ]);
 
+const RAW_PROMPT_DESTINATION_PATTERNS = [
+  /^我想去(.+)$/,
+  /^想去(.+)$/,
+  /^我要去(.+)$/,
+  /^我想去(.+)旅行$/,
+  /^想去(.+)旅行$/,
+  /^i want to (?:visit|go to|travel to) (.+)$/i,
+  /^i'?d like to (?:visit|go to|travel to) (.+)$/i,
+];
+
+const UNDECIDED_DESTINATION_PATTERNS = [
+  /我不知道去哪/,
+  /不知道去哪/,
+  /不确定去哪/,
+  /not sure where to go/i,
+  /do not know where to go/i,
+  /don't know where to go/i,
+];
+
 function toNumber(value: string | number | null | undefined): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value === "string") {
@@ -762,6 +816,21 @@ export function normalizeDestinationText(value: string): string {
     .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
+}
+
+export function extractDestinationIntentLabel(value: string): string {
+  const trimmed = value.trim().replace(/[。.!！?？]+$/g, "").trim();
+  for (const pattern of RAW_PROMPT_DESTINATION_PATTERNS) {
+    const match = trimmed.match(pattern);
+    const candidate = match?.[1]?.trim();
+    if (candidate) return candidate.replace(/旅行$/u, "").trim();
+  }
+  return trimmed;
+}
+
+export function isRawDestinationPromptText(value: string): boolean {
+  const trimmed = value.trim().replace(/[。.!！?？]+$/g, "").trim();
+  return RAW_PROMPT_DESTINATION_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 export function parseDatabaseDestination(row: {
@@ -1142,13 +1211,23 @@ export function generateLazyDestinationCards(
 }
 
 export function resolveLocalDestinationText(rawText: string): DestinationResolution {
-  const query = rawText.trim();
+  const query = extractDestinationIntentLabel(rawText);
   const tripHints = extractDestinationTripHints(query);
   if (!query) {
     return {
       status: "unresolved",
       query,
       message: "No destination text was provided.",
+      tripHints,
+      cards: [],
+    };
+  }
+
+  if (UNDECIDED_DESTINATION_PATTERNS.some((pattern) => pattern.test(query))) {
+    return {
+      status: "unresolved",
+      query,
+      message: "The user is asking for destination inspiration, not naming a destination.",
       tripHints,
       cards: [],
     };
@@ -1235,6 +1314,8 @@ export function toTravelDestinationChatCard(
 
   return {
     type: "destination" as const,
+    id: destination.id,
+    destination_id: destination.id,
     title: destination.displayName,
     subtitle:
       destination.countryName || destination.region
