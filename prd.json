@@ -5431,7 +5431,7 @@
         "Referenced from OBSV launch checklist"
       ],
       "priority": 378,
-      "passes": false,
+      "passes": true,
       "notes": "Single source of truth for launch readiness across runners."
     },
     {
@@ -5445,7 +5445,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 379,
-      "passes": false,
+      "passes": true,
       "notes": "Confirms dispatch coverage for all 16 stays green as countries land."
     },
     {
