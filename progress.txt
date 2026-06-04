@@ -2597,3 +2597,11 @@ acknowledgment).
 - DEP-002 docs/infra/submission-service-deploy.md: build->secrets->deploy->env list->SIGTERM graceful shutdown (QUE-002)->verify curl.
 - Files: src/config/validate-env.ts, src/health-server.ts, src/index.ts, deploy/cloudrun-service.yaml, .github/workflows/submission-service-image.yml, docs/infra/submission-service-deploy.md, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-ID-001
+- Built dedicated Indonesia flagship runner src/id/: field-mappings.ts (ID_FIELD_MAPPINGS + mapIdAnswers + missingRequired + toIdDate, unit-tested core), runner.ts (runIdRunner playwright flow halting before gov pay + runOne(applicationId) DispatchOutcome entrypoint), form-recon.ts (field-dump scaffold for DATA-001).
+- Bound indonesia -> id/runner.runOne in dispatch.ts (replaced generic t3 runIdPrefill scaffold); removed now-unused import; DISPATCH_META updated.
+- Added src/id/__tests__/field-mappings.spec.ts (node:test, 5/5 pass): date transform, mapping order, empty-skip, required-gating, selector presence.
+- Files: src/id/{field-mappings,runner,form-recon}.ts, src/id/__tests__/field-mappings.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test still 5/5.
+- Limitation: portal selectors are BEST-EFFORT pending live recon (form-recon.ts + DATA-001 onHold). Fill is defensive (degrades to blocked, never crashes). Runner halts before government payment per Indonesia policy.
+---
