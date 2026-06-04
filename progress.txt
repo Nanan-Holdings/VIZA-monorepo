@@ -2612,3 +2612,12 @@ acknowledgment).
 - WeChat-only Indonesia path untouched (lives in internal-website pricing wechatPayTotalFen; preserved).
 - Files: src/payment-routing.ts, src/id/runner.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-EG-001/002
+- Promoted Egypt from recon-only to fill runner. Added src/egypt/field-mappings.ts (EG_FIELD_MAPPINGS + mapEgAnswers + missingRequired + toEgDate DD-MM-YYYY), fillers.ts (safeFill + fillEgForm), runner.ts (runEgRunner halts before gov pay + runOne).
+- Bound egypt -> egypt/runner.runOne in dispatch (replaced generic t3 runEgPrefill; removed unused import; meta updated).
+- RUN-EG-002: payment-routing GOVT_FEE_CENTS.egypt EG_E_VISA=2500 (mirrors pricing.ts viza_passthrough); runner records collector/policy/fee at halt. Result mapped to halted_before_pay->succeeded via runOne.
+- Tests: src/egypt/__tests__/field-mappings.spec.ts (4) + fill-smoke.spec.ts (2, recon+fill fixture). All pass; dispatch 5/5.
+- Files: src/egypt/{field-mappings,fillers,runner}.ts, src/egypt/__tests__/*.spec.ts, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (form-recon.ts + DATA-001). Halts before gov pay (escrow not integrated).
+---
