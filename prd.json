@@ -5487,7 +5487,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 382,
-      "passes": false,
+      "passes": true,
       "notes": "src/inbox and src/email exist (used by Vietnam); generalize."
     },
     {
