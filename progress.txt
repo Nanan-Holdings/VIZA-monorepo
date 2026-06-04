@@ -2747,3 +2747,9 @@ acknowledgment).
 - MKT-001: card href = visaHref(c.slug) -> /visa/<slug> for all 16 (was hardcoded /visa/indonesia). Coming-soon for unlaunched handled by MKT-003 [country] route. "See all 84" -> dynamic count.
 - Files: lib/countries.ts, app/[locale]/page.tsx, prd.json. Marketing typecheck passes.
 ---
+
+## 2026-06-04 - MKT-007
+- Added saudi_arabia (SA_E_VISA, 8000c viza_passthrough), france + italy (EU_SCHENGEN_C_SHORT_STAY, 9000c portal_direct) to viza-fe/internal-website/lib/pricing.ts PACKAGE_PRICING.
+- Updated docs/db/launch-seed-checklist.md to mark all 16 present (SA/IT/FR ✅ added MKT-007).
+- Files: lib/pricing.ts, docs/db/launch-seed-checklist.md, prd.json. internal-website typecheck passes.
+---
