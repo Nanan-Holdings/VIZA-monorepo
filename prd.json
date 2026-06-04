@@ -5836,7 +5836,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 407,
-      "passes": false,
+      "passes": true,
       "notes": "Central payment seam; each RUN-* references it. Confirm against lib/pricing.ts keys."
     },
     {
@@ -5920,7 +5920,7 @@
         "Typecheck passes in the owning workspace"
       ],
       "priority": 413,
-      "passes": false,
+      "passes": true,
       "notes": "Ties pricing source to collector policy from PAYP-001."
     },
     {
