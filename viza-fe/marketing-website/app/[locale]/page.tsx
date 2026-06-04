@@ -542,12 +542,12 @@ export default function ExplorePage() {
           <div className="col-products">
             <h4 className="col-head">Products</h4>
             <ul className="col-list">
-              <li><a href="#">U.S. Mock Interview</a></li>
-              <li><a href="#">Visa Requirements</a></li>
-              <li><a href="#">Schengen Appointment Checker</a></li>
-              <li><a href="#">Visa Photo Creator</a></li>
-              <li><a href="#">VIZA Emergency Helpline</a></li>
-              <li><a href="#">Student Visa</a></li>
+              <li><a href="/apply">U.S. Mock Interview</a></li>
+              <li><a href="/">Visa Requirements</a></li>
+              <li><a href="/visa/france">Schengen Appointment Checker</a></li>
+              <li><a href="/apply">Visa Photo Creator</a></li>
+              <li><a href="/contact">VIZA Emergency Helpline</a></li>
+              <li><a href="/apply">Student Visa</a></li>
             </ul>
           </div>
 
@@ -576,10 +576,11 @@ export default function ExplorePage() {
 
           {/* App buttons span the brand column area */}
           <div className="foot-apps">
-            <a className="app-badge" href="#" aria-label="Download VIZA on the App Store">
+            {/* Native apps pre-launch (MKT-013 intentional): badges link to the web app for now. */}
+            <a className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
               <img src="/assets/app-store-badge.png" alt="Download on the App Store"/>
             </a>
-            <a className="app-badge" href="#" aria-label="Get VIZA on Google Play">
+            <a className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
               <img src="/assets/google-play-badge.png" alt="Get it on Google Play"/>
             </a>
           </div>
@@ -591,9 +592,9 @@ export default function ExplorePage() {
           <div className="legal">
             <span>© VIZA, All rights reserved</span>
             <span className="sep"></span>
-            <a href="#">Privacy</a>
+            <a href="/legal/privacy">Privacy</a>
             <span className="sep"></span>
-            <a href="#">Terms</a>
+            <a href="/legal/terms">Terms</a>
           </div>
           <div className="foot-mark">
             <img src="/assets/viza-logo-black.svg" alt="VIZA"/>

@@ -5613,7 +5613,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 391,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed 'See all 84' and nearby links are '#'."
     },
     {
@@ -5669,7 +5669,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 395,
-      "passes": false,
+      "passes": true,
       "notes": "Cleanup pass after MKT-002 centralizes data."
     },
     {
