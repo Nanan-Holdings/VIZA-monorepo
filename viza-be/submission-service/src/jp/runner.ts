@@ -2,6 +2,7 @@ import { artifact } from "../artifact.js";
 import { renderPdf } from "../paper/simple-pdf.js";
 import { buildJpPaperLines, JP_PAPER_TITLE } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
+import { softTranslationGate } from "../runners/standard-evisa.js";
 import { type DispatchOutcome } from "../queue/types.js";
 
 /**
@@ -25,6 +26,7 @@ export async function runJpRunner(input: {
   applicationId: string;
   answers: Record<string, string>;
 }): Promise<JpRunResult> {
+  softTranslationGate("japan", input.answers); // RUN-CORE-007 (non-fatal)
   const lines = buildJpPaperLines(input.answers);
   const pdf = renderPdf(JP_PAPER_TITLE, lines);
   const ref = await artifact.put(input.jobId, "jp-application.pdf", pdf, {
