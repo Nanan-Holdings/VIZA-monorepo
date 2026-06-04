@@ -18,9 +18,8 @@ import {
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
   VN_STOP_BUTTON_PATTERNS,
-  type VnFieldType,
 } from "./field-mappings";
-import { fillDate, fillText, pickRadio, pickSelect, toDdMmYyyy } from "./fillers";
+import { fillFormStep } from "./fillers";
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
@@ -99,24 +98,8 @@ export async function fillVietnamApplication(
       { timeout: stepTimeoutMs },
     );
 
-    // ── Fill every mapped field that we have an answer for ─────────────
-    let filled = 0;
-    let skipped = 0;
-    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
-      const value = input.answers[fieldName];
-      if (!value) {
-        skipped++;
-        continue;
-      }
-      try {
-        await fillByType(page, mapping.type, mapping.domId, value);
-        filled++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}): ${msg}`);
-        skipped++;
-      }
-    }
+    // ── Fill every mapped field that we have an answer for (RUN-VN-001) ─
+    const { filled, skipped } = await fillFormStep(page, input.answers, VN_FIELD_MAPPINGS);
 
     // ── Stop-at-pay sentinel + capture registration code ──────────────
     // Click the form's primary "Save" / "Next" button to advance to the
@@ -201,37 +184,6 @@ async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
     }
 
     await page.waitForTimeout(1_000);
-  }
-}
-
-async function fillByType(
-  page: Page,
-  type: VnFieldType,
-  domId: string,
-  rawValue: string,
-): Promise<void> {
-  switch (type) {
-    case "text":
-    case "textarea":
-      await fillText(page, domId, rawValue);
-      return;
-    case "select":
-    case "country":
-      await pickSelect(page, domId, rawValue);
-      return;
-    case "radio":
-      await pickRadio(page, domId, rawValue);
-      return;
-    case "date":
-      await fillDate(page, domId, toDdMmYyyy(rawValue));
-      return;
-    case "upload":
-      // Uploads require a local file path threaded from applicationDocuments.
-      // Skip silently — orchestrator logs are noisy enough; the FE will surface
-      // a missing-portrait error from the portal review screen if it matters.
-      return;
-    default:
-      return;
   }
 }
 
