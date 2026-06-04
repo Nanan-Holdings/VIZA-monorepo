@@ -2522,3 +2522,13 @@ acknowledgment).
 - All values are placeholders (your-*/re_your_); .env.example is hook+gitleaks exempt.
 - Files: viza-be/agent-backend/.env.example, viza-be/submission-service/.env.example, prd.json
 ---
+
+## 2026-06-04 - QUE-001
+- Added src/queue/dispatch.ts: country->runOne(applicationId) table for all 16 launch countries + extras (sri_lanka/cambodia/laos/south_africa). UnsupportedCountryError for unwired (saudi_arabia, japan, us/uk/france/australia — latter 4 wired in QUE-005).
+- Added src/queue/answers.ts: loadCanonicalAnswers(applicationId) flattens applicant_profiles + visa_application_answers into canonical record; pick() helper.
+- Bound generic t3 runners (id/eg/it/th/my/tr/ae/ca) + dedicated (in/lk/kh/la/za) + vietnam scaffold. normalizeStandard maps stopped_before_pay/signature->halt success, blocked/anti_bot->RetryableRunnerError, needs_human->NeedsHumanError.
+- DISPATCH_META for test/observability; normalizeCountry + COUNTRY_ALIASES (gb->united_kingdom etc).
+- Discovered: t3/index.ts already had generic runners for 11 countries; LkCanonicalAnswers/LaCanonicalAnswers require passport_issuing_country (subagent missed it).
+- Files: src/queue/dispatch.ts, src/queue/answers.ts, prd.json. Typecheck passes.
+- Limitation: field-name mapping answers->portal may need per-country recon tuning; documented for QUE-004.
+---
