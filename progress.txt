@@ -2605,3 +2605,10 @@ acknowledgment).
 - Files: src/id/{field-mappings,runner,form-recon}.ts, src/id/__tests__/field-mappings.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test still 5/5.
 - Limitation: portal selectors are BEST-EFFORT pending live recon (form-recon.ts + DATA-001 onHold). Fill is defensive (degrades to blocked, never crashes). Runner halts before government payment per Indonesia policy.
 ---
+
+## 2026-06-04 - RUN-ID-002
+- Extended src/payment-routing.ts: collectorFor(mechanism)->viza/portal/applicant/none, policyFor(mechanism)->collect/halt/paper, GOVT_FEE_CENTS (indonesia B211A=15000 mirrors pricing.ts) + feeCentsFor(). Indonesia/B211A stays runner_escrow_card => collector=viza, policy=collect.
+- id/runner.ts respects routing at pre_payment: computes routingFor/policyFor/collectorFor/feeCents for indonesia (default B211A), records collector+fee in halt reason. Escrow-card payment not yet integrated so still halts (documented).
+- WeChat-only Indonesia path untouched (lives in internal-website pricing wechatPayTotalFen; preserved).
+- Files: src/payment-routing.ts, src/id/runner.ts, prd.json. Typecheck passes.
+---
