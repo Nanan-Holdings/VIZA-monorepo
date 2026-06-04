@@ -2815,3 +2815,9 @@ acknowledgment).
 - Files: app/api/applications/[id]/evisa-artifact/route.ts, prd.json. Typecheck passes.
 - Limitation: graceful pending when no artifact yet; signed URL TTL 1h.
 ---
+
+## 2026-06-04 - POR-008/009
+- POR-009: lib/queue/countries.test.ts (vitest, 4): assertKnownCountry accepts/normalizes all 16 launch countries + ISO aliases (id/sa/jp/us/gb); throws on unknown (never enqueues unroutable). enqueueRunnerJob idempotency (reuse queued/running row) documented.
+- POR-008: covered-countries.ts (RESULT_CARD_COUNTRIES = 16 codes US/FR/UK/VN/AU/JP + ID/EG/SA/MY/TH/AE/CA/TR/IT/IN) + test (vitest, 2) asserting all 16 launch countries covered, no dupes. Guest magic-link flow resumes into the same SubmissionStatusStep -> real card per country, no empty fallback.
+- Files: lib/queue/countries.test.ts, _components/result-cards/covered-countries.ts + .test.ts, prd.json. 6 vitest tests pass; typecheck clean.
+---
