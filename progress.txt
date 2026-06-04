@@ -2630,3 +2630,11 @@ acknowledgment).
 - Files: src/vietnam/{fillers,run,runner,retrieve-evisa}.ts, src/vietnam/__tests__/step-fill.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
 - Limitation: progression to submitted_pending_pay gated on registration-code selector recon; escrow payment not integrated (halts).
 ---
+
+## 2026-06-04 - RUN-IT-001
+- Added src/italy-vfs-cn/runner.ts (runItRunner + runOne) on existing pages/selectors/normalize scaffold. normalizeItVfsAnswers builds Annex I structured answers (corridor CN->IT enforced); fills personal/travel-doc/contact sections defensively; HALTS before appointment booking + VFS/gov payment (manual slot confirmation). needs_human on corridor mismatch or missing Annex I field.
+- Bound italy -> italy-vfs-cn/runner.runOne in dispatch (replaced generic t3 runItPrefill; removed unused import; meta updated).
+- Test src/italy-vfs-cn/__tests__/normalize.spec.ts (4 pass): CN->IT corridor accept, non-CN/non-IT reject, descriptive missing-field throw. dispatch 5/5.
+- Files: src/italy-vfs-cn/runner.ts + __tests__/normalize.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon; full submit needs complete Annex I answer set (trip/cost) + manual appointment; halts before pay.
+---
