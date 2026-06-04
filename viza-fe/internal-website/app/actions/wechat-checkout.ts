@@ -155,6 +155,7 @@ export async function startWechatCheckout(
             govt_fee_cents: pricing.govtFeeCents,
             currency: "CNY",
             status: "pending",
+            guest_checkout: true,
           })
           .select("id")
           .single();

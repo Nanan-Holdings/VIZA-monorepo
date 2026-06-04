@@ -3,6 +3,7 @@ import "./apply.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
+import { portalUrl } from "@/lib/utils";
 
 type PassportExtraction = {
   surname: string;
@@ -231,9 +232,15 @@ export default function ApplyPage() {
       if (currentStep === 3) {
         const lbl = document.getElementById('btnNextLabel');
         const btn = document.getElementById('btnNext') as HTMLButtonElement | null;
-        if (lbl) lbl.textContent = 'Submitting…';
+        if (lbl) lbl.textContent = 'Redirecting to payment…';
         if (btn) btn.disabled = true;
-        setTimeout(() => alert('Application submitted. Reference VZ-IDN-294017.'), 800);
+        // Hand off to the portal's guest card checkout. Payment + account
+        // provisioning + the magic-link email all live in the portal; this
+        // marketing page stays auth/payment-SDK free.
+        const loc = window.location.pathname.startsWith('/zh-CN') ? 'zh-CN' : 'en';
+        window.location.href = portalUrl(
+          `/checkout/card?country=indonesia&visa=B211A&locale=${loc}`,
+        );
         return;
       }
       goStep(currentStep + 1);

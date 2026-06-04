@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import { WechatPayButton } from "@/components/WechatPayButton";
+import { PayByCardButton } from "@/components/PayByCardButton";
 import "./visa-indonesia.css";
 
 export default function VisaIndonesiaPage() {
@@ -152,7 +153,8 @@ export default function VisaIndonesiaPage() {
               Start application
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
+              <PayByCardButton country="indonesia" visaType="B211A" />
               <WechatPayButton country="indonesia" visaType="B211A" />
             </div>
             <div className="price-foot">
@@ -548,7 +550,8 @@ export default function VisaIndonesiaPage() {
               Start application
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
+              <PayByCardButton country="indonesia" visaType="B211A" />
               <WechatPayButton country="indonesia" visaType="B211A" />
             </div>
             <div className="price-foot">
