@@ -2561,3 +2561,9 @@ acknowledgment).
 - Files: src/queue/halt-runners.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test 5/5 (no circular-import breakage).
 - Limitation: us/uk/fr/au succeed at runtime only when portal accounts (uk_accounts/fv_accounts/au_accounts) are provisioned (PROV stories, onHold) and answers complete; otherwise NeedsHumanError. US CEAC wrapper also refined by RUN-US-001.
 ---
+
+## 2026-06-04 - QUE-006
+- Added src/queue/concurrency.ts: getMaxConcurrent(country)/isPaused(country) from env RUNNER_CONCURRENCY_JSON (per-country + "default" key) and RUNNER_PAUSED_COUNTRIES. Defaults: 1 per country, none paused.
+- worker.ts claimNextJob now consults this config (replaced runner_concurrency_cap table read) — removes a DB call + dependency on a possibly-absent table.
+- Files: src/queue/concurrency.ts, src/queue/worker.ts, prd.json. Typecheck passes.
+---

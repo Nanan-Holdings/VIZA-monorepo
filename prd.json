@@ -4755,7 +4755,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 330,
-      "passes": false,
+      "passes": true,
       "notes": "worker.ts already has an INFRA-003 per-country cap branch; this gives it a real config source."
     },
     {
