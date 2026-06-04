@@ -5780,7 +5780,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 403,
-      "passes": false,
+      "passes": true,
       "notes": "Brief: guest card checkout + magic-link just landed this branch; verify coverage."
     },
     {
@@ -5794,7 +5794,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 404,
-      "passes": false,
+      "passes": true,
       "notes": "Closes the loop: portal -> runner_job -> worker -> runner for every country."
     },
     {
