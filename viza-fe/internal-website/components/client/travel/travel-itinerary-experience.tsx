@@ -1214,7 +1214,13 @@ function getUniqueCities(
   itinerary: ItineraryDay[],
   orderedCities: string[]
 ): string[] {
-  const preferred = orderedCities.filter(Boolean);
+  const seenPreferred = new Set<string>();
+  const preferred = orderedCities.filter((city) => {
+    const key = normalizeLookupKey(city);
+    if (!key || seenPreferred.has(key)) return false;
+    seenPreferred.add(key);
+    return true;
+  });
   if (preferred.length) return preferred;
 
   const seen = new Set<string>();
@@ -1261,7 +1267,10 @@ function addDays(date: Date, days: number): Date {
 }
 
 function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getDayNumberForDate(
@@ -4220,40 +4229,39 @@ export function TravelItineraryExperience({
 
   const updateItineraryList = useCallback(
     (updater: (days: ItineraryDay[]) => ItineraryDay[]) => {
-      setEditableItinerary((days) => {
-        const reconciliation = reconcileTravelAgentState({
-          itinerary: updater(days),
-          travelState,
-          orderedCities,
-          selectedFlights: effectiveSelectedFlights,
-          selectedHotels: effectiveSelectedHotels,
-          language: interfaceLocale,
-        });
-        const nextDays = reconciliation.itinerary;
-        setActivityTimesByDay((currentTimes) =>
-          remapActivityTimesForItinerary(days, nextDays, currentTimes)
-        );
-        setLocalSelectedFlights(reconciliation.selectedFlights);
-        setLocalSelectedHotels(reconciliation.selectedHotels);
-        setLocalTravelStatePatch({
-          cities: reconciliation.travelState.cities,
-          city_days: reconciliation.travelState.city_days,
-          travel_days: reconciliation.travelState.travel_days ?? nextDays.length,
-          travel_order: reconciliation.travelState.travel_order,
-        });
-        onItineraryChange?.(reconciliation);
-        const nextActiveIndex = Math.min(
-          activeDayIndex,
-          Math.max(0, nextDays.length - 1)
-        );
-        if (nextActiveIndex !== activeDayIndex) {
-          setActiveDayIndex(nextActiveIndex);
-        }
-        return nextDays;
+      const reconciliation = reconcileTravelAgentState({
+        itinerary: updater(editableItinerary),
+        travelState,
+        orderedCities,
+        selectedFlights: effectiveSelectedFlights,
+        selectedHotels: effectiveSelectedHotels,
+        language: interfaceLocale,
       });
+      const nextDays = reconciliation.itinerary;
+      setEditableItinerary(nextDays);
+      setActivityTimesByDay((currentTimes) =>
+        remapActivityTimesForItinerary(editableItinerary, nextDays, currentTimes)
+      );
+      setLocalSelectedFlights(reconciliation.selectedFlights);
+      setLocalSelectedHotels(reconciliation.selectedHotels);
+      setLocalTravelStatePatch({
+        cities: reconciliation.travelState.cities,
+        city_days: reconciliation.travelState.city_days,
+        travel_days: reconciliation.travelState.travel_days ?? nextDays.length,
+        travel_order: reconciliation.travelState.travel_order,
+      });
+      onItineraryChange?.(reconciliation);
+      const nextActiveIndex = Math.min(
+        activeDayIndex,
+        Math.max(0, nextDays.length - 1)
+      );
+      if (nextActiveIndex !== activeDayIndex) {
+        setActiveDayIndex(nextActiveIndex);
+      }
     },
     [
       activeDayIndex,
+      editableItinerary,
       effectiveSelectedFlights,
       effectiveSelectedHotels,
       interfaceLocale,
