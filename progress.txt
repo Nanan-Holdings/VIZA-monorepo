@@ -2776,3 +2776,9 @@ acknowledgment).
 - No untranslated hardcoded English remains in the template body (all via i18n hooks; country data localized).
 - Files: messages/en.json, messages/zh-CN.json, components/VisaCountryTemplate.tsx, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - MKT-009/013
+- MKT-009: "See all 84" -> dynamic {COUNTRY_META.length} linked to #grid; visa template nearby links use real visaHref siblings; all footer href="#" placeholders (products, app badges, Privacy/Terms) wired to real routes (/legal/privacy, /legal/terms, /apply, /contact, /visa/france). Zero bare href="#" remain in page.tsx + template.
+- MKT-013: removed fabricated eta from card data (MKT-002); fixed fake "84" count; documented native-app badges as intentional pre-launch placeholders (link to web app). Office addresses/reviews remain as static brand content.
+- Files: app/[locale]/page.tsx, prd.json. Typecheck passes.
+---
