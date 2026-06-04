@@ -4641,7 +4641,7 @@
         "Deliverable is committed hook script + config; running the hook locally is the only verification"
       ],
       "priority": 322,
-      "passes": false,
+      "passes": true,
       "notes": ".gitleaks.toml and scripts/install-git-hooks.sh already exist; this story completes/verifies them. No new typecheck target."
     },
     {

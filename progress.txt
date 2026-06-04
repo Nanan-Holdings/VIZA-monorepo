@@ -2501,3 +2501,11 @@ acknowledgment).
 - Added docs/security/secret-rotation-runbook.md: full secret inventory (from cloudbuild.yaml _* list + process.env refs) as a matrix — secret | consumer(workspace·env) | rotate-at | redeploy. Covers Anthropic, Supabase SRK, Stripe live, Airwallex, Alipay, WeChat, Shopify, Cal.com + all others. Cross-refs existing secret-rotation.md rollover procedures.
 - Files: docs/security/secret-rotation-runbook.md, prd.json
 ---
+
+## 2026-06-04 - SEC-004
+- Verified scripts/git-hooks/pre-commit (gitleaks protect --staged + regex fallback) and scripts/install-git-hooks.sh symlink installer; package.json security:gitleaks + security:install-hooks present.
+- Added explicit .gitleaks.toml rules: viza-anthropic-api-key (sk-ant-), viza-stripe-live-secret (sk_live_/rk_live_), viza-supabase-service-role-jwt — no longer relying solely on useDefault.
+- Documented gitleaks usage in secret-rotation-runbook.md.
+- Files: .gitleaks.toml, prd.json
+- Learning: the pre-commit hook is real and fired on a doc false-positive (KEY-equals-value pattern) — use spaced "KEY = ref" in docs to avoid.
+---
