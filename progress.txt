@@ -2851,3 +2851,12 @@ acknowledgment).
 - PAYP-003: docs/payments/go-live-runbook.md (per-provider cutover, per-country availability, checklist; cross-ref SEC-003).
 - Files: lib/payments/*.ts + *.test.ts, docs/payments/*.md, prd.json. 13 vitest pass; typecheck clean. PAYP block COMPLETE (8/8).
 ---
+
+## 2026-06-04 - CI-001..007
+- CI-001..004: .github/workflows/ci-{internal-website,marketing,agent-backend,submission-service}.yml — path-filtered type-check/lint/build (submission-service: type-check + test, no lint). Valid YAML. Don't duplicate qa-gates.
+- Added submission-service "test" script (node --import tsx --test src/**/*.spec.ts) + tsx devDep.
+- CI-005: render.yaml plan free->starter (always-on WS) + PORT 10000->8080 (matches Dockerfile) with comments; docs/infra/agent-backend-deploy.md.
+- CI-006: scripts/infra/validate-cloudbuild-subs.ts (fails if any _* substitution still REPLACE_VIA_TRIGGER; runs in the Cloud Build step post-substitution) + docs/infra/cloudbuild-substitutions.md. Script typechecks + runs.
+- CI-007: docs/infra/ci-required-checks.md (path filters + required-checks policy for CI-001..006 + SEC-005/MIG-005/DEP-005; branch-protection intent).
+- Files: 4 ci-*.yml, render.yaml, scripts/infra/validate-cloudbuild-subs.ts, docs/infra/{agent-backend-deploy,cloudbuild-substitutions,ci-required-checks}.md, submission-service package.json, prd.json. YAML valid; script typechecks. CI block COMPLETE (7/7).
+---

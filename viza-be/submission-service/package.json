@@ -8,6 +8,7 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.spec.ts\"",
     "install-browsers": "playwright install chromium",
     "recon:uk": "ts-node src/uk/form-recon.ts",
     "seed:edward-creds": "ts-node scripts/seed-edward-test-credentials.ts",
@@ -45,6 +46,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "tsx": "^4.19.0"
   }
 }

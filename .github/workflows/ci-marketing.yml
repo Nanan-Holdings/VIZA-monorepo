@@ -1,0 +1,22 @@
+# CI-002: typecheck + lint + build for the marketing site.
+name: ci-marketing
+on:
+  pull_request:
+    paths: ["viza-fe/marketing-website/**", ".github/workflows/ci-marketing.yml"]
+  push:
+    branches: [main]
+    paths: ["viza-fe/marketing-website/**"]
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: viza-fe/marketing-website } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: viza-fe/marketing-website/package-lock.json }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm run build
