@@ -31,8 +31,13 @@ test("dispatch: unwired country throws UnsupportedCountryError", () => {
   assert.throws(() => getRunOne("atlantis"), UnsupportedCountryError);
 });
 
-test("dispatch: an unwired country runOne rejects with UnsupportedCountryError", async () => {
-  // japan has no runner yet (paper-pack via RUN-JP-001).
-  const runOne = getRunOne("japan");
-  await assert.rejects(() => runOne("00000000-0000-0000-0000-000000000000"), UnsupportedCountryError);
+test("dispatch: all 16 launch countries resolve to a runOne", () => {
+  const launch = [
+    "indonesia", "egypt", "australia", "saudi_arabia", "united_kingdom", "vietnam",
+    "malaysia", "japan", "united_states", "canada", "turkey", "thailand",
+    "united_arab_emirates", "france", "italy", "india",
+  ];
+  for (const c of launch) {
+    assert.equal(typeof getRunOne(c), "function", `${c} resolves`);
+  }
 });

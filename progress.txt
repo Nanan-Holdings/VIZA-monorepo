@@ -2659,3 +2659,12 @@ acknowledgment).
 - Files: src/my/*, src/my/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
 - Limitation: selectors best-effort pending recon (DATA-001); halts before pay.
 ---
+
+## 2026-06-04 - RUN-JP-001/002
+- Built Japan paper-pack runner src/jp/{field-mappings,runner}.ts. paper-only (no online submit): buildJpPaperLines (pure, mirrors paper registry COMMON_FIELDS, uppercase formats, blank fill-in lines for missing) -> renderPdf (simple-pdf) -> artifact.put PDF. runOne returns terminal paper_ready outcome.
+- Added "paper_ready" to DispatchOutcome union. Bound japan -> jp/runner.runOne (replaced UnsupportedCountryError stub; meta updated). Used artifact.put (CountryCode type lacks JP).
+- Tests src/jp/__tests__/paper.spec.ts (4): snapshot field values+formatting, blank fill-in, all-fields-present, valid %PDF buffer.
+- All 16 launch countries now resolve to a runOne; updated dispatch.spec.ts to assert full launch coverage. dispatch 5/5.
+- Files: src/jp/*, src/jp/__tests__/*, src/queue/dispatch.ts + __tests__, prd.json. Typecheck passes.
+- Note: uses simple-pdf renderer + local JP layout (self-contained); DB-seeded paper_template path via renderPaperPdf remains available when seeded.
+---

@@ -33,6 +33,7 @@ import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
 import { runOne as runMalaysia } from "../my/runner.js";
+import { runOne as runJapan } from "../jp/runner.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -59,7 +60,7 @@ export class NeedsHumanError extends Error {
 }
 
 export interface DispatchOutcome {
-  outcome: "halted_before_pay" | "submitted_pending_pay";
+  outcome: "halted_before_pay" | "submitted_pending_pay" | "paper_ready";
   reachedStep: string;
   artefacts: string[];
 }
@@ -316,8 +317,8 @@ export const DISPATCH: Record<string, RunOne> = {
   australia: (a, j) => runAuHalt(a, j),
   // RUN-SA-001: Saudi Arabia e-Visa runner (built from scratch).
   saudi_arabia: (a, j) => runSaudi(a, j),
-  // No runner yet:
-  japan: unsupported("japan"),
+  // RUN-JP-001: Japan paper-pack runner (paper_ready terminal, no online submit).
+  japan: (a, j) => runJapan(a, j),
 };
 
 /**
@@ -344,7 +345,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   france: { runner: "france-visas/runner.runOne", implemented: true },
   australia: { runner: "fillVisitor600Application", implemented: true },
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
-  japan: { runner: "(paper renderer)", implemented: false },
+  japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
 };
 
 /**
