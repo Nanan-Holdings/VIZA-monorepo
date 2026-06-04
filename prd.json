@@ -5024,7 +5024,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 349,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/vietnam has fillers/form-recon/finalize but index.ts notes per-step fill not yet returning submitted_pending_pay (index.ts ~1210-1255)."
     },
     {
@@ -5038,7 +5038,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 350,
-      "passes": false,
+      "passes": true,
       "notes": "src/vietnam/govt-payment.ts and inbox.ts already exist; wire them into the live flow."
     },
     {

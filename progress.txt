@@ -2621,3 +2621,12 @@ acknowledgment).
 - Files: src/egypt/{field-mappings,fillers,runner}.ts, src/egypt/__tests__/*.spec.ts, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
 - Limitation: selectors best-effort pending recon (form-recon.ts + DATA-001). Halts before gov pay (escrow not integrated).
 ---
+
+## 2026-06-04 - RUN-VN-001/002
+- RUN-VN-001: extracted per-step fill into fillers.ts: resolveStepPlan (pure, date->DD/MM/YYYY, drops uploads/unanswered) + fillFormStep (executes plan, counts filled/skipped). Refactored run.ts to use fillFormStep (same contract; removed inline loop + fillByType; trimmed imports). run.ts already returns submitted_pending_pay when registration code captured (gated on VN_REGISTRATION_CODE_SELECTOR recon) else scaffolded_pending_walk (index.ts-compatible).
+- Added src/vietnam/runner.ts runOne; bound vietnam -> vietnam/runner.runOne in dispatch (removed inline runVietnam + fillVietnamApplication import; meta updated).
+- Test src/vietnam/__tests__/step-fill.spec.ts (3 pass): text verbatim, date reformat, upload/unanswered exclusion. dispatch 5/5.
+- RUN-VN-002: src/vietnam/retrieve-evisa.ts wires inbox.waitForVnRegistrationEmail -> fetch resultLink PDF -> uploadArtifact (country VN, kind evisa). References VN_GOVT_PAYMENT_MECHANISM; documents status transitions + halt-before-gov-pay (escrow via govt-payment.ts pending integration).
+- Files: src/vietnam/{fillers,run,runner,retrieve-evisa}.ts, src/vietnam/__tests__/step-fill.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: progression to submitted_pending_pay gated on registration-code selector recon; escrow payment not integrated (halts).
+---
