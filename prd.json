@@ -5137,7 +5137,7 @@
         "Unit test renders a fixture pack; Typecheck passes in viza-be/submission-service"
       ],
       "priority": 357,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/paper has renderer/simple-pdf/templates; Japan is paper-only per brief. JpResultCard already exists in portal."
     },
     {
@@ -5151,7 +5151,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 358,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-JP-001."
     },
     {
