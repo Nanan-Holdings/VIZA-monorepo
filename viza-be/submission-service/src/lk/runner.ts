@@ -235,3 +235,6 @@ export async function runLkPrefill(input: LkRunInput): Promise<LkRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-LK-001: dispatch runOne. See runners/legacy-prefill-adapters.ts.
+export { runSriLanka as runOne } from "../runners/legacy-prefill-adapters.js";

@@ -12,13 +12,8 @@
  * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
  * conditions throw `NeedsHumanError`.
  */
-import { runInPrefill } from "../in/runner.js";
-import { runLkPrefill } from "../lk/runner.js";
-import { runKhPrefill } from "../kh/runner.js";
-import { runLaPrefill } from "../la/runner.js";
-import { runZaPrefill } from "../za/runner.js";
 import { runOne as runVietnam } from "../vietnam/runner.js";
-import { loadCanonicalAnswers, pick } from "./answers.js";
+import { runIndia, runSriLanka, runCambodia, runLaos, runSouthAfrica } from "../runners/legacy-prefill-adapters.js";
 import { runUsHalt, runUkHalt, runAuHalt } from "./halt-runners.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
 import { runOne as runIndonesia } from "../id/runner.js";
@@ -50,150 +45,7 @@ import {
   type RunOne,
 } from "./types.js";
 
-/** Standard runner result shape shared by the generic + dedicated runners. */
-interface StandardResult {
-  status: string;
-  reason: string;
-  reachedStep: string;
-  artefacts: string[];
-}
-
-function normalizeStandard(r: StandardResult): DispatchOutcome {
-  switch (r.status) {
-    case "stopped_before_pay":
-    case "stopped_before_signature":
-      return {
-        outcome: "halted_before_pay",
-        reachedStep: r.reachedStep,
-        artefacts: r.artefacts,
-      };
-    case "blocked":
-    case "anti_bot_gate":
-      throw new RetryableRunnerError(`${r.status}: ${r.reason}`);
-    case "needs_human":
-      throw new NeedsHumanError(r.reason);
-    default:
-      throw new Error(`unexpected runner status: ${r.status}`);
-  }
-}
-
-/* ---------------------- Dedicated-runner adapters ---------------------- */
-
-const runIndia: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await runInPrefill({
-    jobId: jobId ?? applicationId,
-    applicationId,
-    answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-      intended_arrival_date: pick(rec, "intended_arrival_date"),
-      port_of_arrival: pick(rec, "port_of_arrival") || undefined,
-      occupation: pick(rec, "occupation") || undefined,
-      visa_purpose: "tourism",
-    },
-  });
-  return normalizeStandard(result);
-};
-
-const runSriLanka: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await runLkPrefill({
-    jobId: jobId ?? applicationId,
-    applicationId,
-    answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-      intended_arrival_date: pick(rec, "intended_arrival_date"),
-      port_of_arrival: pick(rec, "port_of_arrival", "CMB"),
-      occupation: pick(rec, "occupation"),
-      address_in_sri_lanka: pick(rec, "address_in_sri_lanka"),
-      visa_variant: pick(rec, "visa_variant", "tourist_double"),
-    },
-  });
-  return normalizeStandard(result);
-};
-
-const runCambodia: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await runKhPrefill({
-    jobId: jobId ?? applicationId,
-    applicationId,
-    answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-    },
-  });
-  return normalizeStandard(result);
-};
-
-const runLaos: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await runLaPrefill({
-    jobId: jobId ?? applicationId,
-    applicationId,
-    answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-      intended_arrival_date: pick(rec, "intended_arrival_date"),
-      port_of_entry: pick(rec, "port_of_entry", "VTE"),
-      occupation: pick(rec, "occupation"),
-    },
-  });
-  return normalizeStandard(result);
-};
-
-const runSouthAfrica: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await runZaPrefill({
-    jobId: jobId ?? applicationId,
-    applicationId,
-    answers: {
-      surname: pick(rec, "surname"),
-      given_names: pick(rec, "given_names"),
-      date_of_birth: pick(rec, "date_of_birth"),
-      nationality: pick(rec, "nationality"),
-      passport_number: pick(rec, "passport_number"),
-      passport_expiry_date: pick(rec, "passport_expiry_date"),
-      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-      email: pick(rec, "email"),
-      phone: pick(rec, "phone"),
-      intended_arrival_date: pick(rec, "intended_arrival_date"),
-      intended_departure_date: pick(rec, "intended_departure_date"),
-      purpose_of_visit: pick(rec, "purpose_of_visit", "Tourism"),
-      occupation: pick(rec, "occupation"),
-    },
-  });
-  return normalizeStandard(result);
-};
+/* Dedicated-CanonicalAnswers adapters live in runners/legacy-prefill-adapters.ts (RUN-IN/LK/KH/LA/ZA-001). */
 
 /** Country code that is not yet wired — throws on invocation. */
 function unsupported(country: string): RunOne {
