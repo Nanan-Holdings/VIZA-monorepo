@@ -5417,7 +5417,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 377,
-      "passes": false,
+      "passes": true,
       "notes": "Ties runners to the portal status-page download flow (Epic 7 POR)."
     },
     {
