@@ -5,7 +5,17 @@
  * is numeric), throwing a single clear error listing every missing key.
  * Called at the top of src/index.ts before main(). The required/optional
  * split mirrors viza-be/submission-service/.env.example (SEC-006).
+ *
+ * Also asserts proxy egress coverage for all launch countries (RUN-CORE-006).
  */
+import { proxyCoverageGaps } from "../proxy/country-overrides.js";
+
+/** The 16 launch countries (local mirror — avoids pulling the runner graph into startup validation). */
+const LAUNCH_COUNTRIES = [
+  "indonesia", "egypt", "australia", "saudi_arabia", "united_kingdom", "vietnam",
+  "malaysia", "japan", "united_states", "canada", "turkey", "thailand",
+  "united_arab_emirates", "france", "italy", "india",
+] as const;
 
 /** Must be present for the service to boot at all. */
 const REQUIRED_KEYS = [
@@ -47,6 +57,15 @@ export function validateEnv(env: NodeJS.ProcessEnv = process.env): void {
   if (missingOptional.length > 0) {
     console.warn(
       `[config] Optional env var(s) not set (related features disabled): ${missingOptional.join(", ")}`,
+    );
+  }
+
+  // RUN-CORE-006: every launch country must resolve to a proxy egress geography.
+  const gaps = proxyCoverageGaps(LAUNCH_COUNTRIES);
+  if (gaps.length > 0) {
+    throw new Error(
+      `[config] Missing proxy egress mapping for launch countries: ${gaps.join(", ")}. ` +
+        `Add to src/proxy/country-overrides.ts.`,
     );
   }
 }
