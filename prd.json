@@ -5766,7 +5766,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 402,
-      "passes": false,
+      "passes": true,
       "notes": "Ties Epic 5 artifacts to the existing status-page download flow."
     },
     {
