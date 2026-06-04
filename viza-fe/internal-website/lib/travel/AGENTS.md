@@ -14,6 +14,9 @@ location data.
   order, form payload messages, itinerary parsing, and backend payloads.
 - `chat-types.ts`: Travel chat message, quick reply, and card types.
 - `backend.ts`: safe JSON proxy helper for Next route handlers.
+- `destination-resolver.ts`: destination normalization, local fallback index,
+  fuzzy/alias/ambiguous resolution, lazy card payload generation, and trip hint
+  extraction for Travel AI route handlers.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
 

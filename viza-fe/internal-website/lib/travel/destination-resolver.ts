@@ -974,8 +974,15 @@ export function extractDestinationTripHints(rawText: string): DestinationTripHin
     if (pattern.test(rawText) || pattern.test(normalized)) preferences.push(label);
   });
 
+  const normalizedTravelDays =
+    typeof travelDays === "number" &&
+    Number.isFinite(travelDays) &&
+    travelDays > 0
+      ? travelDays
+      : undefined;
+
   return {
-    travelDays: Number.isFinite(travelDays) && travelDays > 0 ? travelDays : undefined,
+    travelDays: normalizedTravelDays,
     finalNote:
       preferences.length > 0
         ? `User preferences from chat: ${Array.from(new Set(preferences)).join(", ")}.`

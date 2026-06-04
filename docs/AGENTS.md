@@ -15,6 +15,8 @@ reports, and workflow documentation for VIZA.
 - `application/UG.md`: application form user guide.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
+- `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
+  destination-index runbook, and known limitations.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.

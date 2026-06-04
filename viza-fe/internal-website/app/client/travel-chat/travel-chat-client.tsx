@@ -164,6 +164,19 @@ type TravelChatSession = {
   updatedAt: string;
 };
 
+type TravelChatArchiveMapState = {
+  activeMapTargetId?: string;
+  mapModeSessionIds?: string[];
+  googleCityCoordinates?: Record<string, GoogleGeocodeCoordinate>;
+};
+
+type TravelChatArchivePayload = {
+  version: number;
+  updatedAt: string;
+  sessions: TravelChatSession[];
+  mapState?: TravelChatArchiveMapState;
+};
+
 type TravelTripVersion = {
   id: string;
   versionNumber: number;
@@ -1007,33 +1020,111 @@ function createTravelShareSession(
   });
 }
 
-function readArchivedTravelSessions(
-  storageKey: string,
-  locale: InterfaceLocale
-): TravelChatSession[] {
-  if (typeof window === "undefined") {
-    return [createTravelChatSession(locale)];
+function parseGoogleCoordinateRecord(
+  value: unknown
+): Record<string, GoogleGeocodeCoordinate> | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const entries = Object.entries(value)
+    .map(([key, coordinate]) => {
+      if (!isRecord(coordinate)) return null;
+      const lat = coordinate.lat;
+      const lng = coordinate.lng;
+      if (
+        typeof lat !== "number" ||
+        !Number.isFinite(lat) ||
+        typeof lng !== "number" ||
+        !Number.isFinite(lng)
+      ) {
+        return null;
+      }
+
+      const parsedCoordinate: GoogleGeocodeCoordinate = { lat, lng };
+      if (typeof coordinate.formattedAddress === "string") {
+        parsedCoordinate.formattedAddress = coordinate.formattedAddress;
+      }
+      if (typeof coordinate.placeId === "string") {
+        parsedCoordinate.placeId = coordinate.placeId;
+      }
+      if (typeof coordinate.locationType === "string") {
+        parsedCoordinate.locationType = coordinate.locationType;
+      }
+
+      return [
+        key,
+        parsedCoordinate,
+      ] as const;
+    })
+    .filter(
+      (entry): entry is readonly [string, GoogleGeocodeCoordinate] =>
+        entry !== null
+    );
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function parseTravelArchiveMapState(
+  value: unknown
+): TravelChatArchiveMapState | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const mapState: TravelChatArchiveMapState = {};
+  if (typeof value.activeMapTargetId === "string") {
+    mapState.activeMapTargetId = value.activeMapTargetId;
   }
 
-  try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return [createTravelChatSession(locale)];
+  if (Array.isArray(value.mapModeSessionIds)) {
+    mapState.mapModeSessionIds = value.mapModeSessionIds.filter(
+      (item): item is string => typeof item === "string"
+    );
+  }
 
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed) || parsed.version !== TRAVEL_CHAT_ARCHIVE_VERSION) {
-      return [createTravelChatSession(locale)];
-    }
+  const googleCoordinates = parseGoogleCoordinateRecord(
+    value.googleCityCoordinates
+  );
+  if (googleCoordinates) {
+    mapState.googleCityCoordinates = googleCoordinates;
+  }
 
-    if (Array.isArray(parsed.sessions)) {
-      const sessions = parsed.sessions
-        .filter(isTravelChatSession)
-        .map(normalizeTravelChatSession);
-      return sessions.length > 0 ? sessions : [createTravelChatSession(locale)];
-    }
+  return Object.keys(mapState).length > 0 ? mapState : undefined;
+}
 
-    if (Array.isArray(parsed.messages)) {
-      const messages = parsed.messages.filter(isTravelChatMessage);
-      return [
+function parseTravelChatArchivePayload(
+  parsed: unknown,
+  locale: InterfaceLocale
+): TravelChatArchivePayload {
+  if (!isRecord(parsed) || parsed.version !== TRAVEL_CHAT_ARCHIVE_VERSION) {
+    return {
+      version: TRAVEL_CHAT_ARCHIVE_VERSION,
+      updatedAt: new Date().toISOString(),
+      sessions: [createTravelChatSession(locale)],
+    };
+  }
+
+  if (Array.isArray(parsed.sessions)) {
+    const sessions = parsed.sessions
+      .filter(isTravelChatSession)
+      .map(normalizeTravelChatSession);
+    return {
+      version: TRAVEL_CHAT_ARCHIVE_VERSION,
+      updatedAt:
+        typeof parsed.updatedAt === "string"
+          ? parsed.updatedAt
+          : new Date().toISOString(),
+      sessions: sessions.length > 0 ? sessions : [createTravelChatSession(locale)],
+      mapState: parseTravelArchiveMapState(parsed.mapState),
+    };
+  }
+
+  if (Array.isArray(parsed.messages)) {
+    const messages = parsed.messages.filter(isTravelChatMessage);
+    return {
+      version: TRAVEL_CHAT_ARCHIVE_VERSION,
+      updatedAt:
+        typeof parsed.updatedAt === "string"
+          ? parsed.updatedAt
+          : new Date().toISOString(),
+      sessions: [
         normalizeTravelChatSession({
           id: createSessionId(),
           title: "新的旅行对话",
@@ -1046,29 +1137,73 @@ function readArchivedTravelSessions(
               ? parsed.updatedAt
               : new Date().toISOString(),
         }),
-      ];
+      ],
+      mapState: parseTravelArchiveMapState(parsed.mapState),
+    };
+  }
+
+  return {
+    version: TRAVEL_CHAT_ARCHIVE_VERSION,
+    updatedAt: new Date().toISOString(),
+    sessions: [createTravelChatSession(locale)],
+  };
+}
+
+function readArchivedTravelArchive(
+  storageKey: string,
+  locale: InterfaceLocale
+): TravelChatArchivePayload {
+  if (typeof window === "undefined") {
+    return {
+      version: TRAVEL_CHAT_ARCHIVE_VERSION,
+      updatedAt: new Date().toISOString(),
+      sessions: [createTravelChatSession(locale)],
+    };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return {
+        version: TRAVEL_CHAT_ARCHIVE_VERSION,
+        updatedAt: new Date().toISOString(),
+        sessions: [createTravelChatSession(locale)],
+      };
     }
 
-    return [createTravelChatSession(locale)];
+    return parseTravelChatArchivePayload(JSON.parse(raw) as unknown, locale);
   } catch {
-    return [createTravelChatSession(locale)];
+    return {
+      version: TRAVEL_CHAT_ARCHIVE_VERSION,
+      updatedAt: new Date().toISOString(),
+      sessions: [createTravelChatSession(locale)],
+    };
   }
+}
+
+function createTravelChatArchivePayload(
+  sessions: TravelChatSession[],
+  mapState?: TravelChatArchiveMapState
+): TravelChatArchivePayload {
+  return {
+    version: TRAVEL_CHAT_ARCHIVE_VERSION,
+    updatedAt: new Date().toISOString(),
+    sessions,
+    mapState,
+  };
 }
 
 function writeArchivedTravelSessions(
   storageKey: string,
-  sessions: TravelChatSession[]
+  sessions: TravelChatSession[],
+  mapState?: TravelChatArchiveMapState
 ): void {
   if (typeof window === "undefined") return;
 
   try {
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({
-        version: TRAVEL_CHAT_ARCHIVE_VERSION,
-        updatedAt: new Date().toISOString(),
-        sessions,
-      })
+      JSON.stringify(createTravelChatArchivePayload(sessions, mapState))
     );
   } catch {
     // Local persistence is a convenience layer; chat remains usable if storage is full.
@@ -1602,6 +1737,34 @@ function normalizeCandidateStringArray(value: unknown): string[] | undefined {
   return normalized.length ? Array.from(new Set(normalized)) : undefined;
 }
 
+function normalizeCandidatePositiveInteger(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+  if (!Number.isInteger(parsed) || parsed <= 0) return undefined;
+  return parsed;
+}
+
+function normalizeCandidateCityDays(
+  value: unknown
+): Record<string, number> | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const entries = Object.entries(value)
+    .map(([city, days]) => {
+      const normalizedCity = city.trim();
+      const normalizedDays = normalizeCandidatePositiveInteger(days);
+      if (!normalizedCity || !normalizedDays) return null;
+      return [normalizedCity, normalizedDays] as const;
+    })
+    .filter((entry): entry is readonly [string, number] => Boolean(entry));
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 function coerceTravelIpLocation(raw: unknown): TravelIpLocation | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
@@ -1631,6 +1794,12 @@ function coerceTravelFormCandidatePayload(
   const country = normalizeCandidateString(payload.country);
   const countries = normalizeCandidateStringArray(payload.countries);
   const cities = normalizeCandidateStringArray(payload.cities);
+  const travelOrder = normalizeCandidateStringArray(payload.travel_order);
+  const cityDays = normalizeCandidateCityDays(payload.city_days);
+  const travelDays = normalizeCandidatePositiveInteger(payload.travel_days);
+  const travelers = normalizeCandidatePositiveInteger(payload.travelers);
+  const budget = normalizeCandidatePositiveInteger(payload.budget);
+  const finalNote = normalizeCandidateString(payload.final_note);
 
   if (seedCountry) {
     result.seed_country = seedCountry;
@@ -1654,10 +1823,14 @@ function coerceTravelFormCandidatePayload(
   const normalizedCities = cities ?? (seedCity ? [seedCity] : undefined);
   if (normalizedCities) {
     result.cities = normalizedCities;
-    if (normalizedCities.length === 1) {
-      result.travel_order = normalizedCities;
-    }
+    result.travel_order = travelOrder ?? normalizedCities;
   }
+
+  if (cityDays) result.city_days = cityDays;
+  if (travelDays) result.travel_days = travelDays;
+  if (travelers) result.travelers = travelers;
+  if (budget) result.budget = budget;
+  if (finalNote) result.final_note = finalNote;
 
   return result;
 }
@@ -1736,6 +1909,11 @@ function createDestinationAppendPayload(
     cities?: string[];
     includeCityDays?: boolean;
     defaultCityDays?: number;
+    cityDays?: Record<string, number>;
+    travelDays?: number;
+    travelers?: number;
+    budget?: number;
+    finalNote?: string;
   }
 ): TravelFormCandidatePayload | null {
   const existingCountries =
@@ -1761,8 +1939,15 @@ function createDestinationAppendPayload(
   const nextCities = appendUniquePlaces(existingCities, targetCities);
   const countryChanged = nextCountries.length !== existingCountries.length;
   const cityChanged = nextCities.length !== existingCities.length;
+  const hasTripHintPatch = Boolean(
+    destination.travelDays ||
+      destination.travelers ||
+      destination.budget ||
+      destination.finalNote ||
+      Object.keys(destination.cityDays ?? {}).length > 0
+  );
 
-  if (!countryChanged && !cityChanged) return null;
+  if (!countryChanged && !cityChanged && !hasTripHintPatch) return null;
 
   const nextOrder = state.travel_order.length
     ? appendUniquePlaces(
@@ -1789,9 +1974,24 @@ function createDestinationAppendPayload(
       if (!value) return;
       nextCityDays[value] ??= destination.defaultCityDays ?? 2;
     });
+    Object.entries(destination.cityDays ?? {}).forEach(([city, days]) => {
+      if (!nextCities.some((nextCity) => normalizeCityKey(nextCity) === normalizeCityKey(city))) {
+        return;
+      }
+      nextCityDays[city] = days;
+    });
     if (Object.keys(nextCityDays).length > 0) {
       payload.city_days = nextCityDays;
     }
+  }
+
+  if (destination.travelDays) payload.travel_days = destination.travelDays;
+  if (destination.travelers) payload.travelers = destination.travelers;
+  if (destination.budget) payload.budget = destination.budget;
+  if (destination.finalNote) {
+    payload.final_note = state.final_note
+      ? `${state.final_note}\n${destination.finalNote}`
+      : destination.finalNote;
   }
 
   return withLocalCandidateDisplay(payload);
@@ -2105,6 +2305,7 @@ export function TravelChatClient({
   const sessionsRef = useRef<TravelChatSession[]>(sessions);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
   const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
+  const remoteArchiveHydratedKeyRef = useRef<string | null>(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
@@ -2292,6 +2493,14 @@ export function TravelChatClient({
       ),
     [orderedCities, travelState.origin_city, travelState.return_city]
   );
+  const shouldShowCitySuggestions = useMemo(
+    () =>
+      !hasDestinationSelection &&
+      messages.some((message) =>
+        message.parts.some((part) => part.type === "destination_cards")
+      ),
+    [hasDestinationSelection, messages]
+  );
   const displayItineraryRouteCityNames = useMemo(
     () =>
       buildRouteCityNames(
@@ -2324,7 +2533,9 @@ export function TravelChatClient({
       });
     };
 
-    WORLD_CITY_SUGGESTIONS.forEach(addCity);
+    if (shouldShowCitySuggestions) {
+      WORLD_CITY_SUGGESTIONS.forEach(addCity);
+    }
     routeCityNames.forEach(addCity);
     displayItineraryRouteCityNames.forEach(addCity);
     orderedCities.forEach(addCity);
@@ -2342,6 +2553,7 @@ export function TravelChatClient({
     routeCityNames,
     travelState.selected_hotels,
     displayTravelState.selected_hotels,
+    shouldShowCitySuggestions,
   ]);
 
   const progressItems = useMemo(
@@ -2453,6 +2665,8 @@ export function TravelChatClient({
   );
 
   const citySuggestionTargets = useMemo<MapTarget[]>(() => {
+    if (!shouldShowCitySuggestions) return [];
+
     const targets: MapTarget[] = [];
     WORLD_CITY_SUGGESTIONS.filter(
       (city) => !selectedCityKeys.has(normalizeCityKey(city))
@@ -2479,7 +2693,7 @@ export function TravelChatClient({
       });
     });
     return targets;
-  }, [googleCityCoordinates, selectedCityKeys]);
+  }, [googleCityCoordinates, selectedCityKeys, shouldShowCitySuggestions]);
 
   const baseMapTargets = useMemo(() => {
     const targets: MapTarget[] = [];
@@ -2864,12 +3078,25 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    const archivedSessions = readArchivedTravelSessions(
-      archiveKey,
-      interfaceLocale
-    );
-    let nextSessions = archivedSessions;
-    let nextActiveSessionId = archivedSessions[0].id;
+    remoteArchiveHydratedKeyRef.current = null;
+    const localArchive = readArchivedTravelArchive(archiveKey, interfaceLocale);
+    let nextSessions = localArchive.sessions;
+    let nextActiveSessionId = localArchive.sessions[0].id;
+    let shouldFetchRemoteArchive = true;
+
+    const applyMapArchiveState = (
+      mapState: TravelChatArchiveMapState | undefined
+    ) => {
+      if (!mapState) return;
+      setActiveMapTargetId(mapState.activeMapTargetId ?? "");
+      setMapModeSessionIds(mapState.mapModeSessionIds ?? []);
+      if (mapState.googleCityCoordinates) {
+        setGoogleCityCoordinates((current) => ({
+          ...current,
+          ...mapState.googleCityCoordinates,
+        }));
+      }
+    };
 
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -2879,8 +3106,9 @@ export function TravelChatClient({
 
       if (sharePayload) {
         const sharedSession = createTravelShareSession(sharePayload);
-        nextSessions = [sharedSession, ...archivedSessions];
+        nextSessions = [sharedSession, ...localArchive.sessions];
         nextActiveSessionId = sharedSession.id;
+        shouldFetchRemoteArchive = false;
         url.searchParams.delete(TRAVEL_ITINERARY_SHARE_PARAM);
         window.history.replaceState(null, "", url.toString());
       }
@@ -2892,7 +3120,54 @@ export function TravelChatClient({
     setRenamingSessionId(null);
     setRenamingSessionTitle("");
     setArchiveLoadedKey(archiveKey);
-  }, [archiveKey, interfaceLocale]);
+
+    if (!shouldFetchRemoteArchive) {
+      remoteArchiveHydratedKeyRef.current = archiveKey;
+      return;
+    }
+
+    applyMapArchiveState(localArchive.mapState);
+
+    let disposed = false;
+    void (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (applicationId) params.set("applicationId", applicationId);
+        const response = await fetch(
+          `/api/travel/sessions${params.toString() ? `?${params.toString()}` : ""}`,
+          { method: "GET" }
+        );
+        if (!response.ok) return;
+
+        const payload = (await response.json().catch(() => null)) as unknown;
+        if (!isRecord(payload) || !payload.archive) return;
+
+        const remoteArchive = parseTravelChatArchivePayload(
+          payload.archive,
+          interfaceLocale
+        );
+        const remoteUpdatedAt = Date.parse(remoteArchive.updatedAt);
+        const localUpdatedAt = Date.parse(localArchive.updatedAt);
+        const shouldUseRemote =
+          Number.isFinite(remoteUpdatedAt) &&
+          (!Number.isFinite(localUpdatedAt) || remoteUpdatedAt >= localUpdatedAt);
+
+        if (!disposed && shouldUseRemote) {
+          setSessions(remoteArchive.sessions);
+          setActiveSessionId(remoteArchive.sessions[0].id);
+          applyMapArchiveState(remoteArchive.mapState);
+        }
+      } finally {
+        if (!disposed) {
+          remoteArchiveHydratedKeyRef.current = archiveKey;
+        }
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [applicationId, archiveKey, interfaceLocale]);
 
   useEffect(() => {
     let disposed = false;
@@ -2938,9 +3213,42 @@ export function TravelChatClient({
 
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
+    if (remoteArchiveHydratedKeyRef.current !== archiveKey) return;
 
-    writeArchivedTravelSessions(archiveKey, sessions);
-  }, [archiveKey, archiveLoadedKey, sessions]);
+    const mapState: TravelChatArchiveMapState = {
+      activeMapTargetId,
+      mapModeSessionIds,
+      googleCityCoordinates,
+    };
+    const archivePayload = createTravelChatArchivePayload(sessions, mapState);
+
+    writeArchivedTravelSessions(archiveKey, sessions, mapState);
+
+    const timeoutId = window.setTimeout(() => {
+      void fetch("/api/travel/sessions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: applicationId ?? null,
+          archive: archivePayload,
+        }),
+      }).catch(() => {
+        // LocalStorage remains the immediate fallback when remote persistence is unavailable.
+      });
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeMapTargetId,
+    applicationId,
+    archiveKey,
+    archiveLoadedKey,
+    googleCityCoordinates,
+    mapModeSessionIds,
+    sessions,
+  ]);
 
   useEffect(() => {
     const latestMessage = messages[messages.length - 1];
@@ -3443,6 +3751,11 @@ export function TravelChatClient({
         cities: candidate.cities,
         includeCityDays:
           missingField !== "country" && missingField !== "cities",
+        cityDays: candidate.city_days,
+        travelDays: candidate.travel_days,
+        travelers: candidate.travelers,
+        budget: candidate.budget,
+        finalNote: candidate.final_note,
       });
 
       if (!payload) {
