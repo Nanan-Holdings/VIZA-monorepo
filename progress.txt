@@ -2789,3 +2789,10 @@ acknowledgment).
 - MKT-011: docs/infra/marketing-deploy.md — Vercel linkage, env var names (NEXT_PUBLIC_SITE_URL/PORTAL_URL/AGENT_BACKEND_URL), preview->prod flow, rollback, post-deploy curls. Cross-refs vercel.json.
 - Files: app/sitemap.ts, vercel.json, docs/infra/marketing-deploy.md, prd.json. Typecheck passes. MKT block COMPLETE (13/13).
 ---
+
+## 2026-06-04 - POR-001/003/004/005
+- POR-003/004/005: added wizard configs for saudi_arabia/malaysia/thailand/uae/canada/turkey/india (+ japan paper note) via new shared factory components/client/wizards/shell/standard-evisa-config.ts (makeStandardEvisaWizard). Field keys = canonical runner-mapping keys (surname/given_names/dob/nationality/passport_*/email/phone/intended_arrival_date) for parity. Bound all in registry.ts. (france/italy already via schengenConfig; us/uk/vn/au/eg/id existing.)
+- POR-001: registry.ts LAUNCH_WIZARD_CONTRACT (16 country->visaType, comingSoon allowance) + missingWizardConfigs() guard (returns [] = full coverage; callable in CI).
+- Added simplifiedForm.standardEvisa i18n namespace (steps/fields/options/declarations/review) to messages/en.json + zh.json.
+- Files: shell/standard-evisa-config.ts, {sa,my,th,ae,ca,tr,in,jp}/config.ts, shell/registry.ts, messages/en.json+zh.json, prd.json. internal-website typecheck passes.
+---
