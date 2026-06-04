@@ -2552,3 +2552,12 @@ acknowledgment).
 - Documented contract in docs/infra/queue.md: row table, shared country codes (edit both sides), normalization, halt-vs-submit outcome semantics, ops scripts.
 - Files: lib/queue/countries.ts, lib/queue/enqueue.ts, docs/infra/queue.md, prd.json. internal-website typecheck passes.
 ---
+
+## 2026-06-04 - QUE-005
+- Added src/queue/halt-runners.ts: runOne wrappers for united_states (orchestrateFill/ceac), united_kingdom (resumeUkApplication), france (fillFranceVisasApplication + normalizeFvAnswers), australia (fillVisitor600Application). Bound them in dispatch.ts DISPATCH (replacing UnsupportedCountryError stubs); DISPATCH_META updated.
+- Halt-status mapping: handoff_ready/stopped_at_pay/halted_before_pay/prefilled/review_reached -> halted_before_pay (worker marks succeeded). blocked/failed/stopped_early -> RetryableRunnerError; missing portal account or unmappable FV data -> NeedsHumanError.
+- Reused exported account-loader.ts (loadUkAccount/loadFvAccount/loadAuAccount, decrypts password). Own loaders for field answers + profile/app.
+- Halt-vs-submit semantics documented in docs/infra/queue.md.
+- Files: src/queue/halt-runners.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test 5/5 (no circular-import breakage).
+- Limitation: us/uk/fr/au succeed at runtime only when portal accounts (uk_accounts/fv_accounts/au_accounts) are provisioned (PROV stories, onHold) and answers complete; otherwise NeedsHumanError. US CEAC wrapper also refined by RUN-US-001.
+---
