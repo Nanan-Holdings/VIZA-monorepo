@@ -6043,7 +6043,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 422,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/metrics/emit.ts + emitRunnerMetric exist; ensure country dimension and document."
     },
     {
@@ -6057,7 +6057,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 423,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/alerts/dispatch.ts and worker.ts OPS-003 paging on exhausted retries."
     },
     {
@@ -6071,7 +6071,7 @@
         "Typecheck passes in viza-be/submission-service and viza-fe/internal-website"
       ],
       "priority": 424,
-      "passes": false,
+      "passes": true,
       "notes": "runner_job already has correlation_id column (worker.ts select). Thread it through."
     },
     {
@@ -6085,7 +6085,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 425,
-      "passes": false,
+      "passes": true,
       "notes": "Single objective gate aggregating Epics 5/6/7/8 per country."
     },
     {
@@ -6099,7 +6099,7 @@
         "Cross-references RUN-CORE-004 capability matrix"
       ],
       "priority": 426,
-      "passes": false,
+      "passes": true,
       "notes": "Top-level go-live artifact."
     },
     {
@@ -6113,7 +6113,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 427,
-      "passes": false,
+      "passes": true,
       "notes": "Exercises portal->queue->worker->runner->artifact->status end to end."
     }
   ]

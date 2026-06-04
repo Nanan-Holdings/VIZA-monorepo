@@ -33,6 +33,26 @@ function isoWeekStart(d: Date = new Date()): string {
   return monday.toISOString().slice(0, 10);
 }
 
+/**
+ * OBSV-001: per-country lifecycle event counter. Emitted as a structured log
+ * line (one per transition) so a log-based metrics pipeline derives
+ * `runner_job_events_total{country,event}` without a schema change. Dimensions
+ * + dashboard config: docs/observability/metrics.md + dashboard.json.
+ */
+export type RunnerEvent = "started" | "succeeded" | "halted" | "failed" | "dead_lettered";
+
+export function emitRunnerEvent(country: string, event: RunnerEvent, jobId?: string): void {
+  console.log(
+    JSON.stringify({
+      metric: "runner_job_event",
+      event,
+      country,
+      jobId: jobId ?? null,
+      at: new Date().toISOString(),
+    }),
+  );
+}
+
 export async function emitRunnerMetric(input: MetricInput): Promise<void> {
   const { error } = await supabase.from("runner_metric").insert({
     job_id: input.jobId,

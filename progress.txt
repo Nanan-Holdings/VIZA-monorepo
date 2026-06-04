@@ -2860,3 +2860,14 @@ acknowledgment).
 - CI-007: docs/infra/ci-required-checks.md (path filters + required-checks policy for CI-001..006 + SEC-005/MIG-005/DEP-005; branch-protection intent).
 - Files: 4 ci-*.yml, render.yaml, scripts/infra/validate-cloudbuild-subs.ts, docs/infra/{agent-backend-deploy,cloudbuild-substitutions,ci-required-checks}.md, submission-service package.json, prd.json. YAML valid; script typechecks. CI block COMPLETE (7/7).
 ---
+
+## 2026-06-04 - OBSV-001..006
+- OBSV-001: emitRunnerEvent (per-country started/succeeded/halted/failed/dead_lettered structured-log counter) in metrics/emit.ts; docs/observability/metrics.md + dashboard.json artifact.
+- OBSV-002: buildHaltedStuckAlert (warn, runner.halted_stuck.<country>, 6h throttle) in alerts/dispatch.ts; docs/observability/alerts.md; payload-shape test.
+- OBSV-003: handler.ts threads correlation_id (cid=...) through dispatch->runOne->outcome + emits events; docs/observability/logging.md.
+- OBSV-004: scripts/launch/verify-country-readiness.ts — read-only filesystem pass/fail table (runner/pricing/marketing/wizard) for 16; ALL 16 PASS. Typechecks.
+- OBSV-005: docs/launch/launch-checklist.md — master runbook linking SEC/QUE/MIG/DEP/RUN/MKT/POR/PAYP/CI/OBSV + readiness step + rollback plan.
+- OBSV-006: viza-be/submission-service/scripts/launch/e2e-smoke.ts — enqueue fixture runner_job + wait terminal; --confirm + non-prod guard (refuses prod Supabase ref). npm launch:e2e-smoke. Typechecks.
+- Files: metrics/emit.ts, alerts/dispatch.ts + test, queue/handler.ts, scripts/launch/*, docs/observability/*, docs/launch/launch-checklist.md, prd.json. Typecheck + tests pass. OBSV block COMPLETE.
+- ALL non-onHold prd.json stories now pass. 19 onHold stories skipped (blocked on external creds/data/provisioning per CLAUDE.md).
+---

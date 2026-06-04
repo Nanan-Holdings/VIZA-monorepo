@@ -1,0 +1,12 @@
+{
+  "title": "VIZA Runner Observability",
+  "schemaVersion": 1,
+  "panels": [
+    { "id": 1, "title": "Jobs by event (per country)", "type": "timeseries", "query": "sum by (country,event) (rate(runner_job_events_total[5m]))" },
+    { "id": 2, "title": "Success rate", "type": "stat", "query": "sum(runner_job_events_total{event=\"succeeded\"}) / sum(runner_job_events_total{event=~\"succeeded|failed\"})" },
+    { "id": 3, "title": "Halted awaiting payment", "type": "stat", "query": "sum by (country) (runner_job_events_total{event=\"halted\"})" },
+    { "id": 4, "title": "Dead-letter count", "type": "stat", "query": "sum(runner_job_events_total{event=\"dead_lettered\"})" },
+    { "id": 5, "title": "Time to submit (p50/p95)", "type": "timeseries", "query": "histogram_quantile(0.95, runner_metric_time_to_submit_s)" }
+  ],
+  "_note": "Generic dashboard config artifact (OBSV-001). Import into Grafana or map to the /admin/metrics page; no dashboard clicks required to commit."
+}
