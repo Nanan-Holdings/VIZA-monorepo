@@ -82,7 +82,12 @@ export async function fillVietnamApplication(
 
     // The router link is inside a Vue component; bypass overlays via JS click.
     await page.evaluate(() => {
-      const a = document.querySelector<HTMLAnchorElement>('a[href="/e-visa/foreigners"]');
+      const doc = (globalThis as unknown as {
+        document?: {
+          querySelector: (selector: string) => { click: () => void } | null;
+        };
+      }).document;
+      const a = doc?.querySelector('a[href="/e-visa/foreigners"]');
       if (a) a.click();
     });
     await page
@@ -94,7 +99,14 @@ export async function fillVietnamApplication(
 
     // ── Wait for form fields ───────────────────────────────────────────
     await page.waitForFunction(
-      () => document.querySelectorAll(".ant-form-item").length > 10,
+      () => {
+        const doc = (globalThis as unknown as {
+          document?: {
+            querySelectorAll: (selector: string) => { length: number };
+          };
+        }).document;
+        return (doc?.querySelectorAll(".ant-form-item").length ?? 0) > 10;
+      },
       null,
       { timeout: stepTimeoutMs },
     );
@@ -168,7 +180,12 @@ async function waitForHydrate(page: Page, timeoutMs: number): Promise<void> {
   await page
     .waitForFunction(
       () => {
-        const app = document.getElementById("app");
+        const doc = (globalThis as unknown as {
+          document?: {
+            getElementById: (id: string) => { innerHTML: string } | null;
+          };
+        }).document;
+        const app = doc?.getElementById("app");
         return !!app && app.innerHTML.length > 40_000;
       },
       null,

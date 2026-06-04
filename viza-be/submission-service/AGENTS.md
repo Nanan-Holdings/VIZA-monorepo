@@ -113,6 +113,17 @@ the France-Visas account after confirming the run.
 - `.env` contained Supabase/Resend/2captcha/OpenAI keys but no
   `FV_EMAIL`/`FV_PASSWORD`, so France live smoke could not be run until those
   credentials are provided out of band.
+- After `npm install` and `npm run install-browsers`, `npm run type-check` and
+  `npm run build` passed.
+- US CEAC basic smoke passed on 2026-06-04:
+  `npx ts-node src/ceac/smoke.ts` returned `outcome: "start_page"`,
+  `detectedPageId: "start"`, heading `Apply For a Nonimmigrant Visa`. CAPTCHA
+  solve smoke and full worker path were not run.
+- Vietnam smoke was made executable via `npm run vn:smoke`, but the live run
+  timed out after 120 seconds before reaching a terminal pre-pay/review result.
+  Treat Vietnam as requiring selector/progress diagnostics before promotion.
+- AU smoke harness exists via `npm run au:smoke`, but it requires
+  `AU_USERNAME`/`AU_PASSWORD` and was not run in this environment.
 
 ## Related Files
 

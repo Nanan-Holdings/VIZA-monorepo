@@ -62,6 +62,15 @@ const answers: AnswerMap = {
   funds_currency: "AUD",
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`smoke timeout > ${timeoutMs}ms`)), timeoutMs),
+    ),
+  ]);
+}
+
 async function main(): Promise<void> {
   const username = process.env.AU_USERNAME;
   const password = process.env.AU_PASSWORD;
@@ -74,17 +83,20 @@ async function main(): Promise<void> {
   const handles = await launchStealthBrowser({ headless, acceptDownloads: true });
 
   try {
-    const result = await fillVisitor600Application({
-      context: handles.context,
-      credentials: {
-        username,
-        password,
-        mfaCodeProvider: totpSecret ? async () => generateTotp(totpSecret) : undefined,
-      },
-      answers,
-      resumeTrn: process.env.AU_RESUME_TRN ?? null,
-      options: {},
-    });
+    const result = await withTimeout(
+      fillVisitor600Application({
+        context: handles.context,
+        credentials: {
+          username,
+          password,
+          mfaCodeProvider: totpSecret ? async () => generateTotp(totpSecret) : undefined,
+        },
+        answers,
+        resumeTrn: process.env.AU_RESUME_TRN ?? null,
+        options: {},
+      }),
+      180_000,
+    );
 
     console.log(JSON.stringify(result, null, 2));
     if (result.outcome === "review_reached") {

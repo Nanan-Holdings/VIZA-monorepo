@@ -56,13 +56,26 @@ const answers: Record<string, string> = {
   trip_expense_payer: "Self",
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`smoke timeout > ${timeoutMs}ms`)), timeoutMs),
+    ),
+  ]);
+}
+
 async function main(): Promise<void> {
-  const result = await fillVietnamApplication(
-    { answers },
-    {
-      headless: process.env.VN_SMOKE_HEADFUL !== "1",
-      runId: `vn-smoke-${Date.now()}`,
-    },
+  const result = await withTimeout(
+    fillVietnamApplication(
+      { answers },
+      {
+        headless: process.env.VN_SMOKE_HEADFUL !== "1",
+        runId: `vn-smoke-${Date.now()}`,
+        stepTimeoutMs: 60_000,
+      },
+    ),
+    120_000,
   );
 
   console.log(JSON.stringify(result, null, 2));

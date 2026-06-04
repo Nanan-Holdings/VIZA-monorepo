@@ -94,4 +94,21 @@ describe("travel destination resolver", () => {
     const resolution = resolveLocalDestinationText("我不知道去哪");
     expect(resolution.status).toBe("unresolved");
   });
+
+  it("resolves full Chinese itinerary prompts to the named destination", () => {
+    const resolution = resolveLocalDestinationText(
+      "帮我做一个伦敦 5 天旅行计划，8月4日出发，中等预算，包含航班、酒店、景点和餐厅。"
+    );
+    expect(resolution.status).toBe("resolved");
+    if (resolution.status === "resolved") {
+      expect(resolution.destinations[0].canonicalName).toBe("London");
+      const card = toTravelDestinationChatCard(
+        resolution.destinations[0],
+        resolution.query
+      );
+      expect(card.title).toBe("London");
+      expect(card.title).not.toContain("中等预算");
+      expect(card.suggested_days).toBe("5 days");
+    }
+  });
 });
