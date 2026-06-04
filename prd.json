@@ -4741,7 +4741,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 329,
-      "passes": false,
+      "passes": true,
       "notes": "Existing US/FR/UK/AU logic lives in the submission_queue *_prefill_pending path in index.ts; expose a runOne wrapper so both queues can drive them."
     },
     {
