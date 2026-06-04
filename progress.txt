@@ -2496,3 +2496,8 @@ acknowledgment).
 - No real secret currently tracked (audit re-confirmed), so no working-tree untracking needed; runbook is defensive for historical commits.
 - Files: docs/security/secret-purge-runbook.md, prd.json
 ---
+
+## 2026-06-04 - SEC-003
+- Added docs/security/secret-rotation-runbook.md: full secret inventory (from cloudbuild.yaml _* list + process.env refs) as a matrix — secret | consumer(workspace·env) | rotate-at | redeploy. Covers Anthropic, Supabase SRK, Stripe live, Airwallex, Alipay, WeChat, Shopify, Cal.com + all others. Cross-refs existing secret-rotation.md rollover procedures.
+- Files: docs/security/secret-rotation-runbook.md, prd.json
+---
