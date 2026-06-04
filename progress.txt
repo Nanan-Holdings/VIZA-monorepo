@@ -2841,3 +2841,13 @@ acknowledgment).
 - Tests src/__tests__/payment-routing.spec.ts extended (8 pass): all-16 decision, pass-through correctness, unknown throws. Updated PRICING mirror with saudi/france/italy.
 - Files: src/payment-routing.ts, src/__tests__/payment-routing.spec.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - PAYP-002/003/004/005/006/008
+- PAYP-002: lib/payments/validate-provider-config.ts (required env per provider; AIRWALLEX_ENV!=prod warn) + docs/payments/provider-config.md + test.
+- PAYP-004: lib/payments/method-availability.ts (paymentMethodsFor config-driven WECHAT/ALIPAY_COUNTRIES sets; card universal; non-set -> card only) + test.
+- PAYP-006: test asserts displayed total == charged total (both from pricing) for USD + GBP packages; currency policy in docs/shared/pricing-currency-policy.md.
+- PAYP-005: lib/payments/refund-status.ts (mapStripeRefundEvent) + docs/payments/refunds.md (flow + mapping + TODO gaps: dispute->pause runner_job) + test.
+- PAYP-008: lib/payments/webhook-idempotency.ts (webhookIdempotencyKey/isReplay) + docs/payments/webhooks.md (signature+idempotency audit: all 3 webhooks verified, runner_job 2nd idempotency layer) + test.
+- PAYP-003: docs/payments/go-live-runbook.md (per-provider cutover, per-country availability, checklist; cross-ref SEC-003).
+- Files: lib/payments/*.ts + *.test.ts, docs/payments/*.md, prd.json. 13 vitest pass; typecheck clean. PAYP block COMPLETE (8/8).
+---
