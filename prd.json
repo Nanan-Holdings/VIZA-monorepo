@@ -5571,7 +5571,7 @@
         "Typecheck passes in both viza-fe/marketing-website and viza-fe/internal-website"
       ],
       "priority": 388,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed marketing uses hardcoded SGD; portal lib/pricing.ts uses USD. shared/ dir exists at repo root."
     },
     {

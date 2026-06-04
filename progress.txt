@@ -2753,3 +2753,11 @@ acknowledgment).
 - Updated docs/db/launch-seed-checklist.md to mark all 16 present (SA/IT/FR ✅ added MKT-007).
 - Files: lib/pricing.ts, docs/db/launch-seed-checklist.md, prd.json. internal-website typecheck passes.
 ---
+
+## 2026-06-04 - MKT-006
+- Shared pricing: viza-fe/marketing-website/lib/pricing.ts mirrors portal PACKAGE_PRICING (launch subset, keyed by visaType) with agency(USD)+govt(collection currency) + static FX_TO_SGD table. totalSgd()/displayFeeSGD() apply documented USD/collection->SGD policy (ceil whole SGD).
+- page.tsx now derives card fee from displayFeeSGD(c.visaType) (removed temp FEE_SGD map).
+- docs/shared/pricing-currency-policy.md: source-of-truth (portal canonical), marketing mirror sync contract, USD->SGD display policy. Documents that true code-sharing needs a monorepo workspace pkg (follow-up).
+- Files: marketing lib/pricing.ts, app/[locale]/page.tsx, docs/shared/pricing-currency-policy.md, prd.json. Both packages typecheck.
+- Limitation: marketing pricing is a hand-synced mirror (no workspace pkg); display-only, never drives a charge.
+---
