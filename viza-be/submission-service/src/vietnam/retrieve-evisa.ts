@@ -1,6 +1,6 @@
 import { waitForVnRegistrationEmail } from "./inbox.js";
 import { VN_GOVT_PAYMENT_MECHANISM } from "./govt-payment.js";
-import { uploadArtifact } from "../artifact-storage.js";
+import { storeEvisaArtifact } from "../runners/evisa-artifact.js";
 
 /**
  * Vietnam e-Visa retrieval + storage (RUN-VN-002).
@@ -46,13 +46,10 @@ export async function retrieveAndStoreVnEvisa(
     const res = await fetch(email.resultLink);
     if (res.ok) {
       const data = Buffer.from(await res.arrayBuffer());
-      storagePath = await uploadArtifact({
-        authUserId: input.authUserId,
+      storagePath = await storeEvisaArtifact({
         applicationId: input.applicationId,
+        jobId: input.authUserId,
         country: "VN",
-        kind: "evisa",
-        ext: "pdf",
-        contentType: "application/pdf",
         data,
       });
     } else {
