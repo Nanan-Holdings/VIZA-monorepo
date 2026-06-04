@@ -80,3 +80,49 @@ export function routingFor(
   if (!found) throw new UnknownPackageError(country, visaType);
   return found;
 }
+
+/* ------------------------- RUN-ID-002 additions ------------------------- */
+
+/** Who collects the government fee. */
+export type Collector = "viza" | "portal" | "applicant" | "none";
+
+/** What the runner should do at the government-payment step. */
+export type FeePolicy = "collect" | "halt" | "paper";
+
+export function collectorFor(mechanism: GovtFeeMechanism): Collector {
+  switch (mechanism) {
+    case "runner_escrow_card":
+      return "viza";
+    case "client_in_portal":
+      return "portal";
+    case "applicant_direct_link":
+      return "applicant";
+    case "paper_only_no_fee":
+      return "none";
+  }
+}
+
+export function policyFor(mechanism: GovtFeeMechanism): FeePolicy {
+  switch (mechanism) {
+    case "runner_escrow_card":
+      return "collect"; // runner pays the portal with VIZA's escrow card
+    case "client_in_portal":
+    case "applicant_direct_link":
+      return "halt"; // runner stops at the pay screen; someone else pays
+    case "paper_only_no_fee":
+      return "paper"; // no portal fee
+  }
+}
+
+/**
+ * Government fee in cents (USD), mirroring viza-fe/internal-website/lib/pricing.ts
+ * `govtFeeCents`. Kept here so the runner can assert the routing fee without a
+ * cross-package import. Edit alongside pricing.ts.
+ */
+export const GOVT_FEE_CENTS: Record<string, Record<string, number>> = {
+  indonesia: { B211A: 15000, ID_C1_TOURIST: 18500 },
+};
+
+export function feeCentsFor(country: string, visaType: string): number | null {
+  return GOVT_FEE_CENTS[country]?.[visaType] ?? null;
+}

@@ -5,6 +5,7 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { mapIdAnswers, missingRequired } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
+import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
 import {
   NeedsHumanError,
   RetryableRunnerError,
@@ -31,6 +32,8 @@ export interface IdRunInput {
   jobId: string;
   applicationId: string;
   answers: Record<string, string>;
+  /** Indonesia package; defaults to the launched B211A. */
+  visaType?: string;
   headless?: boolean;
 }
 
@@ -97,9 +100,21 @@ export async function runIdRunner(input: IdRunInput): Promise<IdRunResult> {
       /* screenshot best-effort */
     }
 
-    // Halt before the government-payment step.
+    // RUN-ID-002: respect the payment-routing decision. Indonesia is
+    // runner_escrow_card (VIZA collects, govt fee 15000c for B211A), so the
+    // policy is "collect" — but escrow-card payment is not yet integrated,
+    // so we still halt at the pay step and record the intended collector.
     reachedStep = "pre_payment";
-    return { status: "stopped_before_pay", reason: "halted before government payment", reachedStep, artefacts };
+    const visaType = input.visaType ?? "B211A";
+    const routing = routingFor("indonesia", visaType);
+    const policy = policyFor(routing.mechanism);
+    const collector = collectorFor(routing.mechanism);
+    const feeCents = feeCentsFor("indonesia", visaType);
+    const reason =
+      policy === "collect"
+        ? `halted before payment; policy=collect collector=${collector} fee=${feeCents ?? "?"}c (escrow-card payment pending integration)`
+        : `halted before government payment; policy=${policy} collector=${collector}`;
+    return { status: "stopped_before_pay", reason, reachedStep, artefacts };
   } catch (err) {
     return {
       status: "blocked",
