@@ -5109,7 +5109,7 @@
         "Unit test + Typecheck passes in viza-be/submission-service"
       ],
       "priority": 355,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no Malaysia runner. malaysia present in pricing.ts."
     },
     {
@@ -5123,7 +5123,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 356,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-MY-001."
     },
     {
