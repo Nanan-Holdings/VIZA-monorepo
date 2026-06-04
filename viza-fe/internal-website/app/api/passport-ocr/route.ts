@@ -113,6 +113,7 @@ function serializeProposedFields(fields: PassportOcrProposedFields) {
     surname: fields.surname,
     passport_number: fields.passportNumber,
     date_of_birth: fields.dateOfBirth,
+    place_of_birth: fields.placeOfBirth,
     nationality: fields.nationality,
     passport_issuing_country: fields.issuingCountry,
     issuing_country: fields.issuingCountry,

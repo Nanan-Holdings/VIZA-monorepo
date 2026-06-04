@@ -45,6 +45,8 @@ The current internal automation migrations are:
   indexes.
 - `0087_application_documents_bucket.sql`: private
   `application-documents` Storage bucket and user-prefix object policies.
+- `0088_travel_destination_index.sql`: Travel AI destination index, aliases,
+  lazy cards, itinerary session archive, and unresolved destination queue.
 
 ## Guardrails
 

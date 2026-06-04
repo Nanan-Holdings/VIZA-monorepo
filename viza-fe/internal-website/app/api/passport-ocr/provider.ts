@@ -28,6 +28,7 @@ interface RawProviderFields {
   surname: string | null;
   passport_number: string | null;
   date_of_birth: string | null;
+  place_of_birth: string | null;
   nationality: string | null;
   issuing_country: string | null;
   issue_date: string | null;
@@ -69,7 +70,8 @@ export class PassportOcrProviderError extends Error {
   }
 }
 
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_OPENAI_MODEL = "gpt-4o";
+const DEFAULT_OPENAI_FALLBACK_MODELS = ["gpt-4o-mini"];
 
 const PASSPORT_SCHEMA = {
   type: "object",
@@ -87,6 +89,7 @@ const PASSPORT_SCHEMA = {
         "surname",
         "passport_number",
         "date_of_birth",
+        "place_of_birth",
         "nationality",
         "issuing_country",
         "issue_date",
@@ -99,6 +102,7 @@ const PASSPORT_SCHEMA = {
         surname: { type: ["string", "null"] },
         passport_number: { type: ["string", "null"] },
         date_of_birth: { type: ["string", "null"] },
+        place_of_birth: { type: ["string", "null"] },
         nationality: { type: ["string", "null"] },
         issuing_country: { type: ["string", "null"] },
         issue_date: { type: ["string", "null"] },
@@ -115,6 +119,7 @@ const PASSPORT_SCHEMA = {
         "surname",
         "passport_number",
         "date_of_birth",
+        "place_of_birth",
         "nationality",
         "issuing_country",
         "issue_date",
@@ -127,6 +132,7 @@ const PASSPORT_SCHEMA = {
         surname: { type: ["number", "null"], minimum: 0, maximum: 1 },
         passport_number: { type: ["number", "null"], minimum: 0, maximum: 1 },
         date_of_birth: { type: ["number", "null"], minimum: 0, maximum: 1 },
+        place_of_birth: { type: ["number", "null"], minimum: 0, maximum: 1 },
         nationality: { type: ["number", "null"], minimum: 0, maximum: 1 },
         issuing_country: { type: ["number", "null"], minimum: 0, maximum: 1 },
         issue_date: { type: ["number", "null"], minimum: 0, maximum: 1 },
@@ -152,6 +158,7 @@ const EMPTY_FIELDS: PassportOcrProposedFields = {
   surname: { value: null, confidence: null },
   passportNumber: { value: null, confidence: null },
   dateOfBirth: { value: null, confidence: null },
+  placeOfBirth: { value: null, confidence: null },
   nationality: { value: null, confidence: null },
   issuingCountry: { value: null, confidence: null },
   issueDate: { value: null, confidence: null },
@@ -239,6 +246,14 @@ function normalizeMrzLine(value: string | null): string | null {
   return normalized || null;
 }
 
+function normalizeMrzDataLine(value: string | null): string | null {
+  const normalized = cleanText(value)
+    ?.toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[^A-Z0-9<]/g, "");
+  return normalized || null;
+}
+
 function parseMrzName(line1: string | null): Pick<RawProviderFields, "full_name" | "given_names" | "surname"> | null {
   const normalized = normalizeMrzLine(line1);
   if (!normalized || !normalized.includes("<<")) return null;
@@ -255,6 +270,42 @@ function parseMrzName(line1: string | null): Pick<RawProviderFields, "full_name"
     full_name: cleanText([givenNames, surname].filter(Boolean).join(" ")),
     given_names: givenNames,
     surname,
+  };
+}
+
+function normalizeMrzDate(value: string, kind: "birth" | "expiry"): string | null {
+  if (!/^\d{6}$/.test(value)) return null;
+  const yy = Number(value.slice(0, 2));
+  const month = Number(value.slice(2, 4));
+  const day = Number(value.slice(4, 6));
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentYY = currentYear % 100;
+  let year = kind === "birth" && yy <= currentYY ? 2000 + yy : 1900 + yy;
+  if (kind === "expiry") {
+    year = yy < currentYY - 10 ? 2100 + yy : 2000 + yy;
+  }
+
+  const normalized = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return isValidIsoDate(normalized) ? normalized : null;
+}
+
+function parseMrzLine2(line2: string | null): Partial<RawProviderFields> | null {
+  const normalized = normalizeMrzDataLine(line2);
+  if (!normalized || normalized.length < 27) return null;
+
+  const passportNumber = cleanPassportNumber(normalized.slice(0, 9).replace(/</g, ""));
+  const nationality = cleanText(normalized.slice(10, 13).replace(/</g, ""));
+  const dateOfBirth = normalizeMrzDate(normalized.slice(13, 19), "birth");
+  const gender = normalizeGender(normalized.slice(20, 21));
+  const expiryDate = normalizeMrzDate(normalized.slice(21, 27), "expiry");
+
+  return {
+    passport_number: passportNumber,
+    nationality,
+    date_of_birth: dateOfBirth,
+    gender,
+    expiry_date: expiryDate,
   };
 }
 
@@ -288,8 +339,23 @@ function repairLatinNameParts(fields: RawProviderFields, warnings: string[]): Ra
   const surname = cleanText(fields.surname);
   if (!fullName || !givenNames || !surname) return fields;
   if (containsCjk(fullName) || containsCjk(givenNames) || containsCjk(surname)) return fields;
-  if (surname !== fullName) return fields;
 
+  const expectedFullName = cleanText([givenNames, surname].join(" "));
+  const fullNameHasMrzNoise =
+    /\d/.test(fullName) ||
+    fullName.includes("<<") ||
+    fullName.includes("CHN") ||
+    Boolean(fields.passport_number && fullName.includes(fields.passport_number.slice(0, 2)));
+
+  if (expectedFullName && fullNameHasMrzNoise) {
+    warnings.push("full_name_repaired_from_name_parts");
+    return {
+      ...fields,
+      full_name: expectedFullName,
+    };
+  }
+
+  if (surname !== fullName) return fields;
   const prefix = `${givenNames} `;
   const suffix = ` ${givenNames}`;
   let repairedSurname: string | null = null;
@@ -309,9 +375,29 @@ function repairLatinNameParts(fields: RawProviderFields, warnings: string[]): Ra
   };
 }
 
+function preferMrzLine2Fields(raw: RawProviderOutput, fields: RawProviderFields, warnings: string[]): RawProviderFields {
+  const mrzFields = parseMrzLine2(raw.mrz.line2);
+  if (!mrzFields) return fields;
+
+  const merged = {
+    ...fields,
+    passport_number: mrzFields.passport_number ?? fields.passport_number,
+    nationality: mrzFields.nationality ?? fields.nationality,
+    date_of_birth: mrzFields.date_of_birth ?? fields.date_of_birth,
+    gender: mrzFields.gender ?? fields.gender,
+    expiry_date: mrzFields.expiry_date ?? fields.expiry_date,
+  };
+
+  warnings.push("fields_verified_from_mrz");
+  return merged;
+}
+
 function normalizeFields(raw: RawProviderOutput): { fields: PassportOcrProposedFields; warnings: string[] } {
   const warnings: string[] = [];
-  const fields = repairLatinNameParts(preferMrzLatinName(raw, warnings), warnings);
+  const fields = repairLatinNameParts(
+    preferMrzLine2Fields(raw, preferMrzLatinName(raw, warnings), warnings),
+    warnings,
+  );
   const confidence = raw.field_confidence;
 
   return {
@@ -322,6 +408,7 @@ function normalizeFields(raw: RawProviderOutput): { fields: PassportOcrProposedF
       surname: proposal(cleanText(fields.surname), confidence.surname),
       passportNumber: proposal(cleanPassportNumber(fields.passport_number), confidence.passport_number),
       dateOfBirth: proposal(normalizeDate(fields.date_of_birth, warnings, "date_of_birth"), confidence.date_of_birth),
+      placeOfBirth: proposal(cleanText(fields.place_of_birth), confidence.place_of_birth),
       nationality: proposal(cleanText(fields.nationality), confidence.nationality),
       issuingCountry: proposal(cleanText(fields.issuing_country), confidence.issuing_country),
       issueDate: proposal(normalizeDate(fields.issue_date, warnings, "issue_date"), confidence.issue_date),
@@ -356,6 +443,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
       surname: nullableString(value.fields.surname),
       passport_number: nullableString(value.fields.passport_number),
       date_of_birth: nullableString(value.fields.date_of_birth),
+      place_of_birth: nullableString(value.fields.place_of_birth),
       nationality: nullableString(value.fields.nationality),
       issuing_country: nullableString(value.fields.issuing_country),
       issue_date: nullableString(value.fields.issue_date),
@@ -368,6 +456,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
       surname: nullableConfidence(value.field_confidence.surname),
       passport_number: nullableConfidence(value.field_confidence.passport_number),
       date_of_birth: nullableConfidence(value.field_confidence.date_of_birth),
+      place_of_birth: nullableConfidence(value.field_confidence.place_of_birth),
       nationality: nullableConfidence(value.field_confidence.nationality),
       issuing_country: nullableConfidence(value.field_confidence.issuing_country),
       issue_date: nullableConfidence(value.field_confidence.issue_date),
@@ -430,6 +519,7 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
             "Extract only visible passport bio page fields. Return null for missing or uncertain fields. " +
             "Do not infer values that are not visible. Dates must be YYYY-MM-DD when possible. " +
             "For all name fields, return the Latin alphabet/romanized passport name from the visual inspection zone or MRZ; never return local-script names such as Chinese characters. " +
+            "For passports with MRZ, copy both MRZ lines exactly into mrz.line1 and mrz.line2 before normalizing any fields. " +
             "Sideways or rotated passport photos should still be read when the printed fields or MRZ are visible.",
         },
       ],
@@ -441,7 +531,7 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
           type: "input_text",
           text:
             "Read this passport document for a confirmation workflow. Extract proposed full name, given names, " +
-            "surname, passport number, date of birth, nationality, issuing country, issue date, expiry date, " +
+            "surname, passport number, date of birth, place of birth, nationality, issuing country, issue date, expiry date, " +
             "gender, and MRZ lines if available. Name fields must use the Latin/MRZ spelling, not the local-script name. " +
             "This data will not be written until the applicant confirms it. " +
             retryText,
@@ -462,7 +552,14 @@ function splitModelList(value: string | undefined): string[] {
 function getOpenAIModelCandidates(): string[] {
   const configuredModel = process.env.PASSPORT_OCR_OPENAI_MODEL?.trim();
   const fallbackModels = splitModelList(process.env.PASSPORT_OCR_OPENAI_FALLBACK_MODELS);
-  return Array.from(new Set([configuredModel || DEFAULT_OPENAI_MODEL, ...fallbackModels, DEFAULT_OPENAI_MODEL]));
+  return Array.from(
+    new Set([
+      configuredModel || DEFAULT_OPENAI_MODEL,
+      configuredModel ? DEFAULT_OPENAI_MODEL : null,
+      ...fallbackModels,
+      ...DEFAULT_OPENAI_FALLBACK_MODELS,
+    ].filter((model): model is string => Boolean(model))),
+  );
 }
 
 async function parseOpenAIErrorBody(response: Response): Promise<OpenAIErrorBody | null> {

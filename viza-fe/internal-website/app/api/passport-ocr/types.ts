@@ -26,6 +26,7 @@ export interface PassportOcrProposedFields {
   surname: PassportOcrFieldProposal;
   passportNumber: PassportOcrFieldProposal;
   dateOfBirth: PassportOcrFieldProposal;
+  placeOfBirth: PassportOcrFieldProposal;
   nationality: PassportOcrFieldProposal;
   issuingCountry: PassportOcrFieldProposal;
   issueDate: PassportOcrFieldProposal;
