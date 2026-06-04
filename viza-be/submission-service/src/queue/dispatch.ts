@@ -30,6 +30,7 @@ import { runLaPrefill } from "../la/runner.js";
 import { runZaPrefill } from "../za/runner.js";
 import { fillVietnamApplication } from "../vietnam/run.js";
 import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
+import { runUsHalt, runUkHalt, runFranceHalt, runAuHalt } from "./halt-runners.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -317,11 +318,11 @@ export const DISPATCH: Record<string, RunOne> = {
   laos: runLaos,
   south_africa: runSouthAfrica,
   vietnam: runVietnam,
-  // Wired in QUE-005 (halt-before-gov-pay via legacy submission_queue path):
-  united_states: unsupported("united_states"),
-  united_kingdom: unsupported("united_kingdom"),
-  france: unsupported("france"),
-  australia: unsupported("australia"),
+  // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
+  united_states: (a, j) => runUsHalt(a, j),
+  united_kingdom: (a, j) => runUkHalt(a, j),
+  france: (a, j) => runFranceHalt(a, j),
+  australia: (a, j) => runAuHalt(a, j),
   // No runner yet:
   saudi_arabia: unsupported("saudi_arabia"),
   japan: unsupported("japan"),
@@ -346,10 +347,10 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   laos: { runner: "runLaPrefill", implemented: true },
   south_africa: { runner: "runZaPrefill", implemented: true },
   vietnam: { runner: "fillVietnamApplication", implemented: true },
-  united_states: { runner: "(legacy submission_queue)", implemented: false },
-  united_kingdom: { runner: "(legacy submission_queue)", implemented: false },
-  france: { runner: "(legacy submission_queue)", implemented: false },
-  australia: { runner: "runAuPrefill", implemented: false },
+  united_states: { runner: "orchestrateFill (ceac)", implemented: true },
+  united_kingdom: { runner: "resumeUkApplication", implemented: true },
+  france: { runner: "fillFranceVisasApplication", implemented: true },
+  australia: { runner: "fillVisitor600Application", implemented: true },
   saudi_arabia: { runner: "(none)", implemented: false },
   japan: { runner: "(paper renderer)", implemented: false },
 };
