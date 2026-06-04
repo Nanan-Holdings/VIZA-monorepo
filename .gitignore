@@ -37,13 +37,36 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Environment variables
+# ============================================
+# Secrets & environment variables (exhaustive)
+# Patterns are recursive: they match in the root AND every nested
+# workspace (viza-be/agent-backend, viza-be/submission-service,
+# viza-be/email-worker, viza-be/travel-service,
+# viza-fe/internal-website, viza-fe/marketing-website).
+# Keep *.example templates tracked via the negations below.
+# ============================================
 .env
+.env.*
 .env.local
-.env*.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
+# Service-account / cloud credential blobs
+*service-account*.json
+*serviceaccount*.json
+*-credentials.json
+gcp-*.json
+firebase-adminsdk-*.json
+# Keys & key material
+*.key
+*.p12
+*.pfx
+*.keystore
+# But always keep example/template files tracked
+!.env.example
+!.env*.example
+!*.example.json
 
 # Vercel
 .vercel
@@ -80,6 +103,8 @@ Temporary Items
 
 # Certificates
 *.pem
+*.crt
+*.cer
 
 # Claude - ignore local state but track project instructions
 .claude/*
@@ -89,11 +114,6 @@ Temporary Items
 # Cursor - ignore local state but track rules
 .cursor/*
 !.cursor/rules/
-
-# Local env files
-.env
-.env.local
-.env.*.local
 
 # Python
 .venv/
