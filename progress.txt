@@ -2514,3 +2514,11 @@ acknowledgment).
 - Added .github/workflows/secret-scan.yml: gitleaks detect --config .gitleaks.toml --redact --no-banner on push+PR to main; fetch-depth 0 for full history; fails build on finding. YAML validated.
 - Files: .github/workflows/secret-scan.yml, prd.json
 ---
+
+## 2026-06-04 - SEC-006
+- Created viza-be/agent-backend/.env.example (was missing): all 36 keys grouped runtime/supabase/llm/auth-tokens/messaging/observability, placeholder values only.
+- Expanded viza-be/submission-service/.env.example: added SUBMISSION_RESULT_SECRET_KEY, SLACK_WEBHOOK_URL, RESEND_OPS_ALERT_TO, NEXT_PUBLIC_SITE_URL, per-country *_PORTAL_URL, recon toggles.
+- Verified internal-website (23 vars) + marketing (.env.example) already adequate.
+- All values are placeholders (your-*/re_your_); .env.example is hook+gitleaks exempt.
+- Files: viza-be/agent-backend/.env.example, viza-be/submission-service/.env.example, prd.json
+---
