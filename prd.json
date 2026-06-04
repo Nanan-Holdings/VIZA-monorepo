@@ -5752,7 +5752,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 401,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed existing cards: Au, Fr, Jp, Uk, Us, Vn (+ Failure/Waiting/SubmissionStatusStep)."
     },
     {
