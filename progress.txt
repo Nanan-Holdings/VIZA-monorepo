@@ -2538,3 +2538,10 @@ acknowledgment).
 - Added src/queue/handler.ts: JobHandler delegating to getRunOne(job.country)(application_id, job.id).
 - Files: src/index.ts, src/queue/handler.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - QUE-003
+- handler.ts (QUE-002) already maps job.country -> getRunOne -> runOne(application_id, job.id); UnsupportedCountryError propagates so worker dead-letters.
+- Added src/queue/__tests__/dispatch.spec.ts (node:test): asserts India routes to runInPrefill (via DISPATCH_META), ISO alias in->india, gb/uk/us normalization, unwired throws, saudi_arabia runOne rejects UnsupportedCountryError. 5/5 pass under tsx --test (dummy supabase env).
+- Files: src/queue/__tests__/dispatch.spec.ts, prd.json. Typecheck passes.
+- Learning: src/supabase.ts throws at import without SUPABASE_URL/KEY; tests need dummy env. Run tests: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx --test <spec>.
+---
