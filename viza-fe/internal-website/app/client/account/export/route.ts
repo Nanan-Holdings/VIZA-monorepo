@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { exportAccountData, AccountRateLimitError } from "@/app/actions/account";
+import { exportAccountData } from "@/app/actions/account";
+import { AccountRateLimitError } from "@/lib/account/errors";
 
 export const dynamic = "force-dynamic";
 
