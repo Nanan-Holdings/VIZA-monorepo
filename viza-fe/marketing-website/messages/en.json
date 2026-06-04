@@ -111,5 +111,33 @@
     "comingSoonBody": "We're putting the finishing touches on {country}. Create an account and we'll let you know the moment it's live.",
     "browseDestinations": "Browse destinations",
     "notifyMe": "Notify me"
+  },
+  "countries": {
+    "indonesia": "Indonesia",
+    "egypt": "Egypt",
+    "australia": "Australia",
+    "saudi-arabia": "Saudi Arabia",
+    "united-kingdom": "United Kingdom",
+    "vietnam": "Vietnam",
+    "malaysia": "Malaysia",
+    "japan": "Japan",
+    "united-states": "United States",
+    "canada": "Canada",
+    "turkiye": "Türkiye",
+    "thailand": "Thailand",
+    "united-arab-emirates": "United Arab Emirates",
+    "france": "France",
+    "italy": "Italy",
+    "india": "India"
+  },
+  "visaTypes": {
+    "e-Visa": "e-Visa",
+    "Standard Visitor": "Standard Visitor",
+    "Visitor 600": "Visitor 600",
+    "Tourist": "Tourist",
+    "B1/B2": "B1/B2",
+    "eTA": "eTA",
+    "Schengen": "Schengen",
+    "eVisa": "eVisa"
   }
 }
