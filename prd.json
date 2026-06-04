@@ -4811,7 +4811,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 334,
-      "passes": false,
+      "passes": true,
       "notes": "Guards Epic 2/4. submission_queue statuses confirmed in src/index.ts:88-103."
     },
     {
@@ -4825,7 +4825,7 @@
         "Lists which migrations create runner_job and submission_queue so MIG-001 can verify them"
       ],
       "priority": 335,
-      "passes": false,
+      "passes": true,
       "notes": "Brief reports prod ~66 migrations behind with diverged lineage. Locate exact dirs before writing."
     },
     {
@@ -4839,7 +4839,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 336,
-      "passes": false,
+      "passes": true,
       "notes": "Filesystem-only; safe for the agent. Feeds MIG-002."
     },
     {
@@ -4853,7 +4853,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 337,
-      "passes": false,
+      "passes": true,
       "notes": "Cross-ref src/applicant-vault.ts and src/payment-routing.ts in submission-service."
     },
     {
@@ -4867,7 +4867,7 @@
         "YAML parses validly"
       ],
       "priority": 338,
-      "passes": false,
+      "passes": true,
       "notes": "Ties MIG-001/004 into CI. Secret injected through CI provider."
     },
     {
@@ -4881,7 +4881,7 @@
         "No DB writes executed by the agent"
       ],
       "priority": 339,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed pricing.ts has 27 entries but is missing saudi/italy/france and uses USD."
     },
     {
