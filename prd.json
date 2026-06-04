@@ -5948,7 +5948,7 @@
         "Does not duplicate existing qa-gates E2E/a11y"
       ],
       "priority": 415,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed qa-gates.yml only runs portal E2E/a11y/lighthouse, no typecheck/lint/build."
     },
     {
@@ -5961,7 +5961,7 @@
         "Committed YAML only; valid YAML"
       ],
       "priority": 416,
-      "passes": false,
+      "passes": true,
       "notes": "marketing-website has type-check/lint/build scripts confirmed."
     },
     {
@@ -5974,7 +5974,7 @@
         "Committed YAML only; valid YAML"
       ],
       "priority": 417,
-      "passes": false,
+      "passes": true,
       "notes": "agent-backend has type-check/lint/build scripts confirmed."
     },
     {
@@ -5987,7 +5987,7 @@
         "Job fails on any error; committed valid YAML"
       ],
       "priority": 418,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed submission-service package.json has type-check but NO lint script."
     },
     {
@@ -6001,7 +6001,7 @@
         "Change documented in docs/infra/agent-backend-deploy.md"
       ],
       "priority": 419,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed render.yaml PORT=10000, plan: free; Dockerfile EXPOSE 8080 / ENV PORT=8080. Mismatch."
     },
     {
@@ -6015,7 +6015,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 420,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed cloudbuild.yaml has REPLACE_VIA_TRIGGER placeholders (lines 84-101)."
     },
     {
@@ -6029,7 +6029,7 @@
         "Deliverable is committed docs only"
       ],
       "priority": 421,
-      "passes": false,
+      "passes": true,
       "notes": "Ties the CI epic together; artifact-framed (doc only)."
     },
     {
