@@ -26,7 +26,7 @@ import { runLkPrefill } from "../lk/runner.js";
 import { runKhPrefill } from "../kh/runner.js";
 import { runLaPrefill } from "../la/runner.js";
 import { runZaPrefill } from "../za/runner.js";
-import { fillVietnamApplication } from "../vietnam/run.js";
+import { runOne as runVietnam } from "../vietnam/runner.js";
 import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
 import { runUsHalt, runUkHalt, runFranceHalt, runAuHalt } from "./halt-runners.js";
 import { runOne as runIndonesia } from "../id/runner.js";
@@ -250,21 +250,6 @@ const runSouthAfrica: RunOne = async (applicationId, jobId) => {
   return normalizeStandard(result);
 };
 
-const runVietnam: RunOne = async (applicationId, jobId) => {
-  const rec = await loadCanonicalAnswers(applicationId);
-  const result = await fillVietnamApplication({ answers: rec }, { runId: jobId ?? applicationId });
-  switch (result.status) {
-    case "submitted_pending_pay":
-      return { outcome: "submitted_pending_pay", reachedStep: "submitted", artefacts: [] };
-    case "scaffolded_pending_walk":
-      return { outcome: "halted_before_pay", reachedStep: "scaffolded", artefacts: [] };
-    case "failed":
-      throw new RetryableRunnerError(`vietnam failed at ${result.failedStep}`);
-    default:
-      throw new Error(`unexpected vietnam status: ${(result as { status: string }).status}`);
-  }
-};
-
 /** Country code that is not yet wired — throws on invocation. */
 function unsupported(country: string): RunOne {
   return async () => {
@@ -319,7 +304,7 @@ export const DISPATCH: Record<string, RunOne> = {
   cambodia: runCambodia,
   laos: runLaos,
   south_africa: runSouthAfrica,
-  vietnam: runVietnam,
+  vietnam: (a, j) => runVietnam(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUsHalt(a, j),
   united_kingdom: (a, j) => runUkHalt(a, j),
@@ -348,7 +333,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   cambodia: { runner: "runKhPrefill", implemented: true },
   laos: { runner: "runLaPrefill", implemented: true },
   south_africa: { runner: "runZaPrefill", implemented: true },
-  vietnam: { runner: "fillVietnamApplication", implemented: true },
+  vietnam: { runner: "vietnam/runner.runOne", implemented: true },
   united_states: { runner: "orchestrateFill (ceac)", implemented: true },
   united_kingdom: { runner: "resumeUkApplication", implemented: true },
   france: { runner: "fillFranceVisasApplication", implemented: true },

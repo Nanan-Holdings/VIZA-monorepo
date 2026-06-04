@@ -9,6 +9,7 @@
  */
 
 import type { Page } from "@playwright/test";
+import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
@@ -101,4 +102,86 @@ export function toDdMmYyyy(yyyymmdd: string): string {
  */
 function cssEscape(id: string): string {
   return id.replace(/([!"#$%&'()*+,./:;<=>?@\[\\\]^`{|}~])/g, "\\$1");
+}
+
+/* ------------------------- RUN-VN-001 per-step fill ------------------------- */
+
+export interface PlannedField {
+  fieldName: string;
+  domId: string;
+  type: VnFieldType;
+  value: string;
+}
+
+/**
+ * Resolve canonical answers → an ordered fill plan against VN_FIELD_MAPPINGS.
+ * Pure (no browser): applies the portal date transform and drops uploads
+ * (handled separately) and fields with no answer. Unit-tested core of the
+ * per-step fill.
+ */
+export function resolveStepPlan(
+  answers: Record<string, string>,
+  mappings: Record<string, VnFieldMapping>,
+): PlannedField[] {
+  const plan: PlannedField[] = [];
+  for (const [fieldName, mapping] of Object.entries(mappings)) {
+    if (mapping.type === "upload") continue;
+    const raw = answers[fieldName];
+    if (!raw) continue;
+    const value = mapping.type === "date" ? toDdMmYyyy(raw) : raw;
+    plan.push({ fieldName, domId: mapping.domId, type: mapping.type, value });
+  }
+  return plan;
+}
+
+async function fillOne(page: Page, type: VnFieldType, domId: string, value: string): Promise<void> {
+  switch (type) {
+    case "text":
+    case "textarea":
+      await fillText(page, domId, value);
+      return;
+    case "select":
+    case "country":
+      await pickSelect(page, domId, value);
+      return;
+    case "radio":
+      await pickRadio(page, domId, value);
+      return;
+    case "date":
+      await fillDate(page, domId, value); // value already DD/MM/YYYY from the plan
+      return;
+    case "upload":
+    default:
+      return;
+  }
+}
+
+export interface StepFillResult {
+  filled: number;
+  skipped: number;
+}
+
+/**
+ * Execute a full per-step fill: resolve the plan and fill each field,
+ * counting successes vs failures. Used by fillVietnamApplication (run.ts)
+ * to progress the form toward submitted_pending_pay.
+ */
+export async function fillFormStep(
+  page: Page,
+  answers: Record<string, string>,
+  mappings: Record<string, VnFieldMapping>,
+): Promise<StepFillResult> {
+  const plan = resolveStepPlan(answers, mappings);
+  let filled = 0;
+  let skipped = Object.keys(mappings).length - plan.length;
+  for (const f of plan) {
+    try {
+      await fillOne(page, f.type, f.domId, f.value);
+      filled++;
+    } catch (err) {
+      console.warn(`[vn] fill failed for ${f.fieldName} (${f.domId}): ${err instanceof Error ? err.message : err}`);
+      skipped++;
+    }
+  }
+  return { filled, skipped };
 }
