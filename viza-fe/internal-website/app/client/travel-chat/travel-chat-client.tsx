@@ -1197,6 +1197,21 @@ function createTravelChatArchivePayload(
   };
 }
 
+function getTravelArchiveSessionUpdatedTime(
+  archive: TravelChatArchivePayload
+): number {
+  const sessionTimes = archive.sessions
+    .map((session) => Date.parse(session.updatedAt))
+    .filter(Number.isFinite);
+
+  if (sessionTimes.length > 0) {
+    return Math.max(...sessionTimes);
+  }
+
+  const archiveTime = Date.parse(archive.updatedAt);
+  return Number.isFinite(archiveTime) ? archiveTime : 0;
+}
+
 function writeArchivedTravelSessions(
   storageKey: string,
   sessions: TravelChatSession[],
@@ -2380,7 +2395,9 @@ export function TravelChatClient({
   const sessionsRef = useRef<TravelChatSession[]>(sessions);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
   const [archiveLoadedKey, setArchiveLoadedKey] = useState<string | null>(null);
-  const remoteArchiveHydratedKeyRef = useRef<string | null>(null);
+  const [remoteArchiveHydratedKey, setRemoteArchiveHydratedKey] = useState<
+    string | null
+  >(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
@@ -3211,7 +3228,7 @@ export function TravelChatClient({
   );
 
   useEffect(() => {
-    remoteArchiveHydratedKeyRef.current = null;
+    setRemoteArchiveHydratedKey(null);
     const localArchive = readArchivedTravelArchive(archiveKey, interfaceLocale);
     let nextSessions = localArchive.sessions;
     let nextActiveSessionId = localArchive.sessions[0].id;
@@ -3247,6 +3264,8 @@ export function TravelChatClient({
       }
     }
 
+    const hydrationBaselineSessions = nextSessions;
+    sessionsRef.current = nextSessions;
     setSessions(nextSessions);
     setActiveSessionId(nextActiveSessionId);
     setActiveMapTargetId("");
@@ -3255,7 +3274,7 @@ export function TravelChatClient({
     setArchiveLoadedKey(archiveKey);
 
     if (!shouldFetchRemoteArchive) {
-      remoteArchiveHydratedKeyRef.current = archiveKey;
+      setRemoteArchiveHydratedKey(archiveKey);
       return;
     }
 
@@ -3279,20 +3298,23 @@ export function TravelChatClient({
           payload.archive,
           interfaceLocale
         );
-        const remoteUpdatedAt = Date.parse(remoteArchive.updatedAt);
-        const localUpdatedAt = Date.parse(localArchive.updatedAt);
+        const remoteUpdatedAt =
+          getTravelArchiveSessionUpdatedTime(remoteArchive);
+        const localUpdatedAt = getTravelArchiveSessionUpdatedTime(localArchive);
+        const localChangedDuringHydration =
+          sessionsRef.current !== hydrationBaselineSessions;
         const shouldUseRemote =
-          Number.isFinite(remoteUpdatedAt) &&
-          (!Number.isFinite(localUpdatedAt) || remoteUpdatedAt >= localUpdatedAt);
+          !localChangedDuringHydration && remoteUpdatedAt > localUpdatedAt;
 
         if (!disposed && shouldUseRemote) {
+          sessionsRef.current = remoteArchive.sessions;
           setSessions(remoteArchive.sessions);
           setActiveSessionId(remoteArchive.sessions[0].id);
           applyMapArchiveState(remoteArchive.mapState);
         }
       } finally {
         if (!disposed) {
-          remoteArchiveHydratedKeyRef.current = archiveKey;
+          setRemoteArchiveHydratedKey(archiveKey);
         }
       }
     })();
@@ -3346,7 +3368,7 @@ export function TravelChatClient({
 
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
-    if (remoteArchiveHydratedKeyRef.current !== archiveKey) return;
+    if (remoteArchiveHydratedKey !== archiveKey) return;
 
     const mapState: TravelChatArchiveMapState = {
       activeMapTargetId,
@@ -3380,6 +3402,7 @@ export function TravelChatClient({
     archiveLoadedKey,
     googleCityCoordinates,
     mapModeSessionIds,
+    remoteArchiveHydratedKey,
     sessions,
   ]);
 
