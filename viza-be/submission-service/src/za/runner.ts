@@ -248,3 +248,6 @@ export async function runZaPrefill(input: ZaRunInput): Promise<ZaRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-ZA-001: dispatch runOne. See runners/legacy-prefill-adapters.ts.
+export { runSouthAfrica as runOne } from "../runners/legacy-prefill-adapters.js";

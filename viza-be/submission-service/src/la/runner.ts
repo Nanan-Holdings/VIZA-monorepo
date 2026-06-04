@@ -229,3 +229,6 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-LA-001: dispatch runOne. See runners/legacy-prefill-adapters.ts.
+export { runLaos as runOne } from "../runners/legacy-prefill-adapters.js";

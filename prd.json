@@ -5277,7 +5277,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 367,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/in/runner.ts exists (runInPrefill at line 143) but was never imported. QUE-001 binds it; this verifies the path."
     },
     {
@@ -5291,7 +5291,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 368,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/lk/runner.ts exists (runLkPrefill line 120), never imported."
     },
     {
@@ -5305,7 +5305,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 369,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/kh/runner.ts exists, never wired."
     },
     {
@@ -5319,7 +5319,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 370,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/la/runner.ts exists, never wired."
     },
     {
@@ -5333,7 +5333,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 371,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/za/runner.ts exists, never wired."
     },
     {
@@ -5403,7 +5403,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 376,
-      "passes": false,
+      "passes": true,
       "notes": "Used by every RUN-* story to keep status semantics uniform with worker.ts retry/dead-letter logic."
     },
     {

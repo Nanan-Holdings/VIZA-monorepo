@@ -254,3 +254,6 @@ export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-KH-001: dispatch runOne. See runners/legacy-prefill-adapters.ts.
+export { runCambodia as runOne } from "../runners/legacy-prefill-adapters.js";
