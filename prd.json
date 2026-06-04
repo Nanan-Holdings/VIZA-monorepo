@@ -5053,7 +5053,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 351,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed src/italy-vfs-cn has pages/selectors/normalize/errors but no runner.ts."
     },
     {
