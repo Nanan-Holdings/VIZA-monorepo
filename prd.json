@@ -4613,7 +4613,7 @@
         "docs/security/secret-purge-runbook.md references the keys named in SEC-003 rotation runbook"
       ],
       "priority": 320,
-      "passes": false,
+      "passes": true,
       "notes": "Brief reported agent-backend/.env.local and submission-service/.env committed with real keys; current findings show them gitignored and untracked, so this story is defensive + documents history-rewrite for any historical commits."
     },
     {
