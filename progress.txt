@@ -2719,3 +2719,11 @@ acknowledgment).
 - RUN-CORE-005 src/__tests__/runners.smoke.test.ts (4): every launch country resolves to runOne; DISPATCH<->DISPATCH_META in sync + implemented; ISO aliases resolve; unknown -> UnsupportedCountryError. Runs under node:test.
 - Files: docs/runners/country-capability-matrix.md, src/__tests__/runners.smoke.test.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-CORE-006
+- Proxy egress coverage: added france/italy/saudi_arabia to SLUG_TO_ISO2 (were missing -> would throw). Added proxyCoverageGaps() helper. All 16 launch countries now resolve.
+- DEP-003 validate-env now asserts proxyCoverageGaps(LAUNCH)==[] at startup -> clear boot error listing any country missing a proxy mapping.
+- docs/runners/proxy-accounts.md: per-country egress table (override vs fallback) + portal-account requirements (which countries need <cc>_accounts vs unauthenticated).
+- Test src/proxy/__tests__/coverage.spec.ts (3). 
+- Files: src/proxy/country-overrides.ts, src/config/validate-env.ts, docs/runners/proxy-accounts.md, +test, prd.json. Typecheck passes.
+---

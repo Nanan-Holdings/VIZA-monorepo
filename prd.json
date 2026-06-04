@@ -5459,7 +5459,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 380,
-      "passes": false,
+      "passes": true,
       "notes": "src/proxy and src/account-loader.ts exist; ensure all 16 covered."
     },
     {
