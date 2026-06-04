@@ -5627,7 +5627,7 @@
         "JSON is valid and Next build config is consistent with package.json scripts"
       ],
       "priority": 392,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed NO vercel.json in marketing-website."
     },
     {
@@ -5641,7 +5641,7 @@
         "Cross-references vercel.json (MKT-010)"
       ],
       "priority": 393,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with MKT-010."
     },
     {
@@ -5655,7 +5655,7 @@
         "Typecheck passes in viza-fe/marketing-website"
       ],
       "priority": 394,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed sitemap.ts and robots.ts exist; extend to all countries."
     },
     {

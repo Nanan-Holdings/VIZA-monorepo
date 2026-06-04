@@ -2782,3 +2782,10 @@ acknowledgment).
 - MKT-013: removed fabricated eta from card data (MKT-002); fixed fake "84" count; documented native-app badges as intentional pre-launch placeholders (link to web app). Office addresses/reviews remain as static brand content.
 - Files: app/[locale]/page.tsx, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - MKT-010/011/012
+- MKT-012: app/sitemap.ts now enumerates all LAUNCHED_COUNTRIES visa pages (×2 locales) from lib/countries.ts + added /legal routes; coming-soon excluded. robots.ts allows / (covers country routes).
+- MKT-010: vercel.json (framework nextjs, npm ci, next build, .next, region sin1, git main prod).
+- MKT-011: docs/infra/marketing-deploy.md — Vercel linkage, env var names (NEXT_PUBLIC_SITE_URL/PORTAL_URL/AGENT_BACKEND_URL), preview->prod flow, rollback, post-deploy curls. Cross-refs vercel.json.
+- Files: app/sitemap.ts, vercel.json, docs/infra/marketing-deploy.md, prd.json. Typecheck passes. MKT block COMPLETE (13/13).
+---
