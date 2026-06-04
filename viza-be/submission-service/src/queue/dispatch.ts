@@ -12,19 +12,13 @@
  * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
  * conditions throw `NeedsHumanError`.
  */
-import {
-  runThPrefill,
-  runTrPrefill,
-  runAePrefill,
-  type CommonAnswers,
-} from "../t3/index.js";
 import { runInPrefill } from "../in/runner.js";
 import { runLkPrefill } from "../lk/runner.js";
 import { runKhPrefill } from "../kh/runner.js";
 import { runLaPrefill } from "../la/runner.js";
 import { runZaPrefill } from "../za/runner.js";
 import { runOne as runVietnam } from "../vietnam/runner.js";
-import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
+import { loadCanonicalAnswers, pick } from "./answers.js";
 import { runUsHalt, runUkHalt, runAuHalt } from "./halt-runners.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
 import { runOne as runIndonesia } from "../id/runner.js";
@@ -34,6 +28,9 @@ import { runOne as runSaudi } from "../sa/runner.js";
 import { runOne as runMalaysia } from "../my/runner.js";
 import { runOne as runJapan } from "../jp/runner.js";
 import { runOne as runCanada } from "../ca/runner.js";
+import { runOne as runTurkey } from "../tr/runner.js";
+import { runOne as runThailand } from "../th/runner.js";
+import { runOne as runUae } from "../ae/runner.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -78,44 +75,6 @@ function normalizeStandard(r: StandardResult): DispatchOutcome {
     default:
       throw new Error(`unexpected runner status: ${r.status}`);
   }
-}
-
-function toCommonAnswers(rec: CanonicalRecord): CommonAnswers {
-  return {
-    surname: pick(rec, "surname"),
-    given_names: pick(rec, "given_names"),
-    date_of_birth: pick(rec, "date_of_birth"),
-    nationality: pick(rec, "nationality"),
-    passport_number: pick(rec, "passport_number"),
-    passport_expiry_date: pick(rec, "passport_expiry_date"),
-    passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
-    email: pick(rec, "email"),
-    phone: pick(rec, "phone"),
-    intended_arrival_date: pick(rec, "intended_arrival_date"),
-    intended_departure_date: pick(rec, "intended_departure_date") || undefined,
-    occupation: pick(rec, "occupation") || undefined,
-    visit_purpose: pick(rec, "visit_purpose") || undefined,
-  };
-}
-
-/** Build a generic-runner adapter for a Tier-3 country. */
-function genericAdapter(
-  runner: (input: {
-    jobId: string;
-    applicationId: string;
-    answers: CommonAnswers;
-    headless?: boolean;
-  }) => Promise<StandardResult>,
-): RunOne {
-  return async (applicationId, jobId) => {
-    const rec = await loadCanonicalAnswers(applicationId);
-    const result = await runner({
-      jobId: jobId ?? applicationId,
-      applicationId,
-      answers: toCommonAnswers(rec),
-    });
-    return normalizeStandard(result);
-  };
 }
 
 /* ---------------------- Dedicated-runner adapters ---------------------- */
@@ -281,11 +240,13 @@ export const DISPATCH: Record<string, RunOne> = {
   egypt: (a, j) => runEgypt(a, j),
   // RUN-IT-001: dedicated Italy VFS (CN corridor) runner (replaces generic t3 scaffold).
   italy: (a, j) => runItaly(a, j),
-  thailand: genericAdapter(runThPrefill),
+  // RUN-TH-001: dedicated Thailand runner (shared core).
+  thailand: (a, j) => runThailand(a, j),
   // RUN-MY-001: dedicated Malaysia eVISA/MDAC runner (replaces generic t3 scaffold).
   malaysia: (a, j) => runMalaysia(a, j),
-  turkey: genericAdapter(runTrPrefill),
-  united_arab_emirates: genericAdapter(runAePrefill),
+  // RUN-TR-001 / RUN-AE-001: dedicated Türkiye + UAE runners (shared core).
+  turkey: (a, j) => runTurkey(a, j),
+  united_arab_emirates: (a, j) => runUae(a, j),
   // RUN-CA-001: dedicated Canada runner (shared core).
   canada: (a, j) => runCanada(a, j),
   india: runIndia,
@@ -313,10 +274,10 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   indonesia: { runner: "id/runner.runOne", implemented: true },
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
-  thailand: { runner: "runThPrefill", implemented: true },
+  thailand: { runner: "th/runner.runOne", implemented: true },
   malaysia: { runner: "my/runner.runOne", implemented: true },
-  turkey: { runner: "runTrPrefill", implemented: true },
-  united_arab_emirates: { runner: "runAePrefill", implemented: true },
+  turkey: { runner: "tr/runner.runOne", implemented: true },
+  united_arab_emirates: { runner: "ae/runner.runOne", implemented: true },
   canada: { runner: "ca/runner.runOne", implemented: true },
   india: { runner: "runInPrefill", implemented: true },
   sri_lanka: { runner: "runLkPrefill", implemented: true },
