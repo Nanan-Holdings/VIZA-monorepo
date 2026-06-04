@@ -2684,3 +2684,11 @@ acknowledgment).
 - 002 stories (recon+routing+tests) shipped together: routing already present; per-country recon via shared discoverFields+withRetry; field-mapping tests.
 - Files: src/{tr,th,ae}/* + __tests__, src/queue/dispatch.ts, prd.json. Typecheck passes; 14 queue+country tests pass.
 ---
+
+## 2026-06-04 - RUN-IN/LK/KH/LA/ZA-001 + RUN-CORE-002
+- RUN-CORE-002: src/runners/result-map.ts — mapStandardToOutcome (uniform runner-status -> DispatchOutcome / throw) + outcomeToJobStatus. Single source for status semantics matching worker.ts.
+- Moved the 5 inline dispatch adapters (runIndia/SriLanka/Cambodia/Laos/SouthAfrica) into src/runners/legacy-prefill-adapters.ts using result-map; each country runner.ts now re-exports `runOne`. dispatch imports them (removed inline defs + now-unused normalizeStandard/StandardResult/loadCanonicalAnswers/pick/runXxPrefill imports).
+- All 5 already in GOVT_FEE_ROUTING (india/sri_lanka/cambodia/laos/south_africa). Bindings unchanged (still bound to same logic).
+- Integration contract test src/queue/__tests__/terminal-status.spec.ts (5): every runner outcome reaches a terminal runner_job status (halt/submit/paper -> succeeded; blocked/anti_bot -> retry->failed; needs_human -> failed). 10 queue tests pass.
+- Files: src/runners/{result-map,legacy-prefill-adapters}.ts, in/lk/kh/la/za runner.ts (runOne re-export), src/queue/dispatch.ts + terminal-status.spec.ts, prd.json. Typecheck passes.
+---

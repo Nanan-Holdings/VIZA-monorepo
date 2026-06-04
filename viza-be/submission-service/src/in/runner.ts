@@ -271,3 +271,6 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-IN-001: dispatch runOne (loads answers, maps result). See runners/legacy-prefill-adapters.ts.
+export { runIndia as runOne } from "../runners/legacy-prefill-adapters.js";
