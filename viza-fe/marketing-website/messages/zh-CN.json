@@ -1,6 +1,7 @@
 {
   "cta": {
-    "payWithWechat": "微信支付"
+    "payWithWechat": "微信支付",
+    "payByCard": "申请并用银行卡支付"
   },
   "nav": {
     "home": "首页",

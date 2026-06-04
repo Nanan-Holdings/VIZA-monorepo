@@ -30,9 +30,39 @@ import {
   type StripeSupabaseClient,
   type VizaStripeMetadata,
 } from "../_shared";
+import { applyStripeEvent } from "@/lib/stripe/handle-event";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { runPostPaidSideEffects } from "@/lib/checkout/post-paid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * Guest card checkout (marketing-funnel) routes through the order-model
+ * applier + shared post-paid side-effects, NOT the authenticated
+ * payment_records path. Returns true when it handled the session so the
+ * caller skips the commercial flow. Sessions are tagged with
+ * `metadata.guest_checkout="1"` by `app/actions/card-checkout.ts`.
+ */
+async function handleGuestCheckoutSession(
+  session: Stripe.Checkout.Session,
+  event: Stripe.Event,
+): Promise<boolean> {
+  if (session.metadata?.guest_checkout !== "1") return false;
+  if (session.payment_status === "paid") {
+    const result = await applyStripeEvent(createAdminClient() as never, {
+      id: event.id,
+      // Normalize async_payment_succeeded → completed; the applier keys on
+      // checkout.session.completed and only acts when payment_status=paid.
+      type: "checkout.session.completed",
+      data: { object: session as unknown as Record<string, unknown> },
+    });
+    if (result.kind === "paid") {
+      runPostPaidSideEffects(result.orderId, "card");
+    }
+  }
+  return true;
+}
 
 function checkoutSessionStatus(session: Stripe.Checkout.Session): string {
   if (session.payment_status === "paid") return "paid";
@@ -234,6 +264,11 @@ async function handleCheckoutSessionEvent(
   const session = await stripe.checkout.sessions.retrieve(eventSession.id, {
     expand: ["payment_intent.latest_charge", "invoice"],
   });
+
+  // Guest marketing-funnel checkout: provision an account + magic-link
+  // instead of the authenticated payment_records flow.
+  if (await handleGuestCheckoutSession(session, event)) return;
+
   const metadata = extractVizaMetadata(session.metadata);
   const existingRecord = await getRecordOrNull(adminClient, {
     paymentRecordId: metadata.paymentRecordId,
