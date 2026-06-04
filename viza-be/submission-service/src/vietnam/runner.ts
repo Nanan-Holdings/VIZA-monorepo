@@ -1,6 +1,6 @@
 import { fillVietnamApplication } from "./run.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
-import { RetryableRunnerError, type DispatchOutcome } from "../queue/dispatch.js";
+import { RetryableRunnerError, type DispatchOutcome } from "../queue/types.js";
 
 /**
  * Vietnam e-Visa dispatch entrypoint (RUN-VN-001).

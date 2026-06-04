@@ -5165,7 +5165,7 @@
         "Unit test + Typecheck passes in viza-be/submission-service"
       ],
       "priority": 359,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no Canada runner. canada present in pricing.ts."
     },
     {
@@ -5179,7 +5179,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 360,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-CA-001."
     },
     {
