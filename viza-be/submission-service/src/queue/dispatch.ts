@@ -27,7 +27,8 @@ import { runLaPrefill } from "../la/runner.js";
 import { runZaPrefill } from "../za/runner.js";
 import { runOne as runVietnam } from "../vietnam/runner.js";
 import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
-import { runUsHalt, runUkHalt, runFranceHalt, runAuHalt } from "./halt-runners.js";
+import { runUsHalt, runUkHalt, runAuHalt } from "./halt-runners.js";
+import { runOne as runFrance } from "../france-visas/runner.js";
 import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
@@ -309,7 +310,7 @@ export const DISPATCH: Record<string, RunOne> = {
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUsHalt(a, j),
   united_kingdom: (a, j) => runUkHalt(a, j),
-  france: (a, j) => runFranceHalt(a, j),
+  france: (a, j) => runFrance(a, j),
   australia: (a, j) => runAuHalt(a, j),
   // No runner yet:
   saudi_arabia: unsupported("saudi_arabia"),
@@ -337,7 +338,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   vietnam: { runner: "vietnam/runner.runOne", implemented: true },
   united_states: { runner: "orchestrateFill (ceac)", implemented: true },
   united_kingdom: { runner: "resumeUkApplication", implemented: true },
-  france: { runner: "fillFranceVisasApplication", implemented: true },
+  france: { runner: "france-visas/runner.runOne", implemented: true },
   australia: { runner: "fillVisitor600Application", implemented: true },
   saudi_arabia: { runner: "(none)", implemented: false },
   japan: { runner: "(paper renderer)", implemented: false },
