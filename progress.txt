@@ -2713,3 +2713,9 @@ acknowledgment).
 - Test src/runners/__tests__/evisa-artifact.spec.ts (2): key construction + sanitization/ext. Pass.
 - Files: src/runners/evisa-artifact.ts (+test), src/vietnam/retrieve-evisa.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-CORE-004/005
+- RUN-CORE-004 docs/runners/country-capability-matrix.md: 16 launch + extras, each with runner path / recon status / submit-halt-paper policy / payment collector / test status. Matches dispatch DISPATCH_META + payment-routing. Referenced from OBSV launch checklist.
+- RUN-CORE-005 src/__tests__/runners.smoke.test.ts (4): every launch country resolves to runOne; DISPATCH<->DISPATCH_META in sync + implemented; ISO aliases resolve; unknown -> UnsupportedCountryError. Runs under node:test.
+- Files: docs/runners/country-capability-matrix.md, src/__tests__/runners.smoke.test.ts, prd.json. Typecheck passes.
+---
