@@ -2821,3 +2821,9 @@ acknowledgment).
 - POR-008: covered-countries.ts (RESULT_CARD_COUNTRIES = 16 codes US/FR/UK/VN/AU/JP + ID/EG/SA/MY/TH/AE/CA/TR/IT/IN) + test (vitest, 2) asserting all 16 launch countries covered, no dupes. Guest magic-link flow resumes into the same SubmissionStatusStep -> real card per country, no empty fallback.
 - Files: lib/queue/countries.test.ts, _components/result-cards/covered-countries.ts + .test.ts, prd.json. 6 vitest tests pass; typecheck clean.
 ---
+
+## 2026-06-04 - POR-010
+- Added lib/launched-countries.ts: isCountryLaunched() using the runner LAUNCH_COUNTRIES set + normalizeCountry (consistent with marketing lib/countries.ts launched). PopularDestinationsSection now disables non-launched destinations (cursor-not-allowed, opacity-50, title/aria coming-soon tooltip); groups stay browsable.
+- Files: lib/launched-countries.ts, components/client/home/PopularDestinationsSection.tsx, prd.json. Typecheck passes.
+- Note: deep-link to a coming-soon country still routes to the application flow; the picker is the primary gate. Full deep-link guard is a follow-up.
+---
