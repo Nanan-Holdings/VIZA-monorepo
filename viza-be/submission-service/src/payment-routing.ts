@@ -59,6 +59,9 @@ export const GOVT_FEE_ROUTING: ReadonlyArray<RoutingEntry> = [
   { country: "sri_lanka", visaType: "LK_ETA", mechanism: "runner_escrow_card" },
   { country: "india", visaType: "IN_E_VISA", mechanism: "runner_escrow_card" },
   { country: "south_africa", visaType: "ZA_VISITOR_VISA", mechanism: "applicant_direct_link" },
+  // RUN-SA-002: Saudi e-Visa is online-pay; VIZA collects via escrow (fee TBD
+  // until saudi_arabia is added to lib/pricing.ts — PAYP-001).
+  { country: "saudi_arabia", visaType: "SA_E_VISA", mechanism: "runner_escrow_card" },
 ];
 
 export class UnknownPackageError extends Error {

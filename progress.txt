@@ -2644,3 +2644,11 @@ acknowledgment).
 - Files: src/france-visas/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
 - Limitation: succeeds at runtime only with provisioned fv_accounts + complete FV answer set (PROV-*, onHold); else NeedsHumanError.
 ---
+
+## 2026-06-04 - RUN-SA-001/002
+- Built Saudi Arabia runner from scratch: src/sa/{field-mappings,fillers,form-recon,runner}.ts (mirrors Egypt template). runner.ts runOne fills + halts before gov pay; form-recon.ts has discoverFields + withRetry backoff (local stopgap until RUN-CORE-001). Bound saudi_arabia -> sa/runner.runOne (replaced UnsupportedCountryError stub; meta updated).
+- RUN-SA-002: payment-routing GOVT_FEE_ROUTING saudi_arabia/SA_E_VISA=runner_escrow_card (fee TBD pending pricing.ts add via PAYP-001); runner reports routing or notes unconfigured. Tests: field-mappings.spec.ts (4) + recon-parse.spec.ts (2, fixture). All pass.
+- Updated dispatch.spec.ts unwired-country test saudi_arabia->japan (saudi now implemented). dispatch 5/5.
+- Files: src/sa/*, src/sa/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts + __tests__/dispatch.spec.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (DATA-001); SA fee pending pricing.ts (PAYP-001); halts before pay (escrow not integrated).
+---
