@@ -2490,3 +2490,9 @@ acknowledgment).
 - Verified via git check-ignore: .example tracked-eligible, real .env + service-account json ignored.
 - Learning: gitignore patterns are recursive across workspaces; only per-workspace artifact dirs (recon-out etc) need local rules.
 ---
+
+## 2026-06-04 - SEC-002
+- Added docs/security/secret-purge-runbook.md: untrack (git rm --cached) + history-rewrite (filter-repo/BFG) + force-push (operator-only) + verify steps; cross-refs SEC-003 rotation keys.
+- No real secret currently tracked (audit re-confirmed), so no working-tree untracking needed; runbook is defensive for historical commits.
+- Files: docs/security/secret-purge-runbook.md, prd.json
+---
