@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
 import { createPaymentIntent, normalizeAirwallexStatus, retrievePaymentIntent } from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
@@ -6,6 +6,16 @@ import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type JsonObject = Record<string, unknown>;
+
+export interface AirwallexFallbackTokenPayload {
+  paymentId: string;
+  intentId: string;
+  userId: string;
+  productId: string;
+  amountFen: number;
+  currency: "CNY";
+  exp: number;
+}
 
 export interface AirwallexPaymentRecord {
   id: string;
@@ -34,6 +44,78 @@ export async function getAppBaseUrl(): Promise<string> {
   if (!host) throw new Error("Application URL is not available.");
   const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
   return `${proto}://${host}`.replace(/\/+$/, "");
+}
+
+function getFallbackSecret(): string {
+  const secret =
+    process.env.AIRWALLEX_FALLBACK_SECRET?.trim() ??
+    process.env.CLIENT_SESSION_SECRET?.trim() ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!secret) throw new Error("Airwallex fallback token secret is not configured.");
+  return secret;
+}
+
+function signFallbackPayload(payload: string): string {
+  return createHmac("sha256", getFallbackSecret()).update(payload).digest("base64url");
+}
+
+export function createAirwallexFallbackToken(
+  payload: Omit<AirwallexFallbackTokenPayload, "exp">,
+): string {
+  const encodedPayload = Buffer.from(
+    JSON.stringify({
+      ...payload,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 2,
+    }),
+    "utf8",
+  ).toString("base64url");
+  return `${encodedPayload}.${signFallbackPayload(encodedPayload)}`;
+}
+
+export function verifyAirwallexFallbackToken(token: string): AirwallexFallbackTokenPayload | null {
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature) return null;
+
+  const expected = signFallbackPayload(encodedPayload);
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const signatureBuffer = Buffer.from(signature, "utf8");
+  if (
+    expectedBuffer.length !== signatureBuffer.length ||
+    !timingSafeEqual(expectedBuffer, signatureBuffer)
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(encodedPayload, "base64url").toString("utf8"),
+    ) as Partial<AirwallexFallbackTokenPayload>;
+    if (
+      typeof payload.paymentId !== "string" ||
+      typeof payload.intentId !== "string" ||
+      typeof payload.userId !== "string" ||
+      typeof payload.productId !== "string" ||
+      typeof payload.amountFen !== "number" ||
+      payload.currency !== "CNY" ||
+      typeof payload.exp !== "number" ||
+      payload.exp < Math.floor(Date.now() / 1000)
+    ) {
+      return null;
+    }
+    return payload as AirwallexFallbackTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function isPaymentRecordStorageUnavailable(error: { message?: string } | null): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  return (
+    message.includes("payment_records") &&
+    (message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("could not find the table"))
+  );
 }
 
 export async function getAuthorizedAirwallexRecord(paymentId: string): Promise<AirwallexPaymentRecord | null> {
@@ -65,7 +147,10 @@ function mergeMetadata(existing: unknown, next: JsonObject): JsonObject {
   };
 }
 
-export async function ensureAirwallexIntent(record: AirwallexPaymentRecord) {
+export async function ensureAirwallexIntent(
+  record: AirwallexPaymentRecord,
+  options: { persist?: boolean } = {},
+) {
   if (record.provider_session_id) return retrievePaymentIntent(record.provider_session_id);
 
   const appBaseUrl = await getAppBaseUrl();
@@ -84,22 +169,24 @@ export async function ensureAirwallexIntent(record: AirwallexPaymentRecord) {
     },
   });
 
-  const { error } = await createAdminClient()
-    .from("payment_records")
-    .update({
-      provider_session_id: intent.id,
-      provider_payment_id: intent.id,
-      status: normalizeAirwallexStatus(intent.status),
-      metadata: mergeMetadata(record.metadata, {
-        intent_id: intent.id,
-        intent_status: intent.status,
-        request_id: intent.request_id ?? `viza-${record.id}`,
-      }),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", record.id);
+  if (options.persist !== false) {
+    const { error } = await createAdminClient()
+      .from("payment_records")
+      .update({
+        provider_session_id: intent.id,
+        provider_payment_id: intent.id,
+        status: normalizeAirwallexStatus(intent.status),
+        metadata: mergeMetadata(record.metadata, {
+          intent_id: intent.id,
+          intent_status: intent.status,
+          request_id: intent.request_id ?? `viza-${record.id}`,
+        }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", record.id);
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
+  }
   return intent;
 }
 
