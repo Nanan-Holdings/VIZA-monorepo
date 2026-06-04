@@ -4627,7 +4627,7 @@
         "File passes markdown lint if a markdown linter is configured, otherwise no typecheck required for this docs-only story"
       ],
       "priority": 321,
-      "passes": false,
+      "passes": true,
       "notes": "Use cloudbuild.yaml secret list as the canonical inventory. Cross-ref SEC-001 inventory."
     },
     {
