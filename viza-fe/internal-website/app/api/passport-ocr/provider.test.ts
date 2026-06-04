@@ -9,6 +9,7 @@ const FIELD_NAMES = [
   "surname",
   "passport_number",
   "date_of_birth",
+  "place_of_birth",
   "nationality",
   "issuing_country",
   "issue_date",
@@ -23,6 +24,7 @@ function successResponse() {
     surname: "ERIKSSON",
     passport_number: "L898902C3",
     date_of_birth: "1974-08-12",
+    place_of_birth: "UTOPIA",
     nationality: "UTO",
     issuing_country: "UTO",
     issue_date: "2007-04-15",
@@ -108,6 +110,7 @@ function chineseNameWithMrzResponse() {
     surname: "张",
     passport_number: "E12345678",
     date_of_birth: "1990-01-01",
+    place_of_birth: "BEIJING",
     nationality: "CHN",
     issuing_country: "CHN",
     issue_date: "2020-01-01",
@@ -147,6 +150,7 @@ function fullNameAsSurnameResponse() {
     surname: "CHEN HONGYU",
     passport_number: "E12345678",
     date_of_birth: "1990-01-01",
+    place_of_birth: "HUNAN",
     nationality: "CHN",
     issuing_country: "CHN",
     issue_date: "2020-01-01",
@@ -170,6 +174,46 @@ function fullNameAsSurnameResponse() {
               mrz: {
                 line1: null,
                 line2: null,
+              },
+            }),
+          },
+        ],
+      },
+    ],
+  });
+}
+
+function mrzNoiseNameResponse() {
+  const fields = {
+    full_name: "EMCHNM HEN HONGYU",
+    given_names: "HONGYU",
+    surname: "CHEN",
+    passport_number: "EM7429107",
+    date_of_birth: "2006/07/27",
+    place_of_birth: "HAINAN",
+    nationality: "CHINESE",
+    issuing_country: "CHN",
+    issue_date: "2024/06/25",
+    expiry_date: "2034/06/24",
+    gender: "M",
+  };
+  const fieldConfidence = Object.fromEntries(FIELD_NAMES.map((field) => [field, 0.72]));
+
+  return Response.json({
+    output: [
+      {
+        type: "message",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify({
+              is_readable: true,
+              confidence: 0.82,
+              fields,
+              field_confidence: fieldConfidence,
+              mrz: {
+                line1: null,
+                line2: "EM74291070CHN0607270M3406245<<<<<<<<<<<<<<06",
               },
             }),
           },
@@ -210,7 +254,7 @@ describe("passport OCR provider", () => {
 
     const [body] = requestBodies(fetchMock);
     const filePart = body.input[1].content[1];
-    expect(body.model).toBe("gpt-4o-mini");
+    expect(body.model).toBe("gpt-4o");
     expect(filePart.type).toBe("input_file");
     expect(filePart.file_data).toMatch(/^data:application\/pdf;base64,/);
   });
@@ -232,7 +276,7 @@ describe("passport OCR provider", () => {
     const result = await extractPassportOcr(file);
 
     const bodies = requestBodies(fetchMock);
-    expect(bodies.map((body) => body.model)).toEqual(["gpt-4.1-mini", "gpt-4o-mini"]);
+    expect(bodies.map((body) => body.model)).toEqual(["gpt-4.1-mini", "gpt-4o"]);
     expect(result.isReadable).toBe(true);
     expect(result.fields.passportNumber.value).toBe("L898902C3");
   });
@@ -312,5 +356,28 @@ describe("passport OCR provider", () => {
     expect(result.fields.givenNames.value).toBe("HONGYU");
     expect(result.fields.surname.value).toBe("CHEN");
     expect(result.warnings).toContain("surname_repaired_from_full_name");
+  });
+
+  it("repairs MRZ-contaminated names and verifies core fields from MRZ line 2", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(mrzNoiseNameResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const file: PassportOcrFile = {
+      bytes: Buffer.from("synthetic china passport image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    const result = await extractPassportOcr(file);
+
+    expect(result.fields.fullName.value).toBe("HONGYU CHEN");
+    expect(result.fields.givenNames.value).toBe("HONGYU");
+    expect(result.fields.surname.value).toBe("CHEN");
+    expect(result.fields.passportNumber.value).toBe("EM7429107");
+    expect(result.fields.dateOfBirth.value).toBe("2006-07-27");
+    expect(result.fields.expiryDate.value).toBe("2034-06-24");
+    expect(result.fields.gender.value).toBe("M");
+    expect(result.warnings).toContain("full_name_repaired_from_name_parts");
+    expect(result.warnings).toContain("fields_verified_from_mrz");
   });
 });

@@ -6,7 +6,9 @@
 	boolean,
 	date,
 	integer,
+	bigint,
 	jsonb,
+	numeric,
 	customType,
 	index,
 	uniqueIndex,
@@ -254,6 +256,117 @@ export const visaChatMessages = pgTable("visa_chat_messages", {
 });
 
 // =============================================================================
+// TRAVEL DESTINATION INDEX
+// Large searchable index for Travel AI destination resolution. Cards are stored
+// separately and generated lazily only after a destination is selected.
+// =============================================================================
+
+export const travelDestinations = pgTable("travel_destinations", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	canonicalName: text("canonical_name").notNull(),
+	displayName: text("display_name").notNull(),
+	normalizedName: text("normalized_name"),
+	countryCode: text("country_code"),
+	countryName: text("country_name"),
+	region: text("region"),
+	city: text("city"),
+	placeType: text("place_type"),
+	latitude: numeric("latitude"),
+	longitude: numeric("longitude"),
+	timezone: text("timezone"),
+	currency: text("currency"),
+	population: bigint("population", { mode: "number" }),
+	popularityScore: numeric("popularity_score").default("0"),
+	source: text("source"),
+	sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+	geonamesId: text("geonames_id"),
+	wikidataQid: text("wikidata_qid"),
+	osmId: text("osm_id"),
+	confidenceScore: numeric("confidence_score").default("1"),
+	isVerified: boolean("is_verified").default(false),
+	isActive: boolean("is_active").default(true),
+	isSearchable: boolean("is_searchable").default(true),
+	showOnHome: boolean("show_on_home").default(false),
+	isFeatured: boolean("is_featured").default(false),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	normalizedNameIdx: index("travel_destinations_normalized_name_idx").on(table.normalizedName),
+	countryCodeIdx: index("travel_destinations_country_code_idx").on(table.countryCode),
+	placeTypeIdx: index("travel_destinations_place_type_idx").on(table.placeType),
+	popularityScoreIdx: index("travel_destinations_popularity_score_idx").on(table.popularityScore),
+	isSearchableIdx: index("travel_destinations_is_searchable_idx").on(table.isSearchable),
+	showOnHomeIdx: index("travel_destinations_show_on_home_idx").on(table.showOnHome),
+	isFeaturedIdx: index("travel_destinations_is_featured_idx").on(table.isFeatured),
+	geonamesIdIdx: index("travel_destinations_geonames_id_idx").on(table.geonamesId),
+	wikidataQidIdx: index("travel_destinations_wikidata_qid_idx").on(table.wikidataQid),
+}));
+
+export const travelDestinationAliases = pgTable("travel_destination_aliases", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	destinationId: uuid("destination_id").notNull(),
+	alias: text("alias").notNull(),
+	normalizedAlias: text("normalized_alias"),
+	language: text("language"),
+	source: text("source"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	destinationIdx: index("travel_destination_aliases_destination_idx").on(table.destinationId),
+	normalizedAliasIdx: index("travel_destination_aliases_normalized_alias_idx").on(table.normalizedAlias),
+}));
+
+export const travelDestinationCards = pgTable("travel_destination_cards", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	destinationId: uuid("destination_id").notNull(),
+	cardType: text("card_type").notNull(),
+	title: text("title").notNull(),
+	subtitle: text("subtitle"),
+	imageUrl: text("image_url"),
+	payloadJson: jsonb("payload_json").default({}).notNull(),
+	source: text("source"),
+	isGenerated: boolean("is_generated").default(false),
+	confidenceScore: numeric("confidence_score").default("1"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	destinationIdx: index("travel_destination_cards_destination_idx").on(table.destinationId),
+	cardTypeIdx: index("travel_destination_cards_card_type_idx").on(table.cardType),
+	destinationTypeIdx: uniqueIndex("travel_destination_cards_destination_type_unique_idx").on(table.destinationId, table.cardType),
+}));
+
+export const travelItinerarySessions = pgTable("travel_itinerary_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: uuid("user_id"),
+	applicationId: uuid("application_id"),
+	destinationId: uuid("destination_id"),
+	conversationMemoryJson: jsonb("conversation_memory_json").default({}).notNull(),
+	itineraryJson: jsonb("itinerary_json").default({}).notNull(),
+	mapStateJson: jsonb("map_state_json").default({}).notNull(),
+	cardStateJson: jsonb("card_state_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	userIdx: index("travel_itinerary_sessions_user_idx").on(table.userId),
+	applicationIdx: index("travel_itinerary_sessions_application_idx").on(table.applicationId),
+	destinationIdx: index("travel_itinerary_sessions_destination_idx").on(table.destinationId),
+	updatedAtIdx: index("travel_itinerary_sessions_updated_at_idx").on(table.updatedAt),
+}));
+
+export const travelUnresolvedDestinations = pgTable("travel_unresolved_destinations", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userInput: text("user_input").notNull(),
+	resolvedName: text("resolved_name"),
+	llmGuessJson: jsonb("llm_guess_json"),
+	confidenceScore: numeric("confidence_score"),
+	status: text("status").default("pending").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	userInputIdx: index("travel_unresolved_destinations_user_input_idx").on(table.userInput),
+	statusIdx: index("travel_unresolved_destinations_status_idx").on(table.status),
+}));
+
+// =============================================================================
 // VISA DOCUMENTS
 // Knowledge base source documents (scraped visa requirement pages)
 // document_type: requirements | process | faq | form_fields | common_mistakes
@@ -305,6 +418,21 @@ export type NewVisaChatSession = typeof visaChatSessions.$inferInsert;
 
 export type VisaChatMessage = typeof visaChatMessages.$inferSelect;
 export type NewVisaChatMessage = typeof visaChatMessages.$inferInsert;
+
+export type TravelDestination = typeof travelDestinations.$inferSelect;
+export type NewTravelDestination = typeof travelDestinations.$inferInsert;
+
+export type TravelDestinationAlias = typeof travelDestinationAliases.$inferSelect;
+export type NewTravelDestinationAlias = typeof travelDestinationAliases.$inferInsert;
+
+export type TravelDestinationCard = typeof travelDestinationCards.$inferSelect;
+export type NewTravelDestinationCard = typeof travelDestinationCards.$inferInsert;
+
+export type TravelItinerarySession = typeof travelItinerarySessions.$inferSelect;
+export type NewTravelItinerarySession = typeof travelItinerarySessions.$inferInsert;
+
+export type TravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferSelect;
+export type NewTravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferInsert;
 
 export type VisaDocument = typeof visaDocuments.$inferSelect;
 export type NewVisaDocument = typeof visaDocuments.$inferInsert;
