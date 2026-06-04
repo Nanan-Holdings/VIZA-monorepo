@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getUserVisaPackage } from "@/app/actions/user-package";
-import { hasWizardConfig } from "@/components/client/wizards/shell/registry";
-import { getFormVisaType } from "@/lib/visa-destinations";
 import { getRecentApplicationFormHref } from "@/lib/client/recent-application-form";
+
+const LONG_FORM_PATH = "/client/application/long-form";
 
 export default function ApplicationRouterPage() {
   const router = useRouter();
@@ -22,14 +22,9 @@ export default function ApplicationRouterPage() {
 
       if (qs) {
         const params = new URLSearchParams(qs);
-        const requestedVisaType =
-          params.get("visaType")?.trim() || params.get("visa_type")?.trim() || null;
         params.delete("applicationId");
-        const targetPath = requestedVisaType && hasWizardConfig(getFormVisaType(requestedVisaType))
-          ? "/client/simplified-form"
-          : "/client/application/long-form";
         const suffix = params.toString() ? `?${params.toString()}` : "";
-        router.replace(`${targetPath}${suffix}`);
+        router.replace(`${LONG_FORM_PATH}${suffix}`);
         return;
       }
 
@@ -43,17 +38,14 @@ export default function ApplicationRouterPage() {
         const pkg = await getUserVisaPackage();
         if (cancelled) return;
 
-        const targetPath = pkg?.visa_type && hasWizardConfig(getFormVisaType(pkg.visa_type))
-          ? "/client/simplified-form"
-          : "/client/application/long-form";
         const params = new URLSearchParams();
         if (pkg?.country) params.set("country", pkg.country);
         if (pkg?.visa_type) params.set("visaType", pkg.visa_type);
         const suffix = params.toString() ? `?${params.toString()}` : "";
-        router.replace(`${targetPath}${suffix}`);
+        router.replace(`${LONG_FORM_PATH}${suffix}`);
       } catch {
         if (!cancelled) {
-          router.replace("/client/application/long-form");
+          router.replace(LONG_FORM_PATH);
         }
       }
     }

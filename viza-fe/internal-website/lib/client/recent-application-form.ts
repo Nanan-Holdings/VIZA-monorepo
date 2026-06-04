@@ -1,7 +1,8 @@
 export const RECENT_APPLICATION_FORM_STORAGE_KEY = "viza:recent-application-form-href";
 export const RECENT_APPLICATION_FORM_EVENT = "viza:recent-application-form";
 
-const APPLICATION_FORM_PATHS = ["/client/application/long-form", "/client/simplified-form"] as const;
+const CANONICAL_APPLICATION_FORM_PATH = "/client/application/long-form";
+const APPLICATION_FORM_PATHS = [CANONICAL_APPLICATION_FORM_PATH, "/client/simplified-form"] as const;
 const TRANSIENT_QUERY_PARAMS = ["applicationId", "returnTo", "teamNotice", "skipFormCheck"];
 
 export type ApplicationFormPath = (typeof APPLICATION_FORM_PATHS)[number];
@@ -33,6 +34,7 @@ export function isApplicationFormPath(pathname: string): pathname is Application
 export function normalizeApplicationFormHref(href: string): string | null {
   const url = parseHref(href);
   if (!url || !isApplicationFormPath(url.pathname)) return null;
+  url.pathname = CANONICAL_APPLICATION_FORM_PATH;
 
   for (const param of TRANSIENT_QUERY_PARAMS) {
     url.searchParams.delete(param);
