@@ -32,7 +32,8 @@
     "db:verify-queue": "ts-node scripts/db/verify-queue-schema.ts",
     "db:verify-inputs": "ts-node scripts/db/verify-runner-inputs.ts",
     "db:verify": "npm run db:verify-queue && npm run db:verify-inputs",
-    "db:diff-migrations": "ts-node scripts/db/diff-migrations.ts"
+    "db:diff-migrations": "ts-node scripts/db/diff-migrations.ts",
+    "launch:e2e-smoke": "ts-node scripts/launch/e2e-smoke.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",

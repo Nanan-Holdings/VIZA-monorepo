@@ -167,3 +167,32 @@ export async function sendAlert(input: AlertInput): Promise<{ fired: boolean }> 
   }
   return { fired: true };
 }
+
+/* ------------------------- OBSV-002 halted-stuck alert ------------------------- */
+
+export interface HaltedStuckInput {
+  country: string;
+  jobId: string;
+  applicationId: string;
+  /** How long the job has sat in a halt-before-pay state. */
+  ageHours: number;
+}
+
+/**
+ * OBSV-002: build the alert for a halt-before-gov-pay job that has aged past
+ * the action threshold (the applicant hasn't paid the government fee). Routing
+ * class: `runner.halted_stuck.<country>`. Caller passes it to sendAlert().
+ */
+export function buildHaltedStuckAlert(input: HaltedStuckInput): AlertInput {
+  return {
+    severity: "warn",
+    class: `runner.halted_stuck.${input.country}`,
+    title: `Halted job awaiting payment (${input.country})`,
+    body:
+      `Job ${input.jobId.slice(0, 8)} has been halted before government payment for ` +
+      `${input.ageHours}h. The applicant may need a nudge to pay the government fee.`,
+    jobId: input.jobId,
+    applicationId: input.applicationId,
+    throttleSeconds: 6 * 60 * 60,
+  };
+}
