@@ -4966,7 +4966,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 345,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed NO src/id runner exists despite Indonesia being the marketing flagship. Model on src/in/runner.ts structure."
     },
     {
