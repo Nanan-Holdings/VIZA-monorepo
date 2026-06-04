@@ -5808,7 +5808,7 @@
         "Typecheck passes in viza-fe/internal-website"
       ],
       "priority": 405,
-      "passes": false,
+      "passes": true,
       "notes": "Keeps portal and marketing launch scope in sync."
     },
     {

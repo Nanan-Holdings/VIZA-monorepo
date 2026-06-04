@@ -19,6 +19,7 @@ import {
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
+import { isCountryLaunched } from "@/lib/launched-countries";
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -103,6 +104,9 @@ export function PopularDestinationsSection({
     const description = getVisaDestinationDescription(destination, locale);
     const regionName = getVisaDestinationRegionName(destination.region, locale);
     const isGroup = destination.kind === "group";
+    // POR-010: gate non-launched destinations (consistent with the runner
+    // launch set + marketing). Groups stay browsable.
+    const launched = isGroup || isCountryLaunched(destination.country);
     const progress = isGroup
       ? undefined
       : applicationProgress[getVisaDestinationKey(destination.country, destination.visaType)];
@@ -138,13 +142,15 @@ export function PopularDestinationsSection({
         key={destination.id}
         type="button"
         onClick={() => handleSelect(destination)}
-        disabled={loading}
+        disabled={loading || !launched}
+        title={launched ? undefined : t("comingSoon")}
+        aria-disabled={!launched}
         className={[
           "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
           highlighted
             ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
             : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
-          loading ? "cursor-wait opacity-80" : "cursor-pointer",
+          !launched ? "cursor-not-allowed opacity-50" : loading ? "cursor-wait opacity-80" : "cursor-pointer",
         ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">
