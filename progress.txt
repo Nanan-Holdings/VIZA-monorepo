@@ -2638,3 +2638,9 @@ acknowledgment).
 - Files: src/italy-vfs-cn/runner.ts + __tests__/normalize.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
 - Limitation: selectors best-effort pending recon; full submit needs complete Annex I answer set (trip/cost) + manual appointment; halts before pay.
 ---
+
+## 2026-06-04 - RUN-FR-001
+- Exposed France as runner_job runOne: added src/france-visas/runner.ts re-exporting runFranceHalt (QUE-005) as runOne; rebound france -> france-visas/runner.runOne in dispatch (logic: normalizeFvAnswers + fv_accounts creds + fillFranceVisasApplication, status prefilled -> halted_before_pay -> succeeded). meta updated.
+- Files: src/france-visas/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
+- Limitation: succeeds at runtime only with provisioned fv_accounts + complete FV answer set (PROV-*, onHold); else NeedsHumanError.
+---
