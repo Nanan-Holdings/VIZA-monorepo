@@ -5,7 +5,13 @@ import {
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 
-export type CommercialPaymentProvider = "stripe" | "wechat_pay" | "alipay";
+export type CommercialPaymentProvider =
+  | "stripe"
+  | "wechat_pay"
+  | "alipay"
+  | "airwallex_card"
+  | "airwallex_wechat"
+  | "airwallex_alipay";
 
 export type CommercialProductKind = "monthly" | "pay_per_application";
 

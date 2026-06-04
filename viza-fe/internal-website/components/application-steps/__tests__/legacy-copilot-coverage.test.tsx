@@ -4,6 +4,7 @@ import { PassportStep } from "../passport-step";
 import { PersonalInfoStep } from "../personal-info-step";
 import { PhotoUploadStep } from "../photo-upload-step";
 import { TravelInfoStep } from "../travel-info-step";
+import { toOfficialEnglishValue } from "@/lib/ds160-translations";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -117,6 +118,10 @@ describe("legacy application step copilot coverage", () => {
 
     expect(screen.getByPlaceholderText("e.g. XIAOMING")).toHaveValue("XIAOMING");
     expect(screen.queryByDisplayValue(/Please confirm/i)).not.toBeInTheDocument();
+  });
+
+  it("transliterates common Chinese names in dynamic bilingual fields", () => {
+    expect(toOfficialEnglishValue("陈鸿羽")).toBe("CHENHONGYU");
   });
 
   it("opens legacy field guidance only from the copilot trigger", () => {

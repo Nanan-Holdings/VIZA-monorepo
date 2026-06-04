@@ -1,3 +1,5 @@
+import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
+
 export interface UniversalProfileSnapshot {
   full_name?: string | null;
   date_of_birth?: string | null;
@@ -23,8 +25,35 @@ function clean(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function hasChinese(value: string) {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function buildBilingualValue(value: string | null | undefined) {
+  const normalized = clean(value);
+  if (!normalized) return null;
+  if (hasChinese(normalized)) {
+    return {
+      zh: normalized,
+      en: toOfficialEnglishValue(normalized),
+    };
+  }
+  return {
+    zh: toChineseSourceValue(normalized),
+    en: normalized,
+  };
+}
+
 export function splitUniversalFullName(fullName: string | null | undefined) {
-  const parts = clean(fullName)?.split(/\s+/).filter(Boolean) ?? [];
+  const normalized = clean(fullName);
+  if (normalized && /^[\u3400-\u9fff]+$/.test(normalized)) {
+    return {
+      givenNames: normalized.slice(1),
+      surname: normalized.slice(0, 1),
+    };
+  }
+
+  const parts = normalized?.split(/\s+/).filter(Boolean) ?? [];
   if (parts.length === 0) return { givenNames: "", surname: "" };
   if (parts.length === 1) return { givenNames: parts[0], surname: "" };
   return {
@@ -39,17 +68,27 @@ function setAnswer(out: Record<string, string>, keys: string[], value: string | 
   for (const key of keys) out[key] = normalized;
 }
 
+function setBilingualAnswer(out: Record<string, string>, keys: string[], value: string | null | undefined) {
+  const bilingual = buildBilingualValue(value);
+  if (!bilingual) return;
+  for (const key of keys) {
+    out[key] = bilingual.en || bilingual.zh;
+    out[`${key}_zh`] = bilingual.zh;
+    out[`${key}_en`] = bilingual.en;
+  }
+}
+
 export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapshot | null | undefined) {
   const out: Record<string, string> = {};
   if (!profile) return out;
 
   const { givenNames, surname } = splitUniversalFullName(profile.full_name);
 
-  setAnswer(out, ["full_name", "fullName", "applicant_full_name"], profile.full_name);
-  setAnswer(out, ["given_names", "givenNames", "given_name", "first_name"], givenNames);
-  setAnswer(out, ["surname", "last_name", "family_name"], surname);
+  setBilingualAnswer(out, ["full_name", "fullName", "applicant_full_name"], profile.full_name);
+  setBilingualAnswer(out, ["given_names", "givenNames", "given_name", "first_name"], givenNames);
+  setBilingualAnswer(out, ["surname", "last_name", "family_name"], surname);
   setAnswer(out, ["date_of_birth", "dob", "birth_date"], profile.date_of_birth);
-  setAnswer(out, ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"], profile.place_of_birth);
+  setBilingualAnswer(out, ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"], profile.place_of_birth);
   setAnswer(out, ["gender", "sex"], profile.gender);
   setAnswer(
     out,

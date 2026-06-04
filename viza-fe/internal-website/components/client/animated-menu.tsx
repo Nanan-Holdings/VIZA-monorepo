@@ -44,7 +44,7 @@ function MenuItem({
           <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.5 }}>
             {icon}
           </motion.div>
-          <p className={`font-medium leading-[1.5] not-italic relative shrink-0 text-[16px] tracking-[-0.24px] ${textColor ?? "text-[#3d3d3d]"}`}>
+          <p className={`min-w-0 truncate font-medium leading-[1.5] not-italic relative text-[16px] tracking-[-0.24px] ${textColor ?? "text-[#3d3d3d]"}`}>
             {label}
           </p>
         </div>
@@ -150,6 +150,8 @@ interface AnimatedMenuProps {
   onLogout: () => void | Promise<void>;
   isLoggingOut?: boolean;
   showInviteFriends?: boolean;
+  applicationHref?: string;
+  applicationLabel?: string;
   onClose?: () => void;
 }
 
@@ -157,6 +159,8 @@ export function AnimatedMenu({
   onLogout,
   isLoggingOut = false,
   showInviteFriends = false,
+  applicationHref = "/client/application",
+  applicationLabel,
   onClose,
 }: AnimatedMenuProps) {
   const router = useRouter();
@@ -166,7 +170,7 @@ export function AnimatedMenu({
   const isInInviteFriends = pathname.startsWith("/client/invite-friends");
   const isInHelp = pathname.startsWith("/client/help");
   const isInStatus = pathname.startsWith("/client/status");
-  const isInDocuments = pathname.startsWith("/client/documents");
+  const isInApplication = pathname.startsWith("/client/application") || pathname.startsWith("/client/documents");
   const isInSupport = pathname.startsWith("/client/support");
 
   const handleSettings = () => {
@@ -189,8 +193,8 @@ export function AnimatedMenu({
     onClose?.();
   };
 
-  const handleDocuments = () => {
-    router.push("/client/documents");
+  const handleApplication = () => {
+    router.push(applicationHref);
     onClose?.();
   };
 
@@ -206,7 +210,7 @@ export function AnimatedMenu({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="content-stretch flex flex-col gap-[8px] items-start p-[12px] relative rounded-[16px] w-56 bg-white"
+      className="content-stretch flex flex-col gap-[8px] items-start p-[12px] relative rounded-[16px] w-64 max-w-[calc(100vw-2rem)] bg-white"
     >
       <div
         aria-hidden="true"
@@ -235,10 +239,10 @@ export function AnimatedMenu({
 
       <MenuItem
         icon={<FileText className="h-4 w-4" />}
-        label={t("documents")}
-        backgroundColor={isInDocuments ? "bg-[#efefef]" : "bg-white"}
+        label={applicationLabel ?? t("documents")}
+        backgroundColor={isInApplication ? "bg-[#efefef]" : "bg-white"}
         index={menuItemBaseIndex + 1}
-        onClick={handleDocuments}
+        onClick={handleApplication}
       />
 
       <MenuItem

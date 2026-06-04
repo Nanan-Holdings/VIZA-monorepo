@@ -1,6 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
+import { isAirwallexConfigured } from "@/lib/airwallex/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAlipayConfigReady } from "@/lib/alipay/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
@@ -84,10 +85,14 @@ export function isAlipayConfigured(): boolean {
 }
 
 export function getPaymentProviderReadiness() {
+  const airwallex = isAirwallexConfigured();
   return {
     stripe: isStripeConfigured(),
     wechat_pay: isWechatPayConfigured(),
     alipay: isAlipayConfigured(),
+    airwallex_card: airwallex,
+    airwallex_wechat: airwallex,
+    airwallex_alipay: airwallex,
   };
 }
 

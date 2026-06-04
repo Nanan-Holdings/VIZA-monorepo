@@ -74,13 +74,25 @@ const providerLabels: Record<CommercialPaymentProvider, string> = {
   stripe: "Stripe",
   wechat_pay: "微信",
   alipay: "支付宝",
+  airwallex_card: "银行卡",
+  airwallex_wechat: "微信",
+  airwallex_alipay: "支付宝",
 };
 
 const providerIcons = {
   stripe: CreditCard,
   wechat_pay: MessageCircle,
   alipay: WalletCards,
+  airwallex_card: CreditCard,
+  airwallex_wechat: MessageCircle,
+  airwallex_alipay: WalletCards,
 } satisfies Record<CommercialPaymentProvider, typeof CreditCard>;
+
+const subscriptionPaymentProviders: CommercialPaymentProvider[] = [
+  "airwallex_card",
+  "airwallex_wechat",
+  "airwallex_alipay",
+];
 
 function getParam(params: SubscriptionSearchParams | undefined, key: keyof SubscriptionSearchParams): string | null {
   const value = params?.[key];
@@ -116,6 +128,11 @@ function getErrorReturnState(error: string | null): SubscriptionReturnState {
       tone: "warning",
       title: "支付宝尚未配置",
       description: "请先配置支付宝 AppID、应用私钥和支付宝公钥。",
+    },
+    airwallex_unconfigured: {
+      tone: "warning",
+      title: "Airwallex 尚未配置",
+      description: "请先配置 Airwallex sandbox Client ID、API Key 和应用地址。",
     },
     app_url_missing: {
       tone: "error",
@@ -193,7 +210,7 @@ function PaymentButtons({
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-3">
-      {(Object.keys(providerLabels) as CommercialPaymentProvider[]).map((provider) => {
+      {subscriptionPaymentProviders.map((provider) => {
         const Icon = providerIcons[provider];
         const enabled = readiness[provider];
 
