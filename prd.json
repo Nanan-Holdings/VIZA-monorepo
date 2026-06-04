@@ -5473,7 +5473,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 381,
-      "passes": false,
+      "passes": true,
       "notes": "src/translation-gate.ts already exists; extend coverage to new runners."
     },
     {
