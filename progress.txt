@@ -2677,3 +2677,10 @@ acknowledgment).
 - Files: src/runners/standard-evisa.ts, src/queue/types.ts, src/ca/*, src/queue/dispatch.ts + 9 runner imports, src/payment-routing.ts, prd.json. Typecheck passes.
 - Learning: top-level factory calls + dispatch<->runner cycle crash at load; keep shared types in a leaf module.
 ---
+
+## 2026-06-04 - RUN-TR/TH/AE-001/002
+- Built Türkiye (src/tr/), Thailand (src/th/), UAE (src/ae/) runners as thin wrappers over the shared standard-evisa core (RUN-CORE-001). Each: field-mappings/fillers/form-recon/runner + field-mapping test. All runner_escrow_card (halt before pay until escrow). Bound turkey/thailand/united_arab_emirates -> dedicated runOne (replaced generic t3 runTrPrefill/runThPrefill/runAePrefill).
+- Cleanup: removed now-dead genericAdapter + toCommonAnswers + t3 import block + CanonicalRecord import from dispatch.ts (all 8 generic-scaffold countries now have dedicated runners). GOVT_FEE_CENTS turkey=5000/thailand=4000/uae=9000 added earlier.
+- 002 stories (recon+routing+tests) shipped together: routing already present; per-country recon via shared discoverFields+withRetry; field-mapping tests.
+- Files: src/{tr,th,ae}/* + __tests__, src/queue/dispatch.ts, prd.json. Typecheck passes; 14 queue+country tests pass.
+---
