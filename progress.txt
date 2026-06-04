@@ -2481,3 +2481,12 @@ acknowledgment).
 - All typechecks clean (FE + BE).
 - Learning: cost adapters as a pluggable interface (vs hard-wiring one vendor) keeps /admin/costs from breaking when any single vendor adds/removes/renames their billing API — failure in one stays scoped.
 ---
+
+## 2026-06-04 - SEC-001
+- Hardened root .gitignore: exhaustive secret/env block (.env.*, *service-account*.json, *-credentials.json, *.key/.p12/.pfx/.keystore, *.crt/.cer) with !*.example negations; deduped doubled env block.
+- Added viza-be/submission-service/.gitignore (was missing) re-asserting secret patterns + recon artifacts.
+- Created docs/security/secret-inventory.md with audit commands + output (6 .env.example templates tracked, no real secrets).
+- Files: .gitignore, viza-be/submission-service/.gitignore, docs/security/secret-inventory.md, prd.json
+- Verified via git check-ignore: .example tracked-eligible, real .env + service-account json ignored.
+- Learning: gitignore patterns are recursive across workspaces; only per-workspace artifact dirs (recon-out etc) need local rules.
+---

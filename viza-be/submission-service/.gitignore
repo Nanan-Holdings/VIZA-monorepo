@@ -1,0 +1,29 @@
+# submission-service — local artifacts & secrets
+# Root .gitignore already covers env/secret patterns recursively;
+# this file adds service-local artifacts and re-asserts secret patterns
+# so the workspace is safe even if checked out in isolation.
+
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets & env (re-asserted locally)
+.env
+.env.*
+!.env.example
+*service-account*.json
+*-credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Recon / diagnostic artifacts
+diag-out/
+e2e-out/
+recon-out/
+vn-recon-out*/
+test-results/
+playwright-report/
+*.log

@@ -829,19 +829,11 @@ export default function ApplyPage() {
           </div>
 
           <div className="foot-apps">
-            <a className="app-btn" href="#" aria-label="Download VIZA on the App Store">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.04c-.03-2.93 2.39-4.34 2.5-4.41-1.36-1.99-3.48-2.26-4.24-2.29-1.81-.18-3.53 1.06-4.45 1.06-.93 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.91-2.06 3.58-.53 8.86 1.48 11.77.98 1.42 2.15 3.02 3.68 2.96 1.48-.06 2.04-.96 3.83-.96 1.78 0 2.29.96 3.85.93 1.59-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.25 1.61-3.34-.04-.02-3.08-1.18-3.11-4.69zM14.07 3.62c.81-.99 1.36-2.36 1.21-3.72-1.17.05-2.59.78-3.43 1.76-.75.87-1.41 2.27-1.23 3.6 1.31.1 2.65-.66 3.45-1.64z"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Download on the</span>
-                <span className="ab-name">App Store</span>
-              </span>
+            <a className="app-badge" href="#" aria-label="Download VIZA on the App Store">
+              <img src="/assets/app-store-badge.png" alt="Download on the App Store"/>
             </a>
-            <a className="app-btn" href="#" aria-label="Get VIZA on Google Play">
-              <svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 2 21 12 3 22 3 2" fill="currentColor"/><line x1="3" y1="2" x2="14" y2="13" stroke="#03110A"/><line x1="3" y1="22" x2="14" y2="11" stroke="#03110A"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Get it on</span>
-                <span className="ab-name">Google Play</span>
-              </span>
+            <a className="app-badge" href="#" aria-label="Get VIZA on Google Play">
+              <img src="/assets/google-play-badge.png" alt="Get it on Google Play"/>
             </a>
           </div>
         </div>

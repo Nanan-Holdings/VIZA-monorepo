@@ -64,26 +64,43 @@
       0 4px 12px -2px rgba(3, 52, 110, 0.18);
   }
 
+  /* ---------- Unified page grid (hero + content + single sticky card) ---------- */
+  .visa-grid {
+    max-width: 1280px; margin: 0 auto; padding: 0 40px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    column-gap: 56px;
+    align-items: start;
+  }
+  .visa-grid > .hero             { grid-column: 1 / -1; grid-row: 1; }
+  .visa-grid > .section-tabs-wrap { grid-column: 1 / -1; grid-row: 2; }
+  .visa-grid > .col-main         { grid-column: 1; grid-row: 3; }
+  .visa-grid > .col-side         { grid-column: 2; grid-row: 1 / 4; }
+
   /* ---------- Hero ---------- */
   .hero {
     position: relative;
-    background: linear-gradient(180deg, #03346E 0%, #022B5C 100%);
     color: #fff;
-    overflow: hidden;
+    padding: 48px 0 64px;
+  }
+  /* Full-bleed country-image backdrop with dark legibility wash */
+  .hero::before {
+    content: ""; position: absolute; top: 0; bottom: 0;
+    left: 50%; transform: translateX(-50%); width: 100vw;
+    background:
+      linear-gradient(180deg, rgba(3,52,110,0.82) 0%, rgba(2,33,72,0.92) 100%),
+      url('https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1600&auto=format&fit=crop&q=70') center/cover no-repeat;
+    z-index: -2;
   }
   .hero::after {
     content: ""; position: absolute; inset: 0;
     background:
-      radial-gradient(60% 80% at 80% 0%, rgba(61,109,173,0.45) 0%, rgba(3,52,110,0) 60%),
-      radial-gradient(50% 80% at 10% 100%, rgba(255,255,255,0.06) 0%, rgba(3,52,110,0) 70%);
+      radial-gradient(60% 80% at 80% 0%, rgba(61,109,173,0.30) 0%, rgba(3,52,110,0) 60%),
+      radial-gradient(50% 80% at 10% 100%, rgba(255,255,255,0.05) 0%, rgba(3,52,110,0) 70%);
     pointer-events: none;
+    z-index: -1;
   }
-  .hero-inner {
-    position: relative; z-index: 2;
-    max-width: 1280px; margin: 0 auto;
-    padding: 48px 40px 72px;
-    display: grid; grid-template-columns: 1fr 380px; gap: 56px; align-items: start;
-  }
+  .hero-left { position: relative; z-index: 1; max-width: 720px; }
   .hero-back {
     display: inline-flex; align-items: center; gap: 6px;
     font: 500 13px/1 var(--font-sans);
@@ -91,16 +108,16 @@
     transition: color .15s;
   }
   .hero-back:hover { color: #fff; }
-  .hero-flag {
-    width: 56px; height: 56px; border-radius: 999px;
-    background: rgba(255,255,255,0.14);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 32px; line-height: 1;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
-    margin-bottom: 20px;
-    overflow: hidden;
+  /* Inline flag sitting on the title line, right after the country name */
+  .title-flag {
+    display: inline-flex; vertical-align: -7px;
+    width: 38px; height: 38px; border-radius: 999px;
+    margin-left: 14px; overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
   }
-  .hero-flag img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+  .title-flag img, .title-flag svg {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
+  }
   .hero h1 {
     font: 500 52px/1.05 var(--font-heading); letter-spacing: -1.6px;
     color: #fff; margin: 0;
@@ -227,15 +244,18 @@
   /* ---------- Section tabs ---------- */
   .section-tabs-wrap {
     position: sticky; top: 76px;
+    z-index: 40;
+  }
+  .section-tabs-wrap::before {
+    content: ""; position: absolute; top: 0; bottom: 0;
+    left: 50%; transform: translateX(-50%); width: 100vw;
     background: rgba(250,250,250,0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    z-index: 40;
     border-bottom: 1px solid var(--border-hairline);
+    z-index: -1;
   }
   .section-tabs {
-    max-width: 1280px; margin: 0 auto;
-    padding: 0 40px;
     display: flex; align-items: center; gap: 24px;
     overflow-x: auto;
   }
@@ -256,14 +276,10 @@
   }
 
   /* ---------- Page main ---------- */
-  .page {
-    max-width: 1280px; margin: 0 auto;
-    padding: 56px 40px 96px;
-    display: grid; grid-template-columns: 1fr 380px; gap: 56px; align-items: start;
-  }
-  .col-main { min-width: 0; }
-  .col-side { min-width: 0; }
-  .col-side .price-card { position: sticky; top: 168px; }
+  .col-main { min-width: 0; padding: 48px 0 96px; }
+  .col-side { min-width: 0; padding-top: 48px; }
+  /* Single card sticks below the section-tabs bar across the whole page */
+  .col-side .price-card { position: sticky; top: 140px; }
 
   section.block { margin-bottom: 56px; scroll-margin-top: 160px; }
   section.block > h2 {
@@ -552,8 +568,11 @@
 
   /* ---------- Responsive: collapse 2-col on narrow ---------- */
   @media (max-width: 1100px) {
-    .hero-inner, .page { grid-template-columns: 1fr; }
-    .col-side .price-card { position: static; }
+    .visa-grid { display: block; }
+    .col-main { padding-top: 32px; }
+    .col-side { padding-top: 0; }
+    .col-side .price-card { position: static; margin-top: 24px; }
+    .hero-left { max-width: none; }
   }
 /* ====================================================
      Site footer — VIZA design system
@@ -660,36 +679,15 @@
     display: flex; gap: 12px;
     margin-top: 8px;
   }
-  .site-foot .app-btn {
-    height: 48px; padding: 0 20px 0 18px;
-    background: #03110A;
-    color: #fff;
-    border: 1px solid #1a1a1a;
-    border-radius: 10px;
-    display: inline-flex; align-items: center; gap: 12px;
+  .site-foot .app-badge {
+    display: inline-flex;
     text-decoration: none;
-    transition: background .15s, transform .15s;
+    transition: transform .15s;
   }
-  .site-foot .app-btn:hover {
-    background: #111;
-    transform: translateY(-1px);
-    color: #fff;
-  }
-  .site-foot .app-btn svg { flex: 0 0 auto; }
-  .site-foot .app-btn .ab-text {
-    display: flex; flex-direction: column; line-height: 1.1;
-  }
-  .site-foot .app-btn .ab-pre {
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 3px;
-  }
-  .site-foot .app-btn .ab-name {
-    font: 500 15px/1 var(--font-heading);
-    letter-spacing: -0.2px;
-    color: #fff;
+  .site-foot .app-badge:hover { transform: translateY(-1px); }
+  .site-foot .app-badge img {
+    height: 48px; width: auto; display: block;
+    border-radius: 10px;
   }
 
   .site-foot .foot-bottom {
