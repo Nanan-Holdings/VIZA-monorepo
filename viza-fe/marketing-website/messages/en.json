@@ -1,6 +1,7 @@
 {
   "cta": {
-    "payWithWechat": "Pay with WeChat"
+    "payWithWechat": "Pay with WeChat",
+    "payByCard": "Apply & pay by card"
   },
   "nav": {
     "home": "Home",

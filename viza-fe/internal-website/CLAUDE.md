@@ -1650,21 +1650,42 @@ This project is proprietary software for VIZA visa practice.
 
 ## 💰 Payments
 
-Two checkout paths converge on the same `order` table:
+Checkout paths converge on the same `order` table. Each one is either an
+**authenticated** purchase (visitor already in `/client/*`) or a
+**guest** marketing-funnel purchase (visitor pays first, then gets a
+magic-link sign-in email). The `order.guest_checkout` boolean
+(migration `0088_order_guest_checkout.sql`) records which: it is the
+guard that decides whether `provisionAccountAndMagicLink` mails a login
+link. Guest rails set it `true`; authenticated rails leave it `false`.
 
-### Stripe Checkout (default)
+### Guest post-paid side-effects (shared)
+- `lib/checkout/post-paid.ts` → `runPostPaidSideEffects(orderId, provider)`:
+  fire-and-forget `provisionAccountAndMagicLink` (account + magic-link
+  mail, self-guarded on `guest_checkout`) + `enqueueRunnerJob`. Used by
+  both guest rails below.
+- Magic-link mail: `lib/notify/templates.ts` `paid_welcome` (en + zh-CN;
+  `wechat_paid_welcome` kept as an alias), sent via `lib/email/resend.ts`.
+  From address overridable via `NOTIFY_FROM_EMAIL`.
+
+### Stripe Checkout — authenticated (default)
 - Server action: `app/actions/payments.ts` → `startCheckoutForApplication(applicationId)`
-- Webhook: `app/api/stripe/webhook/route.ts` — verifies signature, applies via `lib/stripe/handle-event.ts`, fires `mailReceiptOnPaid` + `enqueueRunnerJob` on `paid`.
-- Authenticated only (the visitor is already in `/client/*`).
+- Webhook: `app/api/stripe/webhook/route.ts` (payment_records model).
+- Authenticated only (the visitor is already in `/client/*`); `guest_checkout=false`.
 
-### WeChat Pay Native v3 (direct-to-merchant)
-- **Pre-payment, unauthenticated.** Marketing site CTAs deep-link to `/checkout/wechat?country=&visa=&locale=`. Visitor enters email + name; we upsert `applicant_profiles`, draft an `applications` row, and create a `pending` `order` priced in CNY/fen.
+### Guest card checkout — Stripe, unauthenticated
+- **Pre-payment, unauthenticated.** Marketing CTAs deep-link to `/checkout/card?country=&visa=&locale=`. Visitor enters email + name; we upsert `applicant_profiles`, draft an `applications` row, and create a `pending` `order` with `guest_checkout=true`.
+- Server action: `app/actions/card-checkout.ts` → `startCardCheckout({country, visaType, email, fullName, locale})` — mints a Stripe Checkout session via `lib/stripe/client.ts` with `metadata.order_id` + `metadata.guest_checkout=1`.
+- Checkout UI: `app/checkout/card/page.tsx` + `_components/card-checkout-form.tsx`; success → `app/checkout/card/check-your-email`.
+- Webhook: the **guest branch** of `app/api/stripe/webhook/route.ts` (`handleGuestCheckoutSession`) routes guest sessions to the order-model `lib/stripe/handle-event.ts#applyStripeEvent` + `runPostPaidSideEffects(orderId, "card")`, bypassing the authenticated payment_records path.
+- Pricing: `lib/pricing.ts#pricingFor` — agency fee + (passthrough govt fee).
+
+### WeChat Pay Native v3 (direct-to-merchant) — unauthenticated
+- **Pre-payment, unauthenticated.** Marketing site CTAs deep-link to `/checkout/wechat?country=&visa=&locale=`. Visitor enters email + name; we upsert `applicant_profiles`, draft an `applications` row, and create a `pending` `order` priced in CNY/fen with `guest_checkout=true`.
 - SDK wrapper: `lib/wechatpay/client.ts` — RSA-SHA256 request signing, callback signature verification, AES-256-GCM resource decryption, platform-cert auto-fetch + cache. No npm SDK — just `node:crypto` + `fetch`, mirroring `lib/stripe/client.ts`.
 - Event applier: `lib/wechatpay/handle-event.ts` (idempotent on `wechat_out_trade_no`).
 - Server action: `app/actions/wechat-checkout.ts` → `startWechatCheckout({country, visaType, email, fullName, locale})`.
 - Checkout UI: `app/checkout/wechat/page.tsx` + `_components/wechat-checkout-form.tsx` (renders a QR generated server-side via `qrcode` and polls `/api/wechat-pay/status/[orderId]`).
-- Webhook: `app/api/wechat-pay/notify/route.ts` — on `kind === "paid"` fires `provisionAccountAndMagicLink` (`app/actions/wechat-provisioning.ts`) and the same `enqueueRunnerJob` as Stripe. Responds `{code:"SUCCESS"}` per WeChat Pay spec.
-- Magic-link mail: `lib/notify/templates.ts` `wechat_paid_welcome` (en + zh-CN), sent via the existing `lib/email/resend.ts`.
+- Webhook: `app/api/wechat-pay/notify/route.ts` — on `kind === "paid"` calls the shared `runPostPaidSideEffects(orderId, "wechat")`. Responds `{code:"SUCCESS"}` per WeChat Pay spec.
 - Pricing: `lib/pricing.ts` — packages opt in by setting `wechatPayTotalFen`; lookup via `wechatPricingFor()`. Phase 1 only `indonesia/B211A` is enabled.
 - DB: migration `viza-be/agent-backend/drizzle/0086_wechat_pay.sql` adds `wechat_out_trade_no`, `wechat_prepay_id`, `wechat_transaction_id`, `wechat_payer_openid` to `order`.
 - Env vars: `WECHAT_PAY_MCH_ID`, `WECHAT_PAY_APP_ID`, `WECHAT_PAY_API_V3_KEY`, `WECHAT_PAY_MERCHANT_SERIAL_NO`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_NOTIFY_URL`, optional `WECHAT_PAY_PLATFORM_CERT_CACHE_TTL_S` (default 3600s).
