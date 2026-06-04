@@ -58,7 +58,7 @@ function ReferralSection() {
     if (!email) return;
 
     setSendingInvite(true);
-    const result = await sendReferralInvite(email, referralCode, locale);
+    const result = await sendReferralInvite(email, locale);
     setSendingInvite(false);
 
     if (result.success) {

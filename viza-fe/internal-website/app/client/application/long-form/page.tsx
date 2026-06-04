@@ -52,6 +52,10 @@ import {
   getTeamApplicationContext,
   markTeamCompanionReviewed,
 } from "@/app/actions/application-group";
+import {
+  buildApplicationFormHref,
+  setRecentApplicationFormHref,
+} from "@/lib/client/recent-application-form";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -939,6 +943,22 @@ export default function ApplicationPage() {
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+
+  useEffect(() => {
+    const href = buildApplicationFormHref(
+      "/client/application/long-form",
+      searchParams.toString(),
+      {
+        country: resolvedCountry,
+        visaType: getFormVisaType(resolvedVisaType),
+      },
+    );
+    if (href) setRecentApplicationFormHref(href);
+  }, [
+    resolvedCountry,
+    resolvedVisaType,
+    searchParams,
+  ]);
 
   // Use DB-driven steps when available, otherwise fall back to hardcoded
   const useDynamic = dbSteps.length > 0;

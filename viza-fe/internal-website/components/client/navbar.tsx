@@ -17,7 +17,18 @@ import {
   getApplicationLifecycleSummaries,
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
-import { getFormVisaType } from "@/lib/visa-destinations";
+import {
+  getFormVisaType,
+  getVisaPackageTitle,
+} from "@/lib/visa-destinations";
+import {
+  buildApplicationFormHref,
+  getRecentApplicationFormHref,
+  readApplicationFormTarget,
+  RECENT_APPLICATION_FORM_EVENT,
+  RECENT_APPLICATION_FORM_STORAGE_KEY,
+  type ApplicationFormTarget,
+} from "@/lib/client/recent-application-form";
 
 interface NavBarProps {
   activeTab: string | null;
@@ -52,6 +63,26 @@ const chatAgentOptions = [
   },
 ] as const;
 
+function hasApplicationIdentity(target: ApplicationFormTarget | null): target is ApplicationFormTarget {
+  return Boolean(target?.applicationId || (target?.country && target?.visaType));
+}
+
+function matchesApplicationTarget(
+  summary: ApplicationLifecycleSummary,
+  target: ApplicationFormTarget,
+): boolean {
+  if (target.applicationId) {
+    return summary.applicationId === target.applicationId;
+  }
+
+  if (!target.country || !target.visaType) return false;
+
+  return (
+    summary.country.toLowerCase() === target.country.toLowerCase() &&
+    summary.visaType.toLowerCase() === getFormVisaType(target.visaType).toLowerCase()
+  );
+}
+
 export function NavBar({
   activeTab,
   setActiveTab,
@@ -70,6 +101,7 @@ export function NavBar({
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [applicationSummaries, setApplicationSummaries] = useState<ApplicationLifecycleSummary[]>([]);
+  const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
 
   const tabLabels: Record<string, string> = {
@@ -84,6 +116,27 @@ export function NavBar({
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const syncRecentApplicationHref = () => {
+      setRecentApplicationHref(getRecentApplicationFormHref());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === RECENT_APPLICATION_FORM_STORAGE_KEY) {
+        syncRecentApplicationHref();
+      }
+    };
+
+    syncRecentApplicationHref();
+
+    window.addEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -142,46 +195,59 @@ export function NavBar({
   const rightTabs = ["Settings", "Support"];
   const mobileTabs = ["Home", "Application", "Status", "Settings", "Support"];
 
-  const currentApplication = useMemo(() => {
-    const applicationId = searchParams.get("applicationId")?.trim() || null;
-    const country = searchParams.get("country")?.trim() || null;
-    const visaType = searchParams.get("visaType")?.trim() || null;
+  const currentApplicationTarget = useMemo(() => {
+    const currentFormTarget = readApplicationFormTarget(
+      buildApplicationFormHref(pathname, searchParams.toString()),
+    );
+    if (hasApplicationIdentity(currentFormTarget)) return currentFormTarget;
 
-    if (applicationId) {
-      const match = applicationSummaries.find((summary) => summary.applicationId === applicationId);
-      if (match) return match;
+    const applicationPageTarget = readApplicationFormTarget(
+      `/client/application/long-form?${searchParams.toString()}`,
+    );
+    if (pathname.startsWith("/client/application") && hasApplicationIdentity(applicationPageTarget)) {
+      return applicationPageTarget;
     }
 
-    if (country && visaType) {
-      const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
-      const match = applicationSummaries.find(
-        (summary) =>
-          summary.country.toLowerCase() === country.toLowerCase() &&
-          summary.visaType.toLowerCase() === normalizedVisaType,
-      );
-      if (match) return match;
+    const recentTarget = readApplicationFormTarget(recentApplicationHref);
+    return hasApplicationIdentity(recentTarget) ? recentTarget : null;
+  }, [pathname, recentApplicationHref, searchParams]);
+
+  const currentApplication = useMemo(() => {
+    if (currentApplicationTarget) {
+      return applicationSummaries.find((summary) =>
+        matchesApplicationTarget(summary, currentApplicationTarget)
+      ) ?? null;
     }
 
     return applicationSummaries[0] ?? null;
-  }, [applicationSummaries, searchParams]);
+  }, [applicationSummaries, currentApplicationTarget]);
 
   const applicationMenuName = currentApplication
     ? locale.toLowerCase().startsWith("zh")
       ? `${currentApplication.countryNameZh || currentApplication.countryName}${currentApplication.visaTypeLabelZh || currentApplication.visaTypeLabel}`
       : `${currentApplication.countryName} ${currentApplication.visaTypeLabel}`
+    : currentApplicationTarget?.country && currentApplicationTarget.visaType
+      ? getVisaPackageTitle(
+          currentApplicationTarget.country,
+          getFormVisaType(currentApplicationTarget.visaType),
+          locale,
+        )
     : null;
   const applicationMenuLabel = applicationMenuName ? `${t("application")}(${applicationMenuName})` : t("application");
-  const applicationMenuHref = currentApplication
-    ? currentApplication.applicationId
-      ? `/client/application?applicationId=${encodeURIComponent(currentApplication.applicationId)}`
-      : `/client/application?country=${encodeURIComponent(currentApplication.country)}&visaType=${encodeURIComponent(currentApplication.visaType)}`
-    : "/client/application";
+  const applicationMenuHref = currentApplicationTarget?.href ?? (currentApplication
+    ? `/client/application?country=${encodeURIComponent(currentApplication.country)}&visaType=${encodeURIComponent(currentApplication.visaType)}`
+    : "/client/application");
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    if (tab === "Application") {
+      router.push(applicationMenuHref);
+      return;
+    }
+
     const path = tabPaths[tab];
     if (path) router.push(path);
   };

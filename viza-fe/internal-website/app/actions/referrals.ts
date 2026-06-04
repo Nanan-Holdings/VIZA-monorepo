@@ -24,7 +24,7 @@ function normalizeLocale(locale: string): InviteLocale {
   return locale.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
-function getAppBaseUrl() {
+async function getAppBaseUrl() {
   const configured =
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.APP_BASE_URL ??
@@ -32,7 +32,7 @@ function getAppBaseUrl() {
 
   if (configured) return configured.replace(/\/$/, "");
 
-  const requestHeaders = headers();
+  const requestHeaders = await headers();
   const host = requestHeaders.get("host");
   const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
 
@@ -99,18 +99,12 @@ function renderHtmlEmail(copy: ReturnType<typeof textFor>, signupUrl: string) {
 
 export async function sendReferralInvite(
   email: string,
-  referralCode: string,
   locale: string,
 ): Promise<SendReferralInviteResult> {
   const recipient = email.trim().toLowerCase();
-  const code = referralCode.trim().toUpperCase();
 
   if (!EMAIL_RE.test(recipient)) {
     return { success: false, error: "invalid_email" };
-  }
-
-  if (!code) {
-    return { success: false, error: "missing_referral_code" };
   }
 
   const supabase = await createClient();
@@ -122,6 +116,8 @@ export async function sendReferralInvite(
     return { success: false, error: "not_authenticated" };
   }
 
+  const code = `VIZA-${user.id.toUpperCase()}`;
+
   const { data: profile } = await supabase
     .from("applicant_profiles")
     .select("full_name")
@@ -130,7 +126,7 @@ export async function sendReferralInvite(
 
   const inviterName =
     profile?.full_name?.trim() || user.email?.split("@")[0] || "A VIZA user";
-  const signupUrl = `${getAppBaseUrl()}/client/signup?referral=${encodeURIComponent(code)}`;
+  const signupUrl = `${await getAppBaseUrl()}/client/signup?referral=${encodeURIComponent(code)}`;
   const copy = textFor(normalizeLocale(locale), { inviterName, referralCode: code, signupUrl });
 
   try {

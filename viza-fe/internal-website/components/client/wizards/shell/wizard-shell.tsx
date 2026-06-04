@@ -20,6 +20,8 @@ import {
   saveSimplifiedFormState,
 } from "@/app/actions/visa-application-answers";
 import { getUserVisaPackage } from "@/app/actions/user-package";
+import { setRecentApplicationFormHref } from "@/lib/client/recent-application-form";
+import { getFormVisaType } from "@/lib/visa-destinations";
 import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -32,6 +34,8 @@ import type { WizardConfig } from "./types";
 
 interface WizardShellProps<TForm> {
   config: WizardConfig<TForm>;
+  requestedCountry?: string | null;
+  requestedVisaType?: string | null;
 }
 
 const REVIEW_STEP_KEY = "__review";
@@ -86,7 +90,11 @@ function fallbackWizardLabel(key: string, locale: string): string {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
+export function WizardShell<TForm>({
+  config,
+  requestedCountry = null,
+  requestedVisaType = null,
+}: WizardShellProps<TForm>) {
   const router = useRouter();
   const locale = useLocale();
   const tShared = useTranslations("simplifiedForm.shared");
@@ -135,8 +143,8 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
           : { data: null };
         const pkg = await getUserVisaPackage();
         if (cancelled) return;
-        const country = pkg?.country ?? config.defaultCountry;
-        const visaType = pkg?.visa_type ?? config.defaultVisaType;
+        const country = requestedCountry ?? pkg?.country ?? config.defaultCountry;
+        const visaType = getFormVisaType(requestedVisaType ?? pkg?.visa_type ?? config.defaultVisaType);
         setApplicationCountry(country);
         setApplicationVisaType(visaType);
 
@@ -190,7 +198,16 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
     return () => {
       cancelled = true;
     };
-  }, [config]);
+  }, [config, requestedCountry, requestedVisaType]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const params = new URLSearchParams();
+    params.set("country", applicationCountry);
+    params.set("visaType", applicationVisaType);
+    setRecentApplicationFormHref(`/client/simplified-form?${params.toString()}`);
+  }, [applicationCountry, applicationVisaType, loading]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -290,16 +307,36 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
     setStepIndex(Math.max(0, Math.min(totalSteps - 1, index)));
   }, [totalSteps]);
 
+  const longFormHref = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("country", applicationCountry);
+    params.set("visaType", applicationVisaType);
+    return `/client/application/long-form?${params.toString()}`;
+  }, [applicationCountry, applicationVisaType]);
+
+  const buildApplicationRedirect = useCallback(
+    (href: string) => {
+      const target = new URL(href, window.location.origin);
+      if (!target.searchParams.get("country")) {
+        target.searchParams.set("country", applicationCountry);
+      }
+      if (!target.searchParams.get("visaType")) {
+        target.searchParams.set("visaType", applicationVisaType);
+      }
+      return target.toString().replace(window.location.origin, "");
+    },
+    [applicationCountry, applicationVisaType],
+  );
+
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
     setError(null);
     try {
       let appId = applicationId;
       if (!appId) {
-        const pkg = await getUserVisaPackage();
         const { applicationId: ensuredId, error: ensureErr } = await ensureDraftApplication(
-          pkg?.country ?? config.defaultCountry,
-          pkg?.visa_type ?? config.defaultVisaType,
+          applicationCountry,
+          applicationVisaType,
         );
         if (ensureErr || !ensuredId) {
           throw new Error(ensureErr ?? "Could not create application");
@@ -310,12 +347,20 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
       const payload = config.buildAnswerPayload(form);
       const { error: saveErr } = await saveDynamicAnswers(appId, payload);
       if (saveErr) throw new Error(saveErr);
-      router.push(config.onSubmitRedirect ?? "/client/application/long-form");
+      router.push(buildApplicationRedirect(config.onSubmitRedirect ?? "/client/application/long-form"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
       setSubmitting(false);
     }
-  }, [applicationId, config, form, router]);
+  }, [
+    applicationCountry,
+    applicationId,
+    applicationVisaType,
+    buildApplicationRedirect,
+    config,
+    form,
+    router,
+  ]);
 
   const stepLabel = useMemo(() => {
     const titleKey = onDocuments
@@ -442,7 +487,7 @@ export function WizardShell<TForm>({ config }: WizardShellProps<TForm>) {
 
       <p className="text-center text-xs text-muted-foreground">
         {tShared("openLongFormLead")}{" "}
-        <Link className="underline" href="/client/application/long-form">
+        <Link className="underline" href={longFormHref}>
           {tShared("openLongFormLink")}
         </Link>
       </p>

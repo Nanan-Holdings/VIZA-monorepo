@@ -36,6 +36,10 @@ privacy/data-rights controls.
 
 ## Guardrails
 
+- Default new settings functionality to a single SettingsRow-style tab/entry
+  point. Keep the full detail surface hidden until the user opens that tab.
+- Keep the points center and points marketplace behind one Points Center tab;
+  do not split them into separate default-expanded sections.
 - Do not delete applicant PII directly from client UI. Create a request record
   unless a dedicated retention/deletion service owns the operation.
 - Do not show service-role-only fields in browser components.
