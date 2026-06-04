@@ -4980,7 +4980,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 346,
-      "passes": false,
+      "passes": true,
       "notes": "Brief: WeChat only Indonesia. Keep that until PAYP epic generalizes it."
     },
     {
