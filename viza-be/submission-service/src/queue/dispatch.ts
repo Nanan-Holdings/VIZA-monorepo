@@ -1,0 +1,398 @@
+/**
+ * Canonical country dispatch table for the runner_job consumer (QUE-001).
+ *
+ * Maps a `runner_job.country` value to an async `runOne(applicationId)`
+ * handler. The worker's JobHandler (QUE-003) looks up the country here and
+ * delegates. Countries without a runner throw `UnsupportedCountryError` so
+ * the worker dead-letters cleanly instead of silently dropping a paid order.
+ *
+ * Result normalization (QUE-005): a runner that halts before government
+ * payment/signature resolves to a `halted_before_pay` outcome — the worker
+ * treats a normal return as `succeeded`. Retryable portal failures
+ * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
+ * conditions throw `NeedsHumanError`.
+ */
+import {
+  runIdPrefill,
+  runEgPrefill,
+  runItPrefill,
+  runThPrefill,
+  runMyPrefill,
+  runTrPrefill,
+  runAePrefill,
+  runCaEtaPrefill,
+  type CommonAnswers,
+} from "../t3/index.js";
+import { runInPrefill } from "../in/runner.js";
+import { runLkPrefill } from "../lk/runner.js";
+import { runKhPrefill } from "../kh/runner.js";
+import { runLaPrefill } from "../la/runner.js";
+import { runZaPrefill } from "../za/runner.js";
+import { fillVietnamApplication } from "../vietnam/run.js";
+import { loadCanonicalAnswers, pick, type CanonicalRecord } from "./answers.js";
+
+/** Thrown when no runner is wired for a country — worker dead-letters. */
+export class UnsupportedCountryError extends Error {
+  constructor(public readonly country: string) {
+    super(`No runner implemented for country '${country}'`);
+    this.name = "UnsupportedCountryError";
+  }
+}
+
+/** Retryable portal failure (blocked / anti-bot). Worker retries to max_attempts. */
+export class RetryableRunnerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RetryableRunnerError";
+  }
+}
+
+/** Applicant intervention required (e.g. bad credentials, manual review). */
+export class NeedsHumanError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NeedsHumanError";
+  }
+}
+
+export interface DispatchOutcome {
+  outcome: "halted_before_pay" | "submitted_pending_pay";
+  reachedStep: string;
+  artefacts: string[];
+}
+
+export type RunOne = (
+  applicationId: string,
+  jobId?: string,
+) => Promise<DispatchOutcome>;
+
+/** Standard runner result shape shared by the generic + dedicated runners. */
+interface StandardResult {
+  status: string;
+  reason: string;
+  reachedStep: string;
+  artefacts: string[];
+}
+
+function normalizeStandard(r: StandardResult): DispatchOutcome {
+  switch (r.status) {
+    case "stopped_before_pay":
+    case "stopped_before_signature":
+      return {
+        outcome: "halted_before_pay",
+        reachedStep: r.reachedStep,
+        artefacts: r.artefacts,
+      };
+    case "blocked":
+    case "anti_bot_gate":
+      throw new RetryableRunnerError(`${r.status}: ${r.reason}`);
+    case "needs_human":
+      throw new NeedsHumanError(r.reason);
+    default:
+      throw new Error(`unexpected runner status: ${r.status}`);
+  }
+}
+
+function toCommonAnswers(rec: CanonicalRecord): CommonAnswers {
+  return {
+    surname: pick(rec, "surname"),
+    given_names: pick(rec, "given_names"),
+    date_of_birth: pick(rec, "date_of_birth"),
+    nationality: pick(rec, "nationality"),
+    passport_number: pick(rec, "passport_number"),
+    passport_expiry_date: pick(rec, "passport_expiry_date"),
+    passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+    email: pick(rec, "email"),
+    phone: pick(rec, "phone"),
+    intended_arrival_date: pick(rec, "intended_arrival_date"),
+    intended_departure_date: pick(rec, "intended_departure_date") || undefined,
+    occupation: pick(rec, "occupation") || undefined,
+    visit_purpose: pick(rec, "visit_purpose") || undefined,
+  };
+}
+
+/** Build a generic-runner adapter for a Tier-3 country. */
+function genericAdapter(
+  runner: (input: {
+    jobId: string;
+    applicationId: string;
+    answers: CommonAnswers;
+    headless?: boolean;
+  }) => Promise<StandardResult>,
+): RunOne {
+  return async (applicationId, jobId) => {
+    const rec = await loadCanonicalAnswers(applicationId);
+    const result = await runner({
+      jobId: jobId ?? applicationId,
+      applicationId,
+      answers: toCommonAnswers(rec),
+    });
+    return normalizeStandard(result);
+  };
+}
+
+/* ---------------------- Dedicated-runner adapters ---------------------- */
+
+const runIndia: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await runInPrefill({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers: {
+      surname: pick(rec, "surname"),
+      given_names: pick(rec, "given_names"),
+      date_of_birth: pick(rec, "date_of_birth"),
+      nationality: pick(rec, "nationality"),
+      passport_number: pick(rec, "passport_number"),
+      passport_expiry_date: pick(rec, "passport_expiry_date"),
+      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+      email: pick(rec, "email"),
+      phone: pick(rec, "phone"),
+      intended_arrival_date: pick(rec, "intended_arrival_date"),
+      port_of_arrival: pick(rec, "port_of_arrival") || undefined,
+      occupation: pick(rec, "occupation") || undefined,
+      visa_purpose: "tourism",
+    },
+  });
+  return normalizeStandard(result);
+};
+
+const runSriLanka: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await runLkPrefill({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers: {
+      surname: pick(rec, "surname"),
+      given_names: pick(rec, "given_names"),
+      date_of_birth: pick(rec, "date_of_birth"),
+      nationality: pick(rec, "nationality"),
+      passport_number: pick(rec, "passport_number"),
+      passport_expiry_date: pick(rec, "passport_expiry_date"),
+      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+      email: pick(rec, "email"),
+      phone: pick(rec, "phone"),
+      intended_arrival_date: pick(rec, "intended_arrival_date"),
+      port_of_arrival: pick(rec, "port_of_arrival", "CMB"),
+      occupation: pick(rec, "occupation"),
+      address_in_sri_lanka: pick(rec, "address_in_sri_lanka"),
+      visa_variant: pick(rec, "visa_variant", "tourist_double"),
+    },
+  });
+  return normalizeStandard(result);
+};
+
+const runCambodia: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await runKhPrefill({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers: {
+      surname: pick(rec, "surname"),
+      given_names: pick(rec, "given_names"),
+      date_of_birth: pick(rec, "date_of_birth"),
+      nationality: pick(rec, "nationality"),
+      passport_number: pick(rec, "passport_number"),
+      passport_expiry_date: pick(rec, "passport_expiry_date"),
+      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+      email: pick(rec, "email"),
+      phone: pick(rec, "phone"),
+    },
+  });
+  return normalizeStandard(result);
+};
+
+const runLaos: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await runLaPrefill({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers: {
+      surname: pick(rec, "surname"),
+      given_names: pick(rec, "given_names"),
+      date_of_birth: pick(rec, "date_of_birth"),
+      nationality: pick(rec, "nationality"),
+      passport_number: pick(rec, "passport_number"),
+      passport_expiry_date: pick(rec, "passport_expiry_date"),
+      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+      email: pick(rec, "email"),
+      phone: pick(rec, "phone"),
+      intended_arrival_date: pick(rec, "intended_arrival_date"),
+      port_of_entry: pick(rec, "port_of_entry", "VTE"),
+      occupation: pick(rec, "occupation"),
+    },
+  });
+  return normalizeStandard(result);
+};
+
+const runSouthAfrica: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await runZaPrefill({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers: {
+      surname: pick(rec, "surname"),
+      given_names: pick(rec, "given_names"),
+      date_of_birth: pick(rec, "date_of_birth"),
+      nationality: pick(rec, "nationality"),
+      passport_number: pick(rec, "passport_number"),
+      passport_expiry_date: pick(rec, "passport_expiry_date"),
+      passport_issuing_country: pick(rec, "passport_issuing_country", pick(rec, "nationality")),
+      email: pick(rec, "email"),
+      phone: pick(rec, "phone"),
+      intended_arrival_date: pick(rec, "intended_arrival_date"),
+      intended_departure_date: pick(rec, "intended_departure_date"),
+      purpose_of_visit: pick(rec, "purpose_of_visit", "Tourism"),
+      occupation: pick(rec, "occupation"),
+    },
+  });
+  return normalizeStandard(result);
+};
+
+const runVietnam: RunOne = async (applicationId, jobId) => {
+  const rec = await loadCanonicalAnswers(applicationId);
+  const result = await fillVietnamApplication({ answers: rec }, { runId: jobId ?? applicationId });
+  switch (result.status) {
+    case "submitted_pending_pay":
+      return { outcome: "submitted_pending_pay", reachedStep: "submitted", artefacts: [] };
+    case "scaffolded_pending_walk":
+      return { outcome: "halted_before_pay", reachedStep: "scaffolded", artefacts: [] };
+    case "failed":
+      throw new RetryableRunnerError(`vietnam failed at ${result.failedStep}`);
+    default:
+      throw new Error(`unexpected vietnam status: ${(result as { status: string }).status}`);
+  }
+};
+
+/** Country code that is not yet wired — throws on invocation. */
+function unsupported(country: string): RunOne {
+  return async () => {
+    throw new UnsupportedCountryError(country);
+  };
+}
+
+/* --------------------------- Dispatch table --------------------------- */
+
+/** The 16 launch countries (canonical codes). */
+export const LAUNCH_COUNTRIES = [
+  "indonesia",
+  "egypt",
+  "australia",
+  "saudi_arabia",
+  "united_kingdom",
+  "vietnam",
+  "malaysia",
+  "japan",
+  "united_states",
+  "canada",
+  "turkey",
+  "thailand",
+  "united_arab_emirates",
+  "france",
+  "italy",
+  "india",
+] as const;
+
+export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
+
+/**
+ * Country → runOne. Includes the 16 launch countries plus the additional
+ * prefill-capable countries that already have runners (Sri Lanka, Cambodia,
+ * Laos, South Africa). `united_states`, `united_kingdom`, `france`,
+ * `australia` are halt-via-legacy-queue and get real runOne wrappers in
+ * QUE-005; `saudi_arabia` and `japan` have no runner yet.
+ */
+export const DISPATCH: Record<string, RunOne> = {
+  indonesia: genericAdapter(runIdPrefill),
+  egypt: genericAdapter(runEgPrefill),
+  italy: genericAdapter(runItPrefill),
+  thailand: genericAdapter(runThPrefill),
+  malaysia: genericAdapter(runMyPrefill),
+  turkey: genericAdapter(runTrPrefill),
+  united_arab_emirates: genericAdapter(runAePrefill),
+  canada: genericAdapter(runCaEtaPrefill),
+  india: runIndia,
+  sri_lanka: runSriLanka,
+  cambodia: runCambodia,
+  laos: runLaos,
+  south_africa: runSouthAfrica,
+  vietnam: runVietnam,
+  // Wired in QUE-005 (halt-before-gov-pay via legacy submission_queue path):
+  united_states: unsupported("united_states"),
+  united_kingdom: unsupported("united_kingdom"),
+  france: unsupported("france"),
+  australia: unsupported("australia"),
+  // No runner yet:
+  saudi_arabia: unsupported("saudi_arabia"),
+  japan: unsupported("japan"),
+};
+
+/**
+ * Static routing metadata for tests/observability — which runner backs each
+ * country and whether it is live. Kept in sync with DISPATCH by hand.
+ */
+export const DISPATCH_META: Record<string, { runner: string; implemented: boolean }> = {
+  indonesia: { runner: "runIdPrefill", implemented: true },
+  egypt: { runner: "runEgPrefill", implemented: true },
+  italy: { runner: "runItPrefill", implemented: true },
+  thailand: { runner: "runThPrefill", implemented: true },
+  malaysia: { runner: "runMyPrefill", implemented: true },
+  turkey: { runner: "runTrPrefill", implemented: true },
+  united_arab_emirates: { runner: "runAePrefill", implemented: true },
+  canada: { runner: "runCaEtaPrefill", implemented: true },
+  india: { runner: "runInPrefill", implemented: true },
+  sri_lanka: { runner: "runLkPrefill", implemented: true },
+  cambodia: { runner: "runKhPrefill", implemented: true },
+  laos: { runner: "runLaPrefill", implemented: true },
+  south_africa: { runner: "runZaPrefill", implemented: true },
+  vietnam: { runner: "fillVietnamApplication", implemented: true },
+  united_states: { runner: "(legacy submission_queue)", implemented: false },
+  united_kingdom: { runner: "(legacy submission_queue)", implemented: false },
+  france: { runner: "(legacy submission_queue)", implemented: false },
+  australia: { runner: "runAuPrefill", implemented: false },
+  saudi_arabia: { runner: "(none)", implemented: false },
+  japan: { runner: "(paper renderer)", implemented: false },
+};
+
+/**
+ * Country-code normalization. Maps ISO-ish / alias inputs to the canonical
+ * dispatch keys used here and by the portal producer (QUE-004).
+ */
+export const COUNTRY_ALIASES: Record<string, string> = {
+  gb: "united_kingdom",
+  uk: "united_kingdom",
+  us: "united_states",
+  usa: "united_states",
+  ae: "united_arab_emirates",
+  uae: "united_arab_emirates",
+  id: "indonesia",
+  eg: "egypt",
+  au: "australia",
+  sa: "saudi_arabia",
+  vn: "vietnam",
+  my: "malaysia",
+  jp: "japan",
+  ca: "canada",
+  tr: "turkey",
+  th: "thailand",
+  fr: "france",
+  it: "italy",
+  in: "india",
+  lk: "sri_lanka",
+  kh: "cambodia",
+  la: "laos",
+  za: "south_africa",
+};
+
+export function normalizeCountry(country: string): string {
+  const key = country.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return COUNTRY_ALIASES[key] ?? key;
+}
+
+/** Resolve a country to its runOne handler. Throws UnsupportedCountryError. */
+export function getRunOne(country: string): RunOne {
+  const key = normalizeCountry(country);
+  const runOne = DISPATCH[key];
+  if (!runOne) throw new UnsupportedCountryError(country);
+  return runOne;
+}

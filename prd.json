@@ -4684,7 +4684,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 325,
-      "passes": false,
+      "passes": true,
       "notes": "Central seam for Epic 5. worker.ts pollAndRun already accepts a JobHandler; this table is what the handler delegates to. Confirmed runners exist but are never imported."
     },
     {
