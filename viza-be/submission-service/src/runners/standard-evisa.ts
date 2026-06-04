@@ -6,6 +6,7 @@ import { artifact } from "../artifact.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
 import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
 import { solveCaptcha } from "../captcha/index.js";
+import { __INTERNALS as TRANSLATION_INTERNALS } from "../translation-gate.js";
 import {
   NeedsHumanError,
   RetryableRunnerError,
@@ -107,6 +108,30 @@ export async function discoverFields(page: Page): Promise<ReconField[]> {
   );
 }
 
+/* ----------------------------- translation gate ----------------------------- */
+/**
+ * RUN-CORE-007 soft translation gate. Non-English destination portals
+ * (SA/TR/TH/AE/JP/IT) expect Latin-script input. This logs (does NOT throw)
+ * when canonical answers still contain CJK characters and proceeds — the
+ * documented fallback is to submit as-is and let the portal flag the field,
+ * rather than block a paid order. Returns the offending answer keys.
+ */
+export function softTranslationGate(country: string, answers: Record<string, string>): string[] {
+  const offenders: string[] = [];
+  for (const [key, value] of Object.entries(answers)) {
+    if (typeof value === "string" && TRANSLATION_INTERNALS.HAS_CJK.test(value)) {
+      offenders.push(key);
+    }
+  }
+  if (offenders.length > 0) {
+    console.warn(
+      `[${country}] translation-gate: ${offenders.length} field(s) contain non-English (CJK) ` +
+        `characters; proceeding with fallback. Keys: ${offenders.join(", ")}`,
+    );
+  }
+  return offenders;
+}
+
 /* ------------------------------- captcha hook ------------------------------- */
 /**
  * RUN-CORE-001 captcha hook: detect a reCAPTCHA v2 widget on the page and
@@ -169,6 +194,9 @@ export function makeStandardEvisaRunner(cfg: StdRunnerConfig): {
     if (missing.length > 0) {
       return { status: "needs_human", reason: `missing required answers: ${missing.join(", ")}`, reachedStep: "validation", artefacts: [] };
     }
+
+    // RUN-CORE-007: non-fatal translation gate (logs CJK, proceeds).
+    softTranslationGate(cfg.country, input.answers);
 
     const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
     const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), `${cfg.cc}-har-`));

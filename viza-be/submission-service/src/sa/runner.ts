@@ -7,6 +7,7 @@ import { fillSaForm } from "./fillers.js";
 import { missingRequired } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
 import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
+import { softTranslationGate } from "../runners/standard-evisa.js";
 import {
   NeedsHumanError,
   RetryableRunnerError,
@@ -45,6 +46,7 @@ export async function runSaRunner(input: SaRunInput): Promise<SaRunResult> {
     return { status: "needs_human", reason: `missing required answers: ${missing.join(", ")}`, reachedStep: "validation", artefacts: [] };
   }
 
+  softTranslationGate("saudi_arabia", input.answers); // RUN-CORE-007 (non-fatal)
   const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "sa-har-"));
   const ctx = await browser.newContext({

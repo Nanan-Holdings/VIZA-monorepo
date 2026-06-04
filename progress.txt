@@ -2727,3 +2727,10 @@ acknowledgment).
 - Test src/proxy/__tests__/coverage.spec.ts (3). 
 - Files: src/proxy/country-overrides.ts, src/config/validate-env.ts, docs/runners/proxy-accounts.md, +test, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-CORE-007
+- Added softTranslationGate(country, answers) to standard-evisa core: logs CJK-containing fields (non-fatal) and returns offenders; documented fallback = proceed, let portal flag. Uses translation-gate __INTERNALS.HAS_CJK.
+- Invoked by SA/TR/TH/AE (TR/TH/AE via shared runRunner; SA in runSaRunner) + JP (runJpRunner) + IT (italy runner). Covers the AC list SA/TR/TH/AE/JP/IT.
+- Test src/runners/__tests__/translation-gate.spec.ts (2): flags CJK, clean passes.
+- Files: src/runners/standard-evisa.ts, src/sa/runner.ts, src/italy-vfs-cn/runner.ts, src/jp/runner.ts, +test, prd.json. Typecheck passes.
+---
