@@ -87,3 +87,51 @@ producer asynchronously.
   rows to `paused_dispute` when a chargeback hits. The new
   `runner_job` mirror should adopt the same `status='paused'` flag
   so disputes block both queues uniformly. Open for INFRA-003.
+
+## Dispatch table & country codes (QUE-001 / QUE-004)
+
+The consumer's `JobHandler` (`src/queue/handler.ts`) looks up `job.country`
+in `src/queue/dispatch.ts` (`getRunOne`) and calls its
+`runOne(applicationId)`. Unwired countries throw `UnsupportedCountryError`
+so the worker dead-letters cleanly instead of dropping a paid order.
+
+**Country codes are a shared contract.** Both sides MUST agree:
+
+- Consumer: `viza-be/submission-service/src/queue/dispatch.ts`
+  (`LAUNCH_COUNTRIES`, `COUNTRY_ALIASES`, `normalizeCountry`).
+- Producer: `viza-fe/internal-website/lib/queue/countries.ts`
+  (same constants; `assertKnownCountry()` validates before insert).
+
+Edit both together. The 16 launch countries: `indonesia, egypt, australia,
+saudi_arabia, united_kingdom, vietnam, malaysia, japan, united_states,
+canada, turkey, thailand, united_arab_emirates, france, italy, india`. Extras
+with runners: `sri_lanka, cambodia, laos, south_africa`.
+
+Normalization maps ISO-ish aliases to canonical codes in one place per side:
+`gb`/`uk` → `united_kingdom`, `us`/`usa` → `united_states`, `ae`/`uae` →
+`united_arab_emirates`, `in` → `india`, etc.
+
+## Outcome semantics — halt vs submit (QUE-005)
+
+`runOne` resolves to a `DispatchOutcome` (normal return = worker marks
+`succeeded`) or throws:
+
+| Runner status | Dispatch result | runner_job status |
+|---|---|---|
+| `stopped_before_pay` / `stopped_before_signature` | `halted_before_pay` | `succeeded` |
+| `submitted_pending_pay` (Vietnam) | `submitted_pending_pay` | `succeeded` |
+| `blocked` / `anti_bot_gate` | throw `RetryableRunnerError` | retried → `failed` |
+| `needs_human` | throw `NeedsHumanError` | retried → `failed` |
+| unwired country | throw `UnsupportedCountryError` | dead-letter |
+
+**Halting before government payment is a success** — the runner prefilled the
+form and stopped at the pay/signature wall as designed. Halt countries
+(`united_states`, `united_kingdom`, `france`, `australia`) run through their
+existing prefill/halt runners exposed as `runOne` wrappers.
+
+## Operational scripts
+
+- `scripts/queue/list-stuck-jobs.ts` — read-only dead-letter / stale-lease visibility (QUE-007).
+- `scripts/queue/requeue-jobs.ts` — guarded (dry-run default, `--confirm`) requeue of stale/dead-lettered rows (QUE-008).
+- `scripts/queue/backfill-paid-orders.ts` — enqueue paid-but-unprocessed orders (QUE-009).
+- Per-country concurrency + pause config: `src/queue/concurrency.ts` (QUE-006).
