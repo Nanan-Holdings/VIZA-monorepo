@@ -2734,3 +2734,9 @@ acknowledgment).
 - Test src/runners/__tests__/translation-gate.spec.ts (2): flags CJK, clean passes.
 - Files: src/runners/standard-evisa.ts, src/sa/runner.ts, src/italy-vfs-cn/runner.ts, src/jp/runner.ts, +test, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-CORE-008
+- Added src/runners/evisa-inbox.ts: generalized inbox e-visa retrieval. EVISA_INBOX_CONFIGS (indonesia/turkey/thailand/united_arab_emirates from+subject patterns), matchesEvisaEmail (pure predicate), retrieveEvisaFromInbox (inbox.waitForMessage -> extractAuto -> fetch link -> storeEvisaArtifact RUN-CORE-003 path).
+- Test src/runners/__tests__/evisa-inbox.spec.ts (3): matches TR delivery, rejects wrong sender/subject, configs present.
+- Files: src/runners/evisa-inbox.ts (+test), prd.json. Typecheck passes. RUN block COMPLETE (all RUN-* + RUN-CORE done).
+---
