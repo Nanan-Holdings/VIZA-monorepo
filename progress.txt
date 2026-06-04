@@ -2706,3 +2706,10 @@ acknowledgment).
 - Test src/runners/__tests__/standard-evisa.spec.ts (4): date transforms, mapAnswers/missingRequired, withRetry retry, captcha hook no-key path. 14 tests pass (incl sa/my).
 - Files: src/runners/standard-evisa.ts (+test), src/sa/form-recon.ts, src/my/form-recon.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - RUN-CORE-003
+- Added src/runners/evisa-artifact.ts: evisaArtifactKey (country-tagged, sanitized) + storeEvisaArtifact (artifact.put under jobId bucket + writes evisaArtifactPath/evisaCountry onto the latest runner_job row's metadata for the status page, POR-007).
+- Wired Vietnam retrieve-evisa.ts to storeEvisaArtifact (replaced uploadArtifact). Submit-capable runners now share this path.
+- Test src/runners/__tests__/evisa-artifact.spec.ts (2): key construction + sanitization/ext. Pass.
+- Files: src/runners/evisa-artifact.ts (+test), src/vietnam/retrieve-evisa.ts, prd.json. Typecheck passes.
+---
