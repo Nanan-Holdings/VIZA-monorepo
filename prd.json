@@ -5081,7 +5081,7 @@
         "Unit test covers field mapping; Typecheck passes in viza-be/submission-service"
       ],
       "priority": 353,
-      "passes": false,
+      "passes": true,
       "notes": "Confirmed no Saudi runner dir. Also missing from lib/pricing.ts (cross-ref PAYP-001/MKT)."
     },
     {
@@ -5095,7 +5095,7 @@
         "Typecheck passes in viza-be/submission-service"
       ],
       "priority": 354,
-      "passes": false,
+      "passes": true,
       "notes": "Pairs with RUN-SA-001."
     },
     {
