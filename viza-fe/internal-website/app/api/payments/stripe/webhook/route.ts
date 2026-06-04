@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -48,7 +49,8 @@ async function updatePaymentRecord(params: {
 }) {
   const paid = params.status === "paid";
   const now = new Date().toISOString();
-  await createAdminClient()
+  const admin = createAdminClient();
+  await admin
     .from("payment_records")
     .update({
       provider_session_id: params.providerSessionId ?? undefined,
@@ -63,6 +65,25 @@ async function updatePaymentRecord(params: {
     })
     .eq("id", params.paymentRecordId)
     .eq("provider", "stripe");
+
+  if (paid) {
+    const { data: record } = await admin
+      .from("payment_records")
+      .select("id, applicant_id, auth_user_id, amount_cents, currency, provider")
+      .eq("id", params.paymentRecordId)
+      .maybeSingle();
+
+    if (record) {
+      await awardPurchasePointsForPayment({
+        paymentRecordId: record.id,
+        applicantId: record.applicant_id,
+        userId: record.auth_user_id,
+        amountCents: record.amount_cents,
+        currency: record.currency,
+        provider: record.provider,
+      });
+    }
+  }
 }
 
 async function handleCheckoutSession(event: Stripe.Event) {

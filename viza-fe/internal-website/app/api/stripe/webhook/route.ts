@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { mailReceiptOnPaid } from "@/app/actions/receipts";
 import { enqueueRunnerJob } from "@/lib/queue/enqueue";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import {
   AGENCY_FEE_TYPE,
   STRIPE_PROVIDER,
@@ -166,6 +167,15 @@ async function finalizePaidRecord(
   });
 
   // 2. 推进工作流状态
+  await awardPurchasePointsForPayment({
+    paymentRecordId: record.id,
+    applicantId: record.applicant_id,
+    amountCents: record.amount_cents,
+    currency: record.currency,
+    provider: record.provider,
+  });
+
+  // 3. 推进工作流状态
   const advancement = await advanceApplicationAfterConfirmedPayment(adminClient, {
     applicationId: record.application_id,
     applicantId: record.applicant_id,
@@ -193,7 +203,7 @@ async function finalizePaidRecord(
     });
   }
 
-  // 3. 发送系统收据邮件（使用 IIFE 异步自执行块 + try-catch 绕过 PromiseLike 局限）
+  // 4. 发送系统收据邮件（使用 IIFE 异步自执行块 + try-catch 绕过 PromiseLike 局限）
   (async () => {
     try {
       await mailReceiptOnPaid(record.id);
@@ -202,7 +212,7 @@ async function finalizePaidRecord(
     }
   })();
 
-  // 4. 彻底重构：弃用 .then().catch() 链，改用独立的 async IIFE 执行块，100% 解决 .catch 报错问题
+  // 5. 彻底重构：弃用 .then().catch() 链，改用独立的 async IIFE 执行块，100% 解决 .catch 报错问题
   const appId = record.application_id;
   if (appId) {
     (async () => {

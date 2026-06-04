@@ -5,28 +5,71 @@ Scope: this file applies to `viza-be/submission-service/**`.
 ## Purpose
 
 The submission service is a long-running Node/TypeScript worker that polls
-`submission_queue` and drives official portal automation with Playwright.
+`submission_queue` and drives official portal automation with Playwright. Its
+product contract is reliable official-portal handoff/reference generation, not
+clicking irreversible final sign, final submit, or payment actions on behalf of
+the applicant.
 
 ## Key Flows
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
-  Indonesian e-visa automation, DS-160 job dispatch, retry/failure handling.
+  per-country dispatch, retry/failure handling, queue status transitions.
 - `src/form-mappings.ts`: Indonesian e-visa portal selectors.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
+- `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
+  reference capture, optional CERFA PDF finalization, and typed failures.
+- `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
+  still a known gap.
+- `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
+  stops before applicant-controlled submit.
+- `src/vietnam/**`: Vietnam e-Visa runner; fills the SPA and stops before
+  payment/submission.
+- `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
+  `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
+  varying maturity. Check `docs/visa-packages-status.md` before extending.
+- `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
+  `scripts/run-vn-smoke.ts`: local live smoke entry points for official portal
+  reach/fill validation.
 - `src/alert.ts`: Resend failure alerts.
 - `src/supabase.ts`: Supabase service client.
+
+## Data Contract
+
+- Runners read applicant answers from `visa_application_answers` first and use
+  `applicant_profiles` only as a fallback or for ownership/user metadata.
+- The frontend bilingual flows must materialize shared fields into
+  `visa_application_answers`; do not add runner-only UI state.
+- Keep per-country normalization in the runner module (`normalize.ts`,
+  `field-mappings.ts`, or equivalent) so the stored answer keys stay portable.
+
+## Current Package Progress
+
+| Country/package | Status | Stop point / result |
+| --- | --- | --- |
+| US DS-160 / CEAC | Phase 4 path wired | Stops at sign-and-submit; persists CEAC application ID and handoff payload. |
+| France Schengen | Phase 4 path wired | Creates/finalizes draft, captures France-Visas reference and optional CERFA PDF; no applicant payment is clicked here. |
+| Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
+| Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
+| UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
+| India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
+| Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
 
 ## Ownership Boundaries
 
 - Do not click final DS-160 sign/submit or solve the final submission gate.
   CEAC automation stops at operator handoff.
+- Do not click final applicant declaration, final submit, irreversible payment,
+  or appointment confirmation unless the user explicitly reopens that scope and
+  the legal/product boundary has been updated.
 - Keep Playwright selectors isolated in mapping files where possible.
 - Keep retries and queue status transitions explicit.
 - Do not move AI/RAG logic here; use `agent-backend`.
 - Do not move frontend submission UI here; use `viza-fe/internal-website`.
+- Never log or commit portal credentials, service-role keys, applicant
+  documents, screenshots with secrets, or CAPTCHA/API keys.
 
 ## Validation
 
@@ -37,8 +80,39 @@ npm run type-check
 npm run build
 ```
 
+Smoke order for official-portal validation:
+
+```powershell
+npm run install-browsers
+npx ts-node src/ceac/smoke.ts
+# Optional, spends 2captcha credit and requires TWOCAPTCHA_API_KEY:
+npx ts-node src/ceac/smoke.ts --solve-captcha
+# Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
+npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
+# Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:
+npm run au:smoke
+# Public Vietnam form; stops before Pay/Submit:
+npm run vn:smoke
+# UK recon/pre-auth walk:
+npx ts-node scripts/walk-uk-portal.ts
+```
+
 For CEAC changes, follow `docs/ceac-smoke-test.md` and preserve diagnostics
-artifacts for failures.
+artifacts for failures. For France smoke, delete any test draft/reference from
+the France-Visas account after confirming the run.
+
+## 2026-06-04 Local Validation Notes
+
+- `npm run type-check` initially failed because the local `node_modules` tree did
+  not contain `imapflow` even though it is declared in `package.json` and
+  `package-lock.json`. Restore dependencies from the lockfile before treating
+  TypeScript failures as product regressions.
+- `npx ts-node src/ceac/smoke.ts` initially failed before reaching CEAC because
+  the Playwright Chromium executable was missing. Run `npm run install-browsers`
+  before CEAC or country smoke tests.
+- `.env` contained Supabase/Resend/2captcha/OpenAI keys but no
+  `FV_EMAIL`/`FV_PASSWORD`, so France live smoke could not be run until those
+  credentials are provided out of band.
 
 ## Related Files
 

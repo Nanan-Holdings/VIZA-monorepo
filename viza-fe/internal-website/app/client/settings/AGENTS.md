@@ -9,8 +9,12 @@ privacy/data-rights controls.
 
 ## Key Responsibilities
 
-- Keep account/profile editing in the existing settings tabs unless a new route
-  is clearly needed.
+- Treat Settings rows/tabs as navigation entry points. When a user opens a
+  settings tab, route to a dedicated page such as
+  `/client/settings/points` or `/client/settings/payment-methods`; do not
+  reveal the detail surface inline on the Settings overview page.
+- Keep account/profile editing in the existing settings routes unless a new
+  route is clearly needed.
 - Add privacy controls for data export and deletion requests backed by
   `data_privacy_requests`.
 - Link billing actions to `/client/billing` rather than duplicating full
@@ -33,13 +37,27 @@ privacy/data-rights controls.
   form, and soft-delete controls for future group-order selection.
 - `components/privacy-tab.tsx`: client privacy/data-rights controls and request
   history.
+- `payment-methods/page.tsx`: payment account binding and default-method
+  management.
+- `points/page.tsx`: VIZA points balance, earning rules, and marketplace.
+- `travelers/page.tsx`: common/frequent traveler management.
+- `privacy/page.tsx`: privacy/data-rights page.
+- `security/password/page.tsx` and `security/email/page.tsx`: account security
+  update entry points.
 
 ## Guardrails
 
 - Default new settings functionality to a single SettingsRow-style tab/entry
-  point. Keep the full detail surface hidden until the user opens that tab.
+  point on `/client/settings`, then navigate to a dedicated child route for the
+  full detail surface.
 - Keep the points center and points marketplace behind one Points Center tab;
   do not split them into separate default-expanded sections.
+- VIZA points earn rule: every RMB 100 of confirmed customer spend grants 100
+  points. Award points through `reward_transactions` so `reward_wallets`
+  reflects the balance via the wallet trigger.
+- Points redemption rule: 1000 points can redeem one free arrival-card
+  submission for visa-free destinations that mainly require an entry/arrival
+  card, including Singapore, Malaysia, and Thailand.
 - Do not delete applicant PII directly from client UI. Create a request record
   unless a dedicated retention/deletion service owns the operation.
 - Do not show service-role-only fields in browser components.

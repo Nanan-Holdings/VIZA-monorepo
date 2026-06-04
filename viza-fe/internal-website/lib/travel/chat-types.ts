@@ -1,5 +1,7 @@
 export type TravelDestinationCard = {
   type: "destination";
+  id?: string;
+  destination_id?: string;
   title: string;
   subtitle: string;
   country: string;

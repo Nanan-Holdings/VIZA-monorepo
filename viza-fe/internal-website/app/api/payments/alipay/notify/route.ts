@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AlipayConfigError, getAlipayAppId, verifyAlipayNotify } from "@/lib/alipay/client";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: record, error } = await admin
     .from("payment_records")
-    .select("id, amount_cents, currency, status, paid_at, metadata")
+    .select("id, applicant_id, auth_user_id, amount_cents, currency, provider, status, paid_at, metadata")
     .eq("provider", "alipay")
     .eq("provider_session_id", outTradeNo)
     .maybeSingle();
@@ -113,6 +114,17 @@ export async function POST(request: Request) {
   if (updateError) {
     console.error("[payments-alipay-notify] update failed:", updateError.message);
     return new NextResponse("fail", { status: 500 });
+  }
+
+  if (paid) {
+    await awardPurchasePointsForPayment({
+      paymentRecordId: record.id,
+      applicantId: record.applicant_id,
+      userId: record.auth_user_id,
+      amountCents: record.amount_cents,
+      currency: record.currency,
+      provider: record.provider,
+    });
   }
 
   return new NextResponse("success");

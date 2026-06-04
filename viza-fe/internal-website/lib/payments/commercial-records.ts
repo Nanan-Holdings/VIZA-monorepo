@@ -5,6 +5,7 @@ import { isAirwallexConfigured } from "@/lib/airwallex/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAlipayConfigReady } from "@/lib/alipay/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 
 type Json =
   | string
@@ -195,6 +196,17 @@ export async function reconcileStripeSubscriptionReturn(
     .eq("auth_user_id", user.id);
 
   if (error) throw new Error(error.message);
+
+  if (paid) {
+    await awardPurchasePointsForPayment({
+      paymentRecordId: record.id,
+      applicantId: record.applicant_id,
+      userId: record.auth_user_id,
+      amountCents: record.amount_cents,
+      currency: record.currency,
+      provider: record.provider,
+    });
+  }
 
   return paid
     ? {

@@ -26,7 +26,10 @@ import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
-import { TravelItineraryExperience } from "@/components/client/travel/travel-itinerary-experience";
+import {
+  TravelItineraryExperience,
+  type TravelItineraryStateUpdate,
+} from "@/components/client/travel/travel-itinerary-experience";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
   createTravelShareMessages,
@@ -327,7 +330,7 @@ const FALLBACK_HOTSPOTS = [
   "Local Food Street",
 ];
 
-const WORLD_CITY_SUGGESTIONS = [
+const FEATURED_DESTINATION_CITIES = [
   "Tokyo",
   "Singapore",
   "Sydney",
@@ -336,14 +339,11 @@ const WORLD_CITY_SUGGESTIONS = [
   "New York",
   "Beijing",
   "San Francisco",
-  "Pisa",
   "Dubai",
-  "Moscow",
   "Bali",
-  "Istanbul",
-  "Melbourne",
-  "Hawaii",
 ] as const;
+
+const WORLD_CITY_SUGGESTIONS = FEATURED_DESTINATION_CITIES;
 
 const LOCAL_NAME_BY_KEY: Record<string, string> = {
   japan: "日本",
@@ -668,6 +668,10 @@ function createInitialTravelMessages(
         {
           type: "text",
           text: isZh ? INITIAL_ASSISTANT_TEXT : INITIAL_ASSISTANT_TEXT_EN,
+        },
+        {
+          type: "destination_cards",
+          cards: createFeaturedDestinationCards(),
         },
         {
           type: "quick_replies",
@@ -1687,19 +1691,54 @@ function toAgentChatMessages(messages: TravelChatMessage[]) {
     .filter((message) => message.content);
 }
 
+function isRawPromptCardTitle(value: string): boolean {
+  const normalized = value.trim();
+  return (
+    /^我想去.+/.test(normalized) ||
+    /^想去.+/.test(normalized) ||
+    /^我不知道去哪/.test(normalized) ||
+    /^不知道去哪/.test(normalized) ||
+    /^I want to (?:visit|go to|travel to) .+/i.test(normalized) ||
+    /^I'?m not sure where to go/i.test(normalized)
+  );
+}
+
+function sanitizeDestinationCards(
+  cards: TravelDestinationCard[] | undefined
+): TravelDestinationCard[] {
+  if (!cards?.length) return [];
+
+  const byStableKey = new Map<string, TravelDestinationCard>();
+  cards.forEach((card) => {
+    if (isRawPromptCardTitle(card.title)) return;
+    const stableKey =
+      card.destination_id ??
+      card.id ??
+      `${card.country}|${card.city ?? ""}|${card.title}`;
+    byStableKey.set(stableKey.toLowerCase(), {
+      ...card,
+      id: card.id ?? stableKey,
+      destination_id: card.destination_id ?? card.id ?? stableKey,
+    });
+  });
+
+  return Array.from(byStableKey.values());
+}
+
 function createAssistantMessageFromAgentResponse(
   response: TravelAgentChatResponse,
   locale: InterfaceLocale
 ): TravelChatMessage {
   const parts: TravelChatMessage["parts"] = [];
   const reply = response.reply?.trim();
+  const cards = sanitizeDestinationCards(response.cards);
 
   if (reply) {
     parts.push({ type: "text", text: localizeTravelText(reply, locale) });
   }
 
-  if (response.cards?.length) {
-    parts.push({ type: "destination_cards", cards: response.cards });
+  if (cards.length) {
+    parts.push({ type: "destination_cards", cards });
   }
 
   if (response.quick_replies?.length) {
@@ -2023,6 +2062,42 @@ function localizeSuggestedDays(
 function getCityContext(city: string) {
   const key = normalizeCityKey(city);
   return CITY_CONTEXT[key] ?? null;
+}
+
+function createFeaturedDestinationCards(): TravelDestinationCard[] {
+  return FEATURED_DESTINATION_CITIES.map((city) => {
+    const context = getCityContext(city);
+    const cityLabel = getLocalDisplayName(city);
+    const country = context?.countryEn ?? city;
+    return {
+      type: "destination" as const,
+      id: `featured-${normalizeCityKey(city)}`,
+      destination_id: `featured-${normalizeCityKey(city)}`,
+      title: city,
+      subtitle: context
+        ? `${context.countryEn} · featured city route`
+        : "Featured destination route",
+      country,
+      city,
+      image_key: normalizeCityKey(city),
+      highlights: [
+        "featured route",
+        context?.countryZh ?? "destination context",
+        "map-ready",
+      ],
+      suggested_days: context?.days ?? "3-5 days",
+      action_label: `加入计划：${cityLabel}`,
+      payload: {
+        seed_country: country,
+        seed_city: city,
+        country,
+        countries: [country],
+        cities: [city],
+        travel_order: [city],
+        city_days: { [city]: 3 },
+      },
+    };
+  });
 }
 
 function buildMapIntro(
@@ -2557,8 +2632,8 @@ export function TravelChatClient({
   ]);
 
   const progressItems = useMemo(
-    () => buildProgressItems(progressPercent, travelState, isZh),
-    [isZh, progressPercent, travelState]
+    () => buildProgressItems(progressPercent, displayTravelState, isZh),
+    [displayTravelState, isZh, progressPercent]
   );
   const completedProgressCount = useMemo(
     () => progressItems.filter((item) => item.done).length,
@@ -2660,8 +2735,8 @@ export function TravelChatClient({
   );
 
   const selectedCityKeys = useMemo(
-    () => new Set(orderedCities.map((city) => normalizeCityKey(city))),
-    [orderedCities]
+    () => new Set(displayOrderedCities.map((city) => normalizeCityKey(city))),
+    [displayOrderedCities]
   );
 
   const citySuggestionTargets = useMemo<MapTarget[]>(() => {
@@ -2697,31 +2772,37 @@ export function TravelChatClient({
 
   const baseMapTargets = useMemo(() => {
     const targets: MapTarget[] = [];
+    const canonicalRouteCoordinates =
+      displayItineraryRouteCoordinates.length > 0
+        ? displayItineraryRouteCoordinates
+        : displayRouteCoordinates;
+    const canonicalCities = displayOrderedCities;
+    const canonicalState = displayTravelState;
 
-    if (displayRouteCoordinates.length >= 2) {
+    if (canonicalRouteCoordinates.length >= 2) {
       const originLabel =
-        travelState.origin_city?.trim() || orderedCities[0] || "Origin";
+        canonicalState.origin_city?.trim() || canonicalCities[0] || "Origin";
       const returnLabel =
-        travelState.return_city?.trim() ||
-        orderedCities[orderedCities.length - 1] ||
+        canonicalState.return_city?.trim() ||
+        canonicalCities[canonicalCities.length - 1] ||
         "Destination";
-      const [routeStartLat, routeStartLng] = displayRouteCoordinates[0];
+      const [routeStartLat, routeStartLng] = canonicalRouteCoordinates[0];
       targets.push({
         id: "route-overview",
         kind: "route",
         label: "Route Overview",
         subtitle: `${originLabel} → ${returnLabel}`,
         localName: `${getLocalDisplayName(originLabel)} → ${getLocalDisplayName(returnLabel)}`,
-        intro: buildMapIntro("route", "Route Overview", orderedCities[0]),
+        intro: buildMapIntro("route", "Route Overview", canonicalCities[0]),
         imageSrc: getCityImage(originLabel, "route"),
         lat: routeStartLat,
         lng: routeStartLng,
-        city: orderedCities[0],
+        city: canonicalCities[0],
       });
     }
 
-    orderedCities.forEach((city, index) => {
-      const days = travelState.city_days[city];
+    canonicalCities.forEach((city, index) => {
+      const days = canonicalState.city_days[city];
       const coordinate = getGoogleCityCoordinates(city, googleCityCoordinates);
       if (!coordinate) return;
       const [lat, lng] = coordinate;
@@ -2744,7 +2825,7 @@ export function TravelChatClient({
       });
     });
 
-    travelState.selected_hotels.forEach((hotel) => {
+    canonicalState.selected_hotels.forEach((hotel) => {
       const lat = toCoordinate(hotel.option.latitude);
       const lng = toCoordinate(hotel.option.longitude);
       const hotelName = hotel.option.name ?? `Hotel ${hotel.stay_index}`;
@@ -2783,13 +2864,11 @@ export function TravelChatClient({
 
     return targets;
   }, [
-    orderedCities,
+    displayItineraryRouteCoordinates,
+    displayOrderedCities,
     displayRouteCoordinates,
+    displayTravelState,
     googleCityCoordinates,
-    travelState.city_days,
-    travelState.origin_city,
-    travelState.return_city,
-    travelState.selected_hotels,
   ]);
 
   const activeBaseTarget = useMemo(
@@ -2800,9 +2879,13 @@ export function TravelChatClient({
 
   const activeCityForHotspots = useMemo(() => {
     if (activeBaseTarget?.city) return activeBaseTarget.city;
-    if (orderedCities.length > 0) return orderedCities[0];
-    return travelState.selected_hotels[0]?.city ?? null;
-  }, [activeBaseTarget?.city, orderedCities, travelState.selected_hotels]);
+    if (displayOrderedCities.length > 0) return displayOrderedCities[0];
+    return displayTravelState.selected_hotels[0]?.city ?? null;
+  }, [
+    activeBaseTarget?.city,
+    displayOrderedCities,
+    displayTravelState.selected_hotels,
+  ]);
 
   const hotspotMapTargets = useMemo(() => {
     if (!hasDestinationSelection || !activeCityForHotspots) return [];
@@ -2944,6 +3027,56 @@ export function TravelChatClient({
       setSessionMapMode(sessionId, false);
     },
     [setSessionMapMode, updateTravelSession]
+  );
+
+  const handleItineraryStateChange = useCallback(
+    (update: TravelItineraryStateUpdate) => {
+      updateTravelSession(activeSessionId, (session) => {
+        const versions = session.versions ?? [];
+        const activeVersionId =
+          session.activeVersionId ?? versions[versions.length - 1]?.id;
+        if (!activeVersionId) return session;
+
+        let changed = false;
+        const nextVersions = versions.map((version) => {
+          if (version.id !== activeVersionId) return version;
+          changed = true;
+          return {
+            ...version,
+            title: createTripVersionTitle(
+              update.itinerary,
+              update.travelState,
+              interfaceLocale
+            ),
+            itinerary: normalizeItineraryDays(update.itinerary),
+            travelState: update.travelState,
+            selectedFlights: update.selectedFlights,
+            selectedHotels: update.selectedHotels,
+            editSummary:
+              update.reason === "flight_selection"
+                ? interfaceLocale === "zh"
+                  ? "已同步航班选择"
+                  : "Flight selection synced"
+                : update.reason === "hotel_selection"
+                  ? interfaceLocale === "zh"
+                    ? "已同步酒店选择"
+                    : "Hotel selection synced"
+                  : interfaceLocale === "zh"
+                    ? "已同步本地行程编辑"
+                    : "Manual itinerary edits synced",
+          };
+        });
+
+        if (!changed) return session;
+        return {
+          ...session,
+          versions: nextVersions,
+          activeVersionId,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [activeSessionId, interfaceLocale, updateTravelSession]
   );
 
   const updateConversationScrollThumb = useCallback(() => {
@@ -3931,7 +4064,7 @@ export function TravelChatClient({
                 <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-3">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {isZh ? "旅行 AI" : "Travel AI"}
+                      {isZh ? "旅行顾问" : "Travel AI"}
                     </p>
                     <p className="truncate text-sm font-semibold text-slate-950">
                       {isZh ? "对话进程" : "Chat sessions"}
@@ -4312,7 +4445,11 @@ export function TravelChatClient({
                                         <div
                                           className="group overflow-hidden rounded-xl border border-white/80 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
                                           data-testid="travel-destination-card"
-                                          key={`${card.country}-${displayCity}-${card.title}`}
+                                          key={
+                                            card.id ??
+                                            card.destination_id ??
+                                            `${card.country}-${displayCity}-${card.title}`
+                                          }
                                         >
                                           <div className="relative">
                                             <Image
@@ -4480,6 +4617,7 @@ export function TravelChatClient({
                 itinerary={displayItinerary}
                 mapPoints={mapPoints}
                 modulePatch={activeTravelVersion?.modulePatch}
+                onItineraryChange={handleItineraryStateChange}
                 onPointSelect={handleMapPointSelect}
                 onVersionSelect={(versionId) =>
                   setActiveTravelVersion(activeSessionId, versionId)

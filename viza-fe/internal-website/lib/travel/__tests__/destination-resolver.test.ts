@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   LAZY_DESTINATION_CARD_TYPES,
   buildTravelCandidatePayload,
+  extractDestinationIntentLabel,
   resolveLocalDestinationText,
   searchLocalDestinations,
+  toTravelDestinationChatCard,
 } from "@/lib/travel/destination-resolver";
 
 describe("travel destination resolver", () => {
@@ -64,5 +66,32 @@ describe("travel destination resolver", () => {
         LAZY_DESTINATION_CARD_TYPES
       );
     }
+  });
+
+  it("normalizes quick reply intent before creating destination cards", () => {
+    expect(extractDestinationIntentLabel("我想去日本")).toBe("日本");
+    expect(extractDestinationIntentLabel("想去欧洲")).toBe("欧洲");
+
+    const japan = resolveLocalDestinationText("我想去日本");
+    expect(japan.status).toBe("resolved");
+    if (japan.status === "resolved") {
+      const card = toTravelDestinationChatCard(japan.destinations[0], "我想去日本");
+      expect(card.title).not.toBe("我想去日本");
+      expect(card.city).toBe("Tokyo");
+      expect(card.country).toBe("Japan");
+    }
+
+    const europe = resolveLocalDestinationText("想去欧洲");
+    expect(europe.status).toBe("resolved");
+    if (europe.status === "resolved") {
+      const card = toTravelDestinationChatCard(europe.destinations[0], "想去欧洲");
+      expect(card.title).not.toBe("想去欧洲");
+      expect(card.title).toBe("Europe Classic Route");
+    }
+  });
+
+  it("does not convert undecided suggestion text into temporary cards", () => {
+    const resolution = resolveLocalDestinationText("我不知道去哪");
+    expect(resolution.status).toBe("unresolved");
   });
 });

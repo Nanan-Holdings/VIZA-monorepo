@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   ChevronRight,
@@ -47,6 +48,14 @@ import { PrivacyTab } from "./components/privacy-tab";
 
 type PaymentMethodId = "bank_card" | "wechat_pay" | "alipay";
 type SecurityPanel = "password" | "email" | null;
+type SettingsView =
+  | "home"
+  | "payment-methods"
+  | "points"
+  | "travelers"
+  | "privacy"
+  | "security-password"
+  | "security-email";
 
 interface ApplicantSettingsProfile {
   full_name: string | null;
@@ -110,7 +119,7 @@ const paymentMethods: Array<{
 ];
 
 const rewardItems = [
-  { key: "applicationReview", cost: 99, icon: TicketPercent },
+  { key: "arrivalCardSubmission", cost: 1000, icon: TicketPercent },
   { key: "priorityChecklist", cost: 199, icon: Sparkles },
   { key: "consultationCredit", cost: 499, icon: Gift },
 ] as const;
@@ -292,7 +301,23 @@ function getPasswordChecks(password: string) {
   };
 }
 
-export function SettingsContent() {
+function settingsTitleKey(view: SettingsView) {
+  if (view === "payment-methods") return "rows.paymentMethods.title";
+  if (view === "points") return "rows.pointsCenter.title";
+  if (view === "travelers") return "rows.travelers.title";
+  if (view === "privacy") return "privacy.title";
+  if (view === "security-password") return "security.passwordTitle";
+  if (view === "security-email") return "security.emailTitle";
+  return "title";
+}
+
+function initialSecurityPanel(view: SettingsView): SecurityPanel {
+  if (view === "security-password") return "password";
+  if (view === "security-email") return "email";
+  return null;
+}
+
+export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   const router = useRouter();
   const t = useTranslations("settings");
   const locale = useLocale();
@@ -316,8 +341,7 @@ export function SettingsContent() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
-  const [activeSecurityPanel, setActiveSecurityPanel] =
-    useState<SecurityPanel>(null);
+  const [activeSecurityPanel] = useState<SecurityPanel>(initialSecurityPanel(view));
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
@@ -332,7 +356,6 @@ export function SettingsContent() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
-  const [isPointsCenterOpen, setIsPointsCenterOpen] = useState(false);
   const [rewardWallet, setRewardWallet] = useState<RewardWalletSummary>({
     balance: 0,
     lifetime_earned: 0,
@@ -667,21 +690,6 @@ export function SettingsContent() {
     setPaymentMessage({ tone: "success", text: t("payment.messages.defaultUpdated") });
   }
 
-  function resetSecurityFlow() {
-    setVerificationCode("");
-    setVerificationSent(false);
-    setSecurityVerified(false);
-    setSecurityMessage(null);
-    setNewPassword("");
-    setConfirmPassword("");
-    setNewEmail("");
-  }
-
-  function openSecurityPanel(panel: Exclude<SecurityPanel, null>) {
-    setActiveSecurityPanel(panel);
-    resetSecurityFlow();
-  }
-
   async function handleSendVerificationCode() {
     setSecurityMessage(null);
 
@@ -831,15 +839,6 @@ export function SettingsContent() {
     router.push("/client/login");
   }
 
-  function openPointsCenter() {
-    setIsPointsCenterOpen(true);
-    window.setTimeout(() => {
-      document
-        .getElementById("points-center")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
-  }
-
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
@@ -936,16 +935,28 @@ export function SettingsContent() {
         </motion.div>
       </section>
 
-      <section className="mt-8 space-y-4" id="payment-methods">
+      <section className="mt-8 space-y-4">
         <div>
           <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
-            {t("title")}
+            {t(settingsTitleKey(view))}
           </h1>
           <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">
             {t("subtitle")}
           </p>
         </div>
 
+        {view !== "home" ? (
+          <Button asChild variant="outline" className="h-10 rounded-full">
+            <Link href="/client/settings">
+              <ArrowLeft className="h-4 w-4" />
+              {t("backToSettings")}
+            </Link>
+          </Button>
+        ) : null}
+      </section>
+
+      {view === "payment-methods" ? (
+      <section className="mt-6 space-y-4" id="payment-methods">
         <div className="grid gap-4 md:grid-cols-3">
           {paymentMethods.map((method, index) => {
             const Icon = method.icon;
@@ -1264,9 +1275,16 @@ export function SettingsContent() {
           </div>
         </div>
       </section>
+      ) : null}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr]">
-        <div className="space-y-8">
+      {view === "home" || view === "security-password" || view === "security-email" ? (
+      <div
+        className={cn(
+          "mt-8 grid gap-8",
+          view === "home" ? "lg:grid-cols-[1fr_1fr]" : "lg:grid-cols-1"
+        )}
+      >
+        <div className={cn("space-y-8", view !== "home" && "hidden")}>
           <SectionCard title={t("sections.general")}>
             <SettingsRow
               icon={Database}
@@ -1285,17 +1303,15 @@ export function SettingsContent() {
               icon={UsersRound}
               title={t("rows.travelers.title")}
               description={t("rows.travelers.description")}
-              href="#frequent-travelers"
+              href="/client/settings/travelers"
               badge={t("rows.travelers.badge")}
             />
             <SettingsRow
               icon={Coins}
               title={t("rows.pointsCenter.title")}
               description={t("rows.pointsCenter.description")}
-              onClick={openPointsCenter}
+              href="/client/settings/points"
               badge={t("rows.pointsCenter.badge")}
-              isActive={isPointsCenterOpen}
-              ariaControls="points-center"
             />
             <SettingsRow
               icon={Globe2}
@@ -1310,7 +1326,7 @@ export function SettingsContent() {
               icon={WalletCards}
               title={t("rows.paymentMethods.title")}
               description={t("rows.paymentMethods.description")}
-              href="#payment-methods"
+              href="/client/settings/payment-methods"
               badge={t("rows.paymentMethods.badge")}
             />
             <SettingsRow
@@ -1347,13 +1363,13 @@ export function SettingsContent() {
                 icon={LockKeyhole}
                 title={t("security.passwordTitle")}
                 description={t("security.passwordDescription")}
-                onClick={() => openSecurityPanel("password")}
+                href="/client/settings/security/password"
               />
               <SettingsRow
                 icon={Mail}
                 title={t("security.emailTitle")}
                 description={t("security.emailDescription")}
-                onClick={() => openSecurityPanel("email")}
+                href="/client/settings/security/email"
               />
               <SettingsRow
                 icon={ShieldCheck}
@@ -1573,10 +1589,11 @@ export function SettingsContent() {
           </section>
         </div>
       </div>
+      ) : null}
 
-      {isPointsCenterOpen ? (
+      {view === "points" ? (
         <section
-          className="mt-10 scroll-mt-32 rounded-xl border bg-white p-5 shadow-sm sm:p-6"
+          className="mt-6 scroll-mt-32 rounded-xl border bg-white p-5 shadow-sm sm:p-6"
           id="points-center"
         >
           <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
@@ -1604,6 +1621,9 @@ export function SettingsContent() {
                 </p>
                 <p className="mt-3 text-sm leading-6 text-brand-700">
                   {t("pointsCenter.referralRule")}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-brand-700">
+                  {t("pointsCenter.purchaseRule")}
                 </p>
               </div>
 
@@ -1687,13 +1707,17 @@ export function SettingsContent() {
         </section>
       ) : null}
 
-      <section className="mt-10 scroll-mt-32" id="frequent-travelers">
+      {view === "travelers" ? (
+      <section className="mt-6 scroll-mt-32" id="frequent-travelers">
         <FrequentTravelersTab />
       </section>
+      ) : null}
 
-      <section className="mt-10" id="privacy">
+      {view === "privacy" ? (
+      <section className="mt-6" id="privacy">
         <PrivacyTab />
       </section>
+      ) : null}
     </div>
   );
 }

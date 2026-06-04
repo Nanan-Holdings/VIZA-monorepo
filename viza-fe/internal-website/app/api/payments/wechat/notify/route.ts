@@ -5,6 +5,7 @@ import {
   verifyCallbackSignature,
   WechatPaySignatureError,
 } from "@/lib/wechatpay/client";
+import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: record, error } = await admin
     .from("payment_records")
-    .select("id, status, metadata")
+    .select("id, applicant_id, auth_user_id, amount_cents, currency, provider, status, metadata")
     .eq("provider", "wechat_pay")
     .eq("provider_session_id", resource.out_trade_no)
     .maybeSingle();
@@ -101,6 +102,17 @@ export async function POST(request: Request) {
   if (updateError) {
     console.error("[payments-wechat-notify] update failed:", updateError.message);
     return NextResponse.json({ code: "FAIL", message: "update failed" }, { status: 500 });
+  }
+
+  if (paid) {
+    await awardPurchasePointsForPayment({
+      paymentRecordId: record.id,
+      applicantId: record.applicant_id,
+      userId: record.auth_user_id,
+      amountCents: record.amount_cents,
+      currency: record.currency,
+      provider: record.provider,
+    });
   }
 
   return NextResponse.json({ code: "SUCCESS", message: "OK" });

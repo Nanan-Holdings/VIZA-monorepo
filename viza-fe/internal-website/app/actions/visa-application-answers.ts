@@ -3,9 +3,22 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
+import {
+  buildUniversalProfileAnswerPatch,
+  type UniversalProfileSnapshot,
+} from "@/lib/universal-profile-prefill";
 
 type ProfilePatch = Record<string, string>;
 const DATE_PROFILE_FIELDS = new Set(["date_of_birth", "passport_issue_date", "passport_expiry_date"]);
+
+interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
+  wechat?: string | null;
+}
+
+function cleanOptional(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 
 function firstFilled(data: Record<string, string>, fieldNames: string[]): string | null {
   for (const fieldName of fieldNames) {
@@ -120,6 +133,106 @@ export async function saveDynamicAnswers(
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save" };
+  }
+}
+
+/**
+ * Save the reusable bilingual profile and materialize the same shared
+ * answers into visa_application_answers for the matching draft application.
+ * The submission-service runners consume this answer table, so the universal
+ * profile must not remain profile-only data.
+ */
+export async function saveUniversalProfileWithSharedAnswers(
+  input: {
+    profile: UniversalProfileSaveInput;
+    applicationId?: string | null;
+    country?: string;
+    visaType?: string;
+    preferExplicit?: boolean;
+  },
+): Promise<{ applicationId?: string; answerCount?: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const profilePayload = {
+      auth_user_id: user.id,
+      full_name: cleanOptional(input.profile.full_name),
+      date_of_birth: cleanOptional(input.profile.date_of_birth),
+      place_of_birth: cleanOptional(input.profile.place_of_birth),
+      gender: cleanOptional(input.profile.gender),
+      nationality: cleanOptional(input.profile.nationality),
+      occupation: cleanOptional(input.profile.occupation),
+      address: cleanOptional(input.profile.address),
+      passport_number: cleanOptional(input.profile.passport_number),
+      passport_issue_date: cleanOptional(input.profile.passport_issue_date),
+      passport_expiry_date: cleanOptional(input.profile.passport_expiry_date),
+      passport_issuing_country: cleanOptional(input.profile.passport_issuing_country),
+      passport_issuing_authority: cleanOptional(input.profile.passport_issuing_authority),
+      email: cleanOptional(input.profile.email) ?? user.email ?? null,
+      phone: cleanOptional(input.profile.phone),
+      wechat: cleanOptional(input.profile.wechat),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: savedProfile, error: profileError } = await adminClient
+      .from("applicant_profiles")
+      .upsert(profilePayload, { onConflict: "auth_user_id" })
+      .select("id, auth_user_id")
+      .single();
+
+    if (profileError || !savedProfile) {
+      return { error: profileError?.message ?? "Failed to save profile" };
+    }
+
+    let applicationId = input.applicationId ?? null;
+
+    if (applicationId) {
+      const { data: app, error: appError } = await adminClient
+        .from("applications")
+        .select("id, applicant_id")
+        .eq("id", applicationId)
+        .maybeSingle();
+
+      if (appError) return { error: appError.message };
+      if (!app || app.applicant_id !== savedProfile.id) {
+        return { error: "Application not found" };
+      }
+    } else {
+      const ensured = await ensureDraftApplication(
+        input.country ?? "us",
+        input.visaType ?? "b1_b2",
+        { preferExplicit: input.preferExplicit ?? false },
+      );
+      if (ensured.error || !ensured.applicationId) {
+        return { error: ensured.error ?? "Failed to create draft application" };
+      }
+      applicationId = ensured.applicationId;
+    }
+
+    const answerPatch = buildUniversalProfileAnswerPatch(input.profile);
+    const now = new Date().toISOString();
+    const upserts = Object.entries(answerPatch)
+      .filter(([, value]) => value.trim() !== "")
+      .map(([fieldName, value]) => ({
+        application_id: applicationId!,
+        field_name: fieldName,
+        value_text: value,
+        updated_at: now,
+      }));
+
+    if (upserts.length > 0) {
+      const { error: upsertError } = await adminClient
+        .from("visa_application_answers")
+        .upsert(upserts, { onConflict: "application_id,field_name" });
+      if (upsertError) return { error: upsertError.message };
+    }
+
+    return { applicationId, answerCount: upserts.length };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to save profile" };
   }
 }
 
