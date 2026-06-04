@@ -2567,3 +2567,13 @@ acknowledgment).
 - worker.ts claimNextJob now consults this config (replaced runner_concurrency_cap table read) — removes a DB call + dependency on a possibly-absent table.
 - Files: src/queue/concurrency.ts, src/queue/worker.ts, prd.json. Typecheck passes.
 ---
+
+## 2026-06-04 - QUE-007/008/009
+- QUE-007 scripts/queue/list-stuck-jobs.ts: read-only; lists failed/dead_letter rows + running rows with expired lease (app_id, country, attempts, last_error).
+- QUE-008 scripts/queue/requeue-jobs.ts: dry-run default, requires --confirm + (--country|--id); requeues stale-lease (running+expired) and failed/dead_letter with attempts<max -> status=queued, clears lease/finished_at; attempts preserved (documented).
+- QUE-009 scripts/queue/backfill-paid-orders.ts: dry-run default, --confirm to write; finds paid `order` rows whose application has no runner_job AND no submission_queue row (conservative), enqueues runner_job (queued/attempts0/max3, correlation backfill:<orderId>), country via normalizeCountry (QUE-004).
+- Added npm scripts queue:list-stuck / queue:requeue / queue:backfill. All documented in docs/infra/queue.md.
+- Typecheck: verified via temp tsconfig (rootDir . + include scripts/queue) — clean. (Main type-check only covers src/.)
+- Files: scripts/queue/*.ts, package.json, prd.json.
+- Assumption: paid indicator is order.status='paid'; "terminal submission_queue" treated conservatively as any submission_queue row present (avoids double-processing).
+---
