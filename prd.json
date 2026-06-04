@@ -4769,7 +4769,7 @@
         "Typecheck passes for the script (tsc against its workspace tsconfig)"
       ],
       "priority": 331,
-      "passes": false,
+      "passes": true,
       "notes": "Directly addresses 'paid orders orphaned' by surfacing them. Pair with MIG verification."
     },
     {
@@ -4783,7 +4783,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 332,
-      "passes": false,
+      "passes": true,
       "notes": "Companion to QUE-007. Idempotent and guarded."
     },
     {
@@ -4797,7 +4797,7 @@
         "Typecheck passes for the script"
       ],
       "priority": 333,
-      "passes": false,
+      "passes": true,
       "notes": "One-time recovery for the orphaned-orders incident. Depends on QUE-002 worker being live."
     },
     {

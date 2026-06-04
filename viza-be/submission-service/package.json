@@ -24,7 +24,10 @@
     "promote:selectors": "ts-node scripts/promote-selectors.ts",
     "stress:run": "ts-node scripts/runner-stress.ts",
     "stress:digest": "ts-node scripts/runner-stress-digest.ts",
-    "derive:question-sets": "ts-node scripts/derive-question-sets.ts"
+    "derive:question-sets": "ts-node scripts/derive-question-sets.ts",
+    "queue:list-stuck": "ts-node scripts/queue/list-stuck-jobs.ts",
+    "queue:requeue": "ts-node scripts/queue/requeue-jobs.ts",
+    "queue:backfill": "ts-node scripts/queue/backfill-paid-orders.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
