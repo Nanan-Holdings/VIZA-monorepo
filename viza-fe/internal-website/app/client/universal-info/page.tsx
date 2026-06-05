@@ -15,7 +15,6 @@ import {
   BilingualCountryControl,
   BilingualDateControl,
   BilingualOptionControl,
-  BilingualRow,
   BilingualTextControl,
   COUNTRY_OPTIONS,
   findBilingualOption,
@@ -109,7 +108,7 @@ function cleanValue(value: string): string | null {
 }
 
 function copy(isZh: boolean, zh: string, en: string) {
-  return isZh ? `${zh} / ${en}` : en;
+  return isZh ? zh : en;
 }
 
 function normalizeGender(value?: string | null) {
@@ -227,6 +226,17 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SingleRow({ label, control }: { label: string; control: React.ReactNode }) {
+  return (
+    <div className="min-w-0 px-0 py-4 sm:px-2">
+      <span className="mb-2 block text-[15px] font-medium leading-tight text-[#1f2f46]">
+        {label}
+      </span>
+      {control}
+    </div>
+  );
+}
+
 function AddressControl({
   side,
   value,
@@ -253,6 +263,7 @@ export default function UniversalInfoPage() {
   const router = useRouter();
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
+  const activeSide: "zh" | "en" = isZh ? "zh" : "en";
   const [form, setForm] = useState<UniversalProfileForm>(EMPTY_FORM);
   const [bilingualForm, setBilingualForm] = useState<BilingualProfileState>(EMPTY_BILINGUAL_FORM);
   const [isLoading, setIsLoading] = useState(true);
@@ -466,7 +477,7 @@ export default function UniversalInfoPage() {
           className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e6e6e6] bg-white px-4 py-2 text-[14px] font-medium text-[#03346E] transition hover:border-[#03346E]"
         >
           <ArrowLeft className="h-4 w-4" />
-          {isZh ? "返回首页 / Back home" : "Back home"}
+          {copy(isZh, "返回首页", "Back home")}
         </Link>
 
         <section className="overflow-hidden rounded-[18px] border border-[#e7edf5] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
@@ -480,9 +491,11 @@ export default function UniversalInfoPage() {
                   {copy(isZh, "通用资料", "Universal profile")}
                 </h1>
                 <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#667085]">
-                  {isZh
-                    ? "保存你反复会填到的姓名、生日、护照和联系方式。以后进入相似签证表单时，系统会优先用这里的信息自动预填。 / Save the name, birthday, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling."
-                    : "Save the name, birthday, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling."}
+                  {copy(
+                    isZh,
+                    "保存你反复会填到的姓名、生日、护照和联系方式。以后进入相似签证表单时，系统会优先用这里的信息自动预填。",
+                    "Save the name, birthday, passport, and contact details you reuse. Similar visa forms can use this profile for prefilling.",
+                  )}
                 </p>
               </div>
             </div>
@@ -499,7 +512,7 @@ export default function UniversalInfoPage() {
               </div>
               <p className="mt-2 text-[12px] text-[#667085]">
                 {isZh
-                  ? `${completedCount}/${PROFILE_FIELDS.length} 项已保存 / saved`
+                  ? `${completedCount}/${PROFILE_FIELDS.length} 项已保存`
                   : `${completedCount}/${PROFILE_FIELDS.length} saved`}
               </p>
             </div>
