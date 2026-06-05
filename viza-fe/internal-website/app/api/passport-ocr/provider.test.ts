@@ -5,6 +5,7 @@ import type { PassportOcrFile } from "./types";
 
 const FIELD_NAMES = [
   "full_name",
+  "native_full_name",
   "given_names",
   "surname",
   "passport_number",
@@ -20,6 +21,7 @@ const FIELD_NAMES = [
 function successResponse() {
   const fields = {
     full_name: "ANNA MARIA ERIKSSON",
+    native_full_name: null,
     given_names: "ANNA MARIA",
     surname: "ERIKSSON",
     passport_number: "L898902C3",
@@ -106,6 +108,7 @@ function invalidKeyResponse() {
 function chineseNameWithMrzResponse() {
   const fields = {
     full_name: "张三",
+    native_full_name: "张三",
     given_names: "三",
     surname: "张",
     passport_number: "E12345678",
@@ -146,6 +149,7 @@ function chineseNameWithMrzResponse() {
 function fullNameAsSurnameResponse() {
   const fields = {
     full_name: "CHEN HONGYU",
+    native_full_name: "陈泓羽",
     given_names: "HONGYU",
     surname: "CHEN HONGYU",
     passport_number: "E12345678",
@@ -186,6 +190,7 @@ function fullNameAsSurnameResponse() {
 function mrzNoiseNameResponse() {
   const fields = {
     full_name: "EMCHNM HEN HONGYU",
+    native_full_name: "陈泓羽",
     given_names: "HONGYU",
     surname: "CHEN",
     passport_number: "EM7429107",
@@ -334,7 +339,9 @@ describe("passport OCR provider", () => {
 
     const [body] = requestBodies(fetchMock);
     expect(JSON.stringify(body.input)).toContain("Latin/MRZ spelling");
+    expect(JSON.stringify(body.input)).toContain("native_full_name");
     expect(result.fields.fullName.value).toBe("SAN ZHANG");
+    expect(result.fields.nativeFullName.value).toBe("张三");
     expect(result.fields.givenNames.value).toBe("SAN");
     expect(result.fields.surname.value).toBe("ZHANG");
     expect(result.warnings).toContain("name_latinized_from_mrz");

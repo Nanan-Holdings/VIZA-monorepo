@@ -34,6 +34,7 @@ interface PassportOcrResponse {
   extractionId?: string | null;
   proposedFields?: {
     fullName: PassportOcrFieldProposal;
+    nativeFullName?: PassportOcrFieldProposal;
     givenNames: PassportOcrFieldProposal;
     surname: PassportOcrFieldProposal;
     passportNumber: PassportOcrFieldProposal;
@@ -86,9 +87,12 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
   const givenNames = proposalValue(fields.givenNames);
   const surname = proposalValue(fields.surname);
   const fullName = [givenNames, surname].filter(Boolean).join(" ") || proposalValue(fields.fullName);
+  const nativeFullName = proposalValue(fields.nativeFullName);
 
   return {
-    full_name: fullName,
+    full_name: fullName ?? nativeFullName,
+    full_name_zh: nativeFullName,
+    full_name_en: fullName,
     date_of_birth: proposalValue(fields.dateOfBirth),
     place_of_birth: proposalValue(fields.placeOfBirth),
     gender: proposalValue(fields.gender),
@@ -217,7 +221,7 @@ function ScanDocumentPreview() {
         <span className="block h-1 w-3/4 rounded-full bg-white/40" />
         <span className="absolute right-5 top-5 h-[30px] w-6 rounded bg-white/20" />
       </div>
-      <span className="absolute left-0 right-0 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-sky-300 to-transparent opacity-90 shadow-[0_0_12px_rgba(125,211,252,0.9)] motion-safe:animate-pulse" />
+      <span className="absolute left-0 right-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-sky-300 to-transparent opacity-90 shadow-[0_0_12px_rgba(125,211,252,0.9)] motion-safe:animate-passport-scan motion-reduce:top-1/2" />
     </div>
   );
 }

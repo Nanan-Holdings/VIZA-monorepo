@@ -1184,10 +1184,37 @@ function pickExtractedField(fields: JsonRecord, keys: string[]): string | null {
   return null;
 }
 
+function hasChineseText(value: string | null | undefined): boolean {
+  return /[\u3400-\u9fff]/.test(value ?? "");
+}
+
+const OCR_BILINGUAL_PROFILE_COLUMNS = ["full_name_zh", "full_name_en"] as const;
+
+function isMissingOcrBilingualColumnError(message: string) {
+  const normalized = message.toLowerCase();
+  return OCR_BILINGUAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
+    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
+}
+
 function buildPassportProfileUpdates(fields: JsonRecord) {
   const updates: Record<string, string> = {};
+  const fullName = pickExtractedField(fields, ["full_name", "fullName", "name", "passport_full_name", "holder_name"]);
+  const nativeFullName = pickExtractedField(fields, [
+    "full_name_zh",
+    "native_full_name",
+    "nativeFullName",
+    "local_script_name",
+    "localScriptName",
+    "full_name_native_alphabet",
+  ]);
+  if (fullName) {
+    updates.full_name = fullName;
+    if (!hasChineseText(fullName)) updates.full_name_en = fullName;
+    if (hasChineseText(fullName) && !nativeFullName) updates.full_name_zh = fullName;
+  }
+  if (nativeFullName) updates.full_name_zh = nativeFullName;
+
   const mappings: Array<[string, string[]]> = [
-    ["full_name", ["full_name", "fullName", "name", "passport_full_name", "holder_name"]],
     ["date_of_birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
     ["gender", ["gender", "sex"]],
     ["nationality", ["nationality", "citizenship"]],
@@ -1209,6 +1236,12 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
   const profileUpdates = buildPassportProfileUpdates(fields);
   const answerMappings: Array<[string, string | undefined]> = [
     ["full_name", profileUpdates.full_name],
+    ["full_name_zh", profileUpdates.full_name_zh],
+    ["full_name_en", profileUpdates.full_name_en],
+    ["fullName", profileUpdates.full_name],
+    ["fullName_zh", profileUpdates.full_name_zh],
+    ["fullName_en", profileUpdates.full_name_en],
+    ["full_name_native_alphabet", profileUpdates.full_name_zh],
     ["date_of_birth", profileUpdates.date_of_birth],
     ["gender", profileUpdates.gender],
     ["sex", profileUpdates.gender],
@@ -1274,7 +1307,20 @@ export async function confirmPassportOcrExtraction(input: {
         .update({ ...profileUpdates, updated_at: new Date().toISOString() })
         .eq("id", contextResult.context.applicantId);
 
-      if (profileError) return { ok: false, code: "server_error", error: profileError.message };
+      if (profileError) {
+        if (isMissingOcrBilingualColumnError(profileError.message)) {
+          const { full_name_zh: _fullNameZh, full_name_en: _fullNameEn, ...baseProfileUpdates } = profileUpdates;
+          const { error: fallbackProfileError } = await adminClient
+            .from("applicant_profiles")
+            .update({ ...baseProfileUpdates, updated_at: new Date().toISOString() })
+            .eq("id", contextResult.context.applicantId);
+          if (fallbackProfileError) {
+            return { ok: false, code: "server_error", error: fallbackProfileError.message };
+          }
+        } else {
+          return { ok: false, code: "server_error", error: profileError.message };
+        }
+      }
     }
 
     if (answerRows.length > 0) {

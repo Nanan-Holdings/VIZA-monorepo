@@ -24,6 +24,7 @@ interface OpenAIExtractionOptions {
 
 interface RawProviderFields {
   full_name: string | null;
+  native_full_name: string | null;
   given_names: string | null;
   surname: string | null;
   passport_number: string | null;
@@ -85,6 +86,7 @@ const PASSPORT_SCHEMA = {
       additionalProperties: false,
       required: [
         "full_name",
+        "native_full_name",
         "given_names",
         "surname",
         "passport_number",
@@ -98,6 +100,7 @@ const PASSPORT_SCHEMA = {
       ],
       properties: {
         full_name: { type: ["string", "null"] },
+        native_full_name: { type: ["string", "null"] },
         given_names: { type: ["string", "null"] },
         surname: { type: ["string", "null"] },
         passport_number: { type: ["string", "null"] },
@@ -115,6 +118,7 @@ const PASSPORT_SCHEMA = {
       additionalProperties: false,
       required: [
         "full_name",
+        "native_full_name",
         "given_names",
         "surname",
         "passport_number",
@@ -128,6 +132,7 @@ const PASSPORT_SCHEMA = {
       ],
       properties: {
         full_name: { type: ["number", "null"], minimum: 0, maximum: 1 },
+        native_full_name: { type: ["number", "null"], minimum: 0, maximum: 1 },
         given_names: { type: ["number", "null"], minimum: 0, maximum: 1 },
         surname: { type: ["number", "null"], minimum: 0, maximum: 1 },
         passport_number: { type: ["number", "null"], minimum: 0, maximum: 1 },
@@ -154,6 +159,7 @@ const PASSPORT_SCHEMA = {
 
 const EMPTY_FIELDS: PassportOcrProposedFields = {
   fullName: { value: null, confidence: null },
+  nativeFullName: { value: null, confidence: null },
   givenNames: { value: null, confidence: null },
   surname: { value: null, confidence: null },
   passportNumber: { value: null, confidence: null },
@@ -404,6 +410,7 @@ function normalizeFields(raw: RawProviderOutput): { fields: PassportOcrProposedF
     warnings,
     fields: {
       fullName: proposal(cleanText(fields.full_name), confidence.full_name),
+      nativeFullName: proposal(cleanText(fields.native_full_name), confidence.native_full_name),
       givenNames: proposal(cleanText(fields.given_names), confidence.given_names),
       surname: proposal(cleanText(fields.surname), confidence.surname),
       passportNumber: proposal(cleanPassportNumber(fields.passport_number), confidence.passport_number),
@@ -439,6 +446,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
     confidence: clampConfidence(value.confidence),
     fields: {
       full_name: nullableString(value.fields.full_name),
+      native_full_name: nullableString(value.fields.native_full_name),
       given_names: nullableString(value.fields.given_names),
       surname: nullableString(value.fields.surname),
       passport_number: nullableString(value.fields.passport_number),
@@ -452,6 +460,7 @@ function parseRawProviderOutput(value: unknown): RawProviderOutput | null {
     },
     field_confidence: {
       full_name: nullableConfidence(value.field_confidence.full_name),
+      native_full_name: nullableConfidence(value.field_confidence.native_full_name),
       given_names: nullableConfidence(value.field_confidence.given_names),
       surname: nullableConfidence(value.field_confidence.surname),
       passport_number: nullableConfidence(value.field_confidence.passport_number),
@@ -518,7 +527,8 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
           text:
             "Extract only visible passport bio page fields. Return null for missing or uncertain fields. " +
             "Do not infer values that are not visible. Dates must be YYYY-MM-DD when possible. " +
-            "For all name fields, return the Latin alphabet/romanized passport name from the visual inspection zone or MRZ; never return local-script names such as Chinese characters. " +
+            "For full_name, given_names, and surname, return the Latin alphabet/romanized passport name from the visual inspection zone or MRZ; never return local-script names such as Chinese characters in those Latin fields. " +
+            "For native_full_name, return the visible local-script/native name exactly as printed, such as Chinese characters, when present; otherwise return null. " +
             "For passports with MRZ, copy both MRZ lines exactly into mrz.line1 and mrz.line2 before normalizing any fields. " +
             "Sideways or rotated passport photos should still be read when the printed fields or MRZ are visible.",
         },
@@ -531,8 +541,8 @@ function buildOpenAIInput(file: PassportOcrFile, options: OpenAIExtractionOption
           type: "input_text",
           text:
             "Read this passport document for a confirmation workflow. Extract proposed full name, given names, " +
-            "surname, passport number, date of birth, place of birth, nationality, issuing country, issue date, expiry date, " +
-            "gender, and MRZ lines if available. Name fields must use the Latin/MRZ spelling, not the local-script name. " +
+            "native full name/local-script name, surname, passport number, date of birth, place of birth, nationality, issuing country, issue date, expiry date, " +
+            "gender, and MRZ lines if available. Latin name fields must use the Latin/MRZ spelling, and native_full_name must preserve the local-script name if visible. " +
             "This data will not be written until the applicant confirms it. " +
             retryText,
         },
