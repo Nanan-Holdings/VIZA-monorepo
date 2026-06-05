@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { isValidElement, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
 import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefill";
 import enMessages from "@/messages/en.json";
@@ -23,6 +23,10 @@ vi.mock("next-intl", () => ({
 vi.mock("@/components/field-guidance-panel", () => ({
   FieldGuidancePanel: () => <div data-testid="field-guidance-panel" />,
 }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const requiredTextStep: WizardStep = {
   stepNumber: 1,
@@ -71,6 +75,32 @@ const shortcutStep: WizardStep = {
   ],
 };
 
+const purposeOfTripStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Travel Information",
+  fields: [
+    {
+      id: "field-purpose-of-trip",
+      visaType: "DS160",
+      fieldName: "purpose_of_trip",
+      label: "Purpose of Trip to the U.S.",
+      fieldType: "select",
+      required: true,
+      stepNumber: 3,
+      stepName: "Travel Information",
+      displayOrder: 1,
+      placeholder: "Select...",
+      validationRules: { repeatable: true, repeat_group: "trip_purpose" },
+      options: [
+        { value: "A", text: "FOREIGN GOVERNMENT OFFICIAL (A)" },
+        { value: "B", text: "TEMP. BUSINESS OR PLEASURE VISITOR (B)" },
+        { value: "C", text: "ALIEN IN TRANSIT (C)" },
+      ],
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const placeOfBirthStep: WizardStep = {
   stepNumber: 1,
   stepName: "Personal Information",
@@ -86,6 +116,28 @@ const placeOfBirthStep: WizardStep = {
       stepName: "Personal Information",
       displayOrder: 1,
       placeholder: "City and country of birth",
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const cityOfBirthStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Personal Information",
+  fields: [
+    {
+      id: "field-city-of-birth",
+      visaType: "DS160",
+      fieldName: "city_of_birth",
+      label: "City of Birth",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Personal Information",
+      displayOrder: 1,
+      placeholder: null,
       validationRules: null,
       options: null,
       conditionalLogic: null,
@@ -218,13 +270,45 @@ describe("DynamicStepForm copilot format", () => {
     expect(getYesRadios().some((radio) => radio.checked)).toBe(true);
   });
 
+  it("keeps the B1/B2 purpose dropdown selectable after copilot opens and closes", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={purposeOfTripStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const comboboxes = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="combobox"]'));
+    expect(comboboxes).toHaveLength(2);
+    expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
+    expect(container).toHaveTextContent("临时商务或旅游访客 (B)");
+    expect(container).toHaveTextContent("TEMP. BUSINESS OR PLEASURE VISITOR (B)");
+
+    const trigger = screen.getByRole("button", { name: "问 AI" });
+    fireEvent.click(trigger);
+    expect(screen.getByTestId("field-guidance-panel")).toBeInTheDocument();
+    expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "收起 AI 帮助" }));
+    expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
+    expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
+  });
+
   it("autofills bilingual values from universal profile without submitting helper keys", () => {
     const onComplete = vi.fn();
     const prefill = buildUniversalProfileAnswerPatch({
       full_name: "CHEN HONGYU",
       full_name_zh: "陈泓羽",
       full_name_en: "CHEN HONGYU",
-      place_of_birth: "海南",
+      birth_country: "China",
+      birth_province_or_state: "湖南",
+      birth_province_or_state_zh: "湖南",
+      birth_province_or_state_en: "Hunan",
+      birth_city: "长沙",
+      birth_city_zh: "长沙",
+      birth_city_en: "Changsha",
     });
 
     render(
@@ -236,14 +320,62 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    expect(screen.getByDisplayValue("海南")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Hainan")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("长沙")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Changsha")).toBeInTheDocument();
     expect(prefill.full_name_zh).toBe("陈泓羽");
     expect(prefill.full_name_en).toBe("CHEN HONGYU");
+    expect(prefill.state_of_birth).toBe("Hunan");
+    expect(prefill.country_of_birth).toBe("China");
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Hainan" });
+    expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Changsha" });
+  });
+
+  it("uses the server translation fallback when local sync leaves Chinese in the English field", async () => {
+    const onComplete = vi.fn();
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ translatedText: "Hengqin, Zhuhai" }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DynamicStepForm
+        step={cityOfBirthStep}
+        prefill={{}}
+        onComplete={onComplete}
+        visaType="DS160"
+      />,
+    );
+
+    const textboxes = screen.getAllByRole("textbox");
+    expect(textboxes).toHaveLength(2);
+
+    fireEvent.change(textboxes[0]!, { target: { value: "珠海横琴" } });
+    expect(screen.getAllByDisplayValue("珠海横琴")).toHaveLength(2);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Hengqin, Zhuhai")).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/translations/field",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          text: "珠海横琴",
+          sourceLanguage: "zh-CN",
+          targetLanguage: "en",
+          fieldType: "text",
+        }),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+    expect(onComplete).toHaveBeenCalledWith({ city_of_birth: "Hengqin, Zhuhai" });
   });
 
   it("keeps registered wizard prompts aligned with localized country copy", () => {

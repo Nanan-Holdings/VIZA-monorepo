@@ -52,6 +52,13 @@ export const applicantProfiles = pgTable("applicant_profiles", {
 	placeOfBirth: text("place_of_birth"),
 	placeOfBirthZh: text("place_of_birth_zh"),
 	placeOfBirthEn: text("place_of_birth_en"),
+	birthCountry: text("birth_country"),
+	birthProvinceOrState: text("birth_province_or_state"),
+	birthProvinceOrStateZh: text("birth_province_or_state_zh"),
+	birthProvinceOrStateEn: text("birth_province_or_state_en"),
+	birthCity: text("birth_city"),
+	birthCityZh: text("birth_city_zh"),
+	birthCityEn: text("birth_city_en"),
 	gender: text("gender"),
 	nationality: text("nationality"),
 	occupation: text("occupation"),
@@ -118,6 +125,9 @@ export const applications = pgTable("applications", {
 	officialFeePaymentIntentId: uuid("official_fee_payment_intent_id"),
 	officialFeeReceiptId: uuid("official_fee_receipt_id"),
 	officialFeeReconciliationStatus: text("official_fee_reconciliation_status").default("pending"),
+	appointmentAssistanceStatus: text("appointment_assistance_status").default("appointment_not_started"),
+	appointmentAssistanceJobId: uuid("appointment_assistance_job_id"),
+	appointmentConfirmationId: uuid("appointment_confirmation_id"),
 	automationStatus: text("automation_status").default("not_started"),
 	automationStage: text("automation_stage").default("intake"),
 	automationStatusReason: text("automation_status_reason"),
@@ -145,6 +155,8 @@ export const applications = pgTable("applications", {
 	paymentStatusIdx: index("applications_payment_status_idx").on(table.paymentStatus),
 	officialFeeStatusIdx: index("applications_official_fee_status_idx").on(table.officialFeeStatus),
 	officialFeeIntentIdx: index("applications_official_fee_intent_idx").on(table.officialFeePaymentIntentId),
+	appointmentStatusIdx: index("applications_appointment_status_idx").on(table.appointmentAssistanceStatus),
+	appointmentJobIdx: index("applications_appointment_job_idx").on(table.appointmentAssistanceJobId),
 	packetStatusIdx: index("applications_packet_status_idx").on(table.packetStatus),
 	externalStatusIdx: index("applications_external_status_idx").on(table.externalStatus),
 	staffReviewStatusIdx: index("applications_staff_review_status_idx").on(table.staffReviewStatus),
@@ -912,6 +924,176 @@ export const officialFeeReconciliationEntries = pgTable("official_fee_reconcilia
   createdIdx: index("official_fee_reconciliation_created_idx").on(table.createdAt),
 }));
 
+export const appointmentAccounts = pgTable("appointment_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  applicationId: uuid("application_id"),
+  countryCode: text("country_code").notNull().default("US"),
+  portal: text("portal").notNull(),
+  accountEmail: text("account_email"),
+  encryptedAccountPassword: text("encrypted_account_password"),
+  passwordVaultRef: text("password_vault_ref"),
+  accountStatus: text("account_status").notNull().default("not_created"),
+  emailVerified: boolean("email_verified").default(false),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  metadataRedactedJson: jsonb("metadata_redacted_json").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  userIdx: index("appointment_accounts_user_idx").on(table.userId),
+  applicationIdx: index("appointment_accounts_application_idx").on(table.applicationId),
+  statusIdx: index("appointment_accounts_status_idx").on(table.accountStatus),
+}));
+
+export const appointmentAssistanceJobs = pgTable("appointment_assistance_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  appointmentAccountId: uuid("appointment_account_id"),
+  countryCode: text("country_code").notNull().default("US"),
+  visaType: text("visa_type").notNull().default("B1/B2"),
+  ds160ConfirmationCode: text("ds160_confirmation_code"),
+  applyingCountryCode: text("applying_country_code"),
+  applyingPostCity: text("applying_post_city"),
+  schedulingProvider: text("scheduling_provider"),
+  status: text("status").notNull().default("appointment_not_started"),
+  mode: text("mode").notNull().default("dry_run"),
+  userPreferencesJson: jsonb("user_preferences_json").notNull().default({}),
+  requiresUserAction: boolean("requires_user_action").default(false),
+  currentManualAction: text("current_manual_action"),
+  lastErrorCode: text("last_error_code"),
+  lastErrorMessage: text("last_error_message"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("appointment_assistance_jobs_application_idx").on(table.applicationId),
+  userIdx: index("appointment_assistance_jobs_user_idx").on(table.userId),
+  statusIdx: index("appointment_assistance_jobs_status_idx").on(table.status),
+  providerIdx: index("appointment_assistance_jobs_provider_idx").on(table.schedulingProvider),
+  idempotencyIdx: index("appointment_assistance_jobs_idempotency_idx").on(table.idempotencyKey),
+}));
+
+export const appointmentAssistanceAttempts = pgTable("appointment_assistance_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id").notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: text("status").notNull(),
+  provider: text("provider"),
+  mode: text("mode").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  requestSnapshotRedactedJson: jsonb("request_snapshot_redacted_json"),
+  resultSnapshotRedactedJson: jsonb("result_snapshot_redacted_json"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  screenshotUrl: text("screenshot_url"),
+  traceUrl: text("trace_url"),
+  videoUrl: text("video_url"),
+}, (table) => ({
+  jobNumberIdx: uniqueIndex("appointment_attempts_job_number_idx").on(table.jobId, table.attemptNumber),
+  applicationIdx: index("appointment_attempts_application_idx").on(table.applicationId),
+  statusIdx: index("appointment_attempts_status_idx").on(table.status),
+}));
+
+export const appointmentManualActions = pgTable("appointment_manual_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  actionType: text("action_type").notNull(),
+  status: text("status").notNull().default("pending"),
+  instruction: text("instruction"),
+  userInputSchemaJson: jsonb("user_input_schema_json"),
+  userInputRedactedJson: jsonb("user_input_redacted_json"),
+  screenshotUrl: text("screenshot_url"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  metadataRedactedJson: jsonb("metadata_redacted_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  jobIdx: index("appointment_manual_actions_job_idx").on(table.jobId),
+  statusIdx: index("appointment_manual_actions_status_idx").on(table.status),
+  applicationIdx: index("appointment_manual_actions_application_idx").on(table.applicationId),
+  typeIdx: index("appointment_manual_actions_type_idx").on(table.actionType),
+}));
+
+export const appointmentSlots = pgTable("appointment_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id").notNull(),
+  appointmentDate: date("appointment_date"),
+  appointmentTime: text("appointment_time"),
+  appointmentLocation: text("appointment_location"),
+  appointmentType: text("appointment_type"),
+  source: text("source"),
+  status: text("status").notNull().default("observed"),
+  observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow(),
+  metadataRedactedJson: jsonb("metadata_redacted_json"),
+}, (table) => ({
+  jobIdx: index("appointment_slots_job_idx").on(table.jobId),
+  observedAtIdx: index("appointment_slots_observed_at_idx").on(table.observedAt),
+  applicationIdx: index("appointment_slots_application_idx").on(table.applicationId),
+  statusIdx: index("appointment_slots_status_idx").on(table.status),
+}));
+
+export const appointmentConfirmations = pgTable("appointment_confirmations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  countryCode: text("country_code").notNull().default("US"),
+  visaType: text("visa_type").notNull().default("B1/B2"),
+  appointmentDate: date("appointment_date"),
+  appointmentTime: text("appointment_time"),
+  appointmentLocation: text("appointment_location"),
+  appointmentType: text("appointment_type"),
+  confirmationNumber: text("confirmation_number"),
+  confirmationPdfUrl: text("confirmation_pdf_url"),
+  confirmationScreenshotUrl: text("confirmation_screenshot_url"),
+  rawConfirmationRedactedJson: jsonb("raw_confirmation_redacted_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("appointment_confirmations_application_idx").on(table.applicationId),
+  jobIdx: index("appointment_confirmations_job_idx").on(table.jobId),
+  userIdx: index("appointment_confirmations_user_idx").on(table.userId),
+}));
+
+export const appointmentStatusChecks = pgTable("appointment_status_checks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  status: text("status").notNull(),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow(),
+  resultRedactedJson: jsonb("result_redacted_json"),
+  screenshotUrl: text("screenshot_url"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+}, (table) => ({
+  jobIdx: index("appointment_status_checks_job_idx").on(table.jobId),
+  applicationIdx: index("appointment_status_checks_application_idx").on(table.applicationId),
+  userCheckedIdx: index("appointment_status_checks_user_checked_idx").on(table.userId, table.checkedAt),
+}));
+
+export const appointmentAuditEvents = pgTable("appointment_audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id"),
+  applicationId: uuid("application_id"),
+  userId: uuid("user_id"),
+  eventType: text("event_type").notNull(),
+  eventMessage: text("event_message"),
+  metadataRedactedJson: jsonb("metadata_redacted_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  jobIdx: index("appointment_audit_events_job_idx").on(table.jobId),
+  applicationIdx: index("appointment_audit_events_application_idx").on(table.applicationId),
+  userIdx: index("appointment_audit_events_user_idx").on(table.userId),
+  typeIdx: index("appointment_audit_events_type_idx").on(table.eventType),
+  createdIdx: index("appointment_audit_events_created_idx").on(table.createdAt),
+}));
+
 export const invoiceRequests = pgTable("invoice_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentRecordId: uuid("payment_record_id"),
@@ -1286,6 +1468,22 @@ export type OfficialFeeReconciliationEntry =
   typeof officialFeeReconciliationEntries.$inferSelect;
 export type NewOfficialFeeReconciliationEntry =
   typeof officialFeeReconciliationEntries.$inferInsert;
+export type AppointmentAccount = typeof appointmentAccounts.$inferSelect;
+export type NewAppointmentAccount = typeof appointmentAccounts.$inferInsert;
+export type AppointmentAssistanceJob = typeof appointmentAssistanceJobs.$inferSelect;
+export type NewAppointmentAssistanceJob = typeof appointmentAssistanceJobs.$inferInsert;
+export type AppointmentAssistanceAttempt = typeof appointmentAssistanceAttempts.$inferSelect;
+export type NewAppointmentAssistanceAttempt = typeof appointmentAssistanceAttempts.$inferInsert;
+export type AppointmentManualAction = typeof appointmentManualActions.$inferSelect;
+export type NewAppointmentManualAction = typeof appointmentManualActions.$inferInsert;
+export type AppointmentSlot = typeof appointmentSlots.$inferSelect;
+export type NewAppointmentSlot = typeof appointmentSlots.$inferInsert;
+export type AppointmentConfirmation = typeof appointmentConfirmations.$inferSelect;
+export type NewAppointmentConfirmation = typeof appointmentConfirmations.$inferInsert;
+export type AppointmentStatusCheck = typeof appointmentStatusChecks.$inferSelect;
+export type NewAppointmentStatusCheck = typeof appointmentStatusChecks.$inferInsert;
+export type AppointmentAuditEvent = typeof appointmentAuditEvents.$inferSelect;
+export type NewAppointmentAuditEvent = typeof appointmentAuditEvents.$inferInsert;
 export type InvoiceRequest = typeof invoiceRequests.$inferSelect;
 export type NewInvoiceRequest = typeof invoiceRequests.$inferInsert;
 export type RefundRecord = typeof refundRecords.$inferSelect;

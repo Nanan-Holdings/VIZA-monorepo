@@ -3698,6 +3698,11 @@
       "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
       "badge": "管理"
     },
+      "subscription": {
+        "title": "订阅方案管理",
+        "description": "查看当前月付方案、续费日期、付款方式和取消状态。",
+        "badge": "月付"
+      },
       "billing": {
         "title": "回执与发票",
         "description": "查看付款历史、回执、发票申请和退款状态。"
@@ -3719,7 +3724,7 @@
     "manageSelected": "正在管理",
     "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
     "managerHints": {
-      "bank_card": "银行卡需要通过 Stripe 托管验证后才能用于后续付款选择。",
+      "bank_card": "银行卡通过托管安全验证完成绑定，VIZA 不会接收完整卡号或 CVV。",
       "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
       "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
     },
@@ -3731,7 +3736,7 @@
     "qrAddTitle": "扫码绑定账号",
     "editTitle": "编辑付款账号",
     "addAccount": "添加账号",
-    "verifyWithStripe": "通过 Stripe 验证",
+    "verifyWithStripe": "打开安全验证",
     "generateQr": "生成绑定二维码",
     "regenerateQr": "重新生成二维码",
     "checkQrStatus": "检查绑定状态",
@@ -3740,8 +3745,8 @@
     "edit": "编辑",
     "delete": "删除",
     "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
-    "stripeHint": "卡号和 CVV 仅用于启动 Stripe 托管验证；VIZA 不会保存完整卡号或 CVV。",
-    "cardIdentifier": "尾号 {last4} · Stripe 验证中",
+    "stripeHint": "银行卡详情只会在托管安全页面中填写；VIZA 不保存完整卡号或 CVV。",
+    "cardIdentifier": "银行卡 · 安全验证中",
     "qrAlt": "付款账号绑定二维码",
     "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
     "qrExpires": "二维码有效期至 {time}。",
@@ -3782,11 +3787,11 @@
       "updated": "付款账号已更新。",
       "deleted": "付款账号已删除。",
       "defaultUpdated": "默认付款账号已更新。",
-      "stripeUnavailable": "Stripe 尚未配置，暂时无法验证银行卡。",
-      "stripeStartFailed": "暂时无法启动 Stripe 验证，请稍后重试。",
-      "stripeRedirect": "正在打开 Stripe 托管验证页面。",
-      "stripeReturned": "Stripe 验证已返回，绑定状态会在支付服务确认后更新。",
-      "stripeCancelled": "Stripe 验证已取消，银行卡尚未完成绑定。",
+      "stripeUnavailable": "托管银行卡验证尚未配置，暂时无法验证银行卡。",
+      "stripeStartFailed": "暂时无法启动银行卡验证，请稍后重试。",
+      "stripeRedirect": "正在打开托管安全验证页面。",
+      "stripeReturned": "银行卡验证已返回，绑定状态会在支付服务确认后更新。",
+      "stripeCancelled": "银行卡验证已取消，银行卡尚未完成绑定。",
       "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
       "qrReady": "二维码已生成，请使用对应 App 扫码。",
       "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
@@ -3797,7 +3802,7 @@
     "methods": {
       "bank_card": {
         "title": "银行卡",
-        "description": "填写卡号、CVV 和昵称后，通过 Stripe 验证绑定。"
+        "description": "填写昵称后进入托管安全页完成绑定。"
       },
       "wechat_pay": {
         "title": "微信支付",
@@ -4439,7 +4444,7 @@
     "back": "返回首页",
     "eyebrow": "VIZA Application",
     "title": "选择适合你的 VIZA 申请方式",
-    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，可通过 Stripe、微信支付或支付宝进入托管支付流程。",
+    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，点击在线付后再选择银行卡、微信支付或支付宝。",
     "current": {
       "label": "当前方案",
       "plan": "VIZA 申请体验版",
@@ -4447,7 +4452,8 @@
       "renewalLabel": "续费状态",
       "renewalValue": "暂未启用",
       "paymentLabel": "支付方式",
-      "paymentValue": "Stripe / 微信 / 支付宝"
+      "paymentValue": "暂未设置",
+      "countryLimitLabel": "月度国家额度"
     },
     "highlights": {
       "allCountries": {
@@ -4456,7 +4462,7 @@
       },
       "threeWays": {
         "title": "三种支付入口",
-        "body": "可使用 Stripe 托管页、微信支付 Native 二维码或支付宝电脑网站支付。"
+        "body": "可使用银行卡、微信支付二维码或支付宝在线支付。"
       },
       "officialFees": {
         "title": "费用清晰",

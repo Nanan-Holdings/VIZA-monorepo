@@ -27,7 +27,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/actions/internal-automation/**`.
 - Payment, uploads, OCR, and external status API boundaries under
   `app/api/stripe/**`, `app/api/payments/**`, `app/api/document-upload/**`,
-  `app/api/passport-ocr/**`, and `app/api/external-submission/**`.
+  `app/api/passport-ocr/**`, `app/api/translations/**`, and
+  `app/api/external-submission/**`.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
@@ -124,6 +125,7 @@ Smoke URLs:
 - `app/api/document-upload/*`
 - `app/api/external-submission/*`
 - `app/api/passport-ocr/*`
+- `app/api/translations/*`
 - `app/api/stripe/*`
 - `app/api/travel/*`
 - `components/ui/*`
@@ -140,6 +142,7 @@ Smoke URLs:
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
 - `lib/universal-profile-prefill.ts`
+- `lib/translation/*`
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`

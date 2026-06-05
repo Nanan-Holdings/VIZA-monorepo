@@ -76,9 +76,6 @@ interface PaymentAccount {
 
 interface PaymentFormState {
   label: string;
-  identifier: string;
-  cardNumber: string;
-  cvv: string;
 }
 
 interface WalletBindingIntent {
@@ -131,14 +128,6 @@ const rewardItems = [
 
 function isWalletMethod(method: PaymentMethodId): method is Exclude<PaymentMethodId, "bank_card"> {
   return method === "wechat_pay" || method === "alipay";
-}
-
-function normalizeCardDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
-function cardLastFour(value: string) {
-  return normalizeCardDigits(value).slice(-4);
 }
 
 function initialsFromName(name: string, fallback: string) {
@@ -334,9 +323,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     useState<PaymentMethodId>("bank_card");
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>({
     label: "",
-    identifier: "",
-    cardNumber: "",
-    cvv: "",
   });
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [activeQrBinding, setActiveQrBinding] = useState<WalletBindingIntent | null>(null);
@@ -473,7 +459,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   }
 
   function resetPaymentForm() {
-    setPaymentForm({ label: "", identifier: "", cardNumber: "", cvv: "" });
+    setPaymentForm({ label: "" });
     setEditingPaymentId(null);
   }
 
@@ -501,27 +487,11 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       return;
     }
 
-    const normalizedCardNumber = normalizeCardDigits(paymentForm.cardNumber);
-    const normalizedCvv = normalizeCardDigits(paymentForm.cvv);
-
-    if (normalizedCardNumber.length < 12 || normalizedCardNumber.length > 19) {
-      setPaymentMessage({ tone: "error", text: t("payment.messages.cardNumberInvalid") });
-      return;
-    }
-
-    if (!/^\d{3,4}$/.test(normalizedCvv)) {
-      setPaymentMessage({ tone: "error", text: t("payment.messages.cvvInvalid") });
-      return;
-    }
-
     setIsStartingPaymentBinding(true);
     const response = await fetch("/api/payments/bind/stripe-card", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nickname: label,
-        cardLast4: cardLastFour(paymentForm.cardNumber),
-      }),
+      body: JSON.stringify({ nickname: label }),
     });
     setIsStartingPaymentBinding(false);
 
@@ -547,7 +517,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       id: result.bindingId,
       method: activePaymentMethod,
       label,
-      identifier: t("payment.cardIdentifier", { last4: cardLastFour(paymentForm.cardNumber) }),
+      identifier: t("payment.cardIdentifier"),
       isDefault: shouldBeDefault,
       verificationStatus: "requires_action",
       providerReference: result.bindingId,
@@ -653,9 +623,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     setEditingPaymentId(account.id);
     setPaymentForm({
       label: account.label,
-      identifier: account.identifier,
-      cardNumber: "",
-      cvv: "",
     });
     setPaymentMessage(null);
   }
@@ -1144,46 +1111,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                       className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                     />
                   </label>
-                  {!editingPaymentAccount ? (
-                    <>
-                      <label className="grid gap-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {t("payment.fields.cardNumber")}
-                        </span>
-                        <input
-                          inputMode="numeric"
-                          autoComplete="cc-number"
-                          value={paymentForm.cardNumber}
-                          onChange={(event) =>
-                            setPaymentForm((current) => ({
-                              ...current,
-                              cardNumber: event.target.value.replace(/[^\d\s-]/g, ""),
-                            }))
-                          }
-                          placeholder={t("payment.placeholders.bank_card.cardNumber")}
-                          className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                        />
-                      </label>
-                      <label className="grid gap-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {t("payment.fields.cvv")}
-                        </span>
-                        <input
-                          inputMode="numeric"
-                          autoComplete="cc-csc"
-                          value={paymentForm.cvv}
-                          onChange={(event) =>
-                            setPaymentForm((current) => ({
-                              ...current,
-                              cvv: normalizeCardDigits(event.target.value).slice(0, 4),
-                            }))
-                          }
-                          placeholder={t("payment.placeholders.bank_card.cvv")}
-                          className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                        />
-                      </label>
-                    </>
-                  ) : null}
                   <p className="text-xs leading-5 text-muted-foreground">
                     {t("payment.stripeHint")}
                   </p>
@@ -1335,6 +1262,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               description={t("rows.paymentMethods.description")}
               href="/client/settings/payment-methods"
               badge={t("rows.paymentMethods.badge")}
+            />
+            <SettingsRow
+              icon={ShieldCheck}
+              title={t("rows.subscription.title")}
+              description={t("rows.subscription.description")}
+              href="/client/settings/subscription"
+              badge={t("rows.subscription.badge")}
             />
             <SettingsRow
               icon={ReceiptText}

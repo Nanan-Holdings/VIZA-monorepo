@@ -5,18 +5,15 @@ import {
   ArrowLeft,
   BadgeCheck,
   CheckCircle2,
-  CreditCard,
   MessageCircle,
   Plane,
   ShieldCheck,
   Sparkles,
   UsersRound,
-  WalletCards,
   XCircle,
 } from "lucide-react";
-import { startCommercialCheckout } from "./actions";
 import {
-  getPaymentProviderReadiness,
+  getCurrentSubscriptionForCurrentUser,
   reconcileStripeSubscriptionReturn,
   type SubscriptionReturnState,
 } from "./data";
@@ -25,7 +22,6 @@ import { PayPerApplicationBrowser } from "./pay-per-application-browser";
 import {
   formatCny,
   getCommercialProduct,
-  type CommercialPaymentProvider,
 } from "@/lib/payments/commercial-products";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -70,30 +66,6 @@ const monthlyPlans = [
   },
 ] as const;
 
-const providerLabels: Record<CommercialPaymentProvider, string> = {
-  stripe: "Stripe",
-  wechat_pay: "微信",
-  alipay: "支付宝",
-  airwallex_card: "银行卡",
-  airwallex_wechat: "微信",
-  airwallex_alipay: "支付宝",
-};
-
-const providerIcons = {
-  stripe: CreditCard,
-  wechat_pay: MessageCircle,
-  alipay: WalletCards,
-  airwallex_card: CreditCard,
-  airwallex_wechat: MessageCircle,
-  airwallex_alipay: WalletCards,
-} satisfies Record<CommercialPaymentProvider, typeof CreditCard>;
-
-const subscriptionPaymentProviders: CommercialPaymentProvider[] = [
-  "airwallex_card",
-  "airwallex_wechat",
-  "airwallex_alipay",
-];
-
 function getParam(params: SubscriptionSearchParams | undefined, key: keyof SubscriptionSearchParams): string | null {
   const value = params?.[key];
   if (Array.isArray(value)) return value[0] ?? null;
@@ -131,8 +103,8 @@ function getErrorReturnState(error: string | null): SubscriptionReturnState {
     },
     airwallex_unconfigured: {
       tone: "warning",
-      title: "Airwallex 尚未配置",
-      description: "请先配置 Airwallex sandbox Client ID、API Key 和应用地址。",
+      title: "在线支付尚未配置",
+      description: "请先配置 sandbox 支付服务的 Client ID、API Key 和应用地址。",
     },
     app_url_missing: {
       tone: "error",
@@ -162,7 +134,7 @@ async function getReturnState(params: SubscriptionSearchParams | undefined): Pro
     return {
       tone: "warning",
       title: "支付已取消",
-      description: "当前方案没有扣费，你可以重新选择 Stripe、微信或支付宝支付。",
+      description: "当前方案没有扣费，你可以重新选择在线支付。",
     };
   }
 
@@ -199,55 +171,38 @@ function ReturnStateAlert({ state }: { state: SubscriptionReturnState }) {
   );
 }
 
-function PaymentButtons({
+function OnlinePayCta({
   productId,
-  readiness,
   featured,
 }: {
   productId: string;
-  readiness: Record<CommercialPaymentProvider, boolean>;
   featured?: boolean;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {subscriptionPaymentProviders.map((provider) => {
-        const Icon = providerIcons[provider];
-        const enabled = readiness[provider];
-
-        return (
-          <form key={provider} action={startCommercialCheckout}>
-            <input type="hidden" name="productId" value={productId} />
-            <input type="hidden" name="provider" value={provider} />
-            <button
-              type="submit"
-              className={cn(
-                "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-1",
-                featured
-                  ? "bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-white"
-                  : "border border-brand-500 bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-ring",
-                !enabled && (featured ? "bg-white/80 text-brand-500/80" : "border-border text-muted-foreground"),
-              )}
-              title={enabled ? `使用${providerLabels[provider]}支付` : `检查${providerLabels[provider]}配置并支付`}
-            >
-              <Icon className="h-4 w-4" />
-              {providerLabels[provider]}
-            </button>
-          </form>
-        );
-      })}
-    </div>
+    <Link
+      href={`/payments/checkout?productId=${encodeURIComponent(productId)}&billing=monthly`}
+      className={cn(
+        "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-1",
+        featured
+          ? "bg-white text-brand-500 hover:bg-brand-50 focus-visible:ring-white"
+          : "border border-brand-500 bg-brand-500 text-white hover:bg-brand-600 focus-visible:ring-ring",
+      )}
+    >
+      <MessageCircle className="h-4 w-4" />
+      在线付
+    </Link>
   );
 }
 
 export default async function SubscriptionPage({ searchParams }: SubscriptionPageProps) {
   const params = await searchParams;
-  const [t, locale, returnState] = await Promise.all([
+  const [t, locale, returnState, currentSubscription] = await Promise.all([
     getTranslations("subscription"),
     getLocale(),
     getReturnState(params),
+    getCurrentSubscriptionForCurrentUser(),
   ]);
   const isZh = locale.toLowerCase().startsWith("zh");
-  const readiness = getPaymentProviderReadiness();
   const payPerGroups = buildPayPerGroups();
 
   return (
@@ -284,21 +239,35 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t("current.label")}</p>
-                  <p className="mt-1 text-2xl font-semibold text-brand-500">{t("current.plan")}</p>
+                  <p className="mt-1 text-2xl font-semibold text-brand-500">
+                    {currentSubscription.planName}
+                  </p>
                 </div>
                 <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
-                  {t("current.badge")}
+                  {currentSubscription.statusLabel}
                 </span>
               </div>
               <div className="mt-5 grid gap-3">
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">{t("current.renewalLabel")}</span>
-                  <span className="font-semibold text-foreground">{t("current.renewalValue")}</span>
+                  <span className="text-right font-semibold text-foreground">
+                    {currentSubscription.renewalLabel}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">{t("current.paymentLabel")}</span>
-                  <span className="font-semibold text-foreground">{t("current.paymentValue")}</span>
+                  <span className="font-semibold text-foreground">
+                    {currentSubscription.paymentMethodLabel}
+                  </span>
                 </div>
+                {currentSubscription.countryLimitPerMonth ? (
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-muted-foreground">{t("current.countryLimitLabel")}</span>
+                    <span className="font-semibold text-foreground">
+                      {t("monthly.countryLimit", { count: currentSubscription.countryLimitPerMonth })}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -377,7 +346,7 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                       </div>
 
                       <div className="mt-auto pt-6">
-                        <PaymentButtons productId={product.id} readiness={readiness} featured={plan.featured} />
+                        <OnlinePayCta productId={product.id} featured={plan.featured} />
                       </div>
                     </article>
                   );
@@ -419,7 +388,6 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                 <div className="space-y-4">
                   <PayPerApplicationBrowser
                     isZh={isZh}
-                    readiness={readiness}
                     regions={payPerGroups}
                     labels={{
                       searchPlaceholder: t("payPer.searchPlaceholder"),
@@ -432,6 +400,18 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                   <p className="text-xs leading-5 text-muted-foreground">{t("payPer.feeNote")}</p>
                 </div>
               </div>
+            </section>
+
+            <section className="border-t p-6 text-center lg:p-8">
+              <Link
+                href="/client/settings/subscription"
+                className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-brand-500 transition hover:text-brand-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                管理订阅方案
+              </Link>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                查看当前月付方案、续费日期，或取消月付。
+              </p>
             </section>
           </div>
         </section>

@@ -4,13 +4,23 @@ import Script from "next/script";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft, CheckCircle2, CreditCard, Loader2, MessageCircle, WalletCards } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  CreditCard,
+  Loader2,
+  MessageCircle,
+  ShieldCheck,
+  Smartphone,
+  WalletCards,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AirwallexCheckoutProps {
   paymentId: string | null;
   productId: string | null;
   preferredMethod: string | null;
+  billing: string | null;
   backHref: string;
 }
 
@@ -22,48 +32,64 @@ interface CreateIntentResponse {
   currency: string;
   status: "pending" | "paid" | "failed";
   providerStatus: string;
+  productId: string | null;
+  productName: string | null;
+  productKind: "monthly" | "pay_per_application" | null;
 }
 
-interface AirwallexDropInElement {
+type PaymentMethodId = "card" | "wechatpay_qrcode" | "alipaycn_mobile_web";
+
+interface AirwallexCardElement {
   mount(containerId: string): void;
+  confirm(options: { intent_id: string; client_secret: string }): Promise<unknown>;
   on(event: "ready" | "success" | "error", handler: (event?: unknown) => void): void;
 }
 
 interface AirwallexComponentsSdk {
   init(options: { env: "demo" | "prod"; enabledElements: string[]; locale: string }): Promise<void>;
   createElement(
-    type: "dropIn",
+    type: "card",
     options: {
       intent_id: string;
       client_secret: string;
       currency: string;
-      country_code: string;
-      appearance: {
-        mode: "light";
-        variables: Record<string, string>;
-      };
+      style?: Record<string, unknown>;
     },
-  ): Promise<AirwallexDropInElement | null>;
+  ): Promise<AirwallexCardElement | null>;
 }
 
 declare global {
   interface Window {
     AirwallexComponentsSDK?: AirwallexComponentsSdk;
+    ApplePaySession?: { canMakePayments?: () => boolean };
   }
 }
 
-const directMethods = [
+const methodOptions: Array<{
+  id: PaymentMethodId;
+  label: string;
+  description: string;
+  icon: typeof CreditCard;
+}> = [
+  {
+    id: "card",
+    label: "银行卡",
+    description: "使用托管卡组件完成安全支付。",
+    icon: CreditCard,
+  },
   {
     id: "wechatpay_qrcode",
-    label: "微信二维码",
+    label: "微信支付",
+    description: "生成二维码后使用微信扫码支付。",
     icon: MessageCircle,
   },
   {
     id: "alipaycn_mobile_web",
     label: "支付宝",
+    description: "跳转到支付宝沙盒页面确认支付。",
     icon: WalletCards,
   },
-] as const;
+];
 
 function formatCny(amountFen: number): string {
   return new Intl.NumberFormat("zh-CN", {
@@ -71,6 +97,17 @@ function formatCny(amountFen: number): string {
     currency: "CNY",
     maximumFractionDigits: amountFen % 100 === 0 ? 0 : 2,
   }).format(amountFen / 100);
+}
+
+function normalizePreferredMethod(value: string | null): PaymentMethodId | null {
+  if (value === "card") return "card";
+  if (value === "wechat" || value === "wechatpay_qrcode") return "wechatpay_qrcode";
+  if (value === "alipay" || value === "alipaycn_mobile_web") return "alipaycn_mobile_web";
+  return null;
+}
+
+function safeErrorMessage(message: string): string {
+  return message.replace(/Airwallex/gi, "在线支付服务").replace(/Provider/gi, "支付服务");
 }
 
 function findRedirectUrl(value: unknown): string | null {
@@ -123,20 +160,33 @@ export function AirwallexCheckout({
   paymentId,
   productId,
   preferredMethod,
+  billing,
   backHref,
 }: AirwallexCheckoutProps) {
   const [scriptReady, setScriptReady] = useState(false);
   const [intent, setIntent] = useState<CreateIntentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dropInReady, setDropInReady] = useState(false);
-  const [confirmingMethod, setConfirmingMethod] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodId | null>(() =>
+    normalizePreferredMethod(preferredMethod),
+  );
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
+  const [cardElement, setCardElement] = useState<AirwallexCardElement | null>(null);
+  const [confirmingMethod, setConfirmingMethod] = useState<PaymentMethodId | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
+  const [applePayAvailable, setApplePayAvailable] = useState(false);
 
   const createPayload = useMemo(
     () => (paymentId ? { paymentId } : productId ? { productId } : null),
     [paymentId, productId],
   );
+  const isMonthly = billing === "monthly" || intent?.productKind === "monthly";
+  const canChooseMethod = !isMonthly || agreementAccepted;
+
+  useEffect(() => {
+    setApplePayAvailable(Boolean(window.ApplePaySession?.canMakePayments?.()));
+  }, []);
 
   useEffect(() => {
     if (!createPayload) {
@@ -153,7 +203,9 @@ export function AirwallexCheckout({
         body: JSON.stringify(createPayload),
       });
       const body = (await response.json()) as CreateIntentResponse | { error?: string };
-      if (!response.ok) throw new Error("error" in body && body.error ? body.error : "创建支付订单失败。");
+      if (!response.ok) {
+        throw new Error("error" in body && body.error ? safeErrorMessage(body.error) : "创建支付订单失败。");
+      }
       if (!cancelled) setIntent(body as CreateIntentResponse);
     }
 
@@ -167,51 +219,86 @@ export function AirwallexCheckout({
   }, [createPayload]);
 
   useEffect(() => {
-    if (!scriptReady || !intent?.clientSecret || !window.AirwallexComponentsSDK) return;
+    if (selectedMethod !== "card") {
+      setCardElement(null);
+      setCardReady(false);
+      const container = document.getElementById("airwallex-card-element");
+      if (container) container.innerHTML = "";
+      return;
+    }
+    if (!canChooseMethod || !scriptReady || !intent?.clientSecret || !window.AirwallexComponentsSDK) return;
 
     const activeIntent = { ...intent, clientSecret: intent.clientSecret };
     let cancelled = false;
-    async function mountDropIn() {
-      setDropInReady(false);
+    async function mountCardElement() {
+      setCardElement(null);
+      setCardReady(false);
+      const container = document.getElementById("airwallex-card-element");
+      if (container) container.innerHTML = "";
+
       await window.AirwallexComponentsSDK?.init({
         env: "demo",
         enabledElements: ["payments"],
         locale: "zh",
       });
-      const element = await window.AirwallexComponentsSDK?.createElement("dropIn", {
+      const element = await window.AirwallexComponentsSDK?.createElement("card", {
         intent_id: activeIntent.intentId,
         client_secret: activeIntent.clientSecret,
         currency: activeIntent.currency,
-        country_code: "CN",
-        appearance: {
-          mode: "light",
-          variables: {
-            colorBrand: "#0b3f7c",
-            colorText: "#111827",
-            colorBackground: "#ffffff",
+        style: {
+          base: {
+            color: "#111827",
+            fontSize: "16px",
+            "::placeholder": { color: "#9ca3af" },
           },
         },
       });
       if (cancelled || !element) return;
-      element.mount("airwallex-dropin");
-      element.on("ready", () => setDropInReady(true));
+      element.mount("airwallex-card-element");
+      element.on("ready", () => setCardReady(true));
       element.on("success", () => {
         window.location.assign(`/payments/result?paymentId=${encodeURIComponent(activeIntent.paymentId)}`);
       });
-      element.on("error", () => setError("支付组件返回错误，请重试或换一种支付方式。"));
+      element.on("error", () => setError("银行卡支付组件返回错误，请重试或换一种支付方式。"));
+      setCardElement(element);
     }
 
-    mountDropIn().catch((caught) => {
-      if (!cancelled) setError(caught instanceof Error ? caught.message : "支付组件加载失败。");
+    mountCardElement().catch((caught) => {
+      if (!cancelled) setError(caught instanceof Error ? safeErrorMessage(caught.message) : "银行卡支付组件加载失败。");
     });
 
     return () => {
       cancelled = true;
     };
-  }, [intent, scriptReady]);
+  }, [canChooseMethod, intent, scriptReady, selectedMethod]);
 
-  async function confirmMethod(methodType: string) {
-    if (!intent) return;
+  function requireAgreement(): boolean {
+    if (canChooseMethod) return true;
+    setError("请先勾选自动续费授权，再选择支付方式。");
+    return false;
+  }
+
+  async function confirmCardPayment() {
+    if (!intent?.clientSecret || !cardElement || !requireAgreement()) return;
+
+    setConfirmingMethod("card");
+    setError(null);
+    try {
+      await cardElement.confirm({
+        intent_id: intent.intentId,
+        client_secret: intent.clientSecret,
+      });
+      window.location.assign(`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? safeErrorMessage(caught.message) : "银行卡支付未完成，请检查卡信息后重试。");
+    } finally {
+      setConfirmingMethod(null);
+    }
+  }
+
+  async function confirmWalletMethod(methodType: Exclude<PaymentMethodId, "card">) {
+    if (!intent || !requireAgreement()) return;
+    setSelectedMethod(methodType);
     setConfirmingMethod(methodType);
     setError(null);
     setQrCodeDataUrl(null);
@@ -223,7 +310,7 @@ export function AirwallexCheckout({
         body: JSON.stringify({ methodType }),
       });
       const body = (await response.json()) as { nextAction?: unknown; status?: string; error?: string };
-      if (!response.ok) throw new Error(body.error ?? "确认支付方式失败。");
+      if (!response.ok) throw new Error(body.error ? safeErrorMessage(body.error) : "确认支付方式失败。");
 
       const url = findRedirectUrl(body.nextAction);
       if (url) {
@@ -244,16 +331,28 @@ export function AirwallexCheckout({
     }
   }
 
+  function selectMethod(method: PaymentMethodId) {
+    if (!requireAgreement()) return;
+    setError(null);
+    setQrCodeDataUrl(null);
+    setQrCodeValue(null);
+    if (method === "card") {
+      setSelectedMethod("card");
+      return;
+    }
+    void confirmWalletMethod(method);
+  }
+
   return (
     <main className="min-h-screen bg-[#fafafa] px-4 py-6">
       <Script
         src="https://static.airwallex.com/components/sdk/v1/index.js"
         strategy="afterInteractive"
         onLoad={() => setScriptReady(true)}
-        onError={() => setError("Airwallex 支付组件脚本加载失败。")}
+        onError={() => setError("支付组件脚本加载失败。")}
       />
 
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         <Link
           href={backHref}
           className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium text-brand-500 shadow-sm transition hover:border-brand-500"
@@ -263,12 +362,12 @@ export function AirwallexCheckout({
         </Link>
 
         <section className="rounded-xl border bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
             <div>
-              <p className="text-sm font-semibold text-brand-500">Airwallex sandbox checkout</p>
-              <h1 className="mt-2 text-3xl font-semibold text-foreground">确认 VIZA 支付</h1>
+              <p className="text-sm font-semibold text-brand-500">VIZA 在线支付</p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">确认付款方式</h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                本页仅收取 VIZA 服务费，官方签证费和第三方费用会单独展示。
+                本页仅收取 VIZA 服务费。银行卡、微信支付和支付宝会在安全支付环境中完成确认。
               </p>
             </div>
             <div className="rounded-lg border bg-brand-50 px-4 py-3 text-right">
@@ -276,14 +375,27 @@ export function AirwallexCheckout({
               <p className="mt-1 text-2xl font-semibold text-brand-500">
                 {intent ? formatCny(intent.amountFen) : "准备中"}
               </p>
+              <p className="mt-1 text-xs leading-5 text-brand-700">
+                {intent?.productName ?? (isMonthly ? "月付方案" : "VIZA 服务费")}
+              </p>
             </div>
           </div>
 
-          {preferredMethod ? (
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-500">
-              <CheckCircle2 className="h-4 w-4" />
-              已选择 {preferredMethod === "wechat" ? "微信" : preferredMethod === "alipay" ? "支付宝" : "银行卡"}
-            </div>
+          {isMonthly ? (
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-lg border bg-brand-50 p-4 text-sm leading-6 text-brand-900">
+              <input
+                type="checkbox"
+                checked={agreementAccepted}
+                onChange={(event) => {
+                  setAgreementAccepted(event.target.checked);
+                  if (event.target.checked) setError(null);
+                }}
+                className="mt-1 h-4 w-4 rounded border-brand-300 text-brand-500 focus:ring-brand-500"
+              />
+              <span>
+                我已阅读并同意开通月付自动续费。当前方案将按月扣费，可在订阅管理中取消，到期前取消则当前周期结束后失效。
+              </span>
+            </label>
           ) : null}
 
           {error ? (
@@ -292,10 +404,89 @@ export function AirwallexCheckout({
             </p>
           ) : null}
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="min-h-[360px] rounded-lg border bg-background p-4">
+          <div className="mt-6 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="rounded-lg border bg-white p-4">
+              <p className="text-sm font-semibold text-foreground">选择支付方式</p>
+              <div className="mt-3 grid gap-2">
+                {methodOptions.map((method) => {
+                  const Icon = method.icon;
+                  const selected = selectedMethod === method.id;
+                  const busy = confirmingMethod === method.id;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => selectMethod(method.id)}
+                      disabled={!intent || confirmingMethod !== null}
+                      className={cn(
+                        "flex min-h-[72px] w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60",
+                        selected
+                          ? "border-brand-500 bg-brand-50 text-brand-900"
+                          : "border-border bg-white hover:border-brand-300 hover:bg-brand-50",
+                      )}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">{method.label}</span>
+                        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                          {method.description}
+                        </span>
+                      </span>
+                      {selected ? <Check className="h-4 w-4 shrink-0 text-brand-500" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {!applePayAvailable ? (
+                <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Apple Pay 在当前浏览器或域名环境中不可用，已自动隐藏。
+                </p>
+              ) : (
+                <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Apple Pay 需要完成支付服务域名验证后启用，当前 sandbox 暂不展示。
+                </p>
+              )}
+            </aside>
+
+            <div className="min-h-[380px] rounded-lg border bg-background p-4">
+              {!selectedMethod ? (
+                <div className="flex min-h-[340px] flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+                  <ShieldCheck className="h-8 w-8 text-brand-500" />
+                  <p>请选择一种支付方式继续。</p>
+                </div>
+              ) : null}
+
+              {selectedMethod === "card" ? (
+                <div className="grid min-h-[340px] content-center gap-4">
+                  {!scriptReady || !intent ? (
+                    <div className="flex items-center justify-center text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      正在准备银行卡安全组件
+                    </div>
+                  ) : null}
+                  <div id="airwallex-card-element" className="rounded-lg border bg-white p-4" />
+                  <button
+                    type="button"
+                    onClick={confirmCardPayment}
+                    disabled={!cardReady || confirmingMethod !== null}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
+                  >
+                    {confirmingMethod === "card" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4" />
+                    )}
+                    {isMonthly ? "开通并同意自动续费" : "支付"}
+                  </button>
+                </div>
+              ) : null}
+
               {qrCodeDataUrl && intent ? (
-                <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+                <div className="flex min-h-[340px] flex-col items-center justify-center gap-4 text-center">
                   <img
                     src={qrCodeDataUrl}
                     alt="微信支付二维码"
@@ -304,7 +495,7 @@ export function AirwallexCheckout({
                   <div>
                     <p className="text-sm font-semibold text-foreground">请使用微信扫码支付</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      扫码后返回本页或结果页刷新状态，VIZA 会通过 Airwallex 查询最终结果。
+                      扫码后返回本页或结果页刷新状态，VIZA 会查询最终结果。
                     </p>
                   </div>
                   <Link
@@ -316,48 +507,14 @@ export function AirwallexCheckout({
                   <span className="sr-only">{qrCodeValue}</span>
                 </div>
               ) : null}
-              {!intent || !scriptReady ? (
-                <div className="flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
+
+              {selectedMethod !== "card" && selectedMethod !== null && !qrCodeDataUrl ? (
+                <div className="flex min-h-[340px] items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  正在准备安全支付组件
+                  正在打开安全支付页面
                 </div>
               ) : null}
-              <div
-                id="airwallex-dropin"
-                className={cn(qrCodeDataUrl && "hidden", !dropInReady && "min-h-[320px]")}
-              />
             </div>
-
-            <aside className="rounded-lg border bg-white p-4">
-              <p className="text-sm font-semibold text-foreground">快捷方式</p>
-              <div className="mt-3 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => confirmMethod("card")}
-                  disabled={!intent || confirmingMethod !== null}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-brand-500 px-4 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 disabled:opacity-60"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  银行卡
-                </button>
-                {directMethods.map((method) => {
-                  const Icon = method.icon;
-                  const busy = confirmingMethod === method.id;
-                  return (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => confirmMethod(method.id)}
-                      disabled={!intent || confirmingMethod !== null}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
-                    >
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
-                      {method.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
           </div>
         </section>
       </div>

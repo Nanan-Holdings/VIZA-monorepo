@@ -25,6 +25,7 @@ interface DynamicStepFormProps {
   step: WizardStep;
   prefill: Record<string, string>;
   onComplete: (data: Record<string, string>) => void;
+  onDraftChange?: (data: Record<string, string>) => void;
   saving?: boolean;
   country?: string | null;
   visaType?: string;
@@ -50,6 +51,15 @@ interface FormHistorySnapshot {
   groupCounts: Record<string, number>;
 }
 
+interface CloudTranslationCandidate {
+  valueKey: string;
+  sourceText: string;
+}
+
+type ApplicationTranslateResponse = {
+  translatedText?: unknown;
+};
+
 type FieldIssueSeverity = "ok" | "warning" | "error";
 
 interface FieldIssue {
@@ -72,6 +82,9 @@ const TEXT_EDITING_INPUT_TYPES = new Set([
   "week",
 ]);
 
+const CLOUD_TRANSLATION_DEBOUNCE_MS = 350;
+const CLOUD_TRANSLATION_CACHE = new Map<string, string>();
+
 function isTextEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -90,6 +103,60 @@ function cloneTextPairs(pairs: Record<string, BilingualTextValue>): Record<strin
 
 function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
+}
+
+function hasChineseText(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function isMachineTranslationSensitiveField(field: VisaFormFieldRow): boolean {
+  const fieldName = field.fieldName.toLowerCase();
+  const label = field.label.toLowerCase();
+  return (
+    /(?:^|_)(surname|surnames|given_names?|family_name|first_name|last_name|middle_name|full_name|native_full_name)(?:_|$)/.test(fieldName)
+    || /\b(surname|surnames|given names|family name|first name|last name|middle name|full name)\b/.test(label)
+    || /(?:^|_)(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)(?:_|$)/.test(fieldName)
+  );
+}
+
+function shouldRequestCloudTranslation(field: VisaFormFieldRow, pair: BilingualTextValue): boolean {
+  const sourceText = pair.zh.trim();
+  if (!sourceText || !hasChineseText(sourceText)) return false;
+  if (isMachineTranslationSensitiveField(field)) return false;
+  if (pair.en.trim() && !hasChineseText(pair.en)) return false;
+
+  const localEnglish = toOfficialEnglishValue(sourceText).trim();
+  return !localEnglish || hasChineseText(localEnglish);
+}
+
+function normalizeCloudTranslation(value: string, sourceText: string): string | null {
+  const translated = value.replace(/\s+/g, " ").trim();
+  if (!translated) return null;
+  if (translated === sourceText.trim()) return null;
+  if (hasChineseText(translated)) return null;
+  return translated;
+}
+
+async function requestCloudEnglishTranslation(
+  sourceText: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const response = await fetch("/api/translations/field", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: sourceText,
+      sourceLanguage: "zh-CN",
+      targetLanguage: "en",
+      fieldType: "text",
+    }),
+    signal,
+  });
+
+  if (!response.ok) return null;
+
+  const payload = (await response.json()) as ApplicationTranslateResponse;
+  return typeof payload.translatedText === "string" ? payload.translatedText : null;
 }
 
 function getBilingualPrefillText(
@@ -361,14 +428,34 @@ function isPurposeOfTripField(field: VisaFormFieldRow): boolean {
   return field.label.toLowerCase().includes("purpose of trip");
 }
 
+function getOptionValueAndText(option: NonNullable<VisaFormFieldRow["options"]>[number]): { value: string; text: string } {
+  if (typeof option === "string") return { value: option, text: option };
+  return { value: option.value ?? "", text: option.text ?? option.value ?? "" };
+}
+
+function isBTripPurposeOption(option: NonNullable<VisaFormFieldRow["options"]>[number]): boolean {
+  const { value, text } = getOptionValueAndText(option);
+  return [value, text].some((part) => {
+    const normalized = part.trim().toLowerCase();
+    return normalized === "b" || /\(b\)\s*$/.test(normalized);
+  });
+}
+
 /** Find the B visa category option value from field options */
 function findBOptionValue(options: VisaFormFieldRow["options"]): string | null {
   if (!options) return null;
   for (const opt of options) {
-    const val = typeof opt === "string" ? opt : opt.value;
-    if (/\(B\)\s*$/.test(val)) return val;
+    if (isBTripPurposeOption(opt)) {
+      const { value, text } = getOptionValueAndText(opt);
+      return value || text;
+    }
   }
   return null;
+}
+
+function getDefaultFieldValue(field: VisaFormFieldRow): string {
+  if (!isPurposeOfTripField(field)) return "";
+  return findBOptionValue(field.options) ?? "";
 }
 
 /** Suffix for repeated instance keys: fieldName__2, fieldName__3, etc. (instance 0 = base) */
@@ -460,6 +547,7 @@ export function DynamicStepForm({
   step,
   prefill,
   onComplete,
+  onDraftChange,
   saving,
   country,
   visaType,
@@ -496,14 +584,19 @@ export function DynamicStepForm({
         const count = groupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           const key = instanceKey(field.fieldName, i);
-          if (!(key in init)) init[key] = "";
+          const defaultValue = getDefaultFieldValue(field);
+          if (!(key in init)) {
+            init[key] = defaultValue;
+          } else if (!init[key] && defaultValue) {
+            init[key] = defaultValue;
+          }
         }
       } else {
-        if (!(field.fieldName in init)) init[field.fieldName] = "";
-        // Auto-select B for "Purpose of Trip to the U.S."
-        if (!init[field.fieldName] && isPurposeOfTripField(field)) {
-          const bValue = findBOptionValue(field.options);
-          if (bValue) init[field.fieldName] = bValue;
+        const defaultValue = getDefaultFieldValue(field);
+        if (!(field.fieldName in init)) {
+          init[field.fieldName] = defaultValue;
+        } else if (!init[field.fieldName] && defaultValue) {
+          init[field.fieldName] = defaultValue;
         }
       }
     }
@@ -531,13 +624,19 @@ export function DynamicStepForm({
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
   const groupCountsRef = useRef(groupCounts);
+  const onDraftChangeRef = useRef(onDraftChange);
   const previousPrefillRef = useRef(prefill);
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
+  const pendingCloudTranslationsRef = useRef(new Set<string>());
 
   valuesRef.current = values;
   textPairsRef.current = textPairs;
   groupCountsRef.current = groupCounts;
+
+  useEffect(() => {
+    onDraftChangeRef.current = onDraftChange;
+  }, [onDraftChange]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -558,6 +657,27 @@ export function DynamicStepForm({
     undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
     redoStackRef.current = [];
   };
+
+  const applyCloudTranslation = useCallback((valueKey: string, sourceText: string, translatedText: string) => {
+    const normalized = normalizeCloudTranslation(translatedText, sourceText);
+    if (!normalized) return;
+
+    const currentPair = textPairsRef.current[valueKey];
+    if (!currentPair || currentPair.zh.trim() !== sourceText) return;
+    if (currentPair.en.trim() && !hasChineseText(currentPair.en)) return;
+
+    const nextPair = { ...currentPair, en: normalized };
+    const nextTextPairs = { ...textPairsRef.current, [valueKey]: nextPair };
+    textPairsRef.current = nextTextPairs;
+    setTextPairs(nextTextPairs);
+
+    const currentValue = valuesRef.current[valueKey] ?? "";
+    if (!currentValue.trim() || currentValue === currentPair.en || hasChineseText(currentValue)) {
+      const nextValues = { ...valuesRef.current, [valueKey]: normalized };
+      valuesRef.current = nextValues;
+      setValues(nextValues);
+    }
+  }, []);
 
   useEffect(() => {
     const previousPrefill = previousPrefillRef.current;
@@ -611,6 +731,66 @@ export function DynamicStepForm({
       setTextPairs(nextTextPairs);
     }
   }, [prefill, step.fields]);
+
+  useEffect(() => {
+    onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));
+  }, [groupCounts, step.fields, values]);
+
+  useEffect(() => {
+    const candidates: CloudTranslationCandidate[] = [];
+
+    for (const field of step.fields) {
+      if (!isTextLikeField(field)) continue;
+      const group = getRepeatGroup(field);
+      const valueKeys = group
+        ? Array.from({ length: groupCounts[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
+        : [field.fieldName];
+
+      for (const valueKey of valueKeys) {
+        const pair = textPairs[valueKey];
+        if (pair && shouldRequestCloudTranslation(field, pair)) {
+          candidates.push({ valueKey, sourceText: pair.zh.trim() });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return;
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      for (const candidate of candidates) {
+        const cacheKey = `zh-CN:en:${candidate.sourceText}`;
+        const cached = CLOUD_TRANSLATION_CACHE.get(cacheKey);
+        if (cached) {
+          applyCloudTranslation(candidate.valueKey, candidate.sourceText, cached);
+          continue;
+        }
+
+        if (pendingCloudTranslationsRef.current.has(cacheKey)) continue;
+        pendingCloudTranslationsRef.current.add(cacheKey);
+
+        void requestCloudEnglishTranslation(candidate.sourceText, controller.signal)
+          .then((translatedText) => {
+            if (!translatedText) return;
+            const normalized = normalizeCloudTranslation(translatedText, candidate.sourceText);
+            if (!normalized) return;
+            CLOUD_TRANSLATION_CACHE.set(cacheKey, normalized);
+            applyCloudTranslation(candidate.valueKey, candidate.sourceText, normalized);
+          })
+          .catch(() => {
+            // Translation is a convenience sync; leave local fallback intact.
+          })
+          .finally(() => {
+            pendingCloudTranslationsRef.current.delete(cacheKey);
+          });
+      }
+    }, CLOUD_TRANSLATION_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [applyCloudTranslation, groupCounts, step.fields, textPairs]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
@@ -748,7 +928,7 @@ export function DynamicStepForm({
     setValues((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
-        next[instanceKey(field.fieldName, count - 1)] = "";
+        next[instanceKey(field.fieldName, count - 1)] = getDefaultFieldValue(field);
       }
       valuesRef.current = next;
       return next;
@@ -829,7 +1009,9 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete(filterCurrentStepValues(step.fields, values, groupCounts));
+    const stepData = filterCurrentStepValues(step.fields, values, groupCounts);
+    onDraftChangeRef.current?.(stepData);
+    onComplete(stepData);
   };
 
   // Detect yes/no toggles that gate subsequent fields until answered.
@@ -915,13 +1097,9 @@ export function DynamicStepForm({
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
     if (isPurposeOfTripField(field) && fieldOptions) {
-      fieldOptions = fieldOptions.filter((opt) => {
-        const val = typeof opt === "string" ? opt : opt.value;
-        return /\(B\)\s*$/.test(val);
-      });
+      fieldOptions = fieldOptions.filter(isBTripPurposeOption);
     }
 
-    const isLockedPurpose = isPurposeOfTripField(field);
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const isTextLike = isTextLikeField(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
@@ -948,7 +1126,7 @@ export function DynamicStepForm({
             handleChange(valueKey, nextValue);
           }}
           forceWhiteBackground={forceWhiteBackground}
-          disabled={isLockedPurpose || lt24Disabled}
+          disabled={lt24Disabled}
           displayLocale={side}
         />
       );

@@ -15,7 +15,7 @@ interface CreateIntentBody {
 
 export async function POST(request: Request) {
   if (!isAirwallexConfigured()) {
-    return NextResponse.json({ error: "Airwallex is not configured." }, { status: 503 });
+    return NextResponse.json({ error: "Online payment is not configured." }, { status: 503 });
   }
 
   const body = (await request.json().catch(() => ({}))) as CreateIntentBody;
@@ -72,6 +72,6 @@ export async function POST(request: Request) {
     return NextResponse.json(safePaymentResponse(record, intent));
   } catch (error) {
     console.error("[airwallex-create-intent]", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Unable to create Airwallex payment intent." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to create online payment order." }, { status: 500 });
   }
 }
