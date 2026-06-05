@@ -529,127 +529,83 @@ export default function UniversalInfoPage() {
             <section className="p-6">
               <SectionTitle>{copy(isZh, "基本身份信息", "Basic identity information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <BilingualRow
-                  label="姓名 / Full name"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "姓名", "Full name")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
-                      value={bilingualForm.full_name.zh}
-                      placeholder="如：陈泓羽"
+                      side={activeSide}
+                      value={activeSide === "zh" ? bilingualForm.full_name.zh : bilingualForm.full_name.en}
+                      placeholder={copy(isZh, "如：陈泓羽", "For example: HONGYU CHEN")}
                       icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("full_name", "zh", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={bilingualForm.full_name.en}
-                      placeholder="For example: HONGYU CHEN"
-                      icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("full_name", "en", value)}
+                      onChange={(value) => updateBilingualField("full_name", activeSide, value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="出生日期 / Date of birth"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "出生日期", "Date of birth")}
+                  control={
                     <BilingualDateControl
-                      side="zh"
+                      side={activeSide}
                       value={form.date_of_birth}
-                      placeholder="选择出生日期"
-                      onChange={(value) => updateField("date_of_birth", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualDateControl
-                      side="en"
-                      value={form.date_of_birth}
-                      placeholder="Select date of birth"
+                      placeholder={copy(isZh, "选择出生日期", "Select date of birth")}
                       onChange={(value) => updateField("date_of_birth", value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="出生地 / Place of birth"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "出生地", "Place of birth")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
-                      value={bilingualForm.place_of_birth.zh}
-                      placeholder="如：湖南"
+                      side={activeSide}
+                      value={
+                        activeSide === "zh"
+                          ? bilingualForm.place_of_birth.zh
+                          : bilingualForm.place_of_birth.en
+                      }
+                      placeholder={copy(isZh, "如：湖南", "For example: HUNAN")}
                       icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("place_of_birth", "zh", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={bilingualForm.place_of_birth.en}
-                      placeholder="For example: HUNAN"
-                      icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("place_of_birth", "en", value)}
+                      onChange={(value) => updateBilingualField("place_of_birth", activeSide, value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="性别 / Gender"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "性别", "Gender")}
+                  control={
                     <BilingualOptionControl
-                      side="zh"
+                      side={activeSide}
                       value={form.gender}
                       options={GENDER_OPTIONS}
-                      placeholder="请选择"
-                      icon={<User className="h-4 w-4" />}
-                      onChange={(value) => updateField("gender", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualOptionControl
-                      side="en"
-                      value={form.gender}
-                      options={GENDER_OPTIONS}
-                      placeholder="Select..."
+                      placeholder={copy(isZh, "请选择", "Select...")}
                       icon={<User className="h-4 w-4" />}
                       onChange={(value) => updateField("gender", value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="国籍 / Nationality"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "国籍", "Nationality")}
+                  control={
                     <BilingualCountryControl
-                      side="zh"
+                      side={activeSide}
                       value={form.nationality}
-                      placeholder="选择国家..."
-                      onChange={(value) => updateField("nationality", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualCountryControl
-                      side="en"
-                      value={form.nationality}
-                      placeholder="Select country..."
+                      placeholder={copy(isZh, "选择国家...", "Select country...")}
+                      showSecondaryLabel={false}
                       onChange={(value) => updateField("nationality", value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="职业 / Occupation"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "职业", "Occupation")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
-                      value={bilingualForm.occupation.zh}
-                      placeholder="如：软件工程师"
+                      side={activeSide}
+                      value={
+                        activeSide === "zh"
+                          ? bilingualForm.occupation.zh
+                          : bilingualForm.occupation.en
+                      }
+                      placeholder={copy(isZh, "如：软件工程师", "For example: Software engineer")}
                       icon={<WalletCards className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("occupation", "zh", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={bilingualForm.occupation.en}
-                      placeholder="For example: Software engineer"
-                      icon={<WalletCards className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("occupation", "en", value)}
+                      onChange={(value) => updateBilingualField("occupation", activeSide, value)}
                     />
                   }
                 />
@@ -659,80 +615,48 @@ export default function UniversalInfoPage() {
             <section className="p-6">
               <SectionTitle>{copy(isZh, "护照信息", "Passport information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <BilingualRow
-                  label="护照号码 / Passport number"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "护照号码", "Passport number")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
+                      side={activeSide}
                       value={form.passport_number}
-                      placeholder="按护照填写"
-                      icon={<ShieldCheck className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("passport_number", updateMirroredValue(value))}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={form.passport_number}
-                      placeholder="As shown on passport"
+                      placeholder={copy(isZh, "按护照填写", "As shown on passport")}
                       icon={<ShieldCheck className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateField("passport_number", updateMirroredValue(value))}
                     />
                   }
                 />
-                <BilingualRow
-                  label="签发国家 / Issuing country"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "签发国家", "Issuing country")}
+                  control={
                     <BilingualCountryControl
-                      side="zh"
+                      side={activeSide}
                       value={form.passport_issuing_country}
-                      placeholder="选择签发国家..."
-                      onChange={(value) => updateField("passport_issuing_country", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualCountryControl
-                      side="en"
-                      value={form.passport_issuing_country}
-                      placeholder="Select issuing country..."
+                      placeholder={copy(isZh, "选择签发国家...", "Select issuing country...")}
+                      showSecondaryLabel={false}
                       onChange={(value) => updateField("passport_issuing_country", value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="签发日期 / Issue date"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "签发日期", "Issue date")}
+                  control={
                     <BilingualDateControl
-                      side="zh"
+                      side={activeSide}
                       value={form.passport_issue_date}
-                      placeholder="选择签发日期"
-                      onChange={(value) => updateField("passport_issue_date", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualDateControl
-                      side="en"
-                      value={form.passport_issue_date}
-                      placeholder="Select issue date"
+                      placeholder={copy(isZh, "选择签发日期", "Select issue date")}
                       onChange={(value) => updateField("passport_issue_date", value)}
                     />
                   }
                 />
-                <BilingualRow
-                  label="有效期至 / Expiry date"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "有效期至", "Expiry date")}
+                  control={
                     <BilingualDateControl
-                      side="zh"
+                      side={activeSide}
                       value={form.passport_expiry_date}
-                      placeholder="选择有效期"
-                      onChange={(value) => updateField("passport_expiry_date", value)}
-                    />
-                  }
-                  enControl={
-                    <BilingualDateControl
-                      side="en"
-                      value={form.passport_expiry_date}
-                      placeholder="Select expiry date"
+                      placeholder={copy(isZh, "选择有效期", "Select expiry date")}
                       onChange={(value) => updateField("passport_expiry_date", value)}
                     />
                   }
@@ -743,20 +667,11 @@ export default function UniversalInfoPage() {
             <section className="p-6">
               <SectionTitle>{copy(isZh, "联系方式", "Contact information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
-                <BilingualRow
-                  label="电子邮箱 / Email"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "电子邮箱", "Email")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
-                      value={form.email}
-                      placeholder="name@example.com"
-                      icon={<AtSign className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("email", updateMirroredValue(value))}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
+                      side={activeSide}
                       value={form.email}
                       placeholder="name@example.com"
                       icon={<AtSign className="h-4 w-4 text-gray-400" />}
@@ -764,64 +679,38 @@ export default function UniversalInfoPage() {
                     />
                   }
                 />
-                <BilingualRow
-                  label="手机号 / Phone number"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "手机号", "Phone number")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
+                      side={activeSide}
                       value={form.phone}
-                      placeholder="包含国家/地区号码"
-                      icon={<Phone className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("phone", updateMirroredValue(value))}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={form.phone}
-                      placeholder="Include country or region code"
+                      placeholder={copy(isZh, "包含国家/地区号码", "Include country or region code")}
                       icon={<Phone className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateField("phone", updateMirroredValue(value))}
                     />
                   }
                 />
-                <BilingualRow
-                  label="微信 / WeChat"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "微信", "WeChat")}
+                  control={
                     <BilingualTextControl
-                      side="zh"
+                      side={activeSide}
                       value={form.wechat}
-                      placeholder="可选"
-                      icon={<Phone className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("wechat", updateMirroredValue(value))}
-                    />
-                  }
-                  enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={form.wechat}
-                      placeholder="Optional"
+                      placeholder={copy(isZh, "可选", "Optional")}
                       icon={<Phone className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateField("wechat", updateMirroredValue(value))}
                     />
                   }
                 />
-                <BilingualRow
-                  label="常住地址 / Residential address"
-                  zhControl={
+                <SingleRow
+                  label={copy(isZh, "常住地址", "Residential address")}
+                  control={
                     <AddressControl
-                      side="zh"
-                      value={bilingualForm.address.zh}
-                      placeholder="例如：北京市朝阳区示例路1号"
-                      onChange={(value) => updateBilingualField("address", "zh", value)}
-                    />
-                  }
-                  enControl={
-                    <AddressControl
-                      side="en"
-                      value={bilingualForm.address.en}
-                      placeholder="For example: 1 Example Road"
-                      onChange={(value) => updateBilingualField("address", "en", value)}
+                      side={activeSide}
+                      value={activeSide === "zh" ? bilingualForm.address.zh : bilingualForm.address.en}
+                      placeholder={copy(isZh, "例如：北京市朝阳区示例路1号", "For example: 1 Example Road")}
+                      onChange={(value) => updateBilingualField("address", activeSide, value)}
                     />
                   }
                 />
@@ -843,11 +732,11 @@ export default function UniversalInfoPage() {
               type="button"
               onClick={handleSave}
               loading={isSaving}
-              loadingText={isZh ? "保存中 / Saving" : "Saving"}
+              loadingText={copy(isZh, "保存中", "Saving")}
               className="px-7 font-semibold"
             >
               <Save className="h-4 w-4" />
-              {isZh ? "保存通用资料 / Save profile" : "Save profile"}
+              {copy(isZh, "保存通用资料", "Save profile")}
             </BrandActionButton>
           </div>
         </section>
