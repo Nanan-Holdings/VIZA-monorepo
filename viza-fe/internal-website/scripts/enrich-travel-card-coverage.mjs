@@ -51,6 +51,7 @@ const CITY_TITLE_OVERRIDES = new Map(
     "goa|india": "Goa",
     "bali|indonesia": "Bali",
     "hawaii|unitedstates": "Hawaii",
+    "kohsamui|thailand": "Ko Samui",
   }).map(([key, value]) => [key, value])
 );
 
@@ -625,7 +626,16 @@ async function main() {
 
   const report = [];
   for (const city of targetCities) {
-    const result = await enrichCity(data, city);
+    let result;
+    try {
+      result = await enrichCity(data, city);
+    } catch (error) {
+      result = {
+        city,
+        status: "failed",
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
     report.push(result);
     console.log(
       `${result.status.toUpperCase()} ${city.en} (${city.country}) ${
@@ -637,11 +647,10 @@ async function main() {
     if (result.errors?.length) {
       console.log(`  ${result.errors.slice(0, 2).join(" | ")}`);
     }
+    if (shouldWrite && !shouldDryRun) {
+      await fs.writeFile(cardDataPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+    }
     await delay(DEFAULT_QUERY_DELAY_MS);
-  }
-
-  if (shouldWrite && !shouldDryRun) {
-    await fs.writeFile(cardDataPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
   }
 
   const summary = {

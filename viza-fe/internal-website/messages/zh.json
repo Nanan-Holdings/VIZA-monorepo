@@ -4563,5 +4563,201 @@
         "us": "美国"
       }
     }
+  },
+  "usAppointment": {
+    "page": {
+      "eyebrow": "美国面签预约助手",
+      "title": "B1/B2 预约设置",
+      "subtitle": "DS-160 完成后，使用合规的 dry-run 助手继续预约准备。账号、邮箱、付款、验证码、选位和最终确认都会暂停等待您本人操作。"
+    },
+    "loading": "正在加载预约助手...",
+    "errorTitle": "预约助手需要处理",
+    "dryRunNoticeTitle": "仅 dry-run 演练",
+    "dryRunNotice": "此流程不会真实预约、付款或修改任何美国签证预约。系统不会后台轮询，也不会绕过 CAPTCHA、MFA、等待室、频率限制，不会使用代理或隐身自动化。",
+    "errors": {
+      "generic": "预约请求暂时无法完成，请稍后重试。",
+      "withCode": "预约请求暂时无法完成。参考代码：{code}。"
+    },
+    "modes": {
+      "dry_run": "Dry run 演练",
+      "assisted_live": "人工辅助 live",
+      "manual": "手动"
+    },
+    "countries": {
+      "sg": "新加坡",
+      "ca": "加拿大",
+      "gb": "英国",
+      "cn": "中国",
+      "in": "印度",
+      "jp": "日本",
+      "de": "德国"
+    },
+    "statusLabels": {
+      "appointment_not_started": "未开始",
+      "appointment_consent_required": "需要授权",
+      "appointment_consent_received": "已收到授权",
+      "appointment_missing_ds160_confirmation": "需要 DS-160 编号",
+      "appointment_missing_applying_post": "需要选择使领馆",
+      "appointment_account_required": "需要预约账号",
+      "appointment_account_creation_started": "账号演练已开始",
+      "appointment_email_verification_required": "邮箱验证节点",
+      "appointment_login_required": "登录节点",
+      "appointment_captcha_required": "CAPTCHA 节点",
+      "appointment_profile_fill_in_progress": "资料演练进行中",
+      "appointment_profile_filled": "资料演练完成",
+      "appointment_ds160_linked": "DS-160 已关联",
+      "appointment_payment_required": "付款节点",
+      "appointment_payment_in_progress": "付款演练进行中",
+      "appointment_payment_completed": "付款节点完成",
+      "appointment_calendar_opened": "日历已打开",
+      "appointment_slots_observed": "已发现名额",
+      "appointment_no_slots_available": "暂无名额",
+      "appointment_slot_selection_required": "需要选择名额",
+      "appointment_slot_selected": "已选择名额",
+      "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_booked": "Dry-run 已预约",
+      "appointment_confirmation_captured": "Dry-run 确认已记录",
+      "appointment_status_check_in_progress": "状态检查中",
+      "appointment_status_checked": "状态已检查",
+      "appointment_manual_required": "需要人工处理",
+      "appointment_blocked_by_site_policy": "因网站政策暂停",
+      "appointment_failed": "失败",
+      "appointment_cancelled": "已取消"
+    },
+    "completed": {
+      "title": "DS-160 已完成",
+      "applicationId": "VIZA 申请",
+      "ds160Code": "DS-160 确认编号",
+      "pendingCode": "可使用已保存编号，或在下方填写"
+    },
+    "setup": {
+      "title": "预约设置",
+      "ds160Code": "DS-160 确认编号",
+      "ds160CodeHint": "如果 VIZA 已在上一步保存 DS-160 Application ID，可留空。",
+      "ds160CodePlaceholder": "例如：AA00BC1234",
+      "applyingCountry": "申请所在国家",
+      "postCity": "使领馆城市",
+      "dateRange": "偏好日期范围",
+      "dateRangePlaceholder": "例如：2026 年 9 月 1-20 日",
+      "avoidDates": "避开日期",
+      "avoidDatesPlaceholder": "多个日期用逗号分隔",
+      "timePreference": "时间偏好",
+      "timeAny": "任意时间",
+      "timeMorning": "上午",
+      "timeAfternoon": "下午",
+      "slotScenario": "Dry-run 名额场景",
+      "slotScenarioSlots": "显示示例名额",
+      "slotScenarioNoSlots": "显示暂无名额",
+      "createJob": "创建 dry-run 任务",
+      "creating": "正在创建...",
+      "recordConsent": "记录授权",
+      "consentRequiredError": "请先阅读并同意授权说明。"
+    },
+    "consent": {
+      "title": "授权与边界",
+      "body1": "VIZA 可以协助整理 DS-160 后的预约步骤，但官方门户的决策与安全校验仍由您本人控制。",
+      "body2": "登录、邮箱验证、CAPTCHA、签证费支付和最终确认都需要您本人完成。VIZA 会暂停并等待您的明确操作。",
+      "checkbox": "我理解当前首先是 dry-run 助手，并将本人处理官方门户安全校验、付款和最终预约确认。",
+      "recorded": "授权已记录",
+      "security": "敏感输入会从助手日志中脱敏。"
+    },
+    "panel": {
+      "title": "实时助手",
+      "noJob": "请先创建 dry-run 任务，开始预约助手流程。",
+      "provider": "预约平台",
+      "providerUnknown": "待识别",
+      "mode": "模式",
+      "run": "运行第一步",
+      "resume": "继续",
+      "running": "处理中...",
+      "checkSlots": "检查名额",
+      "checkStatus": "检查状态",
+      "cancel": "取消"
+    },
+    "manual": {
+      "title": "人工节点",
+      "checkpointTitle": "完成节点",
+      "emailCode": "邮箱验证码",
+      "emailCodePlaceholder": "输入您收到的验证码",
+      "emailCodeRequired": "请先输入邮箱验证码。",
+      "complete": "完成节点",
+      "completing": "正在完成...",
+      "instructions": {
+        "consent": "请阅读并接受授权说明。",
+        "account_email_verification": "请输入邮箱中的验证码。VIZA 不会访问您的邮箱。",
+        "login": "如果官方门户要求登录，请您本人登录。",
+        "captcha": "请您本人完成 CAPTCHA。VIZA 不会代解或绕过 CAPTCHA。",
+        "payment": "请确认 dry-run 付款节点。本环境不会产生真实付款。",
+        "slot_selection": "请选择一个 dry-run 发现的预约名额。",
+        "final_confirmation": "请复核所选 dry-run 名额，并在记录模拟预约前明确确认。",
+        "site_policy_review": "请阅读网站政策提示。助手会保持暂停，等待您决定。"
+      },
+      "actions": {
+        "consent": "确认已完成授权。",
+        "account_email_verification": "请输入验证码。",
+        "login": "确认您本人已完成登录。",
+        "captcha": "确认您本人已完成 CAPTCHA。",
+        "payment": "确认您理解这里是 dry-run 付款节点。",
+        "slot_selection": "请在下方选择名额。",
+        "final_confirmation": "请使用下方最终确认控件。",
+        "site_policy_review": "确认您已阅读政策提示，并希望手动继续。"
+      }
+    },
+    "slots": {
+      "title": "发现的名额",
+      "empty": "尚未发现名额。",
+      "noSlots": "Dry-run 日历返回暂无名额。只有在您明确点击“检查名额”时才会再次检查。",
+      "choose": "选择",
+      "selected": "已选择",
+      "observedAt": "发现时间 {value}",
+      "datePending": "日期待定",
+      "timePending": "时间待定",
+      "locationPending": "地点待定",
+      "slotLine": "{date} {time}"
+    },
+    "final": {
+      "title": "最终确认",
+      "requirement": "请先选择一个 dry-run 名额，再进行最终确认。",
+      "selected": "已选名额：{date} {time}。请复核后再确认。",
+      "approve": "批准最终步骤",
+      "approving": "正在确认...",
+      "book": "记录 dry-run 预约",
+      "approvedBadge": "已批准"
+    },
+    "results": {
+      "title": "结果",
+      "none": "尚未记录 dry-run 确认。",
+      "confirmationNumber": "模拟确认号",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "地点",
+      "statusCheck": "状态检查完成",
+      "statusCheckBody": "最近状态检查：{value}。"
+    },
+    "cancel": {
+      "title": "取消预约助手？",
+      "description": "这会停止当前 dry-run 任务。如有需要，之后可以重新创建任务。",
+      "keep": "继续保留",
+      "confirm": "取消任务"
+    },
+    "ds160Card": {
+      "title": "DS-160 申请已记录",
+      "submitted": "已提交",
+      "awaitingSignature": "等待您签名",
+      "body": "请保存这些信息。准备签名和提交时，您需要用它们在 ceac.state.gov 找回 DS-160。",
+      "applicationId": "Application ID",
+      "surnameFirst5": "姓氏前 5 个字母",
+      "yearOfBirth": "出生年份",
+      "embassyOrConsulate": "使领馆",
+      "securityQuestion": "安全问题",
+      "securityAnswer": "您的答案",
+      "openCeac": "打开 ceac.state.gov 找回"
+    },
+    "nextStepCard": {
+      "title": "下一步：预约设置",
+      "body": "为 B1/B2 预约流程运行安全 dry-run，并在任何敏感门户步骤前保留人工确认节点。",
+      "button": "打开预约助手",
+      "badge": "Dry run"
+    }
   }
 }

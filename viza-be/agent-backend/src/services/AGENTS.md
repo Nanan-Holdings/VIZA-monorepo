@@ -18,6 +18,9 @@ conversation state, and other cross-route behavior.
   helpers for website-owned automation.
 - `official-fee/**`: official visa fee quote/consent/payment-intent framework,
   dry-run/manual providers, precondition gates, redaction, and reconciliation.
+- `us-appointment/**`: U.S. B1/B2 appointment dry-run state machine,
+  provider-detection metadata, manual checkpoints, slot/status models,
+  redaction, and audit helpers.
 
 ## Ownership Boundaries
 
@@ -33,6 +36,10 @@ conversation state, and other cross-route behavior.
 - Official-fee services may model browser/virtual-card providers as interfaces,
   but must not move real portal payment automation or sensitive card handling
   into `agent-backend`.
+- U.S. appointment services must remain dry-run/manual-checkpoint by default.
+  Do not add CAPTCHA solving, MFA/email bypass, real payment execution,
+  waiting-room bypass, proxy/fingerprint/stealth behavior, background polling,
+  or final booking without explicit user approval.
 
 ## Validation
 
@@ -52,6 +59,7 @@ one Schengen multi-country prompt.
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
 - `viza-be/agent-backend/src/socket/visa-namespace.ts`
 - `viza-be/agent-backend/src/services/internal-automation/AGENTS.md`
+- `viza-be/agent-backend/src/services/us-appointment/AGENTS.md`
 - `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
 - `knowledge-base/visa-rag-seeds/README.md`

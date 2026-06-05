@@ -4477,5 +4477,201 @@
         "us": "United States"
       }
     }
+  },
+  "usAppointment": {
+    "page": {
+      "eyebrow": "U.S. appointment assistant",
+      "title": "B1/B2 appointment setup",
+      "subtitle": "Continue after DS-160 with a compliant dry-run assistant. VIZA pauses for every account, email, payment, CAPTCHA, slot choice, and final confirmation boundary."
+    },
+    "loading": "Loading appointment assistant...",
+    "errorTitle": "Appointment assistant needs attention",
+    "dryRunNoticeTitle": "Dry-run only",
+    "dryRunNotice": "This workflow does not book, pay for, or modify any real U.S. visa appointment. No background polling, CAPTCHA bypass, MFA bypass, waiting-room bypass, proxy, or stealth automation is used.",
+    "errors": {
+      "generic": "The appointment request could not be completed. Please try again.",
+      "withCode": "The appointment request could not be completed. Reference: {code}."
+    },
+    "modes": {
+      "dry_run": "Dry run",
+      "assisted_live": "Assisted live",
+      "manual": "Manual"
+    },
+    "countries": {
+      "sg": "Singapore",
+      "ca": "Canada",
+      "gb": "United Kingdom",
+      "cn": "China",
+      "in": "India",
+      "jp": "Japan",
+      "de": "Germany"
+    },
+    "statusLabels": {
+      "appointment_not_started": "Not started",
+      "appointment_consent_required": "Consent required",
+      "appointment_consent_received": "Consent received",
+      "appointment_missing_ds160_confirmation": "DS-160 code needed",
+      "appointment_missing_applying_post": "Post needed",
+      "appointment_account_required": "Account required",
+      "appointment_account_creation_started": "Account dry-run started",
+      "appointment_email_verification_required": "Email checkpoint",
+      "appointment_login_required": "Login checkpoint",
+      "appointment_captcha_required": "CAPTCHA checkpoint",
+      "appointment_profile_fill_in_progress": "Profile dry-run in progress",
+      "appointment_profile_filled": "Profile dry-run complete",
+      "appointment_ds160_linked": "DS-160 linked",
+      "appointment_payment_required": "Payment checkpoint",
+      "appointment_payment_in_progress": "Payment dry-run in progress",
+      "appointment_payment_completed": "Payment checkpoint complete",
+      "appointment_calendar_opened": "Calendar opened",
+      "appointment_slots_observed": "Slots observed",
+      "appointment_no_slots_available": "No slots available",
+      "appointment_slot_selection_required": "Slot selection required",
+      "appointment_slot_selected": "Slot selected",
+      "appointment_final_confirmation_required": "Final approval required",
+      "appointment_booked": "Dry-run booked",
+      "appointment_confirmation_captured": "Dry-run confirmation captured",
+      "appointment_status_check_in_progress": "Status check in progress",
+      "appointment_status_checked": "Status checked",
+      "appointment_manual_required": "Manual review required",
+      "appointment_blocked_by_site_policy": "Stopped by site policy",
+      "appointment_failed": "Failed",
+      "appointment_cancelled": "Cancelled"
+    },
+    "completed": {
+      "title": "DS-160 completed",
+      "applicationId": "VIZA application",
+      "ds160Code": "DS-160 confirmation",
+      "pendingCode": "Use the stored DS-160 code or enter it below"
+    },
+    "setup": {
+      "title": "Appointment setup",
+      "ds160Code": "DS-160 confirmation code",
+      "ds160CodeHint": "Leave blank if VIZA already stored the DS-160 application ID from the previous step.",
+      "ds160CodePlaceholder": "Example: AA00BC1234",
+      "applyingCountry": "Applying country",
+      "postCity": "Consular post city",
+      "dateRange": "Preferred date range",
+      "dateRangePlaceholder": "Example: Sep 1-20, 2026",
+      "avoidDates": "Dates to avoid",
+      "avoidDatesPlaceholder": "Separate dates with commas",
+      "timePreference": "Time preference",
+      "timeAny": "Any time",
+      "timeMorning": "Morning",
+      "timeAfternoon": "Afternoon",
+      "slotScenario": "Dry-run slot scenario",
+      "slotScenarioSlots": "Show sample slots",
+      "slotScenarioNoSlots": "Show no slots",
+      "createJob": "Create dry-run job",
+      "creating": "Creating...",
+      "recordConsent": "Record consent",
+      "consentRequiredError": "Please review and accept the consent statement before continuing."
+    },
+    "consent": {
+      "title": "Consent and boundaries",
+      "body1": "VIZA can help organize the appointment steps after DS-160, but official portal decisions and security checks stay under your control.",
+      "body2": "You will complete any login, email verification, CAPTCHA, fee payment, and final confirmation yourself. VIZA will pause and wait for your explicit action.",
+      "checkbox": "I understand this is a dry-run assistant first, and I will personally handle official portal security, payment, and final booking approval steps.",
+      "recorded": "Consent recorded",
+      "security": "Sensitive inputs are redacted from assistant logs."
+    },
+    "panel": {
+      "title": "Live assistant",
+      "noJob": "Create a dry-run job to begin the appointment assistant.",
+      "provider": "Scheduling provider",
+      "providerUnknown": "To be detected",
+      "mode": "Mode",
+      "run": "Run first step",
+      "resume": "Continue",
+      "running": "Working...",
+      "checkSlots": "Check slots",
+      "checkStatus": "Check status",
+      "cancel": "Cancel"
+    },
+    "manual": {
+      "title": "Manual checkpoint",
+      "checkpointTitle": "Complete checkpoint",
+      "emailCode": "Email verification code",
+      "emailCodePlaceholder": "Enter the code you received",
+      "emailCodeRequired": "Enter the email verification code before completing this checkpoint.",
+      "complete": "Complete checkpoint",
+      "completing": "Completing...",
+      "instructions": {
+        "consent": "Review and accept the consent statement.",
+        "account_email_verification": "Enter the verification code from your email. VIZA will not access your inbox.",
+        "login": "Sign in yourself if the official portal asks for credentials.",
+        "captcha": "Complete the CAPTCHA yourself. VIZA does not solve or bypass CAPTCHA.",
+        "payment": "Acknowledge the dry-run payment checkpoint. No real payment is made in this environment.",
+        "slot_selection": "Choose one observed dry-run appointment slot.",
+        "final_confirmation": "Review the selected dry-run slot and approve before the assistant records a mock booking.",
+        "site_policy_review": "Review the site policy notice. The assistant stays paused until you decide what to do."
+      },
+      "actions": {
+        "consent": "Confirm that consent was completed.",
+        "account_email_verification": "Enter the verification code.",
+        "login": "Confirm that you completed the login step yourself.",
+        "captcha": "Confirm that you completed the CAPTCHA yourself.",
+        "payment": "Confirm that you understand this is a dry-run payment checkpoint.",
+        "slot_selection": "Choose a slot below.",
+        "final_confirmation": "Use the final approval controls below.",
+        "site_policy_review": "Confirm that you reviewed the policy notice and want to continue manually."
+      }
+    },
+    "slots": {
+      "title": "Observed slots",
+      "empty": "No slots have been observed yet.",
+      "noSlots": "The dry-run calendar returned no available slots. Use Check slots when you intentionally want another user-triggered check.",
+      "choose": "Choose",
+      "selected": "Selected",
+      "observedAt": "Observed {value}",
+      "datePending": "Date pending",
+      "timePending": "Time pending",
+      "locationPending": "Location pending",
+      "slotLine": "{date} at {time}"
+    },
+    "final": {
+      "title": "Final approval",
+      "requirement": "Select a dry-run slot before final approval is available.",
+      "selected": "Selected slot: {date} at {time}. Approve only after reviewing the details.",
+      "approve": "Approve final step",
+      "approving": "Approving...",
+      "book": "Record dry-run booking",
+      "approvedBadge": "Approved"
+    },
+    "results": {
+      "title": "Results",
+      "none": "No dry-run confirmation has been captured yet.",
+      "confirmationNumber": "Mock confirmation",
+      "date": "Appointment date",
+      "time": "Appointment time",
+      "location": "Location",
+      "statusCheck": "Status check complete",
+      "statusCheckBody": "Latest status check: {value}."
+    },
+    "cancel": {
+      "title": "Cancel appointment assistant?",
+      "description": "This stops the current dry-run job. You can create a new job later if needed.",
+      "keep": "Keep working",
+      "confirm": "Cancel job"
+    },
+    "ds160Card": {
+      "title": "DS-160 application captured",
+      "submitted": "Submitted",
+      "awaitingSignature": "Awaiting your signature",
+      "body": "Save these details. You will need them to retrieve your DS-160 from ceac.state.gov when you are ready to sign and submit.",
+      "applicationId": "Application ID",
+      "surnameFirst5": "Surname (first 5 letters)",
+      "yearOfBirth": "Year of birth",
+      "embassyOrConsulate": "Embassy / Consulate",
+      "securityQuestion": "Security question",
+      "securityAnswer": "Your answer",
+      "openCeac": "Open ceac.state.gov to retrieve"
+    },
+    "nextStepCard": {
+      "title": "Next: appointment setup",
+      "body": "Run a safe dry-run for the B1/B2 appointment flow, with human checkpoints before any portal-sensitive step.",
+      "button": "Open appointment assistant",
+      "badge": "Dry run"
+    }
   }
 }
