@@ -191,7 +191,11 @@ export async function ensureAirwallexIntent(
   return intent;
 }
 
-export async function updateRecordFromAirwallexIntent(recordId: string, intentId: string) {
+export async function updateRecordFromAirwallexIntent(
+  recordId: string,
+  intentId: string,
+  options: { requestedMethod?: string } = {},
+) {
   const intent = await retrievePaymentIntent(intentId);
   const status = normalizeAirwallexStatus(intent.status);
   const now = new Date().toISOString();
@@ -217,6 +221,7 @@ export async function updateRecordFromAirwallexIntent(recordId: string, intentId
         intent_id: intent.id,
         intent_status: intent.status,
         next_action: intent.next_action ?? null,
+        ...(options.requestedMethod ? { requested_method: options.requestedMethod } : {}),
       }),
     })
     .eq("id", recordId);

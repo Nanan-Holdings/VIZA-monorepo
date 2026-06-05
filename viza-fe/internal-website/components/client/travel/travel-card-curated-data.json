@@ -182,6 +182,196 @@
       "cityLabel": "拉斯维加斯",
       "imageSrc": "/travel/cities/las-vegas.jpg",
       "sourceUrl": "https://en.wikipedia.org/wiki/Las_Vegas"
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "imageSrc": "/travel/cities/shenzhen.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shenzhen"
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "imageSrc": "/travel/cities/chengdu.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chengdu"
+    },
+    {
+      "cityKeys": [
+        "Xi'an",
+        "西安",
+        "xian"
+      ],
+      "cityLabel": "西安",
+      "imageSrc": "/travel/cities/xi-an.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Xi'an"
+    },
+    {
+      "cityKeys": [
+        "Chongqing",
+        "重庆",
+        "chongqing"
+      ],
+      "cityLabel": "重庆",
+      "imageSrc": "/travel/cities/chongqing.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chongqing"
+    },
+    {
+      "cityKeys": [
+        "Osaka",
+        "大阪",
+        "osaka"
+      ],
+      "cityLabel": "大阪",
+      "imageSrc": "/travel/cities/osaka.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Osaka"
+    },
+    {
+      "cityKeys": [
+        "Kyoto",
+        "京都",
+        "kyoto"
+      ],
+      "cityLabel": "京都",
+      "imageSrc": "/travel/cities/kyoto.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kyoto"
+    },
+    {
+      "cityKeys": [
+        "Sapporo",
+        "札幌",
+        "sapporo"
+      ],
+      "cityLabel": "札幌",
+      "imageSrc": "/travel/cities/sapporo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sapporo"
+    },
+    {
+      "cityKeys": [
+        "Fukuoka",
+        "福冈",
+        "fukuoka"
+      ],
+      "cityLabel": "福冈",
+      "imageSrc": "/travel/cities/fukuoka.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fukuoka"
+    },
+    {
+      "cityKeys": [
+        "Naha",
+        "那霸",
+        "naha"
+      ],
+      "cityLabel": "那霸",
+      "imageSrc": "/travel/cities/naha.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Naha"
+    },
+    {
+      "cityKeys": [
+        "Nagoya",
+        "名古屋",
+        "nagoya"
+      ],
+      "cityLabel": "名古屋",
+      "imageSrc": "/travel/cities/nagoya.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nagoya"
+    },
+    {
+      "cityKeys": [
+        "Bangkok",
+        "曼谷",
+        "bangkok"
+      ],
+      "cityLabel": "曼谷",
+      "imageSrc": "/travel/cities/bangkok.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Bangkok"
+    },
+    {
+      "cityKeys": [
+        "Chiang Mai",
+        "清迈",
+        "chiangmai"
+      ],
+      "cityLabel": "清迈",
+      "imageSrc": "/travel/cities/chiang-mai.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chiang_Mai"
+    },
+    {
+      "cityKeys": [
+        "Phuket",
+        "普吉",
+        "phuket"
+      ],
+      "cityLabel": "普吉",
+      "imageSrc": "/travel/cities/phuket.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Phuket_province"
+    },
+    {
+      "cityKeys": [
+        "Krabi",
+        "甲米",
+        "krabi"
+      ],
+      "cityLabel": "甲米",
+      "imageSrc": "/travel/cities/krabi.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Krabi"
+    },
+    {
+      "cityKeys": [
+        "Pattaya",
+        "芭提雅",
+        "pattaya"
+      ],
+      "cityLabel": "芭提雅",
+      "imageSrc": "/travel/cities/pattaya.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pattaya"
+    },
+    {
+      "cityKeys": [
+        "Koh Samui",
+        "苏梅岛",
+        "kohsamui"
+      ],
+      "cityLabel": "苏梅岛",
+      "imageSrc": "/travel/cities/koh-samui.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Samui"
+    },
+    {
+      "cityKeys": [
+        "Kuala Lumpur",
+        "吉隆坡",
+        "kualalumpur"
+      ],
+      "cityLabel": "吉隆坡",
+      "imageSrc": "/travel/cities/kuala-lumpur.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kuala_Lumpur"
+    },
+    {
+      "cityKeys": [
+        "Penang",
+        "槟城",
+        "penang"
+      ],
+      "cityLabel": "槟城",
+      "imageSrc": "/travel/cities/penang.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Penang"
+    },
+    {
+      "cityKeys": [
+        "Johor Bahru",
+        "新山",
+        "johorbahru"
+      ],
+      "cityLabel": "新山",
+      "imageSrc": "/travel/cities/johor-bahru.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Johor_Bahru"
     }
   ],
   "attractions": [
@@ -1650,6 +1840,1442 @@
       ],
       "lat": 36.11201,
       "lng": -115.17534
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "香港岛",
+      "location": "Hong Kong Island",
+      "imageSrc": "/travel/attractions/shenzhen-hong-kong-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Island",
+      "description": "香港第二大的岛屿",
+      "aliases": [
+        "Hong Kong Island",
+        "香港岛"
+      ],
+      "lat": 22.255,
+      "lng": 114.195
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "大屿山",
+      "location": "Lantau Island",
+      "imageSrc": "/travel/attractions/shenzhen-lantau-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Lantau_Island",
+      "description": "香港離岛区岛嶼",
+      "aliases": [
+        "Lantau Island",
+        "大屿山"
+      ],
+      "lat": 22.270556,
+      "lng": 113.952778
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "港珠澳大桥",
+      "location": "Hong Kong–Zhuhai–Macau Bridge",
+      "imageSrc": "/travel/attractions/shenzhen-hong-kong-zhuhai-macau-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong%E2%80%93Zhuhai%E2%80%93Macau_Bridge",
+      "description": "珠江口连接香港、澳门及珠海的跨海桥隧结合体",
+      "aliases": [
+        "Hong Kong–Zhuhai–Macau Bridge",
+        "港珠澳大桥"
+      ],
+      "lat": 22.2824,
+      "lng": 113.775
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "信兴广场",
+      "location": "Shun Hing Square",
+      "imageSrc": "/travel/attractions/shenzhen-shun-hing-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shun_Hing_Square",
+      "description": "深圳可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Shun Hing Square",
+        "信兴广场"
+      ],
+      "lat": 22.545278,
+      "lng": 114.105556
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "四川广播电视塔",
+      "location": "West Pearl Tower",
+      "imageSrc": "/travel/attractions/chengdu-west-pearl-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/West_Pearl_Tower",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "West Pearl Tower",
+        "四川广播电视塔"
+      ],
+      "lat": 30.66444,
+      "lng": 104.09222
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "杜甫草堂",
+      "location": "Du Fu Thatched Cottage",
+      "imageSrc": "/travel/attractions/chengdu-du-fu-thatched-cottage.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Du_Fu_Thatched_Cottage",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Du Fu Thatched Cottage",
+        "杜甫草堂"
+      ],
+      "lat": 30.66217,
+      "lng": 104.02633
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "成都绿地中心",
+      "location": "Chengdu Greenland Tower",
+      "imageSrc": "/travel/attractions/chengdu-chengdu-greenland-tower.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chengdu_Greenland_Tower",
+      "description": "成都的摩天大楼",
+      "aliases": [
+        "Chengdu Greenland Tower",
+        "成都绿地中心"
+      ],
+      "lat": 30.60678,
+      "lng": 104.1543
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "安顺廊桥",
+      "location": "Anshun Bridge",
+      "imageSrc": "/travel/attractions/chengdu-anshun-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Anshun_Bridge",
+      "description": "位于中国四川省成都市的一座廊桥",
+      "aliases": [
+        "Anshun Bridge",
+        "安顺廊桥"
+      ],
+      "lat": 30.644056,
+      "lng": 104.083444
+    },
+    {
+      "cityKeys": [
+        "Xi'an",
+        "西安",
+        "xian"
+      ],
+      "cityLabel": "西安",
+      "name": "秦始皇兵马俑",
+      "location": "Terracotta Army",
+      "imageSrc": "/travel/attractions/xi-an-terracotta-army.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Terracotta_Army",
+      "description": "秦始皇陵卫戍性质的墓葬雕塑群",
+      "aliases": [
+        "Terracotta Army",
+        "秦始皇兵马俑"
+      ],
+      "lat": 34.385,
+      "lng": 109.273056
+    },
+    {
+      "cityKeys": [
+        "Xi'an",
+        "西安",
+        "xian"
+      ],
+      "cityLabel": "西安",
+      "name": "西安清真大寺",
+      "location": "Great Mosque of Xi'an",
+      "imageSrc": "/travel/attractions/xi-an-great-mosque-of-xi-an.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Great_Mosque_of_Xi%27an",
+      "description": "西安可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Great Mosque of Xi'an",
+        "西安清真大寺"
+      ],
+      "lat": 34.263386,
+      "lng": 108.936656
+    },
+    {
+      "cityKeys": [
+        "Xi'an",
+        "西安",
+        "xian"
+      ],
+      "cityLabel": "西安",
+      "name": "阿房宫",
+      "location": "Epang Palace",
+      "imageSrc": "/travel/attractions/xi-an-epang-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Epang_Palace",
+      "description": "秦朝的宫殿",
+      "aliases": [
+        "Epang Palace",
+        "阿房宫"
+      ],
+      "lat": 34.26327,
+      "lng": 108.8089
+    },
+    {
+      "cityKeys": [
+        "Xi'an",
+        "西安",
+        "xian"
+      ],
+      "cityLabel": "西安",
+      "name": "大明宫",
+      "location": "Daming Palace",
+      "imageSrc": "/travel/attractions/xi-an-daming-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Daming_Palace",
+      "description": "唐长安城东北部的宫殿",
+      "aliases": [
+        "Daming Palace",
+        "大明宫"
+      ],
+      "lat": 34.291389,
+      "lng": 108.959444
+    },
+    {
+      "cityKeys": [
+        "Chongqing",
+        "重庆",
+        "chongqing"
+      ],
+      "cityLabel": "重庆",
+      "name": "朝天门长江大桥",
+      "location": "Chaotianmen Bridge",
+      "imageSrc": "/travel/attractions/chongqing-chaotianmen-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chaotianmen_Bridge",
+      "description": "桥梁",
+      "aliases": [
+        "Chaotianmen Bridge",
+        "朝天门长江大桥"
+      ],
+      "lat": 29.588333,
+      "lng": 106.5775
+    },
+    {
+      "cityKeys": [
+        "Chongqing",
+        "重庆",
+        "chongqing"
+      ],
+      "cityLabel": "重庆",
+      "name": "重庆宾馆保利国际广场",
+      "location": "Chongqing Poly Tower",
+      "imageSrc": "/travel/attractions/chongqing-chongqing-poly-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chongqing_Poly_Tower",
+      "description": "重庆的摩天大楼",
+      "aliases": [
+        "Chongqing Poly Tower",
+        "重庆宾馆保利国际广场"
+      ],
+      "lat": 29.559722,
+      "lng": 106.567161
+    },
+    {
+      "cityKeys": [
+        "Chongqing",
+        "重庆",
+        "chongqing"
+      ],
+      "cityLabel": "重庆",
+      "name": "英利国际金融中心",
+      "location": "Yingli Tower",
+      "imageSrc": "/travel/attractions/chongqing-yingli-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Yingli_Tower",
+      "description": "中国重庆摩天大楼",
+      "aliases": [
+        "Yingli Tower",
+        "英利国际金融中心"
+      ],
+      "lat": 29.558594,
+      "lng": 106.571558
+    },
+    {
+      "cityKeys": [
+        "Chongqing",
+        "重庆",
+        "chongqing"
+      ],
+      "cityLabel": "重庆",
+      "name": "重庆中国三峡博物馆",
+      "location": "Three Gorges Museum",
+      "imageSrc": "/travel/attractions/chongqing-three-gorges-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Three_Gorges_Museum",
+      "description": "省博物馆",
+      "aliases": [
+        "Three Gorges Museum",
+        "重庆中国三峡博物馆"
+      ],
+      "lat": 29.564853,
+      "lng": 106.546982
+    },
+    {
+      "cityKeys": [
+        "Osaka",
+        "大阪",
+        "osaka"
+      ],
+      "cityLabel": "大阪",
+      "name": "清水寺",
+      "location": "Kiyomizu-dera Temple",
+      "imageSrc": "/travel/attractions/osaka-kiyomizu-dera-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kiyomizu-dera",
+      "description": "京都最古老寺院",
+      "aliases": [
+        "Kiyomizu-dera Temple",
+        "清水寺"
+      ],
+      "lat": 34.994831,
+      "lng": 135.785003
+    },
+    {
+      "cityKeys": [
+        "Osaka",
+        "大阪",
+        "osaka"
+      ],
+      "cityLabel": "大阪",
+      "name": "明石海峡大桥",
+      "location": "Akashi Kaikyō Bridge",
+      "imageSrc": "/travel/attractions/osaka-akashi-kaikyo-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Akashi_Kaikyo_Bridge",
+      "description": "目前世界上跨距第二长的桥梁及悬索桥，于1998年启用通车",
+      "aliases": [
+        "Akashi Kaikyō Bridge",
+        "明石海峡大桥"
+      ],
+      "lat": 34.616389,
+      "lng": 135.020278
+    },
+    {
+      "cityKeys": [
+        "Osaka",
+        "大阪",
+        "osaka"
+      ],
+      "cityLabel": "大阪",
+      "name": "鹿苑寺",
+      "location": "Kinkaku-ji Temple",
+      "imageSrc": "/travel/attractions/osaka-kinkaku-ji-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kinkaku-ji",
+      "description": "日本京都的佛教禪宗寺院",
+      "aliases": [
+        "Kinkaku-ji Temple",
+        "鹿苑寺"
+      ],
+      "lat": 35.0395,
+      "lng": 135.7285
+    },
+    {
+      "cityKeys": [
+        "Osaka",
+        "大阪",
+        "osaka"
+      ],
+      "cityLabel": "大阪",
+      "name": "法隆寺",
+      "location": "Hōryū-ji Temple",
+      "imageSrc": "/travel/attractions/osaka-horyu-ji-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/H%C5%8Dry%C5%AB-ji",
+      "description": "飛鳥時代的佛教寺庙",
+      "aliases": [
+        "Hōryū-ji Temple",
+        "法隆寺"
+      ],
+      "lat": 34.614444,
+      "lng": 135.734167
+    },
+    {
+      "cityKeys": [
+        "Kyoto",
+        "京都",
+        "kyoto"
+      ],
+      "cityLabel": "京都",
+      "name": "清水寺",
+      "location": "Kiyomizu-dera Temple",
+      "imageSrc": "/travel/attractions/kyoto-kiyomizu-dera-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kiyomizu-dera",
+      "description": "京都最古老寺院",
+      "aliases": [
+        "Kiyomizu-dera Temple",
+        "清水寺"
+      ],
+      "lat": 34.994831,
+      "lng": 135.785003
+    },
+    {
+      "cityKeys": [
+        "Kyoto",
+        "京都",
+        "kyoto"
+      ],
+      "cityLabel": "京都",
+      "name": "鹿苑寺",
+      "location": "Kinkaku-ji Temple",
+      "imageSrc": "/travel/attractions/kyoto-kinkaku-ji-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kinkaku-ji",
+      "description": "日本京都的佛教禪宗寺院",
+      "aliases": [
+        "Kinkaku-ji Temple",
+        "鹿苑寺"
+      ],
+      "lat": 35.0395,
+      "lng": 135.7285
+    },
+    {
+      "cityKeys": [
+        "Kyoto",
+        "京都",
+        "kyoto"
+      ],
+      "cityLabel": "京都",
+      "name": "法隆寺",
+      "location": "Hōryū-ji Temple",
+      "imageSrc": "/travel/attractions/kyoto-horyu-ji-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/H%C5%8Dry%C5%AB-ji",
+      "description": "飛鳥時代的佛教寺庙",
+      "aliases": [
+        "Hōryū-ji Temple",
+        "法隆寺"
+      ],
+      "lat": 34.614444,
+      "lng": 135.734167
+    },
+    {
+      "cityKeys": [
+        "Kyoto",
+        "京都",
+        "kyoto"
+      ],
+      "cityLabel": "京都",
+      "name": "大阪城",
+      "location": "Osaka Castle",
+      "imageSrc": "/travel/attractions/kyoto-osaka-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Osaka_Castle",
+      "description": "京都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Osaka Castle",
+        "大阪城"
+      ],
+      "lat": 34.687222,
+      "lng": 135.525833
+    },
+    {
+      "cityKeys": [
+        "Sapporo",
+        "札幌",
+        "sapporo"
+      ],
+      "cityLabel": "札幌",
+      "name": "大通公园",
+      "location": "Odori Park",
+      "imageSrc": "/travel/attractions/sapporo-odori-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Odori_Park",
+      "description": "札幌可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Odori Park",
+        "大通公园"
+      ],
+      "lat": 43.059722,
+      "lng": 141.346389
+    },
+    {
+      "cityKeys": [
+        "Sapporo",
+        "札幌",
+        "sapporo"
+      ],
+      "cityLabel": "札幌",
+      "name": "札幌电视塔",
+      "location": "Sapporo TV Tower",
+      "imageSrc": "/travel/attractions/sapporo-sapporo-tv-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sapporo_TV_Tower",
+      "description": "札幌可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sapporo TV Tower",
+        "札幌电视塔"
+      ],
+      "lat": 43.061111,
+      "lng": 141.356389
+    },
+    {
+      "cityKeys": [
+        "Sapporo",
+        "札幌",
+        "sapporo"
+      ],
+      "cityLabel": "札幌",
+      "name": "札幌啤酒博物馆",
+      "location": "Sapporo Beer Museum",
+      "imageSrc": "/travel/attractions/sapporo-sapporo-beer-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sapporo_Beer_Museum",
+      "description": "札幌可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sapporo Beer Museum",
+        "札幌啤酒博物馆"
+      ],
+      "lat": 43.071667,
+      "lng": 141.368889
+    },
+    {
+      "cityKeys": [
+        "Sapporo",
+        "札幌",
+        "sapporo"
+      ],
+      "cityLabel": "札幌",
+      "name": "札幌市钟楼",
+      "location": "Sapporo Clock Tower",
+      "imageSrc": "/travel/attractions/sapporo-sapporo-clock-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sapporo_Clock_Tower",
+      "description": "札幌可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sapporo Clock Tower",
+        "札幌市钟楼"
+      ],
+      "lat": 43.062602,
+      "lng": 141.353681
+    },
+    {
+      "cityKeys": [
+        "Fukuoka",
+        "福冈",
+        "fukuoka"
+      ],
+      "cityLabel": "福冈",
+      "name": "九州国立博物馆",
+      "location": "Kyushu National Museum",
+      "imageSrc": "/travel/attractions/fukuoka-kyushu-national-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kyushu_National_Museum",
+      "description": "福冈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kyushu National Museum",
+        "九州国立博物馆"
+      ],
+      "lat": 33.518356,
+      "lng": 130.538297
+    },
+    {
+      "cityKeys": [
+        "Fukuoka",
+        "福冈",
+        "fukuoka"
+      ],
+      "cityLabel": "福冈",
+      "name": "福岡塔",
+      "location": "Fukuoka Tower",
+      "imageSrc": "/travel/attractions/fukuoka-fukuoka-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fukuoka_Tower",
+      "description": "福冈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Fukuoka Tower",
+        "福岡塔"
+      ],
+      "lat": 33.593306,
+      "lng": 130.3515
+    },
+    {
+      "cityKeys": [
+        "Fukuoka",
+        "福冈",
+        "fukuoka"
+      ],
+      "cityLabel": "福冈",
+      "name": "福岡清真寺",
+      "location": "Fukuoka Mosque",
+      "imageSrc": "/travel/attractions/fukuoka-fukuoka-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fukuoka_Mosque",
+      "description": "福冈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Fukuoka Mosque",
+        "福岡清真寺"
+      ],
+      "lat": 33.62,
+      "lng": 130.426944
+    },
+    {
+      "cityKeys": [
+        "Fukuoka",
+        "福冈",
+        "fukuoka"
+      ],
+      "cityLabel": "福冈",
+      "name": "圣福寺",
+      "location": "Shōfuku-ji Temple",
+      "imageSrc": "/travel/attractions/fukuoka-shofuku-ji-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sh%C5%8Dfuku-ji_(Fukuoka)",
+      "description": "福冈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Shōfuku-ji Temple",
+        "圣福寺"
+      ],
+      "lat": 33.597389,
+      "lng": 130.414472
+    },
+    {
+      "cityKeys": [
+        "Naha",
+        "那霸",
+        "naha"
+      ],
+      "cityLabel": "那霸",
+      "name": "沖繩岛",
+      "location": "Okinawa",
+      "imageSrc": "/travel/attractions/naha-okinawa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Okinawa_Island",
+      "description": "日本面积第五大岛屿，琉球群岛最大岛",
+      "aliases": [
+        "Okinawa",
+        "沖繩岛"
+      ],
+      "lat": 26.483333,
+      "lng": 127.95
+    },
+    {
+      "cityKeys": [
+        "Naha",
+        "那霸",
+        "naha"
+      ],
+      "cityLabel": "那霸",
+      "name": "首里城",
+      "location": "Shuri Castle",
+      "imageSrc": "/travel/attractions/naha-shuri-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shuri_Castle",
+      "description": "日本冲绳县的世界文化遗产，曾是琉球国的王城",
+      "aliases": [
+        "Shuri Castle",
+        "首里城"
+      ],
+      "lat": 26.217031,
+      "lng": 127.719475
+    },
+    {
+      "cityKeys": [
+        "Naha",
+        "那霸",
+        "naha"
+      ],
+      "cityLabel": "那霸",
+      "name": "座间味岛",
+      "location": "Zamami Island",
+      "imageSrc": "/travel/attractions/naha-zamami-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Zamami_Island",
+      "description": "那霸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Zamami Island",
+        "座间味岛"
+      ],
+      "lat": 26.234444,
+      "lng": 127.3075
+    },
+    {
+      "cityKeys": [
+        "Naha",
+        "那霸",
+        "naha"
+      ],
+      "cityLabel": "那霸",
+      "name": "中城城",
+      "location": "Nakagusuku Castle",
+      "imageSrc": "/travel/attractions/naha-nakagusuku-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nakagusuku_Castle",
+      "description": "那霸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Nakagusuku Castle",
+        "中城城"
+      ],
+      "lat": 26.283889,
+      "lng": 127.801389
+    },
+    {
+      "cityKeys": [
+        "Nagoya",
+        "名古屋",
+        "nagoya"
+      ],
+      "cityLabel": "名古屋",
+      "name": "名古屋城",
+      "location": "Nagoya Castle",
+      "imageSrc": "/travel/attractions/nagoya-nagoya-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nagoya_Castle",
+      "description": "名古屋可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Nagoya Castle",
+        "名古屋城"
+      ],
+      "lat": 35.185556,
+      "lng": 136.898611
+    },
+    {
+      "cityKeys": [
+        "Nagoya",
+        "名古屋",
+        "nagoya"
+      ],
+      "cityLabel": "名古屋",
+      "name": "犬山城",
+      "location": "Inuyama Castle",
+      "imageSrc": "/travel/attractions/nagoya-inuyama-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Inuyama_Castle",
+      "description": "名古屋可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Inuyama Castle",
+        "犬山城"
+      ],
+      "lat": 35.388333,
+      "lng": 136.939167
+    },
+    {
+      "cityKeys": [
+        "Nagoya",
+        "名古屋",
+        "nagoya"
+      ],
+      "cityLabel": "名古屋",
+      "name": "岐阜城",
+      "location": "Gifu Castle",
+      "imageSrc": "/travel/attractions/nagoya-gifu-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gifu_Castle",
+      "description": "名古屋可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Gifu Castle",
+        "岐阜城"
+      ],
+      "lat": 35.433889,
+      "lng": 136.782222
+    },
+    {
+      "cityKeys": [
+        "Nagoya",
+        "名古屋",
+        "nagoya"
+      ],
+      "cityLabel": "名古屋",
+      "name": "岡崎城",
+      "location": "Okazaki Castle",
+      "imageSrc": "/travel/attractions/nagoya-okazaki-castle.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Okazaki_Castle",
+      "description": "名古屋可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Okazaki Castle",
+        "岡崎城"
+      ],
+      "lat": 34.956389,
+      "lng": 137.158889
+    },
+    {
+      "cityKeys": [
+        "Bangkok",
+        "曼谷",
+        "bangkok"
+      ],
+      "cityLabel": "曼谷",
+      "name": "曼谷大皇宫",
+      "location": "Grand Palace",
+      "imageSrc": "/travel/attractions/bangkok-grand-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Grand_Palace",
+      "description": "曼谷著名地标",
+      "aliases": [
+        "Grand Palace",
+        "曼谷大皇宫"
+      ],
+      "lat": 13.750139,
+      "lng": 100.492028
+    },
+    {
+      "cityKeys": [
+        "Bangkok",
+        "曼谷",
+        "bangkok"
+      ],
+      "cityLabel": "曼谷",
+      "name": "彩虹中心第二期",
+      "location": "Baiyoke Tower II",
+      "imageSrc": "/travel/attractions/bangkok-baiyoke-tower-ii.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Baiyoke_Tower_II",
+      "description": "曼谷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Baiyoke Tower II",
+        "彩虹中心第二期"
+      ],
+      "lat": 13.754103,
+      "lng": 100.540956
+    },
+    {
+      "cityKeys": [
+        "Bangkok",
+        "曼谷",
+        "bangkok"
+      ],
+      "cityLabel": "曼谷",
+      "name": "拉达那哥欣岛",
+      "location": "Rattanakosin Island",
+      "imageSrc": "/travel/attractions/bangkok-rattanakosin-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Rattanakosin_Island",
+      "description": "曼谷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Rattanakosin Island",
+        "拉达那哥欣岛"
+      ],
+      "lat": 13.749167,
+      "lng": 100.491667
+    },
+    {
+      "cityKeys": [
+        "Bangkok",
+        "曼谷",
+        "bangkok"
+      ],
+      "cityLabel": "曼谷",
+      "name": "曼谷国立博物馆",
+      "location": "Bangkok National Museum",
+      "imageSrc": "/travel/attractions/bangkok-bangkok-national-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Bangkok_National_Museum",
+      "description": "曼谷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Bangkok National Museum",
+        "曼谷国立博物馆"
+      ],
+      "lat": 13.757826,
+      "lng": 100.492307
+    },
+    {
+      "cityKeys": [
+        "Chiang Mai",
+        "清迈",
+        "chiangmai"
+      ],
+      "cityLabel": "清迈",
+      "name": "契迪龙寺",
+      "location": "Wat Chedi Luang",
+      "imageSrc": "/travel/attractions/chiang-mai-wat-chedi-luang.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Wat_Chedi_Luang",
+      "description": "清迈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Wat Chedi Luang",
+        "契迪龙寺"
+      ],
+      "lat": 18.786944,
+      "lng": 98.986389
+    },
+    {
+      "cityKeys": [
+        "Chiang Mai",
+        "清迈",
+        "chiangmai"
+      ],
+      "cityLabel": "清迈",
+      "name": "帕邢寺",
+      "location": "Wat Phra Sing",
+      "imageSrc": "/travel/attractions/chiang-mai-wat-phra-sing.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Wat_Phra_Singh",
+      "description": "清迈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Wat Phra Sing",
+        "帕邢寺"
+      ],
+      "lat": 18.78875,
+      "lng": 98.981211
+    },
+    {
+      "cityKeys": [
+        "Chiang Mai",
+        "清迈",
+        "chiangmai"
+      ],
+      "cityLabel": "清迈",
+      "name": "清曼寺",
+      "location": "Wat Chiang Man",
+      "imageSrc": "/travel/attractions/chiang-mai-wat-chiang-man.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Wat_Chiang_Man",
+      "description": "清迈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Wat Chiang Man",
+        "清曼寺"
+      ],
+      "lat": 18.79379,
+      "lng": 98.9894
+    },
+    {
+      "cityKeys": [
+        "Chiang Mai",
+        "清迈",
+        "chiangmai"
+      ],
+      "cityLabel": "清迈",
+      "name": "清迈动物园",
+      "location": "Chiang Mai Zoo",
+      "imageSrc": "/travel/attractions/chiang-mai-chiang-mai-zoo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chiang_Mai_Zoo",
+      "description": "清迈可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Chiang Mai Zoo",
+        "清迈动物园"
+      ],
+      "lat": 18.809,
+      "lng": 98.947
+    },
+    {
+      "cityKeys": [
+        "Phuket",
+        "普吉",
+        "phuket"
+      ],
+      "cityLabel": "普吉",
+      "name": "007岛",
+      "location": "Khao Phing Kan",
+      "imageSrc": "/travel/attractions/phuket-khao-phing-kan.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Khao_Phing_Kan",
+      "description": "普吉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Khao Phing Kan",
+        "007岛"
+      ],
+      "lat": 8.275378,
+      "lng": 98.500561
+    },
+    {
+      "cityKeys": [
+        "Phuket",
+        "普吉",
+        "phuket"
+      ],
+      "cityLabel": "普吉",
+      "name": "攀牙湾国家公园",
+      "location": "Ao Phang Nga National Park",
+      "imageSrc": "/travel/attractions/phuket-ao-phang-nga-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ao_Phang_Nga_National_Park",
+      "description": "普吉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ao Phang Nga National Park",
+        "攀牙湾国家公园"
+      ],
+      "lat": 8.261943,
+      "lng": 98.498475
+    },
+    {
+      "cityKeys": [
+        "Phuket",
+        "普吉",
+        "phuket"
+      ],
+      "cityLabel": "普吉",
+      "name": "Ko Ta Pu",
+      "location": "Ko Ta Pu",
+      "imageSrc": "/travel/attractions/phuket-ko-ta-pu.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Ta_Pu",
+      "description": "普吉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Ta Pu"
+      ],
+      "lat": 8.275378,
+      "lng": 98.500556
+    },
+    {
+      "cityKeys": [
+        "Phuket",
+        "普吉",
+        "phuket"
+      ],
+      "cityLabel": "普吉",
+      "name": "詩丽那国家公园",
+      "location": "Sirinat National Park",
+      "imageSrc": "/travel/attractions/phuket-sirinat-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sirinat_National_Park",
+      "description": "普吉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sirinat National Park",
+        "詩丽那国家公园"
+      ],
+      "lat": 8.088056,
+      "lng": 98.296111
+    },
+    {
+      "cityKeys": [
+        "Krabi",
+        "甲米",
+        "krabi"
+      ],
+      "cityLabel": "甲米",
+      "name": "Ko Phi Phi Don",
+      "location": "Ko Phi Phi Don",
+      "imageSrc": "/travel/attractions/krabi-ko-phi-phi-don.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Phi_Phi_Don",
+      "description": "甲米可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Phi Phi Don"
+      ],
+      "lat": 7.74433,
+      "lng": 98.78112
+    },
+    {
+      "cityKeys": [
+        "Krabi",
+        "甲米",
+        "krabi"
+      ],
+      "cityLabel": "甲米",
+      "name": "Ko Po Da Nai",
+      "location": "Ko Po Da Nai",
+      "imageSrc": "/travel/attractions/krabi-ko-po-da-nai.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Poda",
+      "description": "甲米可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Po Da Nai"
+      ],
+      "lat": 7.970833,
+      "lng": 98.808056
+    },
+    {
+      "cityKeys": [
+        "Krabi",
+        "甲米",
+        "krabi"
+      ],
+      "cityLabel": "甲米",
+      "name": "Khao Phanom Bencha National Park",
+      "location": "Khao Phanom Bencha National Park",
+      "imageSrc": "/travel/attractions/krabi-khao-phanom-bencha-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Khao_Phanom_Bencha_National_Park",
+      "description": "泰国的国家公园（Khao Phanom Bencha National Park）",
+      "aliases": [
+        "Khao Phanom Bencha National Park"
+      ],
+      "lat": 8.2353,
+      "lng": 98.9312
+    },
+    {
+      "cityKeys": [
+        "Krabi",
+        "甲米",
+        "krabi"
+      ],
+      "cityLabel": "甲米",
+      "name": "Hat Noppharat Thara–Mu Ko Phi Phi National Park",
+      "location": "Hat Noppharat Thara–Mu Ko Phi Phi National Park",
+      "imageSrc": "/travel/attractions/krabi-hat-noppharat-thara-mu-ko-phi-phi-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hat_Noppharat_Thara%E2%80%93Mu_Ko_Phi_Phi_National_Park",
+      "description": "甲米可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hat Noppharat Thara–Mu Ko Phi Phi National Park"
+      ],
+      "lat": 7.893428,
+      "lng": 98.765732
+    },
+    {
+      "cityKeys": [
+        "Pattaya",
+        "芭提雅",
+        "pattaya"
+      ],
+      "cityLabel": "芭提雅",
+      "name": "小珊瑚岛",
+      "location": "Ko Lan",
+      "imageSrc": "/travel/attractions/pattaya-ko-lan.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Lan",
+      "description": "芭提雅可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Lan",
+        "小珊瑚岛"
+      ],
+      "lat": 12.915833,
+      "lng": 100.7775
+    },
+    {
+      "cityKeys": [
+        "Pattaya",
+        "芭提雅",
+        "pattaya"
+      ],
+      "cityLabel": "芭提雅",
+      "name": "竹岛",
+      "location": "Ko Phai",
+      "imageSrc": "/travel/attractions/pattaya-ko-phai.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Phai",
+      "description": "芭提雅可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Phai",
+        "竹岛"
+      ],
+      "lat": 12.933333,
+      "lng": 100.675
+    },
+    {
+      "cityKeys": [
+        "Pattaya",
+        "芭提雅",
+        "pattaya"
+      ],
+      "cityLabel": "芭提雅",
+      "name": "萱侬律",
+      "location": "Nong Nooch Tropical Botanical Garden",
+      "imageSrc": "/travel/attractions/pattaya-nong-nooch-tropical-botanical-garden.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nong_Nooch_Tropical_Garden",
+      "description": "芭提雅可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Nong Nooch Tropical Botanical Garden",
+        "萱侬律"
+      ],
+      "lat": 12.766667,
+      "lng": 100.933333
+    },
+    {
+      "cityKeys": [
+        "Pattaya",
+        "芭提雅",
+        "pattaya"
+      ],
+      "cityLabel": "芭提雅",
+      "name": "Khao Kheow Open Zoo",
+      "location": "Khao Kheow Open Zoo",
+      "imageSrc": "/travel/attractions/pattaya-khao-kheow-open-zoo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Khao_Kheow_Open_Zoo",
+      "description": "芭提雅可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Khao Kheow Open Zoo"
+      ],
+      "lat": 13.216462,
+      "lng": 101.056382
+    },
+    {
+      "cityKeys": [
+        "Koh Samui",
+        "苏梅岛",
+        "kohsamui"
+      ],
+      "cityLabel": "苏梅岛",
+      "name": "帕岸岛",
+      "location": "Ko Pha-ngan",
+      "imageSrc": "/travel/attractions/koh-samui-ko-pha-ngan.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ko_Pha-ngan",
+      "description": "苏梅岛可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ko Pha-ngan",
+        "帕岸岛"
+      ],
+      "lat": 9.74,
+      "lng": 100.03
+    },
+    {
+      "cityKeys": [
+        "Koh Samui",
+        "苏梅岛",
+        "kohsamui"
+      ],
+      "cityLabel": "苏梅岛",
+      "name": "红统群岛",
+      "location": "Mu Ko Ang Thong National Park",
+      "imageSrc": "/travel/attractions/koh-samui-mu-ko-ang-thong-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mu_Ko_Ang_Thong_National_Park",
+      "description": "苏梅岛可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Mu Ko Ang Thong National Park",
+        "红统群岛"
+      ],
+      "lat": 9.622778,
+      "lng": 99.675
+    },
+    {
+      "cityKeys": [
+        "Koh Samui",
+        "苏梅岛",
+        "kohsamui"
+      ],
+      "cityLabel": "苏梅岛",
+      "name": "Than Sadet – Ko Pha-ngan National Park",
+      "location": "Than Sadet – Ko Pha-ngan National Park",
+      "imageSrc": "/travel/attractions/koh-samui-than-sadet-ko-pha-ngan-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Than_Sadet%E2%80%93Ko_Pha-ngan_National_Park",
+      "description": "苏梅岛可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Than Sadet – Ko Pha-ngan National Park"
+      ],
+      "lat": 9.75,
+      "lng": 100.074
+    },
+    {
+      "cityKeys": [
+        "Koh Samui",
+        "苏梅岛",
+        "kohsamui"
+      ],
+      "cityLabel": "苏梅岛",
+      "name": "Hat Khanom–Mu Ko Thale Tai National Park",
+      "location": "Hat Khanom–Mu Ko Thale Tai National Park",
+      "imageSrc": "/travel/attractions/koh-samui-hat-khanom-mu-ko-thale-tai-national-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hat_Khanom%E2%80%93Mu_Ko_Thale_Tai_National_Park",
+      "description": "苏梅岛可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hat Khanom–Mu Ko Thale Tai National Park"
+      ],
+      "lat": 9.216667,
+      "lng": 99.85
+    },
+    {
+      "cityKeys": [
+        "Kuala Lumpur",
+        "吉隆坡",
+        "kualalumpur"
+      ],
+      "cityLabel": "吉隆坡",
+      "name": "双峰塔",
+      "location": "Petronas Towers",
+      "imageSrc": "/travel/attractions/kuala-lumpur-petronas-towers.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Petronas_Towers",
+      "description": "建筑",
+      "aliases": [
+        "Petronas Towers",
+        "双峰塔"
+      ],
+      "lat": 3.157778,
+      "lng": 101.711667
+    },
+    {
+      "cityKeys": [
+        "Kuala Lumpur",
+        "吉隆坡",
+        "kualalumpur"
+      ],
+      "cityLabel": "吉隆坡",
+      "name": "吉隆坡塔",
+      "location": "Kuala Lumpur Tower",
+      "imageSrc": "/travel/attractions/kuala-lumpur-kuala-lumpur-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kuala_Lumpur_Tower",
+      "description": "吉隆坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kuala Lumpur Tower",
+        "吉隆坡塔"
+      ],
+      "lat": 3.152828,
+      "lng": 101.703749
+    },
+    {
+      "cityKeys": [
+        "Kuala Lumpur",
+        "吉隆坡",
+        "kualalumpur"
+      ],
+      "cityLabel": "吉隆坡",
+      "name": "国家清真寺",
+      "location": "National Mosque of Malaysia",
+      "imageSrc": "/travel/attractions/kuala-lumpur-national-mosque-of-malaysia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Mosque_of_Malaysia",
+      "description": "吉隆坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "National Mosque of Malaysia",
+        "国家清真寺"
+      ],
+      "lat": 3.141944,
+      "lng": 101.691667
+    },
+    {
+      "cityKeys": [
+        "Kuala Lumpur",
+        "吉隆坡",
+        "kualalumpur"
+      ],
+      "cityLabel": "吉隆坡",
+      "name": "马来西亚电讯大厦",
+      "location": "Telekom Tower",
+      "imageSrc": "/travel/attractions/kuala-lumpur-telekom-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Telekom_Tower",
+      "description": "吉隆坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Telekom Tower",
+        "马来西亚电讯大厦"
+      ],
+      "lat": 3.115833,
+      "lng": 101.666111
+    },
+    {
+      "cityKeys": [
+        "Penang",
+        "槟城",
+        "penang"
+      ],
+      "cityLabel": "槟城",
+      "name": "槟岛",
+      "location": "Penang Island",
+      "imageSrc": "/travel/attractions/penang-penang-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Penang_Island",
+      "description": "马来西亚岛屿",
+      "aliases": [
+        "Penang Island",
+        "槟岛"
+      ],
+      "lat": 5.37,
+      "lng": 100.26
+    },
+    {
+      "cityKeys": [
+        "Penang",
+        "槟城",
+        "penang"
+      ],
+      "cityLabel": "槟城",
+      "name": "槟威大桥",
+      "location": "Penang Bridge",
+      "imageSrc": "/travel/attractions/penang-penang-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Penang_Bridge",
+      "description": "槟城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Penang Bridge",
+        "槟威大桥"
+      ],
+      "lat": 5.353863,
+      "lng": 100.352554
+    },
+    {
+      "cityKeys": [
+        "Penang",
+        "槟城",
+        "penang"
+      ],
+      "cityLabel": "槟城",
+      "name": "槟城极乐寺",
+      "location": "Kek Lok Si",
+      "imageSrc": "/travel/attractions/penang-kek-lok-si.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kek_Lok_Si",
+      "description": "槟城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kek Lok Si",
+        "槟城极乐寺"
+      ],
+      "lat": 5.398333,
+      "lng": 100.273056
+    },
+    {
+      "cityKeys": [
+        "Penang",
+        "槟城",
+        "penang"
+      ],
+      "cityLabel": "槟城",
+      "name": "吉宁甲必丹回教堂",
+      "location": "Kapitan Keling Mosque",
+      "imageSrc": "/travel/attractions/penang-kapitan-keling-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kapitan_Keling_Mosque",
+      "description": "槟城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kapitan Keling Mosque",
+        "吉宁甲必丹回教堂"
+      ],
+      "lat": 5.416667,
+      "lng": 100.337389
+    },
+    {
+      "cityKeys": [
+        "Johor Bahru",
+        "新山",
+        "johorbahru"
+      ],
+      "cityLabel": "新山",
+      "name": "新加坡植物园",
+      "location": "Singapore Botanic Gardens",
+      "imageSrc": "/travel/attractions/johor-bahru-singapore-botanic-gardens.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Singapore_Botanic_Gardens",
+      "description": "新山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Singapore Botanic Gardens",
+        "新加坡植物园"
+      ],
+      "lat": 1.3151,
+      "lng": 103.8162
+    },
+    {
+      "cityKeys": [
+        "Johor Bahru",
+        "新山",
+        "johorbahru"
+      ],
+      "cityLabel": "新山",
+      "name": "滨海湾公园",
+      "location": "Gardens by the Bay",
+      "imageSrc": "/travel/attractions/johor-bahru-gardens-by-the-bay.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gardens_by_the_Bay",
+      "description": "新山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Gardens by the Bay",
+        "滨海湾公园"
+      ],
+      "lat": 1.283319,
+      "lng": 103.86527
+    },
+    {
+      "cityKeys": [
+        "Johor Bahru",
+        "新山",
+        "johorbahru"
+      ],
+      "cityLabel": "新山",
+      "name": "新加坡岛",
+      "location": "Singapore Island",
+      "imageSrc": "/travel/attractions/johor-bahru-singapore-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Singapore_(island)",
+      "description": "新山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Singapore Island",
+        "新加坡岛"
+      ],
+      "lat": 1.383333,
+      "lng": 103.8
+    },
+    {
+      "cityKeys": [
+        "Johor Bahru",
+        "新山",
+        "johorbahru"
+      ],
+      "cityLabel": "新山",
+      "name": "新加坡动物园",
+      "location": "Singapore Zoo",
+      "imageSrc": "/travel/attractions/johor-bahru-singapore-zoo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Singapore_Zoo",
+      "description": "新山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Singapore Zoo",
+        "新加坡动物园"
+      ],
+      "lat": 1.404709,
+      "lng": 103.79105
     }
   ]
 }

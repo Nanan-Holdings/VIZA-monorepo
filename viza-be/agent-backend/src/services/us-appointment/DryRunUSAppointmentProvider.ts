@@ -193,7 +193,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async checkAppointmentStatus(job: AppointmentAssistanceJob): Promise<AppointmentStatusResult> {
+  async checkAppointmentStatus(_job: AppointmentAssistanceJob): Promise<AppointmentStatusResult> {
     return {
       status: "status_checked",
       jobStatus: "appointment_status_checked",

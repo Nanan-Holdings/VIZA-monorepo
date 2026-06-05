@@ -18,6 +18,9 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/*.sql`: sequential SQL migrations.
 - `../../drizzle/0013_internal_automation_loop.sql`: website automation
   payment, consent, packet, notification, refund, and data-rights schema.
+- `../../drizzle/0091_us_appointment_assistant.sql`: U.S. appointment
+  assistant job, account, attempt, checkpoint, slot, confirmation, status-check,
+  and audit-event schema.
 
 ## Ownership Boundaries
 
@@ -60,6 +63,14 @@ For schema changes, also run any affected route/eval tests.
 - `official_fee_receipts`
 - `payment_instruments`
 - `official_fee_reconciliation_entries`
+- `appointment_accounts`
+- `appointment_assistance_jobs`
+- `appointment_assistance_attempts`
+- `appointment_manual_actions`
+- `appointment_slots`
+- `appointment_confirmations`
+- `appointment_status_checks`
+- `appointment_audit_events`
 - `consent_events`
 - `application_signatures`
 - `application_packets`

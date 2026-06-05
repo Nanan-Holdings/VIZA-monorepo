@@ -4,7 +4,6 @@ import {
   createUSAppointmentServices,
   redactSensitivePayload,
   USAppointmentProviderRegistry,
-  USAppointmentServiceError,
   type AppointmentAccount,
   type AppointmentAssistanceAttempt,
   type AppointmentAssistanceJob,
@@ -671,8 +670,7 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
   });
 
   it("rate-limits user-triggered slot checks", async () => {
-    const setup = await progressToPaymentCheckpoint();
-    await setup.orchestrator.checkSlots(setup.job.id);
+    const setup = await progressToSlotSelection();
     await expect(setup.orchestrator.checkSlots(setup.job.id)).rejects.toMatchObject({
       code: "slot_check_rate_limited",
     });

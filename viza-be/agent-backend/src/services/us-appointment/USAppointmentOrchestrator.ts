@@ -7,7 +7,6 @@ import type {
   AppointmentAccount,
   AppointmentAssistanceAttempt,
   AppointmentAssistanceJob,
-  AppointmentConfirmation,
   AppointmentManualAction,
   AppointmentStatusSnapshot,
   CreateAppointmentJobInput,

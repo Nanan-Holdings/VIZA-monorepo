@@ -52,11 +52,17 @@ The current internal automation migrations are:
   application-level official-fee status columns.
 - `0090_applicant_profile_bilingual_fields.sql`: applicant profile Chinese and
   English value columns used by bilingual filling UI.
+- `0091_us_appointment_assistant.sql`: U.S. appointment assistant tables,
+  application-level appointment columns, RLS, service-role policies, and
+  lookup indexes.
 
 ## Guardrails
 
 - Do not add runner/Playwright/submission-service tables or real official-site
-  payment automation to this automation scope.
+  payment/booking automation to this automation scope.
+- U.S. appointment tables may track dry-run/manual checkpoint state only. Keep
+  sensitive official-portal credentials, cookies, CAPTCHA answers, MFA codes,
+  payment card data, and raw screenshots out of these migrations.
 - Do not drop or rewrite existing tables without explicit user approval.
 - Do not commit secrets or environment-specific values.
 

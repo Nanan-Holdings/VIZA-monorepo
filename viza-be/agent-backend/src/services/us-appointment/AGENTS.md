@@ -1,0 +1,38 @@
+# U.S. Appointment Services Guide
+
+Scope: this file applies to
+`viza-be/agent-backend/src/services/us-appointment/**`.
+
+## Purpose
+
+Dry-run/manual-checkpoint framework for U.S. B1/B2 appointment assistance after
+DS-160 capture. It records consent, provider metadata, state transitions,
+manual actions, observed mock slots, explicit final approval, mock
+confirmation, status checks, and redacted audit events.
+
+## Guardrails
+
+- Dry-run is the only executable mode. Assisted-live provider classes are
+  disabled scaffolds until legal/product approval and current post verification
+  exist.
+- Do not add CAPTCHA solving, MFA/email bypass, real payment execution,
+  waiting-room bypass, rate-limit bypass, proxy/fingerprint/stealth behavior,
+  high-frequency polling, or final booking without explicit applicant approval.
+- Redact sensitive portal and applicant data before audit, attempt, screenshot,
+  status-check, or manual-action storage.
+- Slot and status checks must be user-triggered and cooldown-protected.
+- Stop or route to manual review on site policy warnings.
+
+## Key Files
+
+- `USAppointmentOrchestrator.ts`: state machine and public operations.
+- `repository.ts`: Supabase service-role persistence adapter.
+- `providers.ts`: provider registry and country/post metadata detection.
+- `DryRunUSAppointmentProvider.ts`: deterministic mock lifecycle.
+- `AssistedLiveDisabledProvider.ts`: disabled live-mode scaffold.
+- `AppointmentCheckpointService.ts`: human-in-the-loop checkpoints.
+- `AppointmentSlotService.ts`: observed/selected slot persistence.
+- `AppointmentStatusService.ts`: user-triggered status check cooldown.
+- `redaction.ts`: recursive sensitive-field redaction.
+- `playwright/**`: non-operational scaffolds and checkpoint classification only.
+- `us-appointment.test.ts`: dry-run lifecycle and compliance tests.

@@ -12,6 +12,12 @@ const supportedMethods = new Set<AirwallexPaymentMethodType>([
   "wechatpay_mobile_web",
 ]);
 
+function requestedMethodLabel(methodType: AirwallexPaymentMethodType): string {
+  if (methodType === "wechatpay_qrcode" || methodType === "wechatpay_mobile_web") return "wechat";
+  if (methodType === "alipaycn_mobile_web") return "alipay";
+  return "card";
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ paymentId: string }> },
@@ -40,7 +46,9 @@ export async function POST(
       methodType: methodType as AirwallexPaymentMethodType,
       returnUrl: returnUrl.toString(),
     });
-    const result = await updateRecordFromAirwallexIntent(record.id, intent.id);
+    const result = await updateRecordFromAirwallexIntent(record.id, intent.id, {
+      requestedMethod: requestedMethodLabel(methodType as AirwallexPaymentMethodType),
+    });
 
     return NextResponse.json({
       status: result.status,

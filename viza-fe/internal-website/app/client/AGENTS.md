@@ -34,6 +34,9 @@ applicant info, and help pages.
   human/email handoff. This must remain separate from the visa/travel AI chat.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
+- `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2
+  appointment assistant entry after DS-160 capture. It must remain dry-run
+  first with manual checkpoints for portal-sensitive actions.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 
@@ -52,6 +55,9 @@ applicant info, and help pages.
   own child `AGENTS.md`; read those before changing the relevant route.
 - Travel component internals are governed by
   `components/client/travel/AGENTS.md`.
+- U.S. appointment component internals are governed by
+  `components/client/us-appointment/AGENTS.md`; browser API helpers are governed
+  by `lib/us-appointment/AGENTS.md`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
   authenticated routes.
 - Use `getAuthenticatedUserId()` for user identity when impersonation support
@@ -86,6 +92,9 @@ accessible component state.
 - `viza-fe/internal-website/app/client/support/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
+- `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
+- `viza-fe/internal-website/components/client/us-appointment/AGENTS.md`
+- `viza-fe/internal-website/lib/us-appointment/AGENTS.md`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
 - `viza-fe/internal-website/app/actions/form-requests.ts`
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`

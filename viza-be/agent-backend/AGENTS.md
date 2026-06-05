@@ -33,6 +33,10 @@ explicitly reintroduces another provider.
   `src/services/official-fee/**`, `src/db/schema.ts`, and
   `drizzle/0089_official_fee_payment.sql`. Dry-run/manual-review only unless
   a future task explicitly enables provider-approved live payment.
+- U.S. B1/B2 appointment assistant: `src/routes/us-appointment.routes.ts`,
+  `src/services/us-appointment/**`, `src/db/schema.ts`, and
+  `drizzle/0091_us_appointment_assistant.sql`. Dry-run/manual-checkpoint only;
+  assisted live providers are disabled scaffolds.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
@@ -47,7 +51,9 @@ explicitly reintroduces another provider.
   uncertain.
 - Do not move browser automation into this service; official portal automation,
   CAPTCHA handling, proxy/fingerprint handling, and runner artifacts belong
-  outside this website automation scope.
+  outside this website automation scope. The U.S. appointment assistant may
+  model checkpoint state, but must not bypass login, CAPTCHA, MFA/email,
+  payment, waiting-room, rate-limit, or final-confirmation controls.
 - Do not move frontend route logic here; Next.js route/UI code belongs in
   `viza-fe/internal-website`.
 
@@ -82,8 +88,10 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/db/supabase-client.ts`
 - `src/routes/internal-automation/*`
 - `src/routes/official-fee.routes.ts`
+- `src/routes/us-appointment.routes.ts`
 - `src/services/internal-automation/*`
 - `src/services/official-fee/*`
+- `src/services/us-appointment/*`
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`

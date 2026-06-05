@@ -40,6 +40,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `components/client/companion/**`.
 - Customer service support center under `app/client/support/**`; keep it
   separate from `/client/chat`.
+- U.S. B1/B2 appointment assistant under
+  `app/client/applications/[applicationId]/us-appointment/**`,
+  `components/client/us-appointment/**`, `lib/us-appointment/**`, and
+  `types/us-appointment.ts`. Dry-run/manual-checkpoint only.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
@@ -51,6 +55,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/sync-supabase-auth-email-templates.mjs`.
 - Travel card coverage audit through
   `scripts/audit-travel-card-coverage.mjs`.
+- Travel card coverage enrichment through
+  `scripts/enrich-travel-card-coverage.mjs`.
 
 ## Source Of Truth
 
@@ -78,8 +84,10 @@ comments.
   there.
 - Do not expose service-role Supabase keys in client components.
 - Do not implement official portal submission runners, CAPTCHA/proxy/browser
-  fingerprint code, or calls into `viza-be/submission-service` from website
-  internal automation modules.
+  fingerprint code, background slot polling, real official-site payment, or
+  calls into `viza-be/submission-service` from website internal automation
+  modules. The U.S. appointment assistant must keep login, CAPTCHA, MFA/email,
+  payment, slot choice, and final booking approval as human checkpoints.
 
 ## Validation
 
@@ -131,12 +139,14 @@ Smoke URLs:
 - `components/ui/*`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
+- `components/client/us-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `lib/supabase/*`
 - `lib/document-upload-client.ts`
+- `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `supabase/migrations/*`
 - `supabase/templates/*`
@@ -146,6 +156,8 @@ Smoke URLs:
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`
+- `types/us-appointment.ts`
 - `scripts/sync-supabase-auth-email-templates.mjs`
 - `scripts/audit-travel-card-coverage.mjs`
+- `scripts/enrich-travel-card-coverage.mjs`
 - `types/*`
