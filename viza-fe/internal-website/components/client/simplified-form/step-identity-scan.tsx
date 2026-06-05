@@ -36,6 +36,7 @@ interface PassportOcrResponse {
   warnings?: string[];
   proposedFields?: {
     fullName: PassportOcrFieldProposal;
+    nativeFullName?: PassportOcrFieldProposal;
     givenNames: PassportOcrFieldProposal;
     surname: PassportOcrFieldProposal;
     passportNumber: PassportOcrFieldProposal;
@@ -55,6 +56,7 @@ interface PassportOcrResponse {
 interface ExtractionResult {
   surname?: string;
   givenNames?: string;
+  nativeFullName?: string;
   dob?: string;
   sex?: "Male" | "Female" | "";
   nationality?: string;
@@ -111,6 +113,7 @@ function extractionFromPassportOcr(payload: PassportOcrResponse): ExtractionResu
   return {
     surname: valueOf(fields.surname),
     givenNames: valueOf(fields.givenNames),
+    nativeFullName: valueOf(fields.nativeFullName),
     dob: valueOf(fields.dateOfBirth),
     sex: genderFromOcr(valueOf(fields.gender)),
     nationality: valueOf(fields.nationality),
@@ -148,7 +151,7 @@ function ScanDocumentPreview() {
         <span className="block h-1 w-3/4 rounded-full bg-white/40" />
         <span className="absolute right-5 top-5 h-[30px] w-6 rounded bg-white/20" />
       </div>
-      <span className="absolute left-0 right-0 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-sky-300 to-transparent opacity-90 shadow-[0_0_12px_rgba(125,211,252,0.9)] motion-safe:animate-pulse" />
+      <span className="absolute left-0 right-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-sky-300 to-transparent opacity-90 shadow-[0_0_12px_rgba(125,211,252,0.9)] motion-safe:animate-passport-scan motion-reduce:top-1/2" />
     </div>
   );
 }
@@ -304,6 +307,10 @@ export function StepIdentityScan({
     const passport: Partial<SimplifiedPassport> = {};
     if (extracted.givenNames) identity.firstName = extracted.givenNames;
     if (extracted.surname) identity.lastName = extracted.surname;
+    if (extracted.nativeFullName) {
+      identity.hasNativeAlphabetName = true;
+      identity.nativeAlphabetName = extracted.nativeFullName;
+    }
     if (extracted.dob) identity.dob = extracted.dob;
     if (extracted.sex === "Male" || extracted.sex === "Female") identity.gender = extracted.sex;
     if (extracted.nationality) identity.nationality = extracted.nationality;
@@ -401,6 +408,7 @@ export function StepIdentityScan({
     const rows: Array<[string, string | undefined]> = [
       [t("firstName"), extracted.givenNames],
       [t("lastName"), extracted.surname],
+      [t("nativeAlphabetName"), extracted.nativeFullName],
       [t("dateOfBirth"), extracted.dob],
       [t("gender"), extracted.sex],
       [t("nationality"), extracted.nationality],

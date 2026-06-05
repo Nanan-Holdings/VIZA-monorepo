@@ -562,7 +562,7 @@ export default function UniversalInfoPage() {
                     <BilingualTextControl
                       side="zh"
                       value={bilingualForm.place_of_birth.zh}
-                      placeholder="如：HUNAN / 湖南"
+                      placeholder="如：湖南"
                       icon={<MapPin className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateBilingualField("place_of_birth", "zh", value)}
                     />
@@ -625,7 +625,7 @@ export default function UniversalInfoPage() {
                     <BilingualTextControl
                       side="zh"
                       value={bilingualForm.occupation.zh}
-                      placeholder="如：软件工程师 / Software engineer"
+                      placeholder="如：软件工程师"
                       icon={<WalletCards className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateBilingualField("occupation", "zh", value)}
                     />

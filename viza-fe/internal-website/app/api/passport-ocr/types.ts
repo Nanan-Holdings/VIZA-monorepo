@@ -22,6 +22,7 @@ export interface PassportOcrFieldProposal {
 
 export interface PassportOcrProposedFields {
   fullName: PassportOcrFieldProposal;
+  nativeFullName: PassportOcrFieldProposal;
   givenNames: PassportOcrFieldProposal;
   surname: PassportOcrFieldProposal;
   passportNumber: PassportOcrFieldProposal;
