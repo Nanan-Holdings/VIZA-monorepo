@@ -83,6 +83,7 @@ import type {
   TravelChatStatus,
 } from "@/lib/travel/chat-types";
 import {
+  CURATED_CITIES_BY_COUNTRY,
   getCuratedCityLabel,
   CURATED_CITY_ZH_LABELS_BY_KEY,
 } from "@/lib/travel/locations";
@@ -445,6 +446,17 @@ const CANONICAL_PLACE_KEY_BY_LOCAL_NAME = Object.entries(
   return lookup;
 }, {});
 
+const CURATED_PLACE_TEXT_REPLACEMENTS = Object.values(
+  CURATED_CITIES_BY_COUNTRY
+).flatMap((cities) =>
+  cities.flatMap((city) => {
+    const target = city.zh ?? city.en;
+    return [city.en, ...(city.aliases ?? [])]
+      .filter((source) => source && source !== target)
+      .map((source) => [source, target] as const);
+  })
+);
+
 const PLACE_TEXT_REPLACEMENTS = [
   ["South Korea", "韩国"],
   ["United Arab Emirates", "阿联酋"],
@@ -471,6 +483,7 @@ const PLACE_TEXT_REPLACEMENTS = [
   ["Austria", "奥地利"],
   ["Greece", "希腊"],
   ["Portugal", "葡萄牙"],
+  ...CURATED_PLACE_TEXT_REPLACEMENTS,
   ["Tokyo", "东京"],
   ["Seoul", "首尔"],
   ["Paris", "巴黎"],

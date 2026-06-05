@@ -51,6 +51,14 @@ export class TranslationGateError extends Error {
   }
 }
 
+function isMissingTranslationsTableError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("application_translations") &&
+    (normalized.includes("schema cache") ||
+      normalized.includes("does not exist") ||
+      normalized.includes("could not find the table"));
+}
+
 /**
  * Read every translation row for an application and overlay the English
  * `translated_text` onto the matching key in either the raw profile or the
@@ -75,6 +83,13 @@ export async function applyTranslationOverlay(
     .eq("target_lang", "en");
 
   if (error) {
+    if (isMissingTranslationsTableError(error.message)) {
+      console.warn(
+        `[translation-gate] application_translations table is unavailable; ` +
+          `continuing without translation overlay for application ${applicationId}`,
+      );
+      return { overlaid: 0 };
+    }
     throw new Error(`application_translations lookup failed: ${error.message}`);
   }
 

@@ -1,4 +1,5 @@
 import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
+import { getCuratedCityLabel } from "@/lib/travel/locations";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -148,6 +149,9 @@ function buildAmbiguousReductionClarification(
   const cities = getItineraryCities(currentItinerary, payload);
   const lastDay = Math.max(1, currentItinerary.length);
   const firstCity = cities[0];
+  const firstCityLabel = firstCity
+    ? getCuratedCityLabel(firstCity, locale) ?? firstCity
+    : "";
 
   return {
     action: "clarify",
@@ -166,8 +170,8 @@ function buildAmbiguousReductionClarification(
             ...(firstCity
               ? [
                   {
-                    label: `从${firstCity}减少`,
-                    value: `从${firstCity}减少一天`,
+                    label: `从${firstCityLabel}减少`,
+                    value: `从${firstCityLabel}减少一天`,
                   },
                 ]
               : []),
@@ -178,7 +182,7 @@ function buildAmbiguousReductionClarification(
             ...(firstCity
               ? [
                   {
-                    label: `Reduce ${firstCity}`,
+                    label: `Reduce ${firstCityLabel}`,
                     value: `Reduce one day in ${firstCity}`,
                   },
                 ]
