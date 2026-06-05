@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback } from "react";
+import { AlertTriangle, FlaskConical } from "lucide-react";
 import type {
+  GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaitingCard } from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
 import { UsResultCard } from "./UsResultCard";
@@ -18,6 +22,56 @@ interface SubmissionStatusStepProps {
   applicationId: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
+}
+
+function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
+  const unsupported = result.status === "unsupported";
+  const Icon = unsupported ? AlertTriangle : FlaskConical;
+
+  return (
+    <Card className="rounded-xl border-input">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3 text-foreground">
+            <Icon className="h-5 w-5 text-brand-500" />
+            {unsupported ? "Automated submission unavailable" : "Dry-run submission complete"}
+          </CardTitle>
+          <Badge variant={unsupported ? "secondary" : "default"}>
+            {unsupported ? "Unsupported" : "Dry run"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {unsupported
+            ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
+            : result.message}
+        </p>
+
+        <div className="rounded-md border border-input bg-background px-3 py-2">
+          <div className="text-xs text-muted-foreground">Country / visa type</div>
+          <div className="mt-0.5 font-mono text-sm text-foreground">
+            {result.targetCountry} / {result.visaType}
+          </div>
+        </div>
+
+        {result.confirmationNumber && (
+          <div className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2">
+            <div className="text-xs text-brand-500">Mock confirmation</div>
+            <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
+              {result.confirmationNumber}
+            </div>
+          </div>
+        )}
+
+        {unsupported && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {result.message}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 /**
@@ -55,8 +109,7 @@ export function SubmissionStatusStep({
     return <WaitingCard status={status} />;
   }
 
-  // status is "submitted" | "stopped_at_pay" | "stopped_at_review" |
-  // "form_ready_for_agency" → render the per-country card.
+  // Terminal status renders the per-country card or a generic dry-run card.
   switch (result.country) {
     case "US":
       return <UsResultCard result={result} />;
@@ -78,6 +131,8 @@ export function SubmissionStatusStep({
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
+    case "GENERIC":
+      return <GenericResultCard result={result} />;
     default:
       return <WaitingCard status={status} />;
   }

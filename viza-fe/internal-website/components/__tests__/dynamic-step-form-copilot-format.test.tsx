@@ -220,7 +220,12 @@ describe("DynamicStepForm copilot format", () => {
 
   it("autofills bilingual values from universal profile without submitting helper keys", () => {
     const onComplete = vi.fn();
-    const prefill = buildUniversalProfileAnswerPatch({ place_of_birth: "海南" });
+    const prefill = buildUniversalProfileAnswerPatch({
+      full_name: "CHEN HONGYU",
+      full_name_zh: "陈泓羽",
+      full_name_en: "CHEN HONGYU",
+      place_of_birth: "海南",
+    });
 
     render(
       <DynamicStepForm
@@ -233,6 +238,8 @@ describe("DynamicStepForm copilot format", () => {
 
     expect(screen.getByDisplayValue("海南")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Hainan")).toBeInTheDocument();
+    expect(prefill.full_name_zh).toBe("陈泓羽");
+    expect(prefill.full_name_en).toBe("CHEN HONGYU");
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 

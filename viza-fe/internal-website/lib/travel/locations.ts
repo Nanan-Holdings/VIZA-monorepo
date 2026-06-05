@@ -225,6 +225,41 @@ export const CURATED_CITIES_BY_COUNTRY: Record<string, CuratedCity[]> = {
   ],
 };
 
+export function normalizeCuratedCityKey(value: string | null | undefined): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
+}
+
+export const CURATED_CITY_ZH_LABELS_BY_KEY: Record<string, string> = {};
+export const CURATED_CITY_EN_LABELS_BY_KEY: Record<string, string> = {};
+
+Object.values(CURATED_CITIES_BY_COUNTRY).forEach((cities) => {
+  cities.forEach((city) => {
+    const labels = [city.en, city.zh, ...(city.aliases ?? [])].filter(
+      (value): value is string => Boolean(value)
+    );
+
+    labels.forEach((label) => {
+      const key = normalizeCuratedCityKey(label);
+      if (!key) return;
+      CURATED_CITY_EN_LABELS_BY_KEY[key] ??= city.en;
+      CURATED_CITY_ZH_LABELS_BY_KEY[key] ??= city.zh ?? city.en;
+    });
+  });
+});
+
+export function getCuratedCityLabel(
+  value: string | null | undefined,
+  locale: "zh" | "en"
+): string | null {
+  const key = normalizeCuratedCityKey(value);
+  if (!key) return null;
+  return locale === "zh"
+    ? CURATED_CITY_ZH_LABELS_BY_KEY[key] ?? null
+    : CURATED_CITY_EN_LABELS_BY_KEY[key] ?? null;
+}
+
 export function getCuratedCitiesForCountry(countryNameEn: string): CuratedCity[] {
   return CURATED_CITIES_BY_COUNTRY[countryNameEn] ?? [];
 }

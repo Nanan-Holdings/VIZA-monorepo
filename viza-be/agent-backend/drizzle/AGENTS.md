@@ -47,6 +47,8 @@ The current internal automation migrations are:
   `application-documents` Storage bucket and user-prefix object policies.
 - `0088_travel_destination_index.sql`: Travel AI destination index, aliases,
   lazy cards, itinerary session archive, and unresolved destination queue.
+- `0090_applicant_profile_bilingual_fields.sql`: applicant profile Chinese and
+  English value columns used by bilingual filling UI.
 
 ## Guardrails
 

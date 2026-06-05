@@ -3,6 +3,7 @@
 import Script from "next/script";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
 import { ArrowLeft, CheckCircle2, CreditCard, Loader2, MessageCircle, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +96,29 @@ function findRedirectUrl(value: unknown): string | null {
   return null;
 }
 
+function findQrCodeValue(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const qrCode = findQrCodeValue(item);
+      if (qrCode) return qrCode;
+    }
+    return null;
+  }
+
+  const object = value as Record<string, unknown>;
+  for (const key of ["qrcode", "qrcode_url", "qr_code", "qr_code_url"]) {
+    const candidate = object[key];
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+
+  for (const nested of Object.values(object)) {
+    const qrCode = findQrCodeValue(nested);
+    if (qrCode) return qrCode;
+  }
+  return null;
+}
+
 export function AirwallexCheckout({
   paymentId,
   productId,
@@ -106,6 +130,8 @@ export function AirwallexCheckout({
   const [error, setError] = useState<string | null>(null);
   const [dropInReady, setDropInReady] = useState(false);
   const [confirmingMethod, setConfirmingMethod] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
 
   const createPayload = useMemo(
     () => (paymentId ? { paymentId } : productId ? { productId } : null),
@@ -188,6 +214,8 @@ export function AirwallexCheckout({
     if (!intent) return;
     setConfirmingMethod(methodType);
     setError(null);
+    setQrCodeDataUrl(null);
+    setQrCodeValue(null);
     try {
       const response = await fetch(`/api/payments/airwallex/${intent.paymentId}/confirm-method`, {
         method: "POST",
@@ -200,6 +228,12 @@ export function AirwallexCheckout({
       const url = findRedirectUrl(body.nextAction);
       if (url) {
         window.location.assign(url);
+        return;
+      }
+      const qrCode = findQrCodeValue(body.nextAction);
+      if (qrCode) {
+        setQrCodeValue(qrCode);
+        setQrCodeDataUrl(await QRCode.toDataURL(qrCode, { margin: 1, width: 240 }));
         return;
       }
       window.location.assign(`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`);
@@ -260,13 +294,38 @@ export function AirwallexCheckout({
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="min-h-[360px] rounded-lg border bg-background p-4">
+              {qrCodeDataUrl && intent ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="微信支付二维码"
+                    className="h-60 w-60 rounded-lg border bg-white p-3 shadow-sm"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">请使用微信扫码支付</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      扫码后返回本页或结果页刷新状态，VIZA 会通过 Airwallex 查询最终结果。
+                    </p>
+                  </div>
+                  <Link
+                    href={`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`}
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold text-brand-500 transition hover:bg-brand-50"
+                  >
+                    查看支付状态
+                  </Link>
+                  <span className="sr-only">{qrCodeValue}</span>
+                </div>
+              ) : null}
               {!intent || !scriptReady ? (
                 <div className="flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   正在准备安全支付组件
                 </div>
               ) : null}
-              <div id="airwallex-dropin" className={cn(!dropInReady && "min-h-[320px]")} />
+              <div
+                id="airwallex-dropin"
+                className={cn(qrCodeDataUrl && "hidden", !dropInReady && "min-h-[320px]")}
+              />
             </div>
 
             <aside className="rounded-lg border bg-white p-4">

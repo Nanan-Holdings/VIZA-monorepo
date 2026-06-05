@@ -157,12 +157,37 @@ export async function confirmPaymentIntent(input: {
   methodType: AirwallexPaymentMethodType;
   returnUrl: string;
 }): Promise<AirwallexPaymentIntent> {
+  const paymentMethod =
+    input.methodType === "alipaycn_mobile_web"
+      ? {
+          type: "alipaycn",
+          alipaycn: {
+            flow: "mobile_web",
+            os_type: "android",
+          },
+        }
+      : input.methodType === "wechatpay_qrcode"
+        ? {
+            type: "wechatpay",
+            wechatpay: {
+              flow: "qrcode",
+            },
+          }
+        : input.methodType === "wechatpay_mobile_web"
+          ? {
+              type: "wechatpay",
+              wechatpay: {
+                flow: "mobile_web",
+              },
+            }
+          : { type: "card" };
+
   return airwallexRequest<AirwallexPaymentIntent>(
     `/api/v1/pa/payment_intents/${encodeURIComponent(input.intentId)}/confirm`,
     {
       method: "POST",
       body: JSON.stringify({
-        payment_method: { type: input.methodType },
+        payment_method: paymentMethod,
         request_id: `${input.intentId}-${input.methodType}-${Date.now()}`.slice(0, 64),
         return_url: input.returnUrl,
       }),
