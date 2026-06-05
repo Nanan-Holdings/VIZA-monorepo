@@ -372,6 +372,66 @@
       "cityLabel": "新山",
       "imageSrc": "/travel/cities/johor-bahru.jpg",
       "sourceUrl": "https://en.wikipedia.org/wiki/Johor_Bahru"
+    },
+    {
+      "cityKeys": [
+        "Langkawi",
+        "兰卡威",
+        "langkawi"
+      ],
+      "cityLabel": "兰卡威",
+      "imageSrc": "/travel/cities/langkawi.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Langkawi"
+    },
+    {
+      "cityKeys": [
+        "Kota Kinabalu",
+        "哥打京那巴鲁",
+        "kotakinabalu"
+      ],
+      "cityLabel": "哥打京那巴鲁",
+      "imageSrc": "/travel/cities/kota-kinabalu.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kota_Kinabalu"
+    },
+    {
+      "cityKeys": [
+        "Malacca",
+        "马六甲",
+        "malacca"
+      ],
+      "cityLabel": "马六甲",
+      "imageSrc": "/travel/cities/malacca.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Malacca_City"
+    },
+    {
+      "cityKeys": [
+        "Jakarta",
+        "雅加达",
+        "jakarta"
+      ],
+      "cityLabel": "雅加达",
+      "imageSrc": "/travel/cities/jakarta.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jakarta"
+    },
+    {
+      "cityKeys": [
+        "Surabaya",
+        "泗水",
+        "surabaya"
+      ],
+      "cityLabel": "泗水",
+      "imageSrc": "/travel/cities/surabaya.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Surabaya"
+    },
+    {
+      "cityKeys": [
+        "Yogyakarta",
+        "日惹",
+        "yogyakarta"
+      ],
+      "cityLabel": "日惹",
+      "imageSrc": "/travel/cities/yogyakarta.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Yogyakarta"
     }
   ],
   "attractions": [
@@ -3276,6 +3336,458 @@
       ],
       "lat": 1.404709,
       "lng": 103.79105
+    },
+    {
+      "cityKeys": [
+        "Langkawi",
+        "兰卡威",
+        "langkawi"
+      ],
+      "cityLabel": "兰卡威",
+      "name": "兰卡威传奇公园",
+      "location": "Langkawi Legend Park",
+      "imageSrc": "/travel/attractions/langkawi-langkawi-legend-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Langkawi_Legend_Park",
+      "description": "兰卡威可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Langkawi Legend Park",
+        "兰卡威传奇公园"
+      ],
+      "lat": 6.312361,
+      "lng": 99.853667
+    },
+    {
+      "cityKeys": [
+        "Langkawi",
+        "兰卡威",
+        "langkawi"
+      ],
+      "cityLabel": "兰卡威",
+      "name": "兰卡威天空之桥",
+      "location": "Langkawi Sky Bridge",
+      "imageSrc": "/travel/attractions/langkawi-langkawi-sky-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Langkawi_Sky_Bridge",
+      "description": "兰卡威可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Langkawi Sky Bridge",
+        "兰卡威天空之桥"
+      ],
+      "lat": 6.386442,
+      "lng": 99.662406
+    },
+    {
+      "cityKeys": [
+        "Langkawi",
+        "兰卡威",
+        "langkawi"
+      ],
+      "cityLabel": "兰卡威",
+      "name": "雄鷹广场",
+      "location": "Eagle Square",
+      "imageSrc": "/travel/attractions/langkawi-eagle-square.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q48769617",
+      "description": "兰卡威可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Eagle Square",
+        "雄鷹广场"
+      ],
+      "lat": 6.308457,
+      "lng": 99.85196
+    },
+    {
+      "cityKeys": [
+        "Langkawi",
+        "兰卡威",
+        "langkawi"
+      ],
+      "cityLabel": "兰卡威",
+      "name": "Langkawi Craft Complex",
+      "location": "Langkawi Craft Complex",
+      "imageSrc": "/travel/attractions/langkawi-langkawi-craft-complex.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q115396068",
+      "description": "兰卡威可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Langkawi Craft Complex"
+      ],
+      "lat": 6.420382,
+      "lng": 99.780361
+    },
+    {
+      "cityKeys": [
+        "Kota Kinabalu",
+        "哥打京那巴鲁",
+        "kotakinabalu"
+      ],
+      "cityLabel": "哥打京那巴鲁",
+      "name": "沙巴州博物馆",
+      "location": "Sabah Museum",
+      "imageSrc": "/travel/attractions/kota-kinabalu-sabah-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sabah_Museum",
+      "description": "哥打京那巴鲁可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sabah Museum",
+        "沙巴州博物馆"
+      ],
+      "lat": 5.960556,
+      "lng": 116.071667
+    },
+    {
+      "cityKeys": [
+        "Kota Kinabalu",
+        "哥打京那巴鲁",
+        "kotakinabalu"
+      ],
+      "cityLabel": "哥打京那巴鲁",
+      "name": "亚庇市立清真寺",
+      "location": "Kota Kinabalu City Mosque",
+      "imageSrc": "/travel/attractions/kota-kinabalu-kota-kinabalu-city-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kota_Kinabalu_City_Mosque",
+      "description": "马来西亚沙巴州的清真寺",
+      "aliases": [
+        "Kota Kinabalu City Mosque",
+        "亚庇市立清真寺"
+      ],
+      "lat": 5.995858,
+      "lng": 116.10775
+    },
+    {
+      "cityKeys": [
+        "Kota Kinabalu",
+        "哥打京那巴鲁",
+        "kotakinabalu"
+      ],
+      "cityLabel": "哥打京那巴鲁",
+      "name": "沙巴州立清真寺",
+      "location": "Sabah State Mosque",
+      "imageSrc": "/travel/attractions/kota-kinabalu-sabah-state-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sabah_State_Mosque",
+      "description": "哥打京那巴鲁可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sabah State Mosque",
+        "沙巴州立清真寺"
+      ],
+      "lat": 5.96,
+      "lng": 116.067222
+    },
+    {
+      "cityKeys": [
+        "Kota Kinabalu",
+        "哥打京那巴鲁",
+        "kotakinabalu"
+      ],
+      "cityLabel": "哥打京那巴鲁",
+      "name": "艾京生钟楼",
+      "location": "Atkinson Clock Tower",
+      "imageSrc": "/travel/attractions/kota-kinabalu-atkinson-clock-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Atkinson_Clock_Tower",
+      "description": "哥打京那巴鲁可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Atkinson Clock Tower",
+        "艾京生钟楼"
+      ],
+      "lat": 5.982186,
+      "lng": 116.077333
+    },
+    {
+      "cityKeys": [
+        "Malacca",
+        "马六甲",
+        "malacca"
+      ],
+      "cityLabel": "马六甲",
+      "name": "圣地牙哥古城门",
+      "location": "A Famosa",
+      "imageSrc": "/travel/attractions/malacca-a-famosa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/A_Famosa",
+      "description": "马六甲可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "A Famosa",
+        "圣地牙哥古城门"
+      ],
+      "lat": 2.191617,
+      "lng": 102.250306
+    },
+    {
+      "cityKeys": [
+        "Malacca",
+        "马六甲",
+        "malacca"
+      ],
+      "cityLabel": "马六甲",
+      "name": "马六甲海峡清真寺",
+      "location": "Malacca Straits Mosque",
+      "imageSrc": "/travel/attractions/malacca-malacca-straits-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Malacca_Straits_Mosque",
+      "description": "马六甲可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Malacca Straits Mosque",
+        "马六甲海峡清真寺"
+      ],
+      "lat": 2.178944,
+      "lng": 102.249028
+    },
+    {
+      "cityKeys": [
+        "Malacca",
+        "马六甲",
+        "malacca"
+      ],
+      "cityLabel": "马六甲",
+      "name": "甘榜乌鲁清真寺",
+      "location": "Kampung Hulu Mosque",
+      "imageSrc": "/travel/attractions/malacca-kampung-hulu-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kampung_Hulu_Mosque",
+      "description": "马六甲可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kampung Hulu Mosque",
+        "甘榜乌鲁清真寺"
+      ],
+      "lat": 2.19925,
+      "lng": 102.248
+    },
+    {
+      "cityKeys": [
+        "Malacca",
+        "马六甲",
+        "malacca"
+      ],
+      "cityLabel": "马六甲",
+      "name": "甘榜吉宁清真寺",
+      "location": "Kampung Kling Mosque",
+      "imageSrc": "/travel/attractions/malacca-kampung-kling-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kampung_Kling_Mosque",
+      "description": "马六甲可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kampung Kling Mosque",
+        "甘榜吉宁清真寺"
+      ],
+      "lat": 2.196667,
+      "lng": 102.2475
+    },
+    {
+      "cityKeys": [
+        "Jakarta",
+        "雅加达",
+        "jakarta"
+      ],
+      "cityLabel": "雅加达",
+      "name": "伊斯蒂克拉尔清真寺",
+      "location": "Istiqlal Mosque",
+      "imageSrc": "/travel/attractions/jakarta-istiqlal-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Istiqlal_Mosque,_Jakarta",
+      "description": "雅加达可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Istiqlal Mosque",
+        "伊斯蒂克拉尔清真寺"
+      ],
+      "lat": -6.169722,
+      "lng": 106.830833
+    },
+    {
+      "cityKeys": [
+        "Jakarta",
+        "雅加达",
+        "jakarta"
+      ],
+      "cityLabel": "雅加达",
+      "name": "印尼国家紀念塔",
+      "location": "National Monument of Indonesia",
+      "imageSrc": "/travel/attractions/jakarta-national-monument-of-indonesia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Monument_(Indonesia)",
+      "description": "雅加达可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "National Monument of Indonesia",
+        "印尼国家紀念塔"
+      ],
+      "lat": -6.175389,
+      "lng": 106.827139
+    },
+    {
+      "cityKeys": [
+        "Jakarta",
+        "雅加达",
+        "jakarta"
+      ],
+      "cityLabel": "雅加达",
+      "name": "印度尼西亚国家博物馆",
+      "location": "National Museum of Indonesia",
+      "imageSrc": "/travel/attractions/jakarta-national-museum-of-indonesia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Museum_of_Indonesia",
+      "description": "印尼雅加达的博物馆",
+      "aliases": [
+        "National Museum of Indonesia",
+        "印度尼西亚国家博物馆"
+      ],
+      "lat": -6.176111,
+      "lng": 106.821667
+    },
+    {
+      "cityKeys": [
+        "Jakarta",
+        "雅加达",
+        "jakarta"
+      ],
+      "cityLabel": "雅加达",
+      "name": "独立广场 (雅加达)",
+      "location": "Merdeka Square",
+      "imageSrc": "/travel/attractions/jakarta-merdeka-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Merdeka_Square,_Jakarta",
+      "description": "雅加达可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Merdeka Square",
+        "独立广场 (雅加达)"
+      ],
+      "lat": -6.175278,
+      "lng": 106.827222
+    },
+    {
+      "cityKeys": [
+        "Surabaya",
+        "泗水",
+        "surabaya"
+      ],
+      "cityLabel": "泗水",
+      "name": "苏腊马都大桥",
+      "location": "Suramadu Bridge",
+      "imageSrc": "/travel/attractions/surabaya-suramadu-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Suramadu_Bridge",
+      "description": "泗水可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Suramadu Bridge",
+        "苏腊马都大桥"
+      ],
+      "lat": -7.183333,
+      "lng": 112.780278
+    },
+    {
+      "cityKeys": [
+        "Surabaya",
+        "泗水",
+        "surabaya"
+      ],
+      "cityLabel": "泗水",
+      "name": "安珀尔清真寺",
+      "location": "Ampel Mosque",
+      "imageSrc": "/travel/attractions/surabaya-ampel-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ampel_Mosque",
+      "description": "泗水可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ampel Mosque",
+        "安珀尔清真寺"
+      ],
+      "lat": -7.23031,
+      "lng": 112.743
+    },
+    {
+      "cityKeys": [
+        "Surabaya",
+        "泗水",
+        "surabaya"
+      ],
+      "cityLabel": "泗水",
+      "name": "Church of the Birth of Our Lady, Surabaya",
+      "location": "Church of the Birth of Our Lady, Surabaya",
+      "imageSrc": "/travel/attractions/surabaya-church-of-the-birth-of-our-lady-surabaya.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Church_of_the_Birth_of_Our_Lady,_Surabaya",
+      "description": "泗水可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Church of the Birth of Our Lady, Surabaya"
+      ],
+      "lat": -7.242204,
+      "lng": 112.736615
+    },
+    {
+      "cityKeys": [
+        "Surabaya",
+        "泗水",
+        "surabaya"
+      ],
+      "cityLabel": "泗水",
+      "name": "Mpu Tantular Museum",
+      "location": "Mpu Tantular Museum",
+      "imageSrc": "/travel/attractions/surabaya-mpu-tantular-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mpu_Tantular_Museum",
+      "description": "泗水可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Mpu Tantular Museum"
+      ],
+      "lat": -7.434,
+      "lng": 112.719917
+    },
+    {
+      "cityKeys": [
+        "Yogyakarta",
+        "日惹",
+        "yogyakarta"
+      ],
+      "cityLabel": "日惹",
+      "name": "巴兰班南",
+      "location": "Prambanan Temple",
+      "imageSrc": "/travel/attractions/yogyakarta-prambanan-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Prambanan",
+      "description": "日惹可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Prambanan Temple",
+        "巴兰班南"
+      ],
+      "lat": -7.752,
+      "lng": 110.49122
+    },
+    {
+      "cityKeys": [
+        "Yogyakarta",
+        "日惹",
+        "yogyakarta"
+      ],
+      "cityLabel": "日惹",
+      "name": "日惹王宫",
+      "location": "Kraton Ngayogyakarta Hadiningrat",
+      "imageSrc": "/travel/attractions/yogyakarta-kraton-ngayogyakarta-hadiningrat.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kraton_Ngayogyakarta_Hadiningrat",
+      "description": "日惹可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kraton Ngayogyakarta Hadiningrat",
+        "日惹王宫"
+      ],
+      "lat": -7.80577,
+      "lng": 110.364112
+    },
+    {
+      "cityKeys": [
+        "Yogyakarta",
+        "日惹",
+        "yogyakarta"
+      ],
+      "cityLabel": "日惹",
+      "name": "考曼大清真寺",
+      "location": "Kauman Great Mosque",
+      "imageSrc": "/travel/attractions/yogyakarta-kauman-great-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kauman_Great_Mosque",
+      "description": "日惹可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Kauman Great Mosque",
+        "考曼大清真寺"
+      ],
+      "lat": -7.803946,
+      "lng": 110.362555
+    },
+    {
+      "cityKeys": [
+        "Yogyakarta",
+        "日惹",
+        "yogyakarta"
+      ],
+      "cityLabel": "日惹",
+      "name": "Fort Vredeburg",
+      "location": "Fort Vredeburg",
+      "imageSrc": "/travel/attractions/yogyakarta-fort-vredeburg.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fort_Vredeburg_Museum",
+      "description": "日惹可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Fort Vredeburg"
+      ],
+      "lat": -7.800436,
+      "lng": 110.365686
     }
   ]
 }
