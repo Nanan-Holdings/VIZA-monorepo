@@ -112,7 +112,7 @@ export function SubmissionStatusStep({
   // Terminal status renders the per-country card or a generic dry-run card.
   switch (result.country) {
     case "US":
-      return <UsResultCard result={result} />;
+      return <UsResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "FR":
       return applicationId ? (
         <FrResultCard applicationId={applicationId} result={result} />

@@ -20,6 +20,9 @@ and internal admin flows.
   summaries, and website automation admin/customer APIs.
 - `official-fee.routes.ts`: official visa fee quote, consent, dry-run/manual
   payment intent, approval, execution, retry, and status APIs.
+- `us-appointment.routes.ts`: U.S. B1/B2 appointment consent, dry-run job,
+  manual checkpoint, slot selection, final approval, mock booking, and
+  user-triggered status/slot check APIs.
 - `chat-save-block.routes.ts`: chat block persistence.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.
@@ -36,7 +39,8 @@ and internal admin flows.
 - Do not log PII or secrets.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
   real official-site payment submission, or browser runner behavior in route
-  handlers. Official-fee routes must stay dry-run/manual-review by default.
+  handlers. Official-fee routes and U.S. appointment routes must stay
+  dry-run/manual-review by default.
 
 ## Validation
 

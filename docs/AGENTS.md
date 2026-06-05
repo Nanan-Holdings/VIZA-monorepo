@@ -24,6 +24,8 @@ reports, and workflow documentation for VIZA.
   narrative material.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
+- `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
+  assistant dry-run architecture, provider mapping, and compliance boundaries.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
 - `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
   scope and gaps.
