@@ -1146,7 +1146,7 @@ function getLocalizedAirlineName(
   return localizeKnownTravelText(rawName) || "已选航班";
 }
 
-function getCityImage(city: string, seed: string = "default"): string {
+function getCityImage(city: string, _seed: string = "default"): string {
   const curatedCityImage = getTravelCityImage(city);
   if (curatedCityImage) return curatedCityImage;
 
@@ -1807,7 +1807,7 @@ function getAttractionImage(
   const knowledgeImage = findTravelAttraction(city, attraction)?.imageSrc;
   if (knowledgeImage) return knowledgeImage;
 
-  return getCityImage(`${city}-${attraction}`, fallbackSeed);
+  return getCityImage(city, fallbackSeed);
 }
 
 function getDayImage(day: ItineraryDay, index: number): string {

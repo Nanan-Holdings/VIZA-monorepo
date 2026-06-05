@@ -33,6 +33,11 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Full Name in Native Alphabet",
   },
+  full_name_native_alphabet_na: {
+    selector: 'input[id*="cbexAPP_FULL_NAME_NATIVE_NA"]',
+    type: "checkbox",
+    label: "Full Name in Native Alphabet Does Not Apply",
+  },
   sex: {
     selector: 'select[id*="ddlAPP_GENDER"], input[name*="Gender"]',
     type: "select",

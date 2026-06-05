@@ -48,6 +48,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/init-admin-account.mjs`.
 - Hosted Supabase auth email template sync through
   `scripts/sync-supabase-auth-email-templates.mjs`.
+- Travel card coverage audit through
+  `scripts/audit-travel-card-coverage.mjs`.
 
 ## Source Of Truth
 
@@ -142,4 +144,5 @@ Smoke URLs:
 - `messages/en.json`
 - `messages/zh.json`
 - `scripts/sync-supabase-auth-email-templates.mjs`
+- `scripts/audit-travel-card-coverage.mjs`
 - `types/*`
