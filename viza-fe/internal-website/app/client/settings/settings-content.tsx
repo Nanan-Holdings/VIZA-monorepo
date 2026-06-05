@@ -119,7 +119,12 @@ const paymentMethods: Array<{
 ];
 
 const rewardItems = [
-  { key: "arrivalCardSubmission", cost: 1000, icon: TicketPercent },
+  {
+    key: "arrivalCardSubmission",
+    cost: 1000,
+    icon: TicketPercent,
+    countriesKey: "pointsCenter.rewards.arrivalCardSubmission.countries",
+  },
   { key: "priorityChecklist", cost: 199, icon: Sparkles },
   { key: "consultationCredit", cost: 499, icon: Gift },
 ] as const;
@@ -1594,11 +1599,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       ) : null}
 
       {view === "points" ? (
-        <section
-          className="mt-6 scroll-mt-32 rounded-xl border bg-white p-5 shadow-sm sm:p-6"
-          id="points-center"
-        >
-          <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="mt-6 scroll-mt-32 space-y-6" id="points-center">
+          <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
             <div className="rounded-xl bg-brand-50 p-5">
               <div className="flex items-center gap-3">
                 <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-500 text-white">
@@ -1648,62 +1650,77 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 </div>
               </dl>
             </div>
+          </div>
 
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">
-                    {t("pointsCenter.marketplaceTitle")}
-                  </h3>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {t("pointsCenter.marketplaceDescription")}
-                  </p>
-                </div>
-                <Trophy className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
+          <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">
+                  {t("pointsCenter.marketplaceTitle")}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {t("pointsCenter.marketplaceDescription")}
+                </p>
               </div>
+              <Trophy className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
+            </div>
 
-              <div className="mt-4 grid gap-3">
-                {rewardItems.map((item) => {
-                  const Icon = item.icon;
-                  const canRedeem = rewardWallet.balance >= item.cost;
+            <div className="mt-4 grid gap-3">
+              {rewardItems.map((item) => {
+                const Icon = item.icon;
+                const canRedeem = rewardWallet.balance >= item.cost;
+                const countries =
+                  "countriesKey" in item ? (t.raw(item.countriesKey) as string[]) : null;
+                const hasCountries = Array.isArray(countries) && countries.length > 0;
 
-                  return (
-                    <div
-                      key={item.key}
-                      className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                    >
-                      <div className="flex gap-3">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {t(`pointsCenter.rewards.${item.key}.title`)}
-                          </p>
-                          <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                            {t(`pointsCenter.rewards.${item.key}.description`)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 sm:justify-end">
-                        <span className="text-sm font-semibold text-brand-700">
-                          {t("pointsCenter.cost", {
-                            points: pointsFormatter.format(item.cost),
-                          })}
-                        </span>
-                        <Button
-                          type="button"
-                          variant={canRedeem ? "default" : "outline"}
-                          className="h-10 rounded-full"
-                          disabled={!canRedeem}
-                        >
-                          {canRedeem ? t("pointsCenter.redeem") : t("pointsCenter.notEnough")}
-                        </Button>
+                return (
+                  <div
+                    key={item.key}
+                    className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                  >
+                    <div className="flex gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {t(`pointsCenter.rewards.${item.key}.title`)}
+                        </p>
+                        <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                          {t(`pointsCenter.rewards.${item.key}.description`)}
+                        </p>
+                        {hasCountries ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {countries.map((country) => (
+                              <span
+                                key={country}
+                                className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700"
+                              >
+                                {country}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <span className="text-sm font-semibold text-brand-700">
+                        {t("pointsCenter.cost", {
+                          points: pointsFormatter.format(item.cost),
+                        })}
+                      </span>
+                      <Button
+                        type="button"
+                        variant={canRedeem ? "default" : "outline"}
+                        className="h-10 rounded-full"
+                        disabled={!canRedeem}
+                      >
+                        {canRedeem ? t("pointsCenter.redeem") : t("pointsCenter.notEnough")}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
