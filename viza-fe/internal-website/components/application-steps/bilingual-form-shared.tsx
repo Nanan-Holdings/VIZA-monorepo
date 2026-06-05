@@ -324,6 +324,7 @@ export function BilingualTextControl({
   required,
   icon,
   onChange,
+  onBlur,
 }: {
   value: string;
   side: BilingualSide;
@@ -331,6 +332,7 @@ export function BilingualTextControl({
   required?: boolean;
   icon?: ReactNode;
   onChange: (value: string) => void;
+  onBlur?: () => void;
 }) {
   return (
     <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E]">
@@ -342,6 +344,7 @@ export function BilingualTextControl({
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
         required={required}
         className="h-12 text-[15px]"
       />

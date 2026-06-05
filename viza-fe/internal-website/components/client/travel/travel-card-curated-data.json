@@ -162,6 +162,26 @@
       "cityLabel": "??",
       "imageSrc": "/travel/cities/shanghai.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bund,_Shanghai,_China_(December_2015)_-_01.JPG"
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "imageSrc": "/travel/cities/los-angeles.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Los_Angeles"
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "imageSrc": "/travel/cities/las-vegas.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Las_Vegas"
     }
   ],
   "attractions": [
@@ -1478,6 +1498,158 @@
       ],
       "lat": 31.2335,
       "lng": 121.5055
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "好莱坞星光大道",
+      "location": "Hollywood Walk of Fame",
+      "imageSrc": "/travel/attractions/los-angeles-hollywood-walk-of-fame.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hollywood_Walk_of_Fame",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hollywood Walk of Fame",
+        "好莱坞星光大道"
+      ],
+      "lat": 34.1014,
+      "lng": -118.344967
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "杜比剧院",
+      "location": "Dolby Theatre",
+      "imageSrc": "/travel/attractions/los-angeles-dolby-theatre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Dolby_Theatre",
+      "description": "好莱坞高地中心是位于洛杉矶好莱坞区好莱坞大道和高地大道上的购物中心和娱乐中心",
+      "aliases": [
+        "Dolby Theatre",
+        "杜比剧院"
+      ],
+      "lat": 34.102778,
+      "lng": -118.340278
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "威尔逊山天文台",
+      "location": "Mount Wilson Observatory",
+      "imageSrc": "/travel/attractions/los-angeles-mount-wilson-observatory.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mount_Wilson_Observatory",
+      "description": "美国加利福尼亚州的天文观測台",
+      "aliases": [
+        "Mount Wilson Observatory",
+        "威尔逊山天文台"
+      ],
+      "lat": 34.225028,
+      "lng": -118.057194
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "好莱坞标志",
+      "location": "Hollywood Sign",
+      "imageSrc": "/travel/attractions/los-angeles-hollywood-sign.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hollywood_Sign",
+      "description": "位於美国加利福尼亚州洛杉磯的标志「HOLLYWOOD」",
+      "aliases": [
+        "Hollywood Sign",
+        "好莱坞标志"
+      ],
+      "lat": 34.134103,
+      "lng": -118.321694
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "胡佛水坝",
+      "location": "Hoover Dam",
+      "imageSrc": "/travel/attractions/las-vegas-hoover-dam.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hoover_Dam",
+      "description": "美国水坝",
+      "aliases": [
+        "Hoover Dam",
+        "胡佛水坝"
+      ],
+      "lat": 36.015833,
+      "lng": -114.737778
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "赌城大道",
+      "location": "Las Vegas Strip",
+      "imageSrc": "/travel/attractions/las-vegas-las-vegas-strip.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Las_Vegas_Strip",
+      "description": "拉斯维加斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Las Vegas Strip",
+        "赌城大道"
+      ],
+      "lat": 36.12,
+      "lng": -115.1725
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "同温层酒店",
+      "location": "The STRAT Hotel, Casino & SkyPod",
+      "imageSrc": "/travel/attractions/las-vegas-the-strat-hotel-casino-and-skypod.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/The_Strat",
+      "description": "拉斯维加斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "The STRAT Hotel, Casino & SkyPod",
+        "同温层酒店"
+      ],
+      "lat": 36.14746,
+      "lng": -115.15603
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "百乐宫酒店",
+      "location": "Bellagio Hotel & Casino",
+      "imageSrc": "/travel/attractions/las-vegas-bellagio-hotel-and-casino.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Bellagio_(resort)",
+      "description": "拉斯维加斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Bellagio Hotel & Casino",
+        "百乐宫酒店"
+      ],
+      "lat": 36.11201,
+      "lng": -115.17534
     }
   ]
 }

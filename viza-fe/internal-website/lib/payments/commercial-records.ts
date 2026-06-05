@@ -23,7 +23,9 @@ type QueryResponse<T> = {
 interface CommercialQueryBuilder<Row> extends PromiseLike<QueryResponse<Row[]>> {
   eq(column: string, value: unknown): CommercialQueryBuilder<Row>;
   insert(values: unknown): CommercialQueryBuilder<Row>;
+  limit(count: number): CommercialQueryBuilder<Row>;
   maybeSingle(): Promise<QueryResponse<Row>>;
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): CommercialQueryBuilder<Row>;
   select(columns?: string): CommercialQueryBuilder<Row>;
   single(): Promise<QueryResponse<Row>>;
   update(values: unknown): CommercialQueryBuilder<Row>;
@@ -63,6 +65,51 @@ export type SubscriptionReturnState =
     }
   | null;
 
+export type CurrentSubscriptionStatus =
+  | "free"
+  | "incomplete"
+  | "active"
+  | "cancelled"
+  | "expired";
+
+export interface CurrentSubscriptionState {
+  recordId: string | null;
+  planCode: "free" | "access" | "pro";
+  planName: string;
+  status: CurrentSubscriptionStatus;
+  statusLabel: string;
+  renewalLabel: string;
+  paymentMethodLabel: string;
+  amountFen: number;
+  countryLimitPerMonth: number | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+const FREE_SUBSCRIPTION_STATE: CurrentSubscriptionState = {
+  recordId: null,
+  planCode: "free",
+  planName: "VIZA 申请体验版",
+  status: "free",
+  statusLabel: "预览中",
+  renewalLabel: "暂未启用",
+  paymentMethodLabel: "暂未设置",
+  amountFen: 0,
+  countryLimitPerMonth: null,
+  currentPeriodStart: null,
+  currentPeriodEnd: null,
+  cancelAtPeriodEnd: false,
+};
+
+const PLAN_DETAILS: Record<
+  string,
+  { code: "access" | "pro"; name: string; countryLimitPerMonth: number }
+> = {
+  monthly_access: { code: "access", name: "Access", countryLimitPerMonth: 7 },
+  monthly_pro: { code: "pro", name: "Pro", countryLimitPerMonth: 14 },
+};
+
 export function createSubscriptionAdminClient(): CommercialAdminClient {
   return createAdminClient() as unknown as CommercialAdminClient;
 }
@@ -101,6 +148,149 @@ export function createStripeClient(): Stripe | null {
   const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
   if (!secretKey) return null;
   return new Stripe(secretKey);
+}
+
+function asJsonObject(value: Json | null | undefined): Record<string, Json | undefined> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, Json | undefined>)
+    : {};
+}
+
+function getJsonString(value: Json | undefined): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function addOneMonth(value: Date): Date {
+  const next = new Date(value);
+  next.setMonth(next.getMonth() + 1);
+  return next;
+}
+
+function paymentMethodLabel(record: PaymentRecordRow): string {
+  const metadata = asJsonObject(record.metadata);
+  const airwallex = asJsonObject(metadata.airwallex);
+  const requestedMethod = getJsonString(airwallex.requested_method);
+
+  if (record.provider === "airwallex") {
+    if (requestedMethod === "wechat") return "微信支付";
+    if (requestedMethod === "alipay") return "支付宝";
+    return "银行卡";
+  }
+
+  if (record.provider === "wechat_pay") return "微信支付";
+  if (record.provider === "alipay") return "支付宝";
+  if (record.provider === "stripe") return "银行卡";
+  return "在线支付";
+}
+
+function buildCurrentSubscriptionState(record: PaymentRecordRow | null): CurrentSubscriptionState {
+  if (!record) return FREE_SUBSCRIPTION_STATE;
+
+  const metadata = asJsonObject(record.metadata);
+  const subscription = asJsonObject(metadata.subscription);
+  const productId = getJsonString(metadata.product_id) ?? getJsonString(metadata.productId);
+  const plan = productId ? PLAN_DETAILS[productId] : null;
+  if (!plan) return FREE_SUBSCRIPTION_STATE;
+
+  const periodStartDate = new Date(record.paid_at ?? record.created_at ?? Date.now());
+  const periodEndDate = addOneMonth(periodStartDate);
+  const now = new Date();
+  const cancelAtPeriodEnd = subscription.cancel_at_period_end === true;
+  const isPaid = record.status === "paid";
+  const isExpired = isPaid && periodEndDate.getTime() < now.getTime();
+  const status: CurrentSubscriptionStatus = isExpired
+    ? "expired"
+    : isPaid
+      ? cancelAtPeriodEnd
+        ? "cancelled"
+        : "active"
+      : "incomplete";
+
+  const statusLabel =
+    status === "active"
+      ? "自动续费中"
+      : status === "cancelled"
+        ? "已取消，到期失效"
+        : status === "expired"
+          ? "已到期"
+          : "待确认";
+
+  const renewalLabel =
+    status === "active"
+      ? `将于 ${periodEndDate.toLocaleDateString("zh-CN")} 自动续费`
+      : status === "cancelled"
+        ? `已取消，将于 ${periodEndDate.toLocaleDateString("zh-CN")} 到期`
+        : status === "expired"
+          ? "已到期，请重新选择方案"
+          : "支付确认后启用";
+
+  return {
+    recordId: record.id,
+    planCode: plan.code,
+    planName: plan.name,
+    status,
+    statusLabel,
+    renewalLabel,
+    paymentMethodLabel: paymentMethodLabel(record),
+    amountFen: record.amount_cents,
+    countryLimitPerMonth: plan.countryLimitPerMonth,
+    currentPeriodStart: periodStartDate.toISOString(),
+    currentPeriodEnd: periodEndDate.toISOString(),
+    cancelAtPeriodEnd,
+  };
+}
+
+async function getLatestSubscriptionRecordForCurrentUser(): Promise<PaymentRecordRow | null> {
+  const user = await getCommercialAuthenticatedUser();
+  if (!user) return null;
+
+  const { data, error } = await createSubscriptionAdminClient()
+    .from("payment_records")
+    .select(
+      "id, application_id, applicant_id, visa_package_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, receipt_url, metadata, auth_user_id, paid_at, failed_at, cancelled_at, created_at, updated_at",
+    )
+    .eq("auth_user_id", user.id)
+    .eq("fee_type", "subscription_fee")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).find((record) => record.status === "paid" || record.status === "pending") ?? null;
+}
+
+export async function getCurrentSubscriptionForCurrentUser(): Promise<CurrentSubscriptionState> {
+  return buildCurrentSubscriptionState(await getLatestSubscriptionRecordForCurrentUser());
+}
+
+export async function setCurrentSubscriptionCancelAtPeriodEnd(
+  cancelAtPeriodEnd: boolean,
+): Promise<CurrentSubscriptionState> {
+  const record = await getLatestSubscriptionRecordForCurrentUser();
+  if (!record || record.status !== "paid") {
+    return buildCurrentSubscriptionState(record);
+  }
+
+  const metadata = asJsonObject(record.metadata);
+  const subscription = asJsonObject(metadata.subscription);
+  const now = new Date().toISOString();
+  const { error } = await createSubscriptionAdminClient()
+    .from("payment_records")
+    .update({
+      metadata: {
+        ...metadata,
+        subscription: {
+          ...subscription,
+          cancel_at_period_end: cancelAtPeriodEnd,
+          cancelled_at: cancelAtPeriodEnd ? now : null,
+          resumed_at: cancelAtPeriodEnd ? null : now,
+        },
+      },
+      updated_at: now,
+    })
+    .eq("id", record.id);
+
+  if (error) throw new Error(error.message);
+  return getCurrentSubscriptionForCurrentUser();
 }
 
 export async function getPaymentRecordForCurrentUser(paymentId: string): Promise<PaymentRecordRow | null> {

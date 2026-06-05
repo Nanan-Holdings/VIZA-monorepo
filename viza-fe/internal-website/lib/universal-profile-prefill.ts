@@ -8,6 +8,13 @@ export interface UniversalProfileSnapshot {
   place_of_birth?: string | null;
   place_of_birth_zh?: string | null;
   place_of_birth_en?: string | null;
+  birth_country?: string | null;
+  birth_province_or_state?: string | null;
+  birth_province_or_state_zh?: string | null;
+  birth_province_or_state_en?: string | null;
+  birth_city?: string | null;
+  birth_city_zh?: string | null;
+  birth_city_en?: string | null;
   gender?: string | null;
   nationality?: string | null;
   occupation?: string | null;
@@ -147,10 +154,18 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setBilingualAnswerFromParts(
     out,
     ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"],
-    profile.place_of_birth,
-    profile.place_of_birth_zh,
-    profile.place_of_birth_en,
+    profile.birth_city ?? profile.place_of_birth,
+    profile.birth_city_zh ?? profile.place_of_birth_zh,
+    profile.birth_city_en ?? profile.place_of_birth_en,
   );
+  setBilingualAnswerFromParts(
+    out,
+    ["state_of_birth", "birth_state", "birth_province", "place_of_birth_province"],
+    profile.birth_province_or_state,
+    profile.birth_province_or_state_zh,
+    profile.birth_province_or_state_en,
+  );
+  setAnswer(out, ["country_of_birth", "birth_country", "place_of_birth_country"], profile.birth_country);
   setAnswer(out, ["gender"], profile.gender);
   setAnswer(out, ["sex"], normalizeDs160Sex(profile.gender));
   setAnswer(
@@ -261,7 +276,9 @@ export function mergeUniversalProfileIntoWizardForm<TForm>(
     setIfAllowed(identity, "dob", profile.date_of_birth, force);
     setIfAllowed(identity, "gender", profile.gender, force);
     setIfAllowed(identity, "nationality", profile.nationality, force);
-    setIfAllowed(identity, "cityOfBirth", profile.place_of_birth_en ?? profile.place_of_birth, force);
+    setIfAllowed(identity, "cityOfBirth", profile.birth_city_en ?? profile.birth_city ?? profile.place_of_birth_en ?? profile.place_of_birth, force);
+    setIfAllowed(identity, "stateOfBirth", profile.birth_province_or_state_en ?? profile.birth_province_or_state, force);
+    setIfAllowed(identity, "countryOfBirth", profile.birth_country, force);
     next.identity = identity;
   }
 

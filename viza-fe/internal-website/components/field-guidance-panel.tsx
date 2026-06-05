@@ -350,9 +350,11 @@ export function FieldGuidancePanel({
             <div className="mt-1 flex flex-wrap gap-1.5">
               {data && (
                 <>
-                  <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
-                    {labels.confidence}: {data.confidence}
-                  </Badge>
+                  {data.aiUsed && (
+                    <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
+                      {labels.confidence}: {data.confidence}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
                     {data.aiUsed ? labels.generated : labels.fallback}
                   </Badge>

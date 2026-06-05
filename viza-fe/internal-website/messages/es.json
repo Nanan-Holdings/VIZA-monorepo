@@ -2715,6 +2715,11 @@
       "description": "[ES] Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
       "badge": "[ES] Manage"
     },
+      "subscription": {
+        "title": "[ES] Subscription management",
+        "description": "[ES] Review your monthly plan, renewal date, payment method, and cancellation status.",
+        "badge": "[ES] Monthly"
+      },
       "billing": {
         "title": "[ES] Receipts and invoices",
         "description": "[ES] Open billing history, receipts, invoice requests, and refund visibility."
@@ -2736,7 +2741,7 @@
     "manageSelected": "[ES] Managing",
     "managerHint": "[ES] Bind multiple accounts for this payment method and choose the default account to try first.",
     "managerHints": {
-      "bank_card": "[ES] Cards must complete hosted Stripe verification before they are available for future payment selection.",
+      "bank_card": "[ES] Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
       "wechat_pay": "[ES] WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
       "alipay": "[ES] Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
     },
@@ -2748,7 +2753,7 @@
     "qrAddTitle": "[ES] Scan to bind account",
     "editTitle": "[ES] Edit payment account",
     "addAccount": "[ES] Add account",
-    "verifyWithStripe": "[ES] Verify with Stripe",
+    "verifyWithStripe": "[ES] Open secure verification",
     "generateQr": "[ES] Generate binding QR",
     "regenerateQr": "[ES] Regenerate QR",
     "checkQrStatus": "[ES] Check binding status",
@@ -2757,8 +2762,8 @@
     "edit": "[ES] Edit",
     "delete": "[ES] Delete",
     "safeHint": "[ES] Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
-    "stripeHint": "[ES] Card number and CVV are used only to start hosted Stripe verification; VIZA does not store the full card number or CVV.",
-    "cardIdentifier": "[ES] Ending in {last4} · Stripe verification pending",
+    "stripeHint": "[ES] Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
+    "cardIdentifier": "[ES] Card · secure verification pending",
     "qrAlt": "[ES] Payment account binding QR code",
     "qrEmpty": "[ES] Generate a QR code, then scan it with the matching app to bind the account.",
     "qrExpires": "[ES] QR code expires at {time}.",
@@ -2799,11 +2804,11 @@
       "updated": "[ES] Payment account updated.",
       "deleted": "[ES] Payment account deleted.",
       "defaultUpdated": "[ES] Default payment account updated.",
-      "stripeUnavailable": "[ES] Stripe is not configured, so card verification is unavailable.",
-      "stripeStartFailed": "[ES] Could not start Stripe verification. Please try again later.",
-      "stripeRedirect": "[ES] Opening the hosted Stripe verification page.",
-      "stripeReturned": "[ES] Stripe verification returned. The payment service will update the binding status after confirmation.",
-      "stripeCancelled": "[ES] Stripe verification was cancelled. The card is not fully bound yet.",
+      "stripeUnavailable": "[ES] Hosted card verification is not configured, so card verification is unavailable.",
+      "stripeStartFailed": "[ES] Could not start card verification. Please try again later.",
+      "stripeRedirect": "[ES] Opening the hosted secure verification page.",
+      "stripeReturned": "[ES] Card verification returned. The payment service will update the binding status after confirmation.",
+      "stripeCancelled": "[ES] Card verification was cancelled. The card is not fully bound yet.",
       "qrStartFailed": "[ES] Could not generate a binding QR code. Please try again later.",
       "qrReady": "[ES] QR code generated. Scan it with the matching app.",
       "qrStatusFailed": "[ES] Could not check binding status. Please try again later.",
@@ -2814,7 +2819,7 @@
     "methods": {
       "bank_card": {
         "title": "[ES] Card",
-        "description": "[ES] Enter card number, CVV, and nickname, then verify through Stripe."
+        "description": "[ES] Enter a nickname, then complete binding on the hosted secure page."
       },
       "wechat_pay": {
         "title": "[ES] WeChat Pay",

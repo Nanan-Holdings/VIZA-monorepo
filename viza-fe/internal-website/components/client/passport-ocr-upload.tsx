@@ -21,7 +21,7 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
-type UploadStatus = "idle" | "uploading" | "ocr" | "verifying" | "done" | "error";
+type UploadStatus = "idle" | "uploading" | "uploaded" | "ocr" | "verifying" | "done" | "needs_review" | "error";
 type ScanStage = "reading" | "extracting" | "verifying";
 
 interface PassportOcrFieldProposal {
@@ -123,10 +123,12 @@ const PASSPORT_OCR_COPY = {
     description: "拖拽或点击上传护照个人信息页，VIZA OCR 会自动识别姓名、国籍、护照号码和签发信息。",
     noDraft: "正在准备申请草稿，请稍后再上传护照资料页。",
     uploading: "正在上传护照资料页...",
+    uploaded: "护照资料页已上传并保存，正在准备 OCR 识别。",
     notAuthenticated: "请先登录后再上传护照。",
     extracting: "正在识别护照字段...",
     verifying: "正在核验识别结果...",
     ocrFallback: "护照 OCR 暂时无法读取这份文件，请换一张更清晰的护照资料页。",
+    ocrNeedsReview: "护照资料页已保存，但 OCR 暂时无法读取。你可以稍后重试 OCR，或直接手动填写资料。",
     done: "护照页已上传成功，已识别并填入护照信息，请核对后继续。",
     failed: "上传或识别失败，请稍后重试。",
     dropLabel: "拖拽文件到这里，或点击上传",
@@ -157,10 +159,12 @@ const PASSPORT_OCR_COPY = {
       "Drag or click to upload the passport personal-information page. VIZA OCR will extract name, nationality, passport number, and issuing details.",
     noDraft: "Your application draft is still being prepared. Please upload the passport bio page in a moment.",
     uploading: "Uploading passport bio page...",
+    uploaded: "Passport bio page uploaded and saved. Preparing OCR extraction.",
     notAuthenticated: "Please sign in before uploading your passport.",
     extracting: "Reading passport fields...",
     verifying: "Verifying extracted details...",
     ocrFallback: "Passport OCR could not read this file. Please upload a clearer passport bio page.",
+    ocrNeedsReview: "Passport bio page is saved, but OCR could not read it yet. You can retry OCR later or fill the details manually.",
     done: "Passport bio page uploaded successfully. Details were extracted and filled in for review.",
     failed: "Upload or OCR failed. Please try again later.",
     dropLabel: "Drop file here, or click to upload",
@@ -299,10 +303,10 @@ export function PassportOcrUpload({
   const resolvedDescription = description ?? copy.description;
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "done" : "idle");
+  const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "uploaded" : "idle");
   const [fileName, setFileName] = useState<string | null>(initialUploaded ? initialFileName ?? null : null);
   const [message, setMessage] = useState<string | null>(
-    initialUploaded ? (initialFileName ? copy.done : copy.uploadedFromProfile) : null,
+    initialUploaded ? copy.uploadedFromProfile : null,
   );
   const [isDragging, setIsDragging] = useState(false);
 
@@ -310,10 +314,10 @@ export function PassportOcrUpload({
 
   useEffect(() => {
     if (!initialUploaded || busy) return;
-    setStatus("done");
+    setStatus("uploaded");
     setFileName(initialFileName ?? null);
-    setMessage(initialFileName ? copy.done : copy.uploadedFromProfile);
-  }, [busy, copy.done, copy.uploadedFromProfile, initialFileName, initialUploaded]);
+    setMessage(copy.uploadedFromProfile);
+  }, [busy, copy.uploadedFromProfile, initialFileName, initialUploaded]);
 
   const handleFile = async (file: File) => {
     if (!applicationId) {
@@ -325,6 +329,7 @@ export function PassportOcrUpload({
     setStatus("uploading");
     setFileName(file.name);
     setMessage(copy.uploading);
+    let uploadCompleted = false;
 
     try {
       const ext = extensionFromFile(file);
@@ -338,6 +343,11 @@ export function PassportOcrUpload({
       uploadForm.set("file", file);
       const uploadResult = await uploadApplicationDocumentFromClient(uploadForm);
       if (!uploadResult.ok) throw new Error(uploadResult.error);
+
+      uploadCompleted = true;
+      onUploaded?.(file.name);
+      setStatus("uploaded");
+      setMessage(copy.uploaded);
 
       setStatus("ocr");
       setMessage(copy.extracting);
@@ -362,10 +372,15 @@ export function PassportOcrUpload({
       }
 
       onFieldsApplied?.(profileFields);
-      onUploaded?.(file.name);
       setStatus("done");
       setMessage(copy.done);
     } catch (error) {
+      if (uploadCompleted) {
+        setStatus("needs_review");
+        const detail = error instanceof Error ? error.message : copy.ocrFallback;
+        setMessage(detail && detail !== copy.ocrFallback ? `${copy.ocrNeedsReview} ${detail}` : copy.ocrNeedsReview);
+        return;
+      }
       setStatus("error");
       setMessage(error instanceof Error ? error.message : copy.failed);
     }
@@ -395,11 +410,17 @@ export function PassportOcrUpload({
           <p
             className={cn(
               "mt-3 inline-flex items-center gap-2 text-sm",
-              status === "error" ? "text-destructive" : status === "done" ? "text-emerald-700" : "text-brand-600",
+              status === "error"
+                ? "text-destructive"
+                : status === "needs_review"
+                  ? "text-amber-700"
+                  : status === "done" || status === "uploaded"
+                    ? "text-emerald-700"
+                    : "text-brand-600",
             )}
           >
-            {status === "done" ? <CheckCircle2 className="h-4 w-4" /> : null}
-            {status === "error" ? <XCircle className="h-4 w-4" /> : null}
+            {status === "done" || status === "uploaded" ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {status === "error" || status === "needs_review" ? <XCircle className="h-4 w-4" /> : null}
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             <span>{message}</span>
           </p>
@@ -408,18 +429,35 @@ export function PassportOcrUpload({
 
       {busy ? (
         <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} />
-      ) : status === "done" ? (
+      ) : status === "done" || status === "uploaded" || status === "needs_review" ? (
         <div className="flex flex-col gap-5">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <div
+            className={cn(
+              "rounded-xl border p-5",
+              status === "needs_review" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50",
+            )}
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                  <CheckCircle2 className="h-5 w-5" />
+                <span
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white",
+                    status === "needs_review" ? "bg-amber-600" : "bg-emerald-600",
+                  )}
+                >
+                  {status === "needs_review" ? <XCircle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-base font-semibold text-emerald-900">{message ?? copy.done}</p>
+                  <p className={cn("text-base font-semibold", status === "needs_review" ? "text-amber-900" : "text-emerald-900")}>
+                    {message ?? (status === "needs_review" ? copy.ocrNeedsReview : copy.uploadedFromProfile)}
+                  </p>
                   {fileName ? (
-                    <p className="mt-1 flex max-w-full items-center gap-2 truncate text-sm text-emerald-800">
+                    <p
+                      className={cn(
+                        "mt-1 flex max-w-full items-center gap-2 truncate text-sm",
+                        status === "needs_review" ? "text-amber-800" : "text-emerald-800",
+                      )}
+                    >
                       <FileText className="h-4 w-4 shrink-0" />
                       <span className="truncate">{fileName}</span>
                     </p>
@@ -430,7 +468,12 @@ export function PassportOcrUpload({
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={cn(
+                    "inline-flex h-10 items-center gap-2 rounded-full border bg-white px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    status === "needs_review"
+                      ? "border-amber-300 text-amber-800 hover:bg-amber-100"
+                      : "border-emerald-300 text-emerald-800 hover:bg-emerald-100",
+                  )}
                 >
                   <UploadCloud className="h-4 w-4" />
                   {copy.replaceFile}
@@ -438,7 +481,12 @@ export function PassportOcrUpload({
                 <button
                   type="button"
                   onClick={() => cameraInputRef.current?.click()}
-                  className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={cn(
+                    "inline-flex h-10 items-center gap-2 rounded-full border bg-white px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    status === "needs_review"
+                      ? "border-amber-300 text-amber-800 hover:bg-amber-100"
+                      : "border-emerald-300 text-emerald-800 hover:bg-emerald-100",
+                  )}
                 >
                   <Camera className="h-4 w-4" />
                   {copy.replacePhoto}

@@ -3,13 +3,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
-import {
-  buildUniversalProfileAnswerPatch,
-  type UniversalProfileSnapshot,
-} from "@/lib/universal-profile-prefill";
+import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
-type ProfilePatch = Record<string, string>;
-const DATE_PROFILE_FIELDS = new Set(["date_of_birth", "passport_issue_date", "passport_expiry_date"]);
 type ApplicationOwnerProfile = {
   id?: string | null;
   auth_user_id?: string | null;
@@ -20,11 +15,18 @@ interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
   wechat?: string | null;
 }
 
-const BILINGUAL_PROFILE_COLUMNS = [
+const OPTIONAL_PROFILE_COLUMNS = [
   "full_name_zh",
   "full_name_en",
   "place_of_birth_zh",
   "place_of_birth_en",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_province_or_state_zh",
+  "birth_province_or_state_en",
+  "birth_city",
+  "birth_city_zh",
+  "birth_city_en",
   "occupation_zh",
   "occupation_en",
   "address_zh",
@@ -36,9 +38,9 @@ function cleanOptional(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function isMissingBilingualColumnError(message: string) {
+function isMissingOptionalProfileColumnError(message: string) {
   const normalized = message.toLowerCase();
-  return BILINGUAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
+  return OPTIONAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
 }
 
@@ -83,52 +85,6 @@ function ownsApplication(
   return Boolean(profile?.id && (profile.auth_user_id === userId || profile.dependant_of_user_id === userId));
 }
 
-function firstFilled(data: Record<string, string>, fieldNames: string[]): string | null {
-  for (const fieldName of fieldNames) {
-    const value = data[fieldName]?.trim();
-    if (value) return value;
-  }
-  return null;
-}
-
-function buildProfilePatchFromAnswers(data: Record<string, string>): ProfilePatch {
-  const patch: ProfilePatch = {};
-  const givenNames = firstFilled(data, ["given_names", "givenNames", "first_name", "given_name"]);
-  const surname = firstFilled(data, ["surname", "last_name", "family_name"]);
-  const explicitFullName = firstFilled(data, ["full_name", "fullName", "full_name_native_alphabet"]);
-
-  if (explicitFullName) {
-    patch.full_name = explicitFullName;
-  } else if (givenNames || surname) {
-    patch.full_name = [givenNames, surname].filter(Boolean).join(" ");
-  }
-
-  const fieldMappings: Record<string, string[]> = {
-    date_of_birth: ["date_of_birth", "dob", "birth_date"],
-    place_of_birth: ["place_of_birth", "city_of_birth", "birth_city"],
-    gender: ["gender", "sex"],
-    nationality: ["nationality", "nationality_country", "country_of_nationality", "current_nationality"],
-    occupation: ["occupation", "current_occupation", "primary_occupation"],
-    address: ["address", "home_address_line1", "home_address", "residential_address"],
-    passport_number: ["passport_number", "passportNumber"],
-    passport_issue_date: ["passport_issue_date", "passport_issuance_date", "passportIssuanceDate"],
-    passport_expiry_date: ["passport_expiry_date", "passport_expiration_date", "passportExpirationDate"],
-    passport_issuing_country: ["passport_issuing_country", "passport_issuance_country", "issuing_country"],
-    passport_issuing_authority: ["passport_issuing_authority", "passport_place_of_issue", "passportIssuanceCity"],
-    email: ["email", "email_address"],
-    phone: ["phone", "phone_number", "primary_phone_number", "mobile_phone"],
-  };
-
-  for (const [profileField, answerFields] of Object.entries(fieldMappings)) {
-    const value = firstFilled(data, answerFields);
-    if (!value) continue;
-    if (DATE_PROFILE_FIELDS.has(profileField) && !/^\d{4}-\d{2}-\d{2}$/.test(value)) continue;
-    patch[profileField] = value;
-  }
-
-  return patch;
-}
-
 /**
  * Save dynamic form answers for a visa application.
  * Uses admin client to bypass RLS on visa_application_answers.
@@ -159,13 +115,27 @@ export async function saveDynamicAnswers(
       return { error: "Unauthorized" };
     }
 
+    const now = new Date().toISOString();
+    const emptyFieldNames = Object.entries(data)
+      .filter(([fieldName, value]) => fieldName.trim() !== "" && value.trim() === "")
+      .map(([fieldName]) => fieldName);
+
+    if (emptyFieldNames.length > 0) {
+      const { error: deleteError } = await adminClient
+        .from("visa_application_answers")
+        .delete()
+        .eq("application_id", applicationId)
+        .in("field_name", emptyFieldNames);
+      if (deleteError) return { error: deleteError.message };
+    }
+
     const upserts = Object.entries(data)
       .filter(([, v]) => v.trim() !== "")
       .map(([fieldName, value]) => ({
         application_id: applicationId,
         field_name: fieldName,
         value_text: value,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       }));
 
     if (upserts.length > 0) {
@@ -175,21 +145,9 @@ export async function saveDynamicAnswers(
       if (upsertError) return { error: upsertError.message };
     }
 
-    const profilePatch = buildProfilePatchFromAnswers(data);
-    if (Object.keys(profilePatch).length > 0) {
-      const { error: profileUpdateError } = await adminClient
-        .from("applicant_profiles")
-        .update({
-          ...profilePatch,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id);
-
-      if (profileUpdateError) {
-        console.warn("[saveDynamicAnswers] Failed to sync applicant profile:", profileUpdateError.message);
-      }
-    }
-
+    // Dynamic visa form saves are application-scoped. Universal Profile is a
+    // reusable source for initial autofill and must only change through explicit
+    // profile/OCR confirmation flows, not from arbitrary form answers.
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save" };
@@ -197,10 +155,8 @@ export async function saveDynamicAnswers(
 }
 
 /**
- * Save the reusable bilingual profile and materialize the same shared
- * answers into visa_application_answers for the matching draft application.
- * The submission-service runners consume this answer table, so the universal
- * profile must not remain profile-only data.
+ * Save the reusable bilingual profile. Existing visa application answers stay
+ * application-scoped; forms read this profile only for initial autofill.
  */
 export async function saveUniversalProfileWithSharedAnswers(
   input: {
@@ -222,6 +178,9 @@ export async function saveUniversalProfileWithSharedAnswers(
       full_name: cleanOptional(input.profile.full_name),
       date_of_birth: cleanOptional(input.profile.date_of_birth),
       place_of_birth: cleanOptional(input.profile.place_of_birth),
+      birth_country: cleanOptional(input.profile.birth_country),
+      birth_province_or_state: cleanOptional(input.profile.birth_province_or_state),
+      birth_city: cleanOptional(input.profile.birth_city),
       gender: cleanOptional(input.profile.gender),
       nationality: cleanOptional(input.profile.nationality),
       occupation: cleanOptional(input.profile.occupation),
@@ -241,6 +200,10 @@ export async function saveUniversalProfileWithSharedAnswers(
       full_name_en: cleanOptional(input.profile.full_name_en),
       place_of_birth_zh: cleanOptional(input.profile.place_of_birth_zh),
       place_of_birth_en: cleanOptional(input.profile.place_of_birth_en),
+      birth_province_or_state_zh: cleanOptional(input.profile.birth_province_or_state_zh),
+      birth_province_or_state_en: cleanOptional(input.profile.birth_province_or_state_en),
+      birth_city_zh: cleanOptional(input.profile.birth_city_zh),
+      birth_city_en: cleanOptional(input.profile.birth_city_en),
       occupation_zh: cleanOptional(input.profile.occupation_zh),
       occupation_en: cleanOptional(input.profile.occupation_en),
       address_zh: cleanOptional(input.profile.address_zh),
@@ -257,10 +220,16 @@ export async function saveUniversalProfileWithSharedAnswers(
       .select("id, auth_user_id")
       .single();
 
-    if (profileError && hasBilingualPayload && isMissingBilingualColumnError(profileError.message)) {
+    if (profileError && isMissingOptionalProfileColumnError(profileError.message)) {
+      const {
+        birth_country: _birthCountry,
+        birth_province_or_state: _birthProvinceOrState,
+        birth_city: _birthCity,
+        ...legacyBaseProfilePayload
+      } = baseProfilePayload;
       const fallbackResult = await adminClient
         .from("applicant_profiles")
-        .upsert(baseProfilePayload, { onConflict: "auth_user_id" })
+        .upsert(legacyBaseProfilePayload, { onConflict: "auth_user_id" })
         .select("id, auth_user_id")
         .single();
       savedProfile = fallbackResult.data;
@@ -296,25 +265,7 @@ export async function saveUniversalProfileWithSharedAnswers(
       applicationId = ensured.applicationId;
     }
 
-    const answerPatch = buildUniversalProfileAnswerPatch(input.profile);
-    const now = new Date().toISOString();
-    const upserts = Object.entries(answerPatch)
-      .filter(([, value]) => value.trim() !== "")
-      .map(([fieldName, value]) => ({
-        application_id: applicationId!,
-        field_name: fieldName,
-        value_text: value,
-        updated_at: now,
-      }));
-
-    if (upserts.length > 0) {
-      const { error: upsertError } = await adminClient
-        .from("visa_application_answers")
-        .upsert(upserts, { onConflict: "application_id,field_name" });
-      if (upsertError) return { error: upsertError.message };
-    }
-
-    return { applicationId, answerCount: upserts.length };
+    return { applicationId, answerCount: 0 };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save profile" };
   }

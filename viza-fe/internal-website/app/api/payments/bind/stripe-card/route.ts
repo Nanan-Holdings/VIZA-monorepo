@@ -14,17 +14,14 @@ const BINDING_FEE_TYPE = "payment_method_binding";
 
 async function parseCardRequest(request: Request): Promise<{
   nickname: string;
-  cardLast4: string;
 } | null> {
   try {
     const body = (await request.json()) as {
       nickname?: unknown;
-      cardLast4?: unknown;
     };
     const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
-    const cardLast4 = typeof body.cardLast4 === "string" ? body.cardLast4.trim() : "";
-    if (!nickname || !/^\d{4}$/.test(cardLast4)) return null;
-    return { nickname, cardLast4 };
+    if (!nickname) return null;
+    return { nickname };
   } catch {
     return null;
   }
@@ -38,7 +35,7 @@ export async function POST(request: Request) {
 
   const parsed = await parseCardRequest(request);
   if (!parsed) {
-    return NextResponse.json({ error: "Nickname and card last four digits are required." }, { status: 400 });
+    return NextResponse.json({ error: "Card nickname is required." }, { status: 400 });
   }
 
   let stripe;
@@ -46,7 +43,7 @@ export async function POST(request: Request) {
     stripe = getStripeClient();
   } catch (error) {
     if (error instanceof StripeRouteConfigError) {
-      return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 });
+      return NextResponse.json({ error: "Hosted card verification is not configured." }, { status: 503 });
     }
     throw error;
   }
@@ -58,7 +55,6 @@ export async function POST(request: Request) {
     payment_method_type: "card",
     userId: user.id,
     card_nickname: parsed.nickname,
-    card_last4: parsed.cardLast4,
   };
 
   const { data: record, error } = await createAdminClient()
@@ -85,16 +81,16 @@ export async function POST(request: Request) {
 
   if (error || !record) {
     console.error("[payment-binding-stripe-card] Failed to create binding record:", error?.message);
-    return NextResponse.json({ error: "Could not start Stripe verification." }, { status: 500 });
+    return NextResponse.json({ error: "Could not start card verification." }, { status: 500 });
   }
 
-  const successUrl = new URL("/client/settings", getAppBaseUrl(request));
+  const successUrl = new URL("/client/settings/payment-methods", getAppBaseUrl(request));
   successUrl.searchParams.set("payment_bind", "success");
   successUrl.searchParams.set("bindingId", record.id);
   successUrl.searchParams.set("provider", "stripe");
   successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
 
-  const cancelUrl = new URL("/client/settings", getAppBaseUrl(request));
+  const cancelUrl = new URL("/client/settings/payment-methods", getAppBaseUrl(request));
   cancelUrl.searchParams.set("payment_bind", "cancelled");
   cancelUrl.searchParams.set("bindingId", record.id);
   cancelUrl.searchParams.set("provider", "stripe");
@@ -135,7 +131,7 @@ export async function POST(request: Request) {
     .eq("id", record.id);
 
   if (!session.url) {
-    return NextResponse.json({ error: "Stripe verification session could not be created." }, { status: 502 });
+    return NextResponse.json({ error: "Card verification session could not be created." }, { status: 502 });
   }
 
   return NextResponse.json({

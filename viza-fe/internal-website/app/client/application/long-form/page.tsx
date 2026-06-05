@@ -70,6 +70,8 @@ interface StepDef {
   sourceName?: string;
 }
 
+type StepClickHandler = (stepId: number) => void | Promise<void>;
+
 interface VisibleDynamicStep {
   step: WizardStep;
   sourceIndex: number;
@@ -243,7 +245,7 @@ function VerticalStepSidebar({
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
-  onStepClick: (stepId: number) => void;
+  onStepClick: StepClickHandler;
 }) {
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
   const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
@@ -265,7 +267,9 @@ function VerticalStepSidebar({
             <button
               type="button"
               key={step.id}
-              onClick={() => onStepClick(step.id)}
+              onClick={() => {
+                void onStepClick(step.id);
+              }}
               className={cn(
                 "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm",
                 isSelected
@@ -327,7 +331,7 @@ function MobileStepBar({
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
-  onStepClick: (stepId: number) => void;
+  onStepClick: StepClickHandler;
 }) {
   const t = useTranslations("application");
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
@@ -343,7 +347,9 @@ function MobileStepBar({
             <div key={step.id} className="flex items-center gap-1 flex-1 min-w-0">
               <button
                 type="button"
-                onClick={() => onStepClick(step.id)}
+                onClick={() => {
+                  void onStepClick(step.id);
+                }}
                 className={cn(
                   "shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold border-2 cursor-pointer",
                   status === "complete" && "bg-[#03346E] border-[#03346E] text-white",
@@ -387,7 +393,7 @@ function GroupedStepSidebar({
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
-  onStepClick: (stepId: number) => void;
+  onStepClick: StepClickHandler;
 }) {
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
@@ -428,7 +434,9 @@ function GroupedStepSidebar({
               <button
                 type="button"
                 key={section.key}
-                onClick={() => onStepClick(step.id)}
+                onClick={() => {
+                  void onStepClick(step.id);
+                }}
                 className={cn(
                   "rounded-xl border border-[#efefef] bg-white px-5 py-4 flex gap-4 items-center transition-all duration-200 text-left cursor-pointer hover:shadow-sm w-full",
                   isSelected
@@ -538,7 +546,9 @@ function GroupedStepSidebar({
                         <button
                           type="button"
                           key={step.id}
-                          onClick={() => onStepClick(step.id)}
+                          onClick={() => {
+                            void onStepClick(step.id);
+                          }}
                           className={cn(
                             "relative w-full flex items-center gap-4 rounded-lg py-2 pr-2 text-left transition-colors cursor-pointer",
                             isSelected ? "bg-[#f5f9ff]" : "hover:bg-gray-50"
@@ -594,7 +604,7 @@ function GroupedMobileStepBar({
   steps: StepDef[];
   currentStep: number;
   completedUpTo: number;
-  onStepClick: (stepId: number) => void;
+  onStepClick: StepClickHandler;
 }) {
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const currentStepIndex = currentStepIndexById.get(currentStep);
@@ -660,7 +670,9 @@ function GroupedMobileStepBar({
               <button
                 key={section.key}
                 type="button"
-                onClick={() => onStepClick(step.id)}
+                onClick={() => {
+                  void onStepClick(step.id);
+                }}
                 className={cn(
                   "w-full rounded-xl border bg-white px-4 py-3.5 flex gap-3 items-center transition-all duration-200 text-left cursor-pointer",
                   status === "in_progress"
@@ -770,7 +782,9 @@ function GroupedMobileStepBar({
                         <button
                           key={step.id}
                           type="button"
-                          onClick={() => onStepClick(step.id)}
+                          onClick={() => {
+                            void onStepClick(step.id);
+                          }}
                           className={cn(
                             "relative w-full flex items-center gap-4 rounded-lg py-2 pr-2 text-left transition-colors",
                             isSelected ? "bg-[#f5f9ff]" : "active:bg-gray-50"
@@ -940,6 +954,12 @@ export default function ApplicationPage() {
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const initialStepResolvedRef = useRef(false);
+  const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const navigationSaveInFlightRef = useRef(false);
+
+  const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
+    dynamicDraftRef.current[stepId] = data;
+  }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
@@ -1299,6 +1319,83 @@ export default function ApplicationPage() {
       void supabase.removeChannel(channel);
     };
   }, [loadData]);
+
+  const ensureWritableApplicationId = useCallback(async () => {
+    let applicationId = appState.applicationId;
+
+    // Non-team flows should always save to the current user's draft for the
+    // active package. Local state can be stale after package/country switches.
+    if (!explicitApplicationId) {
+      const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+        preferExplicit: preferExplicitPackage,
+      });
+      if (result.error || !result.applicationId) {
+        throw new Error(result.error ?? t("errors.noApplicationFound"));
+      }
+      applicationId = result.applicationId;
+      setAppState((prev) => ({ ...prev, applicationId }));
+    } else if (!applicationId) {
+      throw new Error(t("errors.noApplicationFound"));
+    }
+
+    if (!applicationId) {
+      throw new Error(t("errors.noApplicationFound"));
+    }
+
+    return applicationId;
+  }, [
+    appState.applicationId,
+    explicitApplicationId,
+    preferExplicitPackage,
+    resolvedCountry,
+    resolvedVisaType,
+    t,
+  ]);
+
+  const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
+    const data = dynamicDraftRef.current[stepIndex];
+    if (!data) return;
+
+    const hasNonEmptyValue = Object.values(data).some((value) => value.trim() !== "");
+    const hasChangedValue = Object.entries(data).some(
+      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+    );
+    if (!hasNonEmptyValue && !hasChangedValue) return;
+
+    const applicationId = await ensureWritableApplicationId();
+    const saveResult = await saveDynamicAnswers(applicationId, data);
+    if (saveResult.error) throw new Error(saveResult.error);
+
+    setDynamicAnswers((prev) => ({ ...prev, ...data }));
+  }, [dynamicAnswers, ensureWritableApplicationId]);
+
+  const handleStepNavigation = useCallback(async (targetStepId: number) => {
+    if (targetStepId === currentStep || navigationSaveInFlightRef.current) return;
+
+    const shouldAutosaveCurrentStep =
+      useDynamic &&
+      currentStep < documentStepIndex &&
+      Boolean(dbSteps[currentStep]);
+
+    if (!shouldAutosaveCurrentStep) {
+      setCurrentStep(targetStepId);
+      return;
+    }
+
+    navigationSaveInFlightRef.current = true;
+    setSaving(true);
+    setError(null);
+
+    try {
+      await saveDynamicDraftForStep(currentStep);
+      setCurrentStep(targetStepId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+    } finally {
+      navigationSaveInFlightRef.current = false;
+      setSaving(false);
+    }
+  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, t, useDynamic]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);
@@ -1833,10 +1930,10 @@ export default function ApplicationPage() {
           steps={effectiveSteps}
           currentStep={currentStep}
           completedUpTo={completedUpTo}
-          onStepClick={setCurrentStep}
+          onStepClick={handleStepNavigation}
         />
       ) : (
-        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={handleStepNavigation} />
       )}
 
       {/* Main content area */}
@@ -1854,10 +1951,10 @@ export default function ApplicationPage() {
               steps={effectiveSteps}
               currentStep={currentStep}
               completedUpTo={completedUpTo}
-              onStepClick={setCurrentStep}
+              onStepClick={handleStepNavigation}
             />
           ) : (
-            <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={setCurrentStep} />
+            <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={handleStepNavigation} />
           )}
 
           {/* Page header */}
@@ -1915,6 +2012,7 @@ export default function ApplicationPage() {
                             step={dbSteps[step.id]}
                             prefill={dynamicAnswers}
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
+                            onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
                             saving={saving}
                           />
                         )}

@@ -98,6 +98,16 @@ export interface PassportOcrExtraction {
   updatedAt: string | null;
 }
 
+export type UniversalProfilePassportUploadStatus =
+  | {
+      ok: true;
+      uploaded: boolean;
+      fileName: string | null;
+      status: string | null;
+      updatedAt: string | null;
+    }
+  | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
+
 interface ApplicantContext {
   applicantId: string;
   authUserId: string | null;
@@ -813,6 +823,45 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
     .order("updated_at", { ascending: false, nullsFirst: false });
 
   return ((baseData ?? []) as ApplicationDocumentRow[]).map(normalizeDocument);
+}
+
+export async function loadUniversalProfilePassportUploadStatus(
+  applicationId: string | null | undefined,
+): Promise<UniversalProfilePassportUploadStatus> {
+  try {
+    if (!applicationId) {
+      return { ok: true, uploaded: false, fileName: null, status: null, updatedAt: null };
+    }
+
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
+    if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    const documents = await loadDocuments(applicationId);
+    const passportDocument = documents.find((document) =>
+      ["passport_copy", "passport_bio_page", "passport_scan", "passport"].includes(document.documentType),
+    );
+
+    if (!passportDocument) {
+      return { ok: true, uploaded: false, fileName: null, status: null, updatedAt: null };
+    }
+
+    return {
+      ok: true,
+      uploaded: passportDocument.status !== "missing",
+      fileName: passportDocument.filename,
+      status: passportDocument.status,
+      updatedAt: passportDocument.updatedAt ?? passportDocument.createdAt,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to load passport upload status",
+    };
+  }
 }
 
 async function loadVirtualAnswerDocuments(applicationId: string): Promise<ApplicationDocument[]> {

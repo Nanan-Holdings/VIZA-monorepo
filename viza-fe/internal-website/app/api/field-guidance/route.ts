@@ -137,7 +137,7 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
       title: locale === "zh" ? `${label} 填写帮助` : `${label} guidance`,
       summary:
         locale === "zh"
-          ? "AI 服务暂时不可用，已切换为本地规则提示。请先按当前字段、选项和证件信息填写。"
+          ? "AI 暂时不可用，以下是本地填写规则。请先按当前字段、官方选项和证件信息填写。"
           : "AI guidance is temporarily unavailable, so VIZA is showing local rule-based guidance for this field.",
       examples,
       hints: [

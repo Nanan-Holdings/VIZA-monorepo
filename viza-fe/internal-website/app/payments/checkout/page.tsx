@@ -5,6 +5,7 @@ interface PaymentCheckoutPageProps {
     paymentId?: string | string[];
     productId?: string | string[];
     method?: string | string[];
+    billing?: string | string[];
   }>;
 }
 
@@ -19,6 +20,7 @@ export default async function PaymentCheckoutPage({ searchParams }: PaymentCheck
       paymentId={first(params?.paymentId)}
       productId={first(params?.productId)}
       preferredMethod={first(params?.method)}
+      billing={first(params?.billing)}
       backHref="/client/subscription"
     />
   );

@@ -18,6 +18,10 @@ import {
   officialFeeApplicationRouter,
   officialFeeOperationsRouter,
 } from './routes/official-fee.routes.js';
+import {
+  usAppointmentApplicationRouter,
+  usAppointmentOperationsRouter,
+} from './routes/us-appointment.routes.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -68,6 +72,10 @@ app.use('/api/applications', translationRouter);
 // Official visa fee quote/consent/payment dry-run framework
 app.use('/api/applications', officialFeeApplicationRouter);
 app.use('/api/official-fee', officialFeeOperationsRouter);
+
+// U.S. appointment assistance dry-run/manual checkpoint framework
+app.use('/api/applications', usAppointmentApplicationRouter);
+app.use('/api/us-appointment', usAppointmentOperationsRouter);
 
 // Submission result + per-application artifact endpoints
 app.use('/api/applications', submissionResultRouter);

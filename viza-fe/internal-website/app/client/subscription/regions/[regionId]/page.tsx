@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, MapPinned } from "lucide-react";
-import { getPaymentProviderReadiness } from "../../data";
 import { getPayPerRegion } from "../../pay-per-data";
 import { PayPerRow } from "../../pay-per-application-browser";
 
@@ -20,7 +19,6 @@ export default async function SubscriptionRegionPage({ params }: SubscriptionReg
   if (!region) notFound();
 
   const isZh = locale.toLowerCase().startsWith("zh");
-  const readiness = getPaymentProviderReadiness();
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 pb-16">
@@ -58,7 +56,7 @@ export default async function SubscriptionRegionPage({ params }: SubscriptionReg
 
         <div className="mt-6 grid gap-3">
           {region.items.map((item) => (
-            <PayPerRow key={item.id} item={item} isZh={isZh} readiness={readiness} />
+            <PayPerRow key={item.id} item={item} isZh={isZh} />
           ))}
         </div>
 
