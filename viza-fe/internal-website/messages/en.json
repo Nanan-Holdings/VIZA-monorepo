@@ -3565,7 +3565,8 @@
       "rewards": {
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
-          "description": "Redeem 1,000 points for one free arrival card submission for visa-free destinations such as Singapore, Malaysia, and Thailand."
+          "description": "Redeem 1,000 points for one free arrival card submission for eligible destinations.",
+          "countries": ["Singapore", "Malaysia", "Thailand"]
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",

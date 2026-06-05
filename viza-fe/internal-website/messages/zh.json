@@ -3651,7 +3651,8 @@
       "rewards": {
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
-          "description": "1000 积分可兑换一次新加坡、马来西亚、泰国等免签入境卡国家的免费提交服务。"
+          "description": "1000 积分可兑换一次入境卡免费提交服务。",
+          "countries": ["新加坡", "马来西亚", "泰国"]
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",
