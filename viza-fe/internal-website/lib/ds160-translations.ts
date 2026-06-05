@@ -1053,6 +1053,21 @@ const VALUE_TRANSLATIONS: Record<string, string> = {
   洛杉矶: "Los Angeles",
   酒店: "Hotel",
   民宿: "Homestay",
+  北京市: "Beijing",
+  上海市: "Shanghai",
+  广州市: "Guangzhou",
+  深圳市: "Shenzhen",
+  朝阳区: "Chaoyang District",
+  海淀区: "Haidian District",
+  软件工程师: "Software engineer",
+  工程师: "Engineer",
+  学生: "Student",
+  教师: "Teacher",
+  医生: "Doctor",
+  经理: "Manager",
+  自由职业者: "Self-employed",
+  退休: "Retired",
+  北京市朝阳区示例路1号: "1 Example Road, Chaoyang District, Beijing",
   北京首都国际机场: "Beijing Capital International Airport",
   上海浦东国际机场: "Shanghai Pudong International Airport",
   纽约肯尼迪国际机场: "John F. Kennedy International Airport, New York",
@@ -1185,6 +1200,37 @@ const COMMON_CHINESE_PINYIN: Record<string, string> = {
   子: "ZI",
 };
 
+const CHINESE_TEXT_REPLACEMENTS = [
+  ["北京市", "Beijing "],
+  ["上海市", "Shanghai "],
+  ["广州市", "Guangzhou "],
+  ["深圳市", "Shenzhen "],
+  ["朝阳区", "Chaoyang District "],
+  ["海淀区", "Haidian District "],
+  ["示例路", "Example Road "],
+  ["软件工程师", "Software engineer"],
+  ["自由职业者", "Self-employed"],
+  ["工程师", "Engineer"],
+  ["学生", "Student"],
+  ["教师", "Teacher"],
+  ["医生", "Doctor"],
+  ["经理", "Manager"],
+  ["退休", "Retired"],
+  ["路", " Road "],
+  ["街", " Street "],
+  ["号", " "],
+] as const;
+
+function translateKnownChineseText(value: string): string | null {
+  if (!hasChinese(value)) return null;
+  let translated = value;
+  for (const [source, target] of CHINESE_TEXT_REPLACEMENTS) {
+    translated = translated.replaceAll(source, target);
+  }
+  translated = translated.replace(/\s+/g, " ").replace(/\s+,/g, ",").trim();
+  return translated !== value && !hasChinese(translated) ? translated : null;
+}
+
 function transliterateKnownChinese(value: string): string | null {
   const normalized = value.trim().replace(/\s+/g, "");
   if (!normalized || !/^[\u3400-\u9fff]+$/.test(normalized)) return null;
@@ -1234,6 +1280,9 @@ export function toOfficialEnglishValue(value: string): string {
   if (!trimmed) return "";
   const direct = VALUE_TRANSLATIONS[trimmed];
   if (direct) return direct;
+
+  const translatedText = translateKnownChineseText(trimmed);
+  if (translatedText) return translatedText;
 
   const romanized = transliterateKnownChinese(trimmed);
   if (romanized) return romanized;

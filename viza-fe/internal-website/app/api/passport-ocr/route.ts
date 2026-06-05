@@ -109,6 +109,9 @@ function safeExtractedFieldMetadata(
 function serializeProposedFields(fields: PassportOcrProposedFields) {
   return {
     full_name: fields.fullName,
+    full_name_zh: fields.nativeFullName,
+    full_name_en: fields.fullName,
+    native_full_name: fields.nativeFullName,
     given_names: fields.givenNames,
     surname: fields.surname,
     passport_number: fields.passportNumber,

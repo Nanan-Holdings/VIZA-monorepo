@@ -122,6 +122,9 @@ describe("legacy application step copilot coverage", () => {
 
   it("transliterates common Chinese names in dynamic bilingual fields", () => {
     expect(toOfficialEnglishValue("陈泓羽")).toBe("CHENHONGYU");
+    expect(toOfficialEnglishValue("软件工程师")).toBe("Software engineer");
+    expect(toOfficialEnglishValue("北京市")).toBe("Beijing");
+    expect(toOfficialEnglishValue("北京市朝阳区示例路1号")).toBe("1 Example Road, Chaoyang District, Beijing");
   });
 
   it("opens legacy field guidance only from the copilot trigger", () => {
