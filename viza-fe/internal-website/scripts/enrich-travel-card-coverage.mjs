@@ -22,6 +22,7 @@ const DEFAULT_DOWNLOAD_DELAY_MS = Number(
 const DEFAULT_QUERY_DELAY_MS = Number(
   process.env.TRAVEL_CARD_QUERY_DELAY_MS ?? 900
 );
+const DEFAULT_IMAGE_WIDTH = Number(process.env.TRAVEL_CARD_IMAGE_WIDTH ?? 640);
 
 const args = process.argv.slice(2);
 const shouldWrite = args.includes("--write");
@@ -32,6 +33,7 @@ const cityFilters = args
     arg === "--city" && args[index + 1] ? [args[index + 1]] : []
   )
   .map(normalizeKey);
+let dropdownCities = [];
 
 const CITY_TITLE_OVERRIDES = new Map(
   Object.entries({
@@ -352,7 +354,55 @@ function pointFromWikidata(value) {
   };
 }
 
-async function fetchAttractionCandidates(cityPage, radius = 45) {
+function distanceKm(first, second) {
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const latDelta = toRadians(second.lat - first.lat);
+  const lngDelta = toRadians(second.lng - first.lng);
+  const firstLat = toRadians(first.lat);
+  const secondLat = toRadians(second.lat);
+  const a =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(firstLat) *
+      Math.cos(secondLat) *
+      Math.sin(lngDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function safeDecodeUrlText(value) {
+  try {
+    return decodeURIComponent(String(value ?? "").replaceAll("_", " "));
+  } catch {
+    return String(value ?? "").replaceAll("_", " ");
+  }
+}
+
+function isSubstantialCityKey(key) {
+  if (!key) return false;
+  return /^[a-z0-9]+$/.test(key) ? key.length >= 4 : key.length >= 2;
+}
+
+function hasOtherDropdownCityName(candidate, city, allCities) {
+  const currentKeys = new Set(
+    [city.en, city.zh, ...city.aliases].map(normalizeKey)
+  );
+  const haystack = normalizeKey(
+    `${candidate.name} ${candidate.nameEn} ${safeDecodeUrlText(candidate.sourceUrl)}`
+  );
+
+  return (allCities ?? []).some((otherCity) => {
+    const isCurrentCity = [otherCity.en, otherCity.zh, ...otherCity.aliases]
+      .map(normalizeKey)
+      .some((key) => currentKeys.has(key));
+    if (isCurrentCity) return false;
+
+    return [otherCity.en, otherCity.zh, ...otherCity.aliases]
+      .map(normalizeKey)
+      .some((key) => isSubstantialCityKey(key) && haystack.includes(key));
+  });
+}
+
+async function fetchAttractionCandidates(cityPage, radius = 45, city, allCities) {
   const classes = ATTRACTION_CLASS_IDS.map((id) => `wd:${id}`).join(" ");
   const qid = cityPage.qid;
   const coords = cityPage.coords;
@@ -405,6 +455,10 @@ async function fetchAttractionCandidates(cityPage, radius = 45) {
         nameEn,
         description: toSimplifiedChinese(description),
         coord,
+        distanceKm: distanceKm(
+          { lat: coords.lat, lng: coords.lon },
+          { lat: coord.lat, lng: coord.lng }
+        ),
         imageUrl: binding.image?.value ?? "",
         sourceUrl: binding.article?.value ?? binding.item?.value ?? "",
         sitelinks: Number(binding.sitelinks?.value ?? 0),
@@ -416,7 +470,9 @@ async function fetchAttractionCandidates(cityPage, radius = 45) {
         item.coord &&
         item.imageUrl &&
         item.sourceUrl &&
-        !EXCLUDED_ATTRACTION_PATTERN.test(`${item.name} ${item.nameEn} ${item.description}`)
+        item.distanceKm <= radius + 2 &&
+        !EXCLUDED_ATTRACTION_PATTERN.test(`${item.name} ${item.nameEn} ${item.description}`) &&
+        !hasOtherDropdownCityName(item, city, allCities)
     )
     .sort((first, second) => attractionScore(second) - attractionScore(first));
 }
@@ -428,6 +484,7 @@ function attractionScore(item) {
   }
   if (item.sourceUrl.includes("wikipedia.org/wiki/")) score += 10;
   if (item.description) score += 4;
+  score -= Math.min(item.distanceKm ?? 0, 80) * 1.4;
   return score;
 }
 
@@ -444,7 +501,7 @@ function uniqueAttractions(candidates) {
 function imageUrlForDownload(imageUrl) {
   if (!imageUrl) return "";
   if (imageUrl.includes("Special:FilePath/")) {
-    return imageUrl.replace(/^http:/, "https:") + "?width=960";
+    return imageUrl.replace(/^http:/, "https:") + `?width=${DEFAULT_IMAGE_WIDTH}`;
   }
   return imageUrl.replace(/^http:/, "https:");
 }
@@ -560,12 +617,21 @@ async function enrichCity(data, city) {
     return { city, status: "updated", addedAttractions: 0 };
   }
 
-  let candidates = uniqueAttractions(await fetchAttractionCandidates(cityPage, 45));
+  let candidates = uniqueAttractions(
+    await fetchAttractionCandidates(cityPage, 24, city, dropdownCities)
+  );
   if (candidates.length < needed) {
     await delay(DEFAULT_QUERY_DELAY_MS);
     candidates = uniqueAttractions([
       ...candidates,
-      ...(await fetchAttractionCandidates(cityPage, 80)),
+      ...(await fetchAttractionCandidates(cityPage, 45, city, dropdownCities)),
+    ]);
+  }
+  if (candidates.length < needed) {
+    await delay(DEFAULT_QUERY_DELAY_MS);
+    candidates = uniqueAttractions([
+      ...candidates,
+      ...(await fetchAttractionCandidates(cityPage, 80, city, dropdownCities)),
     ]);
   }
 
@@ -575,15 +641,32 @@ async function enrichCity(data, city) {
   let added = 0;
   const errors = [];
 
-  for (const candidate of candidates) {
-    if (added >= needed) break;
-    if (existingNames.has(normalizeKey(candidate.name))) continue;
+  for (let index = 0; index < candidates.length && added < needed; index += 6) {
+    const batch = candidates
+      .slice(index, index + 6)
+      .filter((candidate) => !existingNames.has(normalizeKey(candidate.name)));
 
-    try {
-      const imageSrc = await downloadImage(
-        candidate.imageUrl,
-        `travel/attractions/${slugify(city.en)}-${slugify(candidate.nameEn || candidate.name)}`
-      );
+    const downloaded = await Promise.allSettled(
+      batch.map(async (candidate) => {
+        const imageSrc = await downloadImage(
+          candidate.imageUrl,
+          `travel/attractions/${slugify(city.en)}-${slugify(candidate.nameEn || candidate.name)}`
+        );
+        return { candidate, imageSrc };
+      })
+    );
+
+    for (const result of downloaded) {
+      if (added >= needed) break;
+      if (result.status === "rejected") {
+        errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+        continue;
+      }
+
+      const { candidate, imageSrc } = result.value;
+      const candidateKey = normalizeKey(candidate.name);
+      if (existingNames.has(candidateKey)) continue;
+
       data.attractions.push({
         cityKeys: buildCityKeys(city),
         cityLabel: city.zh,
@@ -596,10 +679,8 @@ async function enrichCity(data, city) {
         lat: Number(candidate.coord.lat.toFixed(6)),
         lng: Number(candidate.coord.lng.toFixed(6)),
       });
-      existingNames.add(normalizeKey(candidate.name));
+      existingNames.add(candidateKey);
       added += 1;
-    } catch (error) {
-      errors.push(`${candidate.name}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -615,6 +696,7 @@ async function enrichCity(data, city) {
 async function main() {
   const source = await fs.readFile(locationsPath, "utf8");
   const allCities = parseDropdownCities(source);
+  dropdownCities = allCities;
   const data = JSON.parse(await fs.readFile(cardDataPath, "utf8"));
   const targetCities = cityFilters.length
     ? allCities.filter((city) =>
