@@ -388,11 +388,13 @@ export function BilingualCountryControl({
   side,
   placeholder,
   onChange,
+  showSecondaryLabel = true,
 }: {
   value: string;
   side: BilingualSide;
   placeholder: string;
   onChange: (value: string) => void;
+  showSecondaryLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selectedOption = findBilingualOption(COUNTRY_OPTIONS, value);
@@ -448,9 +450,11 @@ export function BilingualCountryControl({
                   <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                     {side === "zh" ? option.zh : option.en}
                   </span>
-                  <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
-                    {side === "zh" ? option.en : option.zh}
-                  </span>
+                  {showSecondaryLabel ? (
+                    <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
+                      {side === "zh" ? option.en : option.zh}
+                    </span>
+                  ) : null}
                   <CheckIcon
                     className={cn(
                       "ml-auto !h-4 !w-4 shrink-0",
