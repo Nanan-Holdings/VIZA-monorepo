@@ -33,11 +33,12 @@ export interface AirwallexPaymentRecord {
 }
 
 export async function getAppBaseUrl(): Promise<string> {
-  const configuredUrl = (process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
-  if (configuredUrl) return configuredUrl.replace(/\/+$/, "");
-
   const requestHeaders = await headers();
   const origin = requestHeaders.get("origin");
+  const configuredUrl = (process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
+
+  if (origin && process.env.NODE_ENV !== "production") return origin.replace(/\/+$/, "");
+  if (configuredUrl) return configuredUrl.replace(/\/+$/, "");
   if (origin) return origin.replace(/\/+$/, "");
 
   const host = requestHeaders.get("host");

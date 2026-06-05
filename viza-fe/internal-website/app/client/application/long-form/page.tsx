@@ -1422,15 +1422,21 @@ export default function ApplicationPage() {
     setSaving(true);
     setError(null);
     try {
-      // Ensure we have a draft application (server-side, bypasses RLS)
       let applicationId = appState.applicationId;
-      if (!applicationId) {
+
+      // Non-team flows should always save to the current user's draft for the
+      // active package. Local state can be stale after package/country switches,
+      // which makes saveDynamicAnswers return "Unauthorized" and blocks moving
+      // to the next tab.
+      if (!explicitApplicationId) {
         const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
           preferExplicit: preferExplicitPackage,
         });
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
         setAppState((prev) => ({ ...prev, applicationId }));
+      } else if (!applicationId) {
+        throw new Error(t("errors.noApplicationFound"));
       }
 
       // Save answers via server action (bypasses RLS)
@@ -1467,13 +1473,15 @@ export default function ApplicationPage() {
     setError(null);
     try {
       let applicationId = appState.applicationId;
-      if (!applicationId) {
+      if (!explicitApplicationId) {
         const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
           preferExplicit: preferExplicitPackage,
         });
         if (result.error) throw new Error(result.error);
         applicationId = result.applicationId!;
         setAppState((prev) => ({ ...prev, applicationId }));
+      } else if (!applicationId) {
+        throw new Error(t("errors.noApplicationFound"));
       }
 
       // Persist photo path as a dynamic answer
@@ -1555,11 +1563,20 @@ export default function ApplicationPage() {
     setError(null);
     try {
       const supabase = createClient();
-      if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
+      let applicationId = appState.applicationId;
+      if (!explicitApplicationId) {
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: preferExplicitPackage,
+        });
+        if (result.error) throw new Error(result.error);
+        applicationId = result.applicationId!;
+        setAppState((prev) => ({ ...prev, applicationId }));
+      }
+      if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
-        appState.applicationId,
+        applicationId,
         appState.personal,
         appState.passport,
         appState.travel,
@@ -1572,7 +1589,7 @@ export default function ApplicationPage() {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
         await supabase.from("submission_queue").insert({
-          application_id: appState.applicationId,
+          application_id: applicationId,
           status: queueStatusForPackage(resolvedVisaType),
           attempts: 0,
           created_at: new Date().toISOString(),
@@ -1582,7 +1599,7 @@ export default function ApplicationPage() {
       await supabase.from("applications").update({
         status: "submitted",
         submitted_at: new Date().toISOString(),
-      }).eq("id", appState.applicationId);
+      }).eq("id", applicationId);
 
       // Trigger translation (non-blocking — failures don't block submission;
       // the translate route also flips submission_result_status to 'waiting'
@@ -1592,7 +1609,7 @@ export default function ApplicationPage() {
         try {
           const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
           await fetch(
-            `${backendUrl}/api/applications/${appState.applicationId}/translate`,
+            `${backendUrl}/api/applications/${applicationId}/translate`,
             { method: "POST", headers: { "Content-Type": "application/json" } },
           );
         } catch {
@@ -1613,8 +1630,8 @@ export default function ApplicationPage() {
           submissionResult: {
             country: "JP",
             status: "form_ready_for_agency",
-            applicationId: appState.applicationId!,
-            formAPdfUrl: `/api/applications/${appState.applicationId}/jp-form-a-pdf`,
+            applicationId,
+            formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
           },
         }));
       } else {
@@ -1639,11 +1656,20 @@ export default function ApplicationPage() {
     setError(null);
     try {
       const supabase = createClient();
-      if (!appState.applicationId) throw new Error(t("errors.noApplicationFound"));
+      let applicationId = appState.applicationId;
+      if (!explicitApplicationId) {
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: preferExplicitPackage,
+        });
+        if (result.error) throw new Error(result.error);
+        applicationId = result.applicationId!;
+        setAppState((prev) => ({ ...prev, applicationId }));
+      }
+      if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
-        appState.applicationId,
+        applicationId,
         appState.personal,
         appState.passport,
         appState.travel,
@@ -1651,7 +1677,7 @@ export default function ApplicationPage() {
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
       await supabase.from("submission_queue").insert({
-        application_id: appState.applicationId,
+        application_id: applicationId,
         status: queueStatusForPackage(resolvedVisaType),
         attempts: 0,
         created_at: new Date().toISOString(),
@@ -1660,7 +1686,7 @@ export default function ApplicationPage() {
       await supabase.from("applications").update({
         status: "submitted",
         submitted_at: new Date().toISOString(),
-      }).eq("id", appState.applicationId);
+      }).eq("id", applicationId);
 
       // Trigger translation (non-blocking — failures don't block submission;
       // the translate route also flips submission_result_status to 'waiting'
@@ -1668,7 +1694,7 @@ export default function ApplicationPage() {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
         await fetch(
-          `${backendUrl}/api/applications/${appState.applicationId}/translate`,
+          `${backendUrl}/api/applications/${applicationId}/translate`,
           { method: "POST", headers: { "Content-Type": "application/json" } },
         );
       } catch {

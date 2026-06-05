@@ -2,12 +2,20 @@ import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-transl
 
 export interface UniversalProfileSnapshot {
   full_name?: string | null;
+  full_name_zh?: string | null;
+  full_name_en?: string | null;
   date_of_birth?: string | null;
   place_of_birth?: string | null;
+  place_of_birth_zh?: string | null;
+  place_of_birth_en?: string | null;
   gender?: string | null;
   nationality?: string | null;
   occupation?: string | null;
+  occupation_zh?: string | null;
+  occupation_en?: string | null;
   address?: string | null;
+  address_zh?: string | null;
+  address_en?: string | null;
   passport_number?: string | null;
   passport_issue_date?: string | null;
   passport_expiry_date?: string | null;
@@ -18,7 +26,7 @@ export interface UniversalProfileSnapshot {
 }
 
 export const UNIVERSAL_PROFILE_SELECT =
-  "full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, passport_issuing_authority, email, phone";
+  "*";
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -33,15 +41,33 @@ function buildBilingualValue(value: string | null | undefined) {
   const normalized = clean(value);
   if (!normalized) return null;
   if (hasChinese(normalized)) {
+    const englishValue = toOfficialEnglishValue(normalized);
     return {
       zh: normalized,
-      en: toOfficialEnglishValue(normalized),
+      en: hasChinese(englishValue) ? "" : englishValue,
     };
   }
   return {
     zh: toChineseSourceValue(normalized),
     en: normalized,
   };
+}
+
+function buildBilingualValueFromParts(
+  value: string | null | undefined,
+  zhValue: string | null | undefined,
+  enValue: string | null | undefined,
+) {
+  const zh = clean(zhValue);
+  const en = clean(enValue);
+  if (zh || en) {
+    const generatedEn = zh ? toOfficialEnglishValue(zh) : "";
+    return {
+      zh: zh ?? (en ? toChineseSourceValue(en) : ""),
+      en: en ?? (hasChinese(generatedEn) ? "" : generatedEn),
+    };
+  }
+  return buildBilingualValue(value);
 }
 
 export function splitUniversalFullName(fullName: string | null | undefined) {
@@ -68,8 +94,32 @@ function setAnswer(out: Record<string, string>, keys: string[], value: string | 
   for (const key of keys) out[key] = normalized;
 }
 
+function normalizeDs160Sex(value: string | null | undefined) {
+  const normalized = clean(value)?.toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "m" || normalized === "male" || normalized === "男") return "male";
+  if (normalized === "f" || normalized === "female" || normalized === "女") return "female";
+  return null;
+}
+
 function setBilingualAnswer(out: Record<string, string>, keys: string[], value: string | null | undefined) {
   const bilingual = buildBilingualValue(value);
+  if (!bilingual) return;
+  for (const key of keys) {
+    out[key] = bilingual.en || bilingual.zh;
+    out[`${key}_zh`] = bilingual.zh;
+    out[`${key}_en`] = bilingual.en;
+  }
+}
+
+function setBilingualAnswerFromParts(
+  out: Record<string, string>,
+  keys: string[],
+  value: string | null | undefined,
+  zhValue: string | null | undefined,
+  enValue: string | null | undefined,
+) {
+  const bilingual = buildBilingualValueFromParts(value, zhValue, enValue);
   if (!bilingual) return;
   for (const key of keys) {
     out[key] = bilingual.en || bilingual.zh;
@@ -82,21 +132,51 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   const out: Record<string, string> = {};
   if (!profile) return out;
 
-  const { givenNames, surname } = splitUniversalFullName(profile.full_name);
+  const { givenNames, surname } = splitUniversalFullName(profile.full_name_en ?? profile.full_name);
 
-  setBilingualAnswer(out, ["full_name", "fullName", "applicant_full_name"], profile.full_name);
+  setBilingualAnswerFromParts(
+    out,
+    ["full_name", "fullName", "applicant_full_name"],
+    profile.full_name,
+    profile.full_name_zh,
+    profile.full_name_en,
+  );
   setBilingualAnswer(out, ["given_names", "givenNames", "given_name", "first_name"], givenNames);
   setBilingualAnswer(out, ["surname", "last_name", "family_name"], surname);
   setAnswer(out, ["date_of_birth", "dob", "birth_date"], profile.date_of_birth);
-  setBilingualAnswer(out, ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"], profile.place_of_birth);
-  setAnswer(out, ["gender", "sex"], profile.gender);
+  setBilingualAnswerFromParts(
+    out,
+    ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"],
+    profile.place_of_birth,
+    profile.place_of_birth_zh,
+    profile.place_of_birth_en,
+  );
+  setAnswer(out, ["gender"], profile.gender);
+  setAnswer(out, ["sex"], normalizeDs160Sex(profile.gender));
   setAnswer(
     out,
-    ["nationality", "nationality_country", "country_of_nationality", "current_nationality"],
+    [
+      "nationality",
+      "nationality_country",
+      "country_of_nationality",
+      "current_nationality",
+    ],
     profile.nationality,
   );
-  setAnswer(out, ["occupation", "current_occupation", "primary_occupation", "current_profession"], profile.occupation);
-  setAnswer(out, ["address", "home_address", "residential_address", "home_address_line1"], profile.address);
+  setBilingualAnswerFromParts(
+    out,
+    ["occupation", "current_occupation", "primary_occupation", "current_profession"],
+    profile.occupation,
+    profile.occupation_zh,
+    profile.occupation_en,
+  );
+  setBilingualAnswerFromParts(
+    out,
+    ["address", "home_address", "residential_address", "home_address_line1"],
+    profile.address,
+    profile.address_zh,
+    profile.address_en,
+  );
   setAnswer(out, ["passport_number", "passportNumber", "travel_document_number"], profile.passport_number);
   setAnswer(
     out,
@@ -175,13 +255,13 @@ export function mergeUniversalProfileIntoWizardForm<TForm>(
 
   if (isRecord(next.identity)) {
     const identity = { ...next.identity };
-    const { givenNames, surname } = splitUniversalFullName(profile.full_name);
+    const { givenNames, surname } = splitUniversalFullName(profile.full_name_en ?? profile.full_name);
     setIfAllowed(identity, "firstName", givenNames, force);
     setIfAllowed(identity, "lastName", surname, force);
     setIfAllowed(identity, "dob", profile.date_of_birth, force);
     setIfAllowed(identity, "gender", profile.gender, force);
     setIfAllowed(identity, "nationality", profile.nationality, force);
-    setIfAllowed(identity, "cityOfBirth", profile.place_of_birth, force);
+    setIfAllowed(identity, "cityOfBirth", profile.place_of_birth_en ?? profile.place_of_birth, force);
     next.identity = identity;
   }
 
@@ -199,13 +279,13 @@ export function mergeUniversalProfileIntoWizardForm<TForm>(
     const contact = { ...next.contact };
     setIfAllowed(contact, "email", profile.email, force);
     setIfAllowed(contact, "phone", profile.phone, force);
-    setIfAllowed(contact, "street1", profile.address, force);
+    setIfAllowed(contact, "street1", profile.address_en ?? profile.address, force);
     next.contact = contact;
   }
 
   if (isRecord(next.work)) {
     const work = { ...next.work };
-    setIfAllowed(work, "primaryOccupation", profile.occupation, force);
+    setIfAllowed(work, "primaryOccupation", profile.occupation_en ?? profile.occupation, force);
     next.work = work;
   }
 

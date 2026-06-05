@@ -19,6 +19,9 @@
  *                            externally; PDF arrives by email post-approval
  *   - registered             UK: account registered, application not yet started
  *   - appointment_held       FR: appointment slot tentatively held pre-payment
+ *   - submitted_mock         Dry-run only: internal lifecycle completed without
+ *                            touching an official portal
+ *   - unsupported            Controlled unsupported-country state
  */
 
 export type SubmissionResult =
@@ -27,7 +30,8 @@ export type SubmissionResult =
   | UkSubmissionResult
   | VnSubmissionResult
   | AuSubmissionResult
-  | JpSubmissionResult;
+  | JpSubmissionResult
+  | GenericSubmissionResult;
 
 export interface UsSubmissionResult {
   country: "US";
@@ -103,10 +107,30 @@ export interface JpSubmissionResult {
   formAPdfUrl: string;
 }
 
+export interface GenericSubmissionResult {
+  country: "GENERIC";
+  targetCountry: string;
+  visaType: string;
+  status: "submitted_mock" | "unsupported";
+  mode: "dry_run";
+  applicationId: string;
+  confirmationNumber?: string;
+  implementationStatus:
+    | "implemented"
+    | "sandbox_only"
+    | "dry_run_only"
+    | "partial"
+    | "not_started"
+    | "blocked";
+  message: string;
+}
+
 export type SubmissionResultStatus =
   | "waiting"
   | "processing"
   | "submitted"
+  | "submitted_mock"
+  | "unsupported"
   | "stopped_at_pay"
   | "stopped_at_review"
   | "form_ready_for_agency"

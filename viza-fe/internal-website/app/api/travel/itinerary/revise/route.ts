@@ -73,6 +73,121 @@ function hasPatch(value: unknown): boolean {
   return isRecord(value) && Object.keys(value).length > 0;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function getItineraryCities(
+  currentItinerary: ItineraryDay[],
+  payload: Record<string, unknown>
+): string[] {
+  const state = isRecord(payload.state) ? payload.state : {};
+  const seen = new Set<string>();
+  const cities = [
+    ...currentItinerary.map((day) => day.city),
+    ...getStringArray(state.cities),
+    ...getStringArray(state.travel_order),
+  ];
+
+  return cities.filter((city) => {
+    const key = city.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isAmbiguousDayReductionPrompt(
+  payload: Record<string, unknown>,
+  currentItinerary: ItineraryDay[]
+): boolean {
+  const prompt =
+    typeof payload.user_prompt === "string" ? payload.user_prompt.trim() : "";
+  if (!prompt) return false;
+
+  const asksToReduceDays =
+    /(减少|减掉|缩短|删掉|删除|去掉|砍掉|少).{0,8}(\d+\s*天|一天|一日|day|days)|\b(remove|delete|drop|shorten|reduce)\b.{0,20}\b(\d+\s*days?|one day|a day)\b/i.test(
+      prompt
+    );
+  if (!asksToReduceDays) return false;
+
+  if (
+    /随便|任意|你帮我|帮我选|自动|都可以|无所谓|any|whatever|whichever|you choose|up to you/i.test(
+      prompt
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    /第\s*\d+\s*天|day\s*\d+|最后一天|最后一日|第一天|第一日|last day|first day|\d{1,2}\s*月\s*\d{1,2}\s*日/i.test(
+      prompt
+    )
+  ) {
+    return false;
+  }
+
+  return !getItineraryCities(currentItinerary, payload).some((city) =>
+    new RegExp(escapeRegExp(city), "i").test(prompt)
+  );
+}
+
+function buildAmbiguousReductionClarification(
+  payload: Record<string, unknown>,
+  currentItinerary: ItineraryDay[],
+  locale: ResponseLocale
+): RevisionResponse | null {
+  if (!isAmbiguousDayReductionPrompt(payload, currentItinerary)) return null;
+
+  const cities = getItineraryCities(currentItinerary, payload);
+  const lastDay = Math.max(1, currentItinerary.length);
+  const firstCity = cities[0];
+
+  return {
+    action: "clarify",
+    reply:
+      locale === "zh"
+        ? "你想减少哪一天？请告诉我删除第几天、从哪个城市减少一天；如果都可以，也可以直接说“你帮我选一天”。"
+        : "Which day should I remove? Tell me the day number or city to reduce, or say I can choose any day.",
+    itinerary: currentItinerary,
+    state_patch: {},
+    module_patch: {},
+    edit_summary: "",
+    quick_replies:
+      locale === "zh"
+        ? [
+            { label: `删除第 ${lastDay} 天`, value: `删除第 ${lastDay} 天` },
+            ...(firstCity
+              ? [
+                  {
+                    label: `从${firstCity}减少`,
+                    value: `从${firstCity}减少一天`,
+                  },
+                ]
+              : []),
+            { label: "你帮我选一天", value: "你帮我选一天，减少任意一天" },
+          ].slice(0, 3)
+        : [
+            { label: `Delete day ${lastDay}`, value: `Delete day ${lastDay}` },
+            ...(firstCity
+              ? [
+                  {
+                    label: `Reduce ${firstCity}`,
+                    value: `Reduce one day in ${firstCity}`,
+                  },
+                ]
+              : []),
+            { label: "You choose", value: "You choose one day to remove." },
+          ].slice(0, 3),
+  };
+}
+
 function normalizeRevisionResponse(
   value: unknown,
   currentItinerary: ItineraryDay[],
@@ -106,8 +221,8 @@ function normalizeRevisionResponse(
       action: "clarify",
       reply:
         locale === "zh"
-          ? "可以，我能帮你增加一天。你想把这一天加在哪个城市？也可以告诉我想加入的景点，比如长城、迪士尼或某个街区；如果你不确定，我可以按当前路线帮你放到最顺的一站。"
-          : "Yes, I can add a day. Which city should I add it to? You can also name a place, such as the Great Wall, Disney, or a neighborhood. If you are not sure, I can place it along the current route.",
+          ? "可以，我能继续帮你改这份行程。请告诉我具体要改第几天、哪个城市或哪个景点；如果你不确定，也可以说让我按当前路线自动安排。"
+          : "Yes, I can keep revising this itinerary. Please tell me the day, city, or place to change; if you are not sure, say that I can place it automatically along the current route.",
       itinerary: currentItinerary,
       state_patch: {},
       module_patch: {},
@@ -162,10 +277,11 @@ ${languageInstruction}
 硬性规则：
 1. 用户每一句自然语言修改都必须实际反映到 itinerary、state_patch 或 module_patch。
 2. 如果用户要求增加、减少或移动某一天，必须返回完整更新后的 itinerary。
-3. 如果用户说“还想去/加/加入”某个城市或景点，必须把它加入合适日期；提到“最后一天”就放到最后一天。
-4. 景点和城市按常识归属，例如“长城”归入北京/中国。
-5. 如果新增城市不在 state.cities，必须在 state_patch.cities、state_patch.countries、state_patch.travel_order 和 state_patch.city_days 中补齐。
-6. 不要只写“已更新”但保持 itinerary 不变；无法安全修改时 action 用 clarify。
+3. 如果用户只说“减少一天 / 减少 1 天 / remove one day”但没有指定第几天、城市或日期，并且没有说“任意/随便/你帮我选/any/you choose”，action 必须用 clarify，追问要删除哪一天；不能自行删最后一天或任意一天。
+4. 如果用户说“还想去/加/加入”某个城市或景点，必须把它加入合适日期；提到“最后一天”就放到最后一天。
+5. 景点和城市按常识归属，例如“长城”归入北京/中国。
+6. 如果新增城市不在 state.cities，必须在 state_patch.cities、state_patch.countries、state_patch.travel_order 和 state_patch.city_days 中补齐。
+7. 不要只写“已更新”但保持 itinerary 不变；无法安全修改时 action 用 clarify。
 
 输出 schema：
 {
@@ -329,6 +445,15 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as Record<string, unknown>;
     const locale = normalizeResponseLocale(payload.locale);
     const currentItinerary = normalizeItinerary(payload.current_itinerary);
+    const clarification = buildAmbiguousReductionClarification(
+      payload,
+      currentItinerary,
+      locale
+    );
+    if (clarification) {
+      return Response.json(clarification, { status: 200 });
+    }
+
     const openAiRevision = await reviseWithOpenAI(payload, currentItinerary, locale);
 
     if (openAiRevision) {

@@ -59,6 +59,8 @@ import {
   nextMissingField,
   toTravelPayload,
   type ChatLikeMessage,
+  type FlightLegResult,
+  type HotelStayResult,
   type ItineraryDay,
   type SelectedFlightOption,
   type SelectedHotelOption,
@@ -80,6 +82,10 @@ import type {
   TravelQuickReply,
   TravelChatStatus,
 } from "@/lib/travel/chat-types";
+import {
+  getCuratedCityLabel,
+  CURATED_CITY_ZH_LABELS_BY_KEY,
+} from "@/lib/travel/locations";
 
 type TravelChatClientProps = {
   applicationId?: string | null;
@@ -272,6 +278,9 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   newyork: "/travel/cities/newyork.jpg",
   nyc: "/travel/cities/newyork.jpg",
   beijing: "/travel/cities/beijing.jpg",
+  shanghai: "/travel/cities/shanghai.jpg",
+  guangzhou: "/travel/cities/guangzhou.jpg",
+  hangzhou: "/travel/cities/hangzhou.jpg",
   sanfrancisco: "/travel/cities/sanfrancisco.jpg",
   sf: "/travel/cities/sanfrancisco.jpg",
   pisa: "/travel/cities/pisa.jpg",
@@ -292,17 +301,7 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   italy: "/globe/pisa.jpg",
 };
 
-const DESTINATION_FALLBACK_IMAGES = [
-  "/globe/tokyo.jpg",
-  "/globe/singapore.jpg",
-  "/globe/sydney.jpg",
-  "/globe/london.jpg",
-  "/globe/paris.jpg",
-  "/globe/nyc.jpg",
-  "/globe/beijing.jpg",
-  "/globe/sf.jpg",
-  "/globe/pisa.jpg",
-] as const;
+const DESTINATION_IMAGE_FALLBACK = "/travel/cities/travel-fallback.svg";
 
 const HOTSPOTS_BY_CITY: Record<string, string[]> = {
   tokyo: ["涩谷十字路口", "浅草寺", "东京晴空塔", "筑地场外市场"],
@@ -372,6 +371,7 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   greece: "希腊",
   portugal: "葡萄牙",
   europe: "欧洲",
+  ...CURATED_CITY_ZH_LABELS_BY_KEY,
   tokyo: "东京",
   sydney: "悉尼",
   newyork: "纽约",
@@ -909,10 +909,18 @@ function createTripVersionTitle(
         : Array.from(new Set(itinerary.map((day) => day.city).filter(Boolean)));
   if (locale === "en") {
     const prefix = itinerary.length > 0 ? `${itinerary.length}-day` : "Travel";
-    return `${prefix} ${cities.slice(0, 3).join(", ") || "custom"} itinerary`;
+    const cityTitle = cities
+      .slice(0, 3)
+      .map((city) => getDisplayPlaceName(city, locale))
+      .join(", ");
+    return `${prefix} ${cityTitle || "custom"} itinerary`;
   }
   const prefix = itinerary.length > 0 ? `${itinerary.length}天` : "旅行";
-  return `${prefix}${cities.slice(0, 3).join("、") || "定制"}行程`;
+  const cityTitle = cities
+    .slice(0, 3)
+    .map((city) => getDisplayPlaceName(city, locale))
+    .join("、");
+  return `${prefix}${cityTitle || "定制"}行程`;
 }
 
 function createTravelTripVersion(options: {
@@ -1417,10 +1425,435 @@ function hasVisibleRevisionChange(
   );
 }
 
+function parseIsoDate(value: string | null | undefined): Date | null {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function replaceDatePart(
+  value: string | undefined,
+  nextDate: string
+): string | undefined {
+  if (!value) return value;
+  const timeMatch = value.match(/(?:T|\s)(\d{1,2}:\d{2}(?::\d{2})?)/);
+  const time = timeMatch?.[1]?.padStart(5, "0");
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return `${nextDate}T${time ?? "00:00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}\s/.test(value)) {
+    return `${nextDate} ${time ?? "00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return nextDate;
+  }
+  return value;
+}
+
+function shiftDateByOriginalOffset(
+  originalDeparture: string | undefined,
+  originalTarget: string | undefined,
+  nextDepartureDate: string
+): string {
+  const originalStart = parseIsoDate(originalDeparture);
+  const originalEnd = parseIsoDate(originalTarget);
+  const nextStart = parseIsoDate(nextDepartureDate);
+  if (!originalStart || !originalEnd || !nextStart) return nextDepartureDate;
+
+  const offsetDays = Math.max(
+    0,
+    Math.round((originalEnd.getTime() - originalStart.getTime()) / 86_400_000)
+  );
+  return toIsoDate(addDays(nextStart, offsetDays));
+}
+
+function travelRouteKey(
+  from: string | null | undefined,
+  to: string | null | undefined
+): string {
+  return `${normalizeCityKey(from ?? "")}->${normalizeCityKey(to ?? "")}`;
+}
+
+function getRevisionCityOrder(itinerary: ItineraryDay[]): string[] {
+  const seen = new Set<string>();
+  const cities: string[] = [];
+
+  itinerary.forEach((day) => {
+    const city = day.city.trim();
+    const key = normalizeCityKey(city);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    cities.push(city);
+  });
+
+  return cities;
+}
+
+function getRevisionCityDays(itinerary: ItineraryDay[]): Record<string, number> {
+  const cityByKey = new Map<string, string>();
+  const cityDaysByKey = new Map<string, number>();
+
+  itinerary.forEach((day) => {
+    const city = day.city.trim();
+    const key = normalizeCityKey(city);
+    if (!key) return;
+    cityByKey.set(key, cityByKey.get(key) ?? city);
+    cityDaysByKey.set(key, (cityDaysByKey.get(key) ?? 0) + 1);
+  });
+
+  return Object.fromEntries(
+    Array.from(cityDaysByKey.entries()).map(([key, days]) => [
+      cityByKey.get(key) ?? key,
+      days,
+    ])
+  );
+}
+
+function getCityDayCount(
+  cityDays: Record<string, number>,
+  city: string
+): number {
+  const direct = cityDays[city];
+  if (direct) return direct;
+  const key = normalizeCityKey(city);
+  const match = Object.entries(cityDays).find(
+    ([candidate]) => normalizeCityKey(candidate) === key
+  );
+  return match?.[1] ?? 1;
+}
+
+function buildRevisionFlightLegs(
+  state: TravelState,
+  cities: string[]
+): FlightLegResult[] {
+  const route = [
+    state.origin_city?.trim(),
+    ...cities,
+    state.return_city?.trim(),
+  ].filter((city): city is string => Boolean(city));
+
+  if (route.length < 2) return [];
+
+  const startDate = parseIsoDate(state.departure_date) ?? new Date();
+  const totalTripDays =
+    state.travel_days ??
+    cities.reduce(
+      (sum, city) => sum + getCityDayCount(state.city_days, city),
+      0
+    );
+
+  return route
+    .map((from, index): FlightLegResult | null => {
+      const to = route[index + 1];
+      if (!to || normalizeCityKey(from) === normalizeCityKey(to)) return null;
+
+      const priorCities = index === 0 ? [] : cities.slice(0, index);
+      const isFinalReturnLeg =
+        index === route.length - 2 &&
+        Boolean(state.return_city?.trim()) &&
+        normalizeCityKey(to) === normalizeCityKey(state.return_city ?? "");
+      const offsetDays = isFinalReturnLeg
+        ? Math.max(0, totalTripDays - 1)
+        : priorCities.reduce(
+            (sum, city) => sum + getCityDayCount(state.city_days, city),
+            0
+          );
+
+      return {
+        from,
+        to,
+        departure_date: toIsoDate(addDays(startDate, offsetDays)),
+        options: [],
+      };
+    })
+    .filter((leg): leg is FlightLegResult => Boolean(leg));
+}
+
+function buildRevisionHotelStays(
+  state: TravelState,
+  cities: string[]
+): HotelStayResult[] {
+  const startDate = parseIsoDate(state.departure_date) ?? new Date();
+  let elapsedDays = 0;
+
+  return cities.map((city) => {
+    const nights = Math.max(1, getCityDayCount(state.city_days, city));
+    const stay: HotelStayResult = {
+      city,
+      check_in: toIsoDate(addDays(startDate, elapsedDays)),
+      check_out: toIsoDate(addDays(startDate, elapsedDays + nights)),
+      nights,
+      adults: state.travelers ?? undefined,
+      options: [],
+    };
+    elapsedDays += nights;
+    return stay;
+  });
+}
+
+function realignFlightOptionDate(
+  option: SelectedFlightOption["option"],
+  leg: FlightLegResult
+): SelectedFlightOption["option"] {
+  if (!option) return option;
+  const arrivalDate = shiftDateByOriginalOffset(
+    option.departure,
+    option.arrival,
+    leg.departure_date
+  );
+  return {
+    ...option,
+    from: option.from ?? leg.from,
+    to: option.to ?? leg.to,
+    departure: replaceDatePart(option.departure, leg.departure_date),
+    arrival: replaceDatePart(option.arrival, arrivalDate),
+  };
+}
+
+function realignHotelOptionDate(
+  option: SelectedHotelOption["option"],
+  stay: HotelStayResult
+): SelectedHotelOption["option"] {
+  return {
+    ...option,
+    city: option.city ?? stay.city,
+    check_in: stay.check_in,
+    check_out: stay.check_out,
+  };
+}
+
+function reconcileRevisionFlights(
+  selectedFlights: SelectedFlightOption[],
+  legs: FlightLegResult[],
+  shouldRemoveFlights: boolean
+): SelectedFlightOption[] {
+  if (shouldRemoveFlights) {
+    return legs.map((leg, index) => ({
+      leg_index: index + 1,
+      from: leg.from,
+      to: leg.to,
+      departure_date: leg.departure_date,
+      skip: true,
+      option: null,
+      option_index: undefined,
+    }));
+  }
+
+  const byRoute = new Map<string, SelectedFlightOption>();
+  selectedFlights.forEach((flight) => {
+    byRoute.set(travelRouteKey(flight.from, flight.to), flight);
+  });
+
+  return legs
+    .map((leg, index): SelectedFlightOption | null => {
+      const legIndex = index + 1;
+      const existing =
+        byRoute.get(travelRouteKey(leg.from, leg.to)) ??
+        selectedFlights.find((flight) => flight.leg_index === legIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        leg_index: legIndex,
+        from: leg.from,
+        to: leg.to,
+        departure_date: leg.departure_date,
+        option: existing.skip
+          ? null
+          : realignFlightOptionDate(existing.option, leg),
+      };
+    })
+    .filter((flight): flight is SelectedFlightOption => Boolean(flight));
+}
+
+function reconcileRevisionHotels(
+  selectedHotels: SelectedHotelOption[],
+  stays: HotelStayResult[]
+): SelectedHotelOption[] {
+  const byCity = new Map<string, SelectedHotelOption>();
+  selectedHotels.forEach((hotel) => {
+    byCity.set(normalizeCityKey(hotel.city), hotel);
+  });
+
+  return stays
+    .map((stay, index): SelectedHotelOption | null => {
+      const stayIndex = index + 1;
+      const existing =
+        byCity.get(normalizeCityKey(stay.city)) ??
+        selectedHotels.find((hotel) => hotel.stay_index === stayIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        stay_index: stayIndex,
+        city: stay.city,
+        check_in: stay.check_in,
+        check_out: stay.check_out,
+        nights: stay.nights,
+        option: realignHotelOptionDate(existing.option, stay),
+      };
+    })
+    .filter((hotel): hotel is SelectedHotelOption => Boolean(hotel));
+}
+
+function reconcileRevisionStateWithItinerary(
+  state: TravelState,
+  itinerary: ItineraryDay[],
+  shouldRemoveFlights: boolean
+): TravelState {
+  if (!itinerary.length) return state;
+
+  const travelOrder = getRevisionCityOrder(itinerary);
+  const cityDays = getRevisionCityDays(itinerary);
+  const baseState: TravelState = {
+    ...state,
+    cities: travelOrder,
+    travel_order: travelOrder,
+    city_days: cityDays,
+    travel_days: itinerary.length,
+  };
+  const flightLegs = buildRevisionFlightLegs(baseState, travelOrder);
+  const hotelStays = buildRevisionHotelStays(baseState, travelOrder);
+
+  return {
+    ...baseState,
+    selected_flights: reconcileRevisionFlights(
+      state.selected_flights,
+      flightLegs,
+      shouldRemoveFlights
+    ),
+    selected_hotels: reconcileRevisionHotels(state.selected_hotels, hotelStays),
+  };
+}
+
+function hasArbitraryReductionPermission(text: string): boolean {
+  return /随便|任意|你帮我|帮我选|自动|都可以|无所谓|any|whatever|whichever|you choose|up to you/i.test(
+    text
+  );
+}
+
+function hasSpecificReductionTarget(
+  text: string,
+  itinerary: ItineraryDay[],
+  state: TravelState
+): boolean {
+  if (
+    /第\s*\d+\s*天|day\s*\d+|最后一天|最后一日|第一天|第一日|last day|first day|\d{1,2}\s*月\s*\d{1,2}\s*日/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+
+  const cities = Array.from(
+    new Set([
+      ...itinerary.map((day) => day.city),
+      ...state.cities,
+      ...state.travel_order,
+    ])
+  );
+
+  return cities.some((city) => {
+    const labels = [
+      city,
+      getCuratedCityLabel(city, "zh"),
+      getCuratedCityLabel(city, "en"),
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    return labels.some((label) =>
+      new RegExp(escapeRegExp(label), "i").test(text)
+    );
+  });
+}
+
+function isAmbiguousDayReductionPrompt(
+  text: string,
+  itinerary: ItineraryDay[],
+  state: TravelState
+): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  const asksToReduceDays =
+    /(减少|减掉|缩短|删掉|删除|去掉|砍掉|少).{0,8}(\d+\s*天|一天|一日|day|days)|\b(remove|delete|drop|shorten|reduce)\b.{0,20}\b(\d+\s*days?|one day|a day)\b/i.test(
+      trimmed
+    );
+  if (!asksToReduceDays) return false;
+  if (hasArbitraryReductionPermission(trimmed)) return false;
+  return !hasSpecificReductionTarget(trimmed, itinerary, state);
+}
+
+function getDayReductionClarificationQuickReplies(
+  itinerary: ItineraryDay[],
+  state: TravelState,
+  locale: InterfaceLocale
+): TravelQuickReply[] {
+  const lastDay = itinerary.length;
+  const cities = getRevisionCityOrder(itinerary);
+  const firstCity = cities[0] ?? state.travel_order[0] ?? state.cities[0];
+  const firstCityLabel = firstCity
+    ? getDisplayPlaceName(firstCity, locale)
+    : "";
+
+  if (locale === "en") {
+    return [
+      { label: `Delete day ${lastDay}`, value: `Delete day ${lastDay}` },
+      ...(firstCity
+        ? [
+            {
+              label: `Reduce ${firstCityLabel}`,
+              value: `Reduce one day in ${firstCity}`,
+            },
+          ]
+        : []),
+      {
+        label: "You choose",
+        value: "You choose one day to remove.",
+      },
+    ].slice(0, 3);
+  }
+
+  return [
+    { label: `删除第 ${lastDay} 天`, value: `删除第 ${lastDay} 天` },
+    ...(firstCity
+      ? [
+          {
+            label: `从${firstCityLabel}减少`,
+            value: `从${firstCityLabel}减少一天`,
+          },
+        ]
+      : []),
+    {
+      label: "你帮我选一天",
+      value: "你帮我选一天，减少任意一天",
+    },
+  ].slice(0, 3);
+}
+
 function applyRevisionPatches(
   baseState: TravelState,
   statePatch: Record<string, unknown>,
-  modulePatch: Record<string, unknown>
+  modulePatch: Record<string, unknown>,
+  itinerary: ItineraryDay[]
 ): TravelState {
   const nextState: TravelState = {
     ...baseState,
@@ -1488,7 +1921,11 @@ function applyRevisionPatches(
     }));
   }
 
-  return nextState;
+  return reconcileRevisionStateWithItinerary(
+    nextState,
+    itinerary,
+    shouldRemoveFlights
+  );
 }
 
 function revisionRemovesFlights(
@@ -1529,10 +1966,13 @@ function formatSelectedFlights(
 
   return flights
     .map((flight) => {
+      const from = getDisplayPlaceName(flight.from, locale);
+      const to = getDisplayPlaceName(flight.to, locale);
+
       if (flight.skip) {
         return isZh
-          ? `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}。`
-          : `Leg ${flight.leg_index}: ${flight.from} to ${flight.to}.`;
+          ? `路线 ${flight.leg_index}：${from} 到 ${to}。`
+          : `Leg ${flight.leg_index}: ${from} to ${to}.`;
       }
 
       const option = flight.option;
@@ -1550,8 +1990,8 @@ function formatSelectedFlights(
         : "";
 
       return isZh
-        ? `路线 ${flight.leg_index}：${flight.from} 到 ${flight.to}，${airline}，${price}${flightNumber}。`
-        : `Leg ${flight.leg_index}: ${flight.from} to ${flight.to}, ${airline}, ${price}${flightNumber}.`;
+        ? `路线 ${flight.leg_index}：${from} 到 ${to}，${airline}，${price}${flightNumber}。`
+        : `Leg ${flight.leg_index}: ${from} to ${to}, ${airline}, ${price}${flightNumber}.`;
     })
     .join("\n");
 }
@@ -1576,6 +2016,7 @@ function formatSelectedHotels(
 
   return hotels
     .map((hotel) => {
+      const city = getDisplayPlaceName(hotel.city, locale);
       const option = hotel.option;
       const name = option?.name ?? (isZh ? "未命名酒店" : "Unnamed hotel");
       const price = option?.price_per_night
@@ -1603,8 +2044,8 @@ function formatSelectedHotels(
         : "";
 
       return isZh
-        ? `城市 ${hotel.stay_index}：${hotel.city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${fourStarNote}${name}，${price}，${rating}${address}${contact}。`
-        : `City ${hotel.stay_index}: ${hotel.city}, ${hotel.check_in} to ${hotel.check_out}, ${hotel.nights} nights, ${fourStarNote}${name}, ${price}, ${rating}${address}${contact}.`;
+        ? `城市 ${hotel.stay_index}：${city}，${hotel.check_in} 到 ${hotel.check_out}，${hotel.nights} 晚，${fourStarNote}${name}，${price}，${rating}${address}${contact}。`
+        : `City ${hotel.stay_index}: ${city}, ${hotel.check_in} to ${hotel.check_out}, ${hotel.nights} nights, ${fourStarNote}${name}, ${price}, ${rating}${address}${contact}.`;
     })
     .join("\n");
 }
@@ -1930,7 +2371,12 @@ function normalizeCityKey(city: string): string {
 
 function getLocalDisplayName(value: string): string {
   const key = normalizeCityKey(value);
-  return LOCAL_NAME_BY_KEY[key] ?? value;
+  return getCuratedCityLabel(value, "zh") ?? LOCAL_NAME_BY_KEY[key] ?? value;
+}
+
+function getDisplayPlaceName(value: string, locale: InterfaceLocale): string {
+  if (locale === "zh") return getLocalDisplayName(value);
+  return getCuratedCityLabel(value, "en") ?? value;
 }
 
 function appendUniquePlaces(
@@ -2170,16 +2616,14 @@ function getCityImage(city: string, seed: string = "default"): string {
   const seedDirect = DESTINATION_IMAGE_BY_KEY[seedKey];
   if (seedDirect) return seedDirect;
 
-  const index =
-    hashString(`${key || "travel"}-${seed}`) % DESTINATION_FALLBACK_IMAGES.length;
-  return DESTINATION_FALLBACK_IMAGES[index];
+  return DESTINATION_IMAGE_FALLBACK;
 }
 
 function getAttractionImage(city: string, attraction: string, seed: string): string {
   const attractionImage = findTravelAttraction(city, attraction)?.imageSrc;
   if (attractionImage) return attractionImage;
 
-  return getCityImage(`${city}-${attraction}`, seed);
+  return getCityImage(city, seed);
 }
 
 function getGoogleCityCoordinates(
@@ -3542,6 +3986,40 @@ export function TravelChatClient({
           latestVisibleUserText &&
           !isStructuredMessage
         ) {
+          if (
+            isAmbiguousDayReductionPrompt(
+              latestVisibleUserText,
+              currentItinerary,
+              revisionBaseState
+            )
+          ) {
+            setSessionMessages(sessionId, (prev) => [
+              ...prev,
+              {
+                id: createMessageId(),
+                role: "assistant",
+                parts: [
+                  {
+                    type: "text",
+                    text:
+                      interfaceLocale === "zh"
+                        ? "你想减少哪一天？可以告诉我删除第几天、从哪个城市减少一天；如果都可以，也可以直接回复“你帮我选一天”。"
+                        : "Which day should I remove? Tell me the day number or city to reduce, or say I can choose any day.",
+                  },
+                  {
+                    type: "quick_replies",
+                    quick_replies: getDayReductionClarificationQuickReplies(
+                      currentItinerary,
+                      revisionBaseState,
+                      interfaceLocale
+                    ),
+                  },
+                ],
+              },
+            ]);
+            return;
+          }
+
           const response = await fetch("/api/travel/itinerary/revise", {
             method: "POST",
             headers: {
@@ -3638,7 +4116,8 @@ export function TravelChatClient({
           const revisedState = applyRevisionPatches(
             revisionBaseState,
             revision.statePatch,
-            revision.modulePatch
+            revision.modulePatch,
+            revision.itinerary
           );
           const editSummaryText = revision.editSummary
             ? interfaceLocale === "zh"

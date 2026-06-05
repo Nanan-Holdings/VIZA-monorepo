@@ -850,6 +850,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
   return (
     <div className="mx-auto w-full max-w-[1040px] pb-16">
+      {view === "home" ? (
       <section className="grid gap-5 pt-4 lg:grid-cols-[1.25fr_0.75fr]">
         <motion.div
           className="overflow-hidden rounded-xl border bg-white shadow-sm"
@@ -934,8 +935,9 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           </dl>
         </motion.div>
       </section>
+      ) : null}
 
-      <section className="mt-8 space-y-4">
+      <section className={cn("space-y-4", view === "home" ? "mt-8" : "pt-4")}>
         <div>
           <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {t(settingsTitleKey(view))}

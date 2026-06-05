@@ -15,9 +15,26 @@ interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
   wechat?: string | null;
 }
 
+const BILINGUAL_PROFILE_COLUMNS = [
+  "full_name_zh",
+  "full_name_en",
+  "place_of_birth_zh",
+  "place_of_birth_en",
+  "occupation_zh",
+  "occupation_en",
+  "address_zh",
+  "address_en",
+] as const;
+
 function cleanOptional(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function isMissingBilingualColumnError(message: string) {
+  const normalized = message.toLowerCase();
+  return BILINGUAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
+    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
 }
 
 function firstFilled(data: Record<string, string>, fieldNames: string[]): string | null {
@@ -157,7 +174,7 @@ export async function saveUniversalProfileWithSharedAnswers(
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const profilePayload = {
+    const baseProfilePayload = {
       auth_user_id: user.id,
       full_name: cleanOptional(input.profile.full_name),
       date_of_birth: cleanOptional(input.profile.date_of_birth),
@@ -176,12 +193,36 @@ export async function saveUniversalProfileWithSharedAnswers(
       wechat: cleanOptional(input.profile.wechat),
       updated_at: new Date().toISOString(),
     };
+    const bilingualProfilePayload = {
+      full_name_zh: cleanOptional(input.profile.full_name_zh),
+      full_name_en: cleanOptional(input.profile.full_name_en),
+      place_of_birth_zh: cleanOptional(input.profile.place_of_birth_zh),
+      place_of_birth_en: cleanOptional(input.profile.place_of_birth_en),
+      occupation_zh: cleanOptional(input.profile.occupation_zh),
+      occupation_en: cleanOptional(input.profile.occupation_en),
+      address_zh: cleanOptional(input.profile.address_zh),
+      address_en: cleanOptional(input.profile.address_en),
+    };
+    const hasBilingualPayload = Object.values(bilingualProfilePayload).some(Boolean);
 
-    const { data: savedProfile, error: profileError } = await adminClient
+    let { data: savedProfile, error: profileError } = await adminClient
       .from("applicant_profiles")
-      .upsert(profilePayload, { onConflict: "auth_user_id" })
+      .upsert(
+        hasBilingualPayload ? { ...baseProfilePayload, ...bilingualProfilePayload } : baseProfilePayload,
+        { onConflict: "auth_user_id" },
+      )
       .select("id, auth_user_id")
       .single();
+
+    if (profileError && hasBilingualPayload && isMissingBilingualColumnError(profileError.message)) {
+      const fallbackResult = await adminClient
+        .from("applicant_profiles")
+        .upsert(baseProfilePayload, { onConflict: "auth_user_id" })
+        .select("id, auth_user_id")
+        .single();
+      savedProfile = fallbackResult.data;
+      profileError = fallbackResult.error;
+    }
 
     if (profileError || !savedProfile) {
       return { error: profileError?.message ?? "Failed to save profile" };

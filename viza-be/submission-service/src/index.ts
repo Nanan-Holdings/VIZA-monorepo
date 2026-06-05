@@ -36,6 +36,10 @@ import {
   type ConfirmApplicationResult,
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
+import {
+  buildCountrySubmissionApplication,
+  runDryRunSubmission,
+} from "./country-submissions";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -82,6 +86,14 @@ import type { AuSubmissionResult } from "./submission-result";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
+
+function isSubmissionDryRunMode(): boolean {
+  return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
+}
+
+function isLegacyRealSubmitEnabled(): boolean {
+  return process.env.VIZA_ALLOW_LEGACY_REAL_SUBMIT === "1";
+}
 
 // ─── Supabase data loaders ───────────────────────────────────────────────────
 
@@ -1558,9 +1570,64 @@ function requireAnswer(map: Record<string, string | null>, field: string): strin
   return v.trim();
 }
 
+async function processDryRunItem(
+  item: SubmissionQueueItem,
+  source: "global_dry_run" | "legacy_fallback",
+): Promise<void> {
+  console.log(
+    `[dry-run] Processing ${item.application_id} via ${source} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({ status: "processing", updated_at: new Date().toISOString() })
+    .eq("id", item.id);
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id);
+    const dryRunApplication = buildCountrySubmissionApplication(
+      profile,
+      application,
+      answers,
+    );
+    const result = await runDryRunSubmission(dryRunApplication, {
+      dryRun: true,
+      idempotencyKey: `submission-queue:${item.id}`,
+    });
+    const resultStatus =
+      result.status === "submitted_mock" ? "submitted_mock" : "unsupported";
+
+    await writeSubmissionResult(item.application_id, result, resultStatus);
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: result.status === "submitted_mock" ? "done" : "failed",
+        last_error: result.status === "unsupported" ? result.message : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    console.log(
+      `[dry-run] ${item.application_id} -> ${result.status} (${result.targetCountry})`,
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[dry-run] Error processing ${item.application_id}:`, errorMsg);
+    await incrementFailure(item.id, item.attempts, errorMsg);
+    await markSubmissionFailed(item.application_id, errorMsg);
+  }
+}
+
 // ─── Main processing loop ────────────────────────────────────────────────────
 
 async function processItem(item: SubmissionQueueItem): Promise<void> {
+  if (!isLegacyRealSubmitEnabled()) {
+    await processDryRunItem(item, "legacy_fallback");
+    return;
+  }
+
   console.log(`[queue] Processing application ${item.application_id} (attempt ${item.attempts + 1})`);
 
   await markProcessing(item.id);
@@ -1617,7 +1684,9 @@ async function poll(): Promise<void> {
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
   for (const item of items) {
-    if (isDs160Job(item)) {
+    if (isSubmissionDryRunMode()) {
+      await processDryRunItem(item, "global_dry_run");
+    } else if (isDs160Job(item)) {
       await processDs160Item(item);
     } else if (isFvJob(item)) {
       await processFvItem(item);
