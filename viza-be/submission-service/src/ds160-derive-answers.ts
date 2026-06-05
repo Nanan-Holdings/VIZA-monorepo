@@ -89,6 +89,7 @@ interface KeyAlias {
 }
 
 const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
+  { from: "trip_payer_type", to: "who_is_paying" },
   { from: "home_address_state_province", to: "home_address_state" },
   { from: "home_address_postal_code", to: "home_address_postal" },
   { from: "us_address_street1", to: "us_address_street" },
@@ -98,6 +99,111 @@ const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
   // form field so either selector path resolves.
   { from: "who_is_paying", to: "travel_payer" },
 ];
+
+const CEAC_COUNTRY_CODES: Readonly<Record<string, string>> = {
+  ASTL: "ASTL",
+  AU: "ASTL",
+  AUS: "ASTL",
+  AUSTRALIA: "ASTL",
+  CAN: "CAN",
+  CA: "CAN",
+  CANADA: "CAN",
+  CHIN: "CHIN",
+  CN: "CHIN",
+  CHN: "CHIN",
+  CHINA: "CHIN",
+  "PEOPLE'S REPUBLIC OF CHINA": "CHIN",
+  EGYP: "EGYP",
+  EG: "EGYP",
+  EGY: "EGYP",
+  EGYPT: "EGYP",
+  FRAN: "FRAN",
+  FR: "FRAN",
+  FRA: "FRAN",
+  FRANCE: "FRAN",
+  GRBR: "GRBR",
+  GB: "GRBR",
+  GBR: "GRBR",
+  UK: "GRBR",
+  "UNITED KINGDOM": "GRBR",
+  "UNITED KINGDOM OF GREAT BRITAIN AND NORTHERN IRELAND": "GRBR",
+  IND: "IND",
+  IN: "IND",
+  INDIA: "IND",
+  JPN: "JPN",
+  JP: "JPN",
+  JAPAN: "JPN",
+  KOR: "KOR",
+  KR: "KOR",
+  KOREA: "KOR",
+  "SOUTH KOREA": "KOR",
+  "KOREA, REPUBLIC OF": "KOR",
+  "KOREA, REPUBLIC OF (SOUTH)": "KOR",
+  SING: "SING",
+  SG: "SING",
+  SGP: "SING",
+  SINGAPORE: "SING",
+  SRL: "SRL",
+  LK: "SRL",
+  LKA: "SRL",
+  "SRI LANKA": "SRL",
+  USA: "USA",
+  US: "USA",
+  "UNITED STATES": "USA",
+  "UNITED STATES OF AMERICA": "USA",
+  VTNM: "VTNM",
+  VN: "VTNM",
+  VNM: "VTNM",
+  VIETNAM: "VTNM",
+  "VIET NAM": "VTNM",
+};
+
+const FIELD_VALUE_CODES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  sex: { male: "M", female: "F", m: "M", f: "F" },
+  marital_status: {
+    married: "M",
+    common_law: "C",
+    civil_union: "P",
+    single: "S",
+    widowed: "W",
+    divorced: "D",
+    legally_separated: "L",
+    other: "O",
+  },
+  purpose_of_trip_specify: {
+    "B1/B2": "B1-B2",
+  },
+  intended_length_of_stay_unit: {
+    "YEAR(S)": "Y",
+    YEARS: "Y",
+    YEAR: "Y",
+    "MONTH(S)": "M",
+    MONTHS: "M",
+    MONTH: "M",
+    "WEEK(S)": "W",
+    WEEKS: "W",
+    WEEK: "W",
+    "DAY(S)": "D",
+    DAYS: "D",
+    DAY: "D",
+    LESS_THAN_24_HOURS: "H",
+    "LESS THAN 24 HOURS": "H",
+  },
+  who_is_paying: {
+    self: "S",
+    other_person: "O",
+    present_employer: "P",
+    employer_in_us: "U",
+    other_company: "C",
+  },
+  travel_payer: {
+    self: "S",
+    other_person: "O",
+    present_employer: "P",
+    employer_in_us: "U",
+    other_company: "C",
+  },
+};
 
 const NA_VALUE_TOKENS: ReadonlySet<string> = new Set([
   "DOES_NOT_APPLY",
@@ -178,6 +284,47 @@ function applyAliases(answers: Record<string, string>): void {
   }
 }
 
+function normalizedLookupKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function normalizeCountryValue(value: string): string {
+  return CEAC_COUNTRY_CODES[normalizedLookupKey(value)] ?? value;
+}
+
+function shouldNormalizeCountryKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  return normalized.includes("country") || normalized.endsWith("_nationality") || normalized === "nationality";
+}
+
+function shouldNormalizeBooleanKey(key: string): boolean {
+  return /^(has_|is_|intend_|vwp_|immigrant_|mailing_same_as_home|passport_has_|passport_lost_or_stolen|other_nationality|permanent_resident_other_country)/.test(key);
+}
+
+function normalizeCeacValueCodes(answers: Record<string, string>): void {
+  for (const [key, value] of Object.entries(answers)) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+
+    const fieldMap = FIELD_VALUE_CODES[key];
+    if (fieldMap) {
+      answers[key] = fieldMap[trimmed] ?? fieldMap[normalizedLookupKey(trimmed)] ?? trimmed;
+      continue;
+    }
+
+    if (shouldNormalizeBooleanKey(key)) {
+      const normalized = trimmed.toLowerCase();
+      if (normalized === "yes") answers[key] = "Y";
+      if (normalized === "no") answers[key] = "N";
+      continue;
+    }
+
+    if (shouldNormalizeCountryKey(key)) {
+      answers[key] = normalizeCountryValue(trimmed);
+    }
+  }
+}
+
 /**
  * Length of stay in days, derived from arrival_date + departure_date.
  * CEAC's travel page accepts a numeric value plus a unit dropdown; we set
@@ -227,10 +374,11 @@ export function deriveDS160Answers(
   answers: Record<string, string>,
 ): Record<string, string> {
   // Order matters: aliases first so date-split sources resolve to their
-  // canonical key, then date splits, then NA flags (NA may delete source
-  // keys, so do it last to avoid losing data needed by date-split source
-  // resolution).
+  // canonical key, then CEAC value-code normalization, then date splits,
+  // then NA flags (NA may delete source keys, so do it last to avoid losing
+  // data needed by date-split source resolution).
   applyAliases(answers);
+  normalizeCeacValueCodes(answers);
   deriveDateSplits(answers);
   deriveIntendedArrivalDate(answers);
   deriveLengthOfStay(answers);
