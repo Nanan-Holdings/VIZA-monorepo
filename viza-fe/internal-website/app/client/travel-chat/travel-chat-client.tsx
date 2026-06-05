@@ -3029,6 +3029,13 @@ export function TravelChatClient({
       ? order
       : displayTravelState.cities;
   }, [displayTravelState.cities, displayTravelState.travel_order]);
+  const displayOrderedCityLabels = useMemo(
+    () =>
+      displayOrderedCities.map((city) =>
+        getDisplayPlaceName(city, interfaceLocale)
+      ),
+    [displayOrderedCities, interfaceLocale]
+  );
   const selectedCityFocusKey = useMemo(
     () => travelState.cities.map((city) => normalizeCityKey(city)).join("|"),
     [travelState.cities]
@@ -4771,8 +4778,8 @@ export function TravelChatClient({
                       <p className="truncate text-sm font-semibold text-slate-900">
                         {showFinalItinerary
                           ? isZh
-                            ? `${displayItinerary.length}天${displayOrderedCities.join("、") || "定制"}行程`
-                            : `${displayItinerary.length}-day ${displayOrderedCities.join(", ") || "custom"} itinerary`
+                            ? `${displayItinerary.length}天${displayOrderedCityLabels.join("、") || "定制"}行程`
+                            : `${displayItinerary.length}-day ${displayOrderedCityLabels.join(", ") || "custom"} itinerary`
                           : formatMapTargetDisplayName(activeMapTarget, isZh)}
                       </p>
                     </div>
