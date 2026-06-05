@@ -271,7 +271,19 @@ export async function handleAirwallexPaymentSucceeded(recordId: string, intentId
   }
 }
 
+function metadataString(metadata: JsonObject | null, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export function safePaymentResponse(record: AirwallexPaymentRecord, intent: Awaited<ReturnType<typeof ensureAirwallexIntent>>) {
+  const productId = metadataString(record.metadata, "product_id") ?? metadataString(record.metadata, "productId");
+  const productName =
+    metadataString(record.metadata, "product_name_zh") ??
+    metadataString(record.metadata, "product_name") ??
+    metadataString(record.metadata, "productName");
+  const productKind = metadataString(record.metadata, "product_kind");
+
   return {
     paymentId: record.id,
     intentId: intent.id,
@@ -280,6 +292,10 @@ export function safePaymentResponse(record: AirwallexPaymentRecord, intent: Awai
     currency: record.currency,
     status: normalizeAirwallexStatus(intent.status),
     providerStatus: intent.status,
+    productId,
+    productName,
+    productKind:
+      productKind === "monthly" || productKind === "pay_per_application" ? productKind : null,
   };
 }
 

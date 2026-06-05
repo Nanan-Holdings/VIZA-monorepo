@@ -3612,6 +3612,11 @@
       "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
       "badge": "Manage"
     },
+      "subscription": {
+        "title": "Subscription management",
+        "description": "Review your monthly plan, renewal date, payment method, and cancellation status.",
+        "badge": "Monthly"
+      },
       "billing": {
         "title": "Receipts and invoices",
         "description": "Open billing history, receipts, invoice requests, and refund visibility."
@@ -3633,7 +3638,7 @@
     "manageSelected": "Managing",
     "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
     "managerHints": {
-      "bank_card": "Cards must complete hosted Stripe verification before they are available for future payment selection.",
+      "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
       "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
       "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
     },
@@ -3645,7 +3650,7 @@
     "qrAddTitle": "Scan to bind account",
     "editTitle": "Edit payment account",
     "addAccount": "Add account",
-    "verifyWithStripe": "Verify with Stripe",
+    "verifyWithStripe": "Open secure verification",
     "generateQr": "Generate binding QR",
     "regenerateQr": "Regenerate QR",
     "checkQrStatus": "Check binding status",
@@ -3654,8 +3659,8 @@
     "edit": "Edit",
     "delete": "Delete",
     "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
-    "stripeHint": "Card number and CVV are used only to start hosted Stripe verification; VIZA does not store the full card number or CVV.",
-    "cardIdentifier": "Ending in {last4} · Stripe verification pending",
+    "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
+    "cardIdentifier": "Card · secure verification pending",
     "qrAlt": "Payment account binding QR code",
     "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
     "qrExpires": "QR code expires at {time}.",
@@ -3696,11 +3701,11 @@
       "updated": "Payment account updated.",
       "deleted": "Payment account deleted.",
       "defaultUpdated": "Default payment account updated.",
-      "stripeUnavailable": "Stripe is not configured, so card verification is unavailable.",
-      "stripeStartFailed": "Could not start Stripe verification. Please try again later.",
-      "stripeRedirect": "Opening the hosted Stripe verification page.",
-      "stripeReturned": "Stripe verification returned. The payment service will update the binding status after confirmation.",
-      "stripeCancelled": "Stripe verification was cancelled. The card is not fully bound yet.",
+      "stripeUnavailable": "Hosted card verification is not configured, so card verification is unavailable.",
+      "stripeStartFailed": "Could not start card verification. Please try again later.",
+      "stripeRedirect": "Opening the hosted secure verification page.",
+      "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
+      "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
       "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
       "qrReady": "QR code generated. Scan it with the matching app.",
       "qrStatusFailed": "Could not check binding status. Please try again later.",
@@ -3711,7 +3716,7 @@
     "methods": {
       "bank_card": {
         "title": "Card",
-        "description": "Enter card number, CVV, and nickname, then verify through Stripe."
+        "description": "Enter a nickname, then complete binding on the hosted secure page."
       },
       "wechat_pay": {
         "title": "WeChat Pay",
@@ -4353,7 +4358,7 @@
     "back": "Back home",
     "eyebrow": "VIZA Application",
     "title": "Choose how you want to use VIZA applications",
-    "subtitle": "Use monthly access for frequent planning, or pay per destination for an occasional trip. All prices are shown in Chinese yuan and can open Stripe, WeChat Pay, or Alipay hosted payment flows.",
+    "subtitle": "Use monthly access for frequent planning, or pay per destination for an occasional trip. All prices are shown in Chinese yuan. Choose online payment first, then pick card, WeChat Pay, or Alipay at checkout.",
     "current": {
       "label": "Current plan",
       "plan": "VIZA Application Trial",
@@ -4361,7 +4366,8 @@
       "renewalLabel": "Renewal",
       "renewalValue": "Not enabled",
       "paymentLabel": "Payment method",
-      "paymentValue": "Stripe / WeChat / Alipay"
+      "paymentValue": "Not set",
+      "countryLimitLabel": "Monthly country allowance"
     },
     "highlights": {
       "allCountries": {
@@ -4370,7 +4376,7 @@
       },
       "threeWays": {
         "title": "Three payment entries",
-        "body": "Use Stripe-hosted Checkout, a WeChat Pay Native QR code, or Alipay web checkout."
+        "body": "Use card, WeChat Pay QR, or Alipay online payment."
       },
       "officialFees": {
         "title": "Clear service pricing",

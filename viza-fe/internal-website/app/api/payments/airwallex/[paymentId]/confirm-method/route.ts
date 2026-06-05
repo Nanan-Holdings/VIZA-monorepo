@@ -49,6 +49,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("[airwallex-confirm-method]", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Unable to confirm Airwallex payment method." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to confirm payment method." }, { status: 500 });
   }
 }

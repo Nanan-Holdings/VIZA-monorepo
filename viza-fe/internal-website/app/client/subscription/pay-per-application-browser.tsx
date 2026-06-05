@@ -5,19 +5,12 @@ import { useMemo, useState } from "react";
 import {
   ChevronRight,
   CreditCard,
-  MessageCircle,
   Search,
-  WalletCards,
 } from "lucide-react";
-import { startCommercialCheckout } from "./actions";
 import type { PayPerItem, PayPerRegion } from "./pay-per-types";
-import { cn } from "@/lib/utils";
-
-type CommercialPaymentProvider = "airwallex_card" | "airwallex_wechat" | "airwallex_alipay";
 
 interface PayPerApplicationBrowserProps {
   isZh: boolean;
-  readiness: Record<CommercialPaymentProvider, boolean>;
   regions: PayPerRegion[];
   labels: {
     searchPlaceholder: string;
@@ -28,61 +21,24 @@ interface PayPerApplicationBrowserProps {
   };
 }
 
-const providerLabels: Record<CommercialPaymentProvider, string> = {
-  airwallex_card: "银行卡",
-  airwallex_wechat: "微信",
-  airwallex_alipay: "支付宝",
-};
-
-const providerIcons = {
-  airwallex_card: CreditCard,
-  airwallex_wechat: MessageCircle,
-  airwallex_alipay: WalletCards,
-} satisfies Record<CommercialPaymentProvider, typeof CreditCard>;
-
-function PaymentButtons({
-  productId,
-  readiness,
-}: {
-  productId: string;
-  readiness: Record<CommercialPaymentProvider, boolean>;
-}) {
+function OnlinePayLink({ productId }: { productId: string }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {(Object.keys(providerLabels) as CommercialPaymentProvider[]).map((provider) => {
-        const Icon = providerIcons[provider];
-        const enabled = readiness[provider];
-
-        return (
-          <form key={provider} action={startCommercialCheckout}>
-            <input type="hidden" name="productId" value={productId} />
-            <input type="hidden" name="provider" value={provider} />
-            <button
-              type="submit"
-              className={cn(
-                "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-500 bg-white px-4 py-2 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                !enabled && "border-border text-muted-foreground",
-              )}
-              title={enabled ? `使用${providerLabels[provider]}支付` : `检查${providerLabels[provider]}配置并支付`}
-            >
-              <Icon className="h-4 w-4" />
-              {providerLabels[provider]}
-            </button>
-          </form>
-        );
-      })}
-    </div>
+    <Link
+      href={`/payments/checkout?productId=${encodeURIComponent(productId)}&billing=one_time`}
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-brand-500 bg-white px-4 py-2 text-sm font-semibold text-brand-500 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+    >
+      <CreditCard className="h-4 w-4" />
+      在线付
+    </Link>
   );
 }
 
 export function PayPerRow({
   item,
   isZh,
-  readiness,
 }: {
   item: PayPerItem;
   isZh: boolean;
-  readiness: Record<CommercialPaymentProvider, boolean>;
 }) {
   return (
     <div className="grid gap-3 rounded-lg border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -94,8 +50,8 @@ export function PayPerRow({
           {isZh ? item.visaNameZh : item.visaName} · {item.amountLabel}
         </p>
       </div>
-      <div className="min-w-[260px]">
-        <PaymentButtons productId={item.productId} readiness={readiness} />
+      <div className="min-w-[140px]">
+        <OnlinePayLink productId={item.productId} />
       </div>
     </div>
   );
@@ -103,7 +59,6 @@ export function PayPerRow({
 
 export function PayPerApplicationBrowser({
   isZh,
-  readiness,
   regions,
   labels,
 }: PayPerApplicationBrowserProps) {
@@ -142,7 +97,7 @@ export function PayPerApplicationBrowser({
           </div>
           <div className="mt-4 grid gap-3">
             {searchResults.map((item) => (
-              <PayPerRow key={item.id} item={item} isZh={isZh} readiness={readiness} />
+              <PayPerRow key={item.id} item={item} isZh={isZh} />
             ))}
           </div>
           {searchResults.length === 0 ? (
