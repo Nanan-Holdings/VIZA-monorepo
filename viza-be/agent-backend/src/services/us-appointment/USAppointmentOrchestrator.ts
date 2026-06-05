@@ -500,6 +500,19 @@ export class USAppointmentOrchestrator {
     return this.getStatus(inProgress.applicationId);
   }
 
+  async checkSlots(jobId: string): Promise<AppointmentStatusSnapshot> {
+    const job = await this.getJobOrThrow(jobId);
+    this.assertJobCanContinue(job);
+    await this.assertSlotCheckCooldown(job);
+    await this.auditService.recordJobTransition(
+      job,
+      "appointment_slot_check_requested",
+      "User-triggered appointment slot check requested.",
+      { no_background_polling: true },
+    );
+    return this.runJob(job.id);
+  }
+
   async cancelJob(jobId: string): Promise<AppointmentStatusSnapshot> {
     const job = await this.getJobOrThrow(jobId);
     const cancelled = await this.transitionJob(
@@ -700,6 +713,35 @@ export class USAppointmentOrchestrator {
         scheduling_provider: job.schedulingProvider,
       }),
     });
+  }
+
+  private getSlotCheckCooldownMs(): number {
+    const configured = Number(process.env.US_APPOINTMENT_SLOT_CHECK_COOLDOWN_MS ?? "600000");
+    return Number.isFinite(configured) && configured >= 60_000 ? configured : 600_000;
+  }
+
+  private async assertSlotCheckCooldown(job: AppointmentAssistanceJob): Promise<void> {
+    if (![
+      "appointment_calendar_opened",
+      "appointment_slots_observed",
+      "appointment_slot_selection_required",
+      "appointment_no_slots_available",
+    ].includes(job.status)) {
+      return;
+    }
+    const attempts = await this.repository.listAttempts(job.id);
+    const latest = attempts
+      .filter((attempt) => attempt.startedAt)
+      .sort((a, b) => Date.parse(b.startedAt ?? "") - Date.parse(a.startedAt ?? ""))[0];
+    if (!latest?.startedAt) return;
+    const elapsed = Date.now() - Date.parse(latest.startedAt);
+    if (elapsed < this.getSlotCheckCooldownMs()) {
+      throw new USAppointmentServiceError(
+        429,
+        "slot_check_rate_limited",
+        "Appointment slot checks are rate limited. VIZA will not repeatedly refresh appointment calendars.",
+      );
+    }
   }
 
   private async finishAttempt(
