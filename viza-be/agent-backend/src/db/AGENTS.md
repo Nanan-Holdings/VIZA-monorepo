@@ -54,6 +54,12 @@ For schema changes, also run any affected route/eval tests.
 - `visa_application_answers`
 - `application_translations`
 - `payment_records`
+- `official_fee_quotes`
+- `official_fee_payment_intents`
+- `official_fee_payment_attempts`
+- `official_fee_receipts`
+- `payment_instruments`
+- `official_fee_reconciliation_entries`
 - `consent_events`
 - `application_signatures`
 - `application_packets`

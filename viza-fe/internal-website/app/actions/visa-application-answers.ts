@@ -10,6 +10,11 @@ import {
 
 type ProfilePatch = Record<string, string>;
 const DATE_PROFILE_FIELDS = new Set(["date_of_birth", "passport_issue_date", "passport_expiry_date"]);
+type ApplicationOwnerProfile = {
+  id?: string | null;
+  auth_user_id?: string | null;
+  dependant_of_user_id?: string | null;
+};
 
 interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
   wechat?: string | null;
@@ -35,6 +40,47 @@ function isMissingBilingualColumnError(message: string) {
   const normalized = message.toLowerCase();
   return BILINGUAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
+}
+
+function isMissingColumnError(message: string, column: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes(column.toLowerCase()) &&
+    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
+}
+
+async function loadApplicationOwnerProfile(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applicantId: string,
+): Promise<{ profile: ApplicationOwnerProfile | null; error?: string }> {
+  const { data, error } = await adminClient
+    .from("applicant_profiles")
+    .select("id, auth_user_id, dependant_of_user_id")
+    .eq("id", applicantId)
+    .maybeSingle();
+
+  if (!error) return { profile: data };
+
+  if (!isMissingColumnError(error.message, "dependant_of_user_id")) {
+    return { profile: null, error: error.message };
+  }
+
+  const fallbackResult = await adminClient
+    .from("applicant_profiles")
+    .select("id, auth_user_id")
+    .eq("id", applicantId)
+    .maybeSingle();
+
+  return {
+    profile: fallbackResult.data,
+    error: fallbackResult.error?.message,
+  };
+}
+
+function ownsApplication(
+  profile: ApplicationOwnerProfile | null,
+  userId: string,
+): profile is ApplicationOwnerProfile & { id: string } {
+  return Boolean(profile?.id && (profile.auth_user_id === userId || profile.dependant_of_user_id === userId));
 }
 
 function firstFilled(data: Record<string, string>, fieldNames: string[]): string | null {
@@ -106,13 +152,10 @@ export async function saveDynamicAnswers(
 
     if (!app) return { error: "Application not found" };
 
-    const { data: profile } = await adminClient
-      .from("applicant_profiles")
-      .select("id, auth_user_id, dependant_of_user_id")
-      .eq("id", app.applicant_id)
-      .maybeSingle();
+    const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
 
-    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+    if (profileError) return { error: profileError };
+    if (!ownsApplication(profile, user.id)) {
       return { error: "Unauthorized" };
     }
 
@@ -479,13 +522,10 @@ export async function loadDynamicAnswers(
 
     if (!app?.applicant_id) return { answers: {}, error: "Application not found" };
 
-    const { data: profile } = await adminClient
-      .from("applicant_profiles")
-      .select("auth_user_id, dependant_of_user_id")
-      .eq("id", app.applicant_id)
-      .maybeSingle();
+    const { profile, error: profileError } = await loadApplicationOwnerProfile(adminClient, app.applicant_id);
 
-    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+    if (profileError) return { answers: {}, error: profileError };
+    if (!ownsApplication(profile, user.id)) {
       return { answers: {}, error: "Unauthorized" };
     }
 
