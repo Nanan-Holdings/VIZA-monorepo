@@ -134,6 +134,34 @@
       "cityLabel": "夏威夷",
       "imageSrc": "/travel/cities/hawaii.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunset_next_to_Waikiki_Beach,_Oahu,_Hawai,_USA1.jpg"
+    },
+    {
+      "cityKeys": [
+        "guangzhou",
+        "??",
+        "canton"
+      ],
+      "cityLabel": "??",
+      "imageSrc": "/travel/cities/guangzhou.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Guangzhou_Skyline_20210522-01.jpg"
+    },
+    {
+      "cityKeys": [
+        "hangzhou",
+        "??"
+      ],
+      "cityLabel": "??",
+      "imageSrc": "/travel/cities/hangzhou.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:West_Lake_Pavilion_and_Water_Lilies,_Hangzhou_120529_1.jpg"
+    },
+    {
+      "cityKeys": [
+        "shanghai",
+        "??"
+      ],
+      "cityLabel": "??",
+      "imageSrc": "/travel/cities/shanghai.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bund,_Shanghai,_China_(December_2015)_-_01.JPG"
     }
   ],
   "attractions": [
@@ -1216,6 +1244,240 @@
       ],
       "lat": 20.72,
       "lng": -156.155
+    },
+    {
+      "cityKeys": [
+        "guangzhou",
+        "??",
+        "canton"
+      ],
+      "cityLabel": "??",
+      "name": "???",
+      "location": "Yuejiang West Road, Haizhu District, Guangzhou",
+      "imageSrc": "/travel/attractions/guangzhou-canton-tower.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Canton_Tower,_Guangzhou,_CN_Lit_up_at_night.jpg",
+      "description": "????????????????????????????????",
+      "aliases": [
+        "Canton Tower",
+        "???",
+        "???"
+      ],
+      "lat": 23.1056,
+      "lng": 113.3245
+    },
+    {
+      "cityKeys": [
+        "guangzhou",
+        "??",
+        "canton"
+      ],
+      "cityLabel": "??",
+      "name": "???",
+      "location": "Chen Clan Ancestral Hall, Liwan District, Guangzhou",
+      "imageSrc": "/travel/attractions/guangzhou-chen-clan-ancestral-hall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chen_Clan_Ancestral_Hall_2025.06_02.jpg",
+      "description": "??????????????????????????????",
+      "aliases": [
+        "Chen Clan Ancestral Hall",
+        "Chen Clan Academy",
+        "????"
+      ],
+      "lat": 23.1241,
+      "lng": 113.2465
+    },
+    {
+      "cityKeys": [
+        "guangzhou",
+        "??",
+        "canton"
+      ],
+      "cityLabel": "??",
+      "name": "???",
+      "location": "Shamian Island, Liwan District, Guangzhou",
+      "imageSrc": "/travel/attractions/guangzhou-shamian-island.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shamian_Island,_Guangzhou_(5929144006).jpg",
+      "description": "????????????????????????????",
+      "aliases": [
+        "Shamian Island",
+        "Shamian",
+        "??"
+      ],
+      "lat": 23.109,
+      "lng": 113.2394
+    },
+    {
+      "cityKeys": [
+        "guangzhou",
+        "??",
+        "canton"
+      ],
+      "cityLabel": "??",
+      "name": "????????",
+      "location": "Yuexiu Park, Guangzhou",
+      "imageSrc": "/travel/attractions/guangzhou-five-ram-sculpture.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Five-Ram_Sculpture_of_Guangzhou.jpg",
+      "description": "????????????????????????????",
+      "aliases": [
+        "Five-Ram Sculpture",
+        "Five Rams",
+        "????",
+        "????"
+      ],
+      "lat": 23.139,
+      "lng": 113.264
+    },
+    {
+      "cityKeys": [
+        "hangzhou",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "??",
+      "location": "West Lake, Hangzhou",
+      "imageSrc": "/travel/attractions/hangzhou-west-lake.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:West_Lake_Pavilion_and_Water_Lilies,_Hangzhou_120529_1.jpg",
+      "description": "????????????????????????????",
+      "aliases": [
+        "West Lake",
+        "??",
+        "Xihu"
+      ],
+      "lat": 30.2431,
+      "lng": 120.1507
+    },
+    {
+      "cityKeys": [
+        "hangzhou",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "???",
+      "location": "Lingyin Temple, Hangzhou",
+      "imageSrc": "/travel/attractions/hangzhou-lingyin-temple.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lingyin_Temple,_Hangzhou_20161003.jpg",
+      "description": "????????????????????????????",
+      "aliases": [
+        "Lingyin Temple",
+        "???",
+        "Temple of the Soul's Retreat"
+      ],
+      "lat": 30.2407,
+      "lng": 120.1021
+    },
+    {
+      "cityKeys": [
+        "hangzhou",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "????????",
+      "location": "Xixi National Wetland Park, Hangzhou",
+      "imageSrc": "/travel/attractions/hangzhou-xixi-wetland.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xixi_Wetland_Park,_Hangzhou,_China.jpg",
+      "description": "????????????????????????????",
+      "aliases": [
+        "Xixi National Wetland Park",
+        "Xixi Wetland",
+        "????"
+      ],
+      "lat": 30.2715,
+      "lng": 120.0623
+    },
+    {
+      "cityKeys": [
+        "hangzhou",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "???",
+      "location": "Leifeng Pagoda, Hangzhou",
+      "imageSrc": "/travel/attractions/hangzhou-leifeng-pagoda.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Leifeng_Pagoda_%E9%9B%B7%E5%B3%B0%E5%A1%94_-_panoramio.jpg",
+      "description": "??????????????????????",
+      "aliases": [
+        "Leifeng Pagoda",
+        "???"
+      ],
+      "lat": 30.2312,
+      "lng": 120.1484
+    },
+    {
+      "cityKeys": [
+        "shanghai",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "??",
+      "location": "The Bund, Shanghai",
+      "imageSrc": "/travel/attractions/shanghai-the-bund.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bund,_Shanghai,_China_(December_2015)_-_04.JPG",
+      "description": "?????????????????????????????",
+      "aliases": [
+        "The Bund",
+        "Bund",
+        "??"
+      ],
+      "lat": 31.2403,
+      "lng": 121.4906
+    },
+    {
+      "cityKeys": [
+        "shanghai",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "?????????",
+      "location": "Oriental Pearl Tower, Lujiazui, Shanghai",
+      "imageSrc": "/travel/attractions/shanghai-oriental-pearl-tower.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shanghai_Oriental_Pearl_Tower.JPG",
+      "description": "???????????????????????????",
+      "aliases": [
+        "Oriental Pearl Tower",
+        "????",
+        "?????"
+      ],
+      "lat": 31.2397,
+      "lng": 121.4998
+    },
+    {
+      "cityKeys": [
+        "shanghai",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "??",
+      "location": "Yu Garden, Shanghai",
+      "imageSrc": "/travel/attractions/shanghai-yu-garden.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:2024-Apr_Shanghai_Yu_Yuan_Garden_%E8%B1%AB%E5%9B%AD_-_img_38.jpg",
+      "description": "?????????????????????????",
+      "aliases": [
+        "Yu Garden",
+        "Yuyuan Garden",
+        "??"
+      ],
+      "lat": 31.2272,
+      "lng": 121.4923
+    },
+    {
+      "cityKeys": [
+        "shanghai",
+        "??"
+      ],
+      "cityLabel": "??",
+      "name": "???????????",
+      "location": "Shanghai Tower, Lujiazui, Shanghai",
+      "imageSrc": "/travel/attractions/shanghai-tower-cluster.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shanghai_Tower,_Shanghai_World_Financial_Center_and_Jin_Mao_Tower_20251126.jpg",
+      "description": "?????????????????????????????????",
+      "aliases": [
+        "Shanghai Tower",
+        "Jin Mao Tower",
+        "Lujiazui",
+        "????",
+        "???"
+      ],
+      "lat": 31.2335,
+      "lng": 121.5055
     }
   ]
 }

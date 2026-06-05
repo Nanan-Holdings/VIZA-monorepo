@@ -29,6 +29,10 @@ explicitly reintroduces another provider.
 - Website internal automation: `src/routes/internal-automation/**`,
   `src/services/internal-automation/**`, `src/db/schema.ts`, and
   `drizzle/0013_internal_automation_loop.sql`.
+- Official visa fee payment framework: `src/routes/official-fee.routes.ts`,
+  `src/services/official-fee/**`, `src/db/schema.ts`, and
+  `drizzle/0089_official_fee_payment.sql`. Dry-run/manual-review only unless
+  a future task explicitly enables provider-approved live payment.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
@@ -77,7 +81,9 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/db/schema.ts`
 - `src/db/supabase-client.ts`
 - `src/routes/internal-automation/*`
+- `src/routes/official-fee.routes.ts`
 - `src/services/internal-automation/*`
+- `src/services/official-fee/*`
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`

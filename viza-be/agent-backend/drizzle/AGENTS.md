@@ -47,13 +47,16 @@ The current internal automation migrations are:
   `application-documents` Storage bucket and user-prefix object policies.
 - `0088_travel_destination_index.sql`: Travel AI destination index, aliases,
   lazy cards, itinerary session archive, and unresolved destination queue.
+- `0089_official_fee_payment.sql`: official visa fee quote, consent-linked
+  intent, attempt, receipt, instrument abstraction, reconciliation, and
+  application-level official-fee status columns.
 - `0090_applicant_profile_bilingual_fields.sql`: applicant profile Chinese and
   English value columns used by bilingual filling UI.
 
 ## Guardrails
 
-- Do not add runner/Playwright/submission-service tables to this automation
-  scope.
+- Do not add runner/Playwright/submission-service tables or real official-site
+  payment automation to this automation scope.
 - Do not drop or rewrite existing tables without explicit user approval.
 - Do not commit secrets or environment-specific values.
 

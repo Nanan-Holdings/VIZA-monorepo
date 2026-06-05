@@ -138,8 +138,12 @@ async function resolveRequester(req: Request): Promise<Requester | null> {
 }
 
 function setRequester(res: Response, requester: Requester): void {
-  (res.locals.officialFee as OfficialFeeLocals | undefined) ??= { requester };
-  (res.locals.officialFee as OfficialFeeLocals).requester = requester;
+  const existing = res.locals.officialFee as OfficialFeeLocals | undefined;
+  if (existing) {
+    existing.requester = requester;
+    return;
+  }
+  res.locals.officialFee = { requester } satisfies OfficialFeeLocals;
 }
 
 function getOfficialFeeLocals(res: Response): OfficialFeeLocals {

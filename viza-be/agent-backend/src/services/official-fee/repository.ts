@@ -349,7 +349,7 @@ function mapConsent(row: SupabaseObject): OfficialFeeConsent | null {
     userId,
     quoteId,
     accepted: row.accepted === true,
-    snapshot: officialFee,
+    snapshot: officialFee ?? {},
     createdAt: nullableString(row.created_at),
   };
 }

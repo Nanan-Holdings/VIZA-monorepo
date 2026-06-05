@@ -18,6 +18,8 @@ and internal admin flows.
 - `user-packages.routes.ts`: package/destination APIs.
 - `internal-automation/**`: external status ingest, packet handoff, lifecycle
   summaries, and website automation admin/customer APIs.
+- `official-fee.routes.ts`: official visa fee quote, consent, dry-run/manual
+  payment intent, approval, execution, retry, and status APIs.
 - `chat-save-block.routes.ts`: chat block persistence.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.
@@ -33,7 +35,8 @@ and internal admin flows.
 - Keep Socket.IO event handling in `src/socket/**`, not REST routes.
 - Do not log PII or secrets.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
-  or browser runner behavior in route handlers.
+  real official-site payment submission, or browser runner behavior in route
+  handlers. Official-fee routes must stay dry-run/manual-review by default.
 
 ## Validation
 

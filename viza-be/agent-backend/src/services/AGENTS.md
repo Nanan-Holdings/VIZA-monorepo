@@ -16,6 +16,8 @@ conversation state, and other cross-route behavior.
 - `internal-automation/**`: lifecycle status mapping, external status
   normalization, packet handoff payload shaping, and notification payload
   helpers for website-owned automation.
+- `official-fee/**`: official visa fee quote/consent/payment-intent framework,
+  dry-run/manual providers, precondition gates, redaction, and reconciliation.
 
 ## Ownership Boundaries
 
@@ -28,6 +30,9 @@ conversation state, and other cross-route behavior.
   users or LLM context.
 - Keep official portal runner logic out of services unless the user explicitly
   reopens `submission-service` scope.
+- Official-fee services may model browser/virtual-card providers as interfaces,
+  but must not move real portal payment automation or sensitive card handling
+  into `agent-backend`.
 
 ## Validation
 
