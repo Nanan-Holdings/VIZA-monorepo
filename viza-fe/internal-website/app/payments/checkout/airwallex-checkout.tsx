@@ -439,17 +439,12 @@ export function AirwallexCheckout({
                   );
                 })}
               </div>
-              {!applePayAvailable ? (
-                <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
-                  <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Apple Pay 在当前浏览器或域名环境中不可用，已自动隐藏。
-                </p>
-              ) : (
+              {applePayAvailable ? (
                 <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
                   <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   Apple Pay 需要完成支付服务域名验证后启用，当前 sandbox 暂不展示。
                 </p>
-              )}
+              ) : null}
             </aside>
 
             <div className="min-h-[380px] rounded-lg border bg-background p-4">

@@ -40,6 +40,8 @@ privacy/data-rights controls.
 - `payment-methods/page.tsx`: payment account binding and default-method
   management.
 - `points/page.tsx`: VIZA points balance, earning rules, and marketplace.
+- `subscription/page.tsx`: monthly plan status, renewal, cancel-at-period-end,
+  and payment-method shortcuts.
 - `travelers/page.tsx`: common/frequent traveler management.
 - `privacy/page.tsx`: privacy/data-rights page.
 - `security/password/page.tsx` and `security/email/page.tsx`: account security

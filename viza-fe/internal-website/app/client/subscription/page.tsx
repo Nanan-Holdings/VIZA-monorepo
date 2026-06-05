@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BadgeCheck,
   CheckCircle2,
-  MessageCircle,
   Plane,
   ShieldCheck,
   Sparkles,
@@ -88,8 +87,8 @@ function getErrorReturnState(error: string | null): SubscriptionReturnState {
     },
     stripe_unconfigured: {
       tone: "warning",
-      title: "Stripe 尚未配置",
-      description: "请先配置 Stripe Secret Key、Webhook Secret 和应用地址。",
+      title: "银行卡支付尚未配置",
+      description: "请先配置托管银行卡验证和应用回调地址。",
     },
     wechat_unconfigured: {
       tone: "warning",
@@ -188,7 +187,7 @@ function OnlinePayCta({
           : "border border-brand-500 bg-brand-500 text-white hover:bg-brand-600 focus-visible:ring-ring",
       )}
     >
-      <MessageCircle className="h-4 w-4" />
+      <ShieldCheck className="h-4 w-4" />
       在线付
     </Link>
   );

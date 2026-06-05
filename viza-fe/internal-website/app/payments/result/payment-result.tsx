@@ -64,13 +64,21 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             {paid
-              ? "VIZA 已记录这笔人民币服务费，权益开通逻辑已预留给后续账户体系。"
+              ? "VIZA 已记录这笔人民币服务费，月付方案会同步到你的订阅状态。"
               : failed
-                ? "Airwallex 未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
+                ? "在线支付服务未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
                 : "如果你刚完成扫码或验证，页面会自动刷新最终状态。"}
           </p>
           {providerStatus ? (
-            <p className="mt-5 text-xs font-medium text-muted-foreground">Provider status: {providerStatus}</p>
+            <p className="mt-5 text-xs font-medium text-muted-foreground">支付服务状态：{providerStatus}</p>
+          ) : null}
+          {paid ? (
+            <Link
+              href="/client/settings/subscription"
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
+            >
+              管理订阅方案
+            </Link>
           ) : null}
         </section>
       </div>
