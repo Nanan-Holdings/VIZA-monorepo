@@ -74,6 +74,11 @@ import {
   getTravelAttractionsForCity,
   getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
+import {
+  CURATED_CITY_EN_LABELS_BY_KEY,
+  CURATED_CITY_ZH_LABELS_BY_KEY,
+  getCuratedCityLabel,
+} from "@/lib/travel/locations";
 
 type ItineryTableRow = {
   time?: string;
@@ -229,42 +234,26 @@ const EXPORT_LANGUAGE_OPTIONS: Array<{
   { value: "bilingual", label: "中英双语" },
 ];
 
-const CITY_IMAGE_POOL = [
-  "/globe/tokyo.jpg",
-  "/globe/singapore.jpg",
-  "/globe/sydney.jpg",
-  "/globe/nyc.jpg",
-  "/globe/beijing.jpg",
-  "/globe/london.jpg",
-  "/globe/paris.jpg",
-  "/globe/sf.jpg",
-  "/globe/pisa.jpg",
-  "/globe/egypt.jpg",
-] as const;
+const CITY_IMAGE_FALLBACK = "/travel/cities/travel-fallback.svg";
 
 const CITY_IMAGE_BY_KEY: Record<string, string> = {
   bali: "/travel/cities/bali.jpg",
   denpasar: "/travel/cities/bali.jpg",
-  chengdu: "/globe/beijing.jpg",
   tokyo: "/travel/cities/tokyo.jpg",
-  kyoto: "/globe/tokyo.jpg",
-  osaka: "/globe/tokyo.jpg",
   singapore: "/travel/cities/singapore.jpg",
   sydney: "/travel/cities/sydney.jpg",
   london: "/travel/cities/london.jpg",
   paris: "/travel/cities/paris.jpg",
-  lyon: "/globe/paris.jpg",
-  marseille: "/globe/paris.jpg",
-  nice: "/globe/paris.jpg",
   newyork: "/travel/cities/newyork.jpg",
   nyc: "/travel/cities/newyork.jpg",
   beijing: "/travel/cities/beijing.jpg",
   sanfrancisco: "/travel/cities/sanfrancisco.jpg",
   sf: "/travel/cities/sanfrancisco.jpg",
   pisa: "/travel/cities/pisa.jpg",
-  naples: "/globe/pisa.jpg",
-  rome: "/globe/pisa.jpg",
   dubai: "/travel/cities/dubai.jpg",
+  guangzhou: "/travel/cities/guangzhou.jpg",
+  hangzhou: "/travel/cities/hangzhou.jpg",
+  shanghai: "/travel/cities/shanghai.jpg",
   moscow: "/travel/cities/moscow.jpg",
   istanbul: "/travel/cities/istanbul.jpg",
   melbourne: "/travel/cities/melbourne.jpg",
@@ -272,6 +261,7 @@ const CITY_IMAGE_BY_KEY: Record<string, string> = {
 };
 
 const LOCAL_CITY_LABELS: Record<string, string> = {
+  ...CURATED_CITY_ZH_LABELS_BY_KEY,
   bali: "巴厘岛",
   denpasar: "登巴萨",
   chengdu: "成都",
@@ -312,6 +302,7 @@ const LOCAL_CITY_LABELS: Record<string, string> = {
 };
 
 const EN_CITY_LABELS: Record<string, string> = {
+  ...CURATED_CITY_EN_LABELS_BY_KEY,
   bali: "Bali",
   denpasar: "Denpasar",
   chengdu: "Chengdu",
@@ -998,13 +989,13 @@ function hashString(value: string): number {
 
 function getLocalCityLabel(city: string): string {
   const key = normalizeLookupKey(city);
-  return LOCAL_CITY_LABELS[key] ?? city;
+  return getCuratedCityLabel(city, "zh") ?? LOCAL_CITY_LABELS[key] ?? city;
 }
 
 function getCityLabel(city: string, language: TravelInterfaceLocale): string {
   if (language === "zh") return getLocalCityLabel(city);
   const key = normalizeLookupKey(city);
-  return EN_CITY_LABELS[key] ?? city;
+  return getCuratedCityLabel(city, "en") ?? EN_CITY_LABELS[key] ?? city;
 }
 
 function getCopy(language: TravelInterfaceLocale) {
@@ -1166,8 +1157,7 @@ function getCityImage(city: string, seed: string = "default"): string {
   const direct = CITY_IMAGE_BY_KEY[key];
   if (direct) return direct;
 
-  const index = hashString(`${key}-${seed}`) % CITY_IMAGE_POOL.length;
-  return CITY_IMAGE_POOL[index];
+  return CITY_IMAGE_FALLBACK;
 }
 
 function getCityCoordinates(city: string): [number, number] {

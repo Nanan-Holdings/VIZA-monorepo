@@ -23,6 +23,7 @@ import {
   type BilingualOptionPair,
 } from "@/components/application-steps/bilingual-form-shared";
 import { Textarea } from "@/components/ui/textarea";
+import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
@@ -44,6 +45,18 @@ interface UniversalProfileForm {
   wechat: string;
 }
 
+const BILINGUAL_PROFILE_FIELDS = ["full_name", "place_of_birth", "occupation", "address"] as const;
+type BilingualProfileField = (typeof BILINGUAL_PROFILE_FIELDS)[number];
+type BilingualProfileColumn = `${BilingualProfileField}_zh` | `${BilingualProfileField}_en`;
+
+interface BilingualTextValue {
+  zh: string;
+  en: string;
+}
+
+type BilingualProfileState = Record<BilingualProfileField, BilingualTextValue>;
+type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<BilingualProfileColumn, string | null>>;
+
 const EMPTY_FORM: UniversalProfileForm = {
   full_name: "",
   date_of_birth: "",
@@ -59,6 +72,13 @@ const EMPTY_FORM: UniversalProfileForm = {
   email: "",
   phone: "",
   wechat: "",
+};
+
+const EMPTY_BILINGUAL_FORM: BilingualProfileState = {
+  full_name: { zh: "", en: "" },
+  place_of_birth: { zh: "", en: "" },
+  occupation: { zh: "", en: "" },
+  address: { zh: "", en: "" },
 };
 
 const PROFILE_FIELDS: Array<keyof UniversalProfileForm> = [
@@ -110,6 +130,91 @@ function countryEnglishName(value: string) {
   return findBilingualOption(COUNTRY_OPTIONS, value)?.en ?? value;
 }
 
+function hasChinese(value: string) {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function textOrNull(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function splitStoredBilingualValue(value?: string | null): BilingualTextValue | null {
+  const trimmed = textOrNull(value);
+  if (!trimmed) return null;
+  const parts = trimmed.split(/\s+\/\s+/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const zh = parts.find(hasChinese);
+  const en = parts.find((part) => !hasChinese(part));
+  if (!zh && !en) return null;
+  return { zh: zh ?? "", en: en ?? "" };
+}
+
+function toEnglishProfileValue(field: BilingualProfileField, value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (!hasChinese(trimmed)) return trimmed;
+
+  if (field === "full_name") {
+    const compactName = trimmed.replace(/\s+/g, "");
+    if (/^[\u3400-\u9fff]+$/.test(compactName) && compactName.length > 1) {
+      const surname = toOfficialEnglishValue(compactName.slice(0, 1));
+      const givenNames = Array.from(compactName.slice(1))
+        .map((character) => toOfficialEnglishValue(character))
+        .join("");
+      if (surname && givenNames && !hasChinese(`${surname}${givenNames}`)) {
+        return `${surname} ${givenNames}`;
+      }
+    }
+  }
+
+  const english = toOfficialEnglishValue(trimmed);
+  return hasChinese(english) ? "" : english;
+}
+
+function toInitialBilingualValue(profile: UniversalProfileRow, field: BilingualProfileField): BilingualTextValue {
+  const storedZh = textOrNull(profile[`${field}_zh`]);
+  const storedEn = textOrNull(profile[`${field}_en`]);
+  if (storedZh || storedEn) {
+    return {
+      zh: storedZh ?? (storedEn ? toChineseSourceValue(storedEn) : ""),
+      en: storedEn ?? (storedZh ? toEnglishProfileValue(field, storedZh) : ""),
+    };
+  }
+
+  const canonical = textOrNull(profile[field]);
+  const storedPair = splitStoredBilingualValue(canonical);
+  if (storedPair) {
+    return {
+      zh: storedPair.zh,
+      en: storedPair.en || (storedPair.zh ? toEnglishProfileValue(field, storedPair.zh) : ""),
+    };
+  }
+
+  if (!canonical) return { zh: "", en: "" };
+  if (hasChinese(canonical)) {
+    return {
+      zh: canonical,
+      en: toEnglishProfileValue(field, canonical),
+    };
+  }
+
+  return {
+    zh: toChineseSourceValue(canonical),
+    en: canonical,
+  };
+}
+
+function toInitialBilingualForm(profile: UniversalProfileRow | null): BilingualProfileState {
+  if (!profile) return EMPTY_BILINGUAL_FORM;
+  return {
+    full_name: toInitialBilingualValue(profile, "full_name"),
+    place_of_birth: toInitialBilingualValue(profile, "place_of_birth"),
+    occupation: toInitialBilingualValue(profile, "occupation"),
+    address: toInitialBilingualValue(profile, "address"),
+  };
+}
+
 function updateMirroredValue(value: string) {
   return mirrorText(value);
 }
@@ -149,16 +254,22 @@ export default function UniversalInfoPage() {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [form, setForm] = useState<UniversalProfileForm>(EMPTY_FORM);
+  const [bilingualForm, setBilingualForm] = useState<BilingualProfileState>(EMPTY_BILINGUAL_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const completedCount = useMemo(
-    () => PROFILE_FIELDS.filter((field) => form[field].trim()).length,
-    [form],
-  );
+  const completedCount = useMemo(() => {
+    return PROFILE_FIELDS.filter((field) => {
+      if (BILINGUAL_PROFILE_FIELDS.includes(field as BilingualProfileField)) {
+        const bilingualValue = bilingualForm[field as BilingualProfileField];
+        return Boolean(bilingualValue.zh.trim() || bilingualValue.en.trim());
+      }
+      return Boolean(form[field].trim());
+    }).length;
+  }, [bilingualForm, form]);
   const completionPercent = Math.round((completedCount / PROFILE_FIELDS.length) * 100);
 
   useEffect(() => {
@@ -175,7 +286,7 @@ export default function UniversalInfoPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("applicant_profiles")
-        .select("full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
+        .select("*")
         .eq("auth_user_id", user.id)
         .maybeSingle();
 
@@ -187,7 +298,7 @@ export default function UniversalInfoPage() {
         return;
       }
 
-      const typedProfile = profile as Partial<UniversalProfileForm> | null;
+      const typedProfile = profile as UniversalProfileRow | null;
       if (!typedProfile) {
         await supabase.from("applicant_profiles").upsert(
           {
@@ -205,13 +316,13 @@ export default function UniversalInfoPage() {
       }
 
       setForm({
-        full_name: typedProfile?.full_name ?? "",
+        full_name: toInitialBilingualValue(typedProfile ?? {}, "full_name").en,
         date_of_birth: typedProfile?.date_of_birth ?? "",
-        place_of_birth: typedProfile?.place_of_birth ?? "",
+        place_of_birth: toInitialBilingualValue(typedProfile ?? {}, "place_of_birth").en,
         gender: normalizeGender(typedProfile?.gender),
         nationality: normalizeCountryCode(typedProfile?.nationality),
-        occupation: typedProfile?.occupation ?? "",
-        address: typedProfile?.address ?? "",
+        occupation: toInitialBilingualValue(typedProfile ?? {}, "occupation").en,
+        address: toInitialBilingualValue(typedProfile ?? {}, "address").en,
         passport_number: typedProfile?.passport_number ?? "",
         passport_issue_date: typedProfile?.passport_issue_date ?? "",
         passport_expiry_date: typedProfile?.passport_expiry_date ?? "",
@@ -220,6 +331,7 @@ export default function UniversalInfoPage() {
         phone: typedProfile?.phone ?? "",
         wechat: typedProfile?.wechat ?? "",
       });
+      setBilingualForm(toInitialBilingualForm(typedProfile));
       setIsLoading(false);
     }
 
@@ -233,18 +345,50 @@ export default function UniversalInfoPage() {
     setError(null);
   }
 
+  function updateBilingualField(field: BilingualProfileField, side: "zh" | "en", value: string) {
+    const nextValue =
+      side === "zh"
+        ? {
+            zh: value,
+            en: toEnglishProfileValue(field, value),
+          }
+        : {
+            zh: toChineseSourceValue(value),
+            en: value,
+          };
+
+    setBilingualForm((current) => ({ ...current, [field]: nextValue }));
+    setForm((current) => ({ ...current, [field]: nextValue.en || nextValue.zh }));
+    setMessage(null);
+    setError(null);
+  }
+
   function applyPassportOcrFields(fields: UniversalProfileSnapshot) {
-    setForm((current) => ({
+    const ocrBilingualFields = toInitialBilingualForm(fields as UniversalProfileRow);
+    setBilingualForm((current) => ({
       ...current,
-      full_name: fields.full_name ?? current.full_name,
-      date_of_birth: fields.date_of_birth ?? current.date_of_birth,
-      gender: normalizeGender(fields.gender) || current.gender,
-      nationality: normalizeCountryCode(fields.nationality) || current.nationality,
-      passport_number: fields.passport_number ?? current.passport_number,
-      passport_issue_date: fields.passport_issue_date ?? current.passport_issue_date,
-      passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
-      passport_issuing_country: normalizeCountryCode(fields.passport_issuing_country) || current.passport_issuing_country,
+      full_name: fields.full_name ? ocrBilingualFields.full_name : current.full_name,
+      place_of_birth: fields.place_of_birth ? ocrBilingualFields.place_of_birth : current.place_of_birth,
     }));
+    setForm((current) => {
+      const nextFullName = fields.full_name ? ocrBilingualFields.full_name.en || ocrBilingualFields.full_name.zh : current.full_name;
+      const nextPlaceOfBirth = fields.place_of_birth
+        ? ocrBilingualFields.place_of_birth.en || ocrBilingualFields.place_of_birth.zh
+        : current.place_of_birth;
+
+      return {
+        ...current,
+        full_name: nextFullName,
+        date_of_birth: fields.date_of_birth ?? current.date_of_birth,
+        place_of_birth: nextPlaceOfBirth,
+        gender: normalizeGender(fields.gender) || current.gender,
+        nationality: normalizeCountryCode(fields.nationality) || current.nationality,
+        passport_number: fields.passport_number ?? current.passport_number,
+        passport_issue_date: fields.passport_issue_date ?? current.passport_issue_date,
+        passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
+        passport_issuing_country: normalizeCountryCode(fields.passport_issuing_country) || current.passport_issuing_country,
+      };
+    });
     setMessage(isZh ? "护照 OCR 已填入可识别字段，请核对后保存或继续编辑。" : "Passport OCR filled the readable fields. Please review before saving or editing.");
     setError(null);
   }
@@ -264,13 +408,21 @@ export default function UniversalInfoPage() {
         country: "us",
         visaType: "b1_b2",
         profile: {
-          full_name: cleanValue(form.full_name),
+          full_name: cleanValue(bilingualForm.full_name.en || bilingualForm.full_name.zh),
+          full_name_zh: isZh ? cleanValue(bilingualForm.full_name.zh) : undefined,
+          full_name_en: isZh ? cleanValue(bilingualForm.full_name.en) : undefined,
           date_of_birth: cleanValue(form.date_of_birth),
-          place_of_birth: cleanValue(form.place_of_birth),
+          place_of_birth: cleanValue(bilingualForm.place_of_birth.en || bilingualForm.place_of_birth.zh),
+          place_of_birth_zh: isZh ? cleanValue(bilingualForm.place_of_birth.zh) : undefined,
+          place_of_birth_en: isZh ? cleanValue(bilingualForm.place_of_birth.en) : undefined,
           gender: cleanValue(form.gender),
           nationality: cleanValue(countryEnglishName(form.nationality)),
-          occupation: cleanValue(form.occupation),
-          address: cleanValue(form.address),
+          occupation: cleanValue(bilingualForm.occupation.en || bilingualForm.occupation.zh),
+          occupation_zh: isZh ? cleanValue(bilingualForm.occupation.zh) : undefined,
+          occupation_en: isZh ? cleanValue(bilingualForm.occupation.en) : undefined,
+          address: cleanValue(bilingualForm.address.en || bilingualForm.address.zh),
+          address_zh: isZh ? cleanValue(bilingualForm.address.zh) : undefined,
+          address_en: isZh ? cleanValue(bilingualForm.address.en) : undefined,
           passport_number: cleanValue(form.passport_number),
           passport_issue_date: cleanValue(form.passport_issue_date),
           passport_expiry_date: cleanValue(form.passport_expiry_date),
@@ -369,19 +521,19 @@ export default function UniversalInfoPage() {
                   zhControl={
                     <BilingualTextControl
                       side="zh"
-                      value={form.full_name}
-                      placeholder="如：HONGYU CHEN"
+                      value={bilingualForm.full_name.zh}
+                      placeholder="如：陈泓羽"
                       icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("full_name", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("full_name", "zh", value)}
                     />
                   }
                   enControl={
                     <BilingualTextControl
                       side="en"
-                      value={form.full_name}
+                      value={bilingualForm.full_name.en}
                       placeholder="For example: HONGYU CHEN"
                       icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("full_name", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("full_name", "en", value)}
                     />
                   }
                 />
@@ -409,19 +561,19 @@ export default function UniversalInfoPage() {
                   zhControl={
                     <BilingualTextControl
                       side="zh"
-                      value={form.place_of_birth}
+                      value={bilingualForm.place_of_birth.zh}
                       placeholder="如：HUNAN / 湖南"
                       icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("place_of_birth", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("place_of_birth", "zh", value)}
                     />
                   }
                   enControl={
                     <BilingualTextControl
                       side="en"
-                      value={form.place_of_birth}
+                      value={bilingualForm.place_of_birth.en}
                       placeholder="For example: HUNAN"
                       icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("place_of_birth", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("place_of_birth", "en", value)}
                     />
                   }
                 />
@@ -472,19 +624,19 @@ export default function UniversalInfoPage() {
                   zhControl={
                     <BilingualTextControl
                       side="zh"
-                      value={form.occupation}
+                      value={bilingualForm.occupation.zh}
                       placeholder="如：软件工程师 / Software engineer"
                       icon={<WalletCards className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("occupation", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("occupation", "zh", value)}
                     />
                   }
                   enControl={
                     <BilingualTextControl
                       side="en"
-                      value={form.occupation}
+                      value={bilingualForm.occupation.en}
                       placeholder="For example: Software engineer"
                       icon={<WalletCards className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateField("occupation", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("occupation", "en", value)}
                     />
                   }
                 />
@@ -646,17 +798,17 @@ export default function UniversalInfoPage() {
                   zhControl={
                     <AddressControl
                       side="zh"
-                      value={form.address}
+                      value={bilingualForm.address.zh}
                       placeholder="例如：北京市朝阳区示例路1号"
-                      onChange={(value) => updateField("address", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("address", "zh", value)}
                     />
                   }
                   enControl={
                     <AddressControl
                       side="en"
-                      value={form.address}
+                      value={bilingualForm.address.en}
                       placeholder="For example: 1 Example Road"
-                      onChange={(value) => updateField("address", updateMirroredValue(value))}
+                      onChange={(value) => updateBilingualField("address", "en", value)}
                     />
                   }
                 />

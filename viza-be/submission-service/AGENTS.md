@@ -21,6 +21,9 @@ the applicant.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
   reference capture, optional CERFA PDF finalization, and typed failures.
+- `src/country-submissions/**`: safe provider registry, schema/dry-run
+  validation, unsupported-country handling, and inventory metadata for country
+  submission capability audits.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
@@ -130,6 +133,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/agent-backend/src/db/schema.ts`

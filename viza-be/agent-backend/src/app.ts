@@ -14,6 +14,10 @@ import internalAutomationRouter from './routes/internal-automation/index.js';
 import submissionResultRouter from './routes/submission-result.routes.js';
 import passportScanRouter from './routes/passport-scan.routes.js';
 import ukAccountRouter from './routes/uk-account.routes.js';
+import {
+  officialFeeApplicationRouter,
+  officialFeeOperationsRouter,
+} from './routes/official-fee.routes.js';
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
@@ -60,6 +64,10 @@ app.use('/api/profile/prefill', profilePrefillRouter);
 
 // Application translation routes
 app.use('/api/applications', translationRouter);
+
+// Official visa fee quote/consent/payment dry-run framework
+app.use('/api/applications', officialFeeApplicationRouter);
+app.use('/api/official-fee', officialFeeOperationsRouter);
 
 // Submission result + per-application artifact endpoints
 app.use('/api/applications', submissionResultRouter);

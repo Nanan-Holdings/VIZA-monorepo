@@ -26,7 +26,9 @@
     "promote:selectors": "ts-node scripts/promote-selectors.ts",
     "stress:run": "ts-node scripts/runner-stress.ts",
     "stress:digest": "ts-node scripts/runner-stress-digest.ts",
-    "derive:question-sets": "ts-node scripts/derive-question-sets.ts"
+    "derive:question-sets": "ts-node scripts/derive-question-sets.ts",
+    "audit:country-submissions": "ts-node src/country-submissions/audit.ts",
+    "test:country-submissions": "node --test -r ts-node/register src/country-submissions/__tests__/registry.spec.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",

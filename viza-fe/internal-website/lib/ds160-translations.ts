@@ -1139,6 +1139,7 @@ const COMMON_CHINESE_PINYIN: Record<string, string> = {
   海: "HAI",
   浩: "HAO",
   红: "HONG",
+  泓: "HONG",
   慧: "HUI",
   佳: "JIA",
   嘉: "JIA",

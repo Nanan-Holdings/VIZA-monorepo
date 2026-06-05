@@ -46,12 +46,20 @@ export const applicantProfiles = pgTable("applicant_profiles", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	authUserId: uuid("auth_user_id").unique(),
 	fullName: text("full_name"),
+	fullNameZh: text("full_name_zh"),
+	fullNameEn: text("full_name_en"),
 	dateOfBirth: date("date_of_birth"),
 	placeOfBirth: text("place_of_birth"),
+	placeOfBirthZh: text("place_of_birth_zh"),
+	placeOfBirthEn: text("place_of_birth_en"),
 	gender: text("gender"),
 	nationality: text("nationality"),
 	occupation: text("occupation"),
+	occupationZh: text("occupation_zh"),
+	occupationEn: text("occupation_en"),
 	address: text("address"),
+	addressZh: text("address_zh"),
+	addressEn: text("address_en"),
 	passportNumber: text("passport_number"),
 	passportIssueDate: date("passport_issue_date"),
 	passportExpiryDate: date("passport_expiry_date"),
@@ -105,6 +113,11 @@ export const applications = pgTable("applications", {
 	governmentFeeCents: integer("government_fee_cents"),
 	governmentFeeCurrency: text("government_fee_currency").default("USD"),
 	governmentFeeMode: text("government_fee_mode").default("display_only"),
+	officialFeeStatus: text("official_fee_status").default("not_started"),
+	officialFeeQuoteId: uuid("official_fee_quote_id"),
+	officialFeePaymentIntentId: uuid("official_fee_payment_intent_id"),
+	officialFeeReceiptId: uuid("official_fee_receipt_id"),
+	officialFeeReconciliationStatus: text("official_fee_reconciliation_status").default("pending"),
 	automationStatus: text("automation_status").default("not_started"),
 	automationStage: text("automation_stage").default("intake"),
 	automationStatusReason: text("automation_status_reason"),
@@ -130,6 +143,8 @@ export const applications = pgTable("applications", {
 	automationStatusIdx: index("applications_automation_status_idx").on(table.automationStatus),
 	automationStageIdx: index("applications_automation_stage_idx").on(table.automationStage),
 	paymentStatusIdx: index("applications_payment_status_idx").on(table.paymentStatus),
+	officialFeeStatusIdx: index("applications_official_fee_status_idx").on(table.officialFeeStatus),
+	officialFeeIntentIdx: index("applications_official_fee_intent_idx").on(table.officialFeePaymentIntentId),
 	packetStatusIdx: index("applications_packet_status_idx").on(table.packetStatus),
 	externalStatusIdx: index("applications_external_status_idx").on(table.externalStatus),
 	staffReviewStatusIdx: index("applications_staff_review_status_idx").on(table.staffReviewStatus),
@@ -737,6 +752,166 @@ export const paymentRecords = pgTable("payment_records", {
   idempotencyKeyIdx: uniqueIndex("payment_records_idempotency_key_idx").on(table.idempotencyKey),
 }));
 
+export const officialFeeQuotes = pgTable("official_fee_quotes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  countryCode: text("country_code").notNull(),
+  visaType: text("visa_type"),
+  officialFeeAmount: numeric("official_fee_amount").notNull(),
+  officialFeeCurrency: text("official_fee_currency").notNull(),
+  serviceFeeAmount: numeric("service_fee_amount"),
+  serviceFeeCurrency: text("service_fee_currency"),
+  totalChargeAmount: numeric("total_charge_amount"),
+  totalChargeCurrency: text("total_charge_currency"),
+  exchangeRate: numeric("exchange_rate"),
+  feeSource: text("fee_source"),
+  feeSourceUrl: text("fee_source_url"),
+  feeBreakdownJson: jsonb("fee_breakdown_json").notNull().default({}),
+  quoteStatus: text("quote_status").notNull().default("created"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("official_fee_quotes_application_idx").on(table.applicationId),
+  userIdx: index("official_fee_quotes_user_idx").on(table.userId),
+  countryIdx: index("official_fee_quotes_country_idx").on(table.countryCode),
+  statusIdx: index("official_fee_quotes_status_idx").on(table.quoteStatus),
+  createdIdx: index("official_fee_quotes_created_idx").on(table.createdAt),
+}));
+
+export const paymentInstruments = pgTable("payment_instruments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  providerInstrumentId: text("provider_instrument_id"),
+  instrumentType: text("instrument_type").notNull(),
+  status: text("status").notNull().default("active"),
+  currency: text("currency"),
+  spendingLimitAmount: numeric("spending_limit_amount"),
+  spendingLimitCurrency: text("spending_limit_currency"),
+  allowedCountryCodes: text("allowed_country_codes").array(),
+  allowedMerchantCategories: text("allowed_merchant_categories").array(),
+  last4: text("last4"),
+  expiresMonth: integer("expires_month"),
+  expiresYear: integer("expires_year"),
+  metadataJson: jsonb("metadata_json").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  providerIdx: index("payment_instruments_provider_idx").on(table.provider),
+  statusIdx: index("payment_instruments_status_idx").on(table.status),
+  typeIdx: index("payment_instruments_type_idx").on(table.instrumentType),
+  createdIdx: index("payment_instruments_created_idx").on(table.createdAt),
+}));
+
+export const officialFeePaymentIntents = pgTable("official_fee_payment_intents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  feeQuoteId: uuid("fee_quote_id"),
+  countryCode: text("country_code").notNull(),
+  provider: text("provider").notNull(),
+  mode: text("mode").notNull().default("dry_run"),
+  officialFeeAmount: numeric("official_fee_amount").notNull(),
+  officialFeeCurrency: text("official_fee_currency").notNull(),
+  targetPayee: text("target_payee"),
+  targetSite: text("target_site"),
+  paymentMethodType: text("payment_method_type"),
+  paymentInstrumentId: uuid("payment_instrument_id"),
+  status: text("status").notNull().default("created"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  requiresAdminApproval: boolean("requires_admin_approval").default(true),
+  adminApprovedBy: uuid("admin_approved_by"),
+  adminApprovedAt: timestamp("admin_approved_at", { withTimezone: true }),
+  userConsentedAt: timestamp("user_consented_at", { withTimezone: true }),
+  userConsentSnapshotJson: jsonb("user_consent_snapshot_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("official_fee_intents_application_idx").on(table.applicationId),
+  userIdx: index("official_fee_intents_user_idx").on(table.userId),
+  countryIdx: index("official_fee_intents_country_idx").on(table.countryCode),
+  statusIdx: index("official_fee_intents_status_idx").on(table.status),
+  idempotencyIdx: index("official_fee_intents_idempotency_idx").on(table.idempotencyKey),
+  providerIdx: index("official_fee_intents_provider_idx").on(table.provider),
+  createdIdx: index("official_fee_intents_created_idx").on(table.createdAt),
+}));
+
+export const officialFeePaymentAttempts = pgTable("official_fee_payment_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  officialFeePaymentIntentId: uuid("official_fee_payment_intent_id"),
+  applicationId: uuid("application_id").notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  provider: text("provider").notNull(),
+  mode: text("mode").notNull(),
+  status: text("status").notNull().default("started"),
+  requestPayloadRedactedJson: jsonb("request_payload_redacted_json"),
+  responsePayloadRedactedJson: jsonb("response_payload_redacted_json"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  officialReceiptNumber: text("official_receipt_number"),
+  officialReceiptUrl: text("official_receipt_url"),
+  screenshotUrl: text("screenshot_url"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+}, (table) => ({
+  intentNumberIdx: uniqueIndex("official_fee_attempts_intent_number_idx").on(
+    table.officialFeePaymentIntentId,
+    table.attemptNumber,
+  ),
+  applicationIdx: index("official_fee_attempts_application_idx").on(table.applicationId),
+  statusIdx: index("official_fee_attempts_status_idx").on(table.status),
+  providerIdx: index("official_fee_attempts_provider_idx").on(table.provider),
+  startedIdx: index("official_fee_attempts_started_idx").on(table.startedAt),
+}));
+
+export const officialFeeReceipts = pgTable("official_fee_receipts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  officialFeePaymentIntentId: uuid("official_fee_payment_intent_id"),
+  countryCode: text("country_code").notNull(),
+  receiptNumber: text("receipt_number"),
+  receiptUrl: text("receipt_url"),
+  receiptFileUrl: text("receipt_file_url"),
+  amount: numeric("amount").notNull(),
+  currency: text("currency").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  source: text("source"),
+  rawReceiptRedactedJson: jsonb("raw_receipt_redacted_json"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("official_fee_receipts_application_idx").on(table.applicationId),
+  userIdx: index("official_fee_receipts_user_idx").on(table.userId),
+  countryIdx: index("official_fee_receipts_country_idx").on(table.countryCode),
+  intentIdx: index("official_fee_receipts_intent_idx").on(table.officialFeePaymentIntentId),
+  createdIdx: index("official_fee_receipts_created_idx").on(table.createdAt),
+}));
+
+export const officialFeeReconciliationEntries = pgTable("official_fee_reconciliation_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  officialFeePaymentIntentId: uuid("official_fee_payment_intent_id"),
+  userPaymentId: uuid("user_payment_id"),
+  officialFeeAmount: numeric("official_fee_amount").notNull(),
+  officialFeeCurrency: text("official_fee_currency").notNull(),
+  userCollectedAmount: numeric("user_collected_amount"),
+  userCollectedCurrency: text("user_collected_currency"),
+  fxRate: numeric("fx_rate"),
+  balanceDelta: numeric("balance_delta"),
+  reconciliationStatus: text("reconciliation_status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: index("official_fee_reconciliation_application_idx").on(table.applicationId),
+  userIdx: index("official_fee_reconciliation_user_idx").on(table.userId),
+  statusIdx: index("official_fee_reconciliation_status_idx").on(table.reconciliationStatus),
+  intentIdx: index("official_fee_reconciliation_intent_idx").on(table.officialFeePaymentIntentId),
+  createdIdx: index("official_fee_reconciliation_created_idx").on(table.createdAt),
+}));
+
 export const invoiceRequests = pgTable("invoice_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentRecordId: uuid("payment_record_id"),
@@ -1097,6 +1272,20 @@ export const piiRetentionJobs = pgTable("pii_retention_jobs", {
 
 export type PaymentRecord = typeof paymentRecords.$inferSelect;
 export type NewPaymentRecord = typeof paymentRecords.$inferInsert;
+export type OfficialFeeQuote = typeof officialFeeQuotes.$inferSelect;
+export type NewOfficialFeeQuote = typeof officialFeeQuotes.$inferInsert;
+export type PaymentInstrument = typeof paymentInstruments.$inferSelect;
+export type NewPaymentInstrument = typeof paymentInstruments.$inferInsert;
+export type OfficialFeePaymentIntent = typeof officialFeePaymentIntents.$inferSelect;
+export type NewOfficialFeePaymentIntent = typeof officialFeePaymentIntents.$inferInsert;
+export type OfficialFeePaymentAttempt = typeof officialFeePaymentAttempts.$inferSelect;
+export type NewOfficialFeePaymentAttempt = typeof officialFeePaymentAttempts.$inferInsert;
+export type OfficialFeeReceipt = typeof officialFeeReceipts.$inferSelect;
+export type NewOfficialFeeReceipt = typeof officialFeeReceipts.$inferInsert;
+export type OfficialFeeReconciliationEntry =
+  typeof officialFeeReconciliationEntries.$inferSelect;
+export type NewOfficialFeeReconciliationEntry =
+  typeof officialFeeReconciliationEntries.$inferInsert;
 export type InvoiceRequest = typeof invoiceRequests.$inferSelect;
 export type NewInvoiceRequest = typeof invoiceRequests.$inferInsert;
 export type RefundRecord = typeof refundRecords.$inferSelect;
