@@ -569,6 +569,24 @@ usAppointmentOperationsRouter.post(
 );
 
 usAppointmentOperationsRouter.post(
+  "/jobs/:jobId/check-slots",
+  requireJobAccess,
+  async (_req: Request, res: Response): Promise<void> => {
+    const jobId = getLocals(res).jobId;
+    if (!jobId) {
+      res.status(400).json({ error: true, code: "job_id_missing" });
+      return;
+    }
+    try {
+      const status = await services.orchestrator.checkSlots(jobId);
+      res.json({ error: false, data: status });
+    } catch (error) {
+      sendUSAppointmentError(res, error, "us_appointment_check_slots_failed");
+    }
+  },
+);
+
+usAppointmentOperationsRouter.post(
   "/jobs/:jobId/check-status",
   requireJobAccess,
   async (_req: Request, res: Response): Promise<void> => {

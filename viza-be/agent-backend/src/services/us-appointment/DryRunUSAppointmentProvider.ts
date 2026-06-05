@@ -31,6 +31,7 @@ export const DRY_RUN_SLOTS = [
 export class DryRunUSAppointmentProvider implements USAppointmentProvider {
   providerName = "dry_run_us_appointment";
   supportedApplyingCountries = ["*"];
+  supportedPosts?: string[];
   supportsDryRun = true;
   supportsAssistedLive = false;
   supportsAccountCreation = true;
@@ -68,7 +69,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     return { valid: errors.length === 0, errors };
   }
 
-  async createOrLoadAccount(): Promise<AccountResult> {
+  async createOrLoadAccount(_job: AppointmentAssistanceJob): Promise<AccountResult> {
     return {
       status: "completed",
       jobStatus: "appointment_account_creation_started",
@@ -77,7 +78,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async runAccountCreation(): Promise<AppointmentRunResult> {
+  async runAccountCreation(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "manual_required",
       jobStatus: "appointment_email_verification_required",
@@ -87,7 +88,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async runLogin(): Promise<AppointmentRunResult> {
+  async runLogin(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "completed",
       jobStatus: "appointment_login_required",
@@ -95,7 +96,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async fillProfile(): Promise<AppointmentRunResult> {
+  async fillProfile(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "completed",
       jobStatus: "appointment_profile_filled",
@@ -103,7 +104,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async linkDS160(): Promise<AppointmentRunResult> {
+  async linkDS160(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "completed",
       jobStatus: "appointment_ds160_linked",
@@ -111,7 +112,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async handleFeeStep(): Promise<AppointmentRunResult> {
+  async handleFeeStep(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "payment_required",
       jobStatus: "appointment_payment_required",
@@ -121,7 +122,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async openCalendar(): Promise<AppointmentRunResult> {
+  async openCalendar(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "completed",
       jobStatus: "appointment_calendar_opened",
@@ -160,7 +161,7 @@ export class DryRunUSAppointmentProvider implements USAppointmentProvider {
     };
   }
 
-  async finalConfirm(): Promise<AppointmentRunResult> {
+  async finalConfirm(_job: AppointmentAssistanceJob): Promise<AppointmentRunResult> {
     return {
       status: "completed",
       jobStatus: "appointment_booked",

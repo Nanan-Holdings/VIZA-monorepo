@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(scriptDir, "..");
 const strict = process.argv.includes("--strict");
+const minAttractions = Number(
+  process.env.TRAVEL_CARD_MIN_ATTRACTIONS ?? 4
+);
 
 const locationsPath = path.join(appRoot, "lib", "travel", "locations.ts");
 const cardDataPath = path.join(
@@ -56,7 +59,9 @@ const missingCityCards = dropdownCities.filter(
   (city) => !data.cities.some((item) => hasCityKey(item, city))
 );
 const missingAttractions = dropdownCities.filter(
-  (city) => !data.attractions.some((item) => hasCityKey(item, city))
+  (city) =>
+    data.attractions.filter((item) => hasCityKey(item, city)).length <
+    minAttractions
 );
 const missingSources = [...data.cities, ...data.attractions].filter(
   (item) => typeof item.sourceUrl !== "string" || !item.sourceUrl.trim()
@@ -69,8 +74,12 @@ const report = {
   dropdownCities: dropdownCities.length,
   cityCards: data.cities.length,
   attractions: data.attractions.length,
+  minAttractions,
   missingCityCards: missingCityCards.map((city) => city.en),
-  missingAttractions: missingAttractions.map((city) => city.en),
+  missingAttractions: missingAttractions.map((city) => ({
+    city: city.en,
+    count: data.attractions.filter((item) => hasCityKey(item, city)).length,
+  })),
   missingSources: missingSources.map((item) => item.name ?? item.cityLabel),
   missingLocalAssets: missingLocalAssets.map((item) => ({
     label: item.name ?? item.cityLabel,
