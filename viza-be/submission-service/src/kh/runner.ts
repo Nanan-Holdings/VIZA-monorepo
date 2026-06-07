@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { brightDataProxy } from "../shared/proxy-launch.js";
 import { artifact } from "../artifact.js";
 import { classifyPage, type KhRunnerError } from "./errors.js";
 import { KH_SELECTORS } from "./selectors.js";
@@ -131,14 +132,17 @@ async function safeFill(
 }
 
 export async function runKhPrefill(input: KhRunInput): Promise<KhRunResult> {
+  const proxy = brightDataProxy("kh");
   const browser: Browser = await chromium.launch({
     headless: input.headless ?? true,
+    proxy,
   });
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "kh-har-"));
   const harPath = path.join(tempHar, `kh-${input.jobId}.har`);
   const ctx = await browser.newContext({
     locale: "en-US",
     recordHar: { path: harPath, mode: "minimal" },
+    ignoreHTTPSErrors: Boolean(proxy),
   });
   const page = await ctx.newPage();
   const stepCtx: StepCtx = {
