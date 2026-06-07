@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { brightDataProxy } from "../shared/proxy-launch.js";
 import { artifact } from "../artifact.js";
 import { classifyPage, type LkRunnerError } from "./errors.js";
 import { LK_SELECTORS } from "./selectors.js";
@@ -118,12 +119,14 @@ async function safeClick(page: Page, selector: string, label: string): Promise<b
 }
 
 export async function runLkPrefill(input: LkRunInput): Promise<LkRunResult> {
-  const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
+  const proxy = brightDataProxy("lk");
+  const browser: Browser = await chromium.launch({ headless: input.headless ?? true, proxy });
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "lk-har-"));
   const harPath = path.join(tempHar, `lk-${input.jobId}.har`);
   const ctx = await browser.newContext({
     locale: "en-US",
     recordHar: { path: harPath, mode: "minimal" },
+    ignoreHTTPSErrors: Boolean(proxy),
   });
   const page = await ctx.newPage();
   const stepCtx: StepCtx = { page, jobId: input.jobId, artefactPaths: [], attemptCount: 0 };

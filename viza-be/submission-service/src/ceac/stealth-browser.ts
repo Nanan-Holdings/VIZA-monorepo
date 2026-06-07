@@ -17,6 +17,7 @@
  * Use via `launchStealthBrowser()` — returns the same shape as a
  * Playwright `{ browser, context, page }` tuple plus a `close()` helper.
  */
+import { randomBytes } from "node:crypto";
 import { chromium as playwrightChromium } from "@playwright/test";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import PlaywrightExtraDefault from "playwright-extra";
@@ -162,6 +163,23 @@ export async function launchStealthBrowser(
   };
   if (hardening === "france-visas") {
     launchOpts.args = [...FV_LAUNCH_ARGS];
+  }
+  // Route through Bright Data residential proxy when configured. Recon +
+  // runners share this launcher; setting BRIGHTDATA_PROXY_HOST is enough to
+  // egress from a residential IP. RECON_PROXY_COUNTRY pins the exit country
+  // (gov portals geo-gate); a per-launch session id keeps the IP sticky.
+  const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
+  if (proxyHost) {
+    const port = process.env.BRIGHTDATA_PROXY_PORT ?? "33335";
+    const baseUser = process.env.BRIGHTDATA_USERNAME ?? "";
+    const password = process.env.BRIGHTDATA_PASSWORD ?? "";
+    const country = (process.env.RECON_PROXY_COUNTRY ?? "in").toLowerCase();
+    const session = randomBytes(6).toString("hex");
+    launchOpts.proxy = {
+      server: `http://${proxyHost}:${port}`,
+      username: `${baseUser}-country-${country}-session-${session}`,
+      password,
+    };
   }
   const browser = await extra.chromium.launch(launchOpts);
 
