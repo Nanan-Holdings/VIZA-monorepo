@@ -55,6 +55,9 @@ The current internal automation migrations are:
 - `0091_us_appointment_assistant.sql`: U.S. appointment assistant tables,
   application-level appointment columns, RLS, service-role policies, and
   lookup indexes.
+- `0092_travel_local_first_enrichment.sql`: local-first Travel destination
+  localization fields, attraction/assets tables, destination-card source
+  metadata, and enrichment job/event history.
 
 ## Guardrails
 

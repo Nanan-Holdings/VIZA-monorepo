@@ -123,6 +123,23 @@ test("registry: valid base profile dry-runs with a mock confirmation", async () 
   assert.match(result.confirmationNumber ?? "", /^MOCK-CA-/);
 });
 
+test("registry: US DS-160 dry-run uses DS-160 confirmation prefix", async () => {
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "united_states",
+      visaType: "DS160",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "United States",
+      },
+    }),
+  );
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.mode, "dry_run");
+  assert.equal(result.targetCountry, "US");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-DS160-111111112222-\d{14}$/);
+});
+
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
   const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
   assert.ok(provider);
@@ -196,7 +213,7 @@ test("registry: Vietnam missing required schema answers fail validation cleanly"
 });
 
 test("registry: Vietnam conditional schema answers are enforced only when gated on", async () => {
-  const answers = {
+  const answers: Record<string, string> = {
     ...vietnamAnswers(),
     has_relatives_in_vietnam: "yes",
   };

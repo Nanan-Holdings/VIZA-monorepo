@@ -50,6 +50,9 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
   normalization, scoring, filtering, and fallback image handling.
 - `app/api/places/**`: server-only Google Places API New search, details, and
   photo routes for Travel attraction cards.
+- `lib/travel/destination-contracts.ts`: shared local-first dropdown
+  destination contract used by Travel cards, itinerary context, audits, and
+  seed scripts.
 
 ## Validation Checklist (for every travel UI change)
 

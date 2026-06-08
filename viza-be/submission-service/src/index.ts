@@ -87,6 +87,24 @@ import type { AuSubmissionResult } from "./submission-result";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
+const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
+  process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),
+  10,
+);
+const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
+  "pending",
+  "processing",
+  "ds160_prefill_pending",
+  "ds160_prefill_processing",
+  "fv_prefill_pending",
+  "fv_prefill_processing",
+  "uk_prefill_pending",
+  "uk_prefill_processing",
+  "vn_prefill_pending",
+  "vn_prefill_processing",
+  "au_prefill_pending",
+  "au_prefill_processing",
+];
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
@@ -404,6 +422,51 @@ function applyEnglishAliases(answers: Record<string, string>): void {
     if (!current || HAS_CJK.test(current)) {
       answers[baseKey] = value;
     }
+  }
+}
+
+function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {
+  if (status.startsWith("ds160_")) return "ds160_prefill_failed";
+  if (status.startsWith("fv_")) return "fv_prefill_failed";
+  if (status.startsWith("uk_")) return "uk_prefill_failed";
+  if (status.startsWith("vn_")) return "vn_prefill_failed";
+  if (status.startsWith("au_")) return "au_prefill_failed";
+  return "failed";
+}
+
+async function markStaleQueueItemsTimedOut(): Promise<void> {
+  if (!Number.isFinite(STALE_QUEUE_TIMEOUT_MS) || STALE_QUEUE_TIMEOUT_MS <= 0) return;
+
+  const cutoffMs = Date.now() - STALE_QUEUE_TIMEOUT_MS;
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .select("*")
+    .in("status", STALE_QUEUE_STATUSES);
+
+  if (error) {
+    console.error(`[queue-timeout] Failed to scan stale submission_queue rows: ${error.message}`);
+    return;
+  }
+
+  const staleItems = ((data ?? []) as SubmissionQueueItem[]).filter((item) => {
+    const lastTouched = item.updated_at || item.created_at;
+    const touchedMs = lastTouched ? Date.parse(lastTouched) : Number.NaN;
+    return Number.isFinite(touchedMs) && touchedMs < cutoffMs;
+  });
+  for (const item of staleItems) {
+    const timedOutStatus = failedStatusForQueueStatus(item.status);
+    const reason = `Submission job timed out after ${Math.round(STALE_QUEUE_TIMEOUT_MS / 1000)}s in status ${item.status}`;
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: timedOutStatus,
+        attempts: Math.max(item.attempts, MAX_ATTEMPTS),
+        last_error: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, reason);
+    console.warn(`[queue-timeout] ${item.id} (${item.application_id}) -> ${timedOutStatus}: ${reason}`);
   }
 }
 
@@ -1696,6 +1759,7 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 
 async function poll(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
+  await markStaleQueueItemsTimedOut();
 
   let items: SubmissionQueueItem[];
   try {
