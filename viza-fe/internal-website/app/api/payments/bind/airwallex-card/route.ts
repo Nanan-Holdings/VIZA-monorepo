@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createBindingPaymentIntent, isAirwallexConfigured } from "@/lib/airwallex/client";
+import {
+  createAirwallexCustomer,
+  createBindingPaymentIntent,
+  isAirwallexConfigured,
+} from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -86,16 +90,27 @@ export async function POST(request: Request) {
   returnUrl.searchParams.set("provider", "airwallex");
 
   try {
+    const customer = await createAirwallexCustomer({
+      requestId: `viza-customer-${record.id}`.slice(0, 64),
+      merchantCustomerId: record.id,
+      email: user.email,
+      firstName: user.name || "VIZA",
+      metadata: {
+        ...metadata,
+        payment_record_id: record.id,
+      },
+    });
+
     const intent = await createBindingPaymentIntent({
       currency: "CNY",
       merchantOrderId: record.id,
       requestId: `viza-bind-${record.id}`.slice(0, 64),
       returnUrl: returnUrl.toString(),
-      customerEmail: user.email,
-      customerName: user.name,
+      customerId: customer.id,
       metadata: {
         ...metadata,
         payment_record_id: record.id,
+        airwallex_customer_id: customer.id,
       },
     });
 
@@ -107,6 +122,7 @@ export async function POST(request: Request) {
         metadata: {
           ...metadata,
           airwallex: {
+            customer_id: customer.id,
             intent_id: intent.id,
             intent_status: intent.status,
             request_id: intent.request_id ?? `viza-bind-${record.id}`,

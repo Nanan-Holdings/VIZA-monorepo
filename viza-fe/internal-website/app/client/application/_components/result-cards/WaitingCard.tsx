@@ -1,21 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
 import { motion } from "motion/react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
 
 interface Phase {
   id: "translating" | "filling" | "confirming";
-  label: string;
+  labelEn: string;
+  labelZh: string;
 }
 
 const PHASES: Phase[] = [
-  { id: "translating", label: "Translating your answers" },
-  { id: "filling", label: "Filling the government form" },
-  { id: "confirming", label: "Confirming submission" },
+  {
+    id: "translating",
+    labelEn: "Translating your answers",
+    labelZh: "正在翻译您的答案",
+  },
+  {
+    id: "filling",
+    labelEn: "Filling the government form",
+    labelZh: "正在填写政府表单",
+  },
+  {
+    id: "confirming",
+    labelEn: "Confirming submission",
+    labelZh: "正在确认提交结果",
+  },
 ];
 
 /**
@@ -25,6 +40,8 @@ const PHASES: Phase[] = [
  * the moment the runner writes the terminal payload.
  */
 export function WaitingCard({ status }: { status: SubmissionResultStatus | null }) {
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
 
   useEffect(() => {
@@ -47,13 +64,14 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
-          Submitting your application
+          {isZh ? "正在提交您的申请" : "Submitting your application"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          We&apos;re working with the government portal on your behalf. This
-          page will update automatically when your confirmation is ready.
+          {isZh
+            ? "VIZA 正在代表您处理政府门户的提交流程。确认结果准备好后，本页面会自动更新。"
+            : "We're working with the government portal on your behalf. This page will update automatically when your confirmation is ready."}
         </p>
 
         <ol className="mt-6 space-y-3" aria-live="polite">
@@ -90,7 +108,7 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
                     active ? "text-foreground font-medium" : "text-muted-foreground",
                   )}
                 >
-                  {phase.label}
+                  {isZh ? phase.labelZh : phase.labelEn}
                 </span>
               </motion.li>
             );
