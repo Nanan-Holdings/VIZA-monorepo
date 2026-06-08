@@ -575,7 +575,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
 
     // Load applicant data and answers for form filling
     const { profile } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id);
+    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
 
     // Confirm-application page (Privacy Act ack + Application ID + security
     // question). Captures `applicationId` + `securityQuestionText` +
@@ -1611,7 +1611,11 @@ async function processDryRunItem(
 
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
+    const isUsDs160 =
+      application.visa_type.toUpperCase() === "DS160" ||
+      application.country.toLowerCase().includes("united_states") ||
+      application.country.toLowerCase() === "us";
+    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: isUsDs160 });
     const dryRunApplication = buildCountrySubmissionApplication(
       profile,
       application,
