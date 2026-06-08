@@ -28,6 +28,7 @@ export interface AirwallexPaymentIntent {
 
 export interface AirwallexCustomer {
   id: string;
+  client_secret?: string;
   request_id?: string;
   merchant_customer_id?: string;
   email?: string;

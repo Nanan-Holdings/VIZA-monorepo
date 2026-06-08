@@ -55,7 +55,12 @@ interface AirwallexCardElement {
     payment_consent_id?: string;
     payment_method?: unknown;
   } | boolean>;
-  verifyConsent?: (options: { client_secret: string; currency: string }) => Promise<{
+  verifyConsent?: (options: {
+    client_secret: string;
+    currency?: string;
+    verification_options?: { card: { currency: string } };
+    verificationOptions?: { card: { currency: string } };
+  }) => Promise<{
     id?: string;
     customer_id?: string;
     payment_consent_id?: string;

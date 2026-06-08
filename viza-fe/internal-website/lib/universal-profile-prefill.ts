@@ -77,6 +77,23 @@ function buildBilingualValueFromParts(
   return buildBilingualValue(value);
 }
 
+function splitLegacyBirthplace(value: string | null | undefined) {
+  const parts = (value ?? "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 3) {
+    return {
+      country: parts[0] ?? "",
+      provinceOrState: parts[1] ?? "",
+      city: parts.slice(2).join(" | "),
+    };
+  }
+
+  return { country: "", provinceOrState: "", city: "" };
+}
+
 export function splitUniversalFullName(fullName: string | null | undefined) {
   const normalized = clean(fullName);
   if (normalized && /^[\u3400-\u9fff]+$/.test(normalized)) {
@@ -140,6 +157,8 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   if (!profile) return out;
 
   const { givenNames, surname } = splitUniversalFullName(profile.full_name_en ?? profile.full_name);
+  const legacyBirthplace = splitLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
+  const legacyBirthplaceZh = splitLegacyBirthplace(profile.place_of_birth_zh);
 
   setBilingualAnswerFromParts(
     out,
@@ -154,18 +173,18 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setBilingualAnswerFromParts(
     out,
     ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"],
-    profile.birth_city ?? profile.place_of_birth,
-    profile.birth_city_zh ?? profile.place_of_birth_zh,
-    profile.birth_city_en ?? profile.place_of_birth_en,
+    profile.birth_city || legacyBirthplace.city || profile.place_of_birth,
+    profile.birth_city_zh || legacyBirthplaceZh.city || profile.place_of_birth_zh,
+    profile.birth_city_en || legacyBirthplace.city || profile.place_of_birth_en,
   );
   setBilingualAnswerFromParts(
     out,
     ["state_of_birth", "birth_state", "birth_province", "place_of_birth_province"],
-    profile.birth_province_or_state,
-    profile.birth_province_or_state_zh,
-    profile.birth_province_or_state_en,
+    profile.birth_province_or_state || legacyBirthplace.provinceOrState,
+    profile.birth_province_or_state_zh || legacyBirthplaceZh.provinceOrState,
+    profile.birth_province_or_state_en || legacyBirthplace.provinceOrState,
   );
-  setAnswer(out, ["country_of_birth", "birth_country", "place_of_birth_country"], profile.birth_country);
+  setAnswer(out, ["country_of_birth", "birth_country", "place_of_birth_country"], profile.birth_country || legacyBirthplace.country);
   setAnswer(out, ["gender"], profile.gender);
   setAnswer(out, ["sex"], normalizeDs160Sex(profile.gender));
   setAnswer(
@@ -271,14 +290,15 @@ export function mergeUniversalProfileIntoWizardForm<TForm>(
   if (isRecord(next.identity)) {
     const identity = { ...next.identity };
     const { givenNames, surname } = splitUniversalFullName(profile.full_name_en ?? profile.full_name);
+    const legacyBirthplace = splitLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
     setIfAllowed(identity, "firstName", givenNames, force);
     setIfAllowed(identity, "lastName", surname, force);
     setIfAllowed(identity, "dob", profile.date_of_birth, force);
     setIfAllowed(identity, "gender", profile.gender, force);
     setIfAllowed(identity, "nationality", profile.nationality, force);
-    setIfAllowed(identity, "cityOfBirth", profile.birth_city_en ?? profile.birth_city ?? profile.place_of_birth_en ?? profile.place_of_birth, force);
-    setIfAllowed(identity, "stateOfBirth", profile.birth_province_or_state_en ?? profile.birth_province_or_state, force);
-    setIfAllowed(identity, "countryOfBirth", profile.birth_country, force);
+    setIfAllowed(identity, "cityOfBirth", profile.birth_city_en || profile.birth_city || legacyBirthplace.city || profile.place_of_birth_en || profile.place_of_birth, force);
+    setIfAllowed(identity, "stateOfBirth", profile.birth_province_or_state_en || profile.birth_province_or_state || legacyBirthplace.provinceOrState, force);
+    setIfAllowed(identity, "countryOfBirth", profile.birth_country || legacyBirthplace.country, force);
     next.identity = identity;
   }
 
