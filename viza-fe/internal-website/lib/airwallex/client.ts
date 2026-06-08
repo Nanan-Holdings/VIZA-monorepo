@@ -26,6 +26,13 @@ export interface AirwallexPaymentIntent {
   latest_payment_attempt?: unknown;
 }
 
+export interface AirwallexCustomer {
+  id: string;
+  request_id?: string;
+  merchant_customer_id?: string;
+  email?: string;
+}
+
 export type AirwallexPaymentMethodType =
   | "card"
   | "alipaycn_qrcode"
@@ -149,13 +156,35 @@ export async function createPaymentIntent(input: {
   });
 }
 
+export async function createAirwallexCustomer(input: {
+  requestId: string;
+  merchantCustomerId: string;
+  email: string;
+  firstName: string;
+  lastName?: string;
+  phoneNumber?: string | null;
+  metadata?: JsonObject;
+}): Promise<AirwallexCustomer> {
+  return airwallexRequest<AirwallexCustomer>("/api/v1/pa/customers/create", {
+    method: "POST",
+    body: JSON.stringify({
+      request_id: input.requestId,
+      merchant_customer_id: input.merchantCustomerId,
+      email: input.email,
+      first_name: input.firstName,
+      last_name: input.lastName,
+      phone_number: input.phoneNumber || undefined,
+      metadata: input.metadata,
+    }),
+  });
+}
+
 export async function createBindingPaymentIntent(input: {
   currency: "CNY";
   merchantOrderId: string;
   requestId: string;
   returnUrl: string;
-  customerEmail: string;
-  customerName: string;
+  customerId: string;
   metadata?: JsonObject;
 }): Promise<AirwallexPaymentIntent> {
   return airwallexRequest<AirwallexPaymentIntent>("/api/v1/pa/payment_intents/create", {
@@ -166,10 +195,7 @@ export async function createBindingPaymentIntent(input: {
       merchant_order_id: input.merchantOrderId,
       request_id: input.requestId,
       return_url: input.returnUrl,
-      customer: {
-        email: input.customerEmail,
-        first_name: input.customerName,
-      },
+      customer_id: input.customerId,
       metadata: input.metadata,
     }),
   });

@@ -17,8 +17,6 @@ import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-
 interface TranslationEntry {
   source_text: string;
   translated_text: string;
@@ -165,11 +163,11 @@ export function DynamicReviewStep({
   }, [translations]);
 
   const fetchTranslations = useCallback(async () => {
-    const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translations`);
-    if (!res.ok) throw new Error(`Failed to fetch translations (${res.status})`);
+    const res = await fetch(`/api/applications/${applicationId}/translations`, { cache: "no-store" });
+    if (!res.ok) throw new Error(t("translation.translationFailed"));
     const data = (await res.json()) as TranslationMap;
     setTranslations(data);
-  }, [applicationId]);
+  }, [applicationId, t]);
 
   const runTranslation = useCallback(async (isRetry = false) => {
     if (isRetry) {
@@ -180,14 +178,14 @@ export function DynamicReviewStep({
 
     setTranslationError(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translate`, {
+      const res = await fetch(`/api/applications/${applicationId}/translate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error(`Translation failed (${res.status})`);
+      if (!res.ok) throw new Error(t("translation.translationFailed"));
       await fetchTranslations();
     } catch (err) {
-      setTranslationError(err instanceof Error ? err.message : t("translation.translationFailed"));
+      setTranslationError(t("translation.translationFailed"));
     } finally {
       setTranslationLoading(false);
       setRetryingTranslation(false);

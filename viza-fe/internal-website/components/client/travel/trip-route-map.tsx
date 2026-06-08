@@ -8,6 +8,7 @@ import {
   getTravelAttractionsForCity,
   getTravelCityImage,
 } from "@/components/client/travel/travel-attraction-knowledge";
+import type { TravelPlaceAttribution } from "@/lib/travel/google-places";
 
 export type TripMapPoint = {
   id: string;
@@ -22,6 +23,12 @@ export type TripMapPoint = {
   lat: number;
   lng: number;
   city?: string;
+  source?: "google";
+  placeId?: string;
+  rating?: number | null;
+  reviewCount?: number;
+  googleMapsUri?: string;
+  attribution?: TravelPlaceAttribution[];
 };
 
 type TripRouteMapProps = {
@@ -1442,6 +1449,29 @@ function getPointAttractions(point: TripMapPoint): string {
   return Array.from(new Set(base)).join("、");
 }
 
+function formatGooglePointRating(
+  point: TripMapPoint,
+  isZh: boolean
+): string | null {
+  if (point.source !== "google" || typeof point.rating !== "number") return null;
+  const count = Math.max(0, Math.round(point.reviewCount ?? 0)).toLocaleString();
+  return isZh
+    ? `${point.rating.toFixed(1)} 分 · ${count} 条评价`
+    : `${point.rating.toFixed(1)} · ${count} reviews`;
+}
+
+function formatGooglePointAttribution(
+  point: TripMapPoint,
+  isZh: boolean
+): string | null {
+  if (point.source !== "google") return null;
+  const names = point.attribution
+    ?.map((item) => item.displayName?.trim())
+    .filter((name): name is string => Boolean(name));
+  if (!names?.length) return null;
+  return `${isZh ? "照片：" : "Photo: "}${names.slice(0, 2).join(", ")}`;
+}
+
 function splitDetailItems(value: string): string[] {
   return value
     .split(/[、,，]/)
@@ -1624,6 +1654,12 @@ function buildHoverCardHtml(
   const duration = isZh
     ? formatChineseDuration(point.recommendedDays)
     : (point.recommendedDays ?? "").trim();
+  const googleRating = formatGooglePointRating(point, isZh);
+  const googleAttribution = formatGooglePointAttribution(point, isZh);
+  const googleMapsUri =
+    point.source === "google" && point.googleMapsUri
+      ? point.googleMapsUri
+      : null;
   const galleryImages =
     options?.galleryImages && options.galleryImages.length > 0
       ? options.galleryImages
@@ -1678,12 +1714,33 @@ function buildHoverCardHtml(
       <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
         <span style="color:#0f3bae;">${isZh ? "热门景点：" : "Highlights:"}</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
+      ${
+        googleRating || googleMapsUri
+          ? `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:${bodySize}px;color:#475569;">
+        ${
+          googleRating
+            ? `<span style="font-weight:700;color:#0f172a;">★ ${escapeHtml(googleRating)}</span>`
+            : ""
+        }
+        ${
+          googleMapsUri
+            ? `<a href="${escapeHtml(googleMapsUri)}" target="_blank" rel="noreferrer" style="color:#0f3bae;text-decoration:none;font-weight:700;">${isZh ? "Google 地图" : "Google Maps"}</a>`
+            : ""
+        }
+      </div>`
+          : ""
+      }
       <div style="margin-top:10px;display:flex;align-items:center;gap:7px;font-size:${bodySize}px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         <span style="font-size:${compact ? 14 : 16}px;color:#475569;">⌖</span>
         <span>${escapeHtml(cityOrCountry)}</span>
         <span style="height:13px;width:1px;background:#cbd5e1;"></span>
         <span>${escapeHtml(duration)} 推荐</span>
       </div>
+      ${
+        googleAttribution
+          ? `<div style="margin-top:7px;font-size:${compact ? 11 : 12}px;line-height:1.4;color:#64748b;">${escapeHtml(googleAttribution)}</div>`
+          : ""
+      }
       ${
         addButtonId
           ? `<div style="margin-top:15px;">
@@ -1827,6 +1884,12 @@ export function TripRouteMap({
     () => (detailPoint ? getPointGalleryImages(detailPoint) : []),
     [detailPoint]
   );
+  const detailGoogleRating = detailPoint
+    ? formatGooglePointRating(detailPoint, isZh)
+    : null;
+  const detailGoogleAttribution = detailPoint
+    ? formatGooglePointAttribution(detailPoint, isZh)
+    : null;
 
   useEffect(() => {
     onAddDestinationRef.current = onAddDestination;
