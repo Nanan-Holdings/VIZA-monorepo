@@ -17,6 +17,9 @@ location data.
 - `destination-resolver.ts`: destination normalization, local fallback index,
   fuzzy/alias/ambiguous resolution, lazy card payload generation, and trip hint
   extraction for Travel AI route handlers.
+- `google-places.ts`: shared Google Places attraction card schema,
+  normalization, filtering, scoring, and fallback image handling for the
+  server-only Places API routes and Travel UI.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
 
