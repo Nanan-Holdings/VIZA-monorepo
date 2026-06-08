@@ -12,13 +12,18 @@ import {
 } from "react";
 import {
   Check,
+  ExternalLink,
+  ImageOff,
+  Loader2,
   MapPin,
   MessageSquare,
   MessageSquarePlus,
   PanelLeft,
   Pencil,
+  RefreshCw,
   Route,
   Sparkles,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -51,6 +56,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   FORM_PAYLOAD_PREFIX,
   buildTravelStateFromMessages,
@@ -87,6 +93,13 @@ import {
   getCuratedCityLabel,
   CURATED_CITY_ZH_LABELS_BY_KEY,
 } from "@/lib/travel/locations";
+import {
+  TRAVEL_PLACE_FALLBACK_IMAGE,
+  type SupportedGoogleAttractionType,
+  type TravelPlaceAttribution,
+  type TravelPlaceCard,
+  type TravelPlaceDetails,
+} from "@/lib/travel/google-places";
 
 type TravelChatClientProps = {
   applicationId?: string | null;
@@ -113,6 +126,13 @@ type MapTarget = {
   lat: number;
   lng: number;
   city?: string;
+  source?: "google";
+  placeCard?: TravelPlaceCard;
+  placeId?: string;
+  rating?: number | null;
+  reviewCount?: number;
+  googleMapsUri?: string;
+  attribution?: TravelPlaceAttribution[];
 };
 
 type GoogleGeocodeCoordinate = {
@@ -164,6 +184,21 @@ type TravelIpLocation = {
   source?: string;
 };
 
+type TravelPlacesFetchStatus = "idle" | "loading" | "success" | "error";
+
+type TravelPlacesSearchResponse = {
+  cards?: unknown;
+  source?: unknown;
+  city?: unknown;
+  count?: unknown;
+  error?: unknown;
+};
+
+type TravelPlaceDetailsResponse = {
+  details?: unknown;
+  error?: unknown;
+};
+
 type TravelChatSession = {
   id: string;
   title: string;
@@ -171,7 +206,19 @@ type TravelChatSession = {
   messages: TravelChatMessage[];
   activeVersionId?: string;
   versions?: TravelTripVersion[];
+  savedGooglePlaces?: TravelGooglePlaceItineraryItem[];
   updatedAt: string;
+};
+
+type TravelGooglePlaceItineraryItem = {
+  source: "google";
+  placeId: string;
+  city?: string;
+  dayIndex?: number;
+  order: number;
+  userNote?: string;
+  customTitle?: string;
+  addedAt: string;
 };
 
 type TravelChatArchiveMapState = {
@@ -302,7 +349,40 @@ const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   italy: "/globe/pisa.jpg",
 };
 
-const DESTINATION_IMAGE_FALLBACK = "/travel/cities/travel-fallback.svg";
+const DESTINATION_IMAGE_FALLBACK = TRAVEL_PLACE_FALLBACK_IMAGE;
+
+const GOOGLE_PLACE_FILTER_OPTIONS = [
+  { id: "all", zh: "全部", en: "All", types: [] },
+  { id: "attractions", zh: "景点", en: "Attractions", types: ["tourist_attraction"] },
+  { id: "museums", zh: "博物馆", en: "Museums", types: ["museum", "art_gallery"] },
+  { id: "parks", zh: "公园", en: "Parks", types: ["park", "national_park", "garden"] },
+  {
+    id: "historical",
+    zh: "历史",
+    en: "Historical",
+    types: ["historical_landmark", "historical_place", "monument"],
+  },
+  { id: "art", zh: "艺术", en: "Art", types: ["art_gallery", "museum"] },
+  {
+    id: "family",
+    zh: "亲子",
+    en: "Family",
+    types: ["amusement_park", "zoo", "aquarium"],
+  },
+  {
+    id: "viewpoints",
+    zh: "观景",
+    en: "Viewpoints",
+    types: ["observation_deck", "tourist_attraction"],
+  },
+] as const satisfies readonly Array<{
+  id: string;
+  zh: string;
+  en: string;
+  types: readonly SupportedGoogleAttractionType[];
+}>;
+
+type GooglePlaceFilterId = (typeof GOOGLE_PLACE_FILTER_OPTIONS)[number]["id"];
 
 const HOTSPOTS_BY_CITY: Record<string, string[]> = {
   tokyo: ["涩谷十字路口", "浅草寺", "东京晴空塔", "筑地场外市场"],
@@ -703,6 +783,7 @@ function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
     title: locale === "zh" ? "新的旅行对话" : "New travel chat",
     messages: createInitialTravelMessages(locale),
     versions: [],
+    savedGooglePlaces: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -891,10 +972,96 @@ function isTravelChatSession(value: unknown): value is TravelChatSession {
     (value.versions === undefined ||
       (Array.isArray(value.versions) &&
         value.versions.every((version) => isTravelTripVersion(version)))) &&
+    (value.savedGooglePlaces === undefined ||
+      (Array.isArray(value.savedGooglePlaces) &&
+        value.savedGooglePlaces.every(isTravelGooglePlaceItineraryItem))) &&
     typeof value.updatedAt === "string" &&
     Array.isArray(value.messages) &&
     value.messages.every((message) => isTravelChatMessage(message))
   );
+}
+
+function isTravelPlaceAttribution(
+  value: unknown
+): value is TravelPlaceAttribution {
+  return (
+    isRecord(value) &&
+    (value.displayName === undefined || typeof value.displayName === "string") &&
+    (value.uri === undefined || typeof value.uri === "string") &&
+    (value.photoUri === undefined || typeof value.photoUri === "string")
+  );
+}
+
+function isTravelPlaceCard(value: unknown): value is TravelPlaceCard {
+  if (!isRecord(value)) return false;
+  const location = value.location;
+
+  return (
+    typeof value.id === "string" &&
+    value.source === "google" &&
+    typeof value.title === "string" &&
+    (value.subtitle === undefined || typeof value.subtitle === "string") &&
+    (value.address === undefined || typeof value.address === "string") &&
+    (value.type === undefined || typeof value.type === "string") &&
+    isStringArray(value.types) &&
+    (value.rating === undefined ||
+      value.rating === null ||
+      typeof value.rating === "number") &&
+    (value.reviewCount === undefined || typeof value.reviewCount === "number") &&
+    (location === undefined ||
+      (isRecord(location) &&
+        typeof location.lat === "number" &&
+        Number.isFinite(location.lat) &&
+        typeof location.lng === "number" &&
+        Number.isFinite(location.lng))) &&
+    typeof value.imageUrl === "string" &&
+    (value.photoName === undefined || typeof value.photoName === "string") &&
+    (value.googleMapsUri === undefined ||
+      typeof value.googleMapsUri === "string") &&
+    (value.attribution === undefined ||
+      (Array.isArray(value.attribution) &&
+        value.attribution.every(isTravelPlaceAttribution))) &&
+    (value.businessStatus === undefined ||
+      typeof value.businessStatus === "string")
+  );
+}
+
+function isTravelPlaceDetails(value: unknown): value is TravelPlaceDetails {
+  return (
+    isTravelPlaceCard(value) &&
+    (value.openingHoursText === undefined ||
+      isStringArray(value.openingHoursText)) &&
+    (value.websiteUri === undefined || typeof value.websiteUri === "string") &&
+    (value.editorialSummary === undefined ||
+      typeof value.editorialSummary === "string")
+  );
+}
+
+function isTravelGooglePlaceItineraryItem(
+  value: unknown
+): value is TravelGooglePlaceItineraryItem {
+  return (
+    isRecord(value) &&
+    value.source === "google" &&
+    typeof value.placeId === "string" &&
+    (value.city === undefined || typeof value.city === "string") &&
+    (value.dayIndex === undefined || typeof value.dayIndex === "number") &&
+    typeof value.order === "number" &&
+    Number.isFinite(value.order) &&
+    (value.userNote === undefined || typeof value.userNote === "string") &&
+    (value.customTitle === undefined || typeof value.customTitle === "string") &&
+    typeof value.addedAt === "string"
+  );
+}
+
+function normalizeSavedGooglePlaces(
+  value: unknown
+): TravelGooglePlaceItineraryItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isTravelGooglePlaceItineraryItem).map((item, index) => ({
+    ...item,
+    order: Number.isFinite(item.order) ? item.order : index,
+  }));
 }
 
 function createSessionTitle(messages: TravelChatMessage[]): string {
@@ -1029,6 +1196,7 @@ function normalizeTravelChatSession(
     customTitle: Boolean(manualTitle),
     activeVersionId,
     versions: migratedVersions,
+    savedGooglePlaces: normalizeSavedGooglePlaces(session.savedGooglePlaces),
     updatedAt: session.updatedAt || new Date().toISOString(),
   };
 }
