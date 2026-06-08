@@ -88,11 +88,20 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
   const surname = proposalValue(fields.surname);
   const fullName = [givenNames, surname].filter(Boolean).join(" ") || proposalValue(fields.fullName);
   const nativeFullName = proposalValue(fields.nativeFullName);
+  const compactNativeFullName = nativeFullName?.replace(/\s+/g, "") ?? "";
+  const nativeSurname = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(0, 1) : null;
+  const nativeGivenNames = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(1) : null;
 
   return {
     full_name: fullName ?? nativeFullName,
     full_name_zh: nativeFullName,
     full_name_en: fullName,
+    surname: surname ?? nativeSurname,
+    surname_zh: nativeSurname,
+    surname_en: surname,
+    given_names: givenNames ?? nativeGivenNames,
+    given_names_zh: nativeGivenNames,
+    given_names_en: givenNames,
     date_of_birth: proposalValue(fields.dateOfBirth),
     place_of_birth: proposalValue(fields.placeOfBirth),
     gender: proposalValue(fields.gender),

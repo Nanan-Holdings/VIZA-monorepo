@@ -418,6 +418,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
   useEffect(() => {
     const storedAccounts = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
+    if (window.AirwallexComponentsSDK) setAirwallexScriptReady(true);
 
     if (storedAccounts) {
       try {
@@ -1044,6 +1045,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       <Script
         src="https://static.airwallex.com/components/sdk/v1/index.js"
         strategy="afterInteractive"
+        onReady={() => setAirwallexScriptReady(true)}
         onLoad={() => setAirwallexScriptReady(true)}
         onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
       />

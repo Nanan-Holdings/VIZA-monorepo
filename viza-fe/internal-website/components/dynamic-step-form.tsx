@@ -233,7 +233,130 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
-function findAnswerValue(values: Record<string, string>, candidates: string[]): string | null {
+const DOCUMENT_ISSUE_DATE_CANDIDATES = [
+  "passport_issuance_date",
+  "passport_issue_date",
+  "passport_date_of_issue",
+  "travel_document_issue_date",
+  "date_of_issue",
+  "issue_date",
+] as const;
+
+const DOCUMENT_EXPIRY_DATE_CANDIDATES = [
+  "passport_expiration_date",
+  "passport_expiry_date",
+  "passport_date_of_expiry",
+  "travel_document_expiry_date",
+  "date_of_expiry",
+  "expiration_date",
+  "expiry_date",
+  "valid_until",
+] as const;
+
+const ARRIVAL_DATE_CANDIDATES = [
+  "arrival_date",
+  "intended_arrival_date",
+  "entry_date",
+] as const;
+
+const DEPARTURE_DATE_CANDIDATES = [
+  "departure_date",
+  "intended_departure_date",
+  "date_of_departure",
+  "exit_date",
+] as const;
+
+const NATIONALITY_CONSISTENCY_CANDIDATES = [
+  "current_nationality",
+  "nationality_country",
+  "nationality",
+  "nationality_at_birth",
+  "nationality_at_birth_different",
+] as const;
+
+function getRepeatInstanceSuffix(key: string): string {
+  return key.match(/__\d+$/)?.[0] ?? "";
+}
+
+function stripRepeatInstanceSuffix(key: string): string {
+  return key.replace(/__\d+$/, "");
+}
+
+function normaliseFieldKey(key: string): string {
+  return stripRepeatInstanceSuffix(key)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function fieldKeyMatchesCandidate(key: string, candidate: string): boolean {
+  const normalisedKey = normaliseFieldKey(key);
+  const normalisedCandidate = normaliseFieldKey(candidate);
+  return (
+    normalisedKey === normalisedCandidate ||
+    normalisedKey.endsWith(`_${normalisedCandidate}`) ||
+    normalisedKey.includes(`_${normalisedCandidate}_`)
+  );
+}
+
+function fieldKeyMatchesAny(key: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => fieldKeyMatchesCandidate(key, candidate));
+}
+
+function currentFieldMatchesAny(
+  field: VisaFormFieldRow,
+  valueKey: string,
+  candidates: readonly string[],
+): boolean {
+  return fieldKeyMatchesAny(field.fieldName, candidates) || fieldKeyMatchesAny(valueKey, candidates);
+}
+
+function fieldSearchText(field: VisaFormFieldRow, valueKey: string): string {
+  return `${field.fieldName} ${valueKey} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
+}
+
+function isCurrentDocumentExpiryField(field: VisaFormFieldRow, valueKey: string): boolean {
+  if (!currentFieldMatchesAny(field, valueKey, DOCUMENT_EXPIRY_DATE_CANDIDATES)) return false;
+
+  const searchText = fieldSearchText(field, valueKey);
+  if (
+    searchText.includes("entry permit") ||
+    searchText.includes("prior schengen") ||
+    searchText.includes("last schengen visa")
+  ) {
+    return false;
+  }
+
+  return (
+    searchText.includes("passport") ||
+    searchText.includes("travel_document") ||
+    searchText.includes("travel document") ||
+    searchText.includes("expiry date") ||
+    searchText.includes("expiration date") ||
+    fieldKeyMatchesAny(valueKey, ["date_of_expiry", "expiration_date", "expiry_date"])
+  );
+}
+
+function isCurrentDepartureDateField(field: VisaFormFieldRow, valueKey: string): boolean {
+  return currentFieldMatchesAny(field, valueKey, DEPARTURE_DATE_CANDIDATES);
+}
+
+function isCurrentNationalityConsistencyField(field: VisaFormFieldRow, valueKey: string): boolean {
+  return currentFieldMatchesAny(field, valueKey, NATIONALITY_CONSISTENCY_CANDIDATES);
+}
+
+function findAnswerValue(
+  values: Record<string, string>,
+  candidates: readonly string[],
+  repeatSuffix = "",
+): string | null {
+  if (repeatSuffix) {
+    for (const candidate of candidates) {
+      const value = values[`${candidate}${repeatSuffix}`];
+      if (value?.trim()) return value;
+    }
+  }
+
   for (const candidate of candidates) {
     const value = values[candidate];
     if (value?.trim()) return value;
@@ -242,7 +365,9 @@ function findAnswerValue(values: Record<string, string>, candidates: string[]): 
   const entries = Object.entries(values);
   for (const candidate of candidates) {
     const found = entries.find(([key, value]) =>
-      key.toLowerCase().includes(candidate.toLowerCase()) && value.trim()
+      (!repeatSuffix || key.endsWith(repeatSuffix)) &&
+      fieldKeyMatchesCandidate(key, candidate) &&
+      value.trim()
     );
     if (found) return found[1];
   }
@@ -348,42 +473,40 @@ function getLocalFieldIssue(
     return issue("error", isZh ? "出生日期不能晚于今天" : "Date of birth cannot be later than today");
   }
 
-  const issueDate = parseFlexibleDate(findAnswerValue(values, [
-    "passport_issuance_date",
-    "passport_issue_date",
-    "travel_document_issue_date",
-    "issue_date",
-  ]) ?? undefined);
-  const expiryDate = parseFlexibleDate(findAnswerValue(values, [
-    "passport_expiration_date",
-    "passport_expiry_date",
-    "travel_document_expiry_date",
-    "expiry_date",
-    "valid_until",
-  ]) ?? undefined);
+  const repeatSuffix = getRepeatInstanceSuffix(valueKey);
+  const issueDate = parseFlexibleDate(findAnswerValue(
+    values,
+    DOCUMENT_ISSUE_DATE_CANDIDATES,
+    repeatSuffix,
+  ) ?? undefined);
+  const expiryDate = parseFlexibleDate(findAnswerValue(
+    values,
+    DOCUMENT_EXPIRY_DATE_CANDIDATES,
+    repeatSuffix,
+  ) ?? undefined);
 
-  if (issueDate && expiryDate && expiryDate <= issueDate) {
+  if (isCurrentDocumentExpiryField(field, valueKey) && issueDate && expiryDate && expiryDate <= issueDate) {
     return issue("error", isZh ? "到期日必须晚于签发日" : "Expiry date must be after the issue date");
   }
 
-  const arrivalDate = parseFlexibleDate(findAnswerValue(values, [
-    "arrival_date",
-    "intended_arrival_date",
-    "entry_date",
-  ]) ?? undefined);
-  const departureDate = parseFlexibleDate(findAnswerValue(values, [
-    "departure_date",
-    "intended_departure_date",
-    "exit_date",
-  ]) ?? undefined);
+  const arrivalDate = parseFlexibleDate(findAnswerValue(
+    values,
+    ARRIVAL_DATE_CANDIDATES,
+    repeatSuffix,
+  ) ?? undefined);
+  const departureDate = parseFlexibleDate(findAnswerValue(
+    values,
+    DEPARTURE_DATE_CANDIDATES,
+    repeatSuffix,
+  ) ?? undefined);
 
-  if (arrivalDate && departureDate && departureDate <= arrivalDate) {
+  if (isCurrentDepartureDateField(field, valueKey) && arrivalDate && departureDate && departureDate <= arrivalDate) {
     return issue("error", isZh ? "离开日期必须晚于到达日期" : "Departure date must be after arrival date");
   }
-  if (arrivalDate && expiryDate && expiryDate < arrivalDate) {
+  if (isCurrentDocumentExpiryField(field, valueKey) && arrivalDate && expiryDate && expiryDate < arrivalDate) {
     return issue("error", isZh ? "证件到期日在旅行日期之前" : "Document expires before the travel date");
   }
-  if (arrivalDate && expiryDate && expiryDate < addMonths(arrivalDate, 6)) {
+  if (isCurrentDocumentExpiryField(field, valueKey) && arrivalDate && expiryDate && expiryDate < addMonths(arrivalDate, 6)) {
     return issue("warning", isZh ? "证件有效期距离旅行日期不足 6 个月" : "Document validity is less than 6 months from the travel date");
   }
 
@@ -394,7 +517,8 @@ function getLocalFieldIssue(
     currentNationality &&
     nationalityAtBirth &&
     nationalityDifferent?.toLowerCase() === "no" &&
-    currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase()
+    currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase() &&
+    isCurrentNationalityConsistencyField(field, valueKey)
   ) {
     return issue("warning", isZh ? "国籍相关答案可能不一致" : "Nationality answers may be inconsistent");
   }

@@ -145,6 +145,73 @@ const cityOfBirthStep: WizardStep = {
   ],
 };
 
+const documentDateConsistencyStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Travel Document & Identity",
+  fields: [
+    {
+      id: "field-surname",
+      visaType: "SCHENGEN_C",
+      fieldName: "surname",
+      label: "Surname (family name)",
+      fieldType: "text",
+      required: true,
+      stepNumber: 3,
+      stepName: "Travel Document & Identity",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-date-of-birth",
+      visaType: "SCHENGEN_C",
+      fieldName: "date_of_birth",
+      label: "Date of birth",
+      fieldType: "date",
+      required: true,
+      stepNumber: 3,
+      stepName: "Travel Document & Identity",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-document-issue-date",
+      visaType: "SCHENGEN_C",
+      fieldName: "travel_document_issue_date",
+      label: "Date of issue",
+      fieldType: "date",
+      required: true,
+      stepNumber: 3,
+      stepName: "Travel Document & Identity",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: { format: "DD/MM/YYYY", inline_group: "travel_document_dates" },
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-document-expiry-date",
+      visaType: "SCHENGEN_C",
+      fieldName: "travel_document_expiry_date",
+      label: "Expiry date",
+      fieldType: "date",
+      required: true,
+      stepNumber: 3,
+      stepName: "Travel Document & Identity",
+      displayOrder: 4,
+      placeholder: null,
+      validationRules: { format: "DD/MM/YYYY", inline_group: "travel_document_dates" },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const wizardConfigs: Array<WizardConfig<unknown>> = [
   usConfig as WizardConfig<unknown>,
   ukConfig as WizardConfig<unknown>,
@@ -376,6 +443,34 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
     expect(onComplete).toHaveBeenCalledWith({ city_of_birth: "Hengqin, Zhuhai" });
+  });
+
+  it("shows document date-order errors only on the expiry field", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={documentDateConsistencyStep}
+        prefill={{
+          surname: "CHEN",
+          date_of_birth: "2006-07-27",
+          travel_document_issue_date: "2030-01-01",
+          travel_document_expiry_date: "2029-01-01",
+        }}
+        onComplete={vi.fn()}
+        visaType="SCHENGEN_C"
+      />,
+    );
+
+    expect(screen.getAllByText("到期日必须晚于签发日")).toHaveLength(1);
+
+    const surnameTrigger = container.querySelector('[data-copilot-trigger="surname"]');
+    const birthDateTrigger = container.querySelector('[data-copilot-trigger="date_of_birth"]');
+    const issueDateTrigger = container.querySelector('[data-copilot-trigger="travel_document_issue_date"]');
+    const expiryDateTrigger = container.querySelector('[data-copilot-trigger="travel_document_expiry_date"]');
+
+    expect(surnameTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(birthDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(issueDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
+    expect(expiryDateTrigger?.parentElement).toHaveTextContent("到期日必须晚于签发日");
   });
 
   it("keeps registered wizard prompts aligned with localized country copy", () => {

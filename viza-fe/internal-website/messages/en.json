@@ -68,7 +68,7 @@
       "title": "Universal profile",
       "subtitle": "Reused across similar visa questions",
       "saved": "{completed}/{total} saved",
-      "fields": "Name, birthday, birthplace, passport, contact",
+      "fields": "Surname, given names, birthday, birthplace, passport, contact",
       "edit": "Edit universal profile"
     },
     "emptyApplication": {

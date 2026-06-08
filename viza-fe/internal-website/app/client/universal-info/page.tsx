@@ -678,17 +678,28 @@ export default function UniversalInfoPage() {
 
     setBilingualForm((current) => ({
       ...current,
-      full_name: fields.full_name ? ocrBilingualFields.full_name : current.full_name,
+      full_name: fields.full_name || fields.surname || fields.given_names ? ocrBilingualFields.full_name : current.full_name,
+      surname: fields.full_name || fields.surname ? ocrBilingualFields.surname : current.surname,
+      given_names: fields.full_name || fields.given_names ? ocrBilingualFields.given_names : current.given_names,
       place_of_birth: placeOfBirth ?? current.place_of_birth,
       birth_city: placeOfBirth ?? current.birth_city,
     }));
     setForm((current) => {
-      const nextFullName = fields.full_name ? ocrBilingualFields.full_name.en || ocrBilingualFields.full_name.zh : current.full_name;
+      const nextFullName = fields.full_name || fields.surname || fields.given_names
+        ? composeEnglishFullName(ocrBilingualFields.given_names.en, ocrBilingualFields.surname.en) ||
+          composeChineseName(ocrBilingualFields.surname.zh, ocrBilingualFields.given_names.zh)
+        : current.full_name;
       const nextBirthCity = placeOfBirth ? placeOfBirth.en || placeOfBirth.zh : current.birth_city;
 
       return {
         ...current,
         full_name: nextFullName,
+        surname: fields.full_name || fields.surname
+          ? ocrBilingualFields.surname.en || ocrBilingualFields.surname.zh
+          : current.surname,
+        given_names: fields.full_name || fields.given_names
+          ? ocrBilingualFields.given_names.en || ocrBilingualFields.given_names.zh
+          : current.given_names,
         date_of_birth: fields.date_of_birth ?? current.date_of_birth,
         place_of_birth: nextBirthCity || current.place_of_birth,
         birth_city: nextBirthCity || current.birth_city,
@@ -717,6 +728,10 @@ export default function UniversalInfoPage() {
 
       const birthProvince = bilingualForm.birth_province_or_state;
       const birthCity = bilingualForm.birth_city;
+      const surname = bilingualForm.surname;
+      const givenNames = bilingualForm.given_names;
+      const fullNameZh = composeChineseName(surname.zh, givenNames.zh);
+      const fullNameEn = composeEnglishFullName(givenNames.en, surname.en);
       const resolvedBirthCountry = form.birth_country || form.nationality;
       const birthCountryEn = countryEnglishName(resolvedBirthCountry);
       const birthCountryZh = countryChineseName(resolvedBirthCountry);
@@ -736,9 +751,15 @@ export default function UniversalInfoPage() {
         country: "us",
         visaType: "b1_b2",
         profile: {
-          full_name: cleanValue(bilingualForm.full_name.en || bilingualForm.full_name.zh),
-          full_name_zh: isZh ? cleanValue(bilingualForm.full_name.zh) : undefined,
-          full_name_en: isZh ? cleanValue(bilingualForm.full_name.en) : undefined,
+          full_name: cleanValue(fullNameEn || fullNameZh),
+          full_name_zh: cleanValue(fullNameZh) ?? undefined,
+          full_name_en: cleanValue(fullNameEn) ?? undefined,
+          surname: cleanValue(surname.en || surname.zh),
+          surname_zh: cleanValue(surname.zh) ?? undefined,
+          surname_en: cleanValue(surname.en) ?? undefined,
+          given_names: cleanValue(givenNames.en || givenNames.zh),
+          given_names_zh: cleanValue(givenNames.zh) ?? undefined,
+          given_names_en: cleanValue(givenNames.en) ?? undefined,
           date_of_birth: cleanValue(form.date_of_birth),
           place_of_birth: cleanValue(legacyPlaceOfBirthEn || legacyPlaceOfBirthZh),
           place_of_birth_zh: isZh ? cleanValue(legacyPlaceOfBirthZh) : undefined,
@@ -865,24 +886,46 @@ export default function UniversalInfoPage() {
               <SectionTitle>{copy(isZh, "基本身份信息", "Basic identity information")}</SectionTitle>
               <div className="mt-3 divide-y divide-[#eef1f5]">
                 <ProfileBilingualRow
-                  zhLabel="姓名"
-                  enLabel="Full name"
+                  zhLabel="姓氏"
+                  enLabel="Surname"
                   zhControl={
                     <BilingualTextControl
                       side="zh"
-                      value={bilingualForm.full_name.zh}
-                      placeholder="如：陈泓羽"
+                      value={bilingualForm.surname.zh}
+                      placeholder="如：陈"
                       icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("full_name", "zh", value)}
+                      onChange={(value) => updateBilingualField("surname", "zh", value)}
                     />
                   }
                   enControl={
                     <BilingualTextControl
                       side="en"
-                      value={bilingualForm.full_name.en}
-                      placeholder="For example: HONGYU CHEN"
+                      value={bilingualForm.surname.en}
+                      placeholder="For example: CHEN"
                       icon={<User className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("full_name", "en", value)}
+                      onChange={(value) => updateBilingualField("surname", "en", value)}
+                    />
+                  }
+                />
+                <ProfileBilingualRow
+                  zhLabel="名字"
+                  enLabel="Given names"
+                  zhControl={
+                    <BilingualTextControl
+                      side="zh"
+                      value={bilingualForm.given_names.zh}
+                      placeholder="如：泓羽"
+                      icon={<User className="h-4 w-4 text-gray-400" />}
+                      onChange={(value) => updateBilingualField("given_names", "zh", value)}
+                    />
+                  }
+                  enControl={
+                    <BilingualTextControl
+                      side="en"
+                      value={bilingualForm.given_names.en}
+                      placeholder="For example: HONGYU"
+                      icon={<User className="h-4 w-4 text-gray-400" />}
+                      onChange={(value) => updateBilingualField("given_names", "en", value)}
                     />
                   }
                 />
