@@ -13,7 +13,7 @@
  *   - Checkpoint and `.dat` capture are wired at natural section boundaries.
  */
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -539,6 +539,29 @@ export async function orchestrateFill(
  * Fill fields on the current page using the provided mappings and answer data.
  * Fields without matching answers are silently skipped.
  */
+async function selectCeacOption(el: Locator, value: string): Promise<void> {
+  try {
+    await el.selectOption(value, { timeout: 5_000 });
+    return;
+  } catch (firstError) {
+    const normalizedTarget = value.trim().toLowerCase();
+    const matchedValue = await el.evaluate((select, target) => {
+      if (!(select instanceof HTMLSelectElement)) return null;
+      const options = Array.from(select.options);
+      const match = options.find((option) => {
+        if (option.disabled) return false;
+        const optionValue = option.value.trim().toLowerCase();
+        const optionText = option.text.trim().toLowerCase();
+        return optionValue === target || optionText === target || optionText.includes(target);
+      });
+      return match?.value ?? null;
+    }, normalizedTarget).catch(() => null);
+
+    if (!matchedValue) throw firstError;
+    await el.selectOption(matchedValue, { timeout: 5_000 });
+  }
+}
+
 async function fillPageFields(
   page: Page,
   mappings: Record<string, FormFieldMapping>,
@@ -639,7 +662,7 @@ async function fillPageFields(
             continue; // No matching radio option
           }
         } else if (mapping.type === "select") {
-          await el.selectOption(value, { timeout: 5_000 });
+          await selectCeacOption(el, value);
         } else if (mapping.type === "checkbox") {
           // Checkbox: interpret the value as a truthy/falsy flag. "Y",
           // "true", "1", "yes" → check; everything else → uncheck.

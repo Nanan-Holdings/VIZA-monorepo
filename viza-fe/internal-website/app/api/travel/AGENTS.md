@@ -25,8 +25,8 @@ service URL off the client.
   featured-only support and no unfiltered full-table responses.
 - `destinations/resolve/route.ts`: exact, alias, fuzzy, ambiguous, and
   temporary destination resolution.
-- `destinations/cards/route.ts`: lazy destination card cache/generation for a
-  selected destination only.
+- `destinations/cards/route.ts`: local-first selected-destination payload,
+  database cache upsert, safe placeholder handling, and enrichment job queueing.
 - `sessions/route.ts`: authenticated Travel chat/itinerary archive persistence
   with localStorage fallback in the client.
 

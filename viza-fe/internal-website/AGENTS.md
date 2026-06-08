@@ -57,6 +57,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/audit-travel-card-coverage.mjs`.
 - Travel card coverage enrichment through
   `scripts/enrich-travel-card-coverage.mjs`.
+- Travel local-first dropdown destination audit through
+  `scripts/audit-travel-dropdown-destinations.ts`.
+- Travel dropdown destination database seeding through
+  `scripts/seed-dropdown-destinations.ts`.
+- Travel local image relevance verification through
+  `scripts/verify-travel-image-relevance.ts`.
 
 ## Source Of Truth
 
@@ -161,4 +167,7 @@ Smoke URLs:
 - `scripts/sync-supabase-auth-email-templates.mjs`
 - `scripts/audit-travel-card-coverage.mjs`
 - `scripts/enrich-travel-card-coverage.mjs`
+- `scripts/audit-travel-dropdown-destinations.ts`
+- `scripts/seed-dropdown-destinations.ts`
+- `scripts/verify-travel-image-relevance.ts`
 - `types/*`

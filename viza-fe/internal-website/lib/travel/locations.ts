@@ -25,6 +25,7 @@ export const CURATED_CITIES_BY_COUNTRY: Record<string, CuratedCity[]> = {
     { en: "Nagoya", zh: "名古屋" },
   ],
   Singapore: [{ en: "Singapore", zh: "新加坡" }],
+  "Hong Kong": [{ en: "Hong Kong", zh: "香港", aliases: ["HK"] }],
   Thailand: [
     { en: "Bangkok", zh: "曼谷" },
     { en: "Chiang Mai", zh: "清迈" },

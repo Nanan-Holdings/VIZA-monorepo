@@ -28733,6 +28733,713 @@
       ],
       "lat": 41.890389,
       "lng": -87.623694
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "威尼斯人酒店",
+      "location": "The Venetian Las Vegas",
+      "imageSrc": "/travel/attractions/las-vegas-the-venetian-las-vegas.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/The_Venetian_Las_Vegas",
+      "description": "拉斯维加斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "The Venetian Las Vegas",
+        "威尼斯人酒店"
+      ],
+      "lat": 36.121389,
+      "lng": -115.168889
+    },
+    {
+      "cityKeys": [
+        "Las Vegas",
+        "拉斯维加斯",
+        "lasvegas"
+      ],
+      "cityLabel": "拉斯维加斯",
+      "name": "豪客摩天轮",
+      "location": "High Roller (Ferris wheel)",
+      "imageSrc": "/travel/attractions/las-vegas-high-roller-ferris-wheel.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/High_Roller_(Ferris_wheel)",
+      "description": "拉斯维加斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "High Roller (Ferris wheel)",
+        "豪客摩天轮"
+      ],
+      "lat": 36.117698,
+      "lng": -115.16815
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "悉尼海港大桥",
+      "location": "Sydney Harbour Bridge",
+      "imageSrc": "/travel/attractions/sydney-sydney-harbour-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sydney_Harbour_Bridge",
+      "description": "位於雪梨的桥樑、著名地标",
+      "aliases": [
+        "Sydney Harbour Bridge",
+        "悉尼海港大桥"
+      ],
+      "lat": -33.852232,
+      "lng": 151.210684
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "澳大利亚博物馆",
+      "location": "Australian Museum",
+      "imageSrc": "/travel/attractions/sydney-australian-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Australian_Museum",
+      "description": "悉尼可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Australian Museum",
+        "澳大利亚博物馆"
+      ],
+      "lat": -33.8743,
+      "lng": 151.213
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "新南威尔士美术馆",
+      "location": "Art Gallery of New South Wales",
+      "imageSrc": "/travel/attractions/sydney-art-gallery-of-new-south-wales.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Art_Gallery_of_New_South_Wales",
+      "description": "建筑",
+      "aliases": [
+        "Art Gallery of New South Wales",
+        "新南威尔士美术馆"
+      ],
+      "lat": -33.868611,
+      "lng": 151.217222
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "澳大利亚現代藝术美术馆",
+      "location": "Museum of Contemporary Art Australia",
+      "imageSrc": "/travel/attractions/sydney-museum-of-contemporary-art-australia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museum_of_Contemporary_Art_Australia",
+      "description": "悉尼可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Museum of Contemporary Art Australia",
+        "澳大利亚現代藝术美术馆"
+      ],
+      "lat": -33.86,
+      "lng": 151.208889
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "Hyde Park Barracks",
+      "location": "Hyde Park Barracks",
+      "imageSrc": "/travel/attractions/sydney-hyde-park-barracks.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hyde_Park_Barracks,_Sydney",
+      "description": "悉尼可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hyde Park Barracks"
+      ],
+      "lat": -33.869611,
+      "lng": 151.212806
+    },
+    {
+      "cityKeys": [
+        "Sydney",
+        "悉尼",
+        "sydney"
+      ],
+      "cityLabel": "悉尼",
+      "name": "安萨桥",
+      "location": "ANZAC Bridge",
+      "imageSrc": "/travel/attractions/sydney-anzac-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Anzac_Bridge",
+      "description": "悉尼可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "ANZAC Bridge",
+        "安萨桥"
+      ],
+      "lat": -33.869333,
+      "lng": 151.185778
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "维多利亚博物馆",
+      "location": "Museums Victoria",
+      "imageSrc": "/travel/attractions/melbourne-museums-victoria.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museums_Victoria",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Museums Victoria",
+        "维多利亚博物馆"
+      ],
+      "lat": -37.803333,
+      "lng": 144.971667
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "墨尔本丽晶剧院",
+      "location": "Regent Theatre",
+      "imageSrc": "/travel/attractions/melbourne-regent-theatre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Regent_Theatre,_Melbourne",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Regent Theatre",
+        "墨尔本丽晶剧院"
+      ],
+      "lat": -37.8155,
+      "lng": 144.967
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "Premier Tower",
+      "location": "Premier Tower",
+      "imageSrc": "/travel/attractions/melbourne-premier-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Premier_Tower",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Premier Tower"
+      ],
+      "lat": -37.817316,
+      "lng": 144.953692
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "格兰杰博物馆",
+      "location": "Grainger Museum",
+      "imageSrc": "/travel/attractions/melbourne-grainger-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Grainger_Museum",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Grainger Museum",
+        "格兰杰博物馆"
+      ],
+      "lat": -37.7975,
+      "lng": 144.958
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "Sts. Peter and Paul Cathedral, Melbourne",
+      "location": "Sts. Peter and Paul Cathedral, Melbourne",
+      "imageSrc": "/travel/attractions/melbourne-sts-peter-and-paul-cathedral-melbourne.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sts._Peter_and_Paul_Cathedral,_Melbourne",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sts. Peter and Paul Cathedral, Melbourne"
+      ],
+      "lat": -37.79639,
+      "lng": 144.94424
+    },
+    {
+      "cityKeys": [
+        "Melbourne",
+        "墨尔本",
+        "melbourne"
+      ],
+      "cityLabel": "墨尔本",
+      "name": "福克纳公园",
+      "location": "Fawkner Park",
+      "imageSrc": "/travel/attractions/melbourne-fawkner-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fawkner_Park,_Melbourne",
+      "description": "墨尔本可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Fawkner Park",
+        "福克纳公园"
+      ],
+      "lat": -37.841,
+      "lng": 144.982
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "故事桥",
+      "location": "Story Bridge",
+      "imageSrc": "/travel/attractions/brisbane-story-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Story_Bridge",
+      "description": "布里斯班可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Story Bridge",
+        "故事桥"
+      ],
+      "lat": -27.463752,
+      "lng": 153.035699
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "極光塔",
+      "location": "Aurora Tower",
+      "imageSrc": "/travel/attractions/brisbane-aurora-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Aurora_Tower",
+      "description": "布里斯班可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Aurora Tower",
+        "極光塔"
+      ],
+      "lat": -27.4651,
+      "lng": 153.03
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "喬治国王广场",
+      "location": "King George Square",
+      "imageSrc": "/travel/attractions/brisbane-king-george-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/King_George_Square",
+      "description": "澳洲的广场",
+      "aliases": [
+        "King George Square",
+        "喬治国王广场"
+      ],
+      "lat": -27.4683,
+      "lng": 153.024
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "Goodwill Bridge",
+      "location": "Goodwill Bridge",
+      "imageSrc": "/travel/attractions/brisbane-goodwill-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Goodwill_Bridge",
+      "description": "布里斯班可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Goodwill Bridge"
+      ],
+      "lat": -27.480429,
+      "lng": 153.02717
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "Uptown",
+      "location": "Uptown",
+      "imageSrc": "/travel/attractions/brisbane-uptown.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Uptown,_Brisbane",
+      "description": "布里斯班可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Uptown"
+      ],
+      "lat": -27.47,
+      "lng": 153.025
+    },
+    {
+      "cityKeys": [
+        "Brisbane",
+        "布里斯班",
+        "brisbane"
+      ],
+      "cityLabel": "布里斯班",
+      "name": "Albert Street Uniting Church",
+      "location": "Albert Street Uniting Church",
+      "imageSrc": "/travel/attractions/brisbane-albert-street-uniting-church.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Albert_Street_Uniting_Church",
+      "description": "布里斯班可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Albert Street Uniting Church"
+      ],
+      "lat": -27.4677,
+      "lng": 153.024
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "西澳大利亚美术馆",
+      "location": "Art Gallery of Western Australia",
+      "imageSrc": "/travel/attractions/perth-art-gallery-of-western-australia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Art_Gallery_of_Western_Australia",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Art Gallery of Western Australia",
+        "西澳大利亚美术馆"
+      ],
+      "lat": -31.950588,
+      "lng": 115.860943
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "Perth Mosque",
+      "location": "Perth Mosque",
+      "imageSrc": "/travel/attractions/perth-perth-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Perth_Mosque",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Perth Mosque"
+      ],
+      "lat": -31.943654,
+      "lng": 115.862578
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "圣喬治座堂",
+      "location": "St George's Cathedral, Perth",
+      "imageSrc": "/travel/attractions/perth-st-george-s-cathedral-perth.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/St_George%27s_Cathedral,_Perth",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "St George's Cathedral, Perth",
+        "圣喬治座堂"
+      ],
+      "lat": -31.955753,
+      "lng": 115.861292
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "马塔加魯普桥",
+      "location": "Matagarup Bridge",
+      "imageSrc": "/travel/attractions/perth-matagarup-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Matagarup_Bridge",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Matagarup Bridge",
+        "马塔加魯普桥"
+      ],
+      "lat": -31.954517,
+      "lng": 115.885383
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "Palace Hotel, Perth",
+      "location": "Palace Hotel, Perth",
+      "imageSrc": "/travel/attractions/perth-palace-hotel-perth.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Palace_Hotel,_Perth",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Palace Hotel, Perth"
+      ],
+      "lat": -31.9546,
+      "lng": 115.857
+    },
+    {
+      "cityKeys": [
+        "Perth",
+        "珀斯",
+        "perth"
+      ],
+      "cityLabel": "珀斯",
+      "name": "Wesley Church, Perth",
+      "location": "Wesley Church, Perth",
+      "imageSrc": "/travel/attractions/perth-wesley-church-perth.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Wesley_Church,_Perth",
+      "description": "珀斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Wesley Church, Perth"
+      ],
+      "lat": -31.9533,
+      "lng": 115.857
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "维多利亚广场",
+      "location": "Victoria Square",
+      "imageSrc": "/travel/attractions/adelaide-victoria-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Victoria_Square,_Adelaide",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Victoria Square",
+        "维多利亚广场"
+      ],
+      "lat": -34.930556,
+      "lng": 138.604167
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "Hindmarsh Square",
+      "location": "Hindmarsh Square",
+      "imageSrc": "/travel/attractions/adelaide-hindmarsh-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hindmarsh_Square",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hindmarsh Square"
+      ],
+      "lat": -34.9241,
+      "lng": 138.606
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "Whitmore Square",
+      "location": "Whitmore Square",
+      "imageSrc": "/travel/attractions/adelaide-whitmore-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Whitmore_Square",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Whitmore Square"
+      ],
+      "lat": -34.9328,
+      "lng": 138.594
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "Holy Trinity Church, Adelaide",
+      "location": "Holy Trinity Church, Adelaide",
+      "imageSrc": "/travel/attractions/adelaide-holy-trinity-church-adelaide.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Trinity_Church_Adelaide",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Holy Trinity Church, Adelaide"
+      ],
+      "lat": -34.9221,
+      "lng": 138.594
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "Queen's Theatre",
+      "location": "Queen's Theatre",
+      "imageSrc": "/travel/attractions/adelaide-queen-s-theatre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Queen%27s_Theatre,_Adelaide",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Queen's Theatre"
+      ],
+      "lat": -34.925418,
+      "lng": 138.595549
+    },
+    {
+      "cityKeys": [
+        "Adelaide",
+        "阿德莱德",
+        "adelaide"
+      ],
+      "cityLabel": "阿德莱德",
+      "name": "非百敦剧院",
+      "location": "Thebarton Theatre",
+      "imageSrc": "/travel/attractions/adelaide-thebarton-theatre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Thebarton_Theatre",
+      "description": "阿德莱德可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Thebarton Theatre",
+        "非百敦剧院"
+      ],
+      "lat": -34.9236,
+      "lng": 138.569
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "水世界公园",
+      "location": "Sea World",
+      "imageSrc": "/travel/attractions/gold-coast-sea-world.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sea_World_(Australia)",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sea World",
+        "水世界公园"
+      ],
+      "lat": -27.9559,
+      "lng": 153.4257
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "Jubilee Bridge",
+      "location": "Jubilee Bridge",
+      "imageSrc": "/travel/attractions/gold-coast-jubilee-bridge.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jubilee_Bridge_(Southport)",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Jubilee Bridge"
+      ],
+      "lat": -27.9745,
+      "lng": 153.423
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "罗比娜体育场",
+      "location": "Robina Stadium",
+      "imageSrc": "/travel/attractions/gold-coast-robina-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Robina_Stadium",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Robina Stadium",
+        "罗比娜体育场"
+      ],
+      "lat": -28.066944,
+      "lng": 153.378889
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "黄金海岸曲棍球中心",
+      "location": "Gold Coast Hockey Centre",
+      "imageSrc": "/travel/attractions/gold-coast-gold-coast-hockey-centre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gold_Coast_Hockey_Centre",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Gold Coast Hockey Centre",
+        "黄金海岸曲棍球中心"
+      ],
+      "lat": -27.954228,
+      "lng": 153.393962
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "海浪度假村酒店大楼",
+      "location": "The Wave",
+      "imageSrc": "/travel/attractions/gold-coast-the-wave.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/The_Wave_(Gold_Coast)",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "The Wave",
+        "海浪度假村酒店大楼"
+      ],
+      "lat": -28.0288,
+      "lng": 153.432
+    },
+    {
+      "cityKeys": [
+        "Gold Coast",
+        "黄金海岸",
+        "goldcoast"
+      ],
+      "cityLabel": "黄金海岸",
+      "name": "Ocean (building)",
+      "location": "Ocean (building)",
+      "imageSrc": "/travel/attractions/gold-coast-ocean-building.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ocean_(building)",
+      "description": "黄金海岸可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ocean (building)"
+      ],
+      "lat": -27.996085,
+      "lng": 153.430136
     }
   ]
 }

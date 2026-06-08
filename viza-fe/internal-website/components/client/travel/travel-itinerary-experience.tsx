@@ -1150,9 +1150,6 @@ function getCityImage(city: string, _seed: string = "default"): string {
   const curatedCityImage = getTravelCityImage(city);
   if (curatedCityImage) return curatedCityImage;
 
-  const cityAttractionImage = getTravelAttractionsForCity(city)[0]?.imageSrc;
-  if (cityAttractionImage) return cityAttractionImage;
-
   const key = normalizeLookupKey(city);
   const direct = CITY_IMAGE_BY_KEY[key];
   if (direct) return direct;
@@ -1807,7 +1804,7 @@ function getAttractionImage(
   const knowledgeImage = findTravelAttraction(city, attraction)?.imageSrc;
   if (knowledgeImage) return knowledgeImage;
 
-  return getCityImage(city, fallbackSeed);
+  return CITY_IMAGE_FALLBACK;
 }
 
 function getDayImage(day: ItineraryDay, index: number): string {
@@ -1817,11 +1814,14 @@ function getDayImage(day: ItineraryDay, index: number): string {
     ) ??
     day.activities[0] ??
     getSpecificAttraction(day.city, index, 0);
-  return getAttractionImage(
+  const attractionImage = getAttractionImage(
     day.city,
     representedActivity,
     `day-${day.day}-${index}`
   );
+  return attractionImage === CITY_IMAGE_FALLBACK
+    ? getCityImage(day.city, `day-city-${index}`)
+    : attractionImage;
 }
 
 function getPointIdForCity(
