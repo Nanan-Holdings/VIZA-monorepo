@@ -98,8 +98,6 @@ interface AirwallexCardElement {
   confirm?: (options: { intent_id: string; client_secret: string }) => Promise<unknown>;
   createPaymentConsent?: (options: {
     client_secret: string;
-    currency: string;
-    intent_id?: string;
     next_triggered_by?: "merchant" | "customer";
     merchant_trigger_reason?: "scheduled" | "unscheduled";
     metadata?: Record<string, unknown>;
@@ -641,8 +639,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     try {
       const consent = await cardElement.createPaymentConsent({
         client_secret: activeCardBinding.clientSecret,
-        currency: activeCardBinding.currency,
-        intent_id: activeCardBinding.intentId,
         next_triggered_by: "merchant",
         merchant_trigger_reason: "scheduled",
         metadata: {

@@ -2560,6 +2560,92 @@ function getDisplayPlaceName(value: string, locale: InterfaceLocale): string {
   return getCuratedCityLabel(value, "en") ?? value;
 }
 
+function getGooglePlaceTargetId(placeId: string): string {
+  return `google-place-${placeId}`;
+}
+
+function getGooglePlacesLanguage(locale: InterfaceLocale): string {
+  return locale === "zh" ? "zh-CN" : "en";
+}
+
+function getGooglePlaceFilterTypes(
+  filterId: GooglePlaceFilterId
+): readonly SupportedGoogleAttractionType[] {
+  return (
+    GOOGLE_PLACE_FILTER_OPTIONS.find((option) => option.id === filterId)
+      ?.types ?? []
+  );
+}
+
+function formatGooglePlaceType(type: string | undefined, isZh: boolean): string {
+  if (!type) return isZh ? "景点" : "Attraction";
+  const normalized = type.replace(/_/g, " ");
+  if (!isZh) {
+    return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  const zhTypeMap: Record<string, string> = {
+    tourist_attraction: "景点",
+    museum: "博物馆",
+    art_gallery: "美术馆",
+    historical_landmark: "历史地标",
+    historical_place: "历史景点",
+    monument: "纪念地标",
+    park: "公园",
+    national_park: "国家公园",
+    garden: "花园",
+    observation_deck: "观景台",
+    amusement_park: "游乐园",
+    zoo: "动物园",
+    aquarium: "水族馆",
+    church: "教堂",
+    temple: "寺庙",
+    mosque: "清真寺",
+    synagogue: "会堂",
+    stadium: "体育场",
+    cultural_landmark: "文化地标",
+    performing_arts_theater: "剧院",
+  };
+  return zhTypeMap[type] ?? normalized;
+}
+
+function formatGoogleReviewCount(count: number | undefined, isZh: boolean): string {
+  const safeCount = Math.max(0, Math.round(count ?? 0));
+  return isZh ? `${safeCount.toLocaleString()} 条评价` : `${safeCount.toLocaleString()} reviews`;
+}
+
+function formatGoogleAttribution(
+  attribution: TravelPlaceAttribution[] | undefined,
+  isZh: boolean
+): string | null {
+  const names = attribution
+    ?.map((item) => item.displayName?.trim())
+    .filter((name): name is string => Boolean(name));
+  if (!names?.length) return null;
+  return `${isZh ? "照片：" : "Photo: "}${names.slice(0, 2).join(", ")}`;
+}
+
+function extractTravelPlaceCards(
+  payload: TravelPlacesSearchResponse
+): TravelPlaceCard[] {
+  return Array.isArray(payload.cards)
+    ? payload.cards.filter(isTravelPlaceCard)
+    : [];
+}
+
+function extractTravelPlaceDetails(
+  payload: TravelPlaceDetailsResponse
+): TravelPlaceDetails | null {
+  return isTravelPlaceDetails(payload.details) ? payload.details : null;
+}
+
+function getTravelPlacesError(payload: unknown, fallback: string): string {
+  if (isRecord(payload) && typeof payload.error === "string") {
+    return payload.error;
+  }
+  return fallback;
+}
+
 function appendUniquePlaces(
   values: string[],
   additions: Array<string | undefined>
@@ -3041,6 +3127,25 @@ export function TravelChatClient({
   const [googleCityCoordinates, setGoogleCityCoordinates] = useState<
     Record<string, GoogleGeocodeCoordinate>
   >({});
+  const [googlePlaceFilterId, setGooglePlaceFilterId] =
+    useState<GooglePlaceFilterId>("all");
+  const [googlePlaceCards, setGooglePlaceCards] = useState<TravelPlaceCard[]>(
+    []
+  );
+  const [googlePlacesStatus, setGooglePlacesStatus] =
+    useState<TravelPlacesFetchStatus>("idle");
+  const [googlePlacesError, setGooglePlacesError] = useState("");
+  const [googlePlacesRetryNonce, setGooglePlacesRetryNonce] = useState(0);
+  const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<
+    string | null
+  >(null);
+  const [selectedGooglePlaceFallback, setSelectedGooglePlaceFallback] =
+    useState<TravelPlaceCard | null>(null);
+  const [googlePlaceDetails, setGooglePlaceDetails] =
+    useState<TravelPlaceDetails | null>(null);
+  const [googlePlaceDetailsStatus, setGooglePlaceDetailsStatus] =
+    useState<TravelPlacesFetchStatus>("idle");
+  const [googlePlaceDetailsError, setGooglePlaceDetailsError] = useState("");
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const scrollRailRef = useRef<HTMLDivElement | null>(null);
   const scrollDragOffsetRef = useRef(0);
@@ -3092,6 +3197,11 @@ export function TravelChatClient({
     [activeSessionId, sessions]
   );
   const messages = activeSession?.messages ?? EMPTY_TRAVEL_MESSAGES;
+  const savedGooglePlaces = activeSession?.savedGooglePlaces ?? [];
+  const savedGooglePlaceIds = useMemo(
+    () => new Set(savedGooglePlaces.map((item) => item.placeId)),
+    [savedGooglePlaces]
+  );
 
   const updateTravelSession = useCallback(
     (
@@ -3536,6 +3646,175 @@ export function TravelChatClient({
     displayTravelState.selected_hotels,
   ]);
 
+  const googlePlacesCity = useMemo(() => {
+    if (activeCityForHotspots?.trim()) return activeCityForHotspots.trim();
+    const latestCity = travelState.cities[travelState.cities.length - 1]?.trim();
+    if (latestCity) return latestCity;
+    return displayOrderedCities[0]?.trim() ?? null;
+  }, [activeCityForHotspots, displayOrderedCities, travelState.cities]);
+
+  const googlePlacesCityCoordinate = useMemo(
+    () =>
+      googlePlacesCity
+        ? getGoogleCityCoordinates(googlePlacesCity, googleCityCoordinates)
+        : null,
+    [googleCityCoordinates, googlePlacesCity]
+  );
+
+  const googlePlaceFilterTypes = useMemo(
+    () => getGooglePlaceFilterTypes(googlePlaceFilterId),
+    [googlePlaceFilterId]
+  );
+
+  useEffect(() => {
+    if (!googlePlacesCity || !hasDestinationSelection) {
+      setGooglePlaceCards([]);
+      setGooglePlacesStatus("idle");
+      setGooglePlacesError("");
+      setSelectedGooglePlaceId(null);
+      setSelectedGooglePlaceFallback(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      city: googlePlacesCity,
+      lang: getGooglePlacesLanguage(interfaceLocale),
+      limit: "12",
+    });
+    if (googlePlaceFilterTypes.length > 0) {
+      params.set("types", googlePlaceFilterTypes.join(","));
+    }
+    if (googlePlacesCityCoordinate) {
+      params.set("lat", String(googlePlacesCityCoordinate[0]));
+      params.set("lng", String(googlePlacesCityCoordinate[1]));
+      params.set("radius", "10000");
+    }
+
+    setGooglePlacesStatus("loading");
+    setGooglePlacesError("");
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/places/search?${params.toString()}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        const payload = (await response.json().catch(() => ({}))) as
+          | TravelPlacesSearchResponse
+          | Record<string, unknown>;
+
+        if (!response.ok) {
+          throw new Error(
+            getTravelPlacesError(
+              payload,
+              isZh ? "景点暂时加载失败。" : "Attractions are unavailable."
+            )
+          );
+        }
+
+        const cards = extractTravelPlaceCards(payload);
+        setGooglePlaceCards(cards);
+        setGooglePlacesStatus("success");
+        setGooglePlacesError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setGooglePlaceCards([]);
+        setGooglePlacesStatus("error");
+        setGooglePlacesError(
+          error instanceof Error
+            ? error.message
+            : isZh
+              ? "景点暂时加载失败。"
+              : "Attractions are unavailable."
+        );
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    googlePlaceFilterTypes,
+    googlePlacesCity,
+    googlePlacesCityCoordinate,
+    googlePlacesRetryNonce,
+    hasDestinationSelection,
+    interfaceLocale,
+    isZh,
+  ]);
+
+  const selectedGooglePlaceCard = useMemo(
+    () =>
+      googlePlaceCards.find((card) => card.id === selectedGooglePlaceId) ??
+      selectedGooglePlaceFallback,
+    [googlePlaceCards, selectedGooglePlaceFallback, selectedGooglePlaceId]
+  );
+
+  useEffect(() => {
+    if (!selectedGooglePlaceId) {
+      setGooglePlaceDetails(null);
+      setGooglePlaceDetailsStatus("idle");
+      setGooglePlaceDetailsError("");
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      placeId: selectedGooglePlaceId,
+      lang: getGooglePlacesLanguage(interfaceLocale),
+    });
+
+    setGooglePlaceDetailsStatus("loading");
+    setGooglePlaceDetailsError("");
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/places/details?${params.toString()}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        const payload = (await response.json().catch(() => ({}))) as
+          | TravelPlaceDetailsResponse
+          | Record<string, unknown>;
+
+        if (!response.ok) {
+          throw new Error(
+            getTravelPlacesError(
+              payload,
+              isZh ? "详情暂时加载失败。" : "Details are unavailable."
+            )
+          );
+        }
+
+        const details = extractTravelPlaceDetails(payload);
+        if (!details) {
+          throw new Error(
+            isZh ? "详情数据不完整。" : "Details response was incomplete."
+          );
+        }
+
+        setGooglePlaceDetails(details);
+        setGooglePlaceDetailsStatus("success");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setGooglePlaceDetails(null);
+        setGooglePlaceDetailsStatus("error");
+        setGooglePlaceDetailsError(
+          error instanceof Error
+            ? error.message
+            : isZh
+              ? "详情暂时加载失败。"
+              : "Details are unavailable."
+        );
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [interfaceLocale, isZh, selectedGooglePlaceId]);
+
   const hotspotMapTargets = useMemo(() => {
     if (!hasDestinationSelection || !activeCityForHotspots) return [];
     const activeCityKey = normalizeCityKey(activeCityForHotspots);
@@ -3593,9 +3872,54 @@ export function TravelChatClient({
     selectedCityKeys,
   ]);
 
+  const googlePlaceMapTargets = useMemo<MapTarget[]>(
+    () =>
+      googlePlaceCards
+        .filter((card) => card.location)
+        .map((card) => ({
+          id: getGooglePlaceTargetId(card.id),
+          kind: "hotspot" as const,
+          label: card.title,
+          subtitle:
+            card.address ??
+            card.subtitle ??
+            formatGooglePlaceType(card.type, isZh),
+          localName: googlePlacesCity
+            ? getDisplayPlaceName(googlePlacesCity, interfaceLocale)
+            : undefined,
+          intro:
+            card.address ??
+            card.subtitle ??
+            (isZh
+              ? "来自 Google Places 的实时景点卡片。"
+              : "Live attraction card from Google Places."),
+          countryLabel: googlePlacesCity
+            ? getDisplayPlaceName(googlePlacesCity, interfaceLocale)
+            : undefined,
+          recommendedDays: isZh ? "1-2 小时" : "1-2 hours",
+          imageSrc: card.imageUrl || TRAVEL_PLACE_FALLBACK_IMAGE,
+          lat: card.location?.lat ?? 0,
+          lng: card.location?.lng ?? 0,
+          city: googlePlacesCity ?? undefined,
+          source: "google" as const,
+          placeCard: card,
+          placeId: card.id,
+          rating: card.rating,
+          reviewCount: card.reviewCount,
+          googleMapsUri: card.googleMapsUri,
+          attribution: card.attribution,
+        })),
+    [googlePlaceCards, googlePlacesCity, interfaceLocale, isZh]
+  );
+
   const allMapTargets = useMemo(
-    () => [...baseMapTargets, ...citySuggestionTargets, ...hotspotMapTargets],
-    [baseMapTargets, citySuggestionTargets, hotspotMapTargets]
+    () => [
+      ...baseMapTargets,
+      ...citySuggestionTargets,
+      ...googlePlaceMapTargets,
+      ...hotspotMapTargets,
+    ],
+    [baseMapTargets, citySuggestionTargets, googlePlaceMapTargets, hotspotMapTargets]
   );
 
   const activeMapTarget = useMemo(
@@ -3855,6 +4179,12 @@ export function TravelChatClient({
           lat: target.lat,
           lng: target.lng,
           city: target.city,
+          source: target.source,
+          placeId: target.placeId,
+          rating: target.rating,
+          reviewCount: target.reviewCount,
+          googleMapsUri: target.googleMapsUri,
+          attribution: target.attribution,
         })),
     [allMapTargets]
   );
@@ -4564,6 +4894,41 @@ export function TravelChatClient({
     [sendFreeTextMessage]
   );
 
+  const handleOpenGooglePlaceCard = useCallback((card: TravelPlaceCard) => {
+    setSelectedGooglePlaceId(card.id);
+    setSelectedGooglePlaceFallback(card);
+    setActiveMapTargetId(getGooglePlaceTargetId(card.id));
+  }, []);
+
+  const handleAddGooglePlaceToItinerary = useCallback(
+    (card: TravelPlaceCard) => {
+      updateTravelSession(activeSessionId, (session) => {
+        const existingPlaces = normalizeSavedGooglePlaces(
+          session.savedGooglePlaces
+        );
+        if (existingPlaces.some((item) => item.placeId === card.id)) {
+          return session;
+        }
+
+        return {
+          ...session,
+          savedGooglePlaces: [
+            ...existingPlaces,
+            {
+              source: "google" as const,
+              placeId: card.id,
+              city: googlePlacesCity ?? undefined,
+              order: existingPlaces.length,
+              addedAt: new Date().toISOString(),
+            },
+          ],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    [activeSessionId, googlePlacesCity, updateTravelSession]
+  );
+
   const handleDestinationCardAction = useCallback(
     (card: TravelDestinationCard) => {
       const candidate = coerceTravelFormCandidatePayload(card.payload);
@@ -4600,6 +4965,39 @@ export function TravelChatClient({
     (point: TripMapPoint) => {
       if (!canAddDestinationFromMap) return;
 
+      if (point.source === "google" && point.placeId) {
+        const card = googlePlaceCards.find((item) => item.id === point.placeId);
+        if (card) {
+          handleAddGooglePlaceToItinerary(card);
+          return;
+        }
+
+        updateTravelSession(activeSessionId, (session) => {
+          const existingPlaces = normalizeSavedGooglePlaces(
+            session.savedGooglePlaces
+          );
+          if (existingPlaces.some((item) => item.placeId === point.placeId)) {
+            return session;
+          }
+
+          return {
+            ...session,
+            savedGooglePlaces: [
+              ...existingPlaces,
+              {
+                source: "google" as const,
+                placeId: point.placeId,
+                city: point.city,
+                order: existingPlaces.length,
+                addedAt: new Date().toISOString(),
+              },
+            ],
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        return;
+      }
+
       const targetCity = (point.city ?? point.label).trim();
       if (!targetCity) return;
 
@@ -4621,12 +5019,29 @@ export function TravelChatClient({
         parts: [{ type: "text", text: createTravelFormMessage(payload) }],
       });
     },
-    [canAddDestinationFromMap, missingField, sendMessage, travelState]
+    [
+      activeSessionId,
+      canAddDestinationFromMap,
+      googlePlaceCards,
+      handleAddGooglePlaceToItinerary,
+      missingField,
+      sendMessage,
+      travelState,
+      updateTravelSession,
+    ]
   );
 
-  const handleMapPointSelect = useCallback((id: string) => {
-    setActiveMapTargetId(id);
-  }, []);
+  const handleMapPointSelect = useCallback(
+    (id: string) => {
+      setActiveMapTargetId(id);
+      const target = allMapTargets.find((item) => item.id === id);
+      if (target?.source === "google" && target.placeCard) {
+        setSelectedGooglePlaceId(target.placeCard.id);
+        setSelectedGooglePlaceFallback(target.placeCard);
+      }
+    },
+    [allMapTargets]
+  );
 
   const handleNewSession = useCallback(() => {
     if (status !== "ready") return;
