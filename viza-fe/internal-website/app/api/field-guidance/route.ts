@@ -7,8 +7,23 @@ import {
 const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
 const FIELD_GUIDANCE_TIMEOUT_MS = 12000;
+const DIRECT_OPENAI_TIMEOUT_MS = 16000;
+const DIRECT_OPENAI_MODEL =
+  process.env.OPENAI_FIELD_GUIDANCE_MODEL ??
+  process.env.OPENAI_CHAT_MODEL ??
+  process.env.OPENAI_MODEL ??
+  "gpt-4o-mini";
 
 type FieldOption = { value?: string; text?: string } | string;
+type OpenAiResponsePayload = {
+  output_text?: unknown;
+  output?: Array<{
+    content?: Array<{
+      text?: unknown;
+      type?: unknown;
+    }>;
+  }>;
+};
 
 function getLocale(request: FieldGuidanceRequest): "zh" | "en" {
   return request.locale?.toLowerCase().startsWith("zh") ? "zh" : "en";
@@ -83,6 +98,12 @@ function localSource(reason: string): FieldGuidanceSource {
     url: null,
     excerpt: reason,
   };
+}
+
+function getDirectOpenAiKey(): string | null {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key || key === "your_openai_api_key_here") return null;
+  return key;
 }
 
 function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): FieldGuidanceResponse {
@@ -166,6 +187,177 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   };
 }
 
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed: unknown = JSON.parse(match[0]);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractOpenAiOutputText(payload: OpenAiResponsePayload): string {
+  if (typeof payload.output_text === "string") return payload.output_text;
+
+  return payload.output
+    ?.flatMap((item) => item.content ?? [])
+    .map((content) => content.text)
+    .filter((text): text is string => typeof text === "string")
+    .join("\n")
+    ?? "";
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? stripMarkdown(value).trim() : null;
+}
+
+function asStringArray(value: unknown, fallback: string[], limit: number): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const items = value
+    .map((item) => asString(item))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, limit);
+  return items.length > 0 ? items : fallback;
+}
+
+function normalizeConfidence(value: unknown): FieldGuidanceResponse["confidence"] {
+  return value === "high" || value === "medium" || value === "low" ? value : "medium";
+}
+
+function isUnavailableText(value: string | null): boolean {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return normalized.includes("ai 暂时不可用") || normalized.includes("ai unavailable");
+}
+
+function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuidanceResponse): string {
+  const locale = getLocale(request);
+  const options = normalizeOptions(request.field.options)
+    .slice(0, 20)
+    .map((option) => `${option.value}: ${option.text}`)
+    .join("\n");
+  const currentValue = request.answer?.trim() || "(empty)";
+  const question = request.question?.trim();
+  const localRules = {
+    examples: base.guidance.examples,
+    hints: base.guidance.hints,
+    officialWarnings: base.guidance.officialWarnings,
+    formatHints: base.guidance.formatHints,
+  };
+
+  return [
+    `Locale: ${locale}`,
+    `Country: ${request.country ?? "unknown"}`,
+    `Visa type: ${request.visaType ?? "unknown"}`,
+    `Field: ${request.field.label} (${request.field.fieldName})`,
+    `Field type: ${request.field.fieldType}`,
+    `Required: ${request.field.required ? "yes" : "no"}`,
+    `Current value: ${currentValue}`,
+    options ? `Official options:\n${options}` : "Official options: none",
+    `Local rules to consider:\n${JSON.stringify(localRules)}`,
+    question ? `User follow-up question: ${question}` : "No follow-up question yet.",
+  ].join("\n\n");
+}
+
+async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Promise<FieldGuidanceResponse | null> {
+  const apiKey = getDirectOpenAiKey();
+  if (!apiKey) return null;
+
+  const locale = getLocale(request);
+  const base = makeFallbackGuidance(request, "direct OpenAI baseline");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DIRECT_OPENAI_TIMEOUT_MS);
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: DIRECT_OPENAI_MODEL,
+        max_output_tokens: 900,
+        instructions:
+          locale === "zh"
+            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项和用户当前答案提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
+            : "You are the VIZA form field copilot. Use only the current field metadata, official options, and current answer. Do not invent official requirements; when unsure, say to follow the official form and documents. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
+        input: buildDirectOpenAiPrompt(request, base),
+        text: {
+          format: {
+            type: "json_schema",
+            name: "field_guidance",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                summary: { type: "string" },
+                examples: { type: "array", items: { type: "string" } },
+                hints: { type: "array", items: { type: "string" } },
+                officialWarnings: { type: "array", items: { type: "string" } },
+                formatHints: { type: "array", items: { type: "string" } },
+                reply: { type: "string" },
+                confidence: { type: "string", enum: ["high", "medium", "low"] },
+              },
+              required: [
+                "summary",
+                "examples",
+                "hints",
+                "officialWarnings",
+                "formatHints",
+                "reply",
+                "confidence",
+              ],
+            },
+          },
+        },
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+    const payload = (await response.json()) as OpenAiResponsePayload;
+    const outputText = extractOpenAiOutputText(payload);
+    const parsed = parseJsonObject(outputText);
+    if (!parsed) return null;
+    const summary = asString(parsed.summary);
+    const reply = asString(parsed.reply);
+
+    const guidance: FieldGuidanceResponse = {
+      guidance: {
+        title: base.guidance.title,
+        summary: !isUnavailableText(summary)
+          ? summary ?? (locale === "zh"
+            ? "请根据当前字段、官方选项和证件信息核对填写。"
+            : "Check this field against the current options and your official documents.")
+          : locale === "zh"
+            ? "请根据当前字段、官方选项和证件信息核对填写。"
+            : "Check this field against the current options and your official documents.",
+        examples: asStringArray(parsed.examples, base.guidance.examples, 4),
+        hints: asStringArray(parsed.hints, base.guidance.hints, 5),
+        officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 4),
+        formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 4),
+      },
+      validation: base.validation,
+      reply: request.question && !isUnavailableText(reply) ? (reply ?? base.reply) : undefined,
+      sources: [],
+      confidence: normalizeConfidence(parsed.confidence),
+      aiUsed: true,
+      cached: false,
+    };
+
+    return sanitizeChineseResponse(request, guidance);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function sanitizeChineseResponse(
   request: FieldGuidanceRequest,
   payload: FieldGuidanceResponse,
@@ -238,8 +430,22 @@ export async function POST(request: Request) {
 
   try {
     const guidance = await forwardToBackend(requestBody);
+    if (guidance.aiUsed) {
+      return Response.json(guidance);
+    }
+
+    const directGuidance = await generateDirectOpenAiGuidance(requestBody);
+    if (directGuidance) {
+      return Response.json(directGuidance);
+    }
+
     return Response.json(guidance);
   } catch (error) {
+    const directGuidance = await generateDirectOpenAiGuidance(requestBody);
+    if (directGuidance) {
+      return Response.json(directGuidance);
+    }
+
     const reason = error instanceof Error ? error.message : "AI guidance service unavailable.";
     return Response.json(makeFallbackGuidance(requestBody, reason));
   }

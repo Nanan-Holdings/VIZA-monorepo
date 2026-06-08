@@ -10,8 +10,9 @@ callbacks that are not tied to an existing visa application checkout.
 ## Key Responsibilities
 
 - Poll authenticated `payment_records` for subscription payment status.
-- Create settings payment-method binding intents for QR wallets and Stripe card
-  verification.
+- Create settings payment-method binding intents for Airwallex card
+  verification, and do not expose wallet QR binding until a real provider
+  wallet-binding flow is configured.
 - Receive Stripe webhooks for subscription and pay-per-application checkout
   sessions created from `/client/subscription`.
 - Receive WeChat Pay v3 notifications for subscription/native QR orders.
@@ -20,12 +21,20 @@ callbacks that are not tied to an existing visa application checkout.
 
 ## Route Handlers
 
-- `bind/qr/route.ts`: authenticated QR binding intent creation for WeChat Pay
-  and Alipay accounts.
+- `bind/qr/route.ts`: authenticated wallet binding entry point for WeChat Pay
+  and Alipay accounts. It returns unavailable unless a real provider
+  wallet-binding flow is enabled; do not generate local callback QR codes as a
+  substitute for provider authorization.
 - `bind/status/[bindingId]/route.ts`: wallet QR completion callback and
   authenticated status polling for settings.
-- `bind/stripe-card/route.ts`: authenticated Stripe Checkout setup-session
-  creation for card verification.
+- `bind/airwallex-card/route.ts`: authenticated Airwallex card binding intent
+  creation for settings.
+- `bind/airwallex-card/[bindingId]/complete/route.ts`: authenticated card
+  binding completion after the Airwallex hosted card component creates a
+  payment consent.
+- `bind/stripe-card/route.ts`: legacy authenticated Stripe Checkout
+  setup-session creation for card verification. The current settings UI does
+  not call this route.
 
 ## Guardrails
 

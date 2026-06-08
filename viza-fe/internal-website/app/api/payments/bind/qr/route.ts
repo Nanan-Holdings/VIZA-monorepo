@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const BINDING_FEE_TYPE = "payment_method_binding";
 const WALLET_METHODS = new Set(["wechat_pay", "alipay"]);
+const WALLET_BINDING_ENABLED = process.env.AIRWALLEX_WALLET_BINDING_ENABLED?.trim() === "true";
 
 function getAppBaseUrl(request: Request): string {
   const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -36,6 +37,16 @@ export async function POST(request: Request) {
   const method = await parseMethod(request);
   if (!method) {
     return NextResponse.json({ error: "Unsupported wallet method." }, { status: 400 });
+  }
+
+  if (!WALLET_BINDING_ENABLED) {
+    return NextResponse.json(
+      {
+        error:
+          "Wallet account binding is not configured. Use wallet QR codes at checkout after an order is created.",
+      },
+      { status: 503 }
+    );
   }
 
   const now = new Date();

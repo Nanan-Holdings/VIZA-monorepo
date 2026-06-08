@@ -20,7 +20,6 @@ import {
   PassportStep,
   TravelInfoStep,
   ReviewStep,
-  PhotoUploadStep,
   DynamicReviewStep,
   TeamStep,
   type PersonalInfoData,
@@ -987,10 +986,9 @@ export default function ApplicationPage() {
   const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
-  const photoStepIndex = dbSteps.length + 1;
-  const reviewStepIndex = dbSteps.length + 2;
-  const teamStepIndex = dbSteps.length + 3;
-  const statusStepIndex = dbSteps.length + (showTeamStep ? 4 : 3);
+  const reviewStepIndex = dbSteps.length + 1;
+  const teamStepIndex = dbSteps.length + 2;
+  const statusStepIndex = dbSteps.length + (showTeamStep ? 3 : 2);
   const fallbackReviewStepIndex = 4;
   const fallbackTeamStepIndex = 5;
   const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
@@ -1052,12 +1050,6 @@ export default function ApplicationPage() {
           description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
         },
         {
-          id: photoStepIndex,
-          sourceName: "Upload Photo",
-          name: tDyn.has("Upload Photo") ? tDyn("Upload Photo" as never) : "Upload Photo",
-          description: tApp.has("photoStepDescription") ? tApp("photoStepDescription" as never) : "Upload your passport-style photo",
-        },
-        {
           id: reviewStepIndex,
           sourceName: "Review",
           name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
@@ -1083,7 +1075,6 @@ export default function ApplicationPage() {
         : [...STEPS],
     [
       documentStepIndex,
-      photoStepIndex,
       reviewStepIndex,
       showTeamStep,
       statusStepIndex,
@@ -1556,53 +1547,12 @@ export default function ApplicationPage() {
   const handleDynamicDocumentsContinue = () => {
     const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
     setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
-    setCurrentStep(photoStepIndex);
+    setCurrentStep(reviewStepIndex);
   };
 
   const handleFallbackDocumentsContinue = () => {
     setCompletedUpTo((c) => Math.max(c, 4));
     setCurrentStep(4);
-  };
-
-  // ── Dynamic-mode photo handlers ─────────────────────────────────────
-  const handlePhotoComplete = async (storagePath: string) => {
-    setSaving(true);
-    setError(null);
-    try {
-      let applicationId = appState.applicationId;
-      if (!explicitApplicationId) {
-        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
-          preferExplicit: preferExplicitPackage,
-        });
-        if (result.error) throw new Error(result.error);
-        applicationId = result.applicationId!;
-        setAppState((prev) => ({ ...prev, applicationId }));
-      } else if (!applicationId) {
-        throw new Error(t("errors.noApplicationFound"));
-      }
-
-      // Persist photo path as a dynamic answer
-      const saveResult = await saveDynamicAnswers(applicationId, {
-        photo_path: storagePath,
-      });
-      if (saveResult.error) throw new Error(saveResult.error);
-
-      setDynamicAnswers((prev) => ({ ...prev, photo_path: storagePath }));
-      setAppState((prev) => ({ ...prev, photo: storagePath }));
-      const photoStepPosition = getVisibleStepIndex(effectiveSteps, photoStepIndex);
-      setCompletedUpTo((c) => Math.max(c, photoStepPosition + 1));
-      setCurrentStep(reviewStepIndex);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePhotoSkip = () => {
-    const photoStepPosition = getVisibleStepIndex(effectiveSteps, photoStepIndex);
-    setCompletedUpTo((c) => Math.max(c, photoStepPosition + 1));
-    setCurrentStep(reviewStepIndex);
   };
 
   const returnToTeam = useCallback(() => {
@@ -1685,18 +1635,20 @@ export default function ApplicationPage() {
       if (!isJpTourist) {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
-        await supabase.from("submission_queue").insert({
+        const { error: queueError } = await supabase.from("submission_queue").insert({
           application_id: applicationId,
           status: queueStatusForPackage(resolvedVisaType),
           attempts: 0,
           created_at: new Date().toISOString(),
         });
+        if (queueError) throw new Error(queueError.message);
       }
 
-      await supabase.from("applications").update({
+      const { error: submitError } = await supabase.from("applications").update({
         status: "submitted",
         submitted_at: new Date().toISOString(),
       }).eq("id", applicationId);
+      if (submitError) throw new Error(submitError.message);
 
       // Trigger translation (non-blocking — failures don't block submission;
       // the translate route also flips submission_result_status to 'waiting'
@@ -1773,17 +1725,19 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      await supabase.from("submission_queue").insert({
+      const { error: queueError } = await supabase.from("submission_queue").insert({
         application_id: applicationId,
         status: queueStatusForPackage(resolvedVisaType),
         attempts: 0,
         created_at: new Date().toISOString(),
       });
+      if (queueError) throw new Error(queueError.message);
 
-      await supabase.from("applications").update({
+      const { error: submitError } = await supabase.from("applications").update({
         status: "submitted",
         submitted_at: new Date().toISOString(),
       }).eq("id", applicationId);
+      if (submitError) throw new Error(submitError.message);
 
       // Trigger translation (non-blocking — failures don't block submission;
       // the translate route also flips submission_result_status to 'waiting'
@@ -2037,18 +1991,6 @@ export default function ApplicationPage() {
                           )
                         )}
 
-                        {/* Photo upload step */}
-                        {step.id === photoStepIndex && appState.applicationId && (
-                          <PhotoUploadStep
-                            applicationId={appState.applicationId}
-                            country={activeCountry}
-                            visaType={activeVisaType}
-                            existingPhotoUrl={appState.photo ? undefined : undefined}
-                            onComplete={handlePhotoComplete}
-                            onSkip={handlePhotoSkip}
-                          />
-                        )}
-
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
                           <DynamicReviewStep
@@ -2057,7 +1999,7 @@ export default function ApplicationPage() {
                             dbSteps={dbSteps}
                             photoPath={appState.photo}
                             onEdit={(stepIdx) => setCurrentStep(stepIdx)}
-                            onPhotoEdit={() => setCurrentStep(photoStepIndex)}
+                            onPhotoEdit={() => setCurrentStep(documentStepIndex)}
                             onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
                             mode="continue"
                             continueLabel={

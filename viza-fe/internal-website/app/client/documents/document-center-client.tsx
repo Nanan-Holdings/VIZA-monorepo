@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import { useLocale } from "next-intl";
 import {
   AlertCircle,
   ArrowRight,
   Camera,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
   ExternalLink,
   FileCheck2,
@@ -16,24 +22,27 @@ import {
   Loader2,
   Plane,
   RefreshCw,
-  ScanLine,
-  ShieldCheck,
   UploadCloud,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import {
-  confirmPassportOcrExtraction,
   loadDocumentCenterData,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
   type DocumentRequirement,
-  type PassportOcrExtraction,
 } from "./actions";
 
 interface DocumentCenterClientProps {
@@ -64,15 +73,18 @@ interface DocumentStatusView {
 }
 
 interface TravelSupportCandidate {
+  id: string;
   title: string;
   updatedAt: string | null;
   itinerary: unknown[];
   travelState: Record<string, unknown>;
+  itineryRows: unknown[];
   citySummary: string;
+  sourceLabel: string;
 }
 
 type BusyTarget = {
-  type: "upload" | "ocr" | "travel" | "refresh";
+  type: "upload" | "travel" | "refresh";
   key: string;
 } | null;
 
@@ -196,40 +208,6 @@ function isPassportRequirement(requirement: DocumentRequirement): boolean {
       requirement.documentType
     ) || ["passport_copy", "passport_scan"].includes(requirement.key)
   );
-}
-
-const OCR_ERROR_COPY_ZH: Record<string, string> = {
-  provider_unavailable: "护照 OCR 服务暂时不可用，请稍后重试。",
-  provider_failed: "护照 OCR 暂时无法处理这份文件，请稍后重试或换一份更清晰的护照资料页。",
-  unreadable: "这份护照资料页暂时无法读取，请换一张更清晰的资料页。",
-  unsupported_file: "护照 OCR 支持 PDF、JPG、PNG 和 WebP 文件。",
-  missing_file: "未找到已上传的护照文件，请重新上传。",
-  unauthorized: "请先登录后再上传护照。",
-};
-
-function readOcrErrorMessage(payload: unknown, isZh: boolean): string {
-  if (!isRecord(payload)) {
-    return isZh
-      ? "护照 OCR 未返回可读结果。"
-      : "Passport OCR did not return a readable result.";
-  }
-  const error = payload.error;
-  if (isRecord(error)) {
-    if (isZh && typeof error.code === "string" && OCR_ERROR_COPY_ZH[error.code]) {
-      return OCR_ERROR_COPY_ZH[error.code];
-    }
-    if (typeof error.message === "string") {
-      if (isZh && !containsCjk(error.message)) return "护照 OCR 无法处理该文件。";
-      return error.message;
-    }
-  }
-  if (typeof payload.message === "string") {
-    if (isZh && !containsCjk(payload.message)) return "护照 OCR 无法处理该文件。";
-    return payload.message;
-  }
-  return isZh
-    ? "护照 OCR 无法处理该文件。"
-    : "Passport OCR could not process this file.";
 }
 
 function containsCjk(value: string): boolean {
@@ -430,6 +408,13 @@ function findDocumentForRequirement(
   );
 }
 
+function isTravelItineraryRequirement(requirement: DocumentRequirement): boolean {
+  return (
+    requirement.documentType === "travel_itinerary" ||
+    requirement.key === "travel_itinerary"
+  );
+}
+
 function buildDocumentViews(
   data: DocumentCenterData,
   isZh: boolean
@@ -442,77 +427,6 @@ function buildDocumentViews(
       status: getDocumentStatus(requirement, document, isZh),
     };
   });
-}
-
-function getLatestPassportOcr(
-  extractions: PassportOcrExtraction[]
-): PassportOcrExtraction | null {
-  return extractions[0] ?? null;
-}
-
-function getOcrDisplayFields(
-  extraction: PassportOcrExtraction | null,
-  isZh: boolean
-) {
-  if (!extraction) return [];
-  const labels: Array<[string, string[]]> = [
-    [
-      isZh ? "姓名" : "Full name",
-      ["full_name", "fullName", "name", "passport_full_name", "holder_name"],
-    ],
-    [
-      isZh ? "护照号码" : "Passport number",
-      ["passport_number", "passportNumber", "document_number", "passport_no"],
-    ],
-    [
-      isZh ? "出生日期" : "Date of birth",
-      ["date_of_birth", "dateOfBirth", "birth_date", "dob"],
-    ],
-    [isZh ? "国籍" : "Nationality", ["nationality", "citizenship"]],
-    [
-      isZh ? "签发国家" : "Issuing country",
-      [
-        "passport_issuing_country",
-        "issuingCountry",
-        "issuing_country",
-        "country_of_issue",
-      ],
-    ],
-    [
-      isZh ? "签发日期" : "Issue date",
-      ["passport_issue_date", "issueDate", "issue_date", "date_of_issue"],
-    ],
-    [
-      isZh ? "有效期至" : "Expiry date",
-      [
-        "passport_expiry_date",
-        "expiryDate",
-        "expiry_date",
-        "expiration_date",
-        "date_of_expiry",
-      ],
-    ],
-  ];
-
-  return labels
-    .map(([label, keys]) => {
-      for (const key of keys) {
-        const value = extraction.extractedFields[key];
-        if (typeof value === "string" && value.trim())
-          return { label, value: value.trim() };
-        if (isRecord(value)) {
-          const nested =
-            getString(value, "value") ??
-            getString(value, "text") ??
-            getString(value, "raw");
-          if (nested) return { label, value: nested };
-        }
-      }
-      return null;
-    })
-    .filter((field): field is { label: string; value: string } =>
-      Boolean(field)
-    );
 }
 
 function getTravelArchiveKey(applicationId: string): string {
@@ -553,44 +467,54 @@ function findItineraryInMessages(messages: unknown[]): unknown[] {
   return [];
 }
 
-function readTravelSupportCandidate(
+function readTravelSupportCandidates(
   applicationId: string | null,
   isZh: boolean
-): TravelSupportCandidate | null {
-  if (!applicationId || typeof window === "undefined") return null;
+): TravelSupportCandidate[] {
+  if (!applicationId || typeof window === "undefined") return [];
 
   try {
     const raw = window.localStorage.getItem(getTravelArchiveKey(applicationId));
-    if (!raw) return null;
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!isRecord(parsed) || parsed.version !== TRAVEL_CHAT_ARCHIVE_VERSION)
-      return null;
+      return [];
 
     const sessions = getArray(parsed.sessions).filter(isRecord);
-    for (const session of sessions) {
+    const candidates: TravelSupportCandidate[] = [];
+    sessions.forEach((session, sessionIndex) => {
+      const sessionTitle =
+        getString(session, "title") ??
+        (isZh ? "旅行 AI 行程" : "Travel AI itinerary");
+      const sessionId = getString(session, "id") ?? String(sessionIndex);
       const versions = getArray(session.versions).filter(isRecord);
-      const latestVersion = versions[versions.length - 1];
-      if (
-        latestVersion &&
-        Array.isArray(latestVersion.itinerary) &&
-        latestVersion.itinerary.length > 0
-      ) {
-        const travelState = isRecord(latestVersion.travelState)
-          ? latestVersion.travelState
+      versions.forEach((version, versionIndex) => {
+        if (
+          !Array.isArray(version.itinerary) ||
+          version.itinerary.length === 0
+        ) {
+          return;
+        }
+        const travelState = isRecord(version.travelState)
+          ? version.travelState
           : {};
-        return {
+        candidates.push({
+          id: `${sessionId}:version:${versionIndex}`,
           title:
-            getString(latestVersion, "title") ??
-            getString(session, "title") ??
-            (isZh ? "旅行 AI 行程" : "Travel AI itinerary"),
+            getString(version, "title") ??
+            `${sessionTitle} ${isZh ? `版本 ${versionIndex + 1}` : `version ${versionIndex + 1}`}`,
           updatedAt:
-            getString(latestVersion, "createdAt") ??
-            getString(session, "updatedAt"),
-          itinerary: latestVersion.itinerary,
+            getString(version, "createdAt") ?? getString(session, "updatedAt"),
+          itinerary: version.itinerary,
           travelState,
+          itineryRows:
+            getArray(version.itineryRows).length > 0
+              ? getArray(version.itineryRows)
+              : getArray(version.itinery_rows),
           citySummary: getCitiesFromTravelState(travelState, isZh),
-        };
-      }
+          sourceLabel: isZh ? "旅行 AI 版本" : "Travel AI version",
+        });
+      });
 
       const messageItinerary = findItineraryInMessages(
         getArray(session.messages)
@@ -599,22 +523,27 @@ function readTravelSupportCandidate(
         const travelState = isRecord(session.travelState)
           ? session.travelState
           : {};
-        return {
-          title:
-            getString(session, "title") ??
-            (isZh ? "旅行 AI 行程" : "Travel AI itinerary"),
+        candidates.push({
+          id: `${sessionId}:messages`,
+          title: sessionTitle,
           updatedAt: getString(session, "updatedAt"),
           itinerary: messageItinerary,
           travelState,
+          itineryRows: [],
           citySummary: getCitiesFromTravelState(travelState, isZh),
-        };
+          sourceLabel: isZh ? "聊天行程" : "Chat itinerary",
+        });
       }
-    }
-  } catch {
-    return null;
-  }
+    });
 
-  return null;
+    return candidates.sort((a, b) => {
+      const left = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+      const right = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+      return right - left;
+    });
+  } catch {
+    return [];
+  }
 }
 
 function ApplicationSelector({
@@ -690,6 +619,7 @@ function RequirementRow({
   inputRef,
   onFileChange,
   isZh,
+  extraAction,
 }: {
   view: DocumentViewState;
   busy: boolean;
@@ -697,6 +627,7 @@ function RequirementRow({
   inputRef: (element: HTMLInputElement | null) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   isZh: boolean;
+  extraAction?: ReactNode;
 }) {
   const { requirement, document, status } = view;
   const Icon =
@@ -788,6 +719,7 @@ function RequirementRow({
                 ? "上传"
                 : "Upload"}
           </Button>
+          {extraAction}
           <input
             ref={inputRef}
             type="file"
@@ -801,330 +733,89 @@ function RequirementRow({
   );
 }
 
-function PhotoCompliancePanel({
-  photoView,
-  onReupload,
-  isZh,
-}: {
-  photoView: DocumentViewState | null;
-  onReupload: () => void;
-  isZh: boolean;
-}) {
-  const document = photoView?.document ?? null;
-  const status = photoView?.status ?? null;
-  const failed = Boolean(document && isRejectedStatus(document.status));
-  const passed = Boolean(document && isAcceptedStatus(document.status));
-  const pending = Boolean(document && !failed && !passed);
-  const missing = !document;
-
-  return (
-    <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Camera className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">
-              {isZh ? "照片合规" : "Photo compliance"}
-            </h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {isZh
-              ? "VIZA 会将照片状态独立显示，方便在照片不合格时快速修正。"
-              : "VIZA shows photo status separately so you can quickly fix issues when the photo does not meet requirements."}
-          </p>
-          {failed && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {document?.rejectionReason ??
-                document?.reviewNotes ??
-                (isZh
-                  ? "照片未满足目的地要求，请重新上传。"
-                  : "The photo does not meet destination requirements. Please upload it again.")}
-            </p>
-          )}
-          {pending && (
-            <p className="text-sm text-blue-700">
-              {isZh
-                ? "照片已收到，正在核验是否符合目的地规则。"
-                : "Photo received. VIZA is checking it against destination rules."}
-            </p>
-          )}
-          {passed && (
-            <p className="text-sm text-emerald-700">
-              {isZh
-                ? "照片审核通过，可用于申请材料包。"
-                : "Photo approved and ready for the application packet."}
-            </p>
-          )}
-          {missing && (
-            <p className="text-sm text-amber-800">
-              {isZh
-                ? "尚未上传证件照。"
-                : "No passport-style photo has been uploaded yet."}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-          <StatusBadge
-            status={
-              status ?? {
-                label: isZh ? "缺失" : "Missing",
-                description: isZh ? "未上传照片" : "No photo uploaded",
-                icon: AlertCircle,
-                badgeClassName: "border-amber-200 bg-amber-50 text-amber-800",
-                ready: false,
-                needsUpload: true,
-              }
-            }
-          />
-          <Button type="button" variant="outline" onClick={onReupload}>
-            <RefreshCw className="h-4 w-4" />
-            {document
-              ? isZh
-                ? "更换照片"
-                : "Replace photo"
-              : isZh
-                ? "上传照片"
-                : "Upload photo"}
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function OcrPanel({
-  passportView,
-  extraction,
+function TravelAiPickerDialog({
+  open,
+  onOpenChange,
+  candidates,
   busy,
-  onRun,
-  onConfirm,
+  onSelect,
   isZh,
 }: {
-  passportView: DocumentViewState | null;
-  extraction: PassportOcrExtraction | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  candidates: TravelSupportCandidate[];
   busy: boolean;
-  onRun: () => void;
-  onConfirm: () => void;
+  onSelect: (candidate: TravelSupportCandidate) => void;
   isZh: boolean;
 }) {
-  const fields = getOcrDisplayFields(extraction, isZh);
-  const hasPassport = Boolean(passportView?.document);
-  const confirmed = Boolean(
-    extraction?.confirmedAt || extraction?.status.toLowerCase() === "confirmed"
-  );
-  const failed = Boolean(
-    extraction &&
-    ["failed", "error", "rejected"].includes(extraction.status.toLowerCase())
-  );
-  const pending = Boolean(
-    extraction &&
-    ["pending", "processing", "running"].includes(
-      extraction.status.toLowerCase()
-    )
-  );
-
   return (
-    <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <ScanLine className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">
-              {isZh ? "护照 OCR 确认" : "Passport OCR confirmation"}
-            </h2>
-          </div>
-          <p className="max-w-3xl text-sm text-muted-foreground">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {isZh ? "选择旅行 AI 行程" : "Choose a Travel AI itinerary"}
+          </DialogTitle>
+          <DialogDescription>
             {isZh
-              ? "OCR 识别出的护照信息会以“待确认”状态保留，确认后将更新个人资料与申请表答案。"
-              : "Passport details extracted by OCR stay pending until you confirm them. After confirmation, VIZA updates your profile and application answers."}
-          </p>
-          {!hasPassport && (
-            <p className="text-sm text-amber-800">
-              {isZh
-                ? "请先上传护照资料页，才能使用 OCR 确认。"
-                : "Upload the passport bio page before running OCR confirmation."}
-            </p>
-          )}
-          {hasPassport && !extraction && (
-            <p className="text-sm text-muted-foreground">
-              {isZh
-                ? "尚未生成该护照的 OCR 记录。"
-                : "No OCR record has been generated for this passport yet."}
-            </p>
-          )}
-          {pending && (
-            <p className="text-sm text-blue-700">
-              {isZh
-                ? "OCR 处理中，请稍后刷新页面。"
-                : "OCR is processing. Please refresh shortly."}
-            </p>
-          )}
-          {failed && (
-            <p className="text-sm text-red-700">
-              {extraction?.errorMessage ??
-                (isZh
-                  ? "OCR 未能清晰识别护照信息。"
-                  : "OCR could not clearly read the passport information.")}
-            </p>
-          )}
-          {confirmed && (
-            <p className="text-sm text-emerald-700">
-              {isZh ? "护照信息已确认。" : "Passport information confirmed."}
-            </p>
-          )}
-          {hasPassport && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onRun}
-              disabled={busy || pending}
-            >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ScanLine className="h-4 w-4" />
-              )}
-              {isZh ? "运行护照 OCR" : "Run passport OCR"}
-            </Button>
-          )}
-        </div>
+              ? "请选择已生成的 itinerary，VIZA 会生成英语 PDF 并上传到旅行行程材料。"
+              : "Choose an existing itinerary. VIZA will generate an English PDF and upload it as the travel itinerary document."}
+          </DialogDescription>
+        </DialogHeader>
 
-        {fields.length > 0 && (
-          <div className="w-full rounded-lg border border-border bg-muted/30 p-4 lg:max-w-md">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">
-                {isZh ? "待确认字段" : "Fields to confirm"}
-              </p>
-              {confirmed && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  {isZh ? "已确认" : "Confirmed"}
-                </span>
-              )}
-            </div>
-            <dl className="space-y-2">
-              {fields.map((field) => (
-                <div
-                  key={field.label}
-                  className="grid grid-cols-[120px_1fr] gap-3 text-sm"
-                >
-                  <dt className="text-muted-foreground">{field.label}</dt>
-                  <dd className="font-medium text-foreground">{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {!confirmed && (
-              <Button
-                type="button"
-                className="mt-4 w-full bg-brand-500 hover:bg-brand-400"
-                onClick={onConfirm}
-                disabled={busy || pending || failed}
+        {candidates.length > 0 ? (
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            {candidates.map((candidate) => (
+              <div
+                key={candidate.id}
+                className="rounded-lg border border-border bg-white p-4 shadow-sm"
               >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ClipboardCheck className="h-4 w-4" />
-                )}
-                {isZh ? "确认护照信息" : "Confirm passport details"}
-              </Button>
-            )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-semibold text-foreground">
+                      {candidate.title}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {candidate.citySummary}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {candidate.sourceLabel} · {isZh ? "更新于" : "Updated"}{" "}
+                      {formatDate(candidate.updatedAt, isZh)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="shrink-0 bg-brand-500 hover:bg-brand-400"
+                    onClick={() => onSelect(candidate)}
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileCheck2 className="h-4 w-4" />
+                    )}
+                    {isZh ? "上载英语 PDF" : "Upload English PDF"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+            <p>
+              {isZh
+                ? "当前浏览器还没有找到该申请的旅行 AI itinerary。"
+                : "No Travel AI itinerary was found in this browser for this application."}
+            </p>
+            <Button asChild type="button" variant="outline" className="mt-4">
+              <Link href="/client/travel-chat">
+                <ExternalLink className="h-4 w-4" />
+                {isZh ? "打开旅行 AI" : "Open Travel AI"}
+              </Link>
+            </Button>
           </div>
         )}
-      </div>
-    </section>
-  );
-}
-
-function TravelAiPanel({
-  candidate,
-  requirement,
-  existingDocument,
-  busy,
-  onSave,
-  isZh,
-}: {
-  candidate: TravelSupportCandidate | null;
-  requirement: DocumentRequirement | null;
-  existingDocument: ApplicationDocument | null;
-  busy: boolean;
-  onSave: () => void;
-  isZh: boolean;
-}) {
-  if (!requirement) return null;
-
-  return (
-    <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Plane className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">
-              {isZh ? "旅行 AI 支持材料" : "Travel AI supporting document"}
-            </h2>
-          </div>
-          {candidate ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {isZh
-                  ? "当前浏览器已找到旅行 AI 行程，可保存为行程材料。"
-                  : "VIZA found a Travel AI itinerary in this browser. You can save it as itinerary evidence."}
-              </p>
-              <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                <span className="font-semibold">{candidate.title}</span>
-                <span className="block">{candidate.citySummary}</span>
-                <span className="block text-xs">
-                  {isZh ? "更新于" : "Updated"}{" "}
-                  {formatDate(candidate.updatedAt, isZh)}
-                </span>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {isZh
-                ? "当前浏览器未找到该申请的旅行 AI 行程。需要时可在旅行 AI 生成行程以满足该材料项。"
-                : "No Travel AI itinerary was found in this browser for this application. Generate one in Travel AI if this document is needed."}
-            </p>
-          )}
-          {existingDocument && (
-            <p className="text-xs text-muted-foreground">
-              {isZh ? "已保存行程文件：" : "Saved itinerary file: "}
-              <span className="font-medium text-foreground">
-                {existingDocument.filename}
-              </span>
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col gap-2">
-          {candidate && (
-            <Button
-              type="button"
-              className="bg-brand-500 hover:bg-brand-400"
-              onClick={onSave}
-              disabled={busy}
-            >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileCheck2 className="h-4 w-4" />
-              )}
-              {existingDocument
-                ? isZh
-                  ? "用旅行 AI 替换"
-                  : "Replace with Travel AI"
-                : isZh
-                  ? "保存旅行 AI 行程"
-                  : "Save Travel AI itinerary"}
-            </Button>
-          )}
-          <Button asChild type="button" variant="outline">
-            <Link href="/client/travel-chat">
-              <ExternalLink className="h-4 w-4" />
-              {isZh ? "打开旅行 AI" : "Open Travel AI"}
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </section>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1202,8 +893,10 @@ export function DocumentCenterClient({
   const [data, setData] = useState<DocumentCenterData | null>(initialData);
   const [error, setError] = useState<string | null>(initialError);
   const [busyTarget, setBusyTarget] = useState<BusyTarget>(null);
-  const [travelCandidate, setTravelCandidate] =
-    useState<TravelSupportCandidate | null>(null);
+  const [travelCandidates, setTravelCandidates] = useState<
+    TravelSupportCandidate[]
+  >([]);
+  const [travelPickerOpen, setTravelPickerOpen] = useState(false);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const selectedApplication = data?.selectedApplication ?? null;
@@ -1218,25 +911,10 @@ export function DocumentCenterClient({
     (view) => !view.requirement.required
   );
   const blockingViews = requiredViews.filter((view) => !view.status.ready);
-  const passportView =
-    documentViews.find(
-      (view) =>
-        view.requirement.documentType === "passport_copy" ||
-        view.requirement.key === "passport_copy"
-    ) ?? null;
-  const photoView =
-    documentViews.find(
-      (view) =>
-        view.requirement.documentType === "photo" ||
-        view.requirement.key === "photo"
-    ) ?? null;
   const travelView =
     documentViews.find(
-      (view) =>
-        view.requirement.documentType === "travel_itinerary" ||
-        view.requirement.key === "travel_itinerary"
+      (view) => isTravelItineraryRequirement(view.requirement)
     ) ?? null;
-  const latestOcr = getLatestPassportOcr(data?.ocrExtractions ?? []);
   const totalRequired = requiredViews.length;
   const readyRequired = requiredViews.filter(
     (view) => view.status.ready
@@ -1271,8 +949,8 @@ export function DocumentCenterClient({
   }, [applicationId, country, data?.selectedApplication?.id, visaType]);
 
   useEffect(() => {
-    setTravelCandidate(
-      readTravelSupportCandidate(selectedApplication?.id ?? null, isZh)
+    setTravelCandidates(
+      readTravelSupportCandidates(selectedApplication?.id ?? null, isZh)
     );
   }, [isZh, selectedApplication?.id]);
 
@@ -1316,82 +994,10 @@ export function DocumentCenterClient({
       const result = await uploadApplicationDocumentFromClient(uploadForm);
       if (!result.ok) throw new Error(result.error);
 
-      if (source === "manual_upload" && isPassportRequirement(requirement)) {
-        const ocrResult = await runPassportOcr({ storagePath: result.storagePath }, key);
-        if (!ocrResult.ok) {
-          setError(
-            isZh
-              ? `护照已上传，但 OCR 未完成：${ocrResult.error}`
-              : `Passport uploaded, but OCR did not complete: ${ocrResult.error}`
-          );
-        }
-      }
       await refreshData();
     } catch (uploadError) {
       console.error("Document upload failed", uploadError);
       setError(formatUploadError(uploadError, isZh));
-      setBusyTarget(null);
-    }
-  }
-
-  async function runPassportOcr(
-    target: { documentId?: string; storagePath?: string },
-    key = passportView ? getDocumentKey(passportView.requirement) : "passport"
-  ): Promise<{ ok: true } | { ok: false; error: string }> {
-    if (!selectedApplication)
-      return {
-        ok: false,
-        error: isZh ? "未选择申请。" : "No application selected.",
-      };
-    setBusyTarget({ type: "ocr", key });
-
-    try {
-      const response = await fetch("/api/passport-ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          applicationId: selectedApplication.id,
-          ...target,
-        }),
-      });
-      const payload: unknown = await response.json().catch(() => null);
-
-      if (!response.ok || !isRecord(payload) || payload.success !== true) {
-        return { ok: false, error: readOcrErrorMessage(payload, isZh) };
-      }
-
-      return { ok: true };
-    } catch (ocrError) {
-      return {
-        ok: false,
-        error:
-          ocrError instanceof Error
-            ? ocrError.message
-            : isZh
-              ? "护照 OCR 失败。"
-              : "Passport OCR failed.",
-      };
-    }
-  }
-
-  async function handleRunPassportOcr() {
-    if (!passportView?.document) {
-      setError(
-        isZh
-          ? "请先上传护照资料页，再运行 OCR。"
-          : "Upload the passport bio page before running OCR."
-      );
-      return;
-    }
-
-    setError(null);
-    const result = await runPassportOcr({
-      documentId: passportView.document.id,
-    });
-    if (result.ok) {
-      await refreshData();
-    } else {
-      setError(result.error);
       setBusyTarget(null);
     }
   }
@@ -1406,52 +1012,82 @@ export function DocumentCenterClient({
     await uploadFile(requirement, file);
   }
 
-  async function handleConfirmOcr() {
-    if (!selectedApplication || !latestOcr) return;
-    setBusyTarget({ type: "ocr", key: latestOcr.id });
-    const result = await confirmPassportOcrExtraction({
-      applicationId: selectedApplication.id,
-      extractionId: latestOcr.id,
-    });
+  async function buildTravelAiPdf(candidate: TravelSupportCandidate): Promise<File> {
+    const travelState = candidate.travelState;
+    const cities = getArray(travelState.cities).filter(
+      (item): item is string => typeof item === "string"
+    );
+    const travelOrder = getArray(travelState.travel_order).filter(
+      (item): item is string => typeof item === "string"
+    );
+    const payload = {
+      country: getString(travelState, "country") ?? cities[0] ?? "",
+      countries: getArray(travelState.countries).filter(
+        (item): item is string => typeof item === "string"
+      ),
+      cities: cities.length > 0 ? cities : travelOrder,
+      city_days: isRecord(travelState.city_days) ? travelState.city_days : {},
+      departure_date: getString(travelState, "departure_date") ?? undefined,
+      date_flexibility: getString(travelState, "date_flexibility") ?? undefined,
+      travel_days:
+        typeof travelState.travel_days === "number"
+          ? travelState.travel_days
+          : Math.max(1, candidate.itinerary.length),
+      travelers:
+        typeof travelState.travelers === "number" ? travelState.travelers : 1,
+      budget: typeof travelState.budget === "number" ? travelState.budget : 1,
+      travel_order: travelOrder.length > 0 ? travelOrder : cities,
+      origin_country: getString(travelState, "origin_country") ?? undefined,
+      origin_city: getString(travelState, "origin_city") ?? undefined,
+      return_country: getString(travelState, "return_country") ?? undefined,
+      return_city: getString(travelState, "return_city") ?? undefined,
+      selected_flights: getArray(travelState.selected_flights),
+      selected_hotels: getArray(travelState.selected_hotels),
+      final_note: getString(travelState, "final_note") ?? "",
+      attached_files: getArray(travelState.attached_files).filter(
+        (item): item is string => typeof item === "string"
+      ),
+      itinerary: candidate.itinerary,
+      itinery_rows: candidate.itineryRows,
+      export_language: "en",
+    };
 
-    if (result.ok) {
-      await refreshData();
-    } else {
+    const response = await fetch("/api/travel/download-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(detail || "Failed to generate Travel AI PDF.");
+    }
+
+    const blob = await response.blob();
+    return new File([blob], "travel_plan_en.pdf", {
+      type: response.headers.get("content-type") ?? "application/pdf",
+    });
+  }
+
+  async function handleSaveTravelAi(candidate: TravelSupportCandidate) {
+    if (!selectedApplication || !travelView) return;
+    const key = getDocumentKey(travelView.requirement);
+    setBusyTarget({ type: "travel", key });
+    setError(null);
+    try {
+      const file = await buildTravelAiPdf(candidate);
+      await uploadFile(travelView.requirement, file, "travel_ai");
+      setTravelPickerOpen(false);
+    } catch (travelError) {
+      console.error("Travel AI PDF upload failed", travelError);
       setError(
-        isZh
-          ? "确认失败，请稍后重试。"
-          : "Confirmation failed. Please try again later."
+        travelError instanceof Error
+          ? travelError.message
+          : isZh
+            ? "旅行 AI PDF 生成或上传失败。"
+            : "Travel AI PDF generation or upload failed."
       );
       setBusyTarget(null);
     }
-  }
-
-  async function handleSaveTravelAi() {
-    if (!selectedApplication || !travelCandidate || !travelView) return;
-    const exportedAt = new Date().toISOString();
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            source: "viza_travel_ai",
-            applicationId: selectedApplication.id,
-            title: travelCandidate.title,
-            exportedAt,
-            travelState: travelCandidate.travelState,
-            itinerary: travelCandidate.itinerary,
-          },
-          null,
-          2
-        ),
-      ],
-      { type: "application/json" }
-    );
-    const file = new File(
-      [blob],
-      `travel-ai-itinerary-${exportedAt.slice(0, 10)}.json`,
-      { type: "application/json" }
-    );
-    await uploadFile(travelView.requirement, file, "travel_ai");
   }
 
   if (!data || !selectedApplication) {
@@ -1466,6 +1102,33 @@ export function DocumentCenterClient({
   }
 
   const refreshing = busyTarget?.type === "refresh";
+  const travelBusyKey = travelView ? getDocumentKey(travelView.requirement) : null;
+  const travelBusy = Boolean(
+    travelBusyKey &&
+      busyTarget?.type === "travel" &&
+      busyTarget.key === travelBusyKey
+  );
+
+  function renderTravelAiAction(view: DocumentViewState) {
+    if (!isTravelItineraryRequirement(view.requirement)) return undefined;
+    const key = getDocumentKey(view.requirement);
+    const busy = busyTarget?.type === "travel" && busyTarget.key === key;
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setTravelPickerOpen(true)}
+        disabled={busyTarget !== null && !busy}
+      >
+        {busy ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <FileCheck2 className="h-4 w-4" />
+        )}
+        {isZh ? "从旅行 AI 上载" : "Upload from Travel AI"}
+      </Button>
+    );
+  }
 
   return (
     <main
@@ -1511,8 +1174,8 @@ export function DocumentCenterClient({
                 </h1>
                 <p className="max-w-3xl text-muted-foreground">
                   {isZh
-                    ? "在这个表单内完成必需材料、可选补充材料、护照 OCR 确认与证件照检查。"
-                    : "Complete required documents, optional support, passport OCR confirmation, and photo checks inside this form."}
+                    ? "在这个表单内完成必需材料和可选补充材料。旅行行程可手动上传，也可从旅行 AI 选择已生成的英语 PDF。"
+                    : "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium">
@@ -1659,13 +1322,7 @@ export function DocumentCenterClient({
         </div>
       </section>
 
-      <div
-        className={cn(
-          "grid gap-6",
-          embedded ? "2xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-[1fr_380px]",
-        )}
-      >
-        <div className="space-y-6">
+      <div className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">
@@ -1684,7 +1341,9 @@ export function DocumentCenterClient({
                     key={key}
                     view={view}
                     busy={
-                      busyTarget?.type === "upload" && busyTarget.key === key
+                      busyTarget?.key === key &&
+                      (busyTarget.type === "upload" ||
+                        busyTarget.type === "travel")
                     }
                     inputRef={(element) => {
                       fileInputs.current[key] = element;
@@ -1694,6 +1353,7 @@ export function DocumentCenterClient({
                       handleFileChange(view.requirement, event)
                     }
                     isZh={isZh}
+                    extraAction={renderTravelAiAction(view)}
                   />
                 );
               })}
@@ -1719,7 +1379,9 @@ export function DocumentCenterClient({
                       key={key}
                       view={view}
                       busy={
-                        busyTarget?.type === "upload" && busyTarget.key === key
+                        busyTarget?.key === key &&
+                        (busyTarget.type === "upload" ||
+                          busyTarget.type === "travel")
                       }
                       inputRef={(element) => {
                         fileInputs.current[key] = element;
@@ -1729,6 +1391,7 @@ export function DocumentCenterClient({
                         handleFileChange(view.requirement, event)
                       }
                       isZh={isZh}
+                      extraAction={renderTravelAiAction(view)}
                     />
                   );
                 })}
@@ -1741,37 +1404,18 @@ export function DocumentCenterClient({
               </div>
             )}
           </section>
-        </div>
-
-        <aside className="space-y-4">
-          <PhotoCompliancePanel
-            photoView={photoView}
-            onReupload={() => {
-              if (!photoView) return;
-              fileInputs.current[
-                getDocumentKey(photoView.requirement)
-              ]?.click();
-            }}
-            isZh={isZh}
-          />
-          <OcrPanel
-            passportView={passportView}
-            extraction={latestOcr}
-            busy={busyTarget?.type === "ocr"}
-            onRun={handleRunPassportOcr}
-            onConfirm={handleConfirmOcr}
-            isZh={isZh}
-          />
-          <TravelAiPanel
-            candidate={travelCandidate}
-            requirement={travelView?.requirement ?? null}
-            existingDocument={travelView?.document ?? null}
-            busy={busyTarget?.type === "travel"}
-            onSave={handleSaveTravelAi}
-            isZh={isZh}
-          />
-        </aside>
       </div>
+
+      {travelView && (
+        <TravelAiPickerDialog
+          open={travelPickerOpen}
+          onOpenChange={setTravelPickerOpen}
+          candidates={travelCandidates}
+          busy={travelBusy}
+          onSelect={handleSaveTravelAi}
+          isZh={isZh}
+        />
+      )}
 
       {embedded && onContinue && (
         <div className="flex justify-end border-t border-border pt-5">

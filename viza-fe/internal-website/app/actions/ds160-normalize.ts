@@ -20,6 +20,12 @@ import type { TravelInfoData } from "@/components/application-steps/travel-info-
  * US-018: Map the complete simplified form deterministically into the DS-160 answer schema
  */
 
+function isMissingColumnError(message: string, column: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes(column.toLowerCase()) &&
+    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
+}
+
 /**
  * Flatten a PersonalInfoData object into DS-160 answer key-value pairs.
  * Deterministic: each hardcoded field maps to exactly one DS-160 key.
@@ -157,19 +163,52 @@ export async function persistDS160AnswerSet(
     const adminClient = createAdminClient();
 
     // Verify ownership
-    const { data: app } = await adminClient
+    let { data: app, error: appError } = await adminClient
       .from("applications")
-      .select("id, applicant_id")
+      .select("id, applicant_id, group_id")
       .eq("id", applicationId)
       .single();
+    if (appError && isMissingColumnError(appError.message, "group_id")) {
+      const fallbackResult = await adminClient
+        .from("applications")
+        .select("id, applicant_id")
+        .eq("id", applicationId)
+        .single();
+      app = fallbackResult.data ? { ...fallbackResult.data, group_id: null } : null;
+      appError = fallbackResult.error;
+    }
+    if (appError) return { error: appError.message };
     if (!app) return { error: "Application not found" };
 
-    const { data: profile } = await adminClient
+    let { data: profile, error: profileError } = await adminClient
       .from("applicant_profiles")
       .select("id, auth_user_id, dependant_of_user_id")
       .eq("id", app.applicant_id)
       .maybeSingle();
-    if (!profile || (profile.auth_user_id !== user.id && profile.dependant_of_user_id !== user.id)) {
+    if (profileError && isMissingColumnError(profileError.message, "dependant_of_user_id")) {
+      const fallbackResult = await adminClient
+        .from("applicant_profiles")
+        .select("id, auth_user_id")
+        .eq("id", app.applicant_id)
+        .maybeSingle();
+      profile = fallbackResult.data ? { ...fallbackResult.data, dependant_of_user_id: null } : null;
+      profileError = fallbackResult.error;
+    }
+    if (profileError) return { error: profileError.message };
+    const ownsProfile = Boolean(profile && (profile.auth_user_id === user.id || profile.dependant_of_user_id === user.id));
+    let ownsGroup = false;
+    if (!ownsProfile && app.group_id) {
+      const { data: group, error: groupError } = await adminClient
+        .from("application_group")
+        .select("id")
+        .eq("id", app.group_id)
+        .eq("payer_user_id", user.id)
+        .maybeSingle();
+      if (groupError) return { error: groupError.message };
+      ownsGroup = Boolean(group);
+    }
+
+    if (!profile || (!ownsProfile && !ownsGroup)) {
       return { error: "Unauthorized" };
     }
 

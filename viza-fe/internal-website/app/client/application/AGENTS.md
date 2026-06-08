@@ -10,7 +10,8 @@ Keep `/client/application` as the authenticated visa application filling flow:
 2. The page loads or creates the matching draft application instead of assuming a single global active application.
 3. DB-driven forms render as a bilingual two-column form: Chinese on the left, English/official wording on the right.
 4. Field-level AI help opens only from the `问 AI` button and should support the current field without taking over normal form interaction.
-5. Photo upload, review, submit/status steps remain part of the same application progress.
+5. Photo upload is handled inside the supporting-documents step; review,
+   submit/status steps remain part of the same application progress.
 
 ## Source Of Truth
 
@@ -22,19 +23,17 @@ Before changing this route, read:
 4. `viza-fe/internal-website/components/dynamic-step-form.tsx`
 5. `viza-fe/internal-website/components/dynamic-form-field.tsx`
 6. `viza-fe/internal-website/components/field-guidance-panel.tsx`
-7. `viza-fe/internal-website/components/application-steps/photo-upload-step.tsx`
-8. `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
-9. `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
-10. `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
-11. `knowledge-base/visa-rag-seeds/README.md`
+7. `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
+8. `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
+9. `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
+10. `knowledge-base/visa-rag-seeds/README.md`
 
 ## Key Files
 
-- `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends photo/review/status steps.
+- `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends supporting-documents/review/status steps.
 - `components/dynamic-step-form.tsx`: shared DB-driven bilingual form renderer, including Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
-- `components/application-steps/photo-upload-step.tsx`: country-aware photo upload step.
 - `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
@@ -69,7 +68,7 @@ For frontend application changes:
    - destination card opens the expected application
    - bilingual fields sync both directions
    - `问 AI` opens and closes only from the button
-   - photo upload step renders country-specific guidance
+   - photo upload is available from the supporting-documents photo row
    - review page is read-only
    - mobile layout does not clip sidebar cards or form controls
 
@@ -80,4 +79,3 @@ For backend field-guidance or RAG changes:
 3. If RAG seeds changed, run the relevant ingestion command from `viza-be/agent-backend`.
 4. If retrieval behavior changed, run the field-guidance eval script where practical:
    `npm run test:field-guidance-copilot`
-

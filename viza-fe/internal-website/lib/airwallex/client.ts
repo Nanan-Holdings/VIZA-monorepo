@@ -28,6 +28,7 @@ export interface AirwallexPaymentIntent {
 
 export type AirwallexPaymentMethodType =
   | "card"
+  | "alipaycn_qrcode"
   | "alipaycn_mobile_web"
   | "wechatpay_qrcode"
   | "wechatpay_mobile_web";
@@ -148,6 +149,32 @@ export async function createPaymentIntent(input: {
   });
 }
 
+export async function createBindingPaymentIntent(input: {
+  currency: "CNY";
+  merchantOrderId: string;
+  requestId: string;
+  returnUrl: string;
+  customerEmail: string;
+  customerName: string;
+  metadata?: JsonObject;
+}): Promise<AirwallexPaymentIntent> {
+  return airwallexRequest<AirwallexPaymentIntent>("/api/v1/pa/payment_intents/create", {
+    method: "POST",
+    body: JSON.stringify({
+      amount: 0,
+      currency: input.currency,
+      merchant_order_id: input.merchantOrderId,
+      request_id: input.requestId,
+      return_url: input.returnUrl,
+      customer: {
+        email: input.customerEmail,
+        first_name: input.customerName,
+      },
+      metadata: input.metadata,
+    }),
+  });
+}
+
 export async function retrievePaymentIntent(intentId: string): Promise<AirwallexPaymentIntent> {
   return airwallexRequest<AirwallexPaymentIntent>(`/api/v1/pa/payment_intents/${encodeURIComponent(intentId)}`);
 }
@@ -158,7 +185,14 @@ export async function confirmPaymentIntent(input: {
   returnUrl: string;
 }): Promise<AirwallexPaymentIntent> {
   const paymentMethod =
-    input.methodType === "alipaycn_mobile_web"
+    input.methodType === "alipaycn_qrcode"
+      ? {
+          type: "alipaycn",
+          alipaycn: {
+            flow: "qrcode",
+          },
+        }
+      : input.methodType === "alipaycn_mobile_web"
       ? {
           type: "alipaycn",
           alipaycn: {
