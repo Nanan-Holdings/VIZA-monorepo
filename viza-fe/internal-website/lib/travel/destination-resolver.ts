@@ -1,4 +1,5 @@
 import type { Json } from "@/types/database";
+import type { TravelDestinationCard } from "@/lib/travel/chat-types";
 import {
   findDropdownDestinationContract,
   getDropdownDestinationContracts,
@@ -1133,6 +1134,39 @@ function destinationAliases(destination: TravelDestinationSearchResult): string[
   ].filter(Boolean);
 }
 
+function hasLatinLetters(value: string): boolean {
+  return /[a-z]/.test(value);
+}
+
+function queryContainsAlias(normalizedQuery: string, normalizedAlias: string): boolean {
+  if (!normalizedAlias) return false;
+  if (normalizedQuery === normalizedAlias) return true;
+
+  if (normalizedAlias.length <= 3 && hasLatinLetters(normalizedAlias)) {
+    return normalizedQuery.split(" ").includes(normalizedAlias);
+  }
+
+  return normalizedQuery.includes(normalizedAlias);
+}
+
+function aliasContainsQuery(normalizedQuery: string, normalizedAlias: string): boolean {
+  if (normalizedQuery.length < 3) return false;
+  if (normalizedQuery === normalizedAlias) return true;
+
+  if (normalizedQuery.length <= 3 && hasLatinLetters(normalizedQuery)) {
+    return normalizedAlias.split(" ").includes(normalizedQuery);
+  }
+
+  return normalizedAlias.includes(normalizedQuery);
+}
+
+function tokenSubstringMatchesAlias(token: string, normalizedAlias: string): boolean {
+  if (token === normalizedAlias) return true;
+  if (Math.min(token.length, normalizedAlias.length) < 4) return false;
+
+  return normalizedAlias.includes(token) || token.includes(normalizedAlias);
+}
+
 function scoreDestination(query: string, destination: TravelDestinationSearchResult): number {
   const normalizedQuery = normalizeDestinationText(query);
   const tokens = tokenize(query);
@@ -1143,12 +1177,14 @@ function scoreDestination(query: string, destination: TravelDestinationSearchRes
     if (!normalizedAlias) return;
 
     if (normalizedAlias === normalizedQuery) score += 120;
-    if (normalizedQuery.includes(normalizedAlias)) score += normalizedAlias.length > 3 ? 80 : 45;
-    if (normalizedAlias.includes(normalizedQuery) && normalizedQuery.length >= 3) score += 45;
+    if (queryContainsAlias(normalizedQuery, normalizedAlias)) {
+      score += normalizedAlias.length > 3 ? 80 : 45;
+    }
+    if (aliasContainsQuery(normalizedQuery, normalizedAlias)) score += 45;
 
     tokens.forEach((token) => {
       if (token === normalizedAlias) score += 90;
-      if (normalizedAlias.includes(token) || token.includes(normalizedAlias)) score += 30;
+      if (tokenSubstringMatchesAlias(token, normalizedAlias)) score += 30;
       if (token.length >= 5 && normalizedAlias.length >= 5) {
         const distance = levenshteinDistance(token, normalizedAlias);
         if (distance <= 1) score += 60;
@@ -1202,7 +1238,7 @@ function findMentionedDestinations(query: string): TravelDestinationSearchResult
   const hits = ALL_LOCAL_DESTINATIONS.filter((destination) =>
     destinationAliases(destination).some((alias) => {
       const normalizedAlias = normalizeDestinationText(alias);
-      return normalizedAlias.length >= 2 && normalizedQuery.includes(normalizedAlias);
+      return normalizedAlias.length >= 2 && queryContainsAlias(normalizedQuery, normalizedAlias);
     })
   );
 
@@ -1519,7 +1555,7 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
 export function toTravelDestinationChatCard(
   destination: TravelDestinationSearchResult,
   rawText = ""
-) {
+): TravelDestinationCard {
   const candidatePayload = buildTravelCandidatePayload([destination], rawText);
   const localContract = findDropdownDestinationContract(
     destination.nameEn ?? destination.displayName ?? destination.canonicalName
@@ -1537,6 +1573,9 @@ export function toTravelDestinationChatCard(
     destination.attractionCount ?? localContract?.attractions.length ?? 0;
   const missingFields =
     destination.missingFields ?? localContract?.missingFields ?? [];
+  const imageStatus: TravelDestinationCard["image_status"] = coverImageUrl
+    ? "verified"
+    : "placeholder";
   const highlights = [
     sourceStatus === "llm_generated"
       ? "temporary text fallback"
@@ -1565,7 +1604,7 @@ export function toTravelDestinationChatCard(
     city: destination.city ?? destination.displayName,
     image_key: destination.imageKey ?? null,
     cover_image_url: coverImageUrl,
-    image_status: coverImageUrl ? "verified" : "placeholder",
+    image_status: imageStatus,
     data_quality: dataQuality,
     source_status: sourceStatus,
     completeness_score:

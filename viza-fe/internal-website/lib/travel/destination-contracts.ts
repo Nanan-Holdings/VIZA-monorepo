@@ -164,6 +164,8 @@ const SUPPLEMENTAL_CITY_CARDS: CuratedTravelCity[] = [
   },
 ];
 
+const HONG_KONG_CITY_KEYS = new Set(["hongkong", "hk", "香港"]);
+
 const COUNTRY_META_BY_NAME: Record<string, CountryMeta> = {
   Argentina: {
     code: "AR",
@@ -429,12 +431,46 @@ function findCuratedCityCard(city: CuratedCity): CuratedTravelCity | null {
   );
 }
 
+function isHongKongAttraction(item: CuratedTravelAttraction): boolean {
+  const searchable = [
+    item.name,
+    item.location,
+    item.cityLabel,
+    item.sourceUrl,
+    ...(item.aliases ?? []),
+  ].join(" ");
+  const searchText = normalizeDestinationSearchText(searchable);
+  const compactText = normalizeDestinationContractKey(searchable);
+
+  return (
+    searchText.includes("hong kong") ||
+    compactText.includes("hongkong") ||
+    compactText.includes("香港")
+  );
+}
+
 function findCuratedAttractions(city: CuratedCity): CuratedTravelAttraction[] {
   const keys = cityKeysFor(city).map(normalizeDestinationContractKey);
-  return CURATED_CARD_DATA.attractions.filter((item) =>
-    item.cityKeys.some((key) =>
-      keys.includes(normalizeDestinationContractKey(key))
-    )
+  const isHongKongCity = keys.some((key) => HONG_KONG_CITY_KEYS.has(key));
+  const cityAttractions = CURATED_CARD_DATA.attractions.filter((item) =>
+    item.cityKeys.some((key) => keys.includes(normalizeDestinationContractKey(key))) &&
+    (isHongKongCity || !isHongKongAttraction(item))
+  );
+
+  if (!isHongKongCity) {
+    return cityAttractions;
+  }
+
+  const hongKongAttractions =
+    CURATED_CARD_DATA.attractions.filter(isHongKongAttraction);
+
+  return Array.from(
+    new Map(
+      [...cityAttractions, ...hongKongAttractions].map((item) => [
+        `${item.name}|${item.imageSrc}`,
+        item,
+      ])
+    ).values()
   );
 }
 

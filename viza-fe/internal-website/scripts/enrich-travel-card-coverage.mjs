@@ -895,7 +895,6 @@ function parseDropdownCities(source) {
     const countryMatch = line.match(/^\s{2}(?:"([^"]+)"|([A-Za-z ]+)):\s*\[/);
     if (countryMatch) {
       currentCountry = countryMatch[1] ?? countryMatch[2] ?? "";
-      return;
     }
 
     const cityMatch = line.match(

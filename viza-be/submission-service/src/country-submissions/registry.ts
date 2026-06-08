@@ -61,6 +61,48 @@ const COMMON_OPTIONAL_FIELDS: FieldRequirement[] = [
   { key: "overstay_history", label: "Previous overstay", category: "security", required: false },
 ];
 
+const US_DS160_REQUIRED_FIELDS: FieldRequirement[] = [
+  ...COMMON_REQUIRED_FIELDS.filter((field) => !field.key.startsWith("trip.")),
+  ...COMMON_OPTIONAL_FIELDS,
+  { key: "answers.has_specific_travel_plans", label: "Specific travel plans", category: "trip", required: true },
+  { key: "answers.purpose_of_trip", label: "Purpose of trip", category: "trip", required: true },
+  {
+    key: "answers.purpose_of_trip_specify",
+    label: "Purpose of trip specify",
+    category: "trip",
+    required: true,
+    condition: { key: "answers.purpose_of_trip", equals: "B" },
+  },
+  {
+    key: "answers.arrival_date",
+    label: "Arrival date",
+    category: "trip",
+    required: true,
+    condition: { key: "answers.has_specific_travel_plans", equals: "yes" },
+  },
+  {
+    key: "answers.intended_arrival_date",
+    label: "Intended arrival date",
+    category: "trip",
+    required: true,
+    condition: { key: "answers.has_specific_travel_plans", equals: "no" },
+  },
+  {
+    key: "answers.intended_length_of_stay_value",
+    label: "Intended length of stay",
+    category: "trip",
+    required: true,
+    condition: { key: "answers.has_specific_travel_plans", equals: "no" },
+  },
+  {
+    key: "answers.intended_length_of_stay_unit",
+    label: "Intended length of stay unit",
+    category: "trip",
+    required: true,
+    condition: { key: "answers.has_specific_travel_plans", equals: "no" },
+  },
+];
+
 function vnField(
   key: string,
   label: string,
@@ -150,6 +192,8 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["src/ds160-form-mappings.ts", "../agent-backend/scripts/seed-ds160-form-fields.ts"],
     mapperFiles: ["src/ds160-derive-answers.ts"],
     automationFiles: ["src/ceac/orchestrator.ts", "src/index.ts"],
+    requiredFields: US_DS160_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
     dryRunConfirmationPrefix: "DRYRUN-DS160",
     notes: "Primary reference flow. Runner stops at CEAC sign-and-submit handoff.",
   },
@@ -466,8 +510,8 @@ function readAnswer(application: CountrySubmissionApplication, key: string): str
 
 function normalizeRequirementValue(value: string): string {
   const normalized = normalizeToken(value);
-  if (["1", "true", "on", "agree", "i_agree"].includes(normalized)) return "yes";
-  if (["0", "false", "off", "disagree"].includes(normalized)) return "no";
+  if (["1", "true", "on", "agree", "i_agree", "y"].includes(normalized)) return "yes";
+  if (["0", "false", "off", "disagree", "n"].includes(normalized)) return "no";
   return normalized;
 }
 
