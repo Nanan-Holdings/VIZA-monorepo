@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "../types/database";
 import {
   buildLocalFirstDestinationPayload,
   getDropdownDestinationContracts,
@@ -11,7 +12,7 @@ import {
   type TravelDestinationContract,
 } from "../lib/travel/destination-contracts";
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 function loadEnvFile(filePath: string): void {
   if (!fs.existsSync(filePath)) return;
@@ -27,7 +28,7 @@ function loadEnvFile(filePath: string): void {
   }
 }
 
-function createSupabaseAdminClient(): SupabaseClient {
+function createSupabaseAdminClient(): TypedSupabaseClient {
   loadEnvFile(path.resolve(process.cwd(), ".env.local"));
   loadEnvFile(path.resolve(process.cwd(), ".env"));
 
@@ -39,13 +40,13 @@ function createSupabaseAdminClient(): SupabaseClient {
     );
   }
 
-  return createClient(supabaseUrl, supabaseKey, {
+  return createClient<Database>(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
 async function upsertAsset(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   entityId: string,
   asset: TravelDestinationAssetContract
 ): Promise<string | null> {
@@ -76,7 +77,7 @@ async function upsertAsset(
 }
 
 async function upsertAttraction(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   destinationId: string,
   attraction: TravelAttractionContract
 ): Promise<string | null> {
@@ -129,7 +130,7 @@ function destinationCardsForPayload(
       description_zh: `${destination.nameZh}已可从本地资料即时渲染。`,
       image_url: payload.coverImage?.imageUrl ?? null,
       image_asset_id: coverAssetId,
-      payload_json: payload,
+      payload_json: payload as unknown as Json,
       source: payload.sourceStatus,
       source_status: payload.sourceStatus,
       is_generated: false,
@@ -148,7 +149,7 @@ function destinationCardsForPayload(
       description_zh: "用于行程生成的本地优先景点卡片。",
       image_url: attractions.find((item) => item.image)?.image?.imageUrl ?? null,
       image_asset_id: null,
-      payload_json: { attractions },
+      payload_json: { attractions } as unknown as Json,
       source: payload.sourceStatus,
       source_status: payload.sourceStatus,
       is_generated: false,
@@ -158,7 +159,7 @@ function destinationCardsForPayload(
 }
 
 async function seedDestination(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   destination: TravelDestinationContract
 ): Promise<void> {
   const payload = buildLocalFirstDestinationPayload(destination);
