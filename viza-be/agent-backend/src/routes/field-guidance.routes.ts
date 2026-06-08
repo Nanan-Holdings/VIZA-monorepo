@@ -253,7 +253,7 @@ function makeTitle(field: FieldGuidanceField, locale: "zh" | "en"): string {
     : `${field.label} guidance`;
 }
 
-function includesAny(haystack: string, needles: string[]): boolean {
+function includesAny(haystack: string, needles: readonly string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
@@ -597,9 +597,109 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
+const DOCUMENT_ISSUE_DATE_CANDIDATES = [
+  "passport_issuance_date",
+  "passport_issue_date",
+  "passport_date_of_issue",
+  "travel_document_issue_date",
+  "date_of_issue",
+  "issue_date",
+] as const;
+
+const DOCUMENT_EXPIRY_DATE_CANDIDATES = [
+  "passport_expiration_date",
+  "passport_expiry_date",
+  "passport_date_of_expiry",
+  "travel_document_expiry_date",
+  "date_of_expiry",
+  "expiration_date",
+  "expiry_date",
+  "valid_until",
+] as const;
+
+const ARRIVAL_DATE_CANDIDATES = [
+  "arrival_date",
+  "intended_arrival_date",
+  "entry_date",
+] as const;
+
+const DEPARTURE_DATE_CANDIDATES = [
+  "departure_date",
+  "intended_departure_date",
+  "date_of_departure",
+  "exit_date",
+] as const;
+
+const NATIONALITY_CONSISTENCY_CANDIDATES = [
+  "current_nationality",
+  "nationality_country",
+  "nationality",
+  "nationality_at_birth",
+  "nationality_at_birth_different",
+] as const;
+
+function stripRepeatInstanceSuffix(key: string): string {
+  return key.replace(/__\d+$/, "");
+}
+
+function normaliseFieldKey(key: string): string {
+  return stripRepeatInstanceSuffix(key)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function fieldKeyMatchesCandidate(key: string, candidate: string): boolean {
+  const normalisedKey = normaliseFieldKey(key);
+  const normalisedCandidate = normaliseFieldKey(candidate);
+  return (
+    normalisedKey === normalisedCandidate ||
+    normalisedKey.endsWith(`_${normalisedCandidate}`) ||
+    normalisedKey.includes(`_${normalisedCandidate}_`)
+  );
+}
+
+function fieldKeyMatchesAny(key: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => fieldKeyMatchesCandidate(key, candidate));
+}
+
+function fieldSearchText(field: FieldGuidanceField): string {
+  return `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
+}
+
+function isDocumentExpiryField(field: FieldGuidanceField): boolean {
+  if (!fieldKeyMatchesAny(field.fieldName, DOCUMENT_EXPIRY_DATE_CANDIDATES)) return false;
+
+  const searchText = fieldSearchText(field);
+  if (
+    searchText.includes("entry permit") ||
+    searchText.includes("prior schengen") ||
+    searchText.includes("last schengen visa")
+  ) {
+    return false;
+  }
+
+  return (
+    searchText.includes("passport") ||
+    searchText.includes("travel_document") ||
+    searchText.includes("travel document") ||
+    searchText.includes("expiry date") ||
+    searchText.includes("expiration date") ||
+    fieldKeyMatchesAny(field.fieldName, ["date_of_expiry", "expiration_date", "expiry_date"])
+  );
+}
+
+function isDepartureDateField(field: FieldGuidanceField): boolean {
+  return fieldKeyMatchesAny(field.fieldName, DEPARTURE_DATE_CANDIDATES);
+}
+
+function isNationalityConsistencyField(field: FieldGuidanceField): boolean {
+  return fieldKeyMatchesAny(field.fieldName, NATIONALITY_CONSISTENCY_CANDIDATES);
+}
+
 function findAnswer(
   allAnswers: Record<string, string>,
-  candidates: string[]
+  candidates: readonly string[]
 ): string | null {
   for (const candidate of candidates) {
     const direct = allAnswers[candidate];
@@ -609,7 +709,7 @@ function findAnswer(
   const entries = Object.entries(allAnswers);
   for (const candidate of candidates) {
     const found = entries.find(([key, value]) =>
-      key.toLowerCase().includes(candidate.toLowerCase()) && value.trim()
+      fieldKeyMatchesCandidate(key, candidate) && value.trim()
     );
     if (found) return found[1];
   }
@@ -707,34 +807,23 @@ function validateAnswer(
   }
 
   const issue = parseDate(
-    findAnswer(allAnswers, [
-      "passport_issuance_date",
-      "passport_issue_date",
-      "travel_document_issue_date",
-      "issue_date",
-    ])
+    findAnswer(allAnswers, DOCUMENT_ISSUE_DATE_CANDIDATES)
   );
   const expiry = parseDate(
-    findAnswer(allAnswers, [
-      "passport_expiration_date",
-      "passport_expiry_date",
-      "travel_document_expiry_date",
-      "expiry_date",
-      "valid_until",
-    ])
+    findAnswer(allAnswers, DOCUMENT_EXPIRY_DATE_CANDIDATES)
   );
-  if (issue && expiry && expiry <= issue) {
+  if (isDocumentExpiryField(field) && issue && expiry && expiry <= issue) {
     error("证件到期日必须晚于签发日。", "The document expiry date must be after the issue date.");
   }
 
-  const arrival = parseDate(findAnswer(allAnswers, ["arrival_date", "intended_arrival_date", "entry_date"]));
-  const departure = parseDate(findAnswer(allAnswers, ["departure_date", "intended_departure_date", "exit_date"]));
-  if (arrival && departure && departure <= arrival) {
+  const arrival = parseDate(findAnswer(allAnswers, ARRIVAL_DATE_CANDIDATES));
+  const departure = parseDate(findAnswer(allAnswers, DEPARTURE_DATE_CANDIDATES));
+  if (isDepartureDateField(field) && arrival && departure && departure <= arrival) {
     error("离境日期必须晚于入境日期。", "Departure date must be after arrival date.");
   }
-  if (arrival && expiry && expiry < arrival) {
+  if (isDocumentExpiryField(field) && arrival && expiry && expiry < arrival) {
     error("护照/旅行证件在入境前已过期。", "The passport or travel document expires before arrival.");
-  } else if (arrival && expiry && expiry < addMonths(arrival, 6)) {
+  } else if (isDocumentExpiryField(field) && arrival && expiry && expiry < addMonths(arrival, 6)) {
     warn(
       "护照/旅行证件在计划入境后 6 个月内到期，请确认目的地是否接受。",
       "The passport or travel document expires within 6 months after planned arrival; confirm the destination accepts this."
@@ -749,7 +838,8 @@ function validateAnswer(
     nationalityAtBirth &&
     differentFlag &&
     differentFlag.toLowerCase() === "no" &&
-    currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase()
+    currentNationality.toLowerCase() !== nationalityAtBirth.toLowerCase() &&
+    isNationalityConsistencyField(field)
   ) {
     warn(
       "您选择了出生国籍未变化，但当前国籍和出生国籍不一致。",

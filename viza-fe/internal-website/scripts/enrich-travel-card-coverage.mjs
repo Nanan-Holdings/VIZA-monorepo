@@ -15,7 +15,9 @@ const cardDataPath = path.join(
 );
 
 const USER_AGENT = "VIZA Travel AI card coverage updater/1.0";
-const MIN_ATTRACTIONS_PER_CITY = 4;
+const MIN_ATTRACTIONS_PER_CITY = Number(
+  process.env.TRAVEL_CARD_MIN_ATTRACTIONS ?? 10
+);
 const DEFAULT_DOWNLOAD_DELAY_MS = Number(
   process.env.TRAVEL_CARD_DOWNLOAD_DELAY_MS ?? 1200
 );

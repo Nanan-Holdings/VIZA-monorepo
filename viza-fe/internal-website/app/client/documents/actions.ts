@@ -1237,7 +1237,16 @@ function hasChineseText(value: string | null | undefined): boolean {
   return /[\u3400-\u9fff]/.test(value ?? "");
 }
 
-const OCR_BILINGUAL_PROFILE_COLUMNS = ["full_name_zh", "full_name_en"] as const;
+const OCR_BILINGUAL_PROFILE_COLUMNS = [
+  "full_name_zh",
+  "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
+] as const;
 
 function isMissingOcrBilingualColumnError(message: string) {
   const normalized = message.toLowerCase();
@@ -1248,6 +1257,8 @@ function isMissingOcrBilingualColumnError(message: string) {
 function buildPassportProfileUpdates(fields: JsonRecord) {
   const updates: Record<string, string> = {};
   const fullName = pickExtractedField(fields, ["full_name", "fullName", "name", "passport_full_name", "holder_name"]);
+  const surname = pickExtractedField(fields, ["surname", "last_name", "family_name"]);
+  const givenNames = pickExtractedField(fields, ["given_names", "givenNames", "given_name", "first_name"]);
   const nativeFullName = pickExtractedField(fields, [
     "full_name_zh",
     "native_full_name",
@@ -1256,12 +1267,25 @@ function buildPassportProfileUpdates(fields: JsonRecord) {
     "localScriptName",
     "full_name_native_alphabet",
   ]);
+  const compactNativeFullName = nativeFullName?.replace(/\s+/g, "") ?? "";
+  const nativeSurname = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(0, 1) : null;
+  const nativeGivenNames = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(1) : null;
   if (fullName) {
     updates.full_name = fullName;
     if (!hasChineseText(fullName)) updates.full_name_en = fullName;
     if (hasChineseText(fullName) && !nativeFullName) updates.full_name_zh = fullName;
   }
   if (nativeFullName) updates.full_name_zh = nativeFullName;
+  if (surname) {
+    updates.surname = surname;
+    if (!hasChineseText(surname)) updates.surname_en = surname;
+  }
+  if (givenNames) {
+    updates.given_names = givenNames;
+    if (!hasChineseText(givenNames)) updates.given_names_en = givenNames;
+  }
+  if (nativeSurname) updates.surname_zh = nativeSurname;
+  if (nativeGivenNames) updates.given_names_zh = nativeGivenNames;
 
   const mappings: Array<[string, string[]]> = [
     ["date_of_birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
@@ -1287,6 +1311,12 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
     ["full_name", profileUpdates.full_name],
     ["full_name_zh", profileUpdates.full_name_zh],
     ["full_name_en", profileUpdates.full_name_en],
+    ["surname", profileUpdates.surname],
+    ["surname_zh", profileUpdates.surname_zh],
+    ["surname_en", profileUpdates.surname_en],
+    ["given_names", profileUpdates.given_names],
+    ["given_names_zh", profileUpdates.given_names_zh],
+    ["given_names_en", profileUpdates.given_names_en],
     ["fullName", profileUpdates.full_name],
     ["fullName_zh", profileUpdates.full_name_zh],
     ["fullName_en", profileUpdates.full_name_en],
@@ -1358,7 +1388,17 @@ export async function confirmPassportOcrExtraction(input: {
 
       if (profileError) {
         if (isMissingOcrBilingualColumnError(profileError.message)) {
-          const { full_name_zh: _fullNameZh, full_name_en: _fullNameEn, ...baseProfileUpdates } = profileUpdates;
+          const {
+            full_name_zh: _fullNameZh,
+            full_name_en: _fullNameEn,
+            surname: _surname,
+            surname_zh: _surnameZh,
+            surname_en: _surnameEn,
+            given_names: _givenNames,
+            given_names_zh: _givenNamesZh,
+            given_names_en: _givenNamesEn,
+            ...baseProfileUpdates
+          } = profileUpdates;
           const { error: fallbackProfileError } = await adminClient
             .from("applicant_profiles")
             .update({ ...baseProfileUpdates, updated_at: new Date().toISOString() })

@@ -68,7 +68,7 @@
       "title": "通用资料",
       "subtitle": "自动用于相似签证问题",
       "saved": "{completed}/{total} 项已保存",
-      "fields": "姓名、生日、出生地、护照、联系方式",
+      "fields": "姓氏、名字、生日、出生地、护照、联系方式",
       "edit": "编辑通用资料"
     },
     "emptyApplication": {

@@ -151,16 +151,6 @@ function normalizeDs160Sex(value: string | null | undefined) {
   return null;
 }
 
-function setBilingualAnswer(out: Record<string, string>, keys: string[], value: string | null | undefined) {
-  const bilingual = buildBilingualValue(value);
-  if (!bilingual) return;
-  for (const key of keys) {
-    out[key] = bilingual.en || bilingual.zh;
-    out[`${key}_zh`] = bilingual.zh;
-    out[`${key}_en`] = bilingual.en;
-  }
-}
-
 function setBilingualAnswerFromParts(
   out: Record<string, string>,
   keys: string[],

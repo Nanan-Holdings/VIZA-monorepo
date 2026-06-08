@@ -21,6 +21,7 @@ import {
   DS160_SAVE_SELECTOR,
   DS160_MAPPING_GROUPS,
 } from "./ds160-form-mappings";
+import { deriveDS160Answers } from "./ds160-derive-answers";
 import {
   startCeacSession,
   createRecoveryTracker,
@@ -391,7 +392,25 @@ async function submitApplication(
 
 // ─── DS-160 Data Loaders ────────────────────────────────────────────────────
 
-async function loadDs160Answers(applicationId: string): Promise<Record<string, string>> {
+const HAS_CJK = /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
+
+function applyEnglishAliases(answers: Record<string, string>): void {
+  for (const [key, value] of Object.entries(answers)) {
+    if (!key.endsWith("_en")) continue;
+    const baseKey = key.slice(0, -3);
+    if (!baseKey) continue;
+
+    const current = answers[baseKey];
+    if (!current || HAS_CJK.test(current)) {
+      answers[baseKey] = value;
+    }
+  }
+}
+
+async function loadDs160Answers(
+  applicationId: string,
+  options: { prepareForCeac?: boolean } = {},
+): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from("visa_application_answers")
     .select("field_name, value_text, value_json")
@@ -404,6 +423,12 @@ async function loadDs160Answers(applicationId: string): Promise<Record<string, s
     const value = row.value_json != null ? String(row.value_json) : row.value_text;
     if (value) answers[row.field_name] = value;
   }
+
+  if (options.prepareForCeac) {
+    applyEnglishAliases(answers);
+    deriveDS160Answers(answers);
+  }
+
   return answers;
 }
 
@@ -1586,7 +1611,7 @@ async function processDryRunItem(
 
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id);
+    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
     const dryRunApplication = buildCountrySubmissionApplication(
       profile,
       application,

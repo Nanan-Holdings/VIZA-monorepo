@@ -212,6 +212,7 @@ export function AirwallexCheckout({
 
   useEffect(() => {
     setApplePayAvailable(Boolean(window.ApplePaySession?.canMakePayments?.()));
+    if (window.AirwallexComponentsSDK) setScriptReady(true);
   }, []);
 
   useEffect(() => {
@@ -253,6 +254,12 @@ export function AirwallexCheckout({
       return;
     }
     if (!canChooseMethod || !scriptReady || !intent?.clientSecret || !window.AirwallexComponentsSDK) return;
+    if (intent.providerStatus !== "REQUIRES_PAYMENT_METHOD") {
+      setCardElement(null);
+      setCardReady(false);
+      setError("当前订单已进入其他支付方式确认流程，请返回订阅页面重新生成订单后选择银行卡。");
+      return;
+    }
 
     const activeIntent = { ...intent, clientSecret: intent.clientSecret };
     let cancelled = false;
@@ -263,7 +270,7 @@ export function AirwallexCheckout({
       if (container) container.innerHTML = "";
 
       await window.AirwallexComponentsSDK?.init({
-        env: "demo",
+        env: activeIntent.environment ?? "demo",
         enabledElements: ["payments"],
         locale: "zh",
       });
@@ -379,6 +386,7 @@ export function AirwallexCheckout({
       <Script
         src="https://static.airwallex.com/components/sdk/v1/index.js"
         strategy="afterInteractive"
+        onReady={() => setScriptReady(true)}
         onLoad={() => setScriptReady(true)}
         onError={() => setError("支付组件脚本加载失败。")}
       />
