@@ -107,22 +107,29 @@ const MANUAL_ATTRACTION_PAGES = new Map(
       { title: "Mỹ Sơn", zh: "美山圣地" },
       { title: "Cham Islands", zh: "占婆群岛" },
     ],
-    "sharjah|unitedarabemirates": [
-      {
-        title: "Sharjah Museum of Islamic Civilization",
-        zh: "沙迦伊斯兰文明博物馆",
-        lat: 25.3622,
-        lng: 55.3887,
-      },
-      { title: "Al Noor Mosque (Sharjah)", zh: "努尔清真寺" },
-      { title: "Sharjah Fort", zh: "沙迦堡", imageFile: "Sharjah Fort (Al Hisn).JPG" },
-      { title: "Sharjah Art Museum", zh: "沙迦艺术博物馆" },
-    ],
     "daegu|southkorea": [
       { title: "Donghwasa", zh: "桐华寺" },
       { title: "Daegu National Museum", zh: "大邱国立博物馆" },
       { title: "Apsan Park", zh: "前山公园" },
       { title: "Seomun Market", zh: "西门市场" },
+      { title: "Dalseong Park", zh: "达城公园" },
+      { title: "83 Tower", zh: "83塔", lat: 35.8533, lng: 128.5636 },
+      { title: "E-World", zh: "E-World乐园", lat: 35.8531, lng: 128.5647 },
+      { title: "Suseong Lake", zh: "寿城池", lat: 35.8288, lng: 128.6177 },
+      {
+        nameEn: "Kim Gwangseok-gil Street",
+        zh: "金光石路",
+        imageFile: "2017년 12월 대구 김광석다시그리기길.jpg",
+        lat: 35.8584,
+        lng: 128.6066,
+      },
+      {
+        nameEn: "Daegu Yangnyeongsi Museum of Oriental Medicine",
+        zh: "大邱药令市韩医药博物馆",
+        imageFile: "Daegu Yangnyeongsi Museum of Oriental Medicine.jpg",
+        lat: 35.8671,
+        lng: 128.5924,
+      },
     ],
     "incheon|southkorea": [
       { title: "Incheon Bridge", zh: "仁川大桥", lat: 37.4137, lng: 126.5664 },
@@ -159,6 +166,329 @@ const MANUAL_ATTRACTION_PAGES = new Map(
         lat: 11.9786,
         lng: 121.9294,
       },
+      {
+        nameEn: "Puka Shell Beach",
+        zh: "普卡贝壳海滩",
+        imageFile: "Puka Beach, Boracay Island, Philippines.jpg",
+        lat: 11.9977,
+        lng: 121.9197,
+      },
+      {
+        nameEn: "Diniwid Beach",
+        zh: "迪尼维德海滩",
+        imageFile: "Diniwid Beach, Boracay.jpg",
+        lat: 11.9782,
+        lng: 121.9176,
+      },
+      {
+        nameEn: "Ilig-Iligan Beach",
+        zh: "伊利格伊利根海滩",
+        imageFile: "Ilig-Iligan Beach, Boracay.jpg",
+        lat: 11.985,
+        lng: 121.936,
+      },
+      {
+        nameEn: "Crystal Cove Island",
+        zh: "水晶湾岛",
+        imageFile: "Crystal Cove Island Boracay.jpg",
+        lat: 11.9403,
+        lng: 121.9395,
+      },
+      {
+        nameEn: "Crocodile Island",
+        zh: "鳄鱼岛",
+        imageFile: "Boracay Crocodile Island.jpg",
+        lat: 11.9444,
+        lng: 121.9452,
+      },
+      {
+        nameEn: "Ariel's Point",
+        zh: "阿里尔悬崖跳水点",
+        imageFile: "Ariel's Point Boracay.jpg",
+        lat: 11.8643,
+        lng: 121.9145,
+      },
+    ],
+    "langkawi|malaysia": [
+      { title: "Langkawi Sky Bridge", zh: "兰卡威天空之桥", lat: 6.3864, lng: 99.6624 },
+      { title: "Langkawi Cable Car", zh: "兰卡威缆车", lat: 6.3716, lng: 99.6713 },
+      { title: "Seven Wells Waterfall", zh: "七仙井瀑布" },
+      { title: "Langkawi Legend Park", zh: "兰卡威传奇公园" },
+      {
+        nameEn: "Eagle Square",
+        zh: "鹰广场",
+        imageFile: "Eagle Square Langkawi.jpg",
+        lat: 6.3085,
+        lng: 99.852,
+      },
+      {
+        nameEn: "Kilim Karst Geoforest Park",
+        zh: "基林喀斯特地质森林公园",
+        imageFile: "Kilim Karst Geoforest Park Langkawi.jpg",
+        lat: 6.409,
+        lng: 99.863,
+      },
+      {
+        nameEn: "Pantai Cenang",
+        zh: "珍南海滩",
+        imageFile: "Pantai Cenang Langkawi.jpg",
+        lat: 6.2932,
+        lng: 99.7277,
+      },
+      {
+        nameEn: "Tanjung Rhu Beach",
+        zh: "丹绒鲁海滩",
+        imageFile: "Tanjung Rhu Langkawi.jpg",
+        lat: 6.454,
+        lng: 99.828,
+      },
+      { title: "Galeria Perdana", zh: "首相纪念馆" },
+      { title: "Underwater World Langkawi", zh: "兰卡威海底世界", lat: 6.2877, lng: 99.7286 },
+    ],
+    "bandung|indonesia": [
+      { title: "Gedung Sate", zh: "沙爹大楼" },
+      { title: "Trans Studio Bandung", zh: "万隆Trans Studio乐园" },
+      { title: "Merdeka Building", zh: "独立大厦" },
+      { title: "Bosscha Observatory", zh: "波斯查天文台", lat: -6.8246, lng: 107.6159 },
+      { title: "Bandung Geological Museum", zh: "万隆地质博物馆" },
+      { title: "Grand Mosque of Bandung", zh: "万隆大清真寺" },
+      { title: "Braga Street", zh: "布拉加街" },
+      { title: "Tangkuban Perahu", zh: "覆舟火山" },
+      { title: "Kawah Putih", zh: "白火山湖" },
+      { title: "Sri Baduga Museum", zh: "斯里巴杜加博物馆" },
+    ],
+    "lombok|indonesia": [
+      { title: "Mount Rinjani", zh: "林贾尼火山" },
+      { title: "Mount Rinjani National Park", zh: "林贾尼火山国家公园" },
+      { title: "Gili Trawangan", zh: "特拉旺岸岛", lat: -8.3483, lng: 116.0389 },
+      { title: "Gili Meno", zh: "美诺岛" },
+      { title: "Gili Air", zh: "艾尔岛" },
+      { title: "Pura Lingsar", zh: "林萨尔寺" },
+      { title: "Bayan Beleq Mosque", zh: "巴彦贝勒清真寺" },
+      {
+        nameEn: "Senggigi Beach",
+        zh: "圣吉吉海滩",
+        imageFile: "Senggigi Beach Lombok.jpg",
+        lat: -8.493,
+        lng: 116.046,
+      },
+      {
+        nameEn: "Tanjung Aan Beach",
+        zh: "丹戎安海滩",
+        imageFile: "Tanjung Aan Beach Lombok.jpg",
+        lat: -8.912,
+        lng: 116.319,
+      },
+      {
+        nameEn: "Sade Village",
+        zh: "萨德传统村",
+        imageFile: "Sade Village Lombok.jpg",
+        lat: -8.839,
+        lng: 116.294,
+      },
+    ],
+    "nhatrang|vietnam": [
+      { title: "Po Nagar", zh: "婆那加占婆塔" },
+      { title: "Long Son Pagoda", zh: "龙山寺", lat: 12.255, lng: 109.18 },
+      { title: "Christ the King Cathedral, Nha Trang", zh: "芽庄大教堂" },
+      { title: "Yersin Museum", zh: "耶尔森博物馆" },
+      {
+        nameEn: "Nha Trang Beach",
+        zh: "芽庄海滩",
+        imageFile: "Nha Trang Beach.jpg",
+        lat: 12.238,
+        lng: 109.197,
+      },
+      { title: "Hon Tre", zh: "竹岛", lat: 12.214, lng: 109.298 },
+      {
+        nameEn: "Hon Mun",
+        zh: "黑岛",
+        imageFile: "Hon Mun island Nha Trang.jpg",
+        lat: 12.168,
+        lng: 109.301,
+      },
+      {
+        nameEn: "Dam Market",
+        zh: "芽庄大坝市场",
+        imageFile: "Dam Market Nha Trang.jpg",
+        lat: 12.2541,
+        lng: 109.1919,
+      },
+      {
+        nameEn: "National Oceanographic Museum of Vietnam",
+        zh: "越南国家海洋博物馆",
+        imageFile: "National Oceanographic Museum of Vietnam.jpg",
+        lat: 12.207,
+        lng: 109.214,
+      },
+      {
+        nameEn: "VinWonders Nha Trang",
+        zh: "芽庄珍珠乐园",
+        imageFile: "Vinpearl Land Nha Trang.jpg",
+        lat: 12.217,
+        lng: 109.243,
+      },
+    ],
+    "phuquoc|vietnam": [
+      { title: "Phú Quốc National Park", zh: "富国国家公园" },
+      {
+        title: "Phú Quốc Prison",
+        zh: "富国监狱",
+        imageFile: "Phu Quoc Prison.jpg",
+        lat: 10.045,
+        lng: 104.025,
+      },
+      {
+        nameEn: "Dinh Cau",
+        zh: "丁舅庙",
+        imageFile: "Dinh Cau Phu Quoc.jpg",
+        lat: 10.2169,
+        lng: 103.958,
+      },
+      {
+        nameEn: "Sao Beach",
+        zh: "星星海滩",
+        imageFile: "Sao Beach Phu Quoc.jpg",
+        lat: 10.055,
+        lng: 104.036,
+      },
+      {
+        nameEn: "Long Beach",
+        zh: "长滩",
+        imageFile: "Long Beach Phu Quoc.jpg",
+        lat: 10.168,
+        lng: 103.963,
+      },
+      {
+        nameEn: "Hon Thom",
+        zh: "香岛",
+        imageFile: "Hon Thom Phu Quoc.jpg",
+        lat: 9.955,
+        lng: 104.02,
+      },
+      {
+        nameEn: "An Thoi Islands",
+        zh: "安泰群岛",
+        imageFile: "An Thoi Islands Phu Quoc.jpg",
+        lat: 9.98,
+        lng: 104.03,
+      },
+      {
+        nameEn: "Suoi Tranh Waterfall",
+        zh: "筝溪瀑布",
+        imageFile: "Suoi Tranh Waterfall Phu Quoc.jpg",
+        lat: 10.183,
+        lng: 104.012,
+      },
+      {
+        nameEn: "Vinpearl Safari Phu Quoc",
+        zh: "富国珍珠野生动物园",
+        imageFile: "Vinpearl Safari Phu Quoc.jpg",
+        lat: 10.335,
+        lng: 103.894,
+      },
+      { title: "Phú Quốc", zh: "富国岛" },
+    ],
+    "davao|philippines": [
+      { title: "People's Park (Davao City)", zh: "人民公园" },
+      { title: "Davao Cathedral", zh: "圣佩德罗主教座堂" },
+      { title: "Lon Wa Buddhist Temple", zh: "龙华寺" },
+      { title: "Monfort Bat Sanctuary", zh: "蒙福特蝙蝠保护区" },
+      { title: "Mount Apo", zh: "阿波山" },
+      {
+        nameEn: "Philippine Eagle Center",
+        zh: "菲律宾鹰中心",
+        imageFile: "Philippine Eagle Center Davao.jpg",
+        lat: 7.181,
+        lng: 125.417,
+      },
+      {
+        nameEn: "Davao Crocodile Park",
+        zh: "达沃鳄鱼公园",
+        imageFile: "Davao Crocodile Park.jpg",
+        lat: 7.096,
+        lng: 125.61,
+      },
+      {
+        nameEn: "Eden Nature Park",
+        zh: "伊甸自然公园",
+        imageFile: "Eden Nature Park Davao.jpg",
+        lat: 7.0,
+        lng: 125.49,
+      },
+      {
+        nameEn: "Museo Dabawenyo",
+        zh: "达沃博物馆",
+        imageFile: "Museo Dabawenyo.jpg",
+        lat: 7.064,
+        lng: 125.607,
+      },
+      {
+        nameEn: "Samal Island",
+        zh: "萨马尔岛",
+        imageFile: "Samal Island Davao.jpg",
+        lat: 7.074,
+        lng: 125.708,
+      },
+    ],
+    "palawan|philippines": [
+      { title: "Puerto Princesa Subterranean River National Park", zh: "普林塞萨港地下河国家公园" },
+      { title: "Honda Bay", zh: "本田湾" },
+      { title: "Puerto Princesa Cathedral", zh: "普林塞萨港主教座堂" },
+      { title: "Plaza Cuartel", zh: "库阿特尔广场", lat: 9.7398, lng: 118.7296 },
+      {
+        nameEn: "Palawan Heritage Center",
+        zh: "巴拉望遗产中心",
+        imageFile: "Palawan Heritage Center.jpg",
+        lat: 9.741,
+        lng: 118.741,
+      },
+      {
+        nameEn: "Palawan Wildlife Rescue and Conservation Center",
+        zh: "巴拉望野生动物救援与保护中心",
+        imageFile: "Palawan Wildlife Rescue and Conservation Center.jpg",
+        lat: 9.798,
+        lng: 118.747,
+      },
+      {
+        nameEn: "Iwahig Prison and Penal Farm",
+        zh: "伊瓦希格监狱农场",
+        imageFile: "Iwahig Prison and Penal Farm.jpg",
+        lat: 9.733,
+        lng: 118.63,
+      },
+      {
+        nameEn: "Ugong Rock",
+        zh: "乌贡岩",
+        imageFile: "Ugong Rock Palawan.jpg",
+        lat: 10.133,
+        lng: 118.827,
+      },
+      { title: "El Nido, Palawan", zh: "爱妮岛" },
+      {
+        nameEn: "Nacpan Beach",
+        zh: "纳克潘海滩",
+        imageFile: "Nacpan Beach Palawan.jpg",
+        lat: 11.319,
+        lng: 119.424,
+      },
+    ],
+    "sharjah|unitedarabemirates": [
+      {
+        title: "Sharjah Museum of Islamic Civilization",
+        zh: "沙迦伊斯兰文明博物馆",
+        lat: 25.3622,
+        lng: 55.3887,
+      },
+      { title: "Al Noor Mosque (Sharjah)", zh: "努尔清真寺" },
+      { title: "Sharjah Fort", zh: "沙迦堡", imageFile: "Sharjah Fort (Al Hisn).JPG" },
+      { title: "Sharjah Art Museum", zh: "沙迦艺术博物馆" },
+      { title: "Sharjah Heritage Museum", zh: "沙迦遗产博物馆", lat: 25.358, lng: 55.384 },
+      { title: "Sharjah Aquarium", zh: "沙迦水族馆", lat: 25.35, lng: 55.376 },
+      { title: "Al Majaz Waterfront", zh: "马贾兹滨水区", lat: 25.327, lng: 55.385 },
+      { title: "Central Souq, Sharjah", zh: "沙迦中央市场", lat: 25.344, lng: 55.389 },
+      { title: "Mleiha Archaeological Centre", zh: "姆莱哈考古中心", lat: 25.125, lng: 55.859 },
+      { title: "Sharjah Desert Park", zh: "沙迦沙漠公园", lat: 25.289, lng: 55.704 },
     ],
     "hallstatt|austria": [
       { title: "Hallstatt", zh: "哈尔施塔特小镇" },
@@ -344,6 +674,30 @@ const MANUAL_ATTRACTION_PAGES = new Map(
       { title: "Maritime Museum of Ushuaia", zh: "乌斯怀亚海事博物馆", lat: -54.8055, lng: -68.3014 },
       { title: "Beagle Channel", zh: "比格尔海峡", lat: -54.875, lng: -68.25 },
     ],
+    "losangeles|unitedstates": [
+      { title: "Hollywood Sign", zh: "好莱坞标志" },
+      { title: "Hollywood Walk of Fame", zh: "好莱坞星光大道" },
+      { title: "Griffith Observatory", zh: "格里菲斯天文台" },
+      { title: "Getty Center", zh: "盖蒂中心" },
+      { title: "Santa Monica Pier", zh: "圣莫尼卡码头" },
+      { title: "Los Angeles County Museum of Art", zh: "洛杉矶郡艺术博物馆" },
+      { title: "The Broad", zh: "布洛德博物馆" },
+      { title: "Walt Disney Concert Hall", zh: "华特迪士尼音乐厅" },
+      { title: "Griffith Park", zh: "格里菲斯公园" },
+      { title: "Los Angeles Memorial Coliseum", zh: "洛杉矶纪念体育场" },
+    ],
+    "lasvegas|unitedstates": [
+      { title: "Las Vegas Strip", zh: "拉斯维加斯大道" },
+      { title: "Fremont Street Experience", zh: "弗里蒙特街体验" },
+      { title: "Bellagio (resort)", zh: "百乐宫" },
+      { title: "The Venetian Las Vegas", zh: "威尼斯人酒店" },
+      { title: "Sphere (venue)", zh: "Sphere球形馆", lat: 36.1204, lng: -115.1613 },
+      { title: "The Strat", zh: "同温层塔" },
+      { title: "High Roller (Ferris wheel)", zh: "豪客摩天轮" },
+      { title: "Neon Museum", zh: "霓虹博物馆" },
+      { title: "Red Rock Canyon National Conservation Area", zh: "红岩峡谷国家保护区" },
+      { title: "Hoover Dam", zh: "胡佛水坝" },
+    ],
     "goldcoast|australia": [
       { title: "Surfers Paradise, Queensland", zh: "冲浪者天堂" },
       { title: "Q1 (building)", zh: "Q1大厦" },
@@ -391,9 +745,23 @@ const ATTRACTION_CLASS_IDS = [
 ];
 
 const EXCLUDED_ATTRACTION_PATTERN =
-  /\b(airport|air force|airbase|military base|railway station|metro station|subway station|bus station|police|hospital|university|college|school|studios?|headquarters|office|bank|power station|circuit|prison|cemetery|interchange|highway|stadium|arena)\b/i;
+  /\b(airport|air force|air base|airbase|naval base|military base|historical marker|railway station|metro station|subway station|bus station|station|police|hospital|headquarters|office|bank|power station|circuit|cemetery|interchange|highway)\b/i;
 const PRIORITY_ATTRACTION_PATTERN =
   /\b(sign|walk of fame|hollywood|griffith|getty|santa monica|observatory|museum|gallery|park|garden|palace|castle|temple|church|mosque|cathedral|tower|bridge|historic|old town|square|plaza|waterfront|harbour|harbor|strip|bellagio|venetian|sphere|fremont|pier|fort|fortress|monument|theatre|theater|zoo|aquarium|island|beach|market|bazaar|mall|opera|national park|canyon|dam)\b/i;
+const WIDE_AREA_CITY_KEYS = new Set([
+  "bali|indonesia",
+  "goa|india",
+  "cappadocia|turkey",
+  "madeira|portugal",
+  "hawaii|unitedstates",
+  "goldcoast|australia",
+  "queenstown|newzealand",
+  "palawan|philippines",
+  "phuquoc|vietnam",
+  "boracay|philippines",
+  "kohsamui|thailand",
+  "langkawi|malaysia",
+]);
 
 const TRADITIONAL_TO_SIMPLIFIED = new Map(
   Object.entries({
@@ -822,6 +1190,97 @@ function hasOtherDropdownCityName(candidate, city, allCities) {
   });
 }
 
+function wikidataBindingToCandidate(binding, centerCoords) {
+  const coord = pointFromWikidata(binding.coord?.value);
+  if (!coord) return null;
+
+  const name =
+    binding.labelZhCn?.value ??
+    binding.labelZhHans?.value ??
+    binding.labelZh?.value ??
+    binding.labelEn?.value ??
+    binding.itemLabel?.value ??
+    "";
+  const nameEn = binding.labelEn?.value ?? name;
+  const description =
+    binding.descZhCn?.value ??
+    binding.descZhHans?.value ??
+    binding.descZh?.value ??
+    binding.descEn?.value ??
+    "";
+
+  return {
+    itemUrl: binding.item?.value ?? "",
+    name: toSimplifiedChinese(name),
+    nameEn,
+    description: toSimplifiedChinese(description),
+    coord,
+    distanceKm: distanceKm(
+      { lat: centerCoords.lat, lng: centerCoords.lon },
+      coord
+    ),
+    imageUrl: binding.image?.value ?? "",
+    sourceUrl: binding.article?.value ?? binding.item?.value ?? "",
+    sitelinks: Number(binding.sitelinks?.value ?? 0),
+  };
+}
+
+function isValidAttractionCandidate(item, city, allCities, maxDistanceKm) {
+  return (
+    item &&
+    item.name &&
+    item.coord &&
+    item.imageUrl &&
+    item.sourceUrl &&
+    item.distanceKm <= maxDistanceKm &&
+    !EXCLUDED_ATTRACTION_PATTERN.test(
+      `${item.name} ${item.nameEn} ${item.description}`
+    ) &&
+    !hasOtherDropdownCityName(item, city, allCities)
+  );
+}
+
+async function fetchAdministrativeAttractionCandidates(cityPage, city, allCities) {
+  const classes = ATTRACTION_CLASS_IDS.map((id) => `wd:${id}`).join(" ");
+  const qid = cityPage.qid;
+  const query = `SELECT DISTINCT ?item ?itemLabel ?labelZhCn ?labelZhHans ?labelZh ?labelEn ?descZhCn ?descZhHans ?descZh ?descEn ?coord ?image ?article ?sitelinks WHERE {
+    VALUES ?class { ${classes} }
+    {
+      ?item wdt:P131* wd:${qid}.
+    } UNION {
+      ?item wdt:P276/wdt:P131* wd:${qid}.
+    } UNION {
+      ?item wdt:P706 wd:${qid}.
+    }
+    ?item wdt:P625 ?coord.
+    ?item wdt:P18 ?image.
+    ?item wikibase:sitelinks ?sitelinks.
+    ?item wdt:P31/wdt:P279* ?class.
+    FILTER(?item != wd:${qid})
+    OPTIONAL { ?article schema:about ?item; schema:isPartOf <https://en.wikipedia.org/>. }
+    OPTIONAL { ?item rdfs:label ?labelZhCn FILTER(LANG(?labelZhCn) = "zh-cn") }
+    OPTIONAL { ?item rdfs:label ?labelZhHans FILTER(LANG(?labelZhHans) = "zh-hans") }
+    OPTIONAL { ?item rdfs:label ?labelZh FILTER(LANG(?labelZh) = "zh") }
+    OPTIONAL { ?item rdfs:label ?labelEn FILTER(LANG(?labelEn) = "en") }
+    OPTIONAL { ?item schema:description ?descZhCn FILTER(LANG(?descZhCn) = "zh-cn") }
+    OPTIONAL { ?item schema:description ?descZhHans FILTER(LANG(?descZhHans) = "zh-hans") }
+    OPTIONAL { ?item schema:description ?descZh FILTER(LANG(?descZh) = "zh") }
+    OPTIONAL { ?item schema:description ?descEn FILTER(LANG(?descEn) = "en") }
+    BIND(COALESCE(?labelZhCn, ?labelZhHans, ?labelZh, ?labelEn) AS ?itemLabel)
+  } ORDER BY DESC(?sitelinks) LIMIT 60`;
+
+  const url = new URL("https://query.wikidata.org/sparql");
+  url.search = new URLSearchParams({ query, format: "json" });
+  const payload = await fetchJson(url);
+  const maxDistanceKm = WIDE_AREA_CITY_KEYS.has(cityLookupKey(city)) ? 120 : 50;
+  return payload.results.bindings
+    .map((binding) => wikidataBindingToCandidate(binding, cityPage.coords))
+    .filter((item) =>
+      isValidAttractionCandidate(item, city, allCities, maxDistanceKm)
+    )
+    .sort((first, second) => attractionScore(second) - attractionScore(first));
+}
+
 async function fetchAttractionCandidates(cityPage, radius = 45, city, allCities) {
   const classes = ATTRACTION_CLASS_IDS.map((id) => `wd:${id}`).join(" ");
   const qid = cityPage.qid;
@@ -853,46 +1312,9 @@ async function fetchAttractionCandidates(cityPage, radius = 45, city, allCities)
   url.search = new URLSearchParams({ query, format: "json" });
   const payload = await fetchJson(url);
   return payload.results.bindings
-    .map((binding) => {
-      const coord = pointFromWikidata(binding.coord?.value);
-      const name =
-        binding.labelZhCn?.value ??
-        binding.labelZhHans?.value ??
-        binding.labelZh?.value ??
-        binding.labelEn?.value ??
-        binding.itemLabel?.value ??
-        "";
-      const nameEn = binding.labelEn?.value ?? name;
-      const description =
-        binding.descZhCn?.value ??
-        binding.descZhHans?.value ??
-        binding.descZh?.value ??
-        binding.descEn?.value ??
-        "";
-      return {
-        itemUrl: binding.item?.value ?? "",
-        name: toSimplifiedChinese(name),
-        nameEn,
-        description: toSimplifiedChinese(description),
-        coord,
-        distanceKm: distanceKm(
-          { lat: coords.lat, lng: coords.lon },
-          { lat: coord.lat, lng: coord.lng }
-        ),
-        imageUrl: binding.image?.value ?? "",
-        sourceUrl: binding.article?.value ?? binding.item?.value ?? "",
-        sitelinks: Number(binding.sitelinks?.value ?? 0),
-      };
-    })
-    .filter(
-      (item) =>
-        item.name &&
-        item.coord &&
-        item.imageUrl &&
-        item.sourceUrl &&
-        item.distanceKm <= radius + 2 &&
-        !EXCLUDED_ATTRACTION_PATTERN.test(`${item.name} ${item.nameEn} ${item.description}`) &&
-        !hasOtherDropdownCityName(item, city, allCities)
+    .map((binding) => wikidataBindingToCandidate(binding, coords))
+    .filter((item) =>
+      isValidAttractionCandidate(item, city, allCities, radius + 2)
     )
     .sort((first, second) => attractionScore(second) - attractionScore(first));
 }
@@ -994,7 +1416,15 @@ async function downloadImage(url, baseRelativePath, options = {}) {
   const existing = options.force ? null : await findExistingImage(targetBase);
   if (existing) return existing;
 
-  const response = await fetchWithRetry(imageUrlForDownload(url));
+  const normalizedUrl = url.replace(/^http:/, "https:");
+  const preferredUrl = imageUrlForDownload(url);
+  let response;
+  try {
+    response = await fetchWithRetry(preferredUrl);
+  } catch (error) {
+    if (preferredUrl === normalizedUrl) throw error;
+    response = await fetchWithRetry(normalizedUrl);
+  }
   const contentType = response.headers.get("content-type") ?? "";
   const ext = extensionForContentType(contentType);
   if (!ext) {
@@ -1125,6 +1555,17 @@ async function enrichCity(data, city) {
   let candidates = await fetchManualAttractionCandidates(cityPage, city);
   if (!WIKIPEDIA_FALLBACK_ONLY && candidates.length < needed) {
     try {
+      candidates = uniqueAttractions([
+        ...candidates,
+        ...(await fetchAdministrativeAttractionCandidates(
+          cityPage,
+          city,
+          dropdownCities
+        )),
+      ]);
+      if (candidates.length < needed) {
+        await delay(DEFAULT_QUERY_DELAY_MS);
+      }
       candidates = uniqueAttractions([
         ...candidates,
         ...(await fetchAttractionCandidates(cityPage, 24, city, dropdownCities)),
