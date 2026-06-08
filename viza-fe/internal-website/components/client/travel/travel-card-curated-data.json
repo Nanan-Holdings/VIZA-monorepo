@@ -13378,6 +13378,690 @@
       ],
       "lat": 15.954111,
       "lng": 108.522389
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "天坛",
+      "location": "Temple of Heaven",
+      "imageSrc": "/travel/attractions/beijing-temple-of-heaven.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Temple_of_Heaven",
+      "description": "一个皇家祭坛",
+      "aliases": [
+        "Temple of Heaven",
+        "天坛"
+      ],
+      "lat": 39.8822,
+      "lng": 116.4066
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "故宫",
+      "location": "Forbidden City",
+      "imageSrc": "/travel/attractions/beijing-forbidden-city.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Forbidden_City",
+      "description": "中国明清两个朝代二十四位皇帝的皇宫",
+      "aliases": [
+        "Forbidden City",
+        "故宫"
+      ],
+      "lat": 39.915833,
+      "lng": 116.390833
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "中国国家博物馆",
+      "location": "National Museum of China",
+      "imageSrc": "/travel/attractions/beijing-national-museum-of-china.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Museum_of_China",
+      "description": "北京市东城区的博物馆",
+      "aliases": [
+        "National Museum of China",
+        "中国国家博物馆"
+      ],
+      "lat": 39.903611,
+      "lng": 116.395
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "景山公园",
+      "location": "Jingshan Park",
+      "imageSrc": "/travel/attractions/beijing-jingshan-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jingshan_Park",
+      "description": "北京可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Jingshan Park",
+        "景山公园"
+      ],
+      "lat": 39.923611,
+      "lng": 116.390556
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "牛街礼拜寺",
+      "location": "Niujie Mosque",
+      "imageSrc": "/travel/attractions/beijing-niujie-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Niujie_Mosque",
+      "description": "中国北京市的清真寺",
+      "aliases": [
+        "Niujie Mosque",
+        "牛街礼拜寺"
+      ],
+      "lat": 39.884444,
+      "lng": 116.358056
+    },
+    {
+      "cityKeys": [
+        "Beijing",
+        "北京",
+        "beijing"
+      ],
+      "cityLabel": "北京",
+      "name": "人民英雄纪念碑",
+      "location": "Monument to the People's Heroes",
+      "imageSrc": "/travel/attractions/beijing-monument-to-the-people-s-heroes.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Monument_to_the_People%27s_Heroes",
+      "description": "位于天安门广场的纪念碑",
+      "aliases": [
+        "Monument to the People's Heroes",
+        "人民英雄纪念碑"
+      ],
+      "lat": 39.903056,
+      "lng": 116.391667
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "上海中心大厦",
+      "location": "Shanghai Tower",
+      "imageSrc": "/travel/attractions/shanghai-shanghai-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shanghai_Tower",
+      "description": "上海浦东陆家嘴的摩天大厦",
+      "aliases": [
+        "Shanghai Tower",
+        "上海中心大厦"
+      ],
+      "lat": 31.2355,
+      "lng": 121.501
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "金茂大厦",
+      "location": "Jin Mao Tower",
+      "imageSrc": "/travel/attractions/shanghai-jin-mao-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jin_Mao_Tower",
+      "description": "上海的摩天大楼",
+      "aliases": [
+        "Jin Mao Tower",
+        "金茂大厦"
+      ],
+      "lat": 31.237222,
+      "lng": 121.501389
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "上海博物馆",
+      "location": "Shanghai Museum",
+      "imageSrc": "/travel/attractions/shanghai-shanghai-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shanghai_Museum",
+      "description": "中国上海市黄浦区博物馆",
+      "aliases": [
+        "Shanghai Museum",
+        "上海博物馆"
+      ],
+      "lat": 31.230278,
+      "lng": 121.470556
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "上海世茂国际广场",
+      "location": "Shimao International Plaza",
+      "imageSrc": "/travel/attractions/shanghai-shimao-international-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shanghai_Shimao_Festival_City",
+      "description": "上海可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Shimao International Plaza",
+        "上海世茂国际广场"
+      ],
+      "lat": 31.234444,
+      "lng": 121.471667
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "人民广场",
+      "location": "People's Square",
+      "imageSrc": "/travel/attractions/shanghai-people-s-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/People%27s_Square_(Shanghai)",
+      "description": "中国上海的公共广场",
+      "aliases": [
+        "People's Square",
+        "人民广场"
+      ],
+      "lat": 31.2309,
+      "lng": 121.4703
+    },
+    {
+      "cityKeys": [
+        "Shanghai",
+        "上海",
+        "shanghai"
+      ],
+      "cityLabel": "上海",
+      "name": "上海大剧院",
+      "location": "Shanghai Grand Theatre",
+      "imageSrc": "/travel/attractions/shanghai-shanghai-grand-theatre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shanghai_Grand_Theatre",
+      "description": "位于上海人民广场的剧院",
+      "aliases": [
+        "Shanghai Grand Theatre",
+        "上海大剧院"
+      ],
+      "lat": 31.232,
+      "lng": 121.467
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "中信广场",
+      "location": "CITIC Plaza",
+      "imageSrc": "/travel/attractions/guangzhou-citic-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/CITIC_Plaza",
+      "description": "广州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "CITIC Plaza",
+        "中信广场"
+      ],
+      "lat": 23.144444,
+      "lng": 113.319444
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "利通广场",
+      "location": "Leatop Plaza",
+      "imageSrc": "/travel/attractions/guangzhou-leatop-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Leatop_Plaza",
+      "description": "广州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Leatop Plaza",
+        "利通广场"
+      ],
+      "lat": 23.12833,
+      "lng": 113.32028
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "南越王博物院王墓展区",
+      "location": "Site of King's Tomb, Nanyue King Museum",
+      "imageSrc": "/travel/attractions/guangzhou-site-of-king-s-tomb-nanyue-king-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museum_of_the_Mausoleum_of_the_Nanyue_King",
+      "description": "广东省广州市的博物馆",
+      "aliases": [
+        "Site of King's Tomb, Nanyue King Museum",
+        "南越王博物院王墓展区"
+      ],
+      "lat": 23.140278,
+      "lng": 113.255556
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "广东奥林匹克体育中心",
+      "location": "Guangdong Olympic Center",
+      "imageSrc": "/travel/attractions/guangzhou-guangdong-olympic-center.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Guangdong_Olympic_Stadium",
+      "description": "中国广东省广州市的体育场馆",
+      "aliases": [
+        "Guangdong Olympic Center",
+        "广东奥林匹克体育中心"
+      ],
+      "lat": 23.137656,
+      "lng": 113.403519
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "深圳特区报业大厦",
+      "location": "Shenzhen Special Zone Press Tower",
+      "imageSrc": "/travel/attractions/shenzhen-shenzhen-special-zone-press-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Shenzhen_Special_Zone_Press_Tower",
+      "description": "深圳可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Shenzhen Special Zone Press Tower",
+        "深圳特区报业大厦"
+      ],
+      "lat": 22.543292,
+      "lng": 114.0405
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "青马大桥",
+      "location": "Tsing Ma Bridge",
+      "imageSrc": "/travel/attractions/shenzhen-tsing-ma-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tsing_Ma_Bridge",
+      "description": "深圳可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Tsing Ma Bridge",
+        "青马大桥"
+      ],
+      "lat": 22.351389,
+      "lng": 114.074167
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "如心广场",
+      "location": "Nina Tower",
+      "imageSrc": "/travel/attractions/shenzhen-nina-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nina_Tower",
+      "description": "香港商業建築物",
+      "aliases": [
+        "Nina Tower",
+        "如心广场"
+      ],
+      "lat": 22.368611,
+      "lng": 114.113056
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "香港天文台",
+      "location": "Hong Kong Observatory",
+      "imageSrc": "/travel/attractions/shenzhen-hong-kong-observatory.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Observatory",
+      "description": "香港特別行政区政府部门",
+      "aliases": [
+        "Hong Kong Observatory",
+        "香港天文台"
+      ],
+      "lat": 22.474601,
+      "lng": 114.22
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "沙田马场",
+      "location": "Sha Tin Racecourse",
+      "imageSrc": "/travel/attractions/shenzhen-sha-tin-racecourse.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sha_Tin_Racecourse",
+      "description": "香港賽马场",
+      "aliases": [
+        "Sha Tin Racecourse",
+        "沙田马场"
+      ],
+      "lat": 22.3994,
+      "lng": 114.207
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "皇城清真寺",
+      "location": "Chengdu Huangcheng Mosque",
+      "imageSrc": "/travel/attractions/chengdu-chengdu-huangcheng-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chengdu_Huangcheng_Mosque",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Chengdu Huangcheng Mosque",
+        "皇城清真寺"
+      ],
+      "lat": 30.659167,
+      "lng": 104.060556
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "成都市体育中心",
+      "location": "Chengdu Sports Centre",
+      "imageSrc": "/travel/attractions/chengdu-chengdu-sports-centre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Chengdu_Sports_Centre",
+      "description": "体育场",
+      "aliases": [
+        "Chengdu Sports Centre",
+        "成都市体育中心"
+      ],
+      "lat": 30.665556,
+      "lng": 104.064722
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "新世纪环球中心",
+      "location": "New Century Global Center",
+      "imageSrc": "/travel/attractions/chengdu-new-century-global-center.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/New_Century_Global_Center",
+      "description": "世界上建筑面积最大的建筑物",
+      "aliases": [
+        "New Century Global Center",
+        "新世纪环球中心"
+      ],
+      "lat": 30.571111,
+      "lng": 104.060833
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "怀圣寺",
+      "location": "Huaisheng Mosque",
+      "imageSrc": "/travel/attractions/guangzhou-huaisheng-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Huaisheng_Mosque",
+      "description": "位于中国广州越秀区的清真寺",
+      "aliases": [
+        "Huaisheng Mosque",
+        "怀圣寺"
+      ],
+      "lat": 23.125383,
+      "lng": 113.253586
+    },
+    {
+      "cityKeys": [
+        "Guangzhou",
+        "广州",
+        "guangzhou"
+      ],
+      "cityLabel": "广州",
+      "name": "珠江城大厦",
+      "location": "Pearl River Tower",
+      "imageSrc": "/travel/attractions/guangzhou-pearl-river-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pearl_River_Tower",
+      "description": "广州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Pearl River Tower",
+        "珠江城大厦"
+      ],
+      "lat": 23.126667,
+      "lng": 113.3175
+    },
+    {
+      "cityKeys": [
+        "Shenzhen",
+        "深圳",
+        "shenzhen"
+      ],
+      "cityLabel": "深圳",
+      "name": "赛格广场",
+      "location": "SEG Plaza",
+      "imageSrc": "/travel/attractions/shenzhen-seg-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/SEG_Plaza",
+      "description": "深圳的一座摩天大楼",
+      "aliases": [
+        "SEG Plaza",
+        "赛格广场"
+      ],
+      "lat": 22.544167,
+      "lng": 114.0825
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "毛泽东雕像",
+      "location": "Mao Zedong Statue",
+      "imageSrc": "/travel/attractions/chengdu-mao-zedong-statue.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Statue_of_Mao_Zedong,_Chengdu",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Mao Zedong Statue",
+        "毛泽东雕像"
+      ],
+      "lat": 30.658071,
+      "lng": 104.065951
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "平安桥天主教堂",
+      "location": "Immaculate Conception Cathedral",
+      "imageSrc": "/travel/attractions/chengdu-immaculate-conception-cathedral.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Immaculate_Conception_Cathedral,_Chengdu",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Immaculate Conception Cathedral",
+        "平安桥天主教堂"
+      ],
+      "lat": 30.666389,
+      "lng": 104.059444
+    },
+    {
+      "cityKeys": [
+        "Chengdu",
+        "成都",
+        "chengdu"
+      ],
+      "cityLabel": "成都",
+      "name": "昭觉寺",
+      "location": "Zhaojue Temple",
+      "imageSrc": "/travel/attractions/chengdu-zhaojue-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Zhaojue_Temple",
+      "description": "成都可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Zhaojue Temple",
+        "昭觉寺"
+      ],
+      "lat": 30.70811,
+      "lng": 104.10347
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "岳王庙",
+      "location": "Yue Fei Temple",
+      "imageSrc": "/travel/attractions/hangzhou-yue-fei-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Yue_Fei_Temple",
+      "description": "杭州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Yue Fei Temple",
+        "岳王庙"
+      ],
+      "lat": 30.25414,
+      "lng": 120.13016
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "中国茶叶博物馆",
+      "location": "China National Tea Museum",
+      "imageSrc": "/travel/attractions/hangzhou-china-national-tea-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/China_National_Tea_Museum",
+      "description": "杭州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "China National Tea Museum",
+        "中国茶叶博物馆"
+      ],
+      "lat": 30.234722,
+      "lng": 120.115556
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "凤凰寺",
+      "location": "Phoenix Mosque",
+      "imageSrc": "/travel/attractions/hangzhou-phoenix-mosque.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Phoenix_Mosque",
+      "description": "中国浙江省杭州市的清真寺",
+      "aliases": [
+        "Phoenix Mosque",
+        "凤凰寺"
+      ],
+      "lat": 30.247778,
+      "lng": 120.165556
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "杭州植物园",
+      "location": "Hangzhou Botanical Garden",
+      "imageSrc": "/travel/attractions/hangzhou-hangzhou-botanical-garden.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hangzhou_Botanical_Garden",
+      "description": "位于中国的一所植物园",
+      "aliases": [
+        "Hangzhou Botanical Garden",
+        "杭州植物园"
+      ],
+      "lat": 30.2722,
+      "lng": 120.171
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "胡庆余堂",
+      "location": "Hu Qing Yu Tang",
+      "imageSrc": "/travel/attractions/hangzhou-hu-qing-yu-tang.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hu_Qing_Yu_Tang",
+      "description": "杭州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hu Qing Yu Tang",
+        "胡庆余堂"
+      ],
+      "lat": 30.24218,
+      "lng": 120.16426
+    },
+    {
+      "cityKeys": [
+        "Hangzhou",
+        "杭州",
+        "hangzhou"
+      ],
+      "cityLabel": "杭州",
+      "name": "中国丝绸博物馆",
+      "location": "China National Silk Museum",
+      "imageSrc": "/travel/attractions/hangzhou-china-national-silk-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/China_National_Silk_Museum",
+      "description": "杭州可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "China National Silk Museum",
+        "中国丝绸博物馆"
+      ],
+      "lat": 30.225,
+      "lng": 120.147222
     }
   ]
 }

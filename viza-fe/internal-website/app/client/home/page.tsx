@@ -110,6 +110,8 @@ type PaymentRow = ApplicationPaymentRecord;
 
 interface ApplicantProfileSummary {
   full_name: string | null;
+  surname?: string | null;
+  given_names?: string | null;
   date_of_birth: string | null;
   place_of_birth: string | null;
   birth_country?: string | null;
@@ -134,7 +136,8 @@ interface UniversalInfoProgress {
 }
 
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
-  "full_name",
+  "surname",
+  "given_names",
   "date_of_birth",
   "birth_country",
   "birth_province_or_state",
@@ -171,14 +174,38 @@ function parseLegacyBirthplace(value?: string | null) {
   return { country: "", provinceOrState: "", city: "" };
 }
 
+function parseLegacyName(value?: string | null) {
+  const trimmed = value?.trim() ?? "";
+  if (/^[\u3400-\u9fff]{2,}$/.test(trimmed.replace(/\s+/g, ""))) {
+    const compact = trimmed.replace(/\s+/g, "");
+    return {
+      surname: compact.slice(0, 1),
+      givenNames: compact.slice(1),
+    };
+  }
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      surname: parts[0] ?? "",
+      givenNames: parts.slice(1).join(" "),
+    };
+  }
+
+  return { surname: "", givenNames: "" };
+}
+
 function buildUniversalInfoProgress(
   profile: ApplicantProfileSummary | null,
   authEmail?: string | null,
   hasPassportUpload = false,
 ): UniversalInfoProgress {
   const legacyBirthplace = parseLegacyBirthplace(profile?.place_of_birth);
+  const legacyName = parseLegacyName(profile?.full_name);
   const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
     if (field === "email" && !profile?.email && authEmail) return true;
+    if (field === "surname") return Boolean(profile?.surname?.trim() || legacyName.surname);
+    if (field === "given_names") return Boolean(profile?.given_names?.trim() || legacyName.givenNames);
     if (field === "birth_country") return Boolean(profile?.birth_country?.trim() || legacyBirthplace.country);
     if (field === "birth_province_or_state") {
       return Boolean(profile?.birth_province_or_state?.trim() || legacyBirthplace.provinceOrState);
