@@ -187,6 +187,8 @@ export async function launchStealthBrowser(
     acceptDownloads: options.acceptDownloads ?? true,
     userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
     extraHTTPHeaders: DEFAULT_CLIENT_HINTS,
+    // Bright Data presents a MITM cert; tolerate it when egressing via proxy.
+    ignoreHTTPSErrors: Boolean(launchOpts.proxy),
   };
   if (hardening === "france-visas") {
     contextOpts.viewport = { width: 1440, height: 900 };
