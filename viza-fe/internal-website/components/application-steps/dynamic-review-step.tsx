@@ -184,7 +184,7 @@ export function DynamicReviewStep({
       });
       if (!res.ok) throw new Error(t("translation.translationFailed"));
       await fetchTranslations();
-    } catch (err) {
+    } catch {
       setTranslationError(t("translation.translationFailed"));
     } finally {
       setTranslationLoading(false);

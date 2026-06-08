@@ -46,6 +46,10 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - `travel-itinerary-share-renderer.tsx`: public share-page renderer for standalone itinery cards, tables, and downloads.
 - `app/api/travel/geocode/route.ts`: resolves travel city coordinates through Google Geocoding API for map markers and routes.
 - `app/api/travel/ip-location/route.ts`: resolves the user's approximate IP city for the origin/return confirmation step.
+- `lib/travel/google-places.ts`: shared Google Places attraction card schema,
+  normalization, scoring, filtering, and fallback image handling.
+- `app/api/places/**`: server-only Google Places API New search, details, and
+  photo routes for Travel attraction cards.
 
 ## Validation Checklist (for every travel UI change)
 

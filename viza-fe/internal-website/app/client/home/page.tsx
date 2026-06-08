@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
@@ -28,10 +28,17 @@ import {
   type ApplicationPaymentRecord,
 } from "@/app/actions/application-lifecycle";
 import {
+  getFormVisaType,
   getVisaDestinationKey,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
+import {
+  dbRowToFormField,
+  type VisaFormFieldDbRow,
+  type VisaFormFieldRow,
+} from "@/types/visa-form-fields";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -95,6 +102,8 @@ interface AnswerRow {
   value_text: string | null;
   updated_at: string | null;
 }
+
+type FormFieldSchemaMap = Map<string, VisaFormFieldRow[]>;
 
 type PaymentRow = ApplicationPaymentRecord;
 
@@ -174,6 +183,19 @@ const FORM_COMPLETE_STATUSES = new Set([
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "success", "complete", "completed"]);
 
+const TERMINAL_PROGRESS_STATUSES = new Set([
+  "submitted",
+  "submitted_to_government",
+  "biometrics_pending",
+  "approved",
+  "delivered",
+]);
+
+const NEAR_COMPLETE_STATUSES = new Set([
+  "payment_pending",
+  "staff_action_required",
+]);
+
 function buildApplicationHref(application: ApplicationRow): string {
   const params = new URLSearchParams({
     country: application.country,
@@ -206,6 +228,66 @@ function isPaymentComplete(application: ApplicationRow, payments: PaymentRow[]):
   });
 }
 
+function hasCompletedAnswer(answer: AnswerRow): boolean {
+  const value = answer.value_text;
+  if (!value) return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (normalized === "[]" || normalized === "{}" || normalized === "null") return false;
+  return true;
+}
+
+function buildAnswerValues(answers: AnswerRow[]): Record<string, string> {
+  return answers.reduce<Record<string, string>>((values, answer) => {
+    if (hasCompletedAnswer(answer)) values[answer.field_name] = answer.value_text!.trim();
+    return values;
+  }, {});
+}
+
+function getFormCompletionPercent(
+  fields: VisaFormFieldRow[] | undefined,
+  answers: AnswerRow[],
+): number {
+  const answerValues = buildAnswerValues(answers);
+  const answeredNames = new Set(Object.keys(answerValues));
+
+  if (!fields || fields.length === 0) {
+    const answeredFieldCount = answeredNames.size;
+    if (answeredFieldCount === 0) return 0;
+    return Math.min(100, Math.round((answeredFieldCount / 25) * 100));
+  }
+
+  const visibleFields = fields.filter((field) => evaluateShowIf(field, answerValues, fields));
+  const requiredFields = visibleFields.filter(
+    (field) => field.required && !isRequiredUnlessSatisfied(field, answerValues),
+  );
+  const fieldsToMeasure = requiredFields.length > 0 ? requiredFields : visibleFields;
+  if (fieldsToMeasure.length === 0) return answeredNames.size > 0 ? 100 : 0;
+
+  const completedCount = fieldsToMeasure.filter((field) => answeredNames.has(field.fieldName)).length;
+  return Math.round((completedCount / fieldsToMeasure.length) * 100);
+}
+
+function getApplicationProgressPercent(
+  application: ApplicationRow,
+  appDocs: DocumentRow[],
+  appAnswers: AnswerRow[],
+  fields: VisaFormFieldRow[] | undefined,
+): number {
+  const normalizedStatus = application.status.toLowerCase();
+  if (application.submitted_at || TERMINAL_PROGRESS_STATUSES.has(normalizedStatus)) return 100;
+  if (normalizedStatus === "rejected") return 85;
+  if (NEAR_COMPLETE_STATUSES.has(normalizedStatus)) return 95;
+
+  const formPercent = getFormCompletionPercent(fields, appAnswers);
+  const uploadedDocumentCount = appDocs.filter((document) => document.status !== "missing").length;
+  const documentPercent = Math.min(100, uploadedDocumentCount * 25);
+  const startedBase = appAnswers.length > 0 || appDocs.length > 0 ? 5 : 0;
+  const percent = startedBase + formPercent * 0.8 + documentPercent * 0.15;
+
+  return Math.min(95, Math.max(startedBase > 0 ? 10 : 0, Math.round(percent)));
+}
+
 function getNextApplicationHref(application: ApplicationRow, payments: PaymentRow[]): string {
   if (!isFormComplete(application)) return buildApplicationHref(application);
   if (!isPaymentComplete(application, payments)) return buildCheckoutHref(application);
@@ -216,6 +298,7 @@ function buildApplicationProgress(
   applications: ApplicationRow[],
   documents: DocumentRow[],
   answers: AnswerRow[],
+  fieldSchemas: FormFieldSchemaMap,
   isZh: boolean,
 ): Record<string, DestinationApplicationProgress> {
   const docsByApplication = new Map<string, DocumentRow[]>();
@@ -228,7 +311,7 @@ function buildApplicationProgress(
   }
 
   for (const answer of answers) {
-    if (!answer.value_text?.trim()) continue;
+    if (!hasCompletedAnswer(answer)) continue;
     const existing = answersByApplication.get(answer.application_id) ?? [];
     existing.push(answer);
     answersByApplication.set(answer.application_id, existing);
@@ -237,28 +320,27 @@ function buildApplicationProgress(
   return applications.reduce<Record<string, DestinationApplicationProgress>>((progress, application) => {
     const appAnswers = answersByApplication.get(application.id) ?? [];
     const appDocs = docsByApplication.get(application.id) ?? [];
-    const hasPhoto = appAnswers.some((answer) => answer.field_name === "photo_path");
-    const answeredFieldCount = new Set(appAnswers.map((answer) => answer.field_name)).size;
-    const documentCount = appDocs.filter((document) => document.status !== "missing").length;
-
-    let percent = 10;
-    if (application.status === "submitted" || application.status === "approved") {
-      percent = 100;
-    } else if (application.status === "rejected") {
-      percent = 85;
-    } else {
-      percent += Math.min(55, answeredFieldCount * 3);
-      if (hasPhoto) percent += 10;
-      percent += Math.min(20, documentCount * 5);
-      percent = Math.min(95, Math.max(10, percent));
+    const fields = fieldSchemas.get(getFormVisaType(application.visa_type).toLowerCase());
+    const percent = getApplicationProgressPercent(application, appDocs, appAnswers, fields);
+    const updatedAt = application.updated_at ?? application.submitted_at ?? application.created_at;
+    const destinationKey = getVisaDestinationKey(application.country, application.visa_type);
+    const existing = progress[destinationKey];
+    const existingUpdatedAt = existing?.updatedAt ? Date.parse(existing.updatedAt) : 0;
+    const candidateUpdatedAt = updatedAt ? Date.parse(updatedAt) : 0;
+    if (
+      existing &&
+      (existing.percent > percent ||
+        (existing.percent === percent && existingUpdatedAt >= candidateUpdatedAt))
+    ) {
+      return progress;
     }
 
-    progress[getVisaDestinationKey(application.country, application.visa_type)] = {
+    progress[destinationKey] = {
       applicationId: application.id,
       status: application.status,
       percent,
       label: getProgressLabel(application.status, percent, isZh),
-      updatedAt: application.updated_at ?? application.submitted_at ?? application.created_at,
+      updatedAt,
     };
     return progress;
   }, {});
@@ -320,96 +402,12 @@ export default function HomePage() {
     }
   }, [t]);
 
-  useEffect(() => {
-    if (!authChecked) return;
-    let isMounted = true;
-
-    async function fetchData() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!isMounted) return;
-
-        if (!user) {
-          setIsLoading(false);
-          return;
-        }
-
-        // 获取用户订阅的所有签证包
-        const packages = await getUserVisaPackages();
-        if (!isMounted) return;
-        setVisaPackages(packages);
-
-        const { data: profile } = await supabase
-          .from("applicant_profiles")
-          .select("id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
-          .eq("auth_user_id", user.id)
-          .maybeSingle();
-        if (!isMounted) return;
-
-        const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
-        setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
-        );
-
-        const profileTyped = profile as { id: string; full_name: string | null } | null;
-        if (profileTyped) {
-          setApplicantName(profileTyped.full_name || authName);
-
-          const { data: appRows } = await supabase
-            .from("applications")
-            .select("id, status, country, visa_type, visa_package_id, submitted_at, created_at, updated_at")
-            .eq("applicant_id", profileTyped.id)
-            .order("created_at", { ascending: false });
-
-          if (!isMounted) return;
-          const loadedApplications = (appRows ?? []) as ApplicationRow[];
-
-          if (loadedApplications.length > 0) {
-            const applicationIds = loadedApplications.map((app) => app.id);
-            const packageIds = loadedApplications
-              .map((app) => app.visa_package_id)
-              .filter((id): id is string => Boolean(id));
-            const [{ data: docs }, { data: answers }, loadedPayments] = await Promise.all([
-              supabase
-                .from("application_documents")
-                .select("id, application_id, document_type, status, created_at, updated_at")
-                .in("application_id", applicationIds),
-              supabase
-                .from("visa_application_answers")
-                .select("application_id, field_name, value_text, updated_at")
-                .in("application_id", applicationIds),
-              getApplicationPaymentRecords(applicationIds, packageIds),
-            ]);
-
-            if (!isMounted) return;
-            const loadedDocuments = (docs ?? []) as DocumentRow[];
-            const loadedAnswers = (answers ?? []) as AnswerRow[];
-            setApplicationProgress(buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, isZh));
-            setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments, loadedPayments));
-          } else {
-            setApplicationProgress({});
-            setActivityEvents([]);
-          }
-        } else if (authName) {
-          setApplicantName(authName);
-          setActivityEvents([]);
-        }
-      } catch {
-        if (isMounted) setError(t("dashboardError"));
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    }
-
-    function buildActivityEvents(
+  const buildActivityEvents = useCallback(
+    (
       appsList: ApplicationRow[],
       docsList: DocumentRow[],
       paymentsList: PaymentRow[],
-    ): ActivityEvent[] {
+    ): ActivityEvent[] => {
       const events: ActivityEvent[] = [];
       const applicationsById = new Map(appsList.map((application) => [application.id, application]));
 
@@ -458,13 +456,139 @@ export default function HomePage() {
 
       events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       return events.slice(0, 5);
-    }
+    },
+    [locale, t],
+  );
 
-    fetchData();
-    return () => {
-      isMounted = false;
+  const fetchData = useCallback(
+    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+      if (showLoading) setIsLoading(true);
+      setError(null);
+
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          if (showLoading) setIsLoading(false);
+          return;
+        }
+
+        const packages = await getUserVisaPackages();
+        setVisaPackages(packages);
+
+        const { data: profile } = await supabase
+          .from("applicant_profiles")
+          .select("id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
+        setUniversalInfoProgress(
+          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
+        );
+
+        const profileTyped = profile as { id: string; full_name: string | null } | null;
+        if (!profileTyped) {
+          if (authName) setApplicantName(authName);
+          setApplicationProgress({});
+          setActivityEvents([]);
+          return;
+        }
+
+        setApplicantName(profileTyped.full_name || authName);
+
+        const { data: appRows } = await supabase
+          .from("applications")
+          .select("id, status, country, visa_type, visa_package_id, submitted_at, created_at, updated_at")
+          .eq("applicant_id", profileTyped.id)
+          .order("created_at", { ascending: false });
+
+        const loadedApplications = (appRows ?? []) as ApplicationRow[];
+        if (loadedApplications.length === 0) {
+          setApplicationProgress({});
+          setActivityEvents([]);
+          return;
+        }
+
+        const applicationIds = loadedApplications.map((app) => app.id);
+        const packageIds = loadedApplications
+          .map((app) => app.visa_package_id)
+          .filter((id): id is string => Boolean(id));
+        const visaTypes = [
+          ...new Set(loadedApplications.map((app) => getFormVisaType(app.visa_type))),
+        ];
+
+        const [{ data: docs }, { data: answers }, { data: fieldRows }, loadedPayments] = await Promise.all([
+          supabase
+            .from("application_documents")
+            .select("id, application_id, document_type, status, created_at, updated_at")
+            .in("application_id", applicationIds),
+          supabase
+            .from("visa_application_answers")
+            .select("application_id, field_name, value_text, updated_at")
+            .in("application_id", applicationIds),
+          supabase
+            .from("visa_form_fields")
+            .select("*")
+            .in("visa_type", visaTypes)
+            .order("step_number", { ascending: true })
+            .order("display_order", { ascending: true }),
+          getApplicationPaymentRecords(applicationIds, packageIds),
+        ]);
+
+        const loadedDocuments = (docs ?? []) as DocumentRow[];
+        const loadedAnswers = (answers ?? []) as AnswerRow[];
+        const fieldSchemas = ((fieldRows ?? []) as VisaFormFieldDbRow[]).reduce<FormFieldSchemaMap>(
+          (schemas, row) => {
+            const key = row.visa_type.toLowerCase();
+            const existing = schemas.get(key) ?? [];
+            existing.push(dbRowToFormField(row));
+            schemas.set(key, existing);
+            return schemas;
+          },
+          new Map(),
+        );
+
+        setApplicationProgress(
+          buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, fieldSchemas, isZh),
+        );
+        setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments, loadedPayments));
+      } catch {
+        setError(t("dashboardError"));
+      } finally {
+        if (showLoading) setIsLoading(false);
+      }
+    },
+    [buildActivityEvents, isZh, t],
+  );
+
+  useEffect(() => {
+    if (!authChecked) return;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const supabase = createClient();
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void fetchData({ showLoading: false });
+      }, 350);
     };
-  }, [authChecked, isZh, locale, t]);
+
+    void fetchData();
+    const channel = supabase
+      .channel("home-application-progress-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "visa_application_answers" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "application_documents" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_visa_packages" }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [authChecked, fetchData]);
 
   // 顶部沉浸式导航颜色动态同步
   useEffect(() => {

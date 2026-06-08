@@ -13,8 +13,6 @@ import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-
 interface TranslationEntry {
   source_text: string;
   translated_text: string;
@@ -63,7 +61,7 @@ function TranslationRow({
     setSaving(true);
     try {
       const res = await fetch(
-        `${BACKEND_URL}/api/applications/${applicationId}/translations/${encodeURIComponent(fieldKey)}`,
+        `/api/applications/${applicationId}/translations/${encodeURIComponent(fieldKey)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -162,29 +160,29 @@ export function TranslationPanel({ applicationId, originalData, translationStatu
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translations`);
-      if (!res.ok) throw new Error(`Failed to fetch translations (${res.status})`);
+      const res = await fetch(`/api/applications/${applicationId}/translations`, { cache: "no-store" });
+      if (!res.ok) throw new Error(t("translation.translationFailed"));
       const data: TranslationMap = await res.json();
       setTranslations(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("translation.translationFailed"));
+    } catch {
+      setError(t("translation.translationFailed"));
     } finally {
       setLoading(false);
     }
-  }, [applicationId]);
+  }, [applicationId, t]);
 
   const retryTranslation = async () => {
     setRetrying(true);
     setError(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/applications/${applicationId}/translate`, {
+      const res = await fetch(`/api/applications/${applicationId}/translate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error(`Translation failed (${res.status})`);
+      if (!res.ok) throw new Error(t("translation.translationFailed"));
       await fetchTranslations();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("translation.translationFailed"));
+    } catch {
+      setError(t("translation.translationFailed"));
     } finally {
       setRetrying(false);
     }

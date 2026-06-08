@@ -2763,6 +2763,28 @@ export function TripRouteMap({
                       {detailPoint.kind === "city" ? "热门城市" : "热门景点"}
                     </span>
                   </div>
+                  {detailPoint.source === "google" ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                      <span className="rounded-md bg-blue-50 px-2 py-1 font-semibold text-blue-700">
+                        Google Places
+                      </span>
+                      {detailGoogleRating ? (
+                        <span className="rounded-md bg-amber-50 px-2 py-1 font-semibold text-amber-700">
+                          ★ {detailGoogleRating}
+                        </span>
+                      ) : null}
+                      {detailPoint.googleMapsUri ? (
+                        <a
+                          className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                          href={detailPoint.googleMapsUri}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {isZh ? "Google 地图" : "Google Maps"}
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-3 text-xl text-slate-600">
@@ -2777,6 +2799,11 @@ export function TripRouteMap({
                 <p className="text-lg leading-relaxed text-slate-600">
                   {getPointIntro(detailPoint)}
                 </p>
+                {detailGoogleAttribution ? (
+                  <p className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-500">
+                    {detailGoogleAttribution}
+                  </p>
+                ) : null}
 
                 <div className="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {detailGalleryImages.map((imageSrc, index) => (

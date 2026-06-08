@@ -87,6 +87,7 @@ interface WalletBindingIntent {
 
 interface CardBindingIntent {
   bindingId: string;
+  customerId: string;
   intentId: string;
   clientSecret: string;
   currency: string;
@@ -98,10 +99,19 @@ interface AirwallexCardElement {
   confirm?: (options: { intent_id: string; client_secret: string }) => Promise<unknown>;
   createPaymentConsent?: (options: {
     client_secret: string;
+    customer_id?: string;
     next_triggered_by?: "merchant" | "customer";
     merchant_trigger_reason?: "scheduled" | "unscheduled";
     metadata?: Record<string, unknown>;
   }) => Promise<{
+    id?: string;
+    client_secret?: string;
+    customer_id?: string;
+    payment_consent_id?: string;
+    payment_method?: unknown;
+  } | boolean>;
+  verifyConsent?: (options: { client_secret: string; currency: string }) => Promise<{
+    id?: string;
     customer_id?: string;
     payment_consent_id?: string;
     payment_method?: unknown;
@@ -604,13 +614,21 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
     const result = (await response.json().catch(() => null)) as {
       bindingId?: string;
+      customerId?: string;
       intentId?: string;
       clientSecret?: string | null;
       currency?: string;
       error?: string;
     } | null;
 
-    if (!response.ok || !result?.bindingId || !result.intentId || !result.clientSecret || !result.currency) {
+    if (
+      !response.ok ||
+      !result?.bindingId ||
+      !result.customerId ||
+      !result.intentId ||
+      !result.clientSecret ||
+      !result.currency
+    ) {
       setPaymentMessage({
         tone: "error",
         text:
@@ -623,6 +641,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
     setActiveCardBinding({
       bindingId: result.bindingId,
+      customerId: result.customerId,
       intentId: result.intentId,
       clientSecret: result.clientSecret,
       currency: result.currency,
@@ -639,6 +658,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     try {
       const consent = await cardElement.createPaymentConsent({
         client_secret: activeCardBinding.clientSecret,
+        customer_id: activeCardBinding.customerId,
         next_triggered_by: "merchant",
         merchant_trigger_reason: "scheduled",
         metadata: {
@@ -647,7 +667,21 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         },
       });
 
-      if (typeof consent === "boolean" || !consent.payment_consent_id) {
+      if (typeof consent === "boolean") {
+        throw new Error("Missing payment consent id.");
+      }
+
+      const verifiedConsent =
+        consent.client_secret && cardElement.verifyConsent
+          ? await cardElement.verifyConsent({
+              client_secret: consent.client_secret,
+              currency: activeCardBinding.currency,
+            })
+          : consent;
+
+      const consentResult = typeof verifiedConsent === "boolean" ? consent : verifiedConsent;
+      const paymentConsentId = consentResult.payment_consent_id ?? consentResult.id ?? consent.payment_consent_id ?? consent.id;
+      if (!paymentConsentId) {
         throw new Error("Missing payment consent id.");
       }
 
@@ -655,9 +689,9 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentConsentId: consent.payment_consent_id,
-          customerId: consent.customer_id,
-          paymentMethod: consent.payment_method,
+          paymentConsentId,
+          customerId: consentResult.customer_id ?? consent.customer_id,
+          paymentMethod: consentResult.payment_method ?? consent.payment_method,
         }),
       });
       const result = (await response.json().catch(() => null)) as {

@@ -3715,6 +3715,16 @@ export function TravelChatClient({
 
         const cards = extractTravelPlaceCards(payload);
         setGooglePlaceCards(cards);
+        setSelectedGooglePlaceId((currentId) =>
+          currentId && cards.some((card) => card.id === currentId)
+            ? currentId
+            : null
+        );
+        setSelectedGooglePlaceFallback((currentCard) =>
+          currentCard && cards.some((card) => card.id === currentCard.id)
+            ? currentCard
+            : null
+        );
         setGooglePlacesStatus("success");
         setGooglePlacesError("");
       } catch (error) {
@@ -5131,6 +5141,12 @@ export function TravelChatClient({
     [activeSessionId, interfaceLocale, renamingSessionId, status]
   );
 
+  const selectedGooglePlaceDisplay =
+    googlePlaceDetails ?? selectedGooglePlaceCard;
+  const selectedGooglePlaceAttribution = selectedGooglePlaceDisplay
+    ? formatGoogleAttribution(selectedGooglePlaceDisplay.attribution, isZh)
+    : null;
+
   return (
     <div
       className={`relative mx-auto flex w-full max-w-[2300px] flex-col overflow-hidden px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-5 ${
@@ -5468,6 +5484,446 @@ export function TravelChatClient({
                     data-testid="travel-message-scroll"
                   >
                     <div className="space-y-6 sm:space-y-8">
+                      {googlePlacesCity && hasDestinationSelection ? (
+                        <section
+                          className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4"
+                          data-testid="travel-google-places-section"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                <MapPin className="h-3 w-3 text-brand-500" />
+                                Google Places
+                              </p>
+                              <h3 className="mt-1 text-base font-semibold text-slate-950">
+                                {isZh
+                                  ? `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)}实时景点`
+                                  : `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)} attractions`}
+                              </h3>
+                              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                {isZh
+                                  ? "实时获取景点、评分、照片和坐标；添加到行程时仅保存 placeId。"
+                                  : "Live places with photos, ratings, and coordinates; saved itinerary metadata keeps only placeId."}
+                              </p>
+                            </div>
+                            <Button
+                              aria-label={
+                                isZh ? "重新加载景点" : "Reload attractions"
+                              }
+                              className="h-9 w-9 shrink-0"
+                              disabled={googlePlacesStatus === "loading"}
+                              onClick={() =>
+                                setGooglePlacesRetryNonce((value) => value + 1)
+                              }
+                              size="icon"
+                              title={
+                                isZh ? "重新加载景点" : "Reload attractions"
+                              }
+                              type="button"
+                              variant="outline"
+                            >
+                              <RefreshCw
+                                className={`h-4 w-4 ${
+                                  googlePlacesStatus === "loading"
+                                    ? "animate-spin"
+                                    : ""
+                                }`}
+                              />
+                            </Button>
+                          </div>
+
+                          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {GOOGLE_PLACE_FILTER_OPTIONS.map((option) => {
+                              const active = option.id === googlePlaceFilterId;
+                              return (
+                                <button
+                                  aria-pressed={active}
+                                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    active
+                                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                  disabled={googlePlacesStatus === "loading"}
+                                  key={option.id}
+                                  onClick={() =>
+                                    setGooglePlaceFilterId(option.id)
+                                  }
+                                  type="button"
+                                >
+                                  {isZh ? option.zh : option.en}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {selectedGooglePlaceDisplay ? (
+                            <div
+                              className="mt-4 rounded-lg border border-brand-100 bg-brand-50/60 p-3"
+                              data-testid="travel-google-place-detail"
+                            >
+                              <div className="flex gap-3">
+                                <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                  <Image
+                                    alt={selectedGooglePlaceDisplay.title}
+                                    className="h-full w-full object-cover"
+                                    height={120}
+                                    onError={(event) => {
+                                      event.currentTarget.src =
+                                        TRAVEL_PLACE_FALLBACK_IMAGE;
+                                    }}
+                                    src={
+                                      selectedGooglePlaceDisplay.imageUrl ||
+                                      TRAVEL_PLACE_FALLBACK_IMAGE
+                                    }
+                                    unoptimized
+                                    width={160}
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <h4 className="line-clamp-2 text-sm font-semibold text-slate-950">
+                                        {selectedGooglePlaceDisplay.title}
+                                      </h4>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                        {selectedGooglePlaceDisplay.rating ? (
+                                          <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
+                                            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                                            {selectedGooglePlaceDisplay.rating.toFixed(
+                                              1
+                                            )}
+                                          </span>
+                                        ) : null}
+                                        <span>
+                                          {formatGoogleReviewCount(
+                                            selectedGooglePlaceDisplay.reviewCount,
+                                            isZh
+                                          )}
+                                        </span>
+                                        <span>
+                                          {formatGooglePlaceType(
+                                            selectedGooglePlaceDisplay.type,
+                                            isZh
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      aria-label={
+                                        isZh ? "关闭详情" : "Close details"
+                                      }
+                                      className="h-8 w-8 shrink-0"
+                                      onClick={() => {
+                                        setSelectedGooglePlaceId(null);
+                                        setSelectedGooglePlaceFallback(null);
+                                      }}
+                                      size="icon"
+                                      type="button"
+                                      variant="ghost"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  {selectedGooglePlaceDisplay.address ? (
+                                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600">
+                                      {selectedGooglePlaceDisplay.address}
+                                    </p>
+                                  ) : null}
+                                  {googlePlaceDetailsStatus === "loading" ? (
+                                    <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      {isZh ? "加载详情中" : "Loading details"}
+                                    </p>
+                                  ) : null}
+                                  {googlePlaceDetails?.editorialSummary ? (
+                                    <p className="mt-3 text-xs leading-relaxed text-slate-700">
+                                      {googlePlaceDetails.editorialSummary}
+                                    </p>
+                                  ) : null}
+                                  {googlePlaceDetails?.openingHoursText?.length ? (
+                                    <div className="mt-3 rounded-md bg-white/80 px-3 py-2 text-xs text-slate-600">
+                                      {googlePlaceDetails.openingHoursText
+                                        .slice(0, 4)
+                                        .map((item) => (
+                                          <p key={item}>{item}</p>
+                                        ))}
+                                    </div>
+                                  ) : null}
+                                  {googlePlaceDetailsStatus === "error" ? (
+                                    <p className="mt-3 rounded-md bg-white/80 px-3 py-2 text-xs text-slate-600">
+                                      {googlePlaceDetailsError ||
+                                        (isZh
+                                          ? "详情暂时不可用，已显示基础信息。"
+                                          : "Details are unavailable, so basic card data is shown.")}
+                                    </p>
+                                  ) : null}
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {googlePlaceDetails?.websiteUri ? (
+                                      <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                      >
+                                        <a
+                                          href={googlePlaceDetails.websiteUri}
+                                          rel="noreferrer"
+                                          target="_blank"
+                                        >
+                                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                          {isZh ? "官网" : "Website"}
+                                        </a>
+                                      </Button>
+                                    ) : null}
+                                    {selectedGooglePlaceDisplay.googleMapsUri ? (
+                                      <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                      >
+                                        <a
+                                          href={
+                                            selectedGooglePlaceDisplay.googleMapsUri
+                                          }
+                                          rel="noreferrer"
+                                          target="_blank"
+                                        >
+                                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                          {isZh ? "Google 地图" : "Google Maps"}
+                                        </a>
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                  {selectedGooglePlaceAttribution ? (
+                                    <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                                      {selectedGooglePlaceAttribution}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="mt-4">
+                            {googlePlacesStatus === "loading" ? (
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                {Array.from({ length: 4 }).map((_, index) => (
+                                  <div
+                                    className="rounded-lg border border-slate-200 bg-white p-3"
+                                    key={`google-place-skeleton-${index}`}
+                                  >
+                                    <Skeleton className="h-28 w-full rounded-md" />
+                                    <Skeleton className="mt-3 h-4 w-3/4" />
+                                    <Skeleton className="mt-2 h-3 w-full" />
+                                    <Skeleton className="mt-2 h-3 w-1/2" />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : googlePlacesStatus === "error" ? (
+                              <div
+                                className="rounded-lg border border-red-100 bg-red-50 px-3 py-3 text-sm text-red-700"
+                                data-testid="travel-google-places-error"
+                              >
+                                <p>
+                                  {googlePlacesError ||
+                                    (isZh
+                                      ? "景点暂时加载失败。"
+                                      : "Attractions are unavailable.")}
+                                </p>
+                                <Button
+                                  className="mt-3"
+                                  onClick={() =>
+                                    setGooglePlacesRetryNonce(
+                                      (value) => value + 1
+                                    )
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                  {isZh ? "重试" : "Retry"}
+                                </Button>
+                              </div>
+                            ) : googlePlaceCards.length === 0 ? (
+                              <div
+                                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm text-slate-600"
+                                data-testid="travel-google-places-empty"
+                              >
+                                {isZh
+                                  ? "暂时没有找到符合条件的景点。可以切换筛选或稍后重试。"
+                                  : "No matching attractions found. Try another filter or reload."}
+                              </div>
+                            ) : (
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                {googlePlaceCards.map((card) => {
+                                  const targetId = getGooglePlaceTargetId(
+                                    card.id
+                                  );
+                                  const active =
+                                    activeMapTargetId === targetId;
+                                  const saved = savedGooglePlaceIds.has(
+                                    card.id
+                                  );
+                                  const cardAttribution =
+                                    formatGoogleAttribution(
+                                      card.attribution,
+                                      isZh
+                                    );
+                                  return (
+                                    <article
+                                      className={`overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
+                                        active
+                                          ? "border-brand-300 ring-2 ring-brand-100"
+                                          : "border-slate-200 hover:border-brand-200"
+                                      }`}
+                                      data-testid="travel-google-place-card"
+                                      key={card.id}
+                                    >
+                                      <button
+                                        className="block w-full text-left"
+                                        onClick={() =>
+                                          handleOpenGooglePlaceCard(card)
+                                        }
+                                        type="button"
+                                      >
+                                        <div className="relative h-32 bg-slate-100">
+                                          <Image
+                                            alt={card.title}
+                                            className="h-full w-full object-cover"
+                                            height={160}
+                                            onError={(event) => {
+                                              event.currentTarget.src =
+                                                TRAVEL_PLACE_FALLBACK_IMAGE;
+                                            }}
+                                            src={
+                                              card.imageUrl ||
+                                              TRAVEL_PLACE_FALLBACK_IMAGE
+                                            }
+                                            unoptimized
+                                            width={320}
+                                          />
+                                          {!card.photoName ? (
+                                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                                              <ImageOff className="h-3 w-3" />
+                                              {isZh ? "默认图" : "Fallback"}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                        <div className="space-y-2 p-3">
+                                          <div>
+                                            <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-950">
+                                              {card.title}
+                                            </h4>
+                                            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-600">
+                                              {card.address ??
+                                                card.subtitle ??
+                                                (isZh
+                                                  ? "地址暂未返回"
+                                                  : "Address unavailable")}
+                                            </p>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                            {card.rating ? (
+                                              <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
+                                                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                                                {card.rating.toFixed(1)}
+                                              </span>
+                                            ) : null}
+                                            <span>
+                                              {formatGoogleReviewCount(
+                                                card.reviewCount,
+                                                isZh
+                                              )}
+                                            </span>
+                                            <span className="rounded-full bg-slate-100 px-2 py-0.5">
+                                              {formatGooglePlaceType(
+                                                card.type,
+                                                isZh
+                                              )}
+                                            </span>
+                                          </div>
+                                          {card.location ? (
+                                            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-700">
+                                              <MapPin className="h-3 w-3" />
+                                              {isZh
+                                                ? "已加入地图标记"
+                                                : "Map marker ready"}
+                                            </p>
+                                          ) : (
+                                            <p className="text-[11px] text-slate-500">
+                                              {isZh
+                                                ? "暂无坐标，跳过地图标记"
+                                                : "No coordinates; marker skipped"}
+                                            </p>
+                                          )}
+                                          {cardAttribution ? (
+                                            <p className="line-clamp-1 text-[11px] text-slate-500">
+                                              {cardAttribution}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      </button>
+                                      <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+                                        <Button
+                                          className="flex-1"
+                                          onClick={() =>
+                                            handleOpenGooglePlaceCard(card)
+                                          }
+                                          size="sm"
+                                          type="button"
+                                          variant="outline"
+                                        >
+                                          {isZh ? "详情" : "Details"}
+                                        </Button>
+                                        <Button
+                                          className="flex-1"
+                                          disabled={saved}
+                                          onClick={() =>
+                                            handleAddGooglePlaceToItinerary(
+                                              card
+                                            )
+                                          }
+                                          size="sm"
+                                          type="button"
+                                        >
+                                          {saved
+                                            ? isZh
+                                              ? "已加入"
+                                              : "Saved"
+                                            : isZh
+                                              ? "加入行程"
+                                              : "Add"}
+                                        </Button>
+                                        {card.googleMapsUri ? (
+                                          <Button
+                                            asChild
+                                            className="h-8 w-8 shrink-0"
+                                            size="icon"
+                                            variant="outline"
+                                          >
+                                            <a
+                                              aria-label={
+                                                isZh
+                                                  ? "打开 Google 地图"
+                                                  : "Open Google Maps"
+                                              }
+                                              href={card.googleMapsUri}
+                                              rel="noreferrer"
+                                              target="_blank"
+                                            >
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </a>
+                                          </Button>
+                                        ) : null}
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </section>
+                      ) : null}
                       {messages.map((message) => {
                         const visibleText = getVisibleMessageText(message);
                         const destinationCards = message.parts
