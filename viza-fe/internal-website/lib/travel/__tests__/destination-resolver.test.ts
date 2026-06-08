@@ -111,4 +111,20 @@ describe("travel destination resolver", () => {
       expect(card.suggested_days).toBe("5 days");
     }
   });
+
+  it("resolves dropdown-contract cities that were not in the old resolver list", () => {
+    const resolution = resolveLocalDestinationText(
+      "帮我做一个拉斯维加斯和洛杉矶 6 天旅行计划。"
+    );
+
+    expect(resolution.status).toBe("resolved");
+    if (resolution.status === "resolved") {
+      expect(
+        resolution.destinations.map((destination) => destination.canonicalName)
+      ).toEqual(expect.arrayContaining(["Las Vegas", "Los Angeles"]));
+      expect(resolution.destinations[0].coverImageUrl).toContain(
+        "/travel/cities/"
+      );
+    }
+  });
 });

@@ -1,9 +1,9 @@
-import curatedTravelCardData from "@/components/client/travel/travel-card-curated-data.json";
+import curatedTravelCardData from "../../components/client/travel/travel-card-curated-data.json";
 import {
   CURATED_CITIES_BY_COUNTRY,
   type CuratedCity,
-} from "@/lib/travel/locations";
-import { TRAVEL_PLACE_FALLBACK_IMAGE } from "@/lib/travel/google-places";
+} from "./locations";
+import { TRAVEL_PLACE_FALLBACK_IMAGE } from "./google-places";
 
 export type TravelDataQuality =
   | "verified"
@@ -153,6 +153,17 @@ type CountryMeta = {
 
 const CURATED_CARD_DATA = curatedTravelCardData as CuratedTravelCardData;
 
+const SUPPLEMENTAL_CITY_CARDS: CuratedTravelCity[] = [
+  {
+    cityKeys: ["Hong Kong", "香港", "HK"],
+    cityLabel: "香港",
+    imageSrc:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg/1280px-Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg",
+  },
+];
+
 const COUNTRY_META_BY_NAME: Record<string, CountryMeta> = {
   Argentina: {
     code: "AR",
@@ -213,6 +224,12 @@ const COUNTRY_META_BY_NAME: Record<string, CountryMeta> = {
     zh: "希腊",
     timezone: "Europe/Athens",
     currency: "EUR",
+  },
+  "Hong Kong": {
+    code: "HK",
+    zh: "香港",
+    timezone: "Asia/Hong_Kong",
+    currency: "HKD",
   },
   India: {
     code: "IN",
@@ -404,7 +421,7 @@ function cityKeysFor(city: CuratedCity): string[] {
 function findCuratedCityCard(city: CuratedCity): CuratedTravelCity | null {
   const keys = cityKeysFor(city).map(normalizeDestinationContractKey);
   return (
-    CURATED_CARD_DATA.cities.find((item) =>
+    [...CURATED_CARD_DATA.cities, ...SUPPLEMENTAL_CITY_CARDS].find((item) =>
       item.cityKeys.some((key) =>
         keys.includes(normalizeDestinationContractKey(key))
       )
