@@ -1,4 +1,4 @@
-import type { ExtractorProfile } from "./types.js";
+import type { ExtractorProfile } from "./types";
 
 /**
  * UKVI / Apply UK Visa confirmation and resume-link mails.

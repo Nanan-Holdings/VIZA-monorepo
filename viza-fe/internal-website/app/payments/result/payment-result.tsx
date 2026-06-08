@@ -13,6 +13,8 @@ type Status = "pending" | "paid" | "failed";
 export function PaymentResult({ paymentId }: PaymentResultProps) {
   const [status, setStatus] = useState<Status>("pending");
   const [providerStatus, setProviderStatus] = useState<string | null>(null);
+  const [attemptStatus, setAttemptStatus] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!paymentId) {
@@ -23,10 +25,17 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
     let cancelled = false;
     async function poll() {
       const response = await fetch(`/api/payments/airwallex/${paymentId}/status`, { cache: "no-store" });
-      const body = (await response.json()) as { status?: Status; providerStatus?: string };
+      const body = (await response.json()) as {
+        status?: Status;
+        providerStatus?: string;
+        attemptStatus?: string | null;
+        expiresAt?: string | null;
+      };
       if (cancelled) return;
       setStatus(body.status ?? "failed");
       setProviderStatus(body.providerStatus ?? null);
+      setAttemptStatus(body.attemptStatus ?? null);
+      setExpiresAt(body.expiresAt ?? null);
     }
 
     poll().catch(() => setStatus("failed"));
@@ -66,11 +75,16 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
             {paid
               ? "VIZA 已记录这笔人民币服务费，月付方案会同步到你的订阅状态。"
               : failed
-                ? "在线支付服务未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
+                ? expiresAt
+                  ? "这次扫码支付没有在二维码有效期内完成，你可以返回订阅页面重新生成订单。"
+                  : "在线支付服务未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
                 : "如果你刚完成扫码或验证，页面会自动刷新最终状态。"}
           </p>
           {providerStatus ? (
             <p className="mt-5 text-xs font-medium text-muted-foreground">支付服务状态：{providerStatus}</p>
+          ) : null}
+          {attemptStatus ? (
+            <p className="mt-2 text-xs font-medium text-muted-foreground">支付尝试状态：{attemptStatus}</p>
           ) : null}
           {paid ? (
             <Link

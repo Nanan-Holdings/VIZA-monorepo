@@ -23,6 +23,8 @@ export async function GET(
       status: result.status,
       paidAt: result.paidAt,
       providerStatus: result.intent.status,
+      attemptStatus: result.attemptStatus,
+      expiresAt: result.attemptExpiresAt,
       nextAction: result.intent.next_action ?? null,
     });
   } catch (error) {

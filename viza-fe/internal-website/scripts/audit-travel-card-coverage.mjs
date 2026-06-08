@@ -5,8 +5,11 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(scriptDir, "..");
 const strict = process.argv.includes("--strict");
+const minAttractionsArgIndex = process.argv.indexOf("--min-attractions");
+const minAttractionsArg =
+  minAttractionsArgIndex >= 0 ? process.argv[minAttractionsArgIndex + 1] : "";
 const minAttractions = Number(
-  process.env.TRAVEL_CARD_MIN_ATTRACTIONS ?? 4
+  minAttractionsArg || process.env.TRAVEL_CARD_MIN_ATTRACTIONS || 10
 );
 
 const locationsPath = path.join(appRoot, "lib", "travel", "locations.ts");

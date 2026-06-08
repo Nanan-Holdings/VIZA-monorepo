@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { confirmPaymentIntent, type AirwallexPaymentMethodType } from "@/lib/airwallex/client";
+import { confirmPaymentIntent, getAirwallexEnvironment, type AirwallexPaymentMethodType } from "@/lib/airwallex/client";
 import { getAppBaseUrl, getAuthorizedAirwallexRecord, isUuid, updateRecordFromAirwallexIntent } from "../../_shared";
 
 export const runtime = "nodejs";
@@ -54,6 +54,7 @@ export async function POST(
     return NextResponse.json({
       status: result.status,
       providerStatus: intent.status,
+      environment: getAirwallexEnvironment(),
       nextAction: intent.next_action ?? null,
     });
   } catch (error) {

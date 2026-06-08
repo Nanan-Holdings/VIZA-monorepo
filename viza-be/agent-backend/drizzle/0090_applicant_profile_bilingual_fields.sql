@@ -1,6 +1,12 @@
 ALTER TABLE applicant_profiles
   ADD COLUMN IF NOT EXISTS full_name_zh TEXT,
   ADD COLUMN IF NOT EXISTS full_name_en TEXT,
+  ADD COLUMN IF NOT EXISTS surname TEXT,
+  ADD COLUMN IF NOT EXISTS surname_zh TEXT,
+  ADD COLUMN IF NOT EXISTS surname_en TEXT,
+  ADD COLUMN IF NOT EXISTS given_names TEXT,
+  ADD COLUMN IF NOT EXISTS given_names_zh TEXT,
+  ADD COLUMN IF NOT EXISTS given_names_en TEXT,
   ADD COLUMN IF NOT EXISTS place_of_birth_zh TEXT,
   ADD COLUMN IF NOT EXISTS place_of_birth_en TEXT,
   ADD COLUMN IF NOT EXISTS birth_country TEXT,

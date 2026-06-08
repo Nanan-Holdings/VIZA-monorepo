@@ -1,4 +1,4 @@
-import type { ExtractorProfile } from "./types.js";
+import type { ExtractorProfile } from "./types";
 
 /**
  * US CEAC DS-160 application id mails from `state.gov` /

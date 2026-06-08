@@ -1,5 +1,5 @@
-import { supabase } from "./supabase.js";
-import { decryptSecret, encryptSecret } from "./secret-cipher.js";
+import { supabase } from "./supabase";
+import { decryptSecret, encryptSecret } from "./secret-cipher";
 
 /**
  * Per-applicant credential vault — submission-service side

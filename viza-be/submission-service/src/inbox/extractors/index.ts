@@ -1,9 +1,9 @@
-import type { ExtractInput, ExtractResult, ExtractorProfile } from "./types.js";
-import { genericProfile } from "./generic.js";
-import { vfsGlobalProfile } from "./vfsglobal.js";
-import { evisaGovVnProfile } from "./evisa-gov-vn.js";
-import { ceacStateGovProfile } from "./ceac-state-gov.js";
-import { govUkProfile } from "./gov-uk.js";
+import type { ExtractInput, ExtractResult, ExtractorProfile } from "./types";
+import { genericProfile } from "./generic";
+import { vfsGlobalProfile } from "./vfsglobal";
+import { evisaGovVnProfile } from "./evisa-gov-vn";
+import { ceacStateGovProfile } from "./ceac-state-gov";
+import { govUkProfile } from "./gov-uk";
 
 /**
  * Extractor registry (INBOX-004).
@@ -59,4 +59,4 @@ export const inboxExtractors = {
   generic: genericProfile,
 };
 
-export type { ExtractInput, ExtractResult, ExtractorProfile } from "./types.js";
+export type { ExtractInput, ExtractResult, ExtractorProfile } from "./types";

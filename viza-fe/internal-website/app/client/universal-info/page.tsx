@@ -30,6 +30,8 @@ import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
 interface UniversalProfileForm {
   full_name: string;
+  surname: string;
+  given_names: string;
   date_of_birth: string;
   place_of_birth: string;
   birth_country: string;
@@ -50,6 +52,8 @@ interface UniversalProfileForm {
 
 const BILINGUAL_PROFILE_FIELDS = [
   "full_name",
+  "surname",
+  "given_names",
   "place_of_birth",
   "birth_province_or_state",
   "birth_city",
@@ -79,6 +83,8 @@ type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<Biling
 
 const EMPTY_FORM: UniversalProfileForm = {
   full_name: "",
+  surname: "",
+  given_names: "",
   date_of_birth: "",
   place_of_birth: "",
   birth_country: "",
@@ -99,6 +105,8 @@ const EMPTY_FORM: UniversalProfileForm = {
 
 const EMPTY_BILINGUAL_FORM: BilingualProfileState = {
   full_name: { zh: "", en: "" },
+  surname: { zh: "", en: "" },
+  given_names: { zh: "", en: "" },
   place_of_birth: { zh: "", en: "" },
   birth_province_or_state: { zh: "", en: "" },
   birth_city: { zh: "", en: "" },
@@ -114,7 +122,8 @@ const EMPTY_PASSPORT_UPLOAD: PassportUploadState = {
 };
 
 const PROFILE_FIELDS: Array<keyof UniversalProfileForm> = [
-  "full_name",
+  "surname",
+  "given_names",
   "date_of_birth",
   "birth_country",
   "birth_province_or_state",
@@ -209,6 +218,33 @@ function parseLegacyBirthplace(value?: string | null) {
   return { country: "", provinceOrState: "", city: "" };
 }
 
+function splitChineseFullName(value?: string | null) {
+  const compact = value?.replace(/\s+/g, "").trim() ?? "";
+  if (!/^[\u3400-\u9fff]{2,}$/.test(compact)) return { surname: "", givenNames: "" };
+  return {
+    surname: compact.slice(0, 1),
+    givenNames: compact.slice(1),
+  };
+}
+
+function splitPassportOrderEnglishName(value?: string | null) {
+  const parts = value?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (parts.length === 0) return { surname: "", givenNames: "" };
+  if (parts.length === 1) return { surname: parts[0] ?? "", givenNames: "" };
+  return {
+    surname: parts[0] ?? "",
+    givenNames: parts.slice(1).join(" "),
+  };
+}
+
+function composeChineseName(surname: string, givenNames: string) {
+  return `${surname.trim()}${givenNames.trim()}`.trim();
+}
+
+function composeEnglishFullName(givenNames: string, surname: string) {
+  return [givenNames.trim(), surname.trim()].filter(Boolean).join(" ");
+}
+
 function isTranslatableProfileField(field: BilingualProfileField) {
   return TRANSLATABLE_PROFILE_FIELDS.includes(field as (typeof TRANSLATABLE_PROFILE_FIELDS)[number]);
 }
@@ -270,6 +306,12 @@ function toInitialBilingualValue(profile: UniversalProfileRow, field: BilingualP
 
 function toInitialBilingualForm(profile: UniversalProfileRow | null): BilingualProfileState {
   if (!profile) return EMPTY_BILINGUAL_FORM;
+  const legacyChineseName = splitChineseFullName(profile.full_name_zh ?? (hasChinese(profile.full_name ?? "") ? profile.full_name : null));
+  const legacyEnglishName = splitPassportOrderEnglishName(
+    profile.full_name_en ?? (!hasChinese(profile.full_name ?? "") ? profile.full_name : null),
+  );
+  const storedSurname = toInitialBilingualValue(profile, "surname");
+  const storedGivenNames = toInitialBilingualValue(profile, "given_names");
   const legacyBirthplaceZh = parseLegacyBirthplace(profile.place_of_birth_zh);
   const legacyBirthplaceEn = parseLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
   const legacyPlaceOfBirth = toInitialBilingualValue(profile, "place_of_birth");
@@ -278,6 +320,18 @@ function toInitialBilingualForm(profile: UniversalProfileRow | null): BilingualP
 
   return {
     full_name: toInitialBilingualValue(profile, "full_name"),
+    surname: storedSurname.zh || storedSurname.en
+      ? storedSurname
+      : {
+          zh: legacyChineseName.surname,
+          en: legacyChineseName.surname ? toEnglishProfileValue("surname", legacyChineseName.surname) : legacyEnglishName.surname,
+        },
+    given_names: storedGivenNames.zh || storedGivenNames.en
+      ? storedGivenNames
+      : {
+          zh: legacyChineseName.givenNames,
+          en: legacyChineseName.givenNames ? toEnglishProfileValue("given_names", legacyChineseName.givenNames) : legacyEnglishName.givenNames,
+        },
     place_of_birth: legacyPlaceOfBirth,
     birth_province_or_state: birthProvince.zh || birthProvince.en
       ? birthProvince
@@ -464,9 +518,13 @@ export default function UniversalInfoPage() {
       const initialBirthCountry = normalizeCountryCode(
         typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
       );
+      const initialFullNameEn = composeEnglishFullName(initialBilingual.given_names.en, initialBilingual.surname.en);
+      const initialFullNameZh = composeChineseName(initialBilingual.surname.zh, initialBilingual.given_names.zh);
 
       setForm({
-        full_name: initialBilingual.full_name.en || initialBilingual.full_name.zh,
+        full_name: initialFullNameEn || initialFullNameZh || initialBilingual.full_name.en || initialBilingual.full_name.zh,
+        surname: initialBilingual.surname.en || initialBilingual.surname.zh,
+        given_names: initialBilingual.given_names.en || initialBilingual.given_names.zh,
         date_of_birth: typedProfile?.date_of_birth ?? "",
         place_of_birth: initialBirthCity || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
         birth_country: initialBirthCountry,
@@ -523,8 +581,29 @@ export default function UniversalInfoPage() {
       setManualEnglishFields((current) => ({ ...current, [field]: false }));
     }
 
-    setBilingualForm((current) => ({ ...current, [field]: nextValue }));
-    setForm((current) => ({ ...current, [field]: nextValue.en || nextValue.zh }));
+    setBilingualForm((current) => {
+      const merged = { ...current, [field]: nextValue };
+      if (field === "surname" || field === "given_names") {
+        merged.full_name = {
+          zh: composeChineseName(merged.surname.zh, merged.given_names.zh),
+          en: composeEnglishFullName(merged.given_names.en, merged.surname.en),
+        };
+      }
+      return merged;
+    });
+    setForm((current) => {
+      if (field === "surname" || field === "given_names") {
+        const nextSurname = field === "surname" ? nextValue : bilingualForm.surname;
+        const nextGivenNames = field === "given_names" ? nextValue : bilingualForm.given_names;
+        return {
+          ...current,
+          [field]: nextValue.en || nextValue.zh,
+          full_name: composeEnglishFullName(nextGivenNames.en, nextSurname.en) ||
+            composeChineseName(nextSurname.zh, nextGivenNames.zh),
+        };
+      }
+      return { ...current, [field]: nextValue.en || nextValue.zh };
+    });
     setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
     setError(null);
