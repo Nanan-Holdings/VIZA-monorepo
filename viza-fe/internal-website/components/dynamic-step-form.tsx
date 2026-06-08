@@ -38,6 +38,39 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
 /** Default max instances for repeatable groups without an explicit max_items */
 const REPEAT_GROUP_DEFAULT_MAX = 5;
 
+const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
+  austria: "Austria",
+  belgium: "Belgium",
+  bulgaria: "Bulgaria",
+  croatia: "Croatia",
+  czech_republic: "Czechia",
+  czechia: "Czechia",
+  denmark: "Denmark",
+  estonia: "Estonia",
+  finland: "Finland",
+  france: "France",
+  germany: "Germany",
+  greece: "Greece",
+  hungary: "Hungary",
+  iceland: "Iceland",
+  italy: "Italy",
+  latvia: "Latvia",
+  liechtenstein: "Liechtenstein",
+  lithuania: "Lithuania",
+  luxembourg: "Luxembourg",
+  malta: "Malta",
+  netherlands: "Netherlands",
+  norway: "Norway",
+  poland: "Poland",
+  portugal: "Portugal",
+  romania: "Romania",
+  slovakia: "Slovakia",
+  slovenia: "Slovenia",
+  spain: "Spain",
+  sweden: "Sweden",
+  switzerland: "Switzerland",
+};
+
 type BilingualSide = "zh" | "en";
 
 interface BilingualTextValue {
@@ -190,13 +223,56 @@ function getSideOptions(
 ): VisaFormFieldRow["options"] {
   if (!options) return null;
   return options.map((option) => {
-    const value = typeof option === "string" ? option : option.value;
-    const text = typeof option === "string" ? option : option.text;
+    if (typeof option === "string") {
+      return {
+        value: option,
+        text: side === "zh" ? getChineseOptionText(option) : getEnglishOptionText(option),
+      };
+    }
+
+    const value = option.value;
+    const sourceText = option.official_label ?? option.text ?? option.label_en ?? option.value;
+    const text = side === "zh"
+      ? (option.label_zh ?? getChineseOptionText(sourceText))
+      : (option.label_en ?? getEnglishOptionText(sourceText));
     return {
       value,
-      text: side === "zh" ? getChineseOptionText(text) : getEnglishOptionText(text),
+      text,
     };
   });
+}
+
+function getValidationRuleText(
+  field: VisaFormFieldRow,
+  keys: string[],
+): string | null {
+  const rules = field.validationRules;
+  if (!rules) return null;
+  for (const key of keys) {
+    const value = rules[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getLocalizedFieldLabel(field: VisaFormFieldRow, side: BilingualSide): string {
+  if (side === "zh") {
+    return getValidationRuleText(field, ["label_zh", "zh_label"])
+      ?? getChineseLabel(field.label, field.fieldName);
+  }
+  return getValidationRuleText(field, ["label_en", "official_label_en", "official_label"])
+    ?? getEnglishLabel(field.label);
+}
+
+function getLocalizedPlaceholder(
+  field: VisaFormFieldRow,
+  side: BilingualSide,
+  fallback: string | null,
+): string | null {
+  return getValidationRuleText(
+    field,
+    side === "zh" ? ["placeholder_zh", "zh_placeholder"] : ["placeholder_en", "en_placeholder"],
+  ) ?? fallback;
 }
 
 function buildStrictDate(year: number, month: number, day: number): Date | null {
@@ -379,7 +455,10 @@ function normaliseFieldOptions(options: VisaFormFieldRow["options"]): Array<{ va
   if (!options) return [];
   return options.map((option) => {
     if (typeof option === "string") return { value: option, text: option };
-    return { value: option.value, text: option.text || option.value };
+    return {
+      value: option.value,
+      text: option.text ?? option.label_en ?? option.label_zh ?? option.official_label ?? option.value,
+    };
   });
 }
 
@@ -554,7 +633,10 @@ function isPurposeOfTripField(field: VisaFormFieldRow): boolean {
 
 function getOptionValueAndText(option: NonNullable<VisaFormFieldRow["options"]>[number]): { value: string; text: string } {
   if (typeof option === "string") return { value: option, text: option };
-  return { value: option.value ?? "", text: option.text ?? option.value ?? "" };
+  return {
+    value: option.value ?? "",
+    text: option.text ?? option.label_en ?? option.label_zh ?? option.official_label ?? option.value ?? "",
+  };
 }
 
 function isBTripPurposeOption(option: NonNullable<VisaFormFieldRow["options"]>[number]): boolean {
@@ -577,7 +659,26 @@ function findBOptionValue(options: VisaFormFieldRow["options"]): string | null {
   return null;
 }
 
-function getDefaultFieldValue(field: VisaFormFieldRow): string {
+function normalizeCountrySlug(value?: string | null): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getDefaultFieldValue(
+  field: VisaFormFieldRow,
+  country?: string | null,
+  visaType?: string,
+): string {
+  if (
+    visaType === "EU_SCHENGEN_C_SHORT_STAY" &&
+    field.fieldName === "main_destination_country"
+  ) {
+    return SCHENGEN_DESTINATION_BY_COUNTRY_SLUG[normalizeCountrySlug(country)] ?? "";
+  }
+
   if (!isPurposeOfTripField(field)) return "";
   return findBOptionValue(field.options) ?? "";
 }
@@ -708,7 +809,7 @@ export function DynamicStepForm({
         const count = groupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           const key = instanceKey(field.fieldName, i);
-          const defaultValue = getDefaultFieldValue(field);
+          const defaultValue = getDefaultFieldValue(field, country, visaType);
           if (!(key in init)) {
             init[key] = defaultValue;
           } else if (!init[key] && defaultValue) {
@@ -716,7 +817,7 @@ export function DynamicStepForm({
           }
         }
       } else {
-        const defaultValue = getDefaultFieldValue(field);
+        const defaultValue = getDefaultFieldValue(field, country, visaType);
         if (!(field.fieldName in init)) {
           init[field.fieldName] = defaultValue;
         } else if (!init[field.fieldName] && defaultValue) {
@@ -1052,7 +1153,7 @@ export function DynamicStepForm({
     setValues((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
-        next[instanceKey(field.fieldName, count - 1)] = getDefaultFieldValue(field);
+        next[instanceKey(field.fieldName, count - 1)] = getDefaultFieldValue(field, country, visaType);
       }
       valuesRef.current = next;
       return next;
@@ -1213,10 +1314,11 @@ export function DynamicStepForm({
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
-    const rawPlaceholder = field.placeholder
+    const rawPlaceholder = field.placeholder ?? null;
+    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
-    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName);
-    const enPlaceholder = getEnglishPlaceholder(rawPlaceholder);
+    const enPlaceholder = getEnglishPlaceholder(rawPlaceholder)
+      ?? (field.fieldType === "select" ? "Select..." : null);
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
@@ -1232,8 +1334,12 @@ export function DynamicStepForm({
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
-        label: side === "zh" ? getChineseLabel(field.label, field.fieldName) : getEnglishLabel(field.label),
-        placeholder: side === "zh" ? zhPlaceholder : enPlaceholder,
+        label: getLocalizedFieldLabel(field, side),
+        placeholder: getLocalizedPlaceholder(
+          field,
+          side,
+          side === "zh" ? zhPlaceholder : enPlaceholder,
+        ),
         options: getSideOptions(fieldOptions, side),
       };
 

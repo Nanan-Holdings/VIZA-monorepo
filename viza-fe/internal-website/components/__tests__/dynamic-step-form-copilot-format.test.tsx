@@ -3,6 +3,7 @@ import { isValidElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
 import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefill";
+import { getChineseOptionText, getEnglishPlaceholder } from "@/lib/ds160-translations";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
 import { type WizardStep } from "@/types/visa-form-fields";
@@ -206,6 +207,54 @@ const documentDateConsistencyStep: WizardStep = {
       displayOrder: 4,
       placeholder: null,
       validationRules: { format: "DD/MM/YYYY", inline_group: "travel_document_dates" },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const schengenPurposeStep: WizardStep = {
+  stepNumber: 7,
+  stepName: "Trip Details",
+  fields: [
+    {
+      id: "field-purpose-of-journey",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "purpose_of_journey",
+      label: "Main purpose of the journey",
+      fieldType: "select",
+      required: true,
+      stepNumber: 7,
+      stepName: "Trip Details",
+      displayOrder: 1,
+      placeholder: "请选择...",
+      validationRules: null,
+      options: [
+        { value: "tourism", text: "Tourism" },
+        { value: "business", text: "Business" },
+        { value: "cultural", text: "Cultural" },
+      ],
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const schengenDestinationStep: WizardStep = {
+  stepNumber: 7,
+  stepName: "Trip Details",
+  fields: [
+    {
+      id: "field-main-destination-country",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      fieldName: "main_destination_country",
+      label: "Member State of main destination",
+      fieldType: "country",
+      required: true,
+      stepNumber: 7,
+      stepName: "Trip Details",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: { source: "ISO3166-1" },
       options: null,
       conditionalLogic: null,
     },
@@ -471,6 +520,49 @@ describe("DynamicStepForm copilot format", () => {
     expect(birthDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
     expect(issueDateTrigger?.parentElement).not.toHaveTextContent("到期日必须晚于签发日");
     expect(expiryDateTrigger?.parentElement).toHaveTextContent("到期日必须晚于签发日");
+  });
+
+  it("keeps Schengen option and placeholder language scoped to each side", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={schengenPurposeStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        country="france"
+        visaType="EU_SCHENGEN_C_SHORT_STAY"
+      />,
+    );
+
+    expect(getChineseOptionText("Tourism")).toBe("旅游");
+    expect(getChineseOptionText("Business")).toBe("商务");
+    expect(getChineseOptionText("Cultural")).toBe("文化");
+    expect(getEnglishPlaceholder("请选择...")).toBe("Select...");
+
+    expect(container).toHaveTextContent("旅游");
+    expect(container).toHaveTextContent("商务");
+    expect(container).toHaveTextContent("文化");
+    expect(container).toHaveTextContent("Tourism");
+    expect(container).toHaveTextContent("Business");
+    expect(container).toHaveTextContent("Cultural");
+    expect(container).toHaveTextContent("Select...");
+  });
+
+  it("defaults France Schengen main destination and localizes country names per side", async () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={schengenDestinationStep}
+        prefill={{}}
+        onComplete={vi.fn()}
+        country="france"
+        visaType="EU_SCHENGEN_C_SHORT_STAY"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("法国")).toBeInTheDocument();
+    });
+    expect(screen.getByText("France")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent("法国 (France)");
   });
 
   it("keeps registered wizard prompts aligned with localized country copy", () => {

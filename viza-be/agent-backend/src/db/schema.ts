@@ -299,8 +299,13 @@ export const travelDestinations = pgTable("travel_destinations", {
 	canonicalName: text("canonical_name").notNull(),
 	displayName: text("display_name").notNull(),
 	normalizedName: text("normalized_name"),
+	nameEn: text("name_en"),
+	nameZh: text("name_zh"),
+	aliasesJson: jsonb("aliases_json").default([]).notNull(),
 	countryCode: text("country_code"),
 	countryName: text("country_name"),
+	countryNameEn: text("country_name_en"),
+	countryNameZh: text("country_name_zh"),
 	region: text("region"),
 	city: text("city"),
 	placeType: text("place_type"),
@@ -321,6 +326,11 @@ export const travelDestinations = pgTable("travel_destinations", {
 	isSearchable: boolean("is_searchable").default(true),
 	showOnHome: boolean("show_on_home").default(false),
 	isFeatured: boolean("is_featured").default(false),
+	isDropdownEnabled: boolean("is_dropdown_enabled").default(false),
+	isPopular: boolean("is_popular").default(false),
+	dataQuality: text("data_quality").default("incomplete").notNull(),
+	completenessScore: numeric("completeness_score").default("0"),
+	lastEnrichedAt: timestamp("last_enriched_at", { withTimezone: true }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -331,8 +341,12 @@ export const travelDestinations = pgTable("travel_destinations", {
 	isSearchableIdx: index("travel_destinations_is_searchable_idx").on(table.isSearchable),
 	showOnHomeIdx: index("travel_destinations_show_on_home_idx").on(table.showOnHome),
 	isFeaturedIdx: index("travel_destinations_is_featured_idx").on(table.isFeatured),
+	isDropdownEnabledIdx: index("travel_destinations_dropdown_enabled_idx").on(table.isDropdownEnabled),
+	dataQualityIdx: index("travel_destinations_data_quality_idx").on(table.dataQuality),
+	completenessScoreIdx: index("travel_destinations_completeness_score_idx").on(table.completenessScore),
 	geonamesIdIdx: index("travel_destinations_geonames_id_idx").on(table.geonamesId),
 	wikidataQidIdx: index("travel_destinations_wikidata_qid_idx").on(table.wikidataQid),
+	normalizedCountryIdx: uniqueIndex("travel_destinations_normalized_country_unique_idx").on(table.normalizedName, table.countryCode),
 }));
 
 export const travelDestinationAliases = pgTable("travel_destination_aliases", {
@@ -353,10 +367,18 @@ export const travelDestinationCards = pgTable("travel_destination_cards", {
 	destinationId: uuid("destination_id").notNull(),
 	cardType: text("card_type").notNull(),
 	title: text("title").notNull(),
+	titleEn: text("title_en"),
+	titleZh: text("title_zh"),
 	subtitle: text("subtitle"),
+	subtitleEn: text("subtitle_en"),
+	subtitleZh: text("subtitle_zh"),
+	descriptionEn: text("description_en"),
+	descriptionZh: text("description_zh"),
 	imageUrl: text("image_url"),
+	imageAssetId: uuid("image_asset_id"),
 	payloadJson: jsonb("payload_json").default({}).notNull(),
 	source: text("source"),
+	sourceStatus: text("source_status").default("placeholder").notNull(),
 	isGenerated: boolean("is_generated").default(false),
 	confidenceScore: numeric("confidence_score").default("1"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -364,7 +386,89 @@ export const travelDestinationCards = pgTable("travel_destination_cards", {
 }, (table) => ({
 	destinationIdx: index("travel_destination_cards_destination_idx").on(table.destinationId),
 	cardTypeIdx: index("travel_destination_cards_card_type_idx").on(table.cardType),
+	imageAssetIdx: index("travel_destination_cards_image_asset_idx").on(table.imageAssetId),
+	sourceStatusIdx: index("travel_destination_cards_source_status_idx").on(table.sourceStatus),
 	destinationTypeIdx: uniqueIndex("travel_destination_cards_destination_type_unique_idx").on(table.destinationId, table.cardType),
+}));
+
+export const travelAttractions = pgTable("travel_attractions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	destinationId: uuid("destination_id").notNull(),
+	canonicalName: text("canonical_name").notNull(),
+	nameEn: text("name_en").notNull(),
+	nameZh: text("name_zh"),
+	descriptionEn: text("description_en"),
+	descriptionZh: text("description_zh"),
+	category: text("category"),
+	latitude: numeric("latitude"),
+	longitude: numeric("longitude"),
+	recommendedDurationMinutes: integer("recommended_duration_minutes"),
+	popularityScore: numeric("popularity_score").default("0"),
+	dataQuality: text("data_quality").default("incomplete").notNull(),
+	source: text("source"),
+	sourceUrl: text("source_url"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	destinationIdx: index("travel_attractions_destination_idx").on(table.destinationId),
+	dataQualityIdx: index("travel_attractions_data_quality_idx").on(table.dataQuality),
+	destinationCanonicalIdx: uniqueIndex("travel_attractions_destination_canonical_unique_idx").on(table.destinationId, table.canonicalName),
+}));
+
+export const travelAssets = pgTable("travel_assets", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	entityType: text("entity_type").notNull(),
+	entityId: uuid("entity_id").notNull(),
+	assetType: text("asset_type").notNull(),
+	imageUrl: text("image_url").notNull(),
+	thumbnailUrl: text("thumbnail_url"),
+	width: integer("width"),
+	height: integer("height"),
+	source: text("source"),
+	sourceUrl: text("source_url"),
+	attribution: text("attribution"),
+	license: text("license"),
+	confidenceScore: numeric("confidence_score").default("0"),
+	verified: boolean("verified").default(false),
+	isPrimary: boolean("is_primary").default(false),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	entityIdx: index("travel_assets_entity_idx").on(table.entityType, table.entityId),
+	primaryIdx: index("travel_assets_primary_idx").on(table.entityType, table.entityId, table.isPrimary),
+	verifiedIdx: index("travel_assets_verified_idx").on(table.verified),
+	entityTypeAssetUrlIdx: uniqueIndex("travel_assets_entity_type_asset_url_unique_idx").on(table.entityType, table.entityId, table.assetType, table.imageUrl),
+}));
+
+export const travelEnrichmentJobs = pgTable("travel_enrichment_jobs", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	destinationId: uuid("destination_id").notNull(),
+	status: text("status").default("queued").notNull(),
+	missingFieldsJson: jsonb("missing_fields_json").default([]).notNull(),
+	provider: text("provider"),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
+	startedAt: timestamp("started_at", { withTimezone: true }),
+	finishedAt: timestamp("finished_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	destinationIdx: index("travel_enrichment_jobs_destination_idx").on(table.destinationId),
+	statusIdx: index("travel_enrichment_jobs_status_idx").on(table.status),
+	createdAtIdx: index("travel_enrichment_jobs_created_at_idx").on(table.createdAt),
+}));
+
+export const travelEnrichmentEvents = pgTable("travel_enrichment_events", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	destinationId: uuid("destination_id"),
+	eventType: text("event_type").notNull(),
+	message: text("message"),
+	metadataJson: jsonb("metadata_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	jobIdx: index("travel_enrichment_events_job_idx").on(table.jobId),
+	destinationIdx: index("travel_enrichment_events_destination_idx").on(table.destinationId),
 }));
 
 export const travelItinerarySessions = pgTable("travel_itinerary_sessions", {

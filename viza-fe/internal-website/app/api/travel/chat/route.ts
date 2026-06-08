@@ -204,9 +204,119 @@ function enrichTravelChatResponse(
   return response;
 }
 
+function buildImmediateLocalFirstResponse(
+  payload: unknown
+): TravelAgentChatResponse | null {
+  const userText = latestUserText(payload);
+  if (!userText || /加入计划|add to plan/i.test(userText)) return null;
+
+  const resolution = resolveLocalDestinationText(userText);
+  if (resolution.status === "ambiguous") {
+    return {
+      reply: resolution.clarificationQuestion,
+      mode: "collect_slots",
+      quick_replies: resolution.options.slice(0, 4).map((option) => ({
+        label: option.displayName,
+        value: `我说的是 ${option.displayName}`,
+      })),
+      cards: [],
+      candidate_payload: {},
+      sources: [
+        {
+          id: "destination_resolver",
+          title: "Local-first destination clarification",
+          type: "resolver",
+        },
+      ],
+    };
+  }
+
+  if (resolution.status === "resolved") {
+    const candidatePayload = buildTravelCandidatePayload(
+      resolution.destinations,
+      userText
+    );
+    const resolvedNames = resolution.destinations
+      .map((destination) => destination.displayName)
+      .join("、");
+    return {
+      reply: `我已经从本地目的地库识别到：${resolvedNames}。先展示本地已验证资料；缺失图片或景点时会进入补全流程，未验证图片会保持占位图。`,
+      mode: "destination_detail",
+      quick_replies: resolution.destinations.slice(0, 3).map((destination) => ({
+        label: `加入计划：${destination.displayName}`,
+        value: `加入计划：${destination.displayName}`,
+      })),
+      cards: buildResolvedDestinationCards(
+        undefined,
+        resolution.destinations,
+        userText
+      ),
+      candidate_payload: candidatePayload,
+      sources: [
+        {
+          id: "local_first_destination_contract",
+          title: "Local-first destination contract",
+          type: "resolver",
+        },
+      ],
+    };
+  }
+
+  if (resolution.status === "temporary" && looksLikeDestinationDraftText(userText)) {
+    const card = toTravelDestinationChatCard(resolution.destination, userText);
+    return {
+      reply:
+        "这个目的地暂时不在本地下拉库中。我会先创建文字草稿卡，并保持图片为占位图，直到后续 API 找到可信资料。",
+      mode: "destination_detail",
+      quick_replies: [],
+      cards: [card],
+      candidate_payload: buildTravelCandidatePayload(
+        [resolution.destination],
+        userText
+      ),
+      sources: [
+        {
+          id: "local_first_generated_draft",
+          title: "Generated text-only destination draft",
+          type: "resolver",
+        },
+      ],
+    };
+  }
+
+  return null;
+}
+
+function looksLikeDestinationDraftText(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (
+    /(delete|remove|reorder|refresh|change|edit|revise|删除|删掉|重排|调整|修改|刷新|重做)/i.test(
+      trimmed
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    /(想去|我要去|计划|旅行|路线|目的地|travel|trip|visit|go to|destination|city)/i.test(
+      trimmed
+    )
+  ) {
+    return true;
+  }
+
+  return trimmed.split(/\s+/).filter(Boolean).length <= 4;
+}
+
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+    const immediateResponse = buildImmediateLocalFirstResponse(payload);
+    if (immediateResponse) {
+      return Response.json(immediateResponse, { status: 200 });
+    }
+
     const candidatePaths = ["/chat", "/travel-chat", "/api/chat"];
     const tried: Array<{ path: string; status: number; detail: string }> = [];
 

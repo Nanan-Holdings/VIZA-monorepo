@@ -25,7 +25,10 @@ interface ProviderConfig {
   mapperFiles?: string[];
   automationFiles?: string[];
   notes: string;
+  requiredFields?: FieldRequirement[];
   extraRequiredFields?: FieldRequirement[];
+  includeAllAnswersInPayload?: boolean;
+  dryRunConfirmationPrefix?: string;
 }
 
 const SCHEMA_VERSION = "2026-06-05.base";
@@ -58,6 +61,80 @@ const COMMON_OPTIONAL_FIELDS: FieldRequirement[] = [
   { key: "overstay_history", label: "Previous overstay", category: "security", required: false },
 ];
 
+function vnField(
+  key: string,
+  label: string,
+  category: FieldCategory,
+  condition?: FieldRequirement["condition"],
+): FieldRequirement {
+  return { key: `answers.${key}`, label, category, required: true, condition };
+}
+
+const WHEN_MULTIPLE_NATIONALITIES = {
+  key: "answers.has_multiple_nationalities",
+  equals: "yes",
+};
+const WHEN_VIOLATED_VIETNAM_LAWS = {
+  key: "answers.has_violated_vietnam_laws",
+  equals: "yes",
+};
+const WHEN_VISITED_VIETNAM_LAST_YEAR = {
+  key: "answers.visited_vietnam_in_last_year",
+  equals: "yes",
+};
+const WHEN_HAS_RELATIVES_IN_VIETNAM = {
+  key: "answers.has_relatives_in_vietnam",
+  equals: "yes",
+};
+
+const VN_REQUIRED_FIELDS: FieldRequirement[] = [
+  vnField("surname", "Surname", "personal"),
+  vnField("given_name", "Middle and given name", "personal"),
+  vnField("date_of_birth", "Date of birth", "personal"),
+  vnField("sex", "Sex", "personal"),
+  vnField("nationality", "Nationality", "personal"),
+  vnField("email_address", "Email", "contact"),
+  vnField("re_enter_email_address", "Re-enter email", "contact"),
+  vnField("religion", "Religion", "personal"),
+  vnField("place_of_birth", "Place of birth", "personal"),
+  vnField("has_multiple_nationalities", "Other nationalities declaration", "security"),
+  vnField("other_nationality", "Other nationality", "personal", WHEN_MULTIPLE_NATIONALITIES),
+  vnField("has_violated_vietnam_laws", "Vietnam law violation declaration", "security"),
+  vnField("violation_of_vietnam_laws_details", "Vietnam law violation details", "security", WHEN_VIOLATED_VIETNAM_LAWS),
+  vnField("visa_type_requested", "Type of visa requested", "trip"),
+  vnField("visa_valid_from", "E-visa valid from", "trip"),
+  vnField("visa_valid_to", "E-visa valid to", "trip"),
+  vnField("passport_number", "Passport number", "passport"),
+  vnField("passport_type", "Passport type", "passport"),
+  vnField("passport_issue_date", "Passport issue date", "passport"),
+  vnField("passport_expiry_date", "Passport expiry date", "passport"),
+  vnField("permanent_residential_address", "Permanent residential address", "contact"),
+  vnField("contact_address", "Contact address", "contact"),
+  vnField("telephone_number", "Telephone number", "contact"),
+  vnField("emergency_contact_full_name", "Emergency contact full name", "contact"),
+  vnField("emergency_contact_current_address", "Emergency contact address", "contact"),
+  vnField("emergency_contact_telephone", "Emergency contact telephone", "contact"),
+  vnField("emergency_contact_relationship", "Emergency contact relationship", "contact"),
+  vnField("purpose_of_entry", "Purpose of entry", "trip"),
+  vnField("intended_date_of_entry", "Intended date of entry", "trip"),
+  vnField("intended_length_of_stay", "Intended length of stay", "trip"),
+  vnField("residential_address_in_vietnam", "Residential address in Viet Nam", "trip"),
+  vnField("intended_province_city", "Province/city", "trip"),
+  vnField("intended_ward_commune", "Ward/commune", "trip"),
+  vnField("intended_border_gate_of_entry", "Intended border gate of entry", "trip"),
+  vnField("intended_border_gate_of_exit", "Intended border gate of exit", "trip"),
+  vnField("declaration_temporary_residence", "Temporary residence declaration", "trip"),
+  vnField("visited_vietnam_in_last_year", "Previous Viet Nam visit declaration", "trip"),
+  vnField("visited_vietnam_purpose_detail", "Previous Viet Nam visit details", "trip", WHEN_VISITED_VIETNAM_LAST_YEAR),
+  vnField("has_relatives_in_vietnam", "Relatives in Viet Nam declaration", "trip"),
+  vnField("relative_full_name_in_vn", "Relative full name", "trip", WHEN_HAS_RELATIVES_IN_VIETNAM),
+  vnField("relative_date_of_birth", "Relative date of birth", "trip", WHEN_HAS_RELATIVES_IN_VIETNAM),
+  vnField("relative_nationality", "Relative nationality", "trip", WHEN_HAS_RELATIVES_IN_VIETNAM),
+  vnField("relative_relationship", "Relative relationship", "trip", WHEN_HAS_RELATIVES_IN_VIETNAM),
+  vnField("relative_address_in_vn", "Relative address", "trip", WHEN_HAS_RELATIVES_IN_VIETNAM),
+  vnField("final_declaration", "Final declaration", "security"),
+];
+
 const CONFIGS: ProviderConfig[] = [
   {
     countryCode: "US",
@@ -73,6 +150,7 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["src/ds160-form-mappings.ts", "../agent-backend/scripts/seed-ds160-form-fields.ts"],
     mapperFiles: ["src/ds160-derive-answers.ts"],
     automationFiles: ["src/ceac/orchestrator.ts", "src/index.ts"],
+    dryRunConfirmationPrefix: "DRYRUN-DS160",
     notes: "Primary reference flow. Runner stops at CEAC sign-and-submit handoff.",
   },
   {
@@ -131,7 +209,14 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["../agent-backend/scripts/seed-vn-e-visa-form-fields.ts"],
     mapperFiles: ["src/vietnam/field-mappings.ts"],
     automationFiles: ["src/vietnam/run.ts"],
-    notes: "Runner is designed to halt before pay/submit; email-PDF capture remains deferred.",
+    requiredFields: [
+      ...COMMON_REQUIRED_FIELDS,
+      ...COMMON_OPTIONAL_FIELDS,
+      ...VN_REQUIRED_FIELDS,
+    ],
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-VIETNAM",
+    notes: "Dry-run validates the VN_E_VISA answer schema and runner is designed to halt before pay/submit; email-PDF capture remains deferred.",
   },
   {
     countryCode: "UK",
@@ -379,22 +464,60 @@ function readAnswer(application: CountrySubmissionApplication, key: string): str
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function normalizeRequirementValue(value: string): string {
+  const normalized = normalizeToken(value);
+  if (["1", "true", "on", "agree", "i_agree"].includes(normalized)) return "yes";
+  if (["0", "false", "off", "disagree"].includes(normalized)) return "no";
+  return normalized;
+}
+
+function readStringValue(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function readValueByKey(application: CountrySubmissionApplication, key: string): string | null {
+  const [scope, ...path] = key.split(".");
+  const field = path.join(".");
+  if (scope === "profile" && field) {
+    const profile = application.profile as Record<string, unknown>;
+    return readStringValue(profile[field]);
+  }
+  if (scope === "trip" && field) {
+    const trip = application.trip as Record<string, unknown>;
+    return readStringValue(trip[field]);
+  }
+  if ((scope === "answers" || scope === "answer") && field) {
+    return readAnswer(application, field);
+  }
+  if (scope === "metadata" && path.length > 0) {
+    let current: unknown = application.metadata;
+    for (const segment of path) {
+      if (!current || typeof current !== "object") return null;
+      current = (current as Record<string, unknown>)[segment];
+    }
+    return readStringValue(current);
+  }
+  return readAnswer(application, key);
+}
+
 function readRequirementValue(
   application: CountrySubmissionApplication,
   requirement: FieldRequirement,
 ): string | null {
-  const [scope, field] = requirement.key.split(".");
-  if (scope === "profile" && field) {
-    const profile = application.profile as Record<string, string | null | undefined>;
-    const value = profile[field];
-    return typeof value === "string" && value.trim() ? value.trim() : null;
-  }
-  if (scope === "trip" && field) {
-    const trip = application.trip as Record<string, string | null | undefined>;
-    const value = trip[field];
-    return typeof value === "string" && value.trim() ? value.trim() : null;
-  }
-  return readAnswer(application, requirement.key);
+  return readValueByKey(application, requirement.key);
+}
+
+function shouldValidateRequirement(
+  application: CountrySubmissionApplication,
+  requirement: FieldRequirement,
+): boolean {
+  if (!requirement.condition) return true;
+  const actual = readValueByKey(application, requirement.condition.key);
+  return actual
+    ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
+    : false;
 }
 
 function validateRequiredFields(
@@ -402,7 +525,8 @@ function validateRequiredFields(
   requiredFields: FieldRequirement[],
 ): ValidationResult {
   const issues = requiredFields
-    .filter((field) => field.required && !readRequirementValue(application, field))
+    .filter((field) => field.required && shouldValidateRequirement(application, field))
+    .filter((field) => !readRequirementValue(application, field))
     .map((field) => ({
       field: field.key,
       category: field.category as FieldCategory,
@@ -418,6 +542,7 @@ function validateRequiredFields(
 
 function buildCountrySpecificPayload(
   application: CountrySubmissionApplication,
+  includeAllAnswers = false,
 ): Record<string, string> {
   const answers = application.answers ?? {};
   const countryPrefix = normalizeToken(application.countryCode);
@@ -427,6 +552,7 @@ function buildCountrySpecificPayload(
     if (!value) continue;
     const normalizedKey = normalizeToken(key);
     if (
+      includeAllAnswers ||
       normalizedKey.startsWith(`${countryPrefix}_`) ||
       normalizedKey.startsWith(`${visaPrefix}_`) ||
       normalizedKey.includes("criminal") ||
@@ -453,13 +579,20 @@ function idempotencyKeyFor(
   ].join(":");
 }
 
-function buildDryRunConfirmation(countryCode: string, applicationId: string): string {
+function buildDryRunConfirmation(
+  countryCode: string,
+  applicationId: string,
+  prefix?: string,
+): string {
   const compactId = applicationId.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
-  return `MOCK-${countryCode}-${compactId || "APPLICATION"}`;
+  const timestamp = prefix === "DRYRUN-DS160"
+    ? `-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`
+    : "";
+  return `${prefix ?? `MOCK-${countryCode}`}-${compactId || "APPLICATION"}${timestamp}`;
 }
 
 function createProvider(config: ProviderConfig): CountrySubmissionProvider {
-  const requiredFields = [
+  const requiredFields = config.requiredFields ?? [
     ...COMMON_REQUIRED_FIELDS,
     ...COMMON_OPTIONAL_FIELDS,
     ...(config.extraRequiredFields ?? []),
@@ -497,7 +630,7 @@ function createProvider(config: ProviderConfig): CountrySubmissionProvider {
           ...application.trip,
           destinationCountry: application.trip.destinationCountry ?? config.displayName,
         },
-        countrySpecific: buildCountrySpecificPayload(application),
+        countrySpecific: buildCountrySpecificPayload(application, config.includeAllAnswersInPayload),
         metadata: {
           ...(application.metadata ?? {}),
           implementationStatus: config.implementationStatus,
@@ -521,7 +654,11 @@ function createProvider(config: ProviderConfig): CountrySubmissionProvider {
         status: "submitted_mock",
         mode: "dry_run",
         applicationId: payload.applicationId,
-        confirmationNumber: buildDryRunConfirmation(config.countryCode, payload.applicationId),
+        confirmationNumber: buildDryRunConfirmation(
+          config.countryCode,
+          payload.applicationId,
+          config.dryRunConfirmationPrefix,
+        ),
         implementationStatus: config.implementationStatus,
         message: `Dry-run submission completed for ${config.displayName}. Real external submission was not performed.`,
       };

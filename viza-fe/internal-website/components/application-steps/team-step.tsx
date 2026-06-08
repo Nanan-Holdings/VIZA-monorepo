@@ -44,9 +44,10 @@ import {
 } from "@/app/actions/application-group";
 import {
   getFrequentTravelers,
-  type FrequentTravelerInput,
   type FrequentTravelerSummary,
 } from "@/app/actions/client-settings";
+import { FrequentTravelerProfileFields } from "@/components/application-steps/frequent-traveler-profile-fields";
+import type { FrequentTravelerInput } from "@/lib/frequent-traveler-profile";
 
 export interface TeamStepProps {
   applicationId: string | null;
@@ -68,12 +69,35 @@ export type TeamStepNotice = {
 
 const EMPTY_FORM: FrequentTravelerInput = {
   fullName: "",
+  surname: "",
+  surnameZh: "",
+  surnameEn: "",
+  givenNames: "",
+  givenNamesZh: "",
+  givenNamesEn: "",
   dateOfBirth: "",
+  birthCountry: "",
+  birthProvinceOrState: "",
+  birthProvinceOrStateZh: "",
+  birthProvinceOrStateEn: "",
+  birthCity: "",
+  birthCityZh: "",
+  birthCityEn: "",
+  gender: "",
   nationality: "",
+  occupation: "",
+  occupationZh: "",
+  occupationEn: "",
+  address: "",
+  addressZh: "",
+  addressEn: "",
   passportNumber: "",
+  passportIssueDate: "",
   passportExpiryDate: "",
+  passportIssuingCountry: "",
   email: "",
   phone: "",
+  wechat: "",
 };
 
 function obfuscatePassport(value: string | null) {
@@ -97,10 +121,6 @@ function statusKey(status?: string | null) {
     default:
       return "draft";
   }
-}
-
-function inputClass() {
-  return "h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 }
 
 export function TeamStep({
@@ -382,7 +402,7 @@ export function TeamStep({
           if (next) setDialogError(null);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("dialog.title")}</DialogTitle>
             <p className="text-sm text-muted-foreground">{t("dialog.subtitle")}</p>
@@ -431,72 +451,7 @@ export function TeamStep({
             </TabsContent>
 
             <TabsContent value="custom" className="mt-4 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.fullName")}</span>
-                  <input
-                    className={inputClass()}
-                    value={form.fullName}
-                    onChange={(event) => updateField("fullName", event.target.value)}
-                    placeholder={tTravelers("placeholders.fullName")}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.dateOfBirth")}</span>
-                  <input
-                    className={inputClass()}
-                    type="date"
-                    value={form.dateOfBirth}
-                    onChange={(event) => updateField("dateOfBirth", event.target.value)}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.nationality")}</span>
-                  <input
-                    className={inputClass()}
-                    value={form.nationality}
-                    onChange={(event) => updateField("nationality", event.target.value)}
-                    placeholder={tTravelers("placeholders.nationality")}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.passportNumber")}</span>
-                  <input
-                    className={inputClass()}
-                    value={form.passportNumber}
-                    onChange={(event) => updateField("passportNumber", event.target.value)}
-                    placeholder={tTravelers("placeholders.passportNumber")}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.passportExpiryDate")}</span>
-                  <input
-                    className={inputClass()}
-                    type="date"
-                    value={form.passportExpiryDate}
-                    onChange={(event) => updateField("passportExpiryDate", event.target.value)}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-foreground">{tTravelers("fields.phone")}</span>
-                  <input
-                    className={inputClass()}
-                    value={form.phone}
-                    onChange={(event) => updateField("phone", event.target.value)}
-                    placeholder={tTravelers("placeholders.phone")}
-                  />
-                </label>
-                <label className="grid gap-1 text-sm sm:col-span-2">
-                  <span className="font-medium text-foreground">{tTravelers("fields.email")}</span>
-                  <input
-                    className={inputClass()}
-                    type="email"
-                    value={form.email}
-                    onChange={(event) => updateField("email", event.target.value)}
-                    placeholder={tTravelers("placeholders.email")}
-                  />
-                </label>
-              </div>
+              <FrequentTravelerProfileFields value={form} onFieldChange={updateField} />
 
               <DialogFooter className="sm:justify-between">
                 <Button

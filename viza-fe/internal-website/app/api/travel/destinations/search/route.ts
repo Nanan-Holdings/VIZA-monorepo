@@ -12,7 +12,7 @@ type AliasRow = {
 };
 
 const DESTINATION_SELECT =
-  "id, canonical_name, display_name, normalized_name, country_code, country_name, region, city, place_type, latitude, longitude, popularity_score, source, confidence_score, is_verified, is_featured, show_on_home";
+  "id, canonical_name, display_name, normalized_name, name_en, name_zh, country_code, country_name, country_name_en, country_name_zh, region, city, place_type, latitude, longitude, popularity_score, source, confidence_score, is_verified, is_featured, show_on_home, data_quality, completeness_score";
 
 function parseLimit(value: string | null): number {
   if (!value) return 10;

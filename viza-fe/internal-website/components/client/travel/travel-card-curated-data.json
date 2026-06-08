@@ -26456,6 +26456,2283 @@
       ],
       "lat": 45.504444,
       "lng": -73.556111
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "格林堡博物馆",
+      "location": "Glenbow Museum",
+      "imageSrc": "/travel/attractions/calgary-glenbow-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Glenbow_Museum",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Glenbow Museum",
+        "格林堡博物馆"
+      ],
+      "lat": 51.0452,
+      "lng": -114.061
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "和平桥",
+      "location": "Peace Bridge",
+      "imageSrc": "/travel/attractions/calgary-peace-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Peace_Bridge_(Calgary)",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Peace Bridge",
+        "和平桥"
+      ],
+      "lat": 51.0539,
+      "lng": -114.079
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "核心購物中心",
+      "location": "The CORE Shopping Centre",
+      "imageSrc": "/travel/attractions/calgary-the-core-shopping-centre.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/The_Core_(shopping_centre)",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "The CORE Shopping Centre",
+        "核心購物中心"
+      ],
+      "lat": 51.0467,
+      "lng": -114.069
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "泥盆紀花园",
+      "location": "Devonian Gardens",
+      "imageSrc": "/travel/attractions/calgary-devonian-gardens.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Devonian_gardens",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Devonian Gardens",
+        "泥盆紀花园"
+      ],
+      "lat": 51.0461,
+      "lng": -114.072
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "Cathedral Church of the Redeemer",
+      "location": "Cathedral Church of the Redeemer",
+      "imageSrc": "/travel/attractions/calgary-cathedral-church-of-the-redeemer.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cathedral_Church_of_the_Redeemer",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Cathedral Church of the Redeemer"
+      ],
+      "lat": 51.0466,
+      "lng": -114.06
+    },
+    {
+      "cityKeys": [
+        "Calgary",
+        "卡尔加里",
+        "calgary"
+      ],
+      "cityLabel": "卡尔加里",
+      "name": "Pai Yuin Temple",
+      "location": "Pai Yuin Temple",
+      "imageSrc": "/travel/attractions/calgary-pai-yuin-temple.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Calgary_True_Buddha_Pai_Yuin_Temple",
+      "description": "卡尔加里可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Pai Yuin Temple"
+      ],
+      "lat": 51.0683,
+      "lng": -114.0629
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "魁北克圣母圣殿主教座堂",
+      "location": "Notre-Dame Basilica-Cathedral",
+      "imageSrc": "/travel/attractions/quebec-city-notre-dame-basilica-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cathedral_Basilica_of_Notre-Dame_de_Qu%C3%A9bec",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Notre-Dame Basilica-Cathedral",
+        "魁北克圣母圣殿主教座堂"
+      ],
+      "lat": 46.813851,
+      "lng": -71.2066
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "魁北克桥",
+      "location": "Quebec Bridge",
+      "imageSrc": "/travel/attractions/quebec-city-quebec-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Quebec_Bridge",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Quebec Bridge",
+        "魁北克桥"
+      ],
+      "lat": 46.74556,
+      "lng": -71.28806
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "魁北克国家美术博物馆",
+      "location": "Musée national des beaux-arts du Québec",
+      "imageSrc": "/travel/attractions/quebec-city-musee-national-des-beaux-arts-du-quebec.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mus%C3%A9e_national_des_beaux-arts_du_Qu%C3%A9bec",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Musée national des beaux-arts du Québec",
+        "魁北克国家美术博物馆"
+      ],
+      "lat": 46.798889,
+      "lng": -71.224719
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "胜利之后圣母教堂",
+      "location": "Church of Our Lady of Victories, Quebec City",
+      "imageSrc": "/travel/attractions/quebec-city-church-of-our-lady-of-victories-quebec-city.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Notre-Dame-des-Victoires_Church",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Church of Our Lady of Victories, Quebec City",
+        "胜利之后圣母教堂"
+      ],
+      "lat": 46.8128,
+      "lng": -71.2027
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "魁北克文明博物馆",
+      "location": "Musée de la civilisation",
+      "imageSrc": "/travel/attractions/quebec-city-musee-de-la-civilisation.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mus%C3%A9e_de_la_civilisation",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Musée de la civilisation",
+        "魁北克文明博物馆"
+      ],
+      "lat": 46.815,
+      "lng": -71.201944
+    },
+    {
+      "cityKeys": [
+        "Quebec City",
+        "魁北克城",
+        "quebeccity"
+      ],
+      "cityLabel": "魁北克城",
+      "name": "皇家广场",
+      "location": "Place Royale",
+      "imageSrc": "/travel/attractions/quebec-city-place-royale.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Place_Royale,_Quebec_City",
+      "description": "魁北克城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Place Royale",
+        "皇家广场"
+      ],
+      "lat": 46.8131,
+      "lng": -71.2028
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "墨西哥城主教座堂",
+      "location": "Mexico City Metropolitan Cathedral",
+      "imageSrc": "/travel/attractions/mexico-city-mexico-city-metropolitan-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mexico_City_Metropolitan_Cathedral",
+      "description": "墨西哥城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Mexico City Metropolitan Cathedral",
+        "墨西哥城主教座堂"
+      ],
+      "lat": 19.434394,
+      "lng": -99.133082
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "国立人類學博物馆",
+      "location": "National Museum of Anthropology",
+      "imageSrc": "/travel/attractions/mexico-city-national-museum-of-anthropology.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Museum_of_Anthropology_(Mexico)",
+      "description": "墨西哥博物馆",
+      "aliases": [
+        "National Museum of Anthropology",
+        "国立人類學博物馆"
+      ],
+      "lat": 19.426111,
+      "lng": -99.186111
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "国家宫",
+      "location": "National Palace",
+      "imageSrc": "/travel/attractions/mexico-city-national-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Palace_(Mexico)",
+      "description": "现为墨西哥总统办公场所及私人寓所官邸",
+      "aliases": [
+        "National Palace",
+        "国家宫"
+      ],
+      "lat": 19.4325,
+      "lng": -99.131389
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "主神庙",
+      "location": "Templo Mayor",
+      "imageSrc": "/travel/attractions/mexico-city-templo-mayor.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Templo_Mayor",
+      "description": "墨西哥城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Templo Mayor",
+        "主神庙"
+      ],
+      "lat": 19.435,
+      "lng": -99.131389
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "宪法广场",
+      "location": "Zócalo",
+      "imageSrc": "/travel/attractions/mexico-city-zocalo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Z%C3%B3calo",
+      "description": "墨西哥城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Zócalo",
+        "宪法广场"
+      ],
+      "lat": 19.432778,
+      "lng": -99.133333
+    },
+    {
+      "cityKeys": [
+        "Mexico City",
+        "墨西哥城",
+        "mexicocity"
+      ],
+      "cityLabel": "墨西哥城",
+      "name": "独立纪念柱",
+      "location": "Angel of Independence",
+      "imageSrc": "/travel/attractions/mexico-city-angel-of-independence.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Angel_of_Independence",
+      "description": "墨西哥城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Angel of Independence",
+        "独立纪念柱"
+      ],
+      "lat": 19.427,
+      "lng": -99.16771
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "Cancun Underwater Museum",
+      "location": "Cancun Underwater Museum",
+      "imageSrc": "/travel/attractions/cancun-cancun-underwater-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Canc%C3%BAn_Underwater_Museum",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Cancun Underwater Museum"
+      ],
+      "lat": 21.0763,
+      "lng": -86.8463
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "Plaza Las Américas",
+      "location": "Plaza Las Américas",
+      "imageSrc": "/travel/attractions/cancun-plaza-las-americas.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Plaza_Las_Am%C3%A9ricas_(Canc%C3%BAn)",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Plaza Las Américas"
+      ],
+      "lat": 21.14717,
+      "lng": -86.82394
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "坎昆玛雅博物馆",
+      "location": "Mayan Museum of Cancún",
+      "imageSrc": "/travel/attractions/cancun-mayan-museum-of-cancun.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Mayan_Museum_of_Canc%C3%BAn",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Mayan Museum of Cancún",
+        "坎昆玛雅博物馆"
+      ],
+      "lat": 21.074026,
+      "lng": -86.777269
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "安德烈斯·昆塔纳·鲁奥運動场",
+      "location": "Andrés Quintana Roo Olympic Stadium",
+      "imageSrc": "/travel/attractions/cancun-andres-quintana-roo-olympic-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_Andr%C3%A9s_Quintana_Roo",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Andrés Quintana Roo Olympic Stadium",
+        "安德烈斯·昆塔纳·鲁奥運動场"
+      ],
+      "lat": 21.15095,
+      "lng": -86.838422
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "贝托·阿维拉棒球運動场",
+      "location": "Estadio Sherwin-Williams Beto Ávila",
+      "imageSrc": "/travel/attractions/cancun-estadio-sherwin-williams-beto-avila.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_Sherwin-Williams_Beto_%C3%81vila",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Estadio Sherwin-Williams Beto Ávila",
+        "贝托·阿维拉棒球運動场"
+      ],
+      "lat": 21.152525,
+      "lng": -86.836861
+    },
+    {
+      "cityKeys": [
+        "Cancun",
+        "坎昆",
+        "cancun"
+      ],
+      "cityLabel": "坎昆",
+      "name": "Estadio Cancun 86",
+      "location": "Estadio Cancun 86",
+      "imageSrc": "/travel/attractions/cancun-estadio-cancun-86.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_Canc%C3%BAn_86",
+      "description": "坎昆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Estadio Cancun 86"
+      ],
+      "lat": 21.182051,
+      "lng": -86.830544
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Antimonumenta",
+      "location": "Antimonumenta",
+      "imageSrc": "/travel/attractions/guadalajara-antimonumenta.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Antimonumenta_(Guadalajara)",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Antimonumenta"
+      ],
+      "lat": 20.676019,
+      "lng": -103.347267
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Templo de Santa Teresa de Jesús",
+      "location": "Templo de Santa Teresa de Jesús",
+      "imageSrc": "/travel/attractions/guadalajara-templo-de-santa-teresa-de-jesus.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Templo_de_Santa_Teresa_de_Jes%C3%BAs",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Templo de Santa Teresa de Jesús"
+      ],
+      "lat": 20.6764,
+      "lng": -103.3501
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Templo de Jesús María",
+      "location": "Templo de Jesús María",
+      "imageSrc": "/travel/attractions/guadalajara-templo-de-jesus-maria.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Templo_de_Jes%C3%BAs_Mar%C3%ADa",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Templo de Jesús María"
+      ],
+      "lat": 20.6766,
+      "lng": -103.3517
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Templo de Nuestra Señora del Carmen",
+      "location": "Templo de Nuestra Señora del Carmen",
+      "imageSrc": "/travel/attractions/guadalajara-templo-de-nuestra-senora-del-carmen.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Templo_de_Nuestra_Se%C3%B1ora_del_Carmen",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Templo de Nuestra Señora del Carmen"
+      ],
+      "lat": 20.6747,
+      "lng": -103.3533
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Teatro Diana",
+      "location": "Teatro Diana",
+      "imageSrc": "/travel/attractions/guadalajara-teatro-diana.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Diana_Theatre",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Teatro Diana"
+      ],
+      "lat": 20.665502,
+      "lng": -103.349358
+    },
+    {
+      "cityKeys": [
+        "Guadalajara",
+        "瓜达拉哈拉",
+        "guadalajara"
+      ],
+      "cityLabel": "瓜达拉哈拉",
+      "name": "Roundabout of the disappeared",
+      "location": "Roundabout of the disappeared",
+      "imageSrc": "/travel/attractions/guadalajara-roundabout-of-the-disappeared.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Monumento_a_los_Ni%C3%B1os_H%C3%A9roes_(Guadalajara)",
+      "description": "瓜达拉哈拉可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Roundabout of the disappeared"
+      ],
+      "lat": 20.666829,
+      "lng": -103.368587
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "Monterrey Cathedral",
+      "location": "Monterrey Cathedral",
+      "imageSrc": "/travel/attractions/monterrey-monterrey-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Monterrey_Cathedral",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Monterrey Cathedral"
+      ],
+      "lat": 25.665667,
+      "lng": -100.309611
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "芬迪多拉公园",
+      "location": "Fundidora park",
+      "imageSrc": "/travel/attractions/monterrey-fundidora-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Fundidora_Park",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Fundidora park",
+        "芬迪多拉公园"
+      ],
+      "lat": 25.678056,
+      "lng": -100.283333
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "Pabellón M Tower",
+      "location": "Pabellón M Tower",
+      "imageSrc": "/travel/attractions/monterrey-pabellon-m-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pabell%C3%B3n_M",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Pabellón M Tower"
+      ],
+      "lat": 25.66532,
+      "lng": -100.31687
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "Old Basilica of Guadalupe, Monterrey",
+      "location": "Old Basilica of Guadalupe, Monterrey",
+      "imageSrc": "/travel/attractions/monterrey-old-basilica-of-guadalupe-monterrey.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Old_Basilica_of_Guadalupe,_Monterrey",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Old Basilica of Guadalupe, Monterrey"
+      ],
+      "lat": 25.656917,
+      "lng": -100.314417
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "Temple of Our Lady of Sorrow",
+      "location": "Temple of Our Lady of Sorrow",
+      "imageSrc": "/travel/attractions/monterrey-temple-of-our-lady-of-sorrow.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q109311082",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Temple of Our Lady of Sorrow"
+      ],
+      "lat": 25.67742,
+      "lng": -100.31647
+    },
+    {
+      "cityKeys": [
+        "Monterrey",
+        "蒙特雷",
+        "monterrey"
+      ],
+      "cityLabel": "蒙特雷",
+      "name": "Papalote Museum, Monterrey",
+      "location": "Papalote Museum, Monterrey",
+      "imageSrc": "/travel/attractions/monterrey-papalote-museum-monterrey.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q25415097",
+      "description": "蒙特雷可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Papalote Museum, Monterrey"
+      ],
+      "lat": 25.676944,
+      "lng": -100.284778
+    },
+    {
+      "cityKeys": [
+        "Tulum",
+        "图卢姆",
+        "tulum"
+      ],
+      "cityLabel": "图卢姆",
+      "name": "Xel-Ha Park",
+      "location": "Xel-Ha Park",
+      "imageSrc": "/travel/attractions/tulum-xel-ha-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Xel-Ha_Park",
+      "description": "图卢姆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Xel-Ha Park"
+      ],
+      "lat": 20.3173,
+      "lng": -87.3568
+    },
+    {
+      "cityKeys": [
+        "Tulum",
+        "图卢姆",
+        "tulum"
+      ],
+      "cityLabel": "图卢姆",
+      "name": "白色洞穴",
+      "location": "Sistema Sac Actun",
+      "imageSrc": "/travel/attractions/tulum-sistema-sac-actun.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sistema_Sac_Actun",
+      "description": "图卢姆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sistema Sac Actun",
+        "白色洞穴"
+      ],
+      "lat": 20.246556,
+      "lng": -87.464111
+    },
+    {
+      "cityKeys": [
+        "Tulum",
+        "图卢姆",
+        "tulum"
+      ],
+      "cityLabel": "图卢姆",
+      "name": "Xelha",
+      "location": "Xelha",
+      "imageSrc": "/travel/attractions/tulum-xelha.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Xelha",
+      "description": "图卢姆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Xelha"
+      ],
+      "lat": 20.319722,
+      "lng": -87.366944
+    },
+    {
+      "cityKeys": [
+        "Tulum",
+        "图卢姆",
+        "tulum"
+      ],
+      "cityLabel": "图卢姆",
+      "name": "Cenote Nohoch Nah Chich",
+      "location": "Cenote Nohoch Nah Chich",
+      "imageSrc": "/travel/attractions/tulum-cenote-nohoch-nah-chich.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q27789991",
+      "description": "图卢姆可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Cenote Nohoch Nah Chich"
+      ],
+      "lat": 20.2987,
+      "lng": -87.4037
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "里約熱内盧基督像",
+      "location": "Christ the Redeemer",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-christ-the-redeemer.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Christ_the_Redeemer_(statue)",
+      "description": "巴西里约热内卢雕像",
+      "aliases": [
+        "Christ the Redeemer",
+        "里約熱内盧基督像"
+      ],
+      "lat": -22.951916,
+      "lng": -43.210464
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "马拉卡纳体育场",
+      "location": "Maracanã Stadium",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-maracana-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Maracan%C3%A3_Stadium",
+      "description": "巴西里约的体育场",
+      "aliases": [
+        "Maracanã Stadium",
+        "马拉卡纳体育场"
+      ],
+      "lat": -22.912167,
+      "lng": -43.230164
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "巴西国家博物馆",
+      "location": "Museu Nacional",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-museu-nacional.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Museum_of_Brazil",
+      "description": "里约热内卢可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Museu Nacional",
+        "巴西国家博物馆"
+      ],
+      "lat": -22.905833,
+      "lng": -43.226111
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "里约热内卢主教座堂",
+      "location": "Rio de Janeiro Cathedral",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-rio-de-janeiro-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Rio_de_Janeiro_Cathedral",
+      "description": "里约热内卢可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Rio de Janeiro Cathedral",
+        "里约热内卢主教座堂"
+      ],
+      "lat": -22.910925,
+      "lng": -43.180711
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "里约热内卢市立剧院",
+      "location": "Teatro Municipal",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-teatro-municipal.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Theatro_Municipal_(Rio_de_Janeiro)",
+      "description": "里约热内卢可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Teatro Municipal",
+        "里约热内卢市立剧院"
+      ],
+      "lat": -22.908987,
+      "lng": -43.176666
+    },
+    {
+      "cityKeys": [
+        "Rio de Janeiro",
+        "里约热内卢",
+        "riodejaneiro"
+      ],
+      "cityLabel": "里约热内卢",
+      "name": "坎德拉里亚教堂",
+      "location": "Candelária Church",
+      "imageSrc": "/travel/attractions/rio-de-janeiro-candelaria-church.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Candel%C3%A1ria_Church",
+      "description": "里约热内卢可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Candelária Church",
+        "坎德拉里亚教堂"
+      ],
+      "lat": -22.900811,
+      "lng": -43.177894
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "圣保罗艺术博物馆",
+      "location": "São Paulo Museum of Art",
+      "imageSrc": "/travel/attractions/sao-paulo-sao-paulo-museum-of-art.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/S%C3%A3o_Paulo_Museum_of_Art",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "São Paulo Museum of Art",
+        "圣保罗艺术博物馆"
+      ],
+      "lat": -23.561111,
+      "lng": -46.655833
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "圣保罗人大道",
+      "location": "Paulista Avenue",
+      "imageSrc": "/travel/attractions/sao-paulo-paulista-avenue.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Paulista_Avenue",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Paulista Avenue",
+        "圣保罗人大道"
+      ],
+      "lat": -23.561389,
+      "lng": -46.656389
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "伊比拉布埃拉公园",
+      "location": "Ibirapuera Park",
+      "imageSrc": "/travel/attractions/sao-paulo-ibirapuera-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Ibirapuera_Park",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ibirapuera Park",
+        "伊比拉布埃拉公园"
+      ],
+      "lat": -23.588333,
+      "lng": -46.658889
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "圣保罗主教座堂",
+      "location": "São Paulo Cathedral",
+      "imageSrc": "/travel/attractions/sao-paulo-sao-paulo-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/S%C3%A3o_Paulo_Cathedral",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "São Paulo Cathedral",
+        "圣保罗主教座堂"
+      ],
+      "lat": -23.551247,
+      "lng": -46.634374
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "圣保罗市立剧院",
+      "location": "Municipal Theater of São Paulo",
+      "imageSrc": "/travel/attractions/sao-paulo-municipal-theater-of-sao-paulo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Theatro_Municipal_(S%C3%A3o_Paulo)",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Municipal Theater of São Paulo",
+        "圣保罗市立剧院"
+      ],
+      "lat": -23.545278,
+      "lng": -46.638611
+    },
+    {
+      "cityKeys": [
+        "Sao Paulo",
+        "圣保罗",
+        "saopaulo"
+      ],
+      "cityLabel": "圣保罗",
+      "name": "埃尔多拉多商业塔",
+      "location": "Eldorado Business Tower",
+      "imageSrc": "/travel/attractions/sao-paulo-eldorado-business-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Eldorado_Business_Tower",
+      "description": "圣保罗可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Eldorado Business Tower",
+        "埃尔多拉多商业塔"
+      ],
+      "lat": -23.573389,
+      "lng": -46.697667
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "巴西利亚大教堂",
+      "location": "Cathedral of Brasília",
+      "imageSrc": "/travel/attractions/brasilia-cathedral-of-brasilia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cathedral_of_Bras%C3%ADlia",
+      "description": "巴西利亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Cathedral of Brasília",
+        "巴西利亚大教堂"
+      ],
+      "lat": -15.798333,
+      "lng": -47.875556
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "国民會議宫",
+      "location": "National Congress Palace",
+      "imageSrc": "/travel/attractions/brasilia-national-congress-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Congress_Palace",
+      "description": "巴西国民议会的所在地",
+      "aliases": [
+        "National Congress Palace",
+        "国民會議宫"
+      ],
+      "lat": -15.799722,
+      "lng": -47.864167
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "三权广场",
+      "location": "Praça dos Três Poderes",
+      "imageSrc": "/travel/attractions/brasilia-praca-dos-tres-poderes.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Pra%C3%A7a_dos_Tr%C3%AAs_Poderes",
+      "description": "巴西利亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Praça dos Três Poderes",
+        "三权广场"
+      ],
+      "lat": -15.80075,
+      "lng": -47.861316
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "克拉迪奧·圣托罗国家剧院",
+      "location": "Cláudio Santoro National Theater",
+      "imageSrc": "/travel/attractions/brasilia-claudio-santoro-national-theater.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cl%C3%A1udio_Santoro_National_Theater",
+      "description": "巴西利亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Cláudio Santoro National Theater",
+        "克拉迪奧·圣托罗国家剧院"
+      ],
+      "lat": -15.792107,
+      "lng": -47.880344
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "儒塞利诺·库比契克大桥",
+      "location": "Juscelino Kubitschek bridge",
+      "imageSrc": "/travel/attractions/brasilia-juscelino-kubitschek-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Juscelino_Kubitschek_bridge",
+      "description": "巴西利亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Juscelino Kubitschek bridge",
+        "儒塞利诺·库比契克大桥"
+      ],
+      "lat": -15.823611,
+      "lng": -47.829444
+    },
+    {
+      "cityKeys": [
+        "Brasilia",
+        "巴西利亚",
+        "brasilia"
+      ],
+      "cityLabel": "巴西利亚",
+      "name": "巴西利亚国家体育场",
+      "location": "Estádio Nacional de Brasília",
+      "imageSrc": "/travel/attractions/brasilia-estadio-nacional-de-brasilia.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Est%C3%A1dio_Nacional_Man%C3%A9_Garrincha",
+      "description": "巴西利亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Estádio Nacional de Brasília",
+        "巴西利亚国家体育场"
+      ],
+      "lat": -15.7835,
+      "lng": -47.899164
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "萨尔瓦多主教座堂",
+      "location": "Cathedral of Salvador",
+      "imageSrc": "/travel/attractions/salvador-cathedral-of-salvador.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Cathedral_Basilica_of_Salvador",
+      "description": "巴西萨尔瓦多的教會",
+      "aliases": [
+        "Cathedral of Salvador",
+        "萨尔瓦多主教座堂"
+      ],
+      "lat": -12.972833,
+      "lng": -38.510333
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "圣法兰西斯科大教堂",
+      "location": "São Francisco Church and Convent",
+      "imageSrc": "/travel/attractions/salvador-sao-francisco-church-and-convent.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Church_and_Convent_of_S%C3%A3o_Francisco,_Salvador",
+      "description": "萨尔瓦多可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "São Francisco Church and Convent",
+        "圣法兰西斯科大教堂"
+      ],
+      "lat": -12.974631,
+      "lng": -38.509053
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "里奥布兰科宫",
+      "location": "Rio Branco Palace",
+      "imageSrc": "/travel/attractions/salvador-rio-branco-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Rio_Branco_Palace",
+      "description": "萨尔瓦多可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Rio Branco Palace",
+        "里奥布兰科宫"
+      ],
+      "lat": -12.975883,
+      "lng": -38.511763
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "São Marcelo Fort",
+      "location": "São Marcelo Fort",
+      "imageSrc": "/travel/attractions/salvador-sao-marcelo-fort.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/S%C3%A3o_Marcelo_Fort",
+      "description": "萨尔瓦多可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "São Marcelo Fort"
+      ],
+      "lat": -12.969924,
+      "lng": -38.517846
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "非裔玫瑰圣母教堂",
+      "location": "Church of the Third Order of Our Lady of the Rosary of the Black People",
+      "imageSrc": "/travel/attractions/salvador-church-of-the-third-order-of-our-lady-of-the-rosary-of-the-black-people.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Church_of_Nossa_Senhora_do_Ros%C3%A1rio_dos_Pretos,_Salvador",
+      "description": "巴西萨尔瓦多的天主教宗座圣殿",
+      "aliases": [
+        "Church of the Third Order of Our Lady of the Rosary of the Black People",
+        "非裔玫瑰圣母教堂"
+      ],
+      "lat": -12.97111,
+      "lng": -38.508067
+    },
+    {
+      "cityKeys": [
+        "Salvador",
+        "萨尔瓦多",
+        "salvador"
+      ],
+      "cityLabel": "萨尔瓦多",
+      "name": "Archbishop's Palace of Salvador",
+      "location": "Archbishop's Palace of Salvador",
+      "imageSrc": "/travel/attractions/salvador-archbishop-s-palace-of-salvador.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Archbishop%27s_Palace_of_Salvador",
+      "description": "萨尔瓦多可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Archbishop's Palace of Salvador"
+      ],
+      "lat": -12.973379,
+      "lng": -38.511337
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Hercilio Luz Bridge",
+      "location": "Hercilio Luz Bridge",
+      "imageSrc": "/travel/attractions/florianopolis-hercilio-luz-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Herc%C3%ADlio_Luz_Bridge",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hercilio Luz Bridge"
+      ],
+      "lat": -27.593889,
+      "lng": -48.566111
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Santa Catarina Art Museum",
+      "location": "Santa Catarina Art Museum",
+      "imageSrc": "/travel/attractions/florianopolis-santa-catarina-art-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Santa_Catarina_Art_Museum",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Santa Catarina Art Museum"
+      ],
+      "lat": -27.5775,
+      "lng": -48.526111
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Colombo Salles Bridge",
+      "location": "Colombo Salles Bridge",
+      "imageSrc": "/travel/attractions/florianopolis-colombo-salles-bridge.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q3396512",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Colombo Salles Bridge"
+      ],
+      "lat": -27.5972,
+      "lng": -48.5653
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Palácio Cruz e Sousa",
+      "location": "Palácio Cruz e Sousa",
+      "imageSrc": "/travel/attractions/florianopolis-palacio-cruz-e-sousa.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q3360846",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Palácio Cruz e Sousa"
+      ],
+      "lat": -27.595556,
+      "lng": -48.548611
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Florianópolis Museum",
+      "location": "Florianópolis Museum",
+      "imageSrc": "/travel/attractions/florianopolis-florianopolis-museum.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q124326573",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Florianópolis Museum"
+      ],
+      "lat": -27.598069,
+      "lng": -48.55417
+    },
+    {
+      "cityKeys": [
+        "Florianopolis",
+        "弗洛里亚诺波利斯",
+        "florianopolis"
+      ],
+      "cityLabel": "弗洛里亚诺波利斯",
+      "name": "Santa Catarina's Historical Museum",
+      "location": "Santa Catarina's Historical Museum",
+      "imageSrc": "/travel/attractions/florianopolis-santa-catarina-s-historical-museum.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q56694544",
+      "description": "弗洛里亚诺波利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Santa Catarina's Historical Museum"
+      ],
+      "lat": -27.596943,
+      "lng": -48.550043
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "哥伦布剧院",
+      "location": "Colón Theater",
+      "imageSrc": "/travel/attractions/buenos-aires-colon-theater.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Teatro_Col%C3%B3n",
+      "description": "布宜诺斯艾利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Colón Theater",
+        "哥伦布剧院"
+      ],
+      "lat": -34.601083,
+      "lng": -58.383083
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "巴罗洛宫",
+      "location": "Barolo Palace",
+      "imageSrc": "/travel/attractions/buenos-aires-barolo-palace.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Palacio_Barolo",
+      "description": "布宜诺斯艾利斯的大厦",
+      "aliases": [
+        "Barolo Palace",
+        "巴罗洛宫"
+      ],
+      "lat": -34.609556,
+      "lng": -58.385861
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "五月广场",
+      "location": "Plaza de Mayo",
+      "imageSrc": "/travel/attractions/buenos-aires-plaza-de-mayo.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Plaza_de_Mayo",
+      "description": "阿根廷地标之一",
+      "aliases": [
+        "Plaza de Mayo",
+        "五月广场"
+      ],
+      "lat": -34.608333,
+      "lng": -58.371944
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "布宜诺斯艾利斯方尖碑",
+      "location": "Obelisco de Buenos Aires",
+      "imageSrc": "/travel/attractions/buenos-aires-obelisco-de-buenos-aires.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Obelisco_de_Buenos_Aires",
+      "description": "布宜诺斯艾利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Obelisco de Buenos Aires",
+        "布宜诺斯艾利斯方尖碑"
+      ],
+      "lat": -34.60376,
+      "lng": -58.38162
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "国立美术博物馆 (布宜諾斯艾利斯)",
+      "location": "National Museum of Fine Arts, Argentina",
+      "imageSrc": "/travel/attractions/buenos-aires-national-museum-of-fine-arts-argentina.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museo_Nacional_de_Bellas_Artes_(Buenos_Aires)",
+      "description": "布宜诺斯艾利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "National Museum of Fine Arts, Argentina",
+        "国立美术博物馆 (布宜諾斯艾利斯)"
+      ],
+      "lat": -34.583986,
+      "lng": -58.39297
+    },
+    {
+      "cityKeys": [
+        "Buenos Aires",
+        "布宜诺斯艾利斯",
+        "buenosaires"
+      ],
+      "cityLabel": "布宜诺斯艾利斯",
+      "name": "Café Tortoni",
+      "location": "Café Tortoni",
+      "imageSrc": "/travel/attractions/buenos-aires-cafe-tortoni.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Caf%C3%A9_Tortoni",
+      "description": "布宜诺斯艾利斯可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Café Tortoni"
+      ],
+      "lat": -34.608789,
+      "lng": -58.378306
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "Plaza Independencia",
+      "location": "Plaza Independencia",
+      "imageSrc": "/travel/attractions/mendoza-plaza-independencia.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q21059887",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Plaza Independencia"
+      ],
+      "lat": -32.889478,
+      "lng": -68.844776
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "Museum of the Foundation Area",
+      "location": "Museum of the Foundation Area",
+      "imageSrc": "/travel/attractions/mendoza-museum-of-the-foundation-area.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q6034545",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Museum of the Foundation Area"
+      ],
+      "lat": -32.8796,
+      "lng": -68.8294
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "马尔维纳斯球场",
+      "location": "Malvinas Argentinas Stadium",
+      "imageSrc": "/travel/attractions/mendoza-malvinas-argentinas-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_Malvinas_Argentinas",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Malvinas Argentinas Stadium",
+        "马尔维纳斯球场"
+      ],
+      "lat": -32.889564,
+      "lng": -68.879994
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "门多萨輕軌",
+      "location": "Metrotranvía of Mendoza",
+      "imageSrc": "/travel/attractions/mendoza-metrotranvia-of-mendoza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Metrotranv%C3%ADa_Mendoza",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Metrotranvía of Mendoza",
+        "门多萨輕軌"
+      ],
+      "lat": -32.8906,
+      "lng": -68.8503
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "autista Tragantini Stadium",
+      "location": "autista Tragantini Stadium",
+      "imageSrc": "/travel/attractions/mendoza-autista-tragantini-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_Bautista_Gargantini",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "autista Tragantini Stadium"
+      ],
+      "lat": -32.890786,
+      "lng": -68.862777
+    },
+    {
+      "cityKeys": [
+        "Mendoza",
+        "门多萨",
+        "mendoza"
+      ],
+      "cityLabel": "门多萨",
+      "name": "Víctor Legrotaglie Stadium",
+      "location": "Víctor Legrotaglie Stadium",
+      "imageSrc": "/travel/attractions/mendoza-victor-legrotaglie-stadium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Estadio_V%C3%ADctor_Legrotaglie",
+      "description": "门多萨可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Víctor Legrotaglie Stadium"
+      ],
+      "lat": -32.88425,
+      "lng": -68.863556
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "Teatro del Libertador General San Martín",
+      "location": "Teatro del Libertador General San Martín",
+      "imageSrc": "/travel/attractions/cordoba-teatro-del-libertador-general-san-martin.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Teatro_del_Libertador_General_San_Mart%C3%ADn",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Teatro del Libertador General San Martín"
+      ],
+      "lat": -31.41925,
+      "lng": -64.188028
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "Provincial Museum of Fine Arts Emilio A. Caraffa",
+      "location": "Provincial Museum of Fine Arts Emilio A. Caraffa",
+      "imageSrc": "/travel/attractions/cordoba-provincial-museum-of-fine-arts-emilio-a-caraffa.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Caraffa_Fine_Arts_Museum",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Provincial Museum of Fine Arts Emilio A. Caraffa"
+      ],
+      "lat": -31.4283,
+      "lng": -64.1839
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "Patio Olmos",
+      "location": "Patio Olmos",
+      "imageSrc": "/travel/attractions/cordoba-patio-olmos.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Patio_Olmos",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Patio Olmos"
+      ],
+      "lat": -31.42,
+      "lng": -64.187778
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "嘉布遣會圣心教堂",
+      "location": "Iglesia de los Capuchinos",
+      "imageSrc": "/travel/attractions/cordoba-iglesia-de-los-capuchinos.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q5912812",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Iglesia de los Capuchinos",
+        "嘉布遣會圣心教堂"
+      ],
+      "lat": -31.424256,
+      "lng": -64.185833
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "Saint Roch Church",
+      "location": "Saint Roch Church",
+      "imageSrc": "/travel/attractions/cordoba-saint-roch-church.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q18014859",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Saint Roch Church"
+      ],
+      "lat": -31.418599,
+      "lng": -64.179338
+    },
+    {
+      "cityKeys": [
+        "Cordoba",
+        "科尔多瓦",
+        "cordoba"
+      ],
+      "cityLabel": "科尔多瓦",
+      "name": "Plaza de la Intendencia (Córdoba, Argentina)",
+      "location": "Plaza de la Intendencia (Córdoba, Argentina)",
+      "imageSrc": "/travel/attractions/cordoba-plaza-de-la-intendencia-cordoba-argentina.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q6080196",
+      "description": "科尔多瓦可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Plaza de la Intendencia (Córdoba, Argentina)"
+      ],
+      "lat": -31.417219,
+      "lng": -64.190758
+    },
+    {
+      "cityKeys": [
+        "Ushuaia",
+        "乌斯怀亚",
+        "ushuaia"
+      ],
+      "cityLabel": "乌斯怀亚",
+      "name": "Plaza Islas Malvinas, Ushuaia",
+      "location": "Plaza Islas Malvinas, Ushuaia",
+      "imageSrc": "/travel/attractions/ushuaia-plaza-islas-malvinas-ushuaia.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q19750426",
+      "description": "乌斯怀亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Plaza Islas Malvinas, Ushuaia"
+      ],
+      "lat": -54.810278,
+      "lng": -68.315556
+    },
+    {
+      "cityKeys": [
+        "Ushuaia",
+        "乌斯怀亚",
+        "ushuaia"
+      ],
+      "cityLabel": "乌斯怀亚",
+      "name": "Ushuaia Prison",
+      "location": "Ushuaia Prison",
+      "imageSrc": "/travel/attractions/ushuaia-ushuaia-prison.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q6071194",
+      "description": "乌斯怀亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ushuaia Prison"
+      ],
+      "lat": -54.803806,
+      "lng": -68.298222
+    },
+    {
+      "cityKeys": [
+        "Ushuaia",
+        "乌斯怀亚",
+        "ushuaia"
+      ],
+      "cityLabel": "乌斯怀亚",
+      "name": "Bridges Islands",
+      "location": "Bridges Islands",
+      "imageSrc": "/travel/attractions/ushuaia-bridges-islands.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q16493454",
+      "description": "乌斯怀亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Bridges Islands"
+      ],
+      "lat": -54.86945,
+      "lng": -68.250453
+    },
+    {
+      "cityKeys": [
+        "Ushuaia",
+        "乌斯怀亚",
+        "ushuaia"
+      ],
+      "cityLabel": "乌斯怀亚",
+      "name": "Zeballos Lighthouse",
+      "location": "Zeballos Lighthouse",
+      "imageSrc": "/travel/attractions/ushuaia-zeballos-lighthouse.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q19949707",
+      "description": "乌斯怀亚可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Zeballos Lighthouse"
+      ],
+      "lat": -54.891667,
+      "lng": -68.606667
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "自由女神像",
+      "location": "Statue of Liberty",
+      "imageSrc": "/travel/attractions/new-york-statue-of-liberty.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Statue_of_Liberty",
+      "description": "美国紐約市雕像",
+      "aliases": [
+        "Statue of Liberty",
+        "自由女神像"
+      ],
+      "lat": 40.689209,
+      "lng": -74.044425
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "布鲁克林大桥",
+      "location": "Brooklyn Bridge",
+      "imageSrc": "/travel/attractions/new-york-brooklyn-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Brooklyn_Bridge",
+      "description": "美国纽约州纽约市桥梁",
+      "aliases": [
+        "Brooklyn Bridge",
+        "布鲁克林大桥"
+      ],
+      "lat": 40.705667,
+      "lng": -73.996333
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "帝国大厦",
+      "location": "Empire State Building",
+      "imageSrc": "/travel/attractions/new-york-empire-state-building.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Empire_State_Building",
+      "description": "美国纽约摩天大楼",
+      "aliases": [
+        "Empire State Building",
+        "帝国大厦"
+      ],
+      "lat": 40.748333,
+      "lng": -73.985556
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "大都会艺术博物馆",
+      "location": "Metropolitan Museum of Art",
+      "imageSrc": "/travel/attractions/new-york-metropolitan-museum-of-art.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Metropolitan_Museum_of_Art",
+      "description": "美国紐約藝术博物馆",
+      "aliases": [
+        "Metropolitan Museum of Art",
+        "大都会艺术博物馆"
+      ],
+      "lat": 40.779444,
+      "lng": -73.963333
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "中央公园",
+      "location": "Central Park",
+      "imageSrc": "/travel/attractions/new-york-central-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Central_Park",
+      "description": "一座位于美国纽约的城市公园",
+      "aliases": [
+        "Central Park",
+        "中央公园"
+      ],
+      "lat": 40.7825,
+      "lng": -73.966111
+    },
+    {
+      "cityKeys": [
+        "New York",
+        "纽约",
+        "newyork"
+      ],
+      "cityLabel": "纽约",
+      "name": "时报广场",
+      "location": "Times Square",
+      "imageSrc": "/travel/attractions/new-york-times-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Times_Square",
+      "description": "纽约曼哈顿商业中心",
+      "aliases": [
+        "Times Square",
+        "时报广场"
+      ],
+      "lat": 40.7575,
+      "lng": -73.985833
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "格里菲斯天文台",
+      "location": "Griffith Observatory",
+      "imageSrc": "/travel/attractions/los-angeles-griffith-observatory.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Griffith_Observatory",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Griffith Observatory",
+        "格里菲斯天文台"
+      ],
+      "lat": 34.118333,
+      "lng": -118.300333
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "盖蒂中心",
+      "location": "Getty Center",
+      "imageSrc": "/travel/attractions/los-angeles-getty-center.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Getty_Center",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Getty Center",
+        "盖蒂中心"
+      ],
+      "lat": 34.0775,
+      "lng": -118.475
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "圣莫尼卡码头",
+      "location": "Santa Monica Pier",
+      "imageSrc": "/travel/attractions/los-angeles-santa-monica-pier.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Santa_Monica_Pier",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Santa Monica Pier",
+        "圣莫尼卡码头"
+      ],
+      "lat": 34.008611,
+      "lng": -118.498611
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "洛杉矶郡艺术博物馆",
+      "location": "Los Angeles County Museum of Art",
+      "imageSrc": "/travel/attractions/los-angeles-los-angeles-county-museum-of-art.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Los_Angeles_County_Museum_of_Art",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Los Angeles County Museum of Art",
+        "洛杉矶郡艺术博物馆"
+      ],
+      "lat": 34.0633,
+      "lng": -118.3592
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "华特迪士尼音乐厅",
+      "location": "Walt Disney Concert Hall",
+      "imageSrc": "/travel/attractions/los-angeles-walt-disney-concert-hall.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Walt_Disney_Concert_Hall",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Walt Disney Concert Hall",
+        "华特迪士尼音乐厅"
+      ],
+      "lat": 34.055278,
+      "lng": -118.25
+    },
+    {
+      "cityKeys": [
+        "Los Angeles",
+        "洛杉矶",
+        "losangeles"
+      ],
+      "cityLabel": "洛杉矶",
+      "name": "格里菲斯公园",
+      "location": "Griffith Park",
+      "imageSrc": "/travel/attractions/los-angeles-griffith-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Griffith_Park",
+      "description": "洛杉矶可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Griffith Park",
+        "格里菲斯公园"
+      ],
+      "lat": 34.133333,
+      "lng": -118.3
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "金门大桥",
+      "location": "Golden Gate Bridge",
+      "imageSrc": "/travel/attractions/san-francisco-golden-gate-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Golden_Gate_Bridge",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Golden Gate Bridge",
+        "金门大桥"
+      ],
+      "lat": 37.819722,
+      "lng": -122.478611
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "阿尔卡特拉斯岛",
+      "location": "Alcatraz Island",
+      "imageSrc": "/travel/attractions/san-francisco-alcatraz-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Alcatraz_Island",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Alcatraz Island",
+        "阿尔卡特拉斯岛"
+      ],
+      "lat": 37.82672,
+      "lng": -122.422833
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "泛美金字塔",
+      "location": "Transamerica Pyramid",
+      "imageSrc": "/travel/attractions/san-francisco-transamerica-pyramid.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Transamerica_Pyramid",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Transamerica Pyramid",
+        "泛美金字塔"
+      ],
+      "lat": 37.795135,
+      "lng": -122.402748
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "笛洋美术馆",
+      "location": "M. H. de Young Memorial Museum",
+      "imageSrc": "/travel/attractions/san-francisco-m-h-de-young-memorial-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/De_Young_Museum",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "M. H. de Young Memorial Museum",
+        "笛洋美术馆"
+      ],
+      "lat": 37.771469,
+      "lng": -122.468676
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "科伊特塔",
+      "location": "Coit Tower",
+      "imageSrc": "/travel/attractions/san-francisco-coit-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Coit_Tower",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Coit Tower",
+        "科伊特塔"
+      ],
+      "lat": 37.8025,
+      "lng": -122.405833
+    },
+    {
+      "cityKeys": [
+        "San Francisco",
+        "旧金山",
+        "sanfrancisco"
+      ],
+      "cityLabel": "旧金山",
+      "name": "联合广场",
+      "location": "Union Square",
+      "imageSrc": "/travel/attractions/san-francisco-union-square.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Union_Square,_San_Francisco",
+      "description": "旧金山可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Union Square",
+        "联合广场"
+      ],
+      "lat": 37.788056,
+      "lng": -122.4075
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "T-Mobile球场",
+      "location": "T-Mobile Park",
+      "imageSrc": "/travel/attractions/seattle-t-mobile-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/T-Mobile_Park",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "T-Mobile Park",
+        "T-Mobile球场"
+      ],
+      "lat": 47.591389,
+      "lng": -122.3325
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "EMP博物馆",
+      "location": "Museum of Pop Culture",
+      "imageSrc": "/travel/attractions/seattle-museum-of-pop-culture.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Museum_of_Pop_Culture",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Museum of Pop Culture",
+        "EMP博物馆"
+      ],
+      "lat": 47.6215,
+      "lng": -122.3486
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "史密斯塔",
+      "location": "Smith Tower",
+      "imageSrc": "/travel/attractions/seattle-smith-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Smith_Tower",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Smith Tower",
+        "史密斯塔"
+      ],
+      "lat": 47.601925,
+      "lng": -122.331731
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "西雅图艺术博物馆",
+      "location": "Seattle Art Museum",
+      "imageSrc": "/travel/attractions/seattle-seattle-art-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Seattle_Art_Museum",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Seattle Art Museum",
+        "西雅图艺术博物馆"
+      ],
+      "lat": 47.607309,
+      "lng": -122.338133
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "西雅图水族馆",
+      "location": "Seattle Aquarium",
+      "imageSrc": "/travel/attractions/seattle-seattle-aquarium.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Seattle_Aquarium",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Seattle Aquarium",
+        "西雅图水族馆"
+      ],
+      "lat": 47.6077,
+      "lng": -122.343
+    },
+    {
+      "cityKeys": [
+        "Seattle",
+        "西雅图",
+        "seattle"
+      ],
+      "cityLabel": "西雅图",
+      "name": "圣雅各伯主教座堂",
+      "location": "St. James Cathedral",
+      "imageSrc": "/travel/attractions/seattle-st-james-cathedral.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/St._James_Cathedral_(Seattle)",
+      "description": "西雅图可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "St. James Cathedral",
+        "圣雅各伯主教座堂"
+      ],
+      "lat": 47.6077,
+      "lng": -122.326
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "威利斯大厦",
+      "location": "Willis Tower",
+      "imageSrc": "/travel/attractions/chicago-willis-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Willis_Tower",
+      "description": "在伊利諾伊州芝加哥的摩天大楼",
+      "aliases": [
+        "Willis Tower",
+        "威利斯大厦"
+      ],
+      "lat": 41.878611,
+      "lng": -87.635833
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "芝加哥艺术博物馆",
+      "location": "Art Institute of Chicago",
+      "imageSrc": "/travel/attractions/chicago-art-institute-of-chicago.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Art_Institute_of_Chicago",
+      "description": "芝加哥可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Art Institute of Chicago",
+        "芝加哥艺术博物馆"
+      ],
+      "lat": 41.879444,
+      "lng": -87.623889
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "慎行广场二号大厦",
+      "location": "Two Prudential Plaza",
+      "imageSrc": "/travel/attractions/chicago-two-prudential-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Two_Prudential_Plaza",
+      "description": "美国伊利诺州芝加哥洛普区的一栋摩天大楼",
+      "aliases": [
+        "Two Prudential Plaza",
+        "慎行广场二号大厦"
+      ],
+      "lat": 41.885556,
+      "lng": -87.622778
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "菲尔德自然史博物馆",
+      "location": "Field Museum of Natural History",
+      "imageSrc": "/travel/attractions/chicago-field-museum-of-natural-history.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Field_Museum_of_Natural_History",
+      "description": "芝加哥可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Field Museum of Natural History",
+        "菲尔德自然史博物馆"
+      ],
+      "lat": 41.866278,
+      "lng": -87.617039
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "格兰特公园",
+      "location": "Grant Park",
+      "imageSrc": "/travel/attractions/chicago-grant-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Grant_Park_(Chicago)",
+      "description": "芝加哥可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Grant Park",
+        "格兰特公园"
+      ],
+      "lat": 41.876111,
+      "lng": -87.618889
+    },
+    {
+      "cityKeys": [
+        "Chicago",
+        "芝加哥",
+        "chicago"
+      ],
+      "cityLabel": "芝加哥",
+      "name": "论坛报大厦",
+      "location": "Tribune Tower",
+      "imageSrc": "/travel/attractions/chicago-tribune-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tribune_Tower",
+      "description": "芝加哥可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Tribune Tower",
+        "论坛报大厦"
+      ],
+      "lat": 41.890389,
+      "lng": -87.623694
     }
   ]
 }
