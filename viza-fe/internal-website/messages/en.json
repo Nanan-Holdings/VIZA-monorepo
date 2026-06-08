@@ -3651,6 +3651,7 @@
     "editTitle": "Edit payment account",
     "addAccount": "Add account",
     "verifyWithStripe": "Open secure verification",
+    "verifyWithAirwallex": "Load secure card element",
     "generateQr": "Generate binding QR",
     "regenerateQr": "Regenerate QR",
     "checkQrStatus": "Check binding status",
@@ -3660,6 +3661,9 @@
     "delete": "Delete",
     "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
     "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
+    "cardHint": "Card details are entered only in the Airwallex hosted secure element. VIZA does not receive or store the full card number, expiry, or CVV.",
+    "cardElementPreparing": "Loading the Airwallex secure card element.",
+    "completeCardBinding": "Complete card binding",
     "cardIdentifier": "Card · secure verification pending",
     "qrAlt": "Payment account binding QR code",
     "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
@@ -3706,6 +3710,13 @@
       "stripeRedirect": "Opening the hosted secure verification page.",
       "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
       "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
+      "cardUnavailable": "Airwallex card verification is not configured, so card verification is unavailable.",
+      "cardStartFailed": "Could not start Airwallex card verification. Please try again later.",
+      "cardReady": "The secure card element is ready. Enter the card details to complete binding.",
+      "cardElementFailed": "Could not load the secure card element. Refresh and try again.",
+      "cardBindFailed": "Card binding was not completed. Check the card details and try again.",
+      "cardBound": "The card was verified by Airwallex and bound successfully.",
+      "walletBindingUnavailable": "Wallet account binding is not configured yet. Use wallet QR codes at checkout after the order is created.",
       "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
       "qrReady": "QR code generated. Scan it with the matching app.",
       "qrStatusFailed": "Could not check binding status. Please try again later.",
@@ -3716,7 +3727,7 @@
     "methods": {
       "bank_card": {
         "title": "Card",
-        "description": "Enter a nickname, then complete binding on the hosted secure page."
+        "description": "Enter a nickname, then complete binding in the Airwallex hosted card element."
       },
       "wechat_pay": {
         "title": "WeChat Pay",

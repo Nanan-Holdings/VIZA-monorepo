@@ -3737,6 +3737,7 @@
     "editTitle": "编辑付款账号",
     "addAccount": "添加账号",
     "verifyWithStripe": "打开安全验证",
+    "verifyWithAirwallex": "加载安全卡组件",
     "generateQr": "生成绑定二维码",
     "regenerateQr": "重新生成二维码",
     "checkQrStatus": "检查绑定状态",
@@ -3746,6 +3747,9 @@
     "delete": "删除",
     "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
     "stripeHint": "银行卡详情只会在托管安全页面中填写；VIZA 不保存完整卡号或 CVV。",
+    "cardHint": "银行卡详情只会在 Airwallex 托管安全组件中填写；VIZA 不接收或保存完整卡号、有效期或 CVV。",
+    "cardElementPreparing": "正在加载 Airwallex 银行卡安全组件。",
+    "completeCardBinding": "完成银行卡绑定",
     "cardIdentifier": "银行卡 · 安全验证中",
     "qrAlt": "付款账号绑定二维码",
     "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
@@ -3792,6 +3796,13 @@
       "stripeRedirect": "正在打开托管安全验证页面。",
       "stripeReturned": "银行卡验证已返回，绑定状态会在支付服务确认后更新。",
       "stripeCancelled": "银行卡验证已取消，银行卡尚未完成绑定。",
+      "cardUnavailable": "Airwallex 银行卡验证尚未配置，暂时无法验证银行卡。",
+      "cardStartFailed": "暂时无法启动 Airwallex 银行卡验证，请稍后重试。",
+      "cardReady": "银行卡安全组件已准备好，请填写卡信息后完成绑定。",
+      "cardElementFailed": "银行卡安全组件加载失败，请刷新后重试。",
+      "cardBindFailed": "银行卡绑定未完成，请检查卡信息后重试。",
+      "cardBound": "银行卡已通过 Airwallex 安全验证并完成绑定。",
+      "walletBindingUnavailable": "微信/支付宝账号绑定暂未配置。请在创建订单后使用结账页生成的真实支付二维码扫码付款。",
       "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
       "qrReady": "二维码已生成，请使用对应 App 扫码。",
       "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
@@ -3802,7 +3813,7 @@
     "methods": {
       "bank_card": {
         "title": "银行卡",
-        "description": "填写昵称后进入托管安全页完成绑定。"
+        "description": "填写昵称后通过 Airwallex 托管卡组件完成绑定。"
       },
       "wechat_pay": {
         "title": "微信支付",

@@ -19,9 +19,9 @@ application flow.
 - Upsert `application_documents` by `(application_id, document_type)`.
 - Show upload, missing, approved/validated, rejected, and needs-replacement
   states.
-- Offer passport OCR from uploaded passport documents, but keep extracted data
-  user-confirmed before writing profile/application answers.
-- Allow Travel AI outputs to satisfy the `travel_itinerary` requirement.
+- Allow Travel AI outputs to satisfy the `travel_itinerary` requirement from
+  the itinerary row itself, with an in-form picker for existing English PDF
+  itinerary exports.
 
 ## Current Files
 
@@ -29,8 +29,7 @@ application flow.
 - `actions.ts`: documents-local server actions for authorized checklist reads,
   upload record upserts, and applicant-confirmed passport OCR persistence.
 - `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
-  controls, photo compliance state, OCR confirmation UX, and Travel AI
-  itinerary save entry.
+  controls, and the integrated Travel AI itinerary picker/upload entry.
 
 ## Data Sources
 
