@@ -42,6 +42,7 @@ interface CountryDropdownProps {
   placeholder?: string;
   className?: string;
   displayLocale?: string;
+  allowedCountryCodes?: readonly string[];
 }
 
 const filteredCountries: Country[] = countries.all.filter(
@@ -66,6 +67,7 @@ const CountryDropdownComponent = (
     placeholder = "Select a country",
     className,
     displayLocale,
+    allowedCountryCodes,
   }: CountryDropdownProps,
   ref: React.ForwardedRef<HTMLButtonElement>
 ) => {
@@ -73,15 +75,20 @@ const CountryDropdownComponent = (
   const [selected, setSelected] = useState<Country | null>(null);
   const locale = useLocale();
   const resolvedLocale = displayLocale ?? locale;
+  const availableCountries = useMemo(() => {
+    if (!allowedCountryCodes?.length) return filteredCountries;
+    const allowed = new Set(allowedCountryCodes.map((code) => code.toUpperCase()));
+    return filteredCountries.filter((country) => allowed.has(country.alpha2.toUpperCase()));
+  }, [allowedCountryCodes]);
 
   const localizedMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const c of filteredCountries) {
+    for (const c of availableCountries) {
       const localized = getLocalizedName(c.alpha2, resolvedLocale);
       if (localized) map.set(c.alpha2, localized);
     }
     return map;
-  }, [resolvedLocale]);
+  }, [availableCountries, resolvedLocale]);
 
   useEffect(() => {
     if (!defaultValue) {
@@ -89,7 +96,7 @@ const CountryDropdownComponent = (
       return;
     }
     if (defaultValue !== selected?.alpha3 && defaultValue !== selected?.name) {
-      const match = filteredCountries.find(
+      const match = availableCountries.find(
         (c) =>
           c.alpha3 === defaultValue ||
           c.alpha2 === defaultValue ||
@@ -98,7 +105,7 @@ const CountryDropdownComponent = (
       );
       setSelected(match ?? null);
     }
-  }, [defaultValue, localizedMap]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [availableCountries, defaultValue, localizedMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = useCallback(
     (country: Country) => {
@@ -111,8 +118,8 @@ const CountryDropdownComponent = (
 
   const getDisplayName = (country: Country) => {
     const localized = localizedMap.get(country.alpha2);
-    if (localized && localized !== country.name) {
-      return `${localized} (${country.name})`;
+    if (resolvedLocale.startsWith("zh")) {
+      return localized || country.name;
     }
     return country.name;
   };
@@ -164,7 +171,7 @@ const CountryDropdownComponent = (
           <CommandList className="max-h-[200px] sm:max-h-[270px]">
             <CommandEmpty>{resolvedLocale === "zh" ? "未找到国家" : "No country found."}</CommandEmpty>
             <CommandGroup>
-              {filteredCountries
+              {availableCountries
                 .filter((x) => x.name)
                 .map((option, key: number) => (
                   <CommandItem

@@ -14,6 +14,19 @@ export function evaluateExpression(
   expr: string,
   values: Record<string, string>,
 ): boolean {
+  const readValue = (key: string): string => {
+    const direct = values[key];
+    if (direct !== undefined) return direct;
+
+    // Some older DS-160 seed rows used the shorter alias in showIf clauses
+    // while the real form field is has_specific_travel_plans.
+    if (key === "has_specific_plans") {
+      return values.has_specific_travel_plans ?? "";
+    }
+
+    return "";
+  };
+
   const resolveTarget = (raw: string): string =>
     raw.toLowerCase() === "_empty" ? "" : raw.toLowerCase();
 
@@ -27,22 +40,22 @@ export function evaluateExpression(
   const evalAtom = (atom: string): boolean => {
     const notInMatch = atom.match(/^(\S+)\s+not\s+in\s+\[([^\]]*)\]$/);
     if (notInMatch) {
-      const actual = (values[notInMatch[1]] ?? "").toLowerCase();
+      const actual = readValue(notInMatch[1]).toLowerCase();
       return !parseList(notInMatch[2]).includes(actual);
     }
     const inMatch = atom.match(/^(\S+)\s+in\s+\[([^\]]*)\]$/);
     if (inMatch) {
-      const actual = (values[inMatch[1]] ?? "").toLowerCase();
+      const actual = readValue(inMatch[1]).toLowerCase();
       return parseList(inMatch[2]).includes(actual);
     }
     const eqMatch = atom.match(/^(\S+)\s*===\s*(\S+)$/);
     if (eqMatch) {
-      const actual = (values[eqMatch[1]] ?? "").toLowerCase();
+      const actual = readValue(eqMatch[1]).toLowerCase();
       return actual === resolveTarget(eqMatch[2]);
     }
     const neqMatch = atom.match(/^(\S+)\s*!==\s*(\S+)$/);
     if (neqMatch) {
-      const actual = (values[neqMatch[1]] ?? "").toLowerCase();
+      const actual = readValue(neqMatch[1]).toLowerCase();
       return actual !== resolveTarget(neqMatch[2]);
     }
     return false;

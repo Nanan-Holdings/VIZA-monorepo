@@ -16,6 +16,7 @@ export type VnFieldType =
   | "date"
   | "radio"
   | "country"
+  | "checkbox"
   | "upload"
   | "textarea";
 
@@ -27,34 +28,114 @@ export interface VnFieldMapping {
   section: string;
   /** True when the portal flags the field as required. */
   required: boolean;
+  /** Maps stored schema option values to portal-visible English labels. */
+  optionLabels?: Record<string, string>;
+}
+
+const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
+const SEX_LABELS = { male: "Male", female: "Female" };
+const PASSPORT_TYPE_LABELS = {
+  ordinary_passport: "Ordinary passport",
+  diplomatic_passport: "Diplomatic passport",
+  official_passport: "Official passport",
+  other: "Other",
+};
+const VISA_TYPE_REQUESTED_LABELS = {
+  single: "Single-entry",
+  multiple: "Multiple-entry",
+};
+const PURPOSE_OF_ENTRY_LABELS = {
+  tourist: "Tourist",
+  visiting_relatives: "Visiting relatives",
+  working: "Working",
+  business: "Business",
+  other: "Other",
+};
+const OCCUPATION_LABELS = {
+  businessman: "Businessman",
+  employee: "Employee",
+  official: "Official",
+  others: "Others",
+  retired: "Retired",
+  student: "Student",
+  unemployed: "Unemployed",
+};
+const EXPENSE_COVERAGE_LABELS = {
+  personal: "Personal",
+  company: "Company",
+};
+
+function titleizeOptionSlug(value: string): string {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => {
+      if (part === "int") return "Int";
+      if (part === "usa") return "USA";
+      return `${part.charAt(0).toUpperCase()}${part.slice(1)}`;
+    })
+    .join(" ");
+}
+
+function provinceLabel(value: string): string {
+  return value
+    .replace(/_city$/, "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.toUpperCase())
+    .join(" ");
+}
+
+export function getVnPortalOptionText(fieldName: string, rawValue: string): string {
+  const mapping = VN_FIELD_MAPPINGS[fieldName];
+  const normalized = rawValue.trim().toLowerCase();
+  const explicit = mapping?.optionLabels?.[normalized];
+  if (explicit) return explicit;
+  if (fieldName === "intended_province_city") return provinceLabel(normalized);
+  if (
+    fieldName === "intended_border_gate_of_entry" ||
+    fieldName === "intended_border_gate_of_exit"
+  ) {
+    return titleizeOptionSlug(normalized)
+      .replace(/\bInt Airport\b/g, "Int Airport")
+      .replace(/\bInternational Airport\b/g, "International Airport")
+      .replace(/\bPort Border Gate\b/g, "Port Border Gate")
+      .replace(/\bInternational Border Gate\b/g, "international border gate")
+      .replace(/\bLandport\b/g, "Landport")
+      .replace(/\bSeaport\b/g, "Seaport");
+  }
+  return rawValue;
 }
 
 export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   // Top-of-form uploads
   portrait_photo: { domId: "basic_anhMat", type: "upload", section: "", required: true },
+  passport_copy: { domId: "basic_anhHoChieu", type: "upload", section: "", required: true },
   passport_photo: { domId: "basic_anhHoChieu", type: "upload", section: "", required: true },
 
   // 1. Personal Information
-  surname: { domId: "basic_ttcnHo", type: "text", section: "1. PERSONAL INFORMATION", required: false },
+  surname: { domId: "basic_ttcnHo", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   given_name: { domId: "basic_ttcnDemVaTen", type: "text", section: "1. PERSONAL INFORMATION", required: true },
-  date_of_birth: { domId: "basic_ttcnNgayThangNamSinhStr", type: "date", section: "1. PERSONAL INFORMATION", required: false },
-  sex: { domId: "basic_ttcnGioiTinh", type: "select", section: "1. PERSONAL INFORMATION", required: true },
+  date_of_birth: { domId: "basic_ttcnNgayThangNamSinhStr", type: "date", section: "1. PERSONAL INFORMATION", required: true },
+  sex: { domId: "basic_ttcnGioiTinh", type: "select", section: "1. PERSONAL INFORMATION", required: true, optionLabels: SEX_LABELS },
   nationality: { domId: "basic_ttcnMaQt", type: "country", section: "1. PERSONAL INFORMATION", required: true },
   identity_card_number: { domId: "basic_ttcnCccd", type: "text", section: "1. PERSONAL INFORMATION", required: false },
   email_address: { domId: "basic_ttcnEmail", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   re_enter_email_address: { domId: "basic_ttcnConfirmEmail", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   religion: { domId: "basic_ttcnTonGiao", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   place_of_birth: { domId: "basic_ttcnNoiSinh", type: "text", section: "1. PERSONAL INFORMATION", required: true },
+  has_multiple_nationalities: { domId: "basic_ttcnCoQtKhac", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
+  has_violated_vietnam_laws: { domId: "basic_ttcnViPhamPl", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
 
   // 2. Requested Information
-  visa_type_requested: { domId: "basic_nddnTtdtLoai", type: "radio", section: "2. REQUESTED INFORMATION", required: true },
+  visa_type_requested: { domId: "basic_nddnTtdtLoai", type: "radio", section: "2. REQUESTED INFORMATION", required: true, optionLabels: VISA_TYPE_REQUESTED_LABELS },
   visa_valid_from: { domId: "basic_nddnTtdtTuNgayStr", type: "date", section: "2. REQUESTED INFORMATION", required: true },
   visa_valid_to: { domId: "basic_nddnTtdtDenNgayStr", type: "date", section: "2. REQUESTED INFORMATION", required: true },
 
   // 3. Passport Information
   passport_number: { domId: "basic_hcSo", type: "text", section: "3. PASSPORT INFORMATION", required: true },
   passport_issuing_authority: { domId: "basic_hcNoiCap", type: "text", section: "3. PASSPORT INFORMATION", required: false },
-  passport_type: { domId: "basic_hcLoai", type: "select", section: "3. PASSPORT INFORMATION", required: true },
+  passport_type: { domId: "basic_hcLoai", type: "select", section: "3. PASSPORT INFORMATION", required: true, optionLabels: PASSPORT_TYPE_LABELS },
   passport_issue_date: { domId: "basic_hcNgayCapStr", type: "date", section: "3. PASSPORT INFORMATION", required: true },
   passport_expiry_date: { domId: "basic_hcGiaTriDenStr", type: "date", section: "3. PASSPORT INFORMATION", required: true },
 
@@ -68,29 +149,30 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   emergency_contact_relationship: { domId: "basic_ttllLlQuanHe", type: "text", section: "4. CONTACT INFORMATION", required: true },
 
   // 5. Occupation
-  occupation: { domId: "basic_nnNgheNghiep", type: "select", section: "5. OCCUPATION", required: false },
+  occupation: { domId: "basic_nnNgheNghiep", type: "select", section: "5. OCCUPATION", required: false, optionLabels: OCCUPATION_LABELS },
   occupation_info: { domId: "basic_nnNgheNghiepHienTai", type: "text", section: "5. OCCUPATION", required: false },
-  employer_name: { domId: "basic_nnTenCtyCq", type: "text", section: "5. OCCUPATION", required: false },
-  employer_position: { domId: "basic_nnChucVu", type: "text", section: "5. OCCUPATION", required: false },
-  employer_address: { domId: "basic_nnDiaChi", type: "text", section: "5. OCCUPATION", required: false },
-  employer_phone: { domId: "basic_nnSdt", type: "text", section: "5. OCCUPATION", required: false },
+  company_or_school_name: { domId: "basic_nnTenCtyCq", type: "text", section: "5. OCCUPATION", required: false },
+  position_course: { domId: "basic_nnChucVu", type: "text", section: "5. OCCUPATION", required: false },
+  company_address: { domId: "basic_nnDiaChi", type: "text", section: "5. OCCUPATION", required: false },
+  company_phone: { domId: "basic_nnSdt", type: "text", section: "5. OCCUPATION", required: false },
 
   // 6. Information About the Trip
-  purpose_of_entry: { domId: "basic_ttcdMucDich", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  purpose_of_entry: { domId: "basic_ttcdMucDich", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: PURPOSE_OF_ENTRY_LABELS },
   intended_date_of_entry: { domId: "basic_ttcdThoiGianNcStr", type: "date", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_length_of_stay: { domId: "basic_ttcdSoNgayTamTru", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  vietnam_phone_number: { domId: "basic_ttcdSdt", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: false },
+  phone_in_vietnam: { domId: "basic_ttcdSdt", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: false },
   residential_address_in_vietnam: { domId: "basic_ttcdDcTamTru", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  province_city: { domId: "basic_ttcdTinhTp", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  ward_commune: { domId: "basic_ttcdPhuongXa", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  intended_border_gate_entry: { domId: "basic_ttcdNcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  intended_border_gate_exit: { domId: "basic_ttcdXcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
-  organization_inviting: { domId: "basic_ttcdCqTcCamDoan", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: false },
+  intended_province_city: { domId: "basic_ttcdTinhTp", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  intended_ward_commune: { domId: "basic_ttcdPhuongXa", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  intended_border_gate_of_entry: { domId: "basic_ttcdNcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  intended_border_gate_of_exit: { domId: "basic_ttcdXcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  visited_vietnam_in_last_year: { domId: "basic_ttcdDaDenVn", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
+  has_relatives_in_vietnam: { domId: "basic_ttcdCoThanNhan", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
 
   // 8. Trip's Expenses, Insurance
   intended_expenses_usd: { domId: "basic_kpbhDuTinh", type: "text", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
-  did_you_buy_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
-  trip_expense_payer: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
+  bought_travel_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: YES_NO_LABELS },
+  expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: EXPENSE_COVERAGE_LABELS },
 };
 
 /** Selector for the registration-code element shown after a successful save

@@ -26,6 +26,65 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
+const SCHENGEN_MEMBER_ALPHA2_CODES = [
+  "AT",
+  "BE",
+  "BG",
+  "HR",
+  "CZ",
+  "DK",
+  "EE",
+  "FI",
+  "FR",
+  "DE",
+  "GR",
+  "HU",
+  "IS",
+  "IT",
+  "LV",
+  "LI",
+  "LT",
+  "LU",
+  "MT",
+  "NL",
+  "NO",
+  "PL",
+  "PT",
+  "RO",
+  "SK",
+  "SI",
+  "ES",
+  "SE",
+  "CH",
+] as const;
+
+const SCHENGEN_COUNTRY_FIELD_NAMES = new Set([
+  "main_destination_country",
+  "first_entry_country",
+  "host_country",
+  "business_company_country",
+  "study_institution_country",
+  "medical_facility_country",
+  "event_country",
+  "accommodation_country",
+]);
+
+function getFieldSource(field: VisaFormFieldRow): string | undefined {
+  return (field.validationRules as { source?: string } | null)?.source;
+}
+
+function getBaseFieldName(fieldName: string): string {
+  return fieldName.replace(/-(zh|en)$/, "").replace(/__\d+$/, "");
+}
+
+function usesSchengenMemberStateList(field: VisaFormFieldRow): boolean {
+  const source = getFieldSource(field);
+  if (source === "SCHENGEN_MEMBER_STATES") return true;
+  if (source !== "ISO3166-1") return false;
+  if (SCHENGEN_COUNTRY_FIELD_NAMES.has(getBaseFieldName(field.fieldName))) return true;
+  return /schengen member state/i.test(field.label);
+}
+
 interface DynamicFormFieldProps {
   field: VisaFormFieldRow;
   value: string;
@@ -52,8 +111,11 @@ function normaliseOptions(opts: VisaFormFieldRow["options"]): Array<{ value: str
   return opts.map((o) => {
     if (typeof o === "string") return { value: o, text: o };
     if (typeof o === "object" && o !== null) {
-      const obj = o as { value?: string; text?: string };
-      return { value: obj.value ?? "", text: obj.text ?? obj.value ?? "" };
+      const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
+      return {
+        value: obj.value ?? "",
+        text: obj.text ?? obj.label_en ?? obj.label_zh ?? obj.official_label ?? obj.value ?? "",
+      };
     }
     return { value: String(o), text: String(o) };
   });
@@ -205,9 +267,10 @@ export function DynamicFormField({
     }
 
     case "select": {
-      // Country fields use source: "ISO3166-1" — render CountryDropdown
-      const source = (field.validationRules as { source?: string } | null)?.source;
-      const isCountry = source === "ISO3166-1";
+      // Country fields use source metadata — render CountryDropdown
+      const source = getFieldSource(field);
+      const isSchengenMemberState = usesSchengenMemberStateList(field);
+      const isCountry = source === "ISO3166-1" || isSchengenMemberState;
       const isUsState = source === "US_STATES";
       if (isCountry) {
         return (
@@ -218,6 +281,7 @@ export function DynamicFormField({
               onChange={(country) => onChange(country.name)}
               className={whiteControlClass}
               displayLocale={sideLocale}
+              allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
             />
           </FieldWrapper>
         );
@@ -291,17 +355,21 @@ export function DynamicFormField({
       );
 
     case "country":
-      return (
-        <FieldWrapper label={label} required={required}>
-          <CountryDropdown
-            placeholder={placeholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
-            defaultValue={value}
-            onChange={(country) => onChange(country.name)}
-            className={whiteControlClass}
-            displayLocale={sideLocale}
-          />
-        </FieldWrapper>
-      );
+      {
+        const isSchengenMemberState = usesSchengenMemberStateList(field);
+        return (
+          <FieldWrapper label={label} required={required}>
+            <CountryDropdown
+              placeholder={placeholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
+              defaultValue={value}
+              onChange={(country) => onChange(country.name)}
+              className={whiteControlClass}
+              displayLocale={sideLocale}
+              allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
+            />
+          </FieldWrapper>
+        );
+      }
 
     case "radio": {
       const opts = normaliseOptions(options);

@@ -22,6 +22,10 @@ export interface FieldRequirement {
   label: string;
   category: FieldCategory;
   required: boolean;
+  condition?: {
+    key: string;
+    equals: string;
+  };
 }
 
 export interface ValidationIssue {

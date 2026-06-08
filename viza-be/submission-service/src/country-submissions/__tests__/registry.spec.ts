@@ -51,6 +51,48 @@ function baseApplication(
   };
 }
 
+function vietnamAnswers(): Record<string, string> {
+  return {
+    surname: "TAN",
+    given_name: "ALEX",
+    date_of_birth: "1999-01-15",
+    sex: "male",
+    nationality: "Singapore",
+    email_address: "test.viza.user@example.com",
+    re_enter_email_address: "test.viza.user@example.com",
+    religion: "None",
+    place_of_birth: "Singapore",
+    has_multiple_nationalities: "no",
+    has_violated_vietnam_laws: "no",
+    visa_type_requested: "single",
+    visa_valid_from: "2026-10-01",
+    visa_valid_to: "2026-10-30",
+    passport_number: "TEST123456",
+    passport_type: "ordinary_passport",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    permanent_residential_address: "1 Test Street, Singapore 000001",
+    contact_address: "1 Test Street, Singapore 000001",
+    telephone_number: "+6591234567",
+    emergency_contact_full_name: "Jamie Tan",
+    emergency_contact_current_address: "2 Test Street, Singapore 000002",
+    emergency_contact_telephone: "+6597654321",
+    emergency_contact_relationship: "Sibling",
+    purpose_of_entry: "tourist",
+    intended_date_of_entry: "2026-10-01",
+    intended_length_of_stay: "10",
+    residential_address_in_vietnam: "1 Nguyen Hue Street, Ho Chi Minh City",
+    intended_province_city: "ho_chi_minh_city",
+    intended_ward_commune: "Ben Thanh",
+    intended_border_gate_of_entry: "tan_son_nhat_int_airport_ho_chi_minh_city",
+    intended_border_gate_of_exit: "tan_son_nhat_int_airport_ho_chi_minh_city",
+    declaration_temporary_residence: "true",
+    visited_vietnam_in_last_year: "no",
+    has_relatives_in_vietnam: "no",
+    final_declaration: "true",
+  };
+}
+
 test("registry: every provider declares implementation and dry-run metadata", () => {
   const providers = listCountrySubmissionProviders();
   assert.ok(providers.length >= 20);
@@ -81,6 +123,47 @@ test("registry: valid base profile dry-runs with a mock confirmation", async () 
   assert.match(result.confirmationNumber ?? "", /^MOCK-CA-/);
 });
 
+test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
+  const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
+  assert.ok(provider);
+  const payload = provider.mapToSubmissionPayload(
+    baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_E_VISA",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Vietnam",
+        destinationCity: "Ho Chi Minh City",
+      },
+      answers: vietnamAnswers(),
+    }),
+  );
+
+  assert.equal(payload.countryCode, "VN");
+  assert.equal(payload.countrySpecific.surname, "TAN");
+  assert.equal(payload.countrySpecific.intended_border_gate_of_entry, "tan_son_nhat_int_airport_ho_chi_minh_city");
+  assert.equal(payload.countrySpecific.final_declaration, "true");
+});
+
+test("registry: Vietnam dry-run uses deterministic Vietnam confirmation", async () => {
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_E_VISA",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Vietnam",
+        destinationCity: "Ho Chi Minh City",
+      },
+      answers: vietnamAnswers(),
+    }),
+  );
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.mode, "dry_run");
+  assert.equal(result.targetCountry, "VN");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VIETNAM-111111112222$/);
+});
+
 test("registry: missing required fields fail validation cleanly", async () => {
   const result = await runDryRunSubmission(
     baseApplication({
@@ -92,6 +175,47 @@ test("registry: missing required fields fail validation cleanly", async () => {
   );
   assert.equal(result.status, "unsupported");
   assert.match(result.message, /profile\.passportNumber/);
+});
+
+test("registry: Vietnam missing required schema answers fail validation cleanly", async () => {
+  const answers = vietnamAnswers();
+  delete answers.passport_number;
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_E_VISA",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Vietnam",
+      },
+      answers,
+    }),
+  );
+  assert.equal(result.status, "unsupported");
+  assert.match(result.message, /answers\.passport_number/);
+});
+
+test("registry: Vietnam conditional schema answers are enforced only when gated on", async () => {
+  const answers = {
+    ...vietnamAnswers(),
+    has_relatives_in_vietnam: "yes",
+  };
+  delete answers.relative_full_name_in_vn;
+
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_E_VISA",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Vietnam",
+      },
+      answers,
+    }),
+  );
+
+  assert.equal(result.status, "unsupported");
+  assert.match(result.message, /answers\.relative_full_name_in_vn/);
 });
 
 test("registry: unsupported countries return a controlled unsupported result", async () => {

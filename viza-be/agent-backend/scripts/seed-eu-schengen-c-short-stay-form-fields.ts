@@ -52,7 +52,13 @@ interface FieldDef {
   display_order: number;
   placeholder?: string;
   validation_rules?: Record<string, unknown>;
-  options?: Array<{ value: string; text: string }>;
+  options?: Array<{
+    value: string;
+    text: string;
+    label_zh?: string;
+    label_en?: string;
+    official_label?: string;
+  }>;
   conditional_logic?: Record<string, unknown>;
 }
 
@@ -201,20 +207,20 @@ const FIELDS: FieldDef[] = [
   // STEP 7: Trip Details (Annex I fields 23–28, 32–33)
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "purpose_of_journey", label: "Main purpose of the journey", field_type: "select", required: true, step_number: 7, step_name: "Trip Details", display_order: 1, options: [
-    { value: "tourism", text: "Tourism" },
-    { value: "business", text: "Business" },
-    { value: "visiting_family_friends", text: "Visiting family or friends" },
-    { value: "cultural", text: "Cultural" },
-    { value: "sports", text: "Sports" },
-    { value: "official_visit", text: "Official visit" },
-    { value: "medical", text: "Medical reasons" },
-    { value: "study", text: "Study" },
-    { value: "airport_transit", text: "Airport transit" },
-    { value: "other", text: "Other" },
+    { value: "tourism", text: "Tourism", label_zh: "旅游", label_en: "Tourism" },
+    { value: "business", text: "Business", label_zh: "商务", label_en: "Business" },
+    { value: "visiting_family_friends", text: "Visiting family or friends", label_zh: "探亲访友", label_en: "Visiting family or friends" },
+    { value: "cultural", text: "Cultural", label_zh: "文化", label_en: "Cultural" },
+    { value: "sports", text: "Sports", label_zh: "体育", label_en: "Sports" },
+    { value: "official_visit", text: "Official visit", label_zh: "公务访问", label_en: "Official visit" },
+    { value: "medical", text: "Medical reasons", label_zh: "医疗原因", label_en: "Medical reasons" },
+    { value: "study", text: "Study", label_zh: "学习", label_en: "Study" },
+    { value: "airport_transit", text: "Airport transit", label_zh: "机场过境", label_en: "Airport transit" },
+    { value: "other", text: "Other", label_zh: "其他", label_en: "Other" },
   ] },
   { field_name: "purpose_additional_info", label: "Additional information on the purpose of stay", field_type: "textarea", required: false, step_number: 7, step_name: "Trip Details", display_order: 2, validation_rules: { maxLength: 500 } },
-  { field_name: "main_destination_country", label: "Member State of main destination", field_type: "country", required: true, step_number: 7, step_name: "Trip Details", display_order: 3, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "first_entry_country", label: "Member State of first entry", field_type: "country", required: true, step_number: 7, step_name: "Trip Details", display_order: 4, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "main_destination_country", label: "Member State of main destination", field_type: "country", required: true, step_number: 7, step_name: "Trip Details", display_order: 3, validation_rules: { source: "SCHENGEN_MEMBER_STATES" } },
+  { field_name: "first_entry_country", label: "Member State of first entry", field_type: "country", required: true, step_number: 7, step_name: "Trip Details", display_order: 4, validation_rules: { source: "SCHENGEN_MEMBER_STATES" } },
   { field_name: "number_of_entries_requested", label: "Number of entries requested", field_type: "select", required: true, step_number: 7, step_name: "Trip Details", display_order: 5, options: [
     { value: "single", text: "Single entry" },
     { value: "two", text: "Two entries" },
@@ -234,7 +240,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "host_relationship", label: "Relationship to the host", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 3, conditional_logic: { showIf: IS_VISIT }, placeholder: "e.g., Friend, Sibling, Parent", validation_rules: { maxLength: 40, block_group: "host_details" } },
   { field_name: "host_address_line_1", label: "Host's address — line 1", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 4, conditional_logic: { showIf: IS_VISIT }, validation_rules: { maxLength: 100, block_group: "host_details" } },
   { field_name: "host_city", label: "Host's city", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 5, conditional_logic: { showIf: IS_VISIT }, validation_rules: { maxLength: 60, block_group: "host_details" } },
-  { field_name: "host_country", label: "Host's country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 6, conditional_logic: { showIf: IS_VISIT }, validation_rules: { source: "ISO3166-1", block_group: "host_details" } },
+  { field_name: "host_country", label: "Host's country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 6, conditional_logic: { showIf: IS_VISIT }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "host_details" } },
   { field_name: "host_phone", label: "Host's telephone number", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 7, conditional_logic: { showIf: IS_VISIT }, validation_rules: { maxLength: 20, block_group: "host_details" } },
   { field_name: "host_email", label: "Host's e-mail address", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 8, conditional_logic: { showIf: IS_VISIT }, validation_rules: { maxLength: 100, block_group: "host_details" } },
   { field_name: "host_nationality", label: "Host's nationality", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 9, conditional_logic: { showIf: IS_VISIT }, validation_rules: { source: "ISO3166-1", block_group: "host_details" } },
@@ -249,7 +255,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "business_company_name", label: "Inviting company / organisation name", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 11, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 100, block_group: "business_details" } },
   { field_name: "business_company_address_line_1", label: "Company address — line 1", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 12, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 100, block_group: "business_details" } },
   { field_name: "business_company_city", label: "Company city", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 13, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 60, block_group: "business_details" } },
-  { field_name: "business_company_country", label: "Company country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 14, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { source: "ISO3166-1", block_group: "business_details" } },
+  { field_name: "business_company_country", label: "Company country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 14, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "business_details" } },
   { field_name: "business_company_phone", label: "Company telephone number", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 15, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 20, block_group: "business_details" } },
   { field_name: "business_contact_surname", label: "Company contact surname", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 16, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 50, block_group: "business_details" } },
   { field_name: "business_contact_given_names", label: "Company contact first name(s)", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 17, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 50, block_group: "business_details" } },
@@ -261,7 +267,7 @@ const FIELDS: FieldDef[] = [
   // Study (short-term, <90 days — longer courses need a national Type D visa)
   { field_name: "study_institution_name", label: "Name of the educational institution", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 22, conditional_logic: { showIf: IS_STUDY }, validation_rules: { maxLength: 100, block_group: "study_details" } },
   { field_name: "study_institution_address", label: "Institution address", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 23, conditional_logic: { showIf: IS_STUDY }, validation_rules: { maxLength: 200, block_group: "study_details" } },
-  { field_name: "study_institution_country", label: "Institution country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 24, conditional_logic: { showIf: IS_STUDY }, validation_rules: { source: "ISO3166-1", block_group: "study_details" } },
+  { field_name: "study_institution_country", label: "Institution country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 24, conditional_logic: { showIf: IS_STUDY }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "study_details" } },
   { field_name: "study_course_name", label: "Course or programme name", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 25, conditional_logic: { showIf: IS_STUDY }, validation_rules: { maxLength: 100, block_group: "study_details" } },
   { field_name: "study_course_start_date", label: "Course start date", field_type: "date", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 26, conditional_logic: { showIf: IS_STUDY }, validation_rules: { format: "DD/MM/YYYY", block_group: "study_details" } },
   { field_name: "study_course_duration", label: "Course duration", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 27, conditional_logic: { showIf: IS_STUDY }, placeholder: "e.g., 6 weeks", validation_rules: { maxLength: 40, block_group: "study_details" } },
@@ -270,7 +276,7 @@ const FIELDS: FieldDef[] = [
   // Medical
   { field_name: "medical_facility_name", label: "Name of the hospital or clinic", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 29, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 100, block_group: "medical_details" } },
   { field_name: "medical_facility_address", label: "Hospital or clinic address", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 30, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 200, block_group: "medical_details" } },
-  { field_name: "medical_facility_country", label: "Hospital or clinic country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 31, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { source: "ISO3166-1", block_group: "medical_details" } },
+  { field_name: "medical_facility_country", label: "Hospital or clinic country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 31, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "medical_details" } },
   { field_name: "medical_treatment_type", label: "Type of treatment", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 32, conditional_logic: { showIf: IS_MEDICAL }, placeholder: "e.g., Cardiology consultation", validation_rules: { maxLength: 200, block_group: "medical_details" } },
   { field_name: "medical_treatment_start_date", label: "Treatment start date", field_type: "date", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 33, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { format: "DD/MM/YYYY", block_group: "medical_details" } },
   { field_name: "medical_treatment_duration", label: "Treatment duration", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 34, conditional_logic: { showIf: IS_MEDICAL }, placeholder: "e.g., 10 days", validation_rules: { maxLength: 40, block_group: "medical_details" } },
@@ -280,7 +286,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "event_name", label: "Name of the event", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 36, conditional_logic: { showIf: IS_EVENT }, validation_rules: { maxLength: 120, block_group: "event_details" } },
   { field_name: "event_organizer", label: "Event organiser", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 37, conditional_logic: { showIf: IS_EVENT }, validation_rules: { maxLength: 120, block_group: "event_details" } },
   { field_name: "event_location", label: "Event location (city and venue)", field_type: "text", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 38, conditional_logic: { showIf: IS_EVENT }, validation_rules: { maxLength: 150, block_group: "event_details" } },
-  { field_name: "event_country", label: "Event country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 39, conditional_logic: { showIf: IS_EVENT }, validation_rules: { source: "ISO3166-1", block_group: "event_details" } },
+  { field_name: "event_country", label: "Event country (Schengen Member State)", field_type: "country", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 39, conditional_logic: { showIf: IS_EVENT }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "event_details" } },
   { field_name: "event_start_date", label: "Event start date", field_type: "date", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 40, conditional_logic: { showIf: IS_EVENT }, validation_rules: { format: "DD/MM/YYYY", inline_group: "event_dates", block_group: "event_details" } },
   { field_name: "event_end_date", label: "Event end date", field_type: "date", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 41, conditional_logic: { showIf: IS_EVENT }, validation_rules: { format: "DD/MM/YYYY", inline_group: "event_dates", block_group: "event_details" } },
   { field_name: "event_invitation_letter_held", label: "Do you have an invitation letter from the organiser?", field_type: "radio", required: true, step_number: 8, step_name: "Purpose-Specific Details", display_order: 42, conditional_logic: { showIf: IS_EVENT }, options: YES_NO },
@@ -306,15 +312,15 @@ const FIELDS: FieldDef[] = [
   // STEP 9: Accommodation in Schengen (Annex I field 34 — hotel / temporary)
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "accommodation_type", label: "Type of accommodation in the Schengen Area", field_type: "select", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 1, options: [
-    { value: "hotel", text: "Hotel or other commercial accommodation" },
-    { value: "private_host", text: "With inviting person (already declared in host details)" },
-    { value: "rented", text: "Rented accommodation (short-let / Airbnb / apartment)" },
-    { value: "other", text: "Other" },
+    { value: "hotel", text: "Hotel or other commercial accommodation", label_zh: "酒店或其他商业住宿", label_en: "Hotel or other commercial accommodation" },
+    { value: "private_host", text: "With inviting person (already declared in host details)", label_zh: "与邀请人同住（已在邀请人信息中声明）", label_en: "With inviting person (already declared in host details)" },
+    { value: "rented", text: "Rented accommodation (short-let / Airbnb / apartment)", label_zh: "租赁住宿（短租 / Airbnb / 公寓）", label_en: "Rented accommodation (short-let / Airbnb / apartment)" },
+    { value: "other", text: "Other", label_zh: "其他", label_en: "Other" },
   ] },
   { field_name: "accommodation_name", label: "Hotel name or accommodation label", field_type: "text", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 2, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { maxLength: 100, block_group: "accommodation_address" } },
   { field_name: "accommodation_address_line_1", label: "Accommodation address — line 1", field_type: "text", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 3, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { maxLength: 100, block_group: "accommodation_address" } },
   { field_name: "accommodation_city", label: "City", field_type: "text", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 4, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { maxLength: 60, block_group: "accommodation_address" } },
-  { field_name: "accommodation_country", label: "Country (Schengen Member State)", field_type: "country", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 5, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { source: "ISO3166-1", block_group: "accommodation_address" } },
+  { field_name: "accommodation_country", label: "Country (Schengen Member State)", field_type: "country", required: true, step_number: 9, step_name: "Accommodation in Schengen", display_order: 5, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { source: "SCHENGEN_MEMBER_STATES", block_group: "accommodation_address" } },
   { field_name: "accommodation_phone", label: "Accommodation telephone number", field_type: "text", required: false, step_number: 9, step_name: "Accommodation in Schengen", display_order: 6, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { maxLength: 20, block_group: "accommodation_address" } },
   { field_name: "accommodation_email", label: "Accommodation e-mail address", field_type: "text", required: false, step_number: 9, step_name: "Accommodation in Schengen", display_order: 7, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, validation_rules: { maxLength: 100, block_group: "accommodation_address" } },
   { field_name: "hotel_confirmation_number", label: "Hotel / booking confirmation number (if available)", field_type: "text", required: false, step_number: 9, step_name: "Accommodation in Schengen", display_order: 8, conditional_logic: { showIf: "accommodation_type === hotel || accommodation_type === rented" }, placeholder: "e.g., CONF-2026-12345", validation_rules: { maxLength: 60, block_group: "accommodation_address" } },

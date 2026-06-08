@@ -2874,7 +2874,7 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-function getCityImage(city: string, seed: string = "default"): string {
+function getCityImage(city: string): string {
   const curatedCityImage = getTravelCityImage(city);
   if (curatedCityImage) return curatedCityImage;
 
@@ -2882,18 +2882,26 @@ function getCityImage(city: string, seed: string = "default"): string {
   const direct = DESTINATION_IMAGE_BY_KEY[key];
   if (direct) return direct;
 
-  const seedKey = normalizeCityKey(seed);
-  const seedDirect = DESTINATION_IMAGE_BY_KEY[seedKey];
-  if (seedDirect) return seedDirect;
-
   return DESTINATION_IMAGE_FALLBACK;
 }
 
-function getAttractionImage(city: string, attraction: string, seed: string): string {
+function getDestinationCardImage(card: TravelDestinationCard, city: string): string {
+  if (
+    card.cover_image_url &&
+    card.image_status !== "placeholder" &&
+    card.source_status !== "llm_generated"
+  ) {
+    return card.cover_image_url;
+  }
+
+  return getCityImage(city);
+}
+
+function getAttractionImage(city: string, attraction: string): string {
   const attractionImage = findTravelAttraction(city, attraction)?.imageSrc;
   if (attractionImage) return attractionImage;
 
-  return getCityImage(city, seed);
+  return DESTINATION_IMAGE_FALLBACK;
 }
 
 function getGoogleCityCoordinates(
@@ -3139,6 +3147,7 @@ export function TravelChatClient({
     useState<TravelPlacesFetchStatus>("idle");
   const [googlePlacesError, setGooglePlacesError] = useState("");
   const [googlePlacesRetryNonce, setGooglePlacesRetryNonce] = useState(0);
+  const [googlePlacesRequestedCity, setGooglePlacesRequestedCity] = useState("");
   const [selectedGooglePlaceId, setSelectedGooglePlaceId] = useState<
     string | null
   >(null);
@@ -3525,7 +3534,7 @@ export function TravelChatClient({
           ? `${context.countryZh} (${context.countryEn})`
           : undefined,
         recommendedDays: context?.days,
-        imageSrc: getCityImage(city, `city-suggestion-${index}`),
+        imageSrc: getCityImage(city),
         lat,
         lng,
         city,
@@ -3558,7 +3567,7 @@ export function TravelChatClient({
         subtitle: `${originLabel} → ${returnLabel}`,
         localName: `${getLocalDisplayName(originLabel)} → ${getLocalDisplayName(returnLabel)}`,
         intro: buildMapIntro("route", "Route Overview", canonicalCities[0]),
-        imageSrc: getCityImage(originLabel, "route"),
+        imageSrc: getCityImage(originLabel),
         lat: routeStartLat,
         lng: routeStartLng,
         city: canonicalCities[0],
@@ -3582,7 +3591,7 @@ export function TravelChatClient({
           ? `${context.countryZh} (${context.countryEn})`
           : undefined,
         recommendedDays: context?.days ?? undefined,
-        imageSrc: getCityImage(city, `city-${index}`),
+        imageSrc: getCityImage(city),
         lat,
         lng,
         city,
@@ -3619,7 +3628,7 @@ export function TravelChatClient({
           const context = getCityContext(city);
           return context?.days;
         })(),
-        imageSrc: getCityImage(city, `hotel-${hotel.stay_index}`),
+        imageSrc: getCityImage(city),
         lat: finalLat,
         lng: finalLng,
         city,
@@ -3670,9 +3679,11 @@ export function TravelChatClient({
     () => getGooglePlaceFilterTypes(googlePlaceFilterId),
     [googlePlaceFilterId]
   );
+  const shouldLoadGooglePlaces =
+    Boolean(googlePlacesCity) && googlePlacesRequestedCity === googlePlacesCity;
 
   useEffect(() => {
-    if (!googlePlacesCity || !hasDestinationSelection) {
+    if (!googlePlacesCity || !hasDestinationSelection || !shouldLoadGooglePlaces) {
       setGooglePlaceCards([]);
       setGooglePlacesStatus("idle");
       setGooglePlacesError("");
@@ -3753,10 +3764,12 @@ export function TravelChatClient({
     googlePlaceFilterTypes,
     googlePlacesCity,
     googlePlacesCityCoordinate,
+    googlePlacesRequestedCity,
     googlePlacesRetryNonce,
     hasDestinationSelection,
     interfaceLocale,
     isZh,
+    shouldLoadGooglePlaces,
   ]);
 
   const selectedGooglePlaceCard = useMemo(
@@ -3874,7 +3887,7 @@ export function TravelChatClient({
           const context = getCityContext(activeCityForHotspots);
           return context?.days;
         })(),
-        imageSrc: getAttractionImage(activeCityForHotspots, spot, `hotspot-${index}`),
+        imageSrc: getAttractionImage(activeCityForHotspots, spot),
         lat,
         lng,
         city: activeCityForHotspots,
@@ -5499,31 +5512,34 @@ export function TravelChatClient({
                             <div className="min-w-0">
                               <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                                 <MapPin className="h-3 w-3 text-brand-500" />
-                                Google Places
+                                {isZh ? "本地优先资料" : "Local-first data"}
                               </p>
                               <h3 className="mt-1 text-base font-semibold text-slate-950">
                                 {isZh
-                                  ? `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)}实时景点`
-                                  : `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)} attractions`}
+                                  ? `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)}景点资料`
+                                  : `${getDisplayPlaceName(googlePlacesCity, interfaceLocale)} attraction data`}
                               </h3>
                               <p className="mt-1 text-xs leading-relaxed text-slate-500">
                                 {isZh
-                                  ? "实时获取景点、评分、照片和坐标；添加到行程时仅保存 placeId。"
-                                  : "Live places with photos, ratings, and coordinates; saved itinerary metadata keeps only placeId."}
+                                  ? "优先使用本地已验证资料；只有需要补全时才手动请求实时 Places。"
+                                  : "Verified local data renders first; live Places loads only when enrichment is requested."}
                               </p>
                             </div>
                             <Button
                               aria-label={
-                                isZh ? "重新加载景点" : "Reload attractions"
+                                isZh ? "请求实时补全" : "Request live enrichment"
                               }
                               className="h-9 w-9 shrink-0"
                               disabled={googlePlacesStatus === "loading"}
-                              onClick={() =>
-                                setGooglePlacesRetryNonce((value) => value + 1)
-                              }
+                              onClick={() => {
+                                setGooglePlacesRequestedCity(
+                                  googlePlacesCity ?? ""
+                                );
+                                setGooglePlacesRetryNonce((value) => value + 1);
+                              }}
                               size="icon"
                               title={
-                                isZh ? "重新加载景点" : "Reload attractions"
+                                isZh ? "请求实时补全" : "Request live enrichment"
                               }
                               type="button"
                               variant="outline"
@@ -5551,9 +5567,12 @@ export function TravelChatClient({
                                   }`}
                                   disabled={googlePlacesStatus === "loading"}
                                   key={option.id}
-                                  onClick={() =>
-                                    setGooglePlaceFilterId(option.id)
-                                  }
+                                  onClick={() => {
+                                    setGooglePlacesRequestedCity(
+                                      googlePlacesCity ?? ""
+                                    );
+                                    setGooglePlaceFilterId(option.id);
+                                  }}
                                   type="button"
                                 >
                                   {isZh ? option.zh : option.en}
@@ -5737,11 +5756,14 @@ export function TravelChatClient({
                                 </p>
                                 <Button
                                   className="mt-3"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    setGooglePlacesRequestedCity(
+                                      googlePlacesCity ?? ""
+                                    );
                                     setGooglePlacesRetryNonce(
                                       (value) => value + 1
-                                    )
-                                  }
+                                    );
+                                  }}
                                   size="sm"
                                   type="button"
                                   variant="outline"
@@ -5755,9 +5777,34 @@ export function TravelChatClient({
                                 className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm text-slate-600"
                                 data-testid="travel-google-places-empty"
                               >
-                                {isZh
-                                  ? "暂时没有找到符合条件的景点。可以切换筛选或稍后重试。"
-                                  : "No matching attractions found. Try another filter or reload."}
+                                <p>
+                                  {googlePlacesRequestedCity === googlePlacesCity
+                                    ? isZh
+                                      ? "暂时没有找到符合条件的景点。可以切换筛选或稍后重试。"
+                                      : "No matching attractions found. Try another filter or reload."
+                                    : isZh
+                                      ? "本地资料已优先渲染；如需补全实时景点、评分或照片，可手动请求。"
+                                      : "Local data has rendered first. Request live enrichment for extra places, ratings, or photos."}
+                                </p>
+                                {googlePlacesRequestedCity !== googlePlacesCity ? (
+                                  <Button
+                                    className="mt-3"
+                                    onClick={() => {
+                                      setGooglePlacesRequestedCity(
+                                        googlePlacesCity ?? ""
+                                      );
+                                      setGooglePlacesRetryNonce(
+                                        (value) => value + 1
+                                      );
+                                    }}
+                                    size="sm"
+                                    type="button"
+                                    variant="outline"
+                                  >
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    {isZh ? "补全实时景点" : "Enrich live places"}
+                                  </Button>
+                                ) : null}
                               </div>
                             ) : (
                               <div className="grid gap-3 sm:grid-cols-2">
@@ -6004,10 +6051,19 @@ export function TravelChatClient({
                                           : interfaceLocale === "zh"
                                             ? `加入计划：${displayCity}`
                                             : `Add to plan: ${displayCity}`;
-                                      const imageSrc = getCityImage(
-                                        rawDisplayCity,
-                                        card.image_key ?? card.title
+                                      const imageSrc = getDestinationCardImage(
+                                        card,
+                                        rawDisplayCity
                                       );
+                                      const isGeneratedCard =
+                                        card.source_status === "llm_generated" ||
+                                        card.data_quality === "generated";
+                                      const missingFields =
+                                        card.missing_fields ?? [];
+                                      const showCompletionStatus =
+                                        isGeneratedCard ||
+                                        card.image_status === "placeholder" ||
+                                        missingFields.length > 0;
                                       return (
                                         <div
                                           className="group overflow-hidden rounded-xl border border-white/80 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
@@ -6060,6 +6116,17 @@ export function TravelChatClient({
                                                   ))}
                                               </div>
                                             )}
+                                            {showCompletionStatus ? (
+                                              <p className="rounded-md bg-slate-50 px-2 py-1 text-[11px] leading-relaxed text-slate-500">
+                                                {isGeneratedCard
+                                                  ? interfaceLocale === "zh"
+                                                    ? "临时文字卡片，图片保持占位图。"
+                                                    : "Temporary text card; image remains a placeholder."
+                                                  : interfaceLocale === "zh"
+                                                    ? "正在补全图片和景点信息"
+                                                    : "Completing images and attraction data"}
+                                              </p>
+                                            ) : null}
                                             <Button
                                               className="w-full bg-[#03346E] text-white hover:bg-[#022b5d]"
                                               disabled={status !== "ready"}

@@ -151,6 +151,7 @@ Smoke URLs:
 - `supabase/migrations/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
+- `lib/frequent-traveler-profile.ts`
 - `lib/universal-profile-prefill.ts`
 - `lib/translation/*`
 - `lib/travel/*`

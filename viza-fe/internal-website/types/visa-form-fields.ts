@@ -2,6 +2,16 @@
  * Types for DB-driven visa application wizard
  */
 
+export type VisaFormFieldOption =
+  | string
+  | {
+      value: string;
+      text?: string;
+      label_zh?: string;
+      label_en?: string;
+      official_label?: string;
+    };
+
 export interface VisaFormFieldRow {
   id: string;
   visaType: string;
@@ -14,7 +24,7 @@ export interface VisaFormFieldRow {
   displayOrder: number;
   placeholder: string | null;
   validationRules: Record<string, unknown> | null;
-  options: Array<{ value: string; text: string } | string> | null;
+  options: VisaFormFieldOption[] | null;
   conditionalLogic: Record<string, unknown> | null;
 }
 

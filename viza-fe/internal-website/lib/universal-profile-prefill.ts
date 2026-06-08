@@ -36,6 +36,7 @@ export interface UniversalProfileSnapshot {
   passport_issuing_authority?: string | null;
   email?: string | null;
   phone?: string | null;
+  wechat?: string | null;
 }
 
 export const UNIVERSAL_PROFILE_SELECT =
@@ -273,6 +274,7 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setAnswer(out, ["passport_issuing_authority"], profile.passport_issuing_authority);
   setAnswer(out, ["email", "email_address"], profile.email);
   setAnswer(out, ["phone", "phone_number", "primary_phone_number", "mobile_phone", "telephone_number"], profile.phone);
+  setAnswer(out, ["wechat", "wechat_id"], profile.wechat);
 
   return out;
 }

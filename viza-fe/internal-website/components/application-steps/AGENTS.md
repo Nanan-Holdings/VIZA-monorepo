@@ -17,6 +17,8 @@ review, bilingual review helpers, and status confirmation.
 - `dynamic-review-step.tsx`: DB-driven read-only review with translations.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
 - `team-step.tsx`: manage companion applicants before final submission.
+- `frequent-traveler-profile-fields.tsx`: shared common-traveler profile
+  fields used by Team step and Settings frequent traveler management.
 - `submission-disclaimer-dialog.tsx`: shared final-submit disclaimer modal used
   by review steps before an application is submitted.
 - `status-step.tsx` and `status-card.tsx`: post-submission confirmation/status.

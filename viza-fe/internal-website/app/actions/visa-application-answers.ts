@@ -16,7 +16,7 @@ interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
   wechat?: string | null;
 }
 
-const OPTIONAL_PROFILE_COLUMNS = [
+const PROFILE_SAVE_FALLBACK_COLUMNS = [
   "full_name_zh",
   "full_name_en",
   "surname",
@@ -38,6 +38,7 @@ const OPTIONAL_PROFILE_COLUMNS = [
   "occupation_en",
   "address_zh",
   "address_en",
+  "wechat",
 ] as const;
 
 function cleanOptional(value: string | null | undefined): string | null {
@@ -45,10 +46,18 @@ function cleanOptional(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function isMissingOptionalProfileColumnError(message: string) {
+function isRetryableMissingProfileColumnError(message: string) {
   const normalized = message.toLowerCase();
-  return OPTIONAL_PROFILE_COLUMNS.some((column) => normalized.includes(column)) &&
+  return PROFILE_SAVE_FALLBACK_COLUMNS.some((column) => normalized.includes(column)) &&
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
+}
+
+function getMissingProfileSaveColumn(message: string, payload: Record<string, unknown>) {
+  if (!isRetryableMissingProfileColumnError(message)) return null;
+  const normalized = message.toLowerCase();
+  return PROFILE_SAVE_FALLBACK_COLUMNS.find(
+    (column) => column in payload && normalized.includes(column),
+  ) ?? null;
 }
 
 function isMissingColumnError(message: string, column: string) {
@@ -90,6 +99,35 @@ function ownsApplication(
   userId: string,
 ): profile is ApplicationOwnerProfile & { id: string } {
   return Boolean(profile?.id && (profile.auth_user_id === userId || profile.dependant_of_user_id === userId));
+}
+
+async function upsertApplicantProfileWithOptionalColumnFallback(
+  adminClient: ReturnType<typeof createAdminClient>,
+  payload: Record<string, string | null>,
+) {
+  let nextPayload = { ...payload };
+
+  for (let attempt = 0; attempt <= PROFILE_SAVE_FALLBACK_COLUMNS.length; attempt += 1) {
+    const result = await adminClient
+      .from("applicant_profiles")
+      .upsert(nextPayload, { onConflict: "auth_user_id" })
+      .select("id, auth_user_id")
+      .single();
+
+    if (!result.error) return result;
+
+    const missingColumn = getMissingProfileSaveColumn(result.error.message, nextPayload);
+    if (!missingColumn) return result;
+
+    const { [missingColumn]: _missingValue, ...fallbackPayload } = nextPayload;
+    nextPayload = fallbackPayload;
+  }
+
+  return adminClient
+    .from("applicant_profiles")
+    .upsert(nextPayload, { onConflict: "auth_user_id" })
+    .select("id, auth_user_id")
+    .single();
 }
 
 /**
@@ -224,56 +262,12 @@ export async function saveUniversalProfileWithSharedAnswers(
     };
     const hasBilingualPayload = Object.values(bilingualProfilePayload).some(Boolean);
 
-    let { data: savedProfile, error: profileError } = await adminClient
-      .from("applicant_profiles")
-      .upsert(
-        hasBilingualPayload ? { ...baseProfilePayload, ...bilingualProfilePayload } : baseProfilePayload,
-        { onConflict: "auth_user_id" },
-      )
-      .select("id, auth_user_id")
-      .single();
-
-    if (profileError && isMissingOptionalProfileColumnError(profileError.message)) {
-      const {
-        birth_country: _birthCountry,
-        birth_province_or_state: _birthProvinceOrState,
-        birth_city: _birthCity,
-        surname: _surname,
-        given_names: _givenNames,
-        ...legacyBaseProfilePayload
-      } = baseProfilePayload;
-      const {
-        surname_zh: _surnameZh,
-        surname_en: _surnameEn,
-        given_names_zh: _givenNamesZh,
-        given_names_en: _givenNamesEn,
-        birth_province_or_state_zh: _birthProvinceOrStateZh,
-        birth_province_or_state_en: _birthProvinceOrStateEn,
-        birth_city_zh: _birthCityZh,
-        birth_city_en: _birthCityEn,
-        ...legacyBilingualProfilePayload
-      } = bilingualProfilePayload;
-      const legacyProfilePayload = hasBilingualPayload
-        ? { ...legacyBaseProfilePayload, ...legacyBilingualProfilePayload }
-        : legacyBaseProfilePayload;
-      const fallbackResult = await adminClient
-        .from("applicant_profiles")
-        .upsert(legacyProfilePayload, { onConflict: "auth_user_id" })
-        .select("id, auth_user_id")
-        .single();
-      savedProfile = fallbackResult.data;
-      profileError = fallbackResult.error;
-
-      if (profileError && isMissingOptionalProfileColumnError(profileError.message)) {
-        const baseFallbackResult = await adminClient
-          .from("applicant_profiles")
-          .upsert(legacyBaseProfilePayload, { onConflict: "auth_user_id" })
-          .select("id, auth_user_id")
-          .single();
-        savedProfile = baseFallbackResult.data;
-        profileError = baseFallbackResult.error;
-      }
-    }
+    const profileResult = await upsertApplicantProfileWithOptionalColumnFallback(
+      adminClient,
+      hasBilingualPayload ? { ...baseProfilePayload, ...bilingualProfilePayload } : baseProfilePayload,
+    );
+    const savedProfile = profileResult.data;
+    const profileError = profileResult.error;
 
     if (profileError || !savedProfile) {
       return { error: profileError?.message ?? "Failed to save profile" };

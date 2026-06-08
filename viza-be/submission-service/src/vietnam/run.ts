@@ -15,12 +15,13 @@
 import type { Page } from "@playwright/test";
 import { launchStealthBrowser } from "../ceac/stealth-browser";
 import {
+  getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
   VN_STOP_BUTTON_PATTERNS,
   type VnFieldType,
 } from "./field-mappings";
-import { fillDate, fillText, pickRadio, pickSelect, toDdMmYyyy } from "./fillers";
+import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
@@ -121,7 +122,7 @@ export async function fillVietnamApplication(
         continue;
       }
       try {
-        await fillByType(page, mapping.type, mapping.domId, value);
+        await fillByType(page, fieldName, mapping.type, mapping.domId, value);
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -223,10 +224,12 @@ async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
 
 async function fillByType(
   page: Page,
+  fieldName: string,
   type: VnFieldType,
   domId: string,
   rawValue: string,
 ): Promise<void> {
+  const portalOptionText = getVnPortalOptionText(fieldName, rawValue);
   switch (type) {
     case "text":
     case "textarea":
@@ -234,13 +237,16 @@ async function fillByType(
       return;
     case "select":
     case "country":
-      await pickSelect(page, domId, rawValue);
+      await pickSelect(page, domId, portalOptionText);
       return;
     case "radio":
-      await pickRadio(page, domId, rawValue);
+      await pickRadio(page, domId, portalOptionText);
       return;
     case "date":
       await fillDate(page, domId, toDdMmYyyy(rawValue));
+      return;
+    case "checkbox":
+      await tickCheckbox(page, domId, rawValue);
       return;
     case "upload":
       // Uploads require a local file path threaded from applicationDocuments.

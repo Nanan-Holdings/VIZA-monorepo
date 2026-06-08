@@ -85,6 +85,22 @@ export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Pro
 }
 
 /**
+ * Tick or untick a plain/Ant checkbox by id.
+ */
+export async function tickCheckbox(page: Page, domId: string, rawValue: string): Promise<void> {
+  const normalized = rawValue.trim().toLowerCase();
+  const shouldCheck = ["1", "true", "yes", "on", "agree", "i agree"].includes(normalized);
+  const sel = `#${cssEscape(domId)}`;
+  const input = page.locator(sel).first();
+  if (shouldCheck) {
+    await input.check({ force: true, timeout: SHORT_TIMEOUT });
+  } else {
+    await input.uncheck({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  }
+  await settle(page);
+}
+
+/**
  * Convert `YYYY-MM-DD` (our canonical) to `DD/MM/YYYY` (portal's format).
  * Returns the input untouched if it doesn't match `YYYY-MM-DD` so callers
  * can pre-formatted data through unchanged.
