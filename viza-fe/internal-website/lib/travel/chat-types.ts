@@ -7,6 +7,23 @@ export type TravelDestinationCard = {
   country: string;
   city?: string | null;
   image_key?: string | null;
+  cover_image_url?: string | null;
+  image_status?: "verified" | "enriched" | "placeholder" | "pending";
+  data_quality?: "verified" | "enriched" | "generated" | "placeholder" | "incomplete";
+  source_status?:
+    | "local_verified"
+    | "local_cached"
+    | "api_enriched"
+    | "llm_generated"
+    | "placeholder";
+  completeness_score?: number | null;
+  missing_fields?: string[];
+  attraction_count?: number;
+  map_marker?: { lat: number; lng: number } | null;
+  localized_names?: {
+    en?: string | null;
+    zh?: string | null;
+  };
   highlights: string[];
   suggested_days?: string | null;
   action_label: string;

@@ -51,8 +51,16 @@ interface FieldDef {
   display_order: number;
   placeholder?: string;
   validation_rules?: Record<string, unknown>;
-  options?: Array<{ value: string; text: string }>;
+  options?: FieldOption[];
   conditional_logic?: Record<string, unknown>;
+}
+
+interface FieldOption {
+  value: string;
+  text: string;
+  label_zh?: string;
+  label_en?: string;
+  official_label?: string;
 }
 
 const YES_NO = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
@@ -249,6 +257,194 @@ const INSURANCE_OPTIONS = [
   { value: "no", text: "No" },
 ];
 
+const FIELD_LABEL_ZH: Record<string, string> = {
+  surname: "姓氏",
+  given_name: "中间名和名字",
+  date_of_birth: "出生日期",
+  sex: "性别",
+  nationality: "国籍",
+  identity_card_number: "身份证号码",
+  email_address: "电子邮箱",
+  re_enter_email_address: "确认电子邮箱",
+  religion: "宗教信仰",
+  place_of_birth: "出生地",
+  has_multiple_nationalities: "是否曾持有其他国籍",
+  other_nationality: "其他国籍",
+  has_violated_vietnam_laws: "是否违反过越南法律/法规",
+  visa_type_requested: "申请签证类型",
+  visa_valid_from: "电子签证有效期开始日期",
+  visa_valid_to: "电子签证有效期结束日期",
+  passport_number: "护照号码",
+  passport_issuing_authority: "签发机关/签发地点",
+  passport_type: "护照类型",
+  passport_issue_date: "护照签发日期",
+  passport_expiry_date: "护照到期日期",
+  permanent_residential_address: "永久居住地址",
+  contact_address: "联系地址",
+  telephone_number: "电话号码",
+  emergency_contact_full_name: "紧急联系人姓名",
+  emergency_contact_current_address: "紧急联系人当前居住地址",
+  emergency_contact_telephone: "紧急联系人电话",
+  emergency_contact_relationship: "紧急联系人关系",
+  occupation: "职业",
+  occupation_info: "职业详细信息",
+  company_or_school_name: "公司/机构/学校名称",
+  position_course: "职位/课程",
+  company_address: "公司/机构/学校地址",
+  company_phone: "公司/机构/学校电话",
+  purpose_of_entry: "入境目的",
+  intended_date_of_entry: "预计入境日期",
+  intended_length_of_stay: "预计在越南停留天数",
+  phone_in_vietnam: "越南境内电话号码",
+  residential_address_in_vietnam: "越南临时居住地址",
+  intended_province_city: "省/市",
+  intended_ward_commune: "坊/社",
+  intended_border_gate_of_entry: "预计入境口岸",
+  intended_border_gate_of_exit: "预计出境口岸",
+  declaration_temporary_residence: "承诺依法申报临时居住地",
+  visited_vietnam_in_last_year: "过去一年是否到过越南",
+  visited_vietnam_purpose_detail: "上次访问目的和入境日期",
+  has_relatives_in_vietnam: "是否有亲属目前居住在越南",
+  relative_full_name_in_vn: "在越亲属姓名",
+  relative_date_of_birth: "在越亲属出生日期",
+  relative_nationality: "在越亲属国籍",
+  relative_relationship: "与您的关系",
+  relative_address_in_vn: "在越亲属地址",
+  child_full_name: "同行14岁以下儿童姓名",
+  child_sex: "儿童性别",
+  child_date_of_birth: "儿童出生日期",
+  intended_expenses_usd: "预计费用（美元）",
+  bought_travel_insurance: "是否购买保险",
+  expense_coverage: "谁承担申请人的旅行费用",
+  violation_of_vietnam_laws_details: "违反越南法律/法规详情",
+  final_declaration: "最终声明确认",
+};
+
+const OPTION_LABEL_ZH: Record<string, string> = {
+  yes: "是",
+  no: "否",
+  male: "男",
+  female: "女",
+  ordinary_passport: "普通护照",
+  diplomatic_passport: "外交护照",
+  official_passport: "公务护照",
+  other: "其他",
+  businessman: "商务人士",
+  employee: "雇员",
+  official: "公务人员",
+  others: "其他",
+  retired: "退休",
+  student: "学生",
+  unemployed: "无业",
+  tourist: "旅游",
+  visiting_relatives: "探亲",
+  working: "工作",
+  business: "商务",
+  single: "单次入境",
+  multiple: "多次入境",
+  personal: "个人承担",
+  company: "公司承担",
+};
+
+const PROVINCE_LABEL_ZH: Record<string, string> = {
+  an_giang: "安江",
+  bac_ninh: "北宁",
+  cao_bang: "高平",
+  ca_mau: "金瓯",
+  gia_lai: "嘉莱",
+  ha_tinh: "河静",
+  hung_yen: "兴安",
+  khanh_hoa: "庆和",
+  lai_chau: "莱州",
+  lam_dong: "林同",
+  lao_cai: "老街",
+  lang_son: "谅山",
+  nghe_an: "乂安",
+  quang_ngai: "广义",
+  ninh_binh: "宁平",
+  quang_ninh: "广宁",
+  phu_tho: "富寿",
+  quang_tri: "广治",
+  hue_city: "顺化市",
+  son_la: "山罗",
+  ha_noi_city: "河内市",
+  can_tho_city: "芹苴市",
+  hai_phong_city: "海防市",
+  thanh_hoa: "清化",
+  ho_chi_minh_city: "胡志明市",
+  thai_nguyen: "太原",
+  da_nang_city: "岘港市",
+  tuyen_quang: "宣光",
+  dien_bien: "奠边",
+  tay_ninh: "西宁",
+  dak_lak: "得乐",
+  vinh_long: "永隆",
+  dong_nai: "同奈",
+  dong_thap: "同塔",
+};
+
+function localizeVietnamPlace(text: string): string {
+  return text
+    .replace(/\bAn Giang province\b/g, "安江省")
+    .replace(/\bTay Ninh province\b/g, "西宁省")
+    .replace(/\bNghe An province\b/g, "乂安省")
+    .replace(/\bKhanh Hoa province\b/g, "庆和省")
+    .replace(/\bQuang Tri province\b/g, "广治省")
+    .replace(/\bHung Yen province\b/g, "兴安省")
+    .replace(/\bQuang Binh\b/g, "广平")
+    .replace(/\bDong Thap province\b/g, "同塔省")
+    .replace(/\bLang Son province\b/g, "谅山省")
+    .replace(/\bVinh Long province\b/g, "永隆省")
+    .replace(/\bNinh Binh province\b/g, "宁平省")
+    .replace(/\bGia Lai province\b/g, "嘉莱省")
+    .replace(/\bSon La province\b/g, "山罗省")
+    .replace(/\bDa Nang province\b/g, "岘港市")
+    .replace(/\bLam Dong province\b/g, "林同省")
+    .replace(/\bCa Mau province\b/g, "金瓯省")
+    .replace(/\bHue City\b/g, "顺化市")
+    .replace(/\bCao Bang province\b/g, "高平省")
+    .replace(/\bHa Tinh province\b/g, "河静省")
+    .replace(/\bTuyen Quang province\b/g, "宣光省")
+    .replace(/\bHo Chi Minh City\b/g, "胡志明市")
+    .replace(/\bLao Cai province\b/g, "老街省")
+    .replace(/\bQuang Ninh province\b/g, "广宁省")
+    .replace(/\bDak Lak province\b/g, "得乐省")
+    .replace(/International Airport/g, "国际机场")
+    .replace(/Int Airport/g, "国际机场")
+    .replace(/Airport Border Gate/g, "机场口岸")
+    .replace(/Port Border Gate/g, "港口边境口岸")
+    .replace(/international border gate/gi, "国际边境口岸")
+    .replace(/Landport/g, "陆路口岸")
+    .replace(/Seaport/g, "海港")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function localizeOption(option: FieldOption): FieldOption {
+  const lowerText = option.text.trim().toLowerCase();
+  return {
+    ...option,
+    label_en: option.label_en ?? option.text,
+    official_label: option.official_label ?? option.text,
+    label_zh:
+      option.label_zh ??
+      (lowerText === "i agree" ? "我同意" : null) ??
+      OPTION_LABEL_ZH[option.value] ??
+      PROVINCE_LABEL_ZH[option.value] ??
+      localizeVietnamPlace(option.text),
+  };
+}
+
+function withFieldMetadata(field: FieldDef): Record<string, unknown> {
+  return {
+    ...(field.validation_rules ?? {}),
+    source_schema: "vietnam_visa_helper_v1_live_portal_recon_2026_04_24",
+    label_zh: FIELD_LABEL_ZH[field.field_name] ?? field.label,
+    label_en: field.label,
+    official_label_en: field.label,
+  };
+}
+
 const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 1: Personal Information  (live section "1. PERSONAL INFORMATION")
@@ -392,8 +588,8 @@ async function seed() {
     step_name: f.step_name,
     display_order: f.display_order,
     placeholder: f.placeholder ?? null,
-    validation_rules: f.validation_rules ?? null,
-    options: f.options ?? null,
+    validation_rules: withFieldMetadata(f),
+    options: f.options?.map(localizeOption) ?? null,
     conditional_logic: f.conditional_logic ?? null,
   }));
 

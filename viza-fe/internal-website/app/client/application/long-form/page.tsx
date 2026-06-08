@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Check, ChevronDown } from "lucide-react";
+import { AlertCircle, Loader2, Check, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -55,6 +55,11 @@ import {
   buildApplicationFormHref,
   setRecentApplicationFormHref,
 } from "@/lib/client/recent-application-form";
+import {
+  computeAllTabCompletion,
+  getContiguousCompletedCount,
+  type MissingApplicationField,
+} from "@/lib/application-tab-completion";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -97,6 +102,13 @@ interface StepSectionDef {
   key: StepSectionKey;
   title: string;
   steps: StepDef[];
+}
+
+function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
+  return Object.values(drafts).reduce<Record<string, string>>(
+    (acc, stepDraft) => ({ ...acc, ...stepDraft }),
+    {},
+  );
 }
 
 const STEP_SECTION_ORDER: StepSectionKey[] = [
@@ -244,12 +256,12 @@ function buildStepSections(steps: StepDef[], titles: Record<StepSectionKey, stri
 function VerticalStepSidebar({
   steps,
   currentStep,
-  completedUpTo,
+  completedStepIds,
   onStepClick,
 }: {
   steps: StepDef[];
   currentStep: number;
-  completedUpTo: number;
+  completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep);
@@ -265,7 +277,7 @@ function VerticalStepSidebar({
       <div className="relative flex flex-col gap-3">
         {steps.map((step, i) => {
           const status: StepStatus =
-            i < completedUpTo ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
+            completedStepIds.has(step.id) ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
           const isSelected = i === activeStepIndex;
 
           return (
@@ -330,12 +342,12 @@ function VerticalStepSidebar({
 function MobileStepBar({
   steps,
   currentStep,
-  completedUpTo,
+  completedStepIds,
   onStepClick,
 }: {
   steps: StepDef[];
   currentStep: number;
-  completedUpTo: number;
+  completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
   const t = useTranslations("application");
@@ -347,7 +359,7 @@ function MobileStepBar({
       <div className="flex items-center gap-1">
         {steps.map((step, i) => {
           const status: StepStatus =
-            i < completedUpTo ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
+            completedStepIds.has(step.id) ? "complete" : i === activeStepIndex ? "in_progress" : "locked";
           return (
             <div key={step.id} className="flex items-center gap-1 flex-1 min-w-0">
               <button
@@ -372,7 +384,7 @@ function MobileStepBar({
                 <div
                   className={cn(
                     "h-0.5 flex-1 rounded-full",
-                    i < completedUpTo ? "bg-[#03346E]" : "bg-gray-200"
+                    completedStepIds.has(step.id) ? "bg-[#03346E]" : "bg-gray-200"
                   )}
                 />
               )}
@@ -391,20 +403,20 @@ function GroupedStepSidebar({
   sections,
   steps,
   currentStep,
-  completedUpTo,
+  completedStepIds,
   onStepClick,
 }: {
   sections: StepSectionDef[];
   steps: StepDef[];
   currentStep: number;
-  completedUpTo: number;
+  completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
-  const getStatus = useCallback((stepId: number, index: number): StepStatus => {
-    return index < completedUpTo ? "complete" : stepId === currentStep ? "in_progress" : "locked";
-  }, [completedUpTo, currentStep]);
+  const getStatus = useCallback((stepId: number): StepStatus => {
+    return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
+  }, [completedStepIds, currentStep]);
 
   useEffect(() => {
     setExpandedSections((prev) => {
@@ -432,7 +444,7 @@ function GroupedStepSidebar({
           if (section.steps.length === 1) {
             const step = section.steps[0];
             const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-            const status = getStatus(step.id, stepIndex);
+            const status = getStatus(step.id);
             const isSelected = step.id === currentStep;
 
             return (
@@ -479,8 +491,7 @@ function GroupedStepSidebar({
           const isExpanded = expandedSections[section.key] ?? activeInSection;
           const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
-            const i = currentStepIndexById.get(step.id) ?? 0;
-            return i < completedUpTo;
+            return completedStepIds.has(step.id);
           }).length;
           const sectionComplete = completedCount === section.steps.length;
 
@@ -544,7 +555,7 @@ function GroupedStepSidebar({
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
                       const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-                      const status = getStatus(step.id, stepIndex);
+                      const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
                       return (
@@ -602,22 +613,23 @@ function GroupedMobileStepBar({
   sections,
   steps,
   currentStep,
-  completedUpTo,
+  completedStepIds,
   onStepClick,
 }: {
   sections: StepSectionDef[];
   steps: StepDef[];
   currentStep: number;
-  completedUpTo: number;
+  completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const currentStepIndex = currentStepIndexById.get(currentStep);
   const currentSection = sections.find((section) => section.steps.some((step) => step.id === currentStep));
   const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
-  const getStatus = useCallback((stepId: number, index: number): StepStatus => {
-    return index < completedUpTo ? "complete" : stepId === currentStep ? "in_progress" : "locked";
-  }, [completedUpTo, currentStep]);
+  const getStatus = useCallback((stepId: number): StepStatus => {
+    return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
+  }, [completedStepIds, currentStep]);
+  const completedStepCount = steps.filter((step) => completedStepIds.has(step.id)).length;
 
   useEffect(() => {
     setExpandedSections((prev) => {
@@ -659,7 +671,7 @@ function GroupedMobileStepBar({
         <div className="mt-3 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
           <div
             className="h-full rounded-full bg-[#03346E] transition-all duration-300"
-            style={{ width: `${Math.min(100, (completedUpTo / Math.max(steps.length, 1)) * 100)}%` }}
+            style={{ width: `${Math.min(100, (completedStepCount / Math.max(steps.length, 1)) * 100)}%` }}
           />
         </div>
       </div>
@@ -669,7 +681,7 @@ function GroupedMobileStepBar({
           if (section.steps.length === 1) {
             const step = section.steps[0];
             const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-            const status = getStatus(step.id, stepIndex);
+            const status = getStatus(step.id);
 
             return (
               <button
@@ -716,8 +728,7 @@ function GroupedMobileStepBar({
           const isExpanded = expandedSections[section.key] ?? activeInSection;
           const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
-            const i = currentStepIndexById.get(step.id) ?? 0;
-            return i < completedUpTo;
+            return completedStepIds.has(step.id);
           }).length;
           const sectionComplete = completedCount === section.steps.length;
 
@@ -780,7 +791,7 @@ function GroupedMobileStepBar({
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
                       const stepIndex = currentStepIndexById.get(step.id) ?? 0;
-                      const status = getStatus(step.id, stepIndex);
+                      const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
                       return (
@@ -830,6 +841,115 @@ function GroupedMobileStepBar({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function FinalConfirmationPanel({
+  isZh,
+  missingFields,
+  submitting,
+  onEdit,
+  onSubmit,
+}: {
+  isZh: boolean;
+  missingFields: MissingApplicationField[];
+  submitting: boolean;
+  onEdit: StepClickHandler;
+  onSubmit: () => void | Promise<void>;
+}) {
+  const groupedMissing = useMemo(() => {
+    const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
+    for (const item of missingFields) {
+      const existing = groups.get(item.stepId);
+      if (existing) {
+        existing.fields.push(item);
+      } else {
+        groups.set(item.stepId, { stepName: item.stepName, fields: [item] });
+      }
+    }
+    return Array.from(groups.entries()).map(([stepId, group]) => ({ stepId, ...group }));
+  }, [missingFields]);
+
+  const hasMissing = missingFields.length > 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-[#d7e6fb] bg-[#f2f7ff] p-5">
+        <div className="flex gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-[#0b2545]">
+              {isZh ? "最终确认" : "Final confirmation"}
+            </h3>
+            <p className="text-sm leading-relaxed text-[#3d5878]">
+              {hasMissing
+                ? isZh
+                  ? "提交前还需要补齐以下信息。请先编辑对应 tab，保存后再回到这里提交。"
+                  : "Some information is still required. Edit the listed tabs, save, then return here to submit."
+                : isZh
+                  ? "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。"
+                  : "All currently required information is ready. The background submission job is created only after you click below."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {hasMissing && (
+        <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5">
+          <h3 className="text-sm font-semibold text-red-800">
+            {isZh ? "缺失信息清单" : "Missing information"}
+          </h3>
+          <div className="space-y-3">
+            {groupedMissing.map((group) => (
+              <div key={group.stepId} className="rounded-lg border border-red-100 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-red-900">{group.stepName}</p>
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-50"
+                    onClick={() => {
+                      void onEdit(group.stepId);
+                    }}
+                  >
+                    {isZh ? "去编辑" : "Edit"}
+                  </button>
+                </div>
+                <ul className="space-y-1 text-sm text-red-700">
+                  {group.fields.map((item) => (
+                    <li key={`${item.stepId}-${item.fieldName}`}>
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        disabled={submitting || hasMissing}
+        onClick={() => {
+          void onSubmit();
+        }}
+        className={cn(
+          "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
+          submitting || hasMissing
+            ? "cursor-not-allowed bg-gray-200 text-gray-500"
+            : "bg-[#03346E] text-white shadow-sm hover:bg-[#022b5c]",
+        )}
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isZh ? "正在提交" : "Submitting"}
+          </>
+        ) : (
+          isZh ? "确认并提交申请" : "Confirm and submit application"
+        )}
+      </button>
     </div>
   );
 }
@@ -887,6 +1007,7 @@ export default function ApplicationPage() {
   const searchParams = useSearchParams();
   const jumpToReview = searchParams.get("step") === "review";
   const jumpToTeam = searchParams.get("step") === "team";
+  const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
   const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
   const returnToParam = searchParams.get("returnTo")?.trim() || null;
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
@@ -953,8 +1074,10 @@ export default function ApplicationPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitMissingFields, setSubmitMissingFields] = useState<MissingApplicationField[]>([]);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+  const [draftVersion, setDraftVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
@@ -964,6 +1087,8 @@ export default function ApplicationPage() {
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
+    setDraftVersion((version) => version + 1);
+    setSubmitMissingFields([]);
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
@@ -999,9 +1124,18 @@ export default function ApplicationPage() {
   const fallbackTeamStepIndex = 5;
   const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
 
+  const pendingDynamicDrafts = useMemo(
+    () => collectDraftAnswers(dynamicDraftRef.current),
+    [draftVersion],
+  );
+  const dynamicAnswerSnapshot = useMemo(
+    () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
+    [dynamicAnswers, pendingDynamicDrafts],
+  );
+
   const visibleDynamicSteps = useMemo(
-    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswers) : []),
-    [dbSteps, dynamicAnswers, useDynamic],
+    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
+    [dbSteps, dynamicAnswerSnapshot, useDynamic],
   );
   const firstFormStepId = useDynamic ? (visibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
 
@@ -1124,6 +1258,52 @@ export default function ApplicationPage() {
     ? groupedSections.flatMap((section) => section.steps)
     : sourceOrderedSteps;
 
+  const tabCompletion = useMemo(
+    () => computeAllTabCompletion({
+      dbSteps,
+      effectiveSteps,
+      answers: dynamicAnswerSnapshot,
+      documentCenterData,
+      submittedAt: appState.submittedAt,
+      submissionResultStatus: appState.submissionResultStatus,
+      country: resolvedCountry,
+      visaType: resolvedVisaType,
+      documentStepId: documentStepIndex,
+      reviewStepId: reviewStepIndex,
+      teamStepId: teamStepIndex,
+      confirmationStepId: statusStepIndex,
+      showTeamStep,
+    }),
+    [
+      appState.submissionResultStatus,
+      appState.submittedAt,
+      dbSteps,
+      documentCenterData,
+      documentStepIndex,
+      dynamicAnswerSnapshot,
+      effectiveSteps,
+      resolvedCountry,
+      resolvedVisaType,
+      reviewStepIndex,
+      showTeamStep,
+      statusStepIndex,
+      teamStepIndex,
+    ],
+  );
+  const completedStepIdKey = tabCompletion.completedStepIds.join(",");
+  const completedStepIds = useMemo(
+    () => new Set(tabCompletion.completedStepIds),
+    [completedStepIdKey],
+  );
+  const visibleMissingFields = submitMissingFields.length > 0
+    ? submitMissingFields
+    : tabCompletion.missingFields;
+
+  useEffect(() => {
+    if (loading || effectiveSteps.length === 0) return;
+    setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
+  }, [completedStepIdKey, completedStepIds, effectiveSteps, loading]);
+
   const loadData = useCallback(async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -1221,14 +1401,6 @@ export default function ApplicationPage() {
           (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
       }));
 
-      const hasPersonal = !!(a.surname || profile.full_name) && !!(a.nationality_country || profile.nationality);
-      const hasPassport = !!(a.passport_number || profile.passport_number);
-      const hasTravel = !!(application?.arrival_date && application?.departure_date);
-      const hasDocuments = application?.status === "submitted" || application?.status === "approved";
-      const isSubmitted = application?.status === "submitted" || application?.status === "approved";
-
-      const completed = hasPersonal ? (hasPassport ? (hasTravel ? (hasDocuments ? (isSubmitted ? 6 : 4) : 3) : 2) : 1) : 0;
-      setCompletedUpTo(completed);
       if (!initialStepResolvedRef.current) {
         setCurrentStep(0);
         initialStepResolvedRef.current = true;
@@ -1251,12 +1423,16 @@ export default function ApplicationPage() {
     void loadData();
   }, [loadData, packageLoaded]);
 
-  // Honor ?step=review from the simplified-form redirect: once steps + any
-  // prefilled answers have loaded, jump directly to the Review step.
+  // Honor deep links from redirects: once steps + any prefilled answers have
+  // loaded, jump directly to the requested Review/Team/Confirmation step.
   const [reviewJumpHandled, setReviewJumpHandled] = useState(false);
   useEffect(() => {
-    if ((!jumpToReview && !jumpToTeam) || reviewJumpHandled || loading) return;
-    const targetId = jumpToTeam && showTeamStep
+    if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation) || reviewJumpHandled || loading) return;
+    const targetId = jumpToConfirmation
+      ? (useDynamic
+          ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? statusStepIndex)
+          : fallbackStatusStepIndex)
+      : jumpToTeam && showTeamStep
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
           : fallbackTeamStepIndex)
@@ -1275,8 +1451,11 @@ export default function ApplicationPage() {
     reviewStepIndex,
     showTeamStep,
     fallbackReviewStepIndex,
+    fallbackStatusStepIndex,
     fallbackTeamStepIndex,
+    jumpToConfirmation,
     teamStepIndex,
+    statusStepIndex,
     useDynamic,
   ]);
 
@@ -1367,10 +1546,7 @@ export default function ApplicationPage() {
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
   const saveAllDynamicDrafts = useCallback(async () => {
-    const mergedDraft = Object.values(dynamicDraftRef.current).reduce<Record<string, string>>(
-      (acc, stepDraft) => ({ ...acc, ...stepDraft }),
-      {},
-    );
+    const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
     const draftEntries = Object.entries(mergedDraft);
     if (draftEntries.length === 0) return;
 
@@ -1384,6 +1560,7 @@ export default function ApplicationPage() {
     if (saveResult.error) throw new Error(saveResult.error);
 
     setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
+    setSubmitMissingFields([]);
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
   const handleStepNavigation = useCallback(async (targetStepId: number) => {
@@ -1559,6 +1736,7 @@ export default function ApplicationPage() {
 
       // Update local state
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
+      setSubmitMissingFields([]);
       const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
       const nextStepId = getNextVisibleStepId(effectiveSteps, stepIndex);
       setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
@@ -1571,12 +1749,14 @@ export default function ApplicationPage() {
   };
 
   const handleDynamicDocumentsContinue = () => {
+    setSubmitMissingFields([]);
     const documentStepPosition = getVisibleStepIndex(effectiveSteps, documentStepIndex);
     setCompletedUpTo((c) => Math.max(c, documentStepPosition + 1));
     setCurrentStep(reviewStepIndex);
   };
 
   const handleFallbackDocumentsContinue = () => {
+    setSubmitMissingFields([]);
     setCompletedUpTo((c) => Math.max(c, 4));
     setCurrentStep(4);
   };
@@ -1630,6 +1810,70 @@ export default function ApplicationPage() {
     }
   }, [appState.applicationId, appState.passport, appState.personal, appState.travel, returnToTeam, t]);
 
+  const buildCurrentAnswerSnapshot = useCallback(
+    () => ({ ...dynamicAnswers, ...collectDraftAnswers(dynamicDraftRef.current) }),
+    [dynamicAnswers],
+  );
+
+  const getCurrentSubmitMissingFields = useCallback(
+    (answers: Record<string, string>) => computeAllTabCompletion({
+      dbSteps,
+      effectiveSteps,
+      answers,
+      documentCenterData,
+      submittedAt: appState.submittedAt,
+      submissionResultStatus: appState.submissionResultStatus,
+      country: resolvedCountry,
+      visaType: resolvedVisaType,
+      documentStepId: documentStepIndex,
+      reviewStepId: reviewStepIndex,
+      teamStepId: teamStepIndex,
+      confirmationStepId: statusStepIndex,
+      showTeamStep,
+    }).missingFields,
+    [
+      appState.submissionResultStatus,
+      appState.submittedAt,
+      dbSteps,
+      documentCenterData,
+      documentStepIndex,
+      effectiveSteps,
+      resolvedCountry,
+      resolvedVisaType,
+      reviewStepIndex,
+      showTeamStep,
+      statusStepIndex,
+      teamStepIndex,
+    ],
+  );
+
+  const handleTeamConfirm = useCallback(async () => {
+    setSaving(true);
+    setError(null);
+    setSubmitMissingFields([]);
+    try {
+      await saveAllDynamicDrafts();
+      const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
+      const targetStatusStepIndex = useDynamic ? statusStepIndex : fallbackStatusStepIndex;
+      const teamStepPosition = getVisibleStepIndex(effectiveSteps, targetTeamStepIndex);
+      setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
+      setCurrentStep(targetStatusStepIndex);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    effectiveSteps,
+    fallbackStatusStepIndex,
+    fallbackTeamStepIndex,
+    saveAllDynamicDrafts,
+    statusStepIndex,
+    t,
+    teamStepIndex,
+    useDynamic,
+  ]);
+
   // ── Dynamic-mode review complete handler ────────────────────────────
   const handleDynamicReviewComplete = async () => {
     setSaving(true);
@@ -1648,6 +1892,15 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
+      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot());
+      setSubmitMissingFields(missing);
+      if (missing.length > 0) {
+        setCurrentStep(statusStepIndex);
+        setError(isZhInterface
+          ? "请先补齐最终确认页列出的缺失信息。"
+          : "Please complete the missing information listed on the final confirmation step.");
+        return;
+      }
 
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
@@ -1707,6 +1960,7 @@ export default function ApplicationPage() {
           submissionResultStatus: "waiting",
         }));
       }
+      setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
       setCurrentStep(statusStepIndex);
@@ -1734,6 +1988,17 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
+      const missing = useDynamic
+        ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot())
+        : [];
+      setSubmitMissingFields(missing);
+      if (missing.length > 0) {
+        setCurrentStep(fallbackStatusStepIndex);
+        setError(isZhInterface
+          ? "请先补齐最终确认页列出的缺失信息。"
+          : "Please complete the missing information listed on the final confirmation step.");
+        return;
+      }
 
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
@@ -1766,6 +2031,7 @@ export default function ApplicationPage() {
         submittedAt,
         submissionResultStatus: "waiting",
       }));
+      setSubmitMissingFields([]);
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
       setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
@@ -1892,11 +2158,11 @@ export default function ApplicationPage() {
           sections={groupedSections}
           steps={effectiveSteps}
           currentStep={currentStep}
-          completedUpTo={completedUpTo}
+          completedStepIds={completedStepIds}
           onStepClick={handleStepNavigation}
         />
       ) : (
-        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={handleStepNavigation} />
+        <VerticalStepSidebar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
       )}
 
       {/* Main content area */}
@@ -1913,11 +2179,11 @@ export default function ApplicationPage() {
               sections={groupedSections}
               steps={effectiveSteps}
               currentStep={currentStep}
-              completedUpTo={completedUpTo}
+              completedStepIds={completedStepIds}
               onStepClick={handleStepNavigation}
             />
           ) : (
-            <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedUpTo={completedUpTo} onStepClick={handleStepNavigation} />
+            <MobileStepBar steps={effectiveSteps} currentStep={currentStep} completedStepIds={completedStepIds} onStepClick={handleStepNavigation} />
           )}
 
           {/* Page header */}
@@ -1977,6 +2243,8 @@ export default function ApplicationPage() {
                             onComplete={(data) => handleDynamicStepComplete(step.id, data)}
                             onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
                             saving={saving}
+                            country={activeCountry}
+                            visaType={activeVisaType}
                           />
                         )}
 
@@ -2026,20 +2294,30 @@ export default function ApplicationPage() {
                             country={activeCountry}
                             visaType={activeVisaType}
                             returnTo={teamReturnTo}
-                            submitLabel={t("team.finalSubmit")}
+                            submitLabel={t.has("team.confirmTeam" as never) ? t("team.confirmTeam" as never) : isZhInterface ? "确认团队信息" : "Confirm team"}
                             submitting={saving}
-                            onSubmit={handleDynamicReviewComplete}
+                            onSubmit={handleTeamConfirm}
                             initialNotice={initialTeamNotice ?? undefined}
                           />
                         )}
 
                         {/* Status/confirmation step */}
-                        {step.id === statusStepIndex && appState.submittedAt && (
-                          <SubmissionStatusStep
-                            applicationId={appState.applicationId}
-                            status={appState.submissionResultStatus}
-                            result={appState.submissionResult}
-                          />
+                        {step.id === statusStepIndex && (
+                          appState.submittedAt ? (
+                            <SubmissionStatusStep
+                              applicationId={appState.applicationId}
+                              status={appState.submissionResultStatus}
+                              result={appState.submissionResult}
+                            />
+                          ) : (
+                            <FinalConfirmationPanel
+                              isZh={isZhInterface}
+                              missingFields={visibleMissingFields}
+                              submitting={saving}
+                              onEdit={handleStepNavigation}
+                              onSubmit={handleDynamicReviewComplete}
+                            />
+                          )
                         )}
                       </>
                     ) : (
@@ -2112,18 +2390,28 @@ export default function ApplicationPage() {
                             country={activeCountry}
                             visaType={activeVisaType}
                             returnTo={teamReturnTo}
-                            submitLabel={t("team.finalSubmit")}
+                            submitLabel={t.has("team.confirmTeam" as never) ? t("team.confirmTeam" as never) : isZhInterface ? "确认团队信息" : "Confirm team"}
                             submitting={saving}
-                            onSubmit={handleReviewComplete}
+                            onSubmit={handleTeamConfirm}
                             initialNotice={initialTeamNotice ?? undefined}
                           />
                         )}
-                        {step.id === fallbackStatusStepIndex && appState.submittedAt && (
-                          <SubmissionStatusStep
-                            applicationId={appState.applicationId}
-                            status={appState.submissionResultStatus}
-                            result={appState.submissionResult}
-                          />
+                        {step.id === fallbackStatusStepIndex && (
+                          appState.submittedAt ? (
+                            <SubmissionStatusStep
+                              applicationId={appState.applicationId}
+                              status={appState.submissionResultStatus}
+                              result={appState.submissionResult}
+                            />
+                          ) : (
+                            <FinalConfirmationPanel
+                              isZh={isZhInterface}
+                              missingFields={visibleMissingFields}
+                              submitting={saving}
+                              onEdit={handleStepNavigation}
+                              onSubmit={handleReviewComplete}
+                            />
+                          )
                         )}
                       </>
                     )}

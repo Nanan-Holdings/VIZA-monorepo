@@ -1,4 +1,11 @@
 import type { Json } from "@/types/database";
+import {
+  findDropdownDestinationContract,
+  getDropdownDestinationContracts,
+  normalizeDestinationContractKey,
+  type TravelCardSourceStatus,
+  type TravelDataQuality,
+} from "@/lib/travel/destination-contracts";
 
 export const LAZY_DESTINATION_CARD_TYPES = [
   "destination_overview",
@@ -27,8 +34,12 @@ export type TravelDestinationSearchResult = {
   canonicalName: string;
   displayName: string;
   normalizedName: string;
+  nameEn?: string | null;
+  nameZh?: string | null;
   countryCode: string | null;
   countryName: string | null;
+  countryNameEn?: string | null;
+  countryNameZh?: string | null;
   region: string | null;
   city: string | null;
   placeType: string | null;
@@ -42,6 +53,12 @@ export type TravelDestinationSearchResult = {
   showOnHome?: boolean;
   aliases?: string[];
   imageKey?: string | null;
+  coverImageUrl?: string | null;
+  dataQuality?: TravelDataQuality;
+  sourceStatus?: TravelCardSourceStatus;
+  completenessScore?: number;
+  attractionCount?: number;
+  missingFields?: string[];
 };
 
 export type LazyTravelDestinationCard = {
@@ -100,6 +117,39 @@ type LocalDestination = TravelDestinationSearchResult & {
   aliases: string[];
   ambiguousGroup?: string;
 };
+
+const DROPDOWN_LOCAL_DESTINATIONS: LocalDestination[] =
+  getDropdownDestinationContracts().map((destination) => ({
+    id: `dropdown-${destination.key}`,
+    canonicalName: destination.canonicalName,
+    displayName: destination.nameEn,
+    normalizedName: normalizeDestinationText(destination.canonicalName),
+    nameEn: destination.nameEn,
+    nameZh: destination.nameZh,
+    countryCode: destination.countryCode,
+    countryName: destination.countryNameEn,
+    countryNameEn: destination.countryNameEn,
+    countryNameZh: destination.countryNameZh,
+    region: destination.region,
+    city: destination.city,
+    placeType: "city",
+    latitude: destination.latitude,
+    longitude: destination.longitude,
+    popularityScore: destination.isPopular ? 94 : 72,
+    source: "local_dropdown_contract",
+    confidenceScore: destination.completenessScore >= 80 ? 0.98 : 0.9,
+    isVerified: destination.dataQuality === "verified",
+    isFeatured: destination.isPopular,
+    showOnHome: destination.isPopular,
+    aliases: destination.aliases,
+    imageKey: normalizeDestinationContractKey(destination.nameEn),
+    coverImageUrl: destination.coverImage?.imageUrl ?? null,
+    dataQuality: destination.dataQuality,
+    sourceStatus: destination.sourceStatus,
+    completenessScore: destination.completenessScore,
+    attractionCount: destination.attractions.length,
+    missingFields: destination.missingFields,
+  }));
 
 const LOCAL_DESTINATIONS: LocalDestination[] = [
   {
@@ -874,6 +924,21 @@ const LOCAL_DESTINATIONS: LocalDestination[] = [
   },
 ];
 
+const LOCAL_DESTINATION_KEYS = new Set(
+  LOCAL_DESTINATIONS.map(
+    (destination) =>
+      `${normalizeDestinationText(destination.canonicalName)}|${destination.countryCode ?? ""}`
+  )
+);
+
+const ALL_LOCAL_DESTINATIONS: LocalDestination[] = [
+  ...LOCAL_DESTINATIONS,
+  ...DROPDOWN_LOCAL_DESTINATIONS.filter((destination) => {
+    const key = `${normalizeDestinationText(destination.canonicalName)}|${destination.countryCode ?? ""}`;
+    return !LOCAL_DESTINATION_KEYS.has(key);
+  }),
+];
+
 const AMBIGUOUS_QUERY_LABELS: Record<string, string> = {
   georgia: "你说的是格鲁吉亚这个国家，还是美国 Georgia 州？",
   "san jose": "你说的是哥斯达黎加 San Jose，还是美国加州 San Jose？",
@@ -964,8 +1029,12 @@ export function parseDatabaseDestination(row: {
   canonical_name: string;
   display_name: string;
   normalized_name: string | null;
+  name_en?: string | null;
+  name_zh?: string | null;
   country_code: string | null;
   country_name: string | null;
+  country_name_en?: string | null;
+  country_name_zh?: string | null;
   region: string | null;
   city: string | null;
   place_type: string | null;
@@ -977,16 +1046,26 @@ export function parseDatabaseDestination(row: {
   is_verified: boolean | null;
   is_featured?: boolean | null;
   show_on_home?: boolean | null;
+  data_quality?: TravelDataQuality | null;
+  completeness_score?: string | number | null;
 }): TravelDestinationSearchResult {
   const normalizedName =
     row.normalized_name ?? normalizeDestinationText(row.canonical_name);
+  const localContract = findDropdownDestinationContract(
+    row.name_en ?? row.display_name ?? row.canonical_name
+  );
   return {
     id: row.id,
     canonicalName: row.canonical_name,
     displayName: row.display_name,
     normalizedName,
+    nameEn: row.name_en ?? localContract?.nameEn ?? row.display_name,
+    nameZh: row.name_zh ?? localContract?.nameZh ?? null,
     countryCode: row.country_code,
     countryName: row.country_name,
+    countryNameEn:
+      row.country_name_en ?? row.country_name ?? localContract?.countryNameEn ?? null,
+    countryNameZh: row.country_name_zh ?? localContract?.countryNameZh ?? null,
     region: row.region,
     city: row.city,
     placeType: row.place_type,
@@ -998,6 +1077,18 @@ export function parseDatabaseDestination(row: {
     isVerified: row.is_verified ?? false,
     isFeatured: row.is_featured ?? false,
     showOnHome: row.show_on_home ?? false,
+    coverImageUrl: localContract?.coverImage?.imageUrl ?? null,
+    dataQuality: row.data_quality ?? localContract?.dataQuality,
+    sourceStatus:
+      row.data_quality === "verified"
+        ? "local_verified"
+        : row.data_quality === "enriched"
+          ? "api_enriched"
+          : localContract?.sourceStatus,
+    completenessScore:
+      toNumber(row.completeness_score) ?? localContract?.completenessScore,
+    attractionCount: localContract?.attractions.length,
+    missingFields: localContract?.missingFields,
   };
 }
 
@@ -1087,7 +1178,7 @@ export function searchLocalDestinations(
   const normalizedQuery = normalizeDestinationText(query);
 
   if (options.featuredOnly && !normalizedQuery) {
-    return LOCAL_DESTINATIONS.filter(
+    return ALL_LOCAL_DESTINATIONS.filter(
       (destination) => destination.isFeatured || destination.showOnHome
     )
       .sort((left, right) => right.popularityScore - left.popularityScore)
@@ -1096,7 +1187,7 @@ export function searchLocalDestinations(
 
   if (normalizedQuery.length < 2) return [];
 
-  return LOCAL_DESTINATIONS.map((destination) => ({
+  return ALL_LOCAL_DESTINATIONS.map((destination) => ({
     destination,
     score: scoreDestination(query, destination),
   }))
@@ -1108,7 +1199,7 @@ export function searchLocalDestinations(
 
 function findMentionedDestinations(query: string): TravelDestinationSearchResult[] {
   const normalizedQuery = normalizeDestinationText(query);
-  const hits = LOCAL_DESTINATIONS.filter((destination) =>
+  const hits = ALL_LOCAL_DESTINATIONS.filter((destination) =>
     destinationAliases(destination).some((alias) => {
       const normalizedAlias = normalizeDestinationText(alias);
       return normalizedAlias.length >= 2 && normalizedQuery.includes(normalizedAlias);
@@ -1131,7 +1222,7 @@ function ambiguousGroupForQuery(query: string): LocalDestination[] | null {
   });
   if (!exactGroup) return null;
 
-  const options = LOCAL_DESTINATIONS.filter(
+  const options = ALL_LOCAL_DESTINATIONS.filter(
     (destination) => destination.ambiguousGroup === exactGroup
   );
   if (options.length <= 1) return null;
@@ -1430,9 +1521,32 @@ export function toTravelDestinationChatCard(
   rawText = ""
 ) {
   const candidatePayload = buildTravelCandidatePayload([destination], rawText);
+  const localContract = findDropdownDestinationContract(
+    destination.nameEn ?? destination.displayName ?? destination.canonicalName
+  );
+  const coverImageUrl = destination.coverImageUrl ?? localContract?.coverImage?.imageUrl ?? null;
+  const dataQuality =
+    destination.dataQuality ??
+    localContract?.dataQuality ??
+    (destination.isVerified ? "verified" : "generated");
+  const sourceStatus =
+    destination.sourceStatus ??
+    localContract?.sourceStatus ??
+    (destination.isVerified ? "local_verified" : "llm_generated");
+  const attractionCount =
+    destination.attractionCount ?? localContract?.attractions.length ?? 0;
+  const missingFields =
+    destination.missingFields ?? localContract?.missingFields ?? [];
   const highlights = [
-    destination.placeType ? `${destination.placeType} route` : "travel route",
+    sourceStatus === "llm_generated"
+      ? "temporary text fallback"
+      : destination.placeType
+        ? `${destination.placeType} route`
+        : "travel route",
     destination.countryName ?? destination.region ?? "destination context",
+    attractionCount >= 3
+      ? `${attractionCount} local attraction cards`
+      : "attraction enrichment pending",
     destination.latitude !== null && destination.longitude !== null
       ? "map-ready"
       : "coordinate fallback ready",
@@ -1450,6 +1564,22 @@ export function toTravelDestinationChatCard(
     country: destination.countryName ?? destination.displayName,
     city: destination.city ?? destination.displayName,
     image_key: destination.imageKey ?? null,
+    cover_image_url: coverImageUrl,
+    image_status: coverImageUrl ? "verified" : "placeholder",
+    data_quality: dataQuality,
+    source_status: sourceStatus,
+    completeness_score:
+      destination.completenessScore ?? localContract?.completenessScore ?? null,
+    missing_fields: missingFields,
+    attraction_count: attractionCount,
+    map_marker:
+      destination.latitude !== null && destination.longitude !== null
+        ? { lat: destination.latitude, lng: destination.longitude }
+        : null,
+    localized_names: {
+      en: destination.nameEn ?? localContract?.nameEn ?? destination.displayName,
+      zh: destination.nameZh ?? localContract?.nameZh ?? destination.displayName,
+    },
     highlights,
     suggested_days:
       typeof candidatePayload.travel_days === "number"

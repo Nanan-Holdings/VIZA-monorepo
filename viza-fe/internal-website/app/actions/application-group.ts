@@ -6,7 +6,16 @@ import {
   buildUniversalProfileAnswerPatch,
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
-import type { FrequentTravelerInput } from "@/app/actions/client-settings";
+import {
+  FREQUENT_TRAVELER_PROFILE_SELECT,
+  isMissingOptionalFrequentTravelerColumnError,
+  normalizeFrequentTravelerInput,
+  stripOptionalFrequentTravelerProfileColumns,
+  toFrequentTravelerSummary,
+  toUniversalProfileSnapshot,
+  type FrequentTravelerInput,
+  type FrequentTravelerProfileRow,
+} from "@/lib/frequent-traveler-profile";
 
 /**
  * Family / multi-applicant application group (PRODUCT-002).
@@ -62,15 +71,6 @@ type CompanionApplicationRow = {
   submission_result_status: string | null;
 };
 
-type CompanionProfileRow = {
-  id: string;
-  full_name: string | null;
-  date_of_birth: string | null;
-  nationality: string | null;
-  passport_number: string | null;
-  passport_expiry_date: string | null;
-};
-
 export interface CreateTeamCompanionInput {
   applicationId: string;
   travelerId?: string;
@@ -111,23 +111,7 @@ export interface TeamApplicationContextResult {
     accommodation_name: string | null;
     accommodation_address: string | null;
   };
-  profile?: {
-    id: string;
-    full_name: string | null;
-    date_of_birth: string | null;
-    place_of_birth: string | null;
-    gender: string | null;
-    nationality: string | null;
-    occupation: string | null;
-    address: string | null;
-    passport_number: string | null;
-    passport_issue_date: string | null;
-    passport_expiry_date: string | null;
-    passport_issuing_country: string | null;
-    passport_issuing_authority: string | null;
-    email: string | null;
-    phone: string | null;
-  };
+  profile?: UniversalProfileSnapshot & { id: string };
   reason?: string;
 }
 
@@ -137,56 +121,6 @@ function isMissingColumnError(message: string, column: string) {
   const normalized = message.toLowerCase();
   return normalized.includes(column.toLowerCase()) &&
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
-}
-
-function cleanOptional(value?: string) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function normalizeTravelerInput(input: FrequentTravelerInput) {
-  const fullName = input.fullName?.trim();
-  if (!fullName) return { error: "Traveler name is required." };
-  return {
-    value: {
-      full_name: fullName,
-      date_of_birth: cleanOptional(input.dateOfBirth),
-      nationality: cleanOptional(input.nationality),
-      passport_number: cleanOptional(input.passportNumber),
-      passport_expiry_date: cleanOptional(input.passportExpiryDate),
-      email: cleanOptional(input.email),
-      phone: cleanOptional(input.phone),
-      updated_at: new Date().toISOString(),
-    },
-  };
-}
-
-function toProfileSnapshot(profile: {
-  full_name?: string | null;
-  date_of_birth?: string | null;
-  nationality?: string | null;
-  passport_number?: string | null;
-  passport_expiry_date?: string | null;
-  passport_issuing_country?: string | null;
-  passport_issuing_authority?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  occupation?: string | null;
-}): UniversalProfileSnapshot {
-  return {
-    full_name: profile.full_name ?? null,
-    date_of_birth: profile.date_of_birth ?? null,
-    nationality: profile.nationality ?? null,
-    passport_number: profile.passport_number ?? null,
-    passport_expiry_date: profile.passport_expiry_date ?? null,
-    passport_issuing_country: profile.passport_issuing_country ?? null,
-    passport_issuing_authority: profile.passport_issuing_authority ?? null,
-    email: profile.email ?? null,
-    phone: profile.phone ?? null,
-    address: profile.address ?? null,
-    occupation: profile.occupation ?? null,
-  };
 }
 
 function shouldCopyAnswer(fieldName: string) {
@@ -368,6 +302,15 @@ export async function createApplicationGroup(input: CreateGroupInput): Promise<C
   const applicationIds: string[] = [];
   for (const m of input.members) {
     let applicantProfileId: string;
+    const fullName = `${m.given_names} ${m.surname}`.trim();
+    const splitNamePayload = {
+      full_name: fullName,
+      full_name_en: fullName,
+      surname: m.surname.trim() || null,
+      surname_en: m.surname.trim() || null,
+      given_names: m.given_names.trim() || null,
+      given_names_en: m.given_names.trim() || null,
+    };
     if (m.is_payer) {
       const { data: existingPayerProfile } = await adminClient
         .from("applicant_profiles")
@@ -379,7 +322,7 @@ export async function createApplicationGroup(input: CreateGroupInput): Promise<C
       } else {
         const { data: newProfile, error: profErr } = await adminClient
           .from("applicant_profiles")
-          .insert({ auth_user_id: user.id, full_name: `${m.given_names} ${m.surname}`.trim() })
+          .insert({ auth_user_id: user.id, ...splitNamePayload })
           .select("id")
           .single();
         if (profErr || !newProfile) {
@@ -392,7 +335,7 @@ export async function createApplicationGroup(input: CreateGroupInput): Promise<C
         .from("applicant_profiles")
         .insert({
           /* Dependant profile — no auth_user_id; managed by payer only. */
-          full_name: `${m.given_names} ${m.surname}`.trim(),
+          ...splitNamePayload,
           dependant_of_user_id: user.id,
         })
         .select("id")
@@ -464,31 +407,32 @@ export async function listTeamCompanions(applicationId: string): Promise<TeamCom
 
   const applications = (applicationRows ?? []) as CompanionApplicationRow[];
   const applicantIds = applications.map((row) => row.applicant_id).filter(Boolean);
-  const profileById = new Map<string, CompanionProfileRow>();
+  const profileById = new Map<string, FrequentTravelerProfileRow>();
 
   if (applicantIds.length > 0) {
     const { data: profileRows, error: profileListError } = await adminClient
       .from("applicant_profiles")
-      .select("id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date")
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .in("id", applicantIds);
 
     if (profileListError) return { ok: false, reason: profileListError.message };
 
-    for (const profile of (profileRows ?? []) as CompanionProfileRow[]) {
+    for (const profile of (profileRows ?? []) as FrequentTravelerProfileRow[]) {
       profileById.set(profile.id, profile);
     }
   }
 
   const companions = applications.map((row) => {
     const profile = profileById.get(row.applicant_id);
+    const travelerSummary = profile ? toFrequentTravelerSummary(profile) : null;
     return {
       applicationId: row.id as string,
       applicantId: row.applicant_id as string,
-      fullName: (profile?.full_name as string | null) ?? "",
-      dateOfBirth: (profile?.date_of_birth as string | null) ?? null,
-      nationality: (profile?.nationality as string | null) ?? null,
-      passportNumber: (profile?.passport_number as string | null) ?? null,
-      passportExpiryDate: (profile?.passport_expiry_date as string | null) ?? null,
+      fullName: travelerSummary?.fullName ?? "",
+      dateOfBirth: travelerSummary?.dateOfBirth ?? null,
+      nationality: travelerSummary?.nationality ?? null,
+      passportNumber: travelerSummary?.passportNumber ?? null,
+      passportExpiryDate: travelerSummary?.passportExpiryDate ?? null,
       status: (row.status as string | null) ?? "draft",
       submittedAt: (row.submitted_at as string | null) ?? null,
       submissionResultStatus: (row.submission_result_status as string | null) ?? null,
@@ -511,9 +455,7 @@ export async function getTeamApplicationContext(applicationId: string): Promise<
 
   const { data: profile, error } = await adminClient
     .from("applicant_profiles")
-    .select(
-      "id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, passport_issuing_authority, email, phone"
-    )
+    .select(FREQUENT_TRAVELER_PROFILE_SELECT)
     .eq("id", resolved.app.applicant_id)
     .maybeSingle();
 
@@ -600,9 +542,7 @@ export async function createTeamCompanion(
   if (input.travelerId) {
     const { data: existingTraveler, error: travelerError } = await adminClient
       .from("applicant_profiles")
-      .select(
-        "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, passport_issuing_country, passport_issuing_authority, email, phone, address, occupation"
-      )
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .eq("id", input.travelerId)
       .eq("dependant_of_user_id", user.id)
       .is("deleted_at", null)
@@ -613,31 +553,40 @@ export async function createTeamCompanion(
     }
 
     companionProfileId = existingTraveler.id as string;
-    companionProfileSnapshot = toProfileSnapshot(existingTraveler);
+    companionProfileSnapshot = toUniversalProfileSnapshot(existingTraveler as FrequentTravelerProfileRow);
   } else if (input.traveler) {
-    const normalized = normalizeTravelerInput(input.traveler);
+    const normalized = normalizeFrequentTravelerInput(input.traveler);
     if ("error" in normalized) return { ok: false, reason: normalized.error };
 
-    const { data: newProfile, error: newProfileError } = await adminClient
+    const payload = {
+      ...normalized.value,
+      dependant_of_user_id: user.id,
+      auth_user_id: null,
+      language_pref: "zh",
+      onboarding_done: true,
+    };
+    let { data: newProfile, error: newProfileError } = await adminClient
       .from("applicant_profiles")
-      .insert({
-        ...normalized.value,
-        dependant_of_user_id: user.id,
-        auth_user_id: null,
-        language_pref: "zh",
-        onboarding_done: true,
-      })
-      .select(
-        "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
-      )
+      .insert(payload)
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .single();
+
+    if (newProfileError && isMissingOptionalFrequentTravelerColumnError(newProfileError.message)) {
+      const fallback = await adminClient
+        .from("applicant_profiles")
+        .insert(stripOptionalFrequentTravelerProfileColumns(payload))
+        .select(FREQUENT_TRAVELER_PROFILE_SELECT)
+        .single();
+      newProfile = fallback.data;
+      newProfileError = fallback.error;
+    }
 
     if (newProfileError || !newProfile) {
       return { ok: false, reason: newProfileError?.message ?? "Traveler creation failed" };
     }
 
     companionProfileId = newProfile.id as string;
-    companionProfileSnapshot = toProfileSnapshot(newProfile);
+    companionProfileSnapshot = toUniversalProfileSnapshot(newProfile as FrequentTravelerProfileRow);
   } else {
     return { ok: false, reason: "Traveler details required" };
   }

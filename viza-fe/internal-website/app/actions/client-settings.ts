@@ -4,6 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
+import {
+  FREQUENT_TRAVELER_PROFILE_SELECT,
+  isMissingOptionalFrequentTravelerColumnError,
+  normalizeFrequentTravelerInput,
+  stripOptionalFrequentTravelerProfileColumns,
+  toFrequentTravelerSummary,
+  type FrequentTravelerInput,
+  type FrequentTravelerProfileRow,
+  type FrequentTravelerSummary,
+} from "@/lib/frequent-traveler-profile";
+
+export type { FrequentTravelerInput, FrequentTravelerSummary } from "@/lib/frequent-traveler-profile";
 
 export type PrivacyRequestType = "export" | "deletion";
 
@@ -14,28 +26,6 @@ export interface DataPrivacyRequestSummary {
   createdAt: string | null;
   updatedAt: string | null;
   fulfilledAt: string | null;
-}
-
-export interface FrequentTravelerSummary {
-  id: string;
-  fullName: string;
-  dateOfBirth: string | null;
-  nationality: string | null;
-  passportNumber: string | null;
-  passportExpiryDate: string | null;
-  email: string | null;
-  phone: string | null;
-  updatedAt: string | null;
-}
-
-export interface FrequentTravelerInput {
-  fullName: string;
-  dateOfBirth?: string;
-  nationality?: string;
-  passportNumber?: string;
-  passportExpiryDate?: string;
-  email?: string;
-  phone?: string;
 }
 
 type DataPrivacyRequestRow = {
@@ -68,18 +58,6 @@ type CreatePrivacyRequestResult =
       error: string;
     };
 
-type FrequentTravelerRow = {
-  id: string;
-  full_name: string | null;
-  date_of_birth: string | null;
-  nationality: string | null;
-  passport_number: string | null;
-  passport_expiry_date: string | null;
-  email: string | null;
-  phone: string | null;
-  updated_at: string | null;
-};
-
 type FrequentTravelerListResult =
   | {
       success: true;
@@ -110,23 +88,6 @@ type DeleteFrequentTravelerResult =
       error: string;
     };
 
-type NormalizedTravelerInput =
-  | {
-      value: {
-        full_name: string;
-        date_of_birth: string | null;
-        nationality: string | null;
-        passport_number: string | null;
-        passport_expiry_date: string | null;
-        email: string | null;
-        phone: string | null;
-        updated_at: string;
-      };
-    }
-  | {
-      error: string;
-    };
-
 const ACTIVE_REQUEST_STATUSES = new Set([
   "requested",
   "pending",
@@ -150,46 +111,6 @@ function toSummary(row: DataPrivacyRequestRow): DataPrivacyRequestSummary {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     fulfilledAt: row.fulfilled_at,
-  };
-}
-
-function cleanOptional(value?: string) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function toFrequentTravelerSummary(row: FrequentTravelerRow): FrequentTravelerSummary {
-  return {
-    id: row.id,
-    fullName: row.full_name ?? "",
-    dateOfBirth: row.date_of_birth,
-    nationality: row.nationality,
-    passportNumber: row.passport_number,
-    passportExpiryDate: row.passport_expiry_date,
-    email: row.email,
-    phone: row.phone,
-    updatedAt: row.updated_at,
-  };
-}
-
-function normalizeTravelerInput(input: FrequentTravelerInput): NormalizedTravelerInput {
-  const fullName = input.fullName.trim();
-
-  if (!fullName) {
-    return { error: "Traveler name is required." };
-  }
-
-  return {
-    value: {
-      full_name: fullName,
-      date_of_birth: cleanOptional(input.dateOfBirth),
-      nationality: cleanOptional(input.nationality),
-      passport_number: cleanOptional(input.passportNumber),
-      passport_expiry_date: cleanOptional(input.passportExpiryDate),
-      email: cleanOptional(input.email),
-      phone: cleanOptional(input.phone),
-      updated_at: new Date().toISOString(),
-    },
   };
 }
 
@@ -334,7 +255,7 @@ export async function getFrequentTravelers(): Promise<FrequentTravelerListResult
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("applicant_profiles")
-      .select("id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone, updated_at")
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .eq("dependant_of_user_id", user.id)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false });
@@ -346,7 +267,7 @@ export async function getFrequentTravelers(): Promise<FrequentTravelerListResult
 
     return {
       success: true,
-      travelers: ((data ?? []) as FrequentTravelerRow[]).map(toFrequentTravelerSummary),
+      travelers: ((data ?? []) as FrequentTravelerProfileRow[]).map(toFrequentTravelerSummary),
     };
   } catch (error) {
     console.error("Unexpected frequent traveler list error:", error);
@@ -363,24 +284,35 @@ export async function createFrequentTraveler(
     return { success: false, error: "Please sign in again to add a traveler." };
   }
 
-  const normalized = normalizeTravelerInput(input);
+  const normalized = normalizeFrequentTravelerInput(input);
   if ("error" in normalized) {
     return { success: false, error: normalized.error };
   }
 
   try {
     const adminClient = createAdminClient();
-    const { data, error } = await adminClient
+    const payload = {
+      ...normalized.value,
+      dependant_of_user_id: user.id,
+      auth_user_id: null,
+      language_pref: "zh",
+      onboarding_done: true,
+    };
+    let { data, error } = await adminClient
       .from("applicant_profiles")
-      .insert({
-        ...normalized.value,
-        dependant_of_user_id: user.id,
-        auth_user_id: null,
-        language_pref: "zh",
-        onboarding_done: true,
-      })
-      .select("id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone, updated_at")
+      .insert(payload)
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .single();
+
+    if (error && isMissingOptionalFrequentTravelerColumnError(error.message)) {
+      const fallback = await adminClient
+        .from("applicant_profiles")
+        .insert(stripOptionalFrequentTravelerProfileColumns(payload))
+        .select(FREQUENT_TRAVELER_PROFILE_SELECT)
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error || !data) {
       console.error("Failed to create frequent traveler:", error);
@@ -391,7 +323,7 @@ export async function createFrequentTraveler(
 
     return {
       success: true,
-      traveler: toFrequentTravelerSummary(data as FrequentTravelerRow),
+      traveler: toFrequentTravelerSummary(data as FrequentTravelerProfileRow),
     };
   } catch (error) {
     console.error("Unexpected frequent traveler create error:", error);
@@ -409,21 +341,34 @@ export async function updateFrequentTraveler(
     return { success: false, error: "Please sign in again to update a traveler." };
   }
 
-  const normalized = normalizeTravelerInput(input);
+  const normalized = normalizeFrequentTravelerInput(input);
   if ("error" in normalized) {
     return { success: false, error: normalized.error };
   }
 
   try {
     const adminClient = createAdminClient();
-    const { data, error } = await adminClient
+    let { data, error } = await adminClient
       .from("applicant_profiles")
       .update(normalized.value)
       .eq("id", id)
       .eq("dependant_of_user_id", user.id)
       .is("deleted_at", null)
-      .select("id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone, updated_at")
+      .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .single();
+
+    if (error && isMissingOptionalFrequentTravelerColumnError(error.message)) {
+      const fallback = await adminClient
+        .from("applicant_profiles")
+        .update(stripOptionalFrequentTravelerProfileColumns(normalized.value))
+        .eq("id", id)
+        .eq("dependant_of_user_id", user.id)
+        .is("deleted_at", null)
+        .select(FREQUENT_TRAVELER_PROFILE_SELECT)
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error || !data) {
       console.error("Failed to update frequent traveler:", error);
@@ -434,7 +379,7 @@ export async function updateFrequentTraveler(
 
     return {
       success: true,
-      traveler: toFrequentTravelerSummary(data as FrequentTravelerRow),
+      traveler: toFrequentTravelerSummary(data as FrequentTravelerProfileRow),
     };
   } catch (error) {
     console.error("Unexpected frequent traveler update error:", error);

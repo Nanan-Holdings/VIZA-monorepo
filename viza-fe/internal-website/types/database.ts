@@ -3776,21 +3776,31 @@ export type Database = {
       travel_destinations: {
         Row: {
           canonical_name: string
+          aliases_json: Json
           city: string | null
+          completeness_score: number | null
           confidence_score: number | null
           country_code: string | null
           country_name: string | null
+          country_name_en: string | null
+          country_name_zh: string | null
           created_at: string | null
           currency: string | null
+          data_quality: string
           display_name: string
           geonames_id: string | null
           id: string
           is_active: boolean | null
+          is_dropdown_enabled: boolean | null
           is_featured: boolean | null
+          is_popular: boolean | null
           is_searchable: boolean | null
           is_verified: boolean | null
+          last_enriched_at: string | null
           latitude: number | null
           longitude: number | null
+          name_en: string | null
+          name_zh: string | null
           normalized_name: string | null
           osm_id: string | null
           place_type: string | null
@@ -3806,21 +3816,31 @@ export type Database = {
         }
         Insert: {
           canonical_name: string
+          aliases_json?: Json
           city?: string | null
+          completeness_score?: number | null
           confidence_score?: number | null
           country_code?: string | null
           country_name?: string | null
+          country_name_en?: string | null
+          country_name_zh?: string | null
           created_at?: string | null
           currency?: string | null
+          data_quality?: string
           display_name: string
           geonames_id?: string | null
           id?: string
           is_active?: boolean | null
+          is_dropdown_enabled?: boolean | null
           is_featured?: boolean | null
+          is_popular?: boolean | null
           is_searchable?: boolean | null
           is_verified?: boolean | null
+          last_enriched_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          name_en?: string | null
+          name_zh?: string | null
           normalized_name?: string | null
           osm_id?: string | null
           place_type?: string | null
@@ -3836,21 +3856,31 @@ export type Database = {
         }
         Update: {
           canonical_name?: string
+          aliases_json?: Json
           city?: string | null
+          completeness_score?: number | null
           confidence_score?: number | null
           country_code?: string | null
           country_name?: string | null
+          country_name_en?: string | null
+          country_name_zh?: string | null
           created_at?: string | null
           currency?: string | null
+          data_quality?: string
           display_name?: string
           geonames_id?: string | null
           id?: string
           is_active?: boolean | null
+          is_dropdown_enabled?: boolean | null
           is_featured?: boolean | null
+          is_popular?: boolean | null
           is_searchable?: boolean | null
           is_verified?: boolean | null
+          last_enriched_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          name_en?: string | null
+          name_zh?: string | null
           normalized_name?: string | null
           osm_id?: string | null
           place_type?: string | null
@@ -3896,48 +3926,264 @@ export type Database = {
         }
         Relationships: []
       }
+      travel_attractions: {
+        Row: {
+          canonical_name: string
+          category: string | null
+          created_at: string | null
+          data_quality: string
+          description_en: string | null
+          description_zh: string | null
+          destination_id: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name_en: string
+          name_zh: string | null
+          popularity_score: number | null
+          recommended_duration_minutes: number | null
+          source: string | null
+          source_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          canonical_name: string
+          category?: string | null
+          created_at?: string | null
+          data_quality?: string
+          description_en?: string | null
+          description_zh?: string | null
+          destination_id: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name_en: string
+          name_zh?: string | null
+          popularity_score?: number | null
+          recommended_duration_minutes?: number | null
+          source?: string | null
+          source_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          canonical_name?: string
+          category?: string | null
+          created_at?: string | null
+          data_quality?: string
+          description_en?: string | null
+          description_zh?: string | null
+          destination_id?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name_en?: string
+          name_zh?: string | null
+          popularity_score?: number | null
+          recommended_duration_minutes?: number | null
+          source?: string | null
+          source_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      travel_assets: {
+        Row: {
+          asset_type: string
+          attribution: string | null
+          confidence_score: number | null
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          height: number | null
+          id: string
+          image_url: string
+          is_primary: boolean | null
+          license: string | null
+          source: string | null
+          source_url: string | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          verified: boolean | null
+          width: number | null
+        }
+        Insert: {
+          asset_type: string
+          attribution?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          height?: number | null
+          id?: string
+          image_url: string
+          is_primary?: boolean | null
+          license?: string | null
+          source?: string | null
+          source_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          verified?: boolean | null
+          width?: number | null
+        }
+        Update: {
+          asset_type?: string
+          attribution?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          height?: number | null
+          id?: string
+          image_url?: string
+          is_primary?: boolean | null
+          license?: string | null
+          source?: string | null
+          source_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          verified?: boolean | null
+          width?: number | null
+        }
+        Relationships: []
+      }
       travel_destination_cards: {
         Row: {
           card_type: string
           confidence_score: number | null
           created_at: string | null
+          description_en: string | null
+          description_zh: string | null
           destination_id: string
           id: string
+          image_asset_id: string | null
           image_url: string | null
           is_generated: boolean | null
           payload_json: Json
           source: string | null
+          source_status: string
           subtitle: string | null
+          subtitle_en: string | null
+          subtitle_zh: string | null
           title: string
+          title_en: string | null
+          title_zh: string | null
           updated_at: string | null
         }
         Insert: {
           card_type: string
           confidence_score?: number | null
           created_at?: string | null
+          description_en?: string | null
+          description_zh?: string | null
           destination_id: string
           id?: string
+          image_asset_id?: string | null
           image_url?: string | null
           is_generated?: boolean | null
           payload_json?: Json
           source?: string | null
+          source_status?: string
           subtitle?: string | null
+          subtitle_en?: string | null
+          subtitle_zh?: string | null
           title: string
+          title_en?: string | null
+          title_zh?: string | null
           updated_at?: string | null
         }
         Update: {
           card_type?: string
           confidence_score?: number | null
           created_at?: string | null
+          description_en?: string | null
+          description_zh?: string | null
           destination_id?: string
           id?: string
+          image_asset_id?: string | null
           image_url?: string | null
           is_generated?: boolean | null
           payload_json?: Json
           source?: string | null
+          source_status?: string
           subtitle?: string | null
+          subtitle_en?: string | null
+          subtitle_zh?: string | null
           title?: string
+          title_en?: string | null
+          title_zh?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      travel_enrichment_jobs: {
+        Row: {
+          created_at: string | null
+          destination_id: string
+          error_code: string | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          missing_fields_json: Json
+          provider: string | null
+          started_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          destination_id: string
+          error_code?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          missing_fields_json?: Json
+          provider?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          destination_id?: string
+          error_code?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          missing_fields_json?: Json
+          provider?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      travel_enrichment_events: {
+        Row: {
+          created_at: string | null
+          destination_id: string | null
+          event_type: string
+          id: string
+          job_id: string | null
+          message: string | null
+          metadata_json: Json
+        }
+        Insert: {
+          created_at?: string | null
+          destination_id?: string | null
+          event_type: string
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          metadata_json?: Json
+        }
+        Update: {
+          created_at?: string | null
+          destination_id?: string | null
+          event_type?: string
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          metadata_json?: Json
         }
         Relationships: []
       }

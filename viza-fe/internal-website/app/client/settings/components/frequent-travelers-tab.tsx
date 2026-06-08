@@ -31,9 +31,10 @@ import {
   deleteFrequentTraveler,
   getFrequentTravelers,
   updateFrequentTraveler,
-  type FrequentTravelerInput,
   type FrequentTravelerSummary,
 } from "@/app/actions/client-settings";
+import { FrequentTravelerProfileFields } from "@/components/application-steps/frequent-traveler-profile-fields";
+import type { FrequentTravelerInput } from "@/lib/frequent-traveler-profile";
 
 type Notice = {
   tone: "success" | "error";
@@ -42,54 +43,95 @@ type Notice = {
 
 const EMPTY_FORM: FrequentTravelerInput = {
   fullName: "",
+  surname: "",
+  surnameZh: "",
+  surnameEn: "",
+  givenNames: "",
+  givenNamesZh: "",
+  givenNamesEn: "",
   dateOfBirth: "",
+  birthCountry: "",
+  birthProvinceOrState: "",
+  birthProvinceOrStateZh: "",
+  birthProvinceOrStateEn: "",
+  birthCity: "",
+  birthCityZh: "",
+  birthCityEn: "",
+  gender: "",
   nationality: "",
+  occupation: "",
+  occupationZh: "",
+  occupationEn: "",
+  address: "",
+  addressZh: "",
+  addressEn: "",
   passportNumber: "",
+  passportIssueDate: "",
   passportExpiryDate: "",
+  passportIssuingCountry: "",
   email: "",
   phone: "",
+  wechat: "",
 };
 
 function toForm(traveler: FrequentTravelerSummary): FrequentTravelerInput {
+  const legacyName = splitLegacyTravelerName(traveler.fullName);
   return {
     fullName: traveler.fullName,
+    fullNameZh: traveler.fullNameZh ?? "",
+    fullNameEn: traveler.fullNameEn ?? traveler.fullName,
+    surname: traveler.surname ?? legacyName.surname,
+    surnameZh: traveler.surnameZh ?? "",
+    surnameEn: traveler.surnameEn ?? legacyName.surname,
+    givenNames: traveler.givenNames ?? legacyName.givenNames,
+    givenNamesZh: traveler.givenNamesZh ?? "",
+    givenNamesEn: traveler.givenNamesEn ?? legacyName.givenNames,
     dateOfBirth: traveler.dateOfBirth ?? "",
+    placeOfBirth: traveler.placeOfBirth ?? "",
+    placeOfBirthZh: traveler.placeOfBirthZh ?? "",
+    placeOfBirthEn: traveler.placeOfBirthEn ?? "",
+    birthCountry: traveler.birthCountry ?? "",
+    birthProvinceOrState: traveler.birthProvinceOrState ?? "",
+    birthProvinceOrStateZh: traveler.birthProvinceOrStateZh ?? "",
+    birthProvinceOrStateEn: traveler.birthProvinceOrStateEn ?? "",
+    birthCity: traveler.birthCity ?? "",
+    birthCityZh: traveler.birthCityZh ?? "",
+    birthCityEn: traveler.birthCityEn ?? "",
+    gender: traveler.gender ?? "",
     nationality: traveler.nationality ?? "",
+    occupation: traveler.occupation ?? "",
+    occupationZh: traveler.occupationZh ?? "",
+    occupationEn: traveler.occupationEn ?? "",
+    address: traveler.address ?? "",
+    addressZh: traveler.addressZh ?? "",
+    addressEn: traveler.addressEn ?? "",
     passportNumber: traveler.passportNumber ?? "",
+    passportIssueDate: traveler.passportIssueDate ?? "",
     passportExpiryDate: traveler.passportExpiryDate ?? "",
+    passportIssuingCountry: traveler.passportIssuingCountry ?? "",
+    passportIssuingAuthority: traveler.passportIssuingAuthority ?? "",
     email: traveler.email ?? "",
     phone: traveler.phone ?? "",
+    wechat: traveler.wechat ?? "",
   };
+}
+
+function splitLegacyTravelerName(fullName: string) {
+  const compact = fullName.replace(/\s+/g, "").trim();
+  if (/^[\u3400-\u9fff]{2,}$/.test(compact)) {
+    return { surname: compact.slice(0, 1), givenNames: compact.slice(1) };
+  }
+
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { surname: "", givenNames: "" };
+  if (parts.length === 1) return { surname: parts[0] ?? "", givenNames: "" };
+  return { surname: parts[0] ?? "", givenNames: parts.slice(1).join(" ") };
 }
 
 function obfuscatePassport(value: string | null) {
   if (!value) return null;
   if (value.length <= 4) return value;
   return `••${value.slice(-4)}`;
-}
-
-function Field({
-  label,
-  children,
-  required = false,
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium text-foreground">
-        {label}
-        {required ? <span className="text-red-500"> *</span> : null}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function inputClass() {
-  return "h-12 rounded-lg border bg-white px-4 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 }
 
 export function FrequentTravelersTab() {
@@ -265,67 +307,11 @@ export function FrequentTravelersTab() {
             </Button>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <Field label={t("fields.fullName")} required>
-              <input
-                className={inputClass()}
-                value={form.fullName}
-                onChange={(event) => updateField("fullName", event.target.value)}
-                placeholder={t("placeholders.fullName")}
-              />
-            </Field>
-            <Field label={t("fields.dateOfBirth")}>
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.dateOfBirth}
-                onChange={(event) => updateField("dateOfBirth", event.target.value)}
-              />
-            </Field>
-            <Field label={t("fields.nationality")}>
-              <input
-                className={inputClass()}
-                value={form.nationality}
-                onChange={(event) => updateField("nationality", event.target.value)}
-                placeholder={t("placeholders.nationality")}
-              />
-            </Field>
-            <Field label={t("fields.passportNumber")}>
-              <input
-                className={inputClass()}
-                value={form.passportNumber}
-                onChange={(event) => updateField("passportNumber", event.target.value)}
-                placeholder={t("placeholders.passportNumber")}
-              />
-            </Field>
-            <Field label={t("fields.passportExpiryDate")}>
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.passportExpiryDate}
-                onChange={(event) => updateField("passportExpiryDate", event.target.value)}
-              />
-            </Field>
-            <Field label={t("fields.phone")}>
-              <input
-                className={inputClass()}
-                value={form.phone}
-                onChange={(event) => updateField("phone", event.target.value)}
-                placeholder={t("placeholders.phone")}
-              />
-            </Field>
-            <div className="md:col-span-2">
-              <Field label={t("fields.email")}>
-                <input
-                  className={inputClass()}
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => updateField("email", event.target.value)}
-                  placeholder={t("placeholders.email")}
-                />
-              </Field>
-            </div>
-          </div>
+          <FrequentTravelerProfileFields
+            value={form}
+            onFieldChange={updateField}
+            className="mt-5"
+          />
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <Button
