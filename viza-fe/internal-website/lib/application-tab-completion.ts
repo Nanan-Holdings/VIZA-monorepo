@@ -26,6 +26,7 @@ interface ComputeAllTabCompletionInput {
   effectiveSteps: ApplicationStepRef[];
   answers: Record<string, string>;
   documentCenterData: DocumentCenterData | null;
+  documentsLoaded?: boolean;
   submittedAt?: string | null;
   submissionResultStatus?: string | null;
   country?: string | null;
@@ -219,6 +220,8 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   const completed = new Set<number>();
   const missingFields: MissingApplicationField[] = [];
   const dynamicStepIds = input.dbSteps.map((_, index) => index);
+  const documentsLoaded = input.documentsLoaded ?? true;
+  const documentStepComplete = documentsComplete(input.documentCenterData);
 
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
@@ -234,9 +237,9 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   missingFields.push(...ds160Missing);
   for (const item of ds160Missing) completed.delete(item.stepId);
 
-  if (documentsComplete(input.documentCenterData)) {
+  if (documentStepComplete) {
     completed.add(input.documentStepId);
-  } else {
+  } else if (documentsLoaded) {
     missingFields.push({
       stepId: input.documentStepId,
       stepName: findStepName(input.effectiveSteps, input.documentStepId, "Supporting Documents"),
@@ -245,8 +248,9 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
       reason: "required",
     });
   }
-  if (input.dbSteps.length > 0 && missingFields.length === 0) completed.add(input.reviewStepId);
-  if (input.showTeamStep && missingFields.length === 0) completed.add(input.teamStepId);
+  const priorStepsReady = missingFields.length === 0 && documentStepComplete;
+  if (input.dbSteps.length > 0 && priorStepsReady) completed.add(input.reviewStepId);
+  if (input.showTeamStep && priorStepsReady) completed.add(input.teamStepId);
   if (input.submittedAt || TERMINAL_SUBMISSION_STATUSES.has(input.submissionResultStatus ?? "")) {
     completed.add(input.confirmationStepId);
   }

@@ -132,6 +132,14 @@ test("registry: US DS-160 dry-run uses DS-160 confirmation prefix", async () => 
         ...baseApplication().trip,
         destinationCountry: "United States",
       },
+      answers: {
+        has_specific_travel_plans: "no",
+        purpose_of_trip: "B",
+        purpose_of_trip_specify: "B1-B2",
+        intended_arrival_date: "2026-10-01",
+        intended_length_of_stay_value: "10",
+        intended_length_of_stay_unit: "D",
+      },
     }),
   );
   assert.equal(result.status, "submitted_mock");

@@ -1573,6 +1573,17 @@
       "cityLabel": "会安",
       "imageSrc": "/travel/cities/hoi-an.jpg",
       "sourceUrl": "https://en.wikipedia.org/wiki/H%E1%BB%99i_An_(city)"
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "imageSrc": "/travel/cities/hong-kong.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong"
     }
   ],
   "attractions": [
@@ -29440,6 +29451,774 @@
       ],
       "lat": -27.996085,
       "lng": 153.430136
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "奧克兰美术馆",
+      "location": "Auckland Art Gallery Toi o Tāmaki",
+      "imageSrc": "/travel/attractions/auckland-auckland-art-gallery-toi-o-tamaki.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Auckland_Art_Gallery",
+      "description": "新西兰奧克兰的藝术博物馆",
+      "aliases": [
+        "Auckland Art Gallery Toi o Tāmaki",
+        "奧克兰美术馆"
+      ],
+      "lat": -36.851354,
+      "lng": 174.766237
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "奧克兰海湾大桥",
+      "location": "Auckland Harbour Bridge",
+      "imageSrc": "/travel/attractions/auckland-auckland-harbour-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Auckland_Harbour_Bridge",
+      "description": "奥克兰可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Auckland Harbour Bridge",
+        "奧克兰海湾大桥"
+      ],
+      "lat": -36.829444,
+      "lng": 174.746389
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "Crowne Plaza Auckland",
+      "location": "Crowne Plaza Auckland",
+      "imageSrc": "/travel/attractions/auckland-crowne-plaza-auckland.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q98536179",
+      "description": "奥克兰可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Crowne Plaza Auckland"
+      ],
+      "lat": -36.849776,
+      "lng": 174.763229
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "Auckland Art Gallery",
+      "location": "Auckland Art Gallery",
+      "imageSrc": "/travel/attractions/auckland-auckland-art-gallery.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q74779715",
+      "description": "奥克兰可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Auckland Art Gallery"
+      ],
+      "lat": -36.851389,
+      "lng": 174.766306
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "Rydges Auckland",
+      "location": "Rydges Auckland",
+      "imageSrc": "/travel/attractions/auckland-rydges-auckland.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q98536193",
+      "description": "奥克兰可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Rydges Auckland"
+      ],
+      "lat": -36.847204,
+      "lng": 174.762869
+    },
+    {
+      "cityKeys": [
+        "Auckland",
+        "奥克兰",
+        "auckland"
+      ],
+      "cityLabel": "奥克兰",
+      "name": "JW Marriott Auckland",
+      "location": "JW Marriott Auckland",
+      "imageSrc": "/travel/attractions/auckland-jw-marriott-auckland.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q98536196",
+      "description": "奥克兰可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "JW Marriott Auckland"
+      ],
+      "lat": -36.845445,
+      "lng": 174.765375
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "Wellington Museum",
+      "location": "Wellington Museum",
+      "imageSrc": "/travel/attractions/wellington-wellington-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Wellington_Museum",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Wellington Museum"
+      ],
+      "lat": -41.2853,
+      "lng": 174.7781
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "City Gallery Wellington",
+      "location": "City Gallery Wellington",
+      "imageSrc": "/travel/attractions/wellington-city-gallery-wellington.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/City_Gallery_Wellington",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "City Gallery Wellington"
+      ],
+      "lat": -41.288384,
+      "lng": 174.777312
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "運動公园",
+      "location": "Athletic Park",
+      "imageSrc": "/travel/attractions/wellington-athletic-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Athletic_Park,_Wellington",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Athletic Park",
+        "運動公园"
+      ],
+      "lat": -41.317222,
+      "lng": 174.776944
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "St Gerard's Church and Monastery",
+      "location": "St Gerard's Church and Monastery",
+      "imageSrc": "/travel/attractions/wellington-st-gerard-s-church-and-monastery.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/St_Gerard%27s_Church_and_Monastery",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "St Gerard's Church and Monastery"
+      ],
+      "lat": -41.291877,
+      "lng": 174.790843
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "Frank Kitts Park",
+      "location": "Frank Kitts Park",
+      "imageSrc": "/travel/attractions/wellington-frank-kitts-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Frank_Kitts_Park",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Frank Kitts Park"
+      ],
+      "lat": -41.286901,
+      "lng": 174.778831
+    },
+    {
+      "cityKeys": [
+        "Wellington",
+        "惠灵顿",
+        "wellington"
+      ],
+      "cityLabel": "惠灵顿",
+      "name": "Dominion Observatory",
+      "location": "Dominion Observatory",
+      "imageSrc": "/travel/attractions/wellington-dominion-observatory.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Dominion_Observatory,_Wellington",
+      "description": "惠灵顿可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Dominion Observatory"
+      ],
+      "lat": -41.2841,
+      "lng": 174.768
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "Skyline Queenstown",
+      "location": "Skyline Queenstown",
+      "imageSrc": "/travel/attractions/queenstown-skyline-queenstown.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Skyline_Queenstown",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Skyline Queenstown"
+      ],
+      "lat": -45.028549,
+      "lng": 168.656235
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "The Queenstown Trail",
+      "location": "The Queenstown Trail",
+      "imageSrc": "/travel/attractions/queenstown-the-queenstown-trail.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Queenstown_Trail",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "The Queenstown Trail"
+      ],
+      "lat": -45.036,
+      "lng": 168.674
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "Hidden Island",
+      "location": "Hidden Island",
+      "imageSrc": "/travel/attractions/queenstown-hidden-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hidden_Island_(New_Zealand)",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hidden Island"
+      ],
+      "lat": -45.07,
+      "lng": 168.649167
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "Ballarat St Bridge",
+      "location": "Ballarat St Bridge",
+      "imageSrc": "/travel/attractions/queenstown-ballarat-st-bridge.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q76925469",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Ballarat St Bridge"
+      ],
+      "lat": -45.031433,
+      "lng": 168.662217
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "Coronation Bath House",
+      "location": "Coronation Bath House",
+      "imageSrc": "/travel/attractions/queenstown-coronation-bath-house.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q77356292",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Coronation Bath House"
+      ],
+      "lat": -45.034373,
+      "lng": 168.662206
+    },
+    {
+      "cityKeys": [
+        "Queenstown",
+        "皇后镇",
+        "queenstown"
+      ],
+      "cityLabel": "皇后镇",
+      "name": "Arrowtown Chinese Settlement",
+      "location": "Arrowtown Chinese Settlement",
+      "imageSrc": "/travel/attractions/queenstown-arrowtown-chinese-settlement.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Arrowtown_Chinese_Settlement",
+      "description": "皇后镇可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Arrowtown Chinese Settlement"
+      ],
+      "lat": -44.937629,
+      "lng": 168.828944
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "Lancaster Park",
+      "location": "Lancaster Park",
+      "imageSrc": "/travel/attractions/christchurch-lancaster-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Lancaster_Park",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Lancaster Park"
+      ],
+      "lat": -43.541944,
+      "lng": 172.654167
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "St Michael's Church School",
+      "location": "St Michael's Church School",
+      "imageSrc": "/travel/attractions/christchurch-st-michael-s-church-school.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/St_Michael%27s_Church_School",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "St Michael's Church School"
+      ],
+      "lat": -43.53477,
+      "lng": 172.63322
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "Firefighters Reserve",
+      "location": "Firefighters Reserve",
+      "imageSrc": "/travel/attractions/christchurch-firefighters-reserve.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Firefighters_Reserve",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Firefighters Reserve"
+      ],
+      "lat": -43.52684,
+      "lng": 172.64301
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "Hornby Clocktower",
+      "location": "Hornby Clocktower",
+      "imageSrc": "/travel/attractions/christchurch-hornby-clocktower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hornby_Clocktower",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hornby Clocktower"
+      ],
+      "lat": -43.543461,
+      "lng": 172.527689
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "Chateau on the Park",
+      "location": "Chateau on the Park",
+      "imageSrc": "/travel/attractions/christchurch-chateau-on-the-park.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q98536210",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Chateau on the Park"
+      ],
+      "lat": -43.526412,
+      "lng": 172.611865
+    },
+    {
+      "cityKeys": [
+        "Christchurch",
+        "基督城",
+        "christchurch"
+      ],
+      "cityLabel": "基督城",
+      "name": "St Ninian's Church of Riccarton",
+      "location": "St Ninian's Church of Riccarton",
+      "imageSrc": "/travel/attractions/christchurch-st-ninian-s-church-of-riccarton.jpg",
+      "sourceUrl": "http://www.wikidata.org/entity/Q112751103",
+      "description": "基督城可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "St Ninian's Church of Riccarton"
+      ],
+      "lat": -43.52981,
+      "lng": 172.59135
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "新加坡植物园",
+      "location": "Singapore Botanic Gardens",
+      "imageSrc": "/travel/attractions/singapore-singapore-botanic-gardens.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Singapore_Botanic_Gardens",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Singapore Botanic Gardens",
+        "新加坡植物园"
+      ],
+      "lat": 1.3151,
+      "lng": 103.8162
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "滨海湾公园",
+      "location": "Gardens by the Bay",
+      "imageSrc": "/travel/attractions/singapore-gardens-by-the-bay.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Gardens_by_the_Bay",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Gardens by the Bay",
+        "滨海湾公园"
+      ],
+      "lat": 1.283319,
+      "lng": 103.86527
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "新加坡国家博物馆",
+      "location": "National Museum of Singapore",
+      "imageSrc": "/travel/attractions/singapore-national-museum-of-singapore.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/National_Museum_of_Singapore",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "National Museum of Singapore",
+        "新加坡国家博物馆"
+      ],
+      "lat": 1.29672,
+      "lng": 103.84864
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "双螺旋桥",
+      "location": "The Helix Bridge",
+      "imageSrc": "/travel/attractions/singapore-the-helix-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Helix_Bridge",
+      "description": "新加坡步行桥",
+      "aliases": [
+        "The Helix Bridge",
+        "双螺旋桥"
+      ],
+      "lat": 1.28762,
+      "lng": 103.861
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "共和大厦",
+      "location": "Republic Plaza",
+      "imageSrc": "/travel/attractions/singapore-republic-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Republic_Plaza_(Singapore)",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Republic Plaza",
+        "共和大厦"
+      ],
+      "lat": 1.28278,
+      "lng": 103.851
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "马里安曼兴都庙",
+      "location": "Sri Mariamman Temple, Singapore",
+      "imageSrc": "/travel/attractions/singapore-sri-mariamman-temple-singapore.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Sri_Mariamman_Temple,_Singapore",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Sri Mariamman Temple, Singapore",
+        "马里安曼兴都庙"
+      ],
+      "lat": 1.28261,
+      "lng": 103.845
+    },
+    {
+      "cityKeys": [
+        "Singapore",
+        "新加坡",
+        "singapore"
+      ],
+      "cityLabel": "新加坡",
+      "name": "MERLION PARK",
+      "location": "Merlion Park",
+      "imageSrc": "/travel/attractions/singapore-merlion-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Merlion_Park",
+      "description": "新加坡可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Merlion Park",
+        "MERLION PARK"
+      ],
+      "lat": 1.28683,
+      "lng": 103.855
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "香港岛",
+      "location": "Hong Kong Island",
+      "imageSrc": "/travel/attractions/hong-kong-hong-kong-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Island",
+      "description": "香港第二大的岛屿",
+      "aliases": [
+        "Hong Kong Island",
+        "香港岛"
+      ],
+      "lat": 22.255,
+      "lng": 114.195
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "中环广场",
+      "location": "Central Plaza",
+      "imageSrc": "/travel/attractions/hong-kong-central-plaza.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Central_Plaza_(Hong_Kong)",
+      "description": "香港可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Central Plaza",
+        "中环广场"
+      ],
+      "lat": 22.28,
+      "lng": 114.173611
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "香港艺术馆",
+      "location": "Hong Kong Museum of Art",
+      "imageSrc": "/travel/attractions/hong-kong-hong-kong-museum-of-art.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Museum_of_Art",
+      "description": "香港藝术博物馆",
+      "aliases": [
+        "Hong Kong Museum of Art",
+        "香港艺术馆"
+      ],
+      "lat": 22.293547,
+      "lng": 114.172025
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "九龙公园",
+      "location": "Kowloon Park",
+      "imageSrc": "/travel/attractions/hong-kong-kowloon-park.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kowloon_Park",
+      "description": "香港公园",
+      "aliases": [
+        "Kowloon Park",
+        "九龙公园"
+      ],
+      "lat": 22.30028,
+      "lng": 114.17044
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "如心广场",
+      "location": "Nina Tower",
+      "imageSrc": "/travel/attractions/hong-kong-nina-tower.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Nina_Tower",
+      "description": "香港商業建築物",
+      "aliases": [
+        "Nina Tower",
+        "如心广场"
+      ],
+      "lat": 22.368611,
+      "lng": 114.113056
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "香港天文台",
+      "location": "Hong Kong Observatory",
+      "imageSrc": "/travel/attractions/hong-kong-hong-kong-observatory.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Observatory",
+      "description": "香港特別行政区政府部门",
+      "aliases": [
+        "Hong Kong Observatory",
+        "香港天文台"
+      ],
+      "lat": 22.3025,
+      "lng": 114.174167
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "大屿山",
+      "location": "Lantau Island",
+      "imageSrc": "/travel/attractions/hong-kong-lantau-island.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Lantau_Island",
+      "description": "香港離岛区岛嶼",
+      "aliases": [
+        "Lantau Island",
+        "大屿山"
+      ],
+      "lat": 22.270556,
+      "lng": 113.952778
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "香港太空馆",
+      "location": "Hong Kong Space Museum",
+      "imageSrc": "/travel/attractions/hong-kong-hong-kong-space-museum.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Space_Museum",
+      "description": "香港博物馆",
+      "aliases": [
+        "Hong Kong Space Museum",
+        "香港太空馆"
+      ],
+      "lat": 22.2944,
+      "lng": 114.172
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "青马大桥",
+      "location": "Tsing Ma Bridge",
+      "imageSrc": "/travel/attractions/hong-kong-tsing-ma-bridge.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Tsing_Ma_Bridge",
+      "description": "香港可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Tsing Ma Bridge",
+        "青马大桥"
+      ],
+      "lat": 22.351389,
+      "lng": 114.074167
+    },
+    {
+      "cityKeys": [
+        "Hong Kong",
+        "香港",
+        "HK",
+        "hongkong"
+      ],
+      "cityLabel": "香港",
+      "name": "香港历史博物馆",
+      "location": "Hong Kong Museum of History",
+      "imageSrc": "/travel/attractions/hong-kong-hong-kong-museum-of-history.png",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Museum_of_History",
+      "description": "香港可安排的代表性景点，适合加入当地观光动线。",
+      "aliases": [
+        "Hong Kong Museum of History",
+        "香港历史博物馆"
+      ],
+      "lat": 22.30186,
+      "lng": 114.17742
     }
   ]
 }

@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
 import {
   getDropdownDestinationContracts,
   normalizeDestinationSearchText,
@@ -19,7 +20,7 @@ type AuditRow = {
   "Missing fields": string;
 };
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 function loadEnvFile(filePath: string): void {
   if (!fs.existsSync(filePath)) return;
@@ -35,7 +36,7 @@ function loadEnvFile(filePath: string): void {
   }
 }
 
-function createSupabaseAdminClient(): SupabaseClient | null {
+function createSupabaseAdminClient(): TypedSupabaseClient | null {
   loadEnvFile(path.resolve(process.cwd(), ".env.local"));
   loadEnvFile(path.resolve(process.cwd(), ".env"));
 
@@ -43,7 +44,7 @@ function createSupabaseAdminClient(): SupabaseClient | null {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey) return null;
 
-  return createClient(supabaseUrl, supabaseKey, {
+  return createClient<Database>(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -64,7 +65,7 @@ function localAssetExists(imageUrl: string | null | undefined): boolean {
 }
 
 async function destinationRowExists(
-  supabase: SupabaseClient | null,
+  supabase: TypedSupabaseClient | null,
   destination: TravelDestinationContract
 ): Promise<boolean | null> {
   if (!supabase) return null;
@@ -87,7 +88,7 @@ async function destinationRowExists(
 }
 
 function missingCoreFields(destination: TravelDestinationContract): string[] {
-  const missing = new Set(destination.missingFields);
+  const missing = new Set<string>(destination.missingFields);
   if (!destination.canonicalName) missing.add("canonical_name");
   if (!destination.nameEn || !destination.nameZh) missing.add("localized_names");
   if (!destination.countryCode) missing.add("country_code");

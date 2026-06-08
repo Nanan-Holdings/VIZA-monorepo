@@ -848,12 +848,14 @@ function GroupedMobileStepBar({
 function FinalConfirmationPanel({
   isZh,
   missingFields,
+  requirementsLoading,
   submitting,
   onEdit,
   onSubmit,
 }: {
   isZh: boolean;
   missingFields: MissingApplicationField[];
+  requirementsLoading: boolean;
   submitting: boolean;
   onEdit: StepClickHandler;
   onSubmit: () => void | Promise<void>;
@@ -887,6 +889,10 @@ function FinalConfirmationPanel({
                 ? isZh
                   ? "提交前还需要补齐以下信息。请先编辑对应 tab，保存后再回到这里提交。"
                   : "Some information is still required. Edit the listed tabs, save, then return here to submit."
+                : requirementsLoading
+                  ? isZh
+                    ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
+                    : "Checking supporting documents and current form status. You can submit once this finishes."
                 : isZh
                   ? "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。"
                   : "All currently required information is ready. The background submission job is created only after you click below."}
@@ -930,18 +936,23 @@ function FinalConfirmationPanel({
 
       <button
         type="button"
-        disabled={submitting || hasMissing}
+        disabled={submitting || hasMissing || requirementsLoading}
         onClick={() => {
           void onSubmit();
         }}
         className={cn(
           "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
-          submitting || hasMissing
+          submitting || hasMissing || requirementsLoading
             ? "cursor-not-allowed bg-gray-200 text-gray-500"
             : "bg-[#03346E] text-white shadow-sm hover:bg-[#022b5c]",
         )}
       >
-        {submitting ? (
+        {requirementsLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isZh ? "正在检查" : "Checking"}
+          </>
+        ) : submitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {isZh ? "正在提交" : "Submitting"}
@@ -1061,7 +1072,7 @@ export default function ApplicationPage() {
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
-  const [completedUpTo, setCompletedUpTo] = useState(0);
+  const [_completedUpTo, setCompletedUpTo] = useState(0);
   const [appState, setAppState] = useState<ApplicationState>({
     applicationId: null,
     personal: {},
@@ -1080,6 +1091,7 @@ export default function ApplicationPage() {
   const [draftVersion, setDraftVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
+  const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
@@ -1125,7 +1137,10 @@ export default function ApplicationPage() {
   const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
 
   const pendingDynamicDrafts = useMemo(
-    () => collectDraftAnswers(dynamicDraftRef.current),
+    () => {
+      void draftVersion;
+      return collectDraftAnswers(dynamicDraftRef.current);
+    },
     [draftVersion],
   );
   const dynamicAnswerSnapshot = useMemo(
@@ -1264,6 +1279,7 @@ export default function ApplicationPage() {
       effectiveSteps,
       answers: dynamicAnswerSnapshot,
       documentCenterData,
+      documentsLoaded: documentCenterLoaded,
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
       country: resolvedCountry,
@@ -1279,6 +1295,7 @@ export default function ApplicationPage() {
       appState.submittedAt,
       dbSteps,
       documentCenterData,
+      documentCenterLoaded,
       documentStepIndex,
       dynamicAnswerSnapshot,
       effectiveSteps,
@@ -1290,10 +1307,9 @@ export default function ApplicationPage() {
       teamStepIndex,
     ],
   );
-  const completedStepIdKey = tabCompletion.completedStepIds.join(",");
   const completedStepIds = useMemo(
     () => new Set(tabCompletion.completedStepIds),
-    [completedStepIdKey],
+    [tabCompletion.completedStepIds],
   );
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
@@ -1302,7 +1318,7 @@ export default function ApplicationPage() {
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
     setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
-  }, [completedStepIdKey, completedStepIds, effectiveSteps, loading]);
+  }, [completedStepIds, effectiveSteps, loading]);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -1821,6 +1837,7 @@ export default function ApplicationPage() {
       effectiveSteps,
       answers,
       documentCenterData,
+      documentsLoaded: documentCenterLoaded,
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
       country: resolvedCountry,
@@ -1836,6 +1853,7 @@ export default function ApplicationPage() {
       appState.submittedAt,
       dbSteps,
       documentCenterData,
+      documentCenterLoaded,
       documentStepIndex,
       effectiveSteps,
       resolvedCountry,
@@ -2083,6 +2101,7 @@ export default function ApplicationPage() {
       current?.selectedApplication?.id === applicationId ? current : null
     );
     setDocumentCenterError(null);
+    setDocumentCenterLoaded(false);
 
     loadDocumentCenterData({
       applicationId,
@@ -2098,11 +2117,13 @@ export default function ApplicationPage() {
           setDocumentCenterData(null);
           setDocumentCenterError(result.error);
         }
+        setDocumentCenterLoaded(true);
       })
       .catch((err) => {
         if (!cancelled) {
           setDocumentCenterData(null);
           setDocumentCenterError(err instanceof Error ? err.message : t("errors.failedToSave"));
+          setDocumentCenterLoaded(true);
         }
       });
 
@@ -2313,6 +2334,7 @@ export default function ApplicationPage() {
                             <FinalConfirmationPanel
                               isZh={isZhInterface}
                               missingFields={visibleMissingFields}
+                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                               submitting={saving}
                               onEdit={handleStepNavigation}
                               onSubmit={handleDynamicReviewComplete}
@@ -2407,6 +2429,7 @@ export default function ApplicationPage() {
                             <FinalConfirmationPanel
                               isZh={isZhInterface}
                               missingFields={visibleMissingFields}
+                              requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                               submitting={saving}
                               onEdit={handleStepNavigation}
                               onSubmit={handleReviewComplete}

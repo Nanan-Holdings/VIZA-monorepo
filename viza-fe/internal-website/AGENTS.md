@@ -152,6 +152,7 @@ Smoke URLs:
 - `components/field-guidance-panel.tsx`
 - `lib/supabase/*`
 - `lib/document-upload-client.ts`
+- `lib/application-tab-completion.ts`
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `supabase/migrations/*`
