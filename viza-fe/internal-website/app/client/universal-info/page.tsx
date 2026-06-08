@@ -164,6 +164,10 @@ function countryEnglishName(value: string) {
   return findBilingualOption(COUNTRY_OPTIONS, value)?.en ?? value;
 }
 
+function countryChineseName(value: string) {
+  return findBilingualOption(COUNTRY_OPTIONS, value)?.zh ?? value;
+}
+
 function hasChinese(value: string) {
   return /[\u3400-\u9fff]/.test(value);
 }
@@ -182,6 +186,27 @@ function splitStoredBilingualValue(value?: string | null): BilingualTextValue | 
   const en = parts.find((part) => !hasChinese(part));
   if (!zh && !en) return null;
   return { zh: zh ?? "", en: en ?? "" };
+}
+
+function joinBirthplaceParts(parts: Array<string | null | undefined>) {
+  return parts.map((part) => part?.trim()).filter(Boolean).join(" | ");
+}
+
+function parseLegacyBirthplace(value?: string | null) {
+  const parts = (value ?? "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 3) {
+    return {
+      country: parts[0] ?? "",
+      provinceOrState: parts[1] ?? "",
+      city: parts.slice(2).join(" | "),
+    };
+  }
+
+  return { country: "", provinceOrState: "", city: "" };
 }
 
 function isTranslatableProfileField(field: BilingualProfileField) {
@@ -245,14 +270,27 @@ function toInitialBilingualValue(profile: UniversalProfileRow, field: BilingualP
 
 function toInitialBilingualForm(profile: UniversalProfileRow | null): BilingualProfileState {
   if (!profile) return EMPTY_BILINGUAL_FORM;
+  const legacyBirthplaceZh = parseLegacyBirthplace(profile.place_of_birth_zh);
+  const legacyBirthplaceEn = parseLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
   const legacyPlaceOfBirth = toInitialBilingualValue(profile, "place_of_birth");
   const birthCity = toInitialBilingualValue(profile, "birth_city");
+  const birthProvince = toInitialBilingualValue(profile, "birth_province_or_state");
 
   return {
     full_name: toInitialBilingualValue(profile, "full_name"),
     place_of_birth: legacyPlaceOfBirth,
-    birth_province_or_state: toInitialBilingualValue(profile, "birth_province_or_state"),
-    birth_city: birthCity.zh || birthCity.en ? birthCity : legacyPlaceOfBirth,
+    birth_province_or_state: birthProvince.zh || birthProvince.en
+      ? birthProvince
+      : {
+          zh: legacyBirthplaceZh.provinceOrState,
+          en: legacyBirthplaceEn.provinceOrState,
+        },
+    birth_city: birthCity.zh || birthCity.en
+      ? birthCity
+      : {
+          zh: legacyBirthplaceZh.city || legacyPlaceOfBirth.zh,
+          en: legacyBirthplaceEn.city || legacyPlaceOfBirth.en,
+        },
     occupation: toInitialBilingualValue(profile, "occupation"),
     address: toInitialBilingualValue(profile, "address"),
   };
@@ -419,15 +457,19 @@ export default function UniversalInfoPage() {
         }
       }
 
+      const legacyBirthplace = parseLegacyBirthplace(typedProfile?.place_of_birth_en ?? typedProfile?.place_of_birth);
       const initialBilingual = toInitialBilingualForm(typedProfile);
       const initialBirthCity = initialBilingual.birth_city.en || initialBilingual.birth_city.zh;
       const initialBirthProvince = initialBilingual.birth_province_or_state.en || initialBilingual.birth_province_or_state.zh;
+      const initialBirthCountry = normalizeCountryCode(
+        typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
+      );
 
       setForm({
         full_name: initialBilingual.full_name.en || initialBilingual.full_name.zh,
         date_of_birth: typedProfile?.date_of_birth ?? "",
         place_of_birth: initialBirthCity || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
-        birth_country: normalizeCountryCode(typedProfile?.birth_country),
+        birth_country: initialBirthCountry,
         birth_province_or_state: initialBirthProvince,
         birth_city: initialBirthCity,
         gender: normalizeGender(typedProfile?.gender),
@@ -453,7 +495,11 @@ export default function UniversalInfoPage() {
   }, [isZh, router]);
 
   function updateField(field: keyof UniversalProfileForm, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "nationality" && !current.birth_country ? { birth_country: value } : {}),
+    }));
     setMessage(null);
     setError(null);
   }
@@ -569,6 +615,7 @@ export default function UniversalInfoPage() {
         birth_city: nextBirthCity || current.birth_city,
         gender: normalizeGender(fields.gender) || current.gender,
         nationality: normalizeCountryCode(fields.nationality) || current.nationality,
+        birth_country: current.birth_country || normalizeCountryCode(fields.nationality) || current.nationality,
         passport_number: fields.passport_number ?? current.passport_number,
         passport_issue_date: fields.passport_issue_date ?? current.passport_issue_date,
         passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
@@ -591,8 +638,19 @@ export default function UniversalInfoPage() {
 
       const birthProvince = bilingualForm.birth_province_or_state;
       const birthCity = bilingualForm.birth_city;
-      const legacyPlaceOfBirthZh = birthCity.zh || bilingualForm.place_of_birth.zh;
-      const legacyPlaceOfBirthEn = birthCity.en || bilingualForm.place_of_birth.en;
+      const resolvedBirthCountry = form.birth_country || form.nationality;
+      const birthCountryEn = countryEnglishName(resolvedBirthCountry);
+      const birthCountryZh = countryChineseName(resolvedBirthCountry);
+      const legacyPlaceOfBirthZh = joinBirthplaceParts([
+        birthCountryZh,
+        birthProvince.zh,
+        birthCity.zh || bilingualForm.place_of_birth.zh,
+      ]);
+      const legacyPlaceOfBirthEn = joinBirthplaceParts([
+        birthCountryEn,
+        birthProvince.en,
+        birthCity.en || bilingualForm.place_of_birth.en,
+      ]);
 
       const result = await saveUniversalProfileWithSharedAnswers({
         applicationId: passportOcrApplicationId,
@@ -606,7 +664,7 @@ export default function UniversalInfoPage() {
           place_of_birth: cleanValue(legacyPlaceOfBirthEn || legacyPlaceOfBirthZh),
           place_of_birth_zh: isZh ? cleanValue(legacyPlaceOfBirthZh) : undefined,
           place_of_birth_en: isZh ? cleanValue(legacyPlaceOfBirthEn) : undefined,
-          birth_country: cleanValue(countryEnglishName(form.birth_country)),
+          birth_country: cleanValue(birthCountryEn),
           birth_province_or_state: cleanValue(birthProvince.en || birthProvince.zh),
           birth_province_or_state_zh: isZh ? cleanValue(birthProvince.zh) : undefined,
           birth_province_or_state_en: isZh ? cleanValue(birthProvince.en) : undefined,
@@ -638,6 +696,7 @@ export default function UniversalInfoPage() {
           ? "已保存通用资料。之后新进入相似签证表单时会优先用这里的信息预填。"
           : "Universal profile saved. New similar visa forms will use this profile for initial prefilling.",
       );
+      router.push("/client/home");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
     } finally {

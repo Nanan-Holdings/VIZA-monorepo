@@ -10,16 +10,16 @@ import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
 
 interface Phase {
-  id: "translating" | "filling" | "confirming";
+  id: "preparing" | "filling" | "confirming";
   labelEn: string;
   labelZh: string;
 }
 
 const PHASES: Phase[] = [
   {
-    id: "translating",
-    labelEn: "Translating your answers",
-    labelZh: "正在翻译您的答案",
+    id: "preparing",
+    labelEn: "Preparing English answers",
+    labelZh: "正在整理英文版答案",
   },
   {
     id: "filling",

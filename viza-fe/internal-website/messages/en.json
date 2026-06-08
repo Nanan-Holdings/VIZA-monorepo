@@ -68,7 +68,7 @@
       "title": "Universal profile",
       "subtitle": "Reused across similar visa questions",
       "saved": "{completed}/{total} saved",
-      "fields": "Name, birthday, passport, contact",
+      "fields": "Name, birthday, birthplace, passport, contact",
       "edit": "Edit universal profile"
     },
     "emptyApplication": {
@@ -122,6 +122,7 @@
         "comingSoon": "Coming soon",
         "countriesCount": "{count} countries",
         "progressPill": "{pct}% filled",
+      "progressAriaLabel": "{country} application progress",
       "selectedNotFilled": "Selected, not filled",
       "fillable": "Fillable",
       "searchPlaceholder": "Search country, visa, or form...",

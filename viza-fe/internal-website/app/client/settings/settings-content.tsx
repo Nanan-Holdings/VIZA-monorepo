@@ -88,7 +88,7 @@ interface WalletBindingIntent {
 interface CardBindingIntent {
   bindingId: string;
   customerId: string;
-  intentId: string;
+  intentId?: string;
   clientSecret: string;
   currency: string;
   label: string;
@@ -110,7 +110,12 @@ interface AirwallexCardElement {
     payment_consent_id?: string;
     payment_method?: unknown;
   } | boolean>;
-  verifyConsent?: (options: { client_secret: string; currency: string }) => Promise<{
+  verifyConsent?: (options: {
+    client_secret: string;
+    currency?: string;
+    verification_options?: { card: { currency: string } };
+    verificationOptions?: { card: { currency: string } };
+  }) => Promise<{
     id?: string;
     customer_id?: string;
     payment_consent_id?: string;
@@ -551,7 +556,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       });
 
       const element = await window.AirwallexComponentsSDK?.createElement("card", {
-        intent_id: binding.intentId,
+        ...(binding.intentId ? { intent_id: binding.intentId } : {}),
         client_secret: binding.clientSecret,
         currency: binding.currency,
         style: {
@@ -625,7 +630,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       !response.ok ||
       !result?.bindingId ||
       !result.customerId ||
-      !result.intentId ||
       !result.clientSecret ||
       !result.currency
     ) {
@@ -676,6 +680,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           ? await cardElement.verifyConsent({
               client_secret: consent.client_secret,
               currency: activeCardBinding.currency,
+              verification_options: {
+                card: {
+                  currency: activeCardBinding.currency,
+                },
+              },
+              verificationOptions: {
+                card: {
+                  currency: activeCardBinding.currency,
+                },
+              },
             })
           : consent;
 

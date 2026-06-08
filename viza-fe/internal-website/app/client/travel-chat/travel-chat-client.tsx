@@ -375,11 +375,11 @@ const GOOGLE_PLACE_FILTER_OPTIONS = [
     en: "Viewpoints",
     types: ["observation_deck", "tourist_attraction"],
   },
-] as const satisfies readonly Array<{
+] as const satisfies ReadonlyArray<{
   id: string;
   zh: string;
   en: string;
-  types: readonly SupportedGoogleAttractionType[];
+  types: ReadonlyArray<SupportedGoogleAttractionType>;
 }>;
 
 type GooglePlaceFilterId = (typeof GOOGLE_PLACE_FILTER_OPTIONS)[number]["id"];
@@ -1027,13 +1027,16 @@ function isTravelPlaceCard(value: unknown): value is TravelPlaceCard {
 }
 
 function isTravelPlaceDetails(value: unknown): value is TravelPlaceDetails {
+  if (!isTravelPlaceCard(value) || !isRecord(value)) return false;
+  const record = value as Record<string, unknown>;
+
   return (
-    isTravelPlaceCard(value) &&
-    (value.openingHoursText === undefined ||
-      isStringArray(value.openingHoursText)) &&
-    (value.websiteUri === undefined || typeof value.websiteUri === "string") &&
-    (value.editorialSummary === undefined ||
-      typeof value.editorialSummary === "string")
+    (record.openingHoursText === undefined ||
+      isStringArray(record.openingHoursText)) &&
+    (record.websiteUri === undefined ||
+      typeof record.websiteUri === "string") &&
+    (record.editorialSummary === undefined ||
+      typeof record.editorialSummary === "string")
   );
 }
 
@@ -3197,10 +3200,12 @@ export function TravelChatClient({
     [activeSessionId, sessions]
   );
   const messages = activeSession?.messages ?? EMPTY_TRAVEL_MESSAGES;
-  const savedGooglePlaces = activeSession?.savedGooglePlaces ?? [];
   const savedGooglePlaceIds = useMemo(
-    () => new Set(savedGooglePlaces.map((item) => item.placeId)),
-    [savedGooglePlaces]
+    () =>
+      new Set(
+        (activeSession?.savedGooglePlaces ?? []).map((item) => item.placeId)
+      ),
+    [activeSession?.savedGooglePlaces]
   );
 
   const updateTravelSession = useCallback(
@@ -3825,7 +3830,7 @@ export function TravelChatClient({
     };
   }, [interfaceLocale, isZh, selectedGooglePlaceId]);
 
-  const hotspotMapTargets = useMemo(() => {
+  const hotspotMapTargets = useMemo<MapTarget[]>(() => {
     if (!hasDestinationSelection || !activeCityForHotspots) return [];
     const activeCityKey = normalizeCityKey(activeCityForHotspots);
     if (!selectedCityKeys.has(activeCityKey)) return [];
@@ -4976,6 +4981,7 @@ export function TravelChatClient({
       if (!canAddDestinationFromMap) return;
 
       if (point.source === "google" && point.placeId) {
+        const placeId = point.placeId;
         const card = googlePlaceCards.find((item) => item.id === point.placeId);
         if (card) {
           handleAddGooglePlaceToItinerary(card);
@@ -4986,7 +4992,7 @@ export function TravelChatClient({
           const existingPlaces = normalizeSavedGooglePlaces(
             session.savedGooglePlaces
           );
-          if (existingPlaces.some((item) => item.placeId === point.placeId)) {
+          if (existingPlaces.some((item) => item.placeId === placeId)) {
             return session;
           }
 
@@ -4996,7 +5002,7 @@ export function TravelChatClient({
               ...existingPlaces,
               {
                 source: "google" as const,
-                placeId: point.placeId,
+                placeId,
                 city: point.city,
                 order: existingPlaces.length,
                 addedAt: new Date().toISOString(),

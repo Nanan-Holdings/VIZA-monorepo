@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
+import { getCanonicalVisaDestinationCountry, getFormVisaType } from "@/lib/visa-destinations";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -227,13 +228,33 @@ export async function saveUniversalProfileWithSharedAnswers(
         birth_city: _birthCity,
         ...legacyBaseProfilePayload
       } = baseProfilePayload;
+      const {
+        birth_province_or_state_zh: _birthProvinceOrStateZh,
+        birth_province_or_state_en: _birthProvinceOrStateEn,
+        birth_city_zh: _birthCityZh,
+        birth_city_en: _birthCityEn,
+        ...legacyBilingualProfilePayload
+      } = bilingualProfilePayload;
+      const legacyProfilePayload = hasBilingualPayload
+        ? { ...legacyBaseProfilePayload, ...legacyBilingualProfilePayload }
+        : legacyBaseProfilePayload;
       const fallbackResult = await adminClient
         .from("applicant_profiles")
-        .upsert(legacyBaseProfilePayload, { onConflict: "auth_user_id" })
+        .upsert(legacyProfilePayload, { onConflict: "auth_user_id" })
         .select("id, auth_user_id")
         .single();
       savedProfile = fallbackResult.data;
       profileError = fallbackResult.error;
+
+      if (profileError && isMissingOptionalProfileColumnError(profileError.message)) {
+        const baseFallbackResult = await adminClient
+          .from("applicant_profiles")
+          .upsert(legacyBaseProfilePayload, { onConflict: "auth_user_id" })
+          .select("id, auth_user_id")
+          .single();
+        savedProfile = baseFallbackResult.data;
+        profileError = baseFallbackResult.error;
+      }
     }
 
     if (profileError || !savedProfile) {
@@ -308,8 +329,8 @@ export async function ensureDraftApplication(
       ? activePackage?.visa_packages[0]
       : activePackage?.visa_packages;
 
-    const resolvedCountry = options.preferExplicit ? country : pkg?.country ?? country;
-    const resolvedVisaType = options.preferExplicit ? visaType : pkg?.visa_type ?? visaType;
+    const resolvedCountry = getCanonicalVisaDestinationCountry(options.preferExplicit ? country : pkg?.country ?? country);
+    const resolvedVisaType = getFormVisaType(options.preferExplicit ? visaType : pkg?.visa_type ?? visaType);
     const resolvedVisaPackageId = options.preferExplicit
       ? null
       : activePackage?.visa_package_id ?? pkg?.id ?? null;

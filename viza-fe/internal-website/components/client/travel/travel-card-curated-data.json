@@ -138,28 +138,28 @@
     {
       "cityKeys": [
         "guangzhou",
-        "??",
+        "广州",
         "canton"
       ],
-      "cityLabel": "??",
+      "cityLabel": "广州",
       "imageSrc": "/travel/cities/guangzhou.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Guangzhou_Skyline_20210522-01.jpg"
     },
     {
       "cityKeys": [
         "hangzhou",
-        "??"
+        "杭州"
       ],
-      "cityLabel": "??",
+      "cityLabel": "杭州",
       "imageSrc": "/travel/cities/hangzhou.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:West_Lake_Pavilion_and_Water_Lilies,_Hangzhou_120529_1.jpg"
     },
     {
       "cityKeys": [
         "shanghai",
-        "??"
+        "上海"
       ],
-      "cityLabel": "??",
+      "cityLabel": "上海",
       "imageSrc": "/travel/cities/shanghai.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bund,_Shanghai,_China_(December_2015)_-_01.JPG"
     },
@@ -2659,19 +2659,19 @@
     {
       "cityKeys": [
         "guangzhou",
-        "??",
+        "广州",
         "canton"
       ],
-      "cityLabel": "??",
-      "name": "???",
+      "cityLabel": "广州",
+      "name": "广州塔",
       "location": "Yuejiang West Road, Haizhu District, Guangzhou",
       "imageSrc": "/travel/attractions/guangzhou-canton-tower.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Canton_Tower,_Guangzhou,_CN_Lit_up_at_night.jpg",
-      "description": "????????????????????????????????",
+      "description": "广州塔是珠江新城附近的城市地标，适合安排夜景观光和高空视野体验。",
       "aliases": [
         "Canton Tower",
-        "???",
-        "???"
+        "广州塔",
+        "小蛮腰"
       ],
       "lat": 23.1056,
       "lng": 113.3245
@@ -2679,19 +2679,19 @@
     {
       "cityKeys": [
         "guangzhou",
-        "??",
+        "广州",
         "canton"
       ],
-      "cityLabel": "??",
-      "name": "???",
+      "cityLabel": "广州",
+      "name": "陈家祠",
       "location": "Chen Clan Ancestral Hall, Liwan District, Guangzhou",
       "imageSrc": "/travel/attractions/guangzhou-chen-clan-ancestral-hall.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chen_Clan_Ancestral_Hall_2025.06_02.jpg",
-      "description": "??????????????????????????????",
+      "description": "陈家祠以岭南建筑、木雕和砖雕闻名，适合安排文化与历史建筑参观。",
       "aliases": [
         "Chen Clan Ancestral Hall",
         "Chen Clan Academy",
-        "????"
+        "陈氏书院"
       ],
       "lat": 23.1241,
       "lng": 113.2465
@@ -2699,19 +2699,19 @@
     {
       "cityKeys": [
         "guangzhou",
-        "??",
+        "广州",
         "canton"
       ],
-      "cityLabel": "??",
-      "name": "???",
+      "cityLabel": "广州",
+      "name": "沙面岛",
       "location": "Shamian Island, Liwan District, Guangzhou",
       "imageSrc": "/travel/attractions/guangzhou-shamian-island.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shamian_Island,_Guangzhou_(5929144006).jpg",
-      "description": "????????????????????????????",
+      "description": "沙面岛保留了成片近代建筑和林荫街区，适合慢行、拍照和城市历史散步。",
       "aliases": [
         "Shamian Island",
         "Shamian",
-        "??"
+        "沙面"
       ],
       "lat": 23.109,
       "lng": 113.2394
@@ -2719,20 +2719,20 @@
     {
       "cityKeys": [
         "guangzhou",
-        "??",
+        "广州",
         "canton"
       ],
-      "cityLabel": "??",
-      "name": "????????",
+      "cityLabel": "广州",
+      "name": "五羊石像",
       "location": "Yuexiu Park, Guangzhou",
       "imageSrc": "/travel/attractions/guangzhou-five-ram-sculpture.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Five-Ram_Sculpture_of_Guangzhou.jpg",
-      "description": "????????????????????????????",
+      "description": "五羊石像位于越秀公园，是广州城市象征之一，适合与公园游览一起安排。",
       "aliases": [
         "Five-Ram Sculpture",
         "Five Rams",
-        "????",
-        "????"
+        "五羊雕像",
+        "五羊石像"
       ],
       "lat": 23.139,
       "lng": 113.264
@@ -2740,17 +2740,17 @@
     {
       "cityKeys": [
         "hangzhou",
-        "??"
+        "杭州"
       ],
-      "cityLabel": "??",
-      "name": "??",
+      "cityLabel": "杭州",
+      "name": "西湖",
       "location": "West Lake, Hangzhou",
       "imageSrc": "/travel/attractions/hangzhou-west-lake.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:West_Lake_Pavilion_and_Water_Lilies,_Hangzhou_120529_1.jpg",
-      "description": "????????????????????????????",
+      "description": "西湖是杭州核心景观，可安排湖畔步行、游船和经典园林视角。",
       "aliases": [
         "West Lake",
-        "??",
+        "西湖",
         "Xihu"
       ],
       "lat": 30.2431,
@@ -2759,17 +2759,17 @@
     {
       "cityKeys": [
         "hangzhou",
-        "??"
+        "杭州"
       ],
-      "cityLabel": "??",
-      "name": "???",
+      "cityLabel": "杭州",
+      "name": "灵隐寺",
       "location": "Lingyin Temple, Hangzhou",
       "imageSrc": "/travel/attractions/hangzhou-lingyin-temple.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lingyin_Temple,_Hangzhou_20161003.jpg",
-      "description": "????????????????????????????",
+      "description": "灵隐寺是杭州代表性佛教寺院，适合结合飞来峰和山林步道安排半日游。",
       "aliases": [
         "Lingyin Temple",
-        "???",
+        "灵隐寺",
         "Temple of the Soul's Retreat"
       ],
       "lat": 30.2407,
@@ -2778,18 +2778,18 @@
     {
       "cityKeys": [
         "hangzhou",
-        "??"
+        "杭州"
       ],
-      "cityLabel": "??",
-      "name": "????????",
+      "cityLabel": "杭州",
+      "name": "西溪国家湿地公园",
       "location": "Xixi National Wetland Park, Hangzhou",
       "imageSrc": "/travel/attractions/hangzhou-xixi-wetland.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xixi_Wetland_Park,_Hangzhou,_China.jpg",
-      "description": "????????????????????????????",
+      "description": "西溪湿地以水网、芦荡和慢节奏自然体验为主，适合安排轻松的城市郊野行程。",
       "aliases": [
         "Xixi National Wetland Park",
         "Xixi Wetland",
-        "????"
+        "西溪湿地"
       ],
       "lat": 30.2715,
       "lng": 120.0623
@@ -2797,17 +2797,17 @@
     {
       "cityKeys": [
         "hangzhou",
-        "??"
+        "杭州"
       ],
-      "cityLabel": "??",
-      "name": "???",
+      "cityLabel": "杭州",
+      "name": "雷峰塔",
       "location": "Leifeng Pagoda, Hangzhou",
       "imageSrc": "/travel/attractions/hangzhou-leifeng-pagoda.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Leifeng_Pagoda_%E9%9B%B7%E5%B3%B0%E5%A1%94_-_panoramio.jpg",
-      "description": "??????????????????????",
+      "description": "雷峰塔位于西湖南岸，是俯瞰西湖和串联南山路行程的经典节点。",
       "aliases": [
         "Leifeng Pagoda",
-        "???"
+        "雷峰塔"
       ],
       "lat": 30.2312,
       "lng": 120.1484
@@ -2815,18 +2815,18 @@
     {
       "cityKeys": [
         "shanghai",
-        "??"
+        "上海"
       ],
-      "cityLabel": "??",
-      "name": "??",
+      "cityLabel": "上海",
+      "name": "外滩",
       "location": "The Bund, Shanghai",
       "imageSrc": "/travel/attractions/shanghai-the-bund.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bund,_Shanghai,_China_(December_2015)_-_04.JPG",
-      "description": "?????????????????????????????",
+      "description": "外滩可观看历史建筑群和浦东天际线，是上海城市夜景与步行路线的核心节点。",
       "aliases": [
         "The Bund",
         "Bund",
-        "??"
+        "外滩"
       ],
       "lat": 31.2403,
       "lng": 121.4906
@@ -2834,18 +2834,18 @@
     {
       "cityKeys": [
         "shanghai",
-        "??"
+        "上海"
       ],
-      "cityLabel": "??",
-      "name": "?????????",
+      "cityLabel": "上海",
+      "name": "东方明珠广播电视塔",
       "location": "Oriental Pearl Tower, Lujiazui, Shanghai",
       "imageSrc": "/travel/attractions/shanghai-oriental-pearl-tower.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shanghai_Oriental_Pearl_Tower.JPG",
-      "description": "???????????????????????????",
+      "description": "东方明珠位于陆家嘴，是上海代表性观景地标，适合安排高空视野和滨江动线。",
       "aliases": [
         "Oriental Pearl Tower",
-        "????",
-        "?????"
+        "东方明珠",
+        "东方明珠塔"
       ],
       "lat": 31.2397,
       "lng": 121.4998
@@ -2853,18 +2853,18 @@
     {
       "cityKeys": [
         "shanghai",
-        "??"
+        "上海"
       ],
-      "cityLabel": "??",
-      "name": "??",
+      "cityLabel": "上海",
+      "name": "豫园",
       "location": "Yu Garden, Shanghai",
       "imageSrc": "/travel/attractions/shanghai-yu-garden.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:2024-Apr_Shanghai_Yu_Yuan_Garden_%E8%B1%AB%E5%9B%AD_-_img_38.jpg",
-      "description": "?????????????????????????",
+      "description": "豫园是上海老城厢里的经典园林，可结合城隍庙街区安排传统建筑和小吃体验。",
       "aliases": [
         "Yu Garden",
         "Yuyuan Garden",
-        "??"
+        "豫园"
       ],
       "lat": 31.2272,
       "lng": 121.4923
@@ -2872,20 +2872,20 @@
     {
       "cityKeys": [
         "shanghai",
-        "??"
+        "上海"
       ],
-      "cityLabel": "??",
-      "name": "???????????",
+      "cityLabel": "上海",
+      "name": "陆家嘴摩天楼群",
       "location": "Shanghai Tower, Lujiazui, Shanghai",
       "imageSrc": "/travel/attractions/shanghai-tower-cluster.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shanghai_Tower,_Shanghai_World_Financial_Center_and_Jin_Mao_Tower_20251126.jpg",
-      "description": "?????????????????????????????????",
+      "description": "陆家嘴摩天楼群聚集上海中心、环球金融中心和金茂大厦，适合安排天际线和观景体验。",
       "aliases": [
         "Shanghai Tower",
         "Jin Mao Tower",
         "Lujiazui",
-        "????",
-        "???"
+        "陆家嘴",
+        "上海中心大厦"
       ],
       "lat": 31.2335,
       "lng": 121.5055
@@ -6672,16 +6672,17 @@
         "palawan"
       ],
       "cityLabel": "巴拉望",
-      "name": "Antonio Bautista Air Base",
-      "location": "Antonio Bautista Air Base",
-      "imageSrc": "/travel/attractions/palawan-antonio-bautista-air-base.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Palawan,_Puerto_Princesa_Runway,_Antonio_Bautista_Air_Base,_PAF,_Philippines.jpg",
+      "name": "本田湾",
+      "location": "Honda Bay",
+      "imageSrc": "/travel/attractions/palawan-honda-bay.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Honda_Bay",
       "description": "巴拉望可安排的代表性景点，适合加入当地观光动线。",
       "aliases": [
-        "Antonio Bautista Air Base"
+        "Honda Bay",
+        "本田湾"
       ],
-      "lat": 9.74222,
-      "lng": 118.759
+      "lat": 9.9129,
+      "lng": 118.7892
     },
     {
       "cityKeys": [
@@ -10490,7 +10491,7 @@
       "name": "Museum of Tomorrow",
       "location": "Museum of Tomorrow",
       "imageSrc": "/travel/attractions/rio-de-janeiro-museum-of-tomorrow.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Museum_of_Tomorrow",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Museu_do_Amanh%C3%A3_ao_anoitecer_do_Rio.jpg",
       "description": "里约热内卢可安排的代表性景点，适合加入当地观光动线。",
       "aliases": [
         "Museum of Tomorrow"
@@ -12590,7 +12591,7 @@
       "name": "纳布克保护区",
       "location": "Nabq Protected Area",
       "imageSrc": "/travel/attractions/sharm-el-sheikh-nabq-protected-area.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Nabq_Protected_Area",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nabq_Protected_Area_,_photo_by_Hatem_Moushir_1.jpg",
       "description": "沙姆沙伊赫可安排的代表性景点，适合加入当地观光动线。",
       "aliases": [
         "Nabq Protected Area",

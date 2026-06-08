@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -16,14 +16,6 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
-
-interface TranslationEntry {
-  source_text: string;
-  translated_text: string;
-  user_edited: boolean;
-}
-
-type TranslationMap = Record<string, TranslationEntry>;
 
 function formatDateOfficial(value: string): string | null {
   const trimmed = value.trim();
@@ -115,10 +107,6 @@ export function DynamicReviewStep({
   const tDyn = useTranslations("application.dynamicSteps");
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
-  const [translations, setTranslations] = useState<TranslationMap>({});
-  const [translationLoading, setTranslationLoading] = useState(false);
-  const [translationError, setTranslationError] = useState<string | null>(null);
-  const [retryingTranslation, setRetryingTranslation] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const actionLabel = continueLabel ?? t("review.continueToTeam");
 
@@ -144,13 +132,9 @@ export function DynamicReviewStep({
   }, [isZh, t]);
 
   const getOfficialValue = useCallback((
-    fieldName: string,
     value: string,
     field: WizardStep["fields"][number],
   ): string => {
-    const translated = translations[fieldName] ?? translations[field.fieldName];
-    if (translated?.translated_text) return translated.translated_text;
-
     if (field.fieldType === "date") {
       return formatDateOfficial(value) ?? value;
     }
@@ -160,42 +144,7 @@ export function DynamicReviewStep({
     }
 
     return value;
-  }, [translations]);
-
-  const fetchTranslations = useCallback(async () => {
-    const res = await fetch(`/api/applications/${applicationId}/translations`, { cache: "no-store" });
-    if (!res.ok) throw new Error(t("translation.translationFailed"));
-    const data = (await res.json()) as TranslationMap;
-    setTranslations(data);
-  }, [applicationId, t]);
-
-  const runTranslation = useCallback(async (isRetry = false) => {
-    if (isRetry) {
-      setRetryingTranslation(true);
-    } else {
-      setTranslationLoading(true);
-    }
-
-    setTranslationError(null);
-    try {
-      const res = await fetch(`/api/applications/${applicationId}/translate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error(t("translation.translationFailed"));
-      await fetchTranslations();
-    } catch {
-      setTranslationError(t("translation.translationFailed"));
-    } finally {
-      setTranslationLoading(false);
-      setRetryingTranslation(false);
-    }
-  }, [applicationId, fetchTranslations, t]);
-
-  useEffect(() => {
-    if (!isZh) return;
-    void runTranslation(false);
-  }, [isZh, runTranslation]);
+  }, []);
 
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const rows: ReviewRow[] = [];
@@ -236,20 +185,14 @@ export function DynamicReviewStep({
             fieldType: field.fieldType,
             options: field.options as Array<{ value: string; text: string }> | null,
           });
-          const officialValue = getOfficialValue(answerKey, value, field);
+          const officialValue = getOfficialValue(value, field);
           const badges: string[] = [];
           const warnings: string[] = [];
 
-          if (translations[answerKey]?.user_edited || translations[field.fieldName]?.user_edited) {
-            badges.push(t("translation.userEdited"));
-          } else if (translations[answerKey] || translations[field.fieldName]) {
-            badges.push(t("translation.aiTranslated"));
-          } else if (field.fieldType === "date") {
+          if (field.fieldType === "date") {
             badges.push(t("translation.officialFormatBadge"));
           } else if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
             badges.push(t("translation.optionLabelBadge"));
-          } else {
-            badges.push(t("translation.aiTranslated"));
           }
 
           if (field.fieldType === "date") {
@@ -282,28 +225,14 @@ export function DynamicReviewStep({
     });
 
     return rows;
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn, translations]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn]);
 
   return (
     <div className="flex flex-col gap-4">
       <BilingualReviewPanel
         applicationId={applicationId}
         rows={bilingualRows}
-        loading={translationLoading}
-        error={translationError}
-        retrying={retryingTranslation}
-        onRetry={() => void runTranslation(true)}
         onEditSection={onEdit}
-        onUpdated={(fieldName, officialValue) => {
-          setTranslations((prev) => ({
-            ...prev,
-            [fieldName]: {
-              source_text: prev[fieldName]?.source_text ?? "",
-              translated_text: officialValue,
-              user_edited: true,
-            },
-          }));
-        }}
       />
 
       {photoPath ? (

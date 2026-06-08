@@ -6,10 +6,6 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { deriveDS160Answers } from "../ds160-derive-answers";
-import {
-  applyTranslationOverlay,
-  assertNoCjkRemaining,
-} from "../translation-gate";
 
 export interface LoadedAnswers {
   answers: Record<string, string>;
@@ -69,13 +65,7 @@ export async function loadAnswersForApplication(
     if (row.value_text != null) answers[row.field_name] = row.value_text;
   }
 
-  // Translation overlay: replace user-typed source text with English from
-  // application_translations. Done before derivation so derived keys (date
-  // splits, NA flags) inherit translated values for any text-bearing source.
-  // The raw profile is mutated in place so the shaping below uses the
-  // English full_name, etc.
   const rawProfile = profile as Record<string, unknown>;
-  await applyTranslationOverlay(supabase, applicationId, rawProfile, answers);
 
   // Bridge form-shape → orchestrator-shape: split dates into day/month/year,
   // derive *_na flags from "DOES_NOT_APPLY" tokens, alias form-side keys to
@@ -97,11 +87,6 @@ export async function loadAnswersForApplication(
     passport_number: rawProfile.passport_number ?? answers.passport_number,
     email_address: rawProfile.email ?? answers.email_address,
   };
-
-  // Hard gate: refuse to hand the answer set to the autofill orchestrator
-  // if any value still contains CJK characters. Bypassable via
-  // CEAC_SKIP_TRANSLATION_GATE=1 for local debugging.
-  assertNoCjkRemaining(answers, shapedProfile, { applicationId });
 
   return { answers, profile: shapedProfile };
 }
