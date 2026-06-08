@@ -82,6 +82,7 @@ interface ApplicationRow {
   country: string;
   visa_type: string;
   visa_package_id: string | null;
+  submission_result_status: string | null;
   submitted_at: string | null;
   created_at: string;
   updated_at: string | null;
@@ -111,6 +112,9 @@ interface ApplicantProfileSummary {
   full_name: string | null;
   date_of_birth: string | null;
   place_of_birth: string | null;
+  birth_country?: string | null;
+  birth_province_or_state?: string | null;
+  birth_city?: string | null;
   gender: string | null;
   nationality: string | null;
   occupation: string | null;
@@ -132,7 +136,9 @@ interface UniversalInfoProgress {
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "full_name",
   "date_of_birth",
-  "place_of_birth",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_city",
   "gender",
   "nationality",
   "occupation",
@@ -146,22 +152,59 @@ const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "wechat",
 ];
 
+const PASSPORT_DOCUMENT_TYPES = new Set(["passport_copy", "passport_bio_page", "passport_scan", "passport"]);
+
+function parseLegacyBirthplace(value?: string | null) {
+  const parts = (value ?? "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 3) {
+    return {
+      country: parts[0] ?? "",
+      provinceOrState: parts[1] ?? "",
+      city: parts.slice(2).join(" | "),
+    };
+  }
+
+  return { country: "", provinceOrState: "", city: "" };
+}
+
 function buildUniversalInfoProgress(
   profile: ApplicantProfileSummary | null,
   authEmail?: string | null,
+  hasPassportUpload = false,
 ): UniversalInfoProgress {
+  const legacyBirthplace = parseLegacyBirthplace(profile?.place_of_birth);
   const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
     if (field === "email" && !profile?.email && authEmail) return true;
+    if (field === "birth_country") return Boolean(profile?.birth_country?.trim() || legacyBirthplace.country);
+    if (field === "birth_province_or_state") {
+      return Boolean(profile?.birth_province_or_state?.trim() || legacyBirthplace.provinceOrState);
+    }
+    if (field === "birth_city") {
+      return Boolean(profile?.birth_city?.trim() || legacyBirthplace.city || profile?.place_of_birth?.trim());
+    }
     return Boolean(profile?.[field]?.trim());
   }).length;
 
   return {
-    completedCount,
-    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+    completedCount: completedCount + (hasPassportUpload ? 1 : 0),
+    totalCount: UNIVERSAL_PROFILE_FIELDS.length + 1,
   };
 }
 
-function getProgressLabel(status: string, percent: number, isZh: boolean): string {
+function getProgressLabel(
+  status: string,
+  percent: number,
+  isZh: boolean,
+  submissionResultStatus?: string | null,
+): string {
+  const normalizedResultStatus = submissionResultStatus?.toLowerCase() ?? "";
+  if (["waiting", "processing"].includes(normalizedResultStatus)) {
+    return isZh ? "正在提交" : "Submitting";
+  }
   if (status === "approved") return isZh ? "已批准" : "Approved";
   if (status === "submitted") return isZh ? "已提交" : "Submitted";
   if (status === "rejected") return isZh ? "需要处理" : "Needs attention";
@@ -194,6 +237,14 @@ const TERMINAL_PROGRESS_STATUSES = new Set([
 const NEAR_COMPLETE_STATUSES = new Set([
   "payment_pending",
   "staff_action_required",
+]);
+
+const SUBMISSION_IN_FLIGHT_STATUSES = new Set([
+  "waiting",
+  "processing",
+  "ready",
+  "succeeded",
+  "success",
 ]);
 
 function buildApplicationHref(application: ApplicationRow): string {
@@ -265,7 +316,19 @@ function getFormCompletionPercent(
   if (fieldsToMeasure.length === 0) return answeredNames.size > 0 ? 100 : 0;
 
   const completedCount = fieldsToMeasure.filter((field) => answeredNames.has(field.fieldName)).length;
-  return Math.round((completedCount / fieldsToMeasure.length) * 100);
+  const fieldCompletionPercent = Math.round((completedCount / fieldsToMeasure.length) * 100);
+  const visibleStepNumbers = new Set(visibleFields.map((field) => field.stepNumber));
+  const answeredStepNumbers = new Set(
+    visibleFields
+      .filter((field) => answeredNames.has(field.fieldName))
+      .map((field) => field.stepNumber),
+  );
+  const stepCoveragePercent =
+    visibleStepNumbers.size > 0
+      ? Math.round((answeredStepNumbers.size / visibleStepNumbers.size) * 100)
+      : 0;
+
+  return Math.max(fieldCompletionPercent, stepCoveragePercent);
 }
 
 function getApplicationProgressPercent(
@@ -275,7 +338,14 @@ function getApplicationProgressPercent(
   fields: VisaFormFieldRow[] | undefined,
 ): number {
   const normalizedStatus = application.status.toLowerCase();
-  if (application.submitted_at || TERMINAL_PROGRESS_STATUSES.has(normalizedStatus)) return 100;
+  const normalizedSubmissionResultStatus = application.submission_result_status?.toLowerCase() ?? "";
+  if (
+    application.submitted_at ||
+    TERMINAL_PROGRESS_STATUSES.has(normalizedStatus) ||
+    SUBMISSION_IN_FLIGHT_STATUSES.has(normalizedSubmissionResultStatus)
+  ) {
+    return 100;
+  }
   if (normalizedStatus === "rejected") return 85;
   if (NEAR_COMPLETE_STATUSES.has(normalizedStatus)) return 95;
 
@@ -339,7 +409,7 @@ function buildApplicationProgress(
       applicationId: application.id,
       status: application.status,
       percent,
-      label: getProgressLabel(application.status, percent, isZh),
+      label: getProgressLabel(application.status, percent, isZh, application.submission_result_status),
       updatedAt,
     };
     return progress;
@@ -479,7 +549,7 @@ export default function HomePage() {
 
         const { data: profile } = await supabase
           .from("applicant_profiles")
-          .select("id, full_name, date_of_birth, place_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, email, phone, wechat")
+          .select("*")
           .eq("auth_user_id", user.id)
           .maybeSingle();
 
@@ -500,12 +570,15 @@ export default function HomePage() {
 
         const { data: appRows } = await supabase
           .from("applications")
-          .select("id, status, country, visa_type, visa_package_id, submitted_at, created_at, updated_at")
+          .select("id, status, country, visa_type, visa_package_id, submission_result_status, submitted_at, created_at, updated_at")
           .eq("applicant_id", profileTyped.id)
           .order("created_at", { ascending: false });
 
         const loadedApplications = (appRows ?? []) as ApplicationRow[];
         if (loadedApplications.length === 0) {
+          setUniversalInfoProgress(
+            buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
+          );
           setApplicationProgress({});
           setActivityEvents([]);
           return;
@@ -538,6 +611,12 @@ export default function HomePage() {
         ]);
 
         const loadedDocuments = (docs ?? []) as DocumentRow[];
+        const hasPassportUpload = loadedDocuments.some(
+          (document) => PASSPORT_DOCUMENT_TYPES.has(document.document_type) && document.status !== "missing",
+        );
+        setUniversalInfoProgress(
+          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null, hasPassportUpload),
+        );
         const loadedAnswers = (answers ?? []) as AnswerRow[];
         const fieldSchemas = ((fieldRows ?? []) as VisaFormFieldDbRow[]).reduce<FormFieldSchemaMap>(
           (schemas, row) => {

@@ -179,7 +179,14 @@ export function PopularDestinationsSection({
               <span>{progressLabel}</span>
               <span>{progress ? `${progress.percent}%` : selected ? "0%" : ""}</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]">
+            <div
+              aria-label={t("progressAriaLabel", { country: countryName })}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={progress?.percent ?? 0}
+              className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]"
+              role="progressbar"
+            >
               <div
                 className="h-full rounded-full bg-[#03346E] transition-all duration-500"
                 style={{ width: `${progress?.percent ?? 0}%` }}

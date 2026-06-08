@@ -1010,7 +1010,7 @@ export function getVisaDestinationsForRegion(regionId: string): PopularVisaDesti
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
-  const normalizedCountry = country.toLowerCase();
+  const normalizedCountry = getCanonicalVisaDestinationCountry(country);
   const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
   return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
     destinationItem.country === normalizedCountry &&
@@ -1023,11 +1023,13 @@ export function getDestinationFlag(country: string): string {
 }
 
 export function getDestinationDisplayName(country: string): string {
-  return COUNTRY_NAMES.get(country.toLowerCase()) ?? country.replace(/_/g, " ");
+  const canonicalCountry = getCanonicalVisaDestinationCountry(country);
+  return COUNTRY_NAMES.get(canonicalCountry) ?? country.replace(/_/g, " ");
 }
 
 export function getDestinationDisplayNameZh(country: string): string {
-  return COUNTRY_NAMES_ZH.get(country.toLowerCase()) ?? getDestinationDisplayName(country);
+  const canonicalCountry = getCanonicalVisaDestinationCountry(country);
+  return COUNTRY_NAMES_ZH.get(canonicalCountry) ?? getDestinationDisplayName(country);
 }
 
 function isChineseDisplayLocale(locale?: string | null): boolean {
@@ -1076,13 +1078,48 @@ export function getVisaDestinationRegionName(region: string, locale?: string | n
 }
 
 export function getFormVisaType(visaType: string): string {
-  if (visaType === "B1_B2") return "DS160";
-  if (visaType === "tourist_b211a") return "B211A";
+  const normalized = visaType.trim().toLowerCase().replace(/[\s/-]+/g, "_");
+  if (
+    normalized === "b1_b2" ||
+    normalized === "b_1_b_2" ||
+    normalized === "ds_160" ||
+    normalized === "ds160"
+  ) {
+    return "DS160";
+  }
+  if (normalized === "tourist_b211a" || normalized === "b211a") return "B211A";
   return visaType;
 }
 
+export function getCanonicalVisaDestinationCountry(country: string): string {
+  const normalized = country.trim().toLowerCase().replace(/[\s/-]+/g, "_");
+  const aliases: Record<string, string> = {
+    america: "united_states",
+    england: "united_kingdom",
+    great_britain: "united_kingdom",
+    u_k: "united_kingdom",
+    uk: "united_kingdom",
+    united_states_of_america: "united_states",
+    us: "united_states",
+    usa: "united_states",
+  };
+  if (aliases[normalized]) return aliases[normalized];
+
+  const destination = SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => {
+    const normalizedCountryName = destinationItem.countryName.toLowerCase().replace(/[\s/-]+/g, "_");
+    const normalizedCountryNameZh = destinationItem.countryNameZh.toLowerCase().replace(/[\s/-]+/g, "_");
+    return (
+      destinationItem.country === normalized ||
+      normalizedCountryName === normalized ||
+      normalizedCountryNameZh === normalized
+    );
+  });
+
+  return destination?.country ?? normalized;
+}
+
 export function getVisaDestinationKey(country: string, visaType: string): string {
-  return `${country.toLowerCase()}::${getFormVisaType(visaType).toLowerCase()}`;
+  return `${getCanonicalVisaDestinationCountry(country)}::${getFormVisaType(visaType).toLowerCase()}`;
 }
 
 export function getVisaPackageTitleZh(country: string, visaType: string): string {

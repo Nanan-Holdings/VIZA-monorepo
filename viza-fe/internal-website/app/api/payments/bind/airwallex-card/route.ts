@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  createAirwallexCustomer,
-  createBindingPaymentIntent,
-  isAirwallexConfigured,
-} from "@/lib/airwallex/client";
+import { createAirwallexCustomer, isAirwallexConfigured } from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,12 +21,6 @@ async function parseCardRequest(request: Request): Promise<{
   } catch {
     return null;
   }
-}
-
-function appBaseUrl(request: Request): string {
-  const configuredUrl = (process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
-  if (configuredUrl) return configuredUrl.replace(/\/+$/, "");
-  return new URL(request.url).origin.replace(/\/+$/, "");
 }
 
 export async function POST(request: Request) {
@@ -84,11 +74,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not start card verification." }, { status: 500 });
   }
 
-  const returnUrl = new URL("/client/settings/payment-methods", appBaseUrl(request));
-  returnUrl.searchParams.set("payment_bind", "success");
-  returnUrl.searchParams.set("bindingId", record.id);
-  returnUrl.searchParams.set("provider", "airwallex");
-
   try {
     const customer = await createAirwallexCustomer({
       requestId: `viza-customer-${record.id}`.slice(0, 64),
@@ -101,31 +86,20 @@ export async function POST(request: Request) {
       },
     });
 
-    const intent = await createBindingPaymentIntent({
-      currency: "CNY",
-      merchantOrderId: record.id,
-      requestId: `viza-bind-${record.id}`.slice(0, 64),
-      returnUrl: returnUrl.toString(),
-      customerId: customer.id,
-      metadata: {
-        ...metadata,
-        payment_record_id: record.id,
-        airwallex_customer_id: customer.id,
-      },
-    });
+    if (!customer.client_secret) {
+      throw new Error("Airwallex customer response did not include a client secret.");
+    }
 
     await createAdminClient()
       .from("payment_records")
       .update({
-        provider_session_id: intent.id,
-        provider_payment_id: intent.id,
+        provider_session_id: customer.id,
+        provider_payment_id: customer.id,
         metadata: {
           ...metadata,
           airwallex: {
             customer_id: customer.id,
-            intent_id: intent.id,
-            intent_status: intent.status,
-            request_id: intent.request_id ?? `viza-bind-${record.id}`,
+            customer_request_id: customer.request_id ?? `viza-customer-${record.id}`,
           },
         },
         updated_at: new Date().toISOString(),
@@ -135,9 +109,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       bindingId: record.id,
       customerId: customer.id,
-      intentId: intent.id,
-      clientSecret: intent.client_secret ?? null,
-      currency: intent.currency,
+      clientSecret: customer.client_secret,
+      currency: "CNY",
     });
   } catch (caught) {
     console.error("[payment-binding-airwallex-card] Failed to create Airwallex intent:", caught);

@@ -35,7 +35,7 @@ import {
   type CeacRunResult,
   type ConfirmApplicationResult,
 } from "./ceac";
-import { writeSubmissionResult, markSubmissionFailed } from "./result-writer";
+import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
   buildCountrySubmissionApplication,
   runDryRunSubmission,
@@ -532,6 +532,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     .from("submission_queue")
     .update({ status: "ds160_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;

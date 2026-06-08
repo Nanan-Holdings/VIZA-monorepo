@@ -123,8 +123,14 @@ const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "re
  *  routes the worker to the right autofill pipeline. Defaults to
  *  "pending" (legacy Indonesian e-visa path). */
 function queueStatusForPackage(visaType: string | null | undefined): string {
-  switch (visaType) {
+  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+  switch (normalized) {
     case "DS160":
+    case "DS_160":
+    case "B1_B2":
+    case "B_1_B_2":
+    case "US_B1_B2":
+    case "US_DS160":
       return "ds160_prefill_pending";
     case "EU_SCHENGEN_C_SHORT_STAY":
       return "fv_prefill_pending";
@@ -1360,6 +1366,26 @@ export default function ApplicationPage() {
     setDynamicAnswers((prev) => ({ ...prev, ...data }));
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
+  const saveAllDynamicDrafts = useCallback(async () => {
+    const mergedDraft = Object.values(dynamicDraftRef.current).reduce<Record<string, string>>(
+      (acc, stepDraft) => ({ ...acc, ...stepDraft }),
+      {},
+    );
+    const draftEntries = Object.entries(mergedDraft);
+    if (draftEntries.length === 0) return;
+
+    const hasChangedValue = draftEntries.some(
+      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+    );
+    if (!hasChangedValue) return;
+
+    const applicationId = await ensureWritableApplicationId();
+    const saveResult = await saveDynamicAnswers(applicationId, mergedDraft);
+    if (saveResult.error) throw new Error(saveResult.error);
+
+    setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
+  }, [dynamicAnswers, ensureWritableApplicationId]);
+
   const handleStepNavigation = useCallback(async (targetStepId: number) => {
     if (targetStepId === currentStep || navigationSaveInFlightRef.current) return;
 
@@ -1621,6 +1647,8 @@ export default function ApplicationPage() {
       }
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
+      await saveAllDynamicDrafts();
+
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
         applicationId,
@@ -1644,29 +1672,18 @@ export default function ApplicationPage() {
         if (queueError) throw new Error(queueError.message);
       }
 
+      const submittedAt = new Date().toISOString();
       const { error: submitError } = await supabase.from("applications").update({
         status: "submitted",
-        submitted_at: new Date().toISOString(),
+        submitted_at: submittedAt,
+        ...(!isJpTourist
+          ? {
+              submission_result_status: "waiting",
+              submission_result_updated_at: submittedAt,
+            }
+          : {}),
       }).eq("id", applicationId);
       if (submitError) throw new Error(submitError.message);
-
-      // Trigger translation (non-blocking — failures don't block submission;
-      // the translate route also flips submission_result_status to 'waiting'
-      // on success, which the realtime sub picks up).
-      // Skipped for JP_TOURIST: there is no portal-side payload to translate.
-      if (!isJpTourist) {
-        try {
-          const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-          await fetch(
-            `${backendUrl}/api/applications/${applicationId}/translate`,
-            { method: "POST", headers: { "Content-Type": "application/json" } },
-          );
-        } catch {
-          // Translation is non-blocking; swallow the error so the user still
-          // proceeds to the StatusStep (where SubmissionStatusStep will show
-          // the WaitingCard until the runner writes a terminal payload).
-        }
-      }
 
       if (isJpTourist) {
         // JP_TOURIST has no automation pipeline. Synthesize the terminal
@@ -1686,8 +1703,8 @@ export default function ApplicationPage() {
       } else {
         setAppState((prev) => ({
           ...prev,
-          submittedAt: new Date().toISOString(),
-          submissionResultStatus: prev.submissionResultStatus ?? "waiting",
+          submittedAt,
+          submissionResultStatus: "waiting",
         }));
       }
       const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
@@ -1716,6 +1733,8 @@ export default function ApplicationPage() {
       }
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
+      await saveAllDynamicDrafts();
+
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
         applicationId,
@@ -1733,29 +1752,19 @@ export default function ApplicationPage() {
       });
       if (queueError) throw new Error(queueError.message);
 
+      const submittedAt = new Date().toISOString();
       const { error: submitError } = await supabase.from("applications").update({
         status: "submitted",
-        submitted_at: new Date().toISOString(),
+        submitted_at: submittedAt,
+        submission_result_status: "waiting",
+        submission_result_updated_at: submittedAt,
       }).eq("id", applicationId);
       if (submitError) throw new Error(submitError.message);
 
-      // Trigger translation (non-blocking — failures don't block submission;
-      // the translate route also flips submission_result_status to 'waiting'
-      // on success, which the realtime sub picks up).
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:8080";
-        await fetch(
-          `${backendUrl}/api/applications/${applicationId}/translate`,
-          { method: "POST", headers: { "Content-Type": "application/json" } },
-        );
-      } catch {
-        // non-blocking
-      }
-
       setAppState((prev) => ({
         ...prev,
-        submittedAt: new Date().toISOString(),
-        submissionResultStatus: prev.submissionResultStatus ?? "waiting",
+        submittedAt,
+        submissionResultStatus: "waiting",
       }));
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
       setCurrentStep(fallbackStatusStepIndex);
