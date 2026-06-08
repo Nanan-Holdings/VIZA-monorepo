@@ -134,6 +134,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       bindingId: record.id,
+      customerId: customer.id,
       intentId: intent.id,
       clientSecret: intent.client_secret ?? null,
       currency: intent.currency,

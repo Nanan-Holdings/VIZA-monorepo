@@ -33,6 +33,8 @@ const PHASES: Phase[] = [
   },
 ];
 
+const PHASE_PROGRESS = [34, 67, 92] as const;
+
 /**
  * WaitingCard — renders while applications.submission_result_status is
  * `waiting` or `processing`. Phase progresses on a soft timer; the realtime
@@ -43,6 +45,8 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
+  const progressPercent = PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+  const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
 
   useEffect(() => {
     if (status === "processing") {
@@ -67,14 +71,45 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
           {isZh ? "正在提交您的申请" : "Submitting your application"}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {isZh
             ? "VIZA 正在代表您处理政府门户的提交流程。确认结果准备好后，本页面会自动更新。"
             : "We're working with the government portal on your behalf. This page will update automatically when your confirmation is ready."}
         </p>
 
-        <ol className="mt-6 space-y-3" aria-live="polite">
+        <div aria-live="polite" className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-foreground">
+              {isZh ? activePhase.labelZh : activePhase.labelEn}
+            </p>
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+              {progressPercent}%
+            </span>
+          </div>
+          <div
+            aria-label={isZh ? "提交进度" : "Submission progress"}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progressPercent}
+            className="h-2.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+          >
+            <motion.div
+              animate={{ width: `${progressPercent}%` }}
+              className="h-full rounded-full bg-brand-500"
+              initial={false}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {isZh
+              ? "该进度会随后台状态自动推进，确认码或结果生成后会切换到结果页面。"
+              : "This progress updates with the background worker. When the confirmation or result is ready, this card will switch to the result page."}
+          </p>
+        </div>
+
+        <ol className="grid gap-2 sm:grid-cols-3" aria-label={isZh ? "提交阶段" : "Submission phases"}>
           {PHASES.map((phase, i) => {
             const done = i < activePhaseIdx;
             const active = i === activePhaseIdx;
@@ -84,18 +119,23 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: i * 0.05 }}
-                className="flex items-center gap-3"
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border px-3 py-2",
+                  done && "border-brand-200 bg-brand-50",
+                  active && "border-brand-500 bg-white",
+                  !done && !active && "border-input bg-muted/30",
+                )}
               >
                 <span
                   className={cn(
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border",
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
                     done && "border-brand-500 bg-brand-500 text-white",
                     active && "border-brand-500 text-brand-500",
                     !done && !active && "border-input text-muted-foreground",
                   )}
                 >
                   {done ? (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-3.5 w-3.5" />
                   ) : active ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
@@ -104,7 +144,7 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
                 </span>
                 <span
                   className={cn(
-                    "text-sm",
+                    "text-xs",
                     active ? "text-foreground font-medium" : "text-muted-foreground",
                   )}
                 >
