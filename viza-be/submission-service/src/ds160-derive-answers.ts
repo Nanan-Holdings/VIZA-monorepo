@@ -81,6 +81,11 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "mother_date_of_birth", naKey: "mother_dob_unknown" },
 ];
 
+const DEFAULT_NA_SOURCES: ReadonlySet<string> = new Set([
+  "us_social_security_number",
+  "us_taxpayer_id",
+]);
+
 interface KeyAlias {
   /** Form key. */
   from: string;
@@ -267,6 +272,10 @@ function deriveDateSplits(answers: Record<string, string>): void {
 function deriveNaFlags(answers: Record<string, string>): void {
   for (const { source, naKey } of NA_PAIRS) {
     const value = answers[source];
+    if (value === undefined && DEFAULT_NA_SOURCES.has(source) && answers[naKey] === undefined) {
+      answers[naKey] = "Y";
+      continue;
+    }
     if (!isNaToken(value)) continue;
     if (answers[naKey] === undefined) answers[naKey] = "Y";
     // Clear the source so the orchestrator doesn't try to type "DOES_NOT_APPLY"
