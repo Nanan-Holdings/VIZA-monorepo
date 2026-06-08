@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
@@ -13,7 +14,6 @@ import {
   Coins,
   CreditCard,
   Database,
-  ExternalLink,
   Gift,
   Globe2,
   Headphones,
@@ -83,6 +83,51 @@ interface WalletBindingIntent {
   method: Exclude<PaymentMethodId, "bank_card">;
   qrCodeDataUrl: string;
   expiresAt: string;
+}
+
+interface CardBindingIntent {
+  bindingId: string;
+  intentId: string;
+  clientSecret: string;
+  currency: string;
+  label: string;
+}
+
+interface AirwallexCardElement {
+  mount(containerId: string): void;
+  confirm?: (options: { intent_id: string; client_secret: string }) => Promise<unknown>;
+  createPaymentConsent?: (options: {
+    client_secret: string;
+    currency: string;
+    intent_id?: string;
+    next_triggered_by?: "merchant" | "customer";
+    merchant_trigger_reason?: "scheduled" | "unscheduled";
+    metadata?: Record<string, unknown>;
+  }) => Promise<{
+    customer_id?: string;
+    payment_consent_id?: string;
+    payment_method?: unknown;
+  } | boolean>;
+  on(event: "ready" | "success" | "error", handler: (event?: unknown) => void): void;
+}
+
+interface AirwallexComponentsSdk {
+  init(options: { env: "demo" | "prod"; enabledElements: string[]; locale: string }): Promise<void>;
+  createElement(
+    type: "card",
+    options: {
+      intent_id: string;
+      client_secret: string;
+      currency: string;
+      style?: Record<string, unknown>;
+    },
+  ): Promise<AirwallexCardElement | null>;
+}
+
+declare global {
+  interface Window {
+    AirwallexComponentsSDK?: AirwallexComponentsSdk;
+  }
 }
 
 interface RewardWalletSummary {
@@ -326,6 +371,11 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   });
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [activeQrBinding, setActiveQrBinding] = useState<WalletBindingIntent | null>(null);
+  const [activeCardBinding, setActiveCardBinding] = useState<CardBindingIntent | null>(null);
+  const [airwallexScriptReady, setAirwallexScriptReady] = useState(false);
+  const [cardElement, setCardElement] = useState<AirwallexCardElement | null>(null);
+  const [isCardElementReady, setIsCardElementReady] = useState(false);
+  const [isCompletingCardBinding, setIsCompletingCardBinding] = useState(false);
   const [isStartingPaymentBinding, setIsStartingPaymentBinding] = useState(false);
   const [isCheckingPaymentBinding, setIsCheckingPaymentBinding] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState<{
@@ -461,7 +511,66 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   function resetPaymentForm() {
     setPaymentForm({ label: "" });
     setEditingPaymentId(null);
+    setActiveCardBinding(null);
+    setCardElement(null);
+    setIsCardElementReady(false);
+    const container = document.getElementById("airwallex-settings-card-element");
+    if (container) container.innerHTML = "";
   }
+
+  useEffect(() => {
+    if (!activeCardBinding) {
+      setCardElement(null);
+      setIsCardElementReady(false);
+      const container = document.getElementById("airwallex-settings-card-element");
+      if (container) container.innerHTML = "";
+      return;
+    }
+    if (!airwallexScriptReady || !window.AirwallexComponentsSDK) return;
+
+    let cancelled = false;
+    const binding = activeCardBinding;
+    async function mountCardElement() {
+      setCardElement(null);
+      setIsCardElementReady(false);
+      const container = document.getElementById("airwallex-settings-card-element");
+      if (container) container.innerHTML = "";
+
+      await window.AirwallexComponentsSDK?.init({
+        env: "demo",
+        enabledElements: ["payments"],
+        locale: "zh",
+      });
+
+      const element = await window.AirwallexComponentsSDK?.createElement("card", {
+        intent_id: binding.intentId,
+        client_secret: binding.clientSecret,
+        currency: binding.currency,
+        style: {
+          base: {
+            color: "#111827",
+            fontSize: "16px",
+            "::placeholder": { color: "#9ca3af" },
+          },
+        },
+      });
+
+      if (cancelled || !element) return;
+      element.mount("airwallex-settings-card-element");
+      element.on("ready", () => setIsCardElementReady(true));
+      element.on("error", () => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") }));
+      setCardElement(element);
+    }
+
+    mountCardElement().catch((caught) => {
+      console.error("[settings-card-binding]", caught);
+      if (!cancelled) setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCardBinding, airwallexScriptReady, t]);
 
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -488,7 +597,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     setIsStartingPaymentBinding(true);
-    const response = await fetch("/api/payments/bind/stripe-card", {
+    const response = await fetch("/api/payments/bind/airwallex-card", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nickname: label }),
@@ -497,36 +606,99 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
     const result = (await response.json().catch(() => null)) as {
       bindingId?: string;
-      checkoutUrl?: string;
+      intentId?: string;
+      clientSecret?: string | null;
+      currency?: string;
       error?: string;
     } | null;
 
-    if (!response.ok || !result?.bindingId || !result.checkoutUrl) {
+    if (!response.ok || !result?.bindingId || !result.intentId || !result.clientSecret || !result.currency) {
       setPaymentMessage({
         tone: "error",
         text:
           response.status === 503
-            ? t("payment.messages.stripeUnavailable")
-            : result?.error ?? t("payment.messages.stripeStartFailed"),
+            ? t("payment.messages.cardUnavailable")
+            : result?.error ?? t("payment.messages.cardStartFailed"),
       });
       return;
     }
 
-    const shouldBeDefault = activeMethodAccounts.length === 0;
-    const nextAccount: PaymentAccount = {
-      id: result.bindingId,
-      method: activePaymentMethod,
+    setActiveCardBinding({
+      bindingId: result.bindingId,
+      intentId: result.intentId,
+      clientSecret: result.clientSecret,
+      currency: result.currency,
       label,
-      identifier: t("payment.cardIdentifier"),
-      isDefault: shouldBeDefault,
-      verificationStatus: "requires_action",
-      providerReference: result.bindingId,
-    };
+    });
+    setPaymentMessage({ tone: "success", text: t("payment.messages.cardReady") });
+  }
 
-    savePaymentAccounts([...paymentAccounts, nextAccount]);
-    setPaymentMessage({ tone: "success", text: t("payment.messages.stripeRedirect") });
-    resetPaymentForm();
-    window.location.href = result.checkoutUrl;
+  async function completeCardBinding() {
+    if (!activeCardBinding || !cardElement?.createPaymentConsent) return;
+
+    setPaymentMessage(null);
+    setIsCompletingCardBinding(true);
+    try {
+      const consent = await cardElement.createPaymentConsent({
+        client_secret: activeCardBinding.clientSecret,
+        currency: activeCardBinding.currency,
+        intent_id: activeCardBinding.intentId,
+        next_triggered_by: "merchant",
+        merchant_trigger_reason: "scheduled",
+        metadata: {
+          binding_id: activeCardBinding.bindingId,
+          source: "client_settings_payment_binding",
+        },
+      });
+
+      if (typeof consent === "boolean" || !consent.payment_consent_id) {
+        throw new Error("Missing payment consent id.");
+      }
+
+      const response = await fetch(`/api/payments/bind/airwallex-card/${activeCardBinding.bindingId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentConsentId: consent.payment_consent_id,
+          customerId: consent.customer_id,
+          paymentMethod: consent.payment_method,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        bindingId?: string;
+        identifier?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok || !result?.bindingId) {
+        throw new Error(result?.error ?? t("payment.messages.cardBindFailed"));
+      }
+
+      const shouldBeDefault = activeMethodAccounts.length === 0;
+      savePaymentAccounts([
+        ...paymentAccounts.filter((account) => account.id !== result.bindingId),
+        {
+          id: result.bindingId,
+          method: "bank_card",
+          label: activeCardBinding.label,
+          identifier: result.identifier ?? t("payment.cardIdentifier"),
+          isDefault: shouldBeDefault,
+          verificationStatus: "bound",
+          providerReference: result.bindingId,
+        },
+      ]);
+
+      setPaymentMessage({ tone: "success", text: t("payment.messages.cardBound") });
+      resetPaymentForm();
+    } catch (caught) {
+      console.error("[settings-card-binding-complete]", caught);
+      setPaymentMessage({
+        tone: "error",
+        text: caught instanceof Error && caught.message ? caught.message : t("payment.messages.cardBindFailed"),
+      });
+    } finally {
+      setIsCompletingCardBinding(false);
+    }
   }
 
   async function startWalletBinding() {
@@ -548,7 +720,10 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     if (!response.ok || !result?.bindingId || !result.qrCodeDataUrl) {
       setPaymentMessage({
         tone: "error",
-        text: result?.error ?? t("payment.messages.qrStartFailed"),
+        text:
+          response.status === 503
+            ? t("payment.messages.walletBindingUnavailable")
+            : result?.error ?? t("payment.messages.qrStartFailed"),
       });
       return;
     }
@@ -822,6 +997,12 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
   return (
     <div className="mx-auto w-full max-w-[1040px] pb-16">
+      <Script
+        src="https://static.airwallex.com/components/sdk/v1/index.js"
+        strategy="afterInteractive"
+        onLoad={() => setAirwallexScriptReady(true)}
+        onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
+      />
       {view === "home" ? (
       <section className="grid gap-5 pt-4 lg:grid-cols-[1.25fr_0.75fr]">
         <motion.div
@@ -946,6 +1127,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   setActivePaymentMethod(method.id);
                   resetPaymentForm();
                   setActiveQrBinding(null);
+                  setActiveCardBinding(null);
                   setPaymentMessage(null);
                 }}
                 className={cn(
@@ -1112,24 +1294,48 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                     />
                   </label>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    {t("payment.stripeHint")}
+                    {t("payment.cardHint")}
                   </p>
+                  {activeCardBinding ? (
+                    <div className="grid gap-3 rounded-lg border bg-white p-3">
+                      {!airwallexScriptReady ? (
+                        <p className="flex items-center text-sm text-muted-foreground">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t("payment.cardElementPreparing")}
+                        </p>
+                      ) : null}
+                      <div id="airwallex-settings-card-element" className="rounded-lg border bg-white p-3" />
+                      <Button
+                        type="button"
+                        className="h-10 rounded-full"
+                        onClick={completeCardBinding}
+                        disabled={!isCardElementReady || isCompletingCardBinding}
+                      >
+                        {isCompletingCardBinding ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="h-4 w-4" />
+                        )}
+                        {t("payment.completeCardBinding")}
+                      </Button>
+                    </div>
+                  ) : null}
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Button
                       type="submit"
                       className="h-10 rounded-full"
-                      disabled={isStartingPaymentBinding}
+                      disabled={isStartingPaymentBinding || Boolean(activeCardBinding)}
                     >
                       {isStartingPaymentBinding ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : editingPaymentAccount ? (
                         <Pencil className="h-4 w-4" />
                       ) : (
-                        <ExternalLink className="h-4 w-4" />
+                        <CreditCard className="h-4 w-4" />
                       )}
                       {editingPaymentAccount
                         ? t("payment.saveEdit")
-                        : t("payment.verifyWithStripe")}
+                        : t("payment.verifyWithAirwallex")}
                     </Button>
                     {editingPaymentAccount ? (
                       <Button

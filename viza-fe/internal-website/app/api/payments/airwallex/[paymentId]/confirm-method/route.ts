@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 const supportedMethods = new Set<AirwallexPaymentMethodType>([
   "card",
+  "alipaycn_qrcode",
   "alipaycn_mobile_web",
   "wechatpay_qrcode",
   "wechatpay_mobile_web",
@@ -14,7 +15,7 @@ const supportedMethods = new Set<AirwallexPaymentMethodType>([
 
 function requestedMethodLabel(methodType: AirwallexPaymentMethodType): string {
   if (methodType === "wechatpay_qrcode" || methodType === "wechatpay_mobile_web") return "wechat";
-  if (methodType === "alipaycn_mobile_web") return "alipay";
+  if (methodType === "alipaycn_qrcode" || methodType === "alipaycn_mobile_web") return "alipay";
   return "card";
 }
 

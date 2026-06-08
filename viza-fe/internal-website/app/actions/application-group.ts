@@ -54,6 +54,23 @@ export interface TeamCompanionListResult {
   reason?: string;
 }
 
+type CompanionApplicationRow = {
+  id: string;
+  applicant_id: string;
+  status: string | null;
+  submitted_at: string | null;
+  submission_result_status: string | null;
+};
+
+type CompanionProfileRow = {
+  id: string;
+  full_name: string | null;
+  date_of_birth: string | null;
+  nationality: string | null;
+  passport_number: string | null;
+  passport_expiry_date: string | null;
+};
+
 export interface CreateTeamCompanionInput {
   applicationId: string;
   travelerId?: string;
@@ -116,6 +133,12 @@ export interface TeamApplicationContextResult {
 
 const COPY_EXCLUDE_FIELDS = new Set(["photo_path", "photo_status"]);
 
+function isMissingColumnError(message: string, column: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes(column.toLowerCase()) &&
+    (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
+}
+
 function cleanOptional(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -174,7 +197,7 @@ function shouldCopyAnswer(fieldName: string) {
 }
 
 async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdminClient>, applicationId: string, userId: string) {
-  const { data: app } = await adminClient
+  let { data: app, error: appError } = await adminClient
     .from("applications")
     .select(
       "id, applicant_id, group_id, country, visa_type, visa_package_id, status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
@@ -182,17 +205,57 @@ async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdm
     .eq("id", applicationId)
     .maybeSingle();
 
+  if (appError && isMissingColumnError(appError.message, "group_id")) {
+    const fallbackResult = await adminClient
+      .from("applications")
+      .select(
+        "id, applicant_id, country, visa_type, visa_package_id, status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
+      )
+      .eq("id", applicationId)
+      .maybeSingle();
+
+    app = fallbackResult.data ? { ...fallbackResult.data, group_id: null } : null;
+    appError = fallbackResult.error;
+  }
+
+  if (appError) return { error: appError.message } as const;
   if (!app) return { error: "Application not found" } as const;
 
-  const { data: profile } = await adminClient
+  let { data: profile, error: profileError } = await adminClient
     .from("applicant_profiles")
     .select("id, auth_user_id, dependant_of_user_id")
     .eq("id", app.applicant_id)
     .maybeSingle();
 
+  if (profileError && isMissingColumnError(profileError.message, "dependant_of_user_id")) {
+    const fallbackResult = await adminClient
+      .from("applicant_profiles")
+      .select("id, auth_user_id")
+      .eq("id", app.applicant_id)
+      .maybeSingle();
+
+    profile = fallbackResult.data ? { ...fallbackResult.data, dependant_of_user_id: null } : null;
+    profileError = fallbackResult.error;
+  }
+
+  if (profileError) return { error: profileError.message } as const;
   if (!profile) return { error: "Applicant profile not found" } as const;
 
-  if (profile.auth_user_id !== userId && profile.dependant_of_user_id !== userId) {
+  const ownsProfile = profile.auth_user_id === userId || profile.dependant_of_user_id === userId;
+  let ownsGroup = false;
+  if (!ownsProfile && app.group_id) {
+    const { data: group, error: groupError } = await adminClient
+      .from("application_group")
+      .select("id")
+      .eq("id", app.group_id)
+      .eq("payer_user_id", userId)
+      .maybeSingle();
+
+    if (groupError) return { error: groupError.message } as const;
+    ownsGroup = Boolean(group);
+  }
+
+  if (!ownsProfile && !ownsGroup) {
     return { error: "Unauthorized" } as const;
   }
 
@@ -390,21 +453,34 @@ export async function listTeamCompanions(applicationId: string): Promise<TeamCom
   const groupId = resolved.app.group_id as string | null;
   if (!groupId) return { ok: true, groupId: null, companions: [] };
 
-  const { data, error } = await adminClient
+  const { data: applicationRows, error } = await adminClient
     .from("applications")
-    .select(
-      "id, applicant_id, status, submitted_at, submission_result_status, applicant_profiles(full_name, date_of_birth, nationality, passport_number, passport_expiry_date)"
-    )
+    .select("id, applicant_id, status, submitted_at, submission_result_status")
     .eq("group_id", groupId)
     .neq("id", resolved.app.id)
     .order("created_at", { ascending: true });
 
   if (error) return { ok: false, reason: error.message };
 
-  const companions = (data ?? []).map((row) => {
-    const profile = Array.isArray(row.applicant_profiles)
-      ? row.applicant_profiles[0]
-      : row.applicant_profiles;
+  const applications = (applicationRows ?? []) as CompanionApplicationRow[];
+  const applicantIds = applications.map((row) => row.applicant_id).filter(Boolean);
+  const profileById = new Map<string, CompanionProfileRow>();
+
+  if (applicantIds.length > 0) {
+    const { data: profileRows, error: profileListError } = await adminClient
+      .from("applicant_profiles")
+      .select("id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date")
+      .in("id", applicantIds);
+
+    if (profileListError) return { ok: false, reason: profileListError.message };
+
+    for (const profile of (profileRows ?? []) as CompanionProfileRow[]) {
+      profileById.set(profile.id, profile);
+    }
+  }
+
+  const companions = applications.map((row) => {
+    const profile = profileById.get(row.applicant_id);
     return {
       applicationId: row.id as string,
       applicantId: row.applicant_id as string,

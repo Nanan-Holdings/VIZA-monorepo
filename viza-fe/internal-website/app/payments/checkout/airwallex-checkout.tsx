@@ -37,11 +37,23 @@ interface CreateIntentResponse {
   productKind: "monthly" | "pay_per_application" | null;
 }
 
-type PaymentMethodId = "card" | "wechatpay_qrcode" | "alipaycn_mobile_web";
+type PaymentMethodId = "card" | "wechatpay_qrcode" | "alipaycn_qrcode";
 
 interface AirwallexCardElement {
   mount(containerId: string): void;
-  confirm(options: { intent_id: string; client_secret: string }): Promise<unknown>;
+  confirm?: (options: { intent_id: string; client_secret: string }) => Promise<unknown>;
+  createPaymentConsent?: (options: {
+    client_secret: string;
+    currency: string;
+    intent_id?: string;
+    next_triggered_by?: "merchant" | "customer";
+    merchant_trigger_reason?: "scheduled" | "unscheduled";
+    metadata?: Record<string, unknown>;
+  }) => Promise<{
+    customer_id?: string;
+    payment_consent_id?: string;
+    payment_method?: unknown;
+  } | boolean>;
   on(event: "ready" | "success" | "error", handler: (event?: unknown) => void): void;
 }
 
@@ -84,9 +96,9 @@ const methodOptions: Array<{
     icon: MessageCircle,
   },
   {
-    id: "alipaycn_mobile_web",
+    id: "alipaycn_qrcode",
     label: "支付宝",
-    description: "跳转到支付宝沙盒页面确认支付。",
+    description: "生成二维码后使用支付宝扫码支付。",
     icon: WalletCards,
   },
 ];
@@ -102,7 +114,7 @@ function formatCny(amountFen: number): string {
 function normalizePreferredMethod(value: string | null): PaymentMethodId | null {
   if (value === "card") return "card";
   if (value === "wechat" || value === "wechatpay_qrcode") return "wechatpay_qrcode";
-  if (value === "alipay" || value === "alipaycn_mobile_web") return "alipaycn_mobile_web";
+  if (value === "alipay" || value === "alipaycn_qrcode" || value === "alipaycn_mobile_web") return "alipaycn_qrcode";
   return null;
 }
 
@@ -279,7 +291,7 @@ export function AirwallexCheckout({
   }
 
   async function confirmCardPayment() {
-    if (!intent?.clientSecret || !cardElement || !requireAgreement()) return;
+    if (!intent?.clientSecret || !cardElement?.confirm || !requireAgreement()) return;
 
     setConfirmingMethod("card");
     setError(null);
@@ -312,15 +324,15 @@ export function AirwallexCheckout({
       const body = (await response.json()) as { nextAction?: unknown; status?: string; error?: string };
       if (!response.ok) throw new Error(body.error ? safeErrorMessage(body.error) : "确认支付方式失败。");
 
-      const url = findRedirectUrl(body.nextAction);
-      if (url) {
-        window.location.assign(url);
-        return;
-      }
       const qrCode = findQrCodeValue(body.nextAction);
       if (qrCode) {
         setQrCodeValue(qrCode);
         setQrCodeDataUrl(await QRCode.toDataURL(qrCode, { margin: 1, width: 240 }));
+        return;
+      }
+      const url = findRedirectUrl(body.nextAction);
+      if (url) {
+        window.location.assign(url);
         return;
       }
       window.location.assign(`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`);
@@ -484,11 +496,13 @@ export function AirwallexCheckout({
                 <div className="flex min-h-[340px] flex-col items-center justify-center gap-4 text-center">
                   <img
                     src={qrCodeDataUrl}
-                    alt="微信支付二维码"
+                    alt={selectedMethod === "alipaycn_qrcode" ? "支付宝二维码" : "微信支付二维码"}
                     className="h-60 w-60 rounded-lg border bg-white p-3 shadow-sm"
                   />
                   <div>
-                    <p className="text-sm font-semibold text-foreground">请使用微信扫码支付</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {selectedMethod === "alipaycn_qrcode" ? "请使用支付宝扫码支付" : "请使用微信扫码支付"}
+                    </p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       扫码后返回本页或结果页刷新状态，VIZA 会查询最终结果。
                     </p>

@@ -139,7 +139,10 @@ export function TeamStep({
     let mounted = true;
 
     async function load() {
-      if (!applicationId) return;
+      if (!applicationId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const [companionResult, travelerResult] = await Promise.all([
         listTeamCompanions(applicationId),
@@ -150,6 +153,7 @@ export function TeamStep({
 
       if (companionResult.ok) {
         setCompanions(companionResult.companions ?? []);
+        setNotice((current) => (current?.tone === "error" ? null : current));
       } else {
         setNotice({ tone: "error", message: t("loadError") });
       }
