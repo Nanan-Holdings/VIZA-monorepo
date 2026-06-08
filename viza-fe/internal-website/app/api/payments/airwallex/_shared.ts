@@ -1,6 +1,12 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
-import { createPaymentIntent, normalizeAirwallexStatus, retrievePaymentIntent } from "@/lib/airwallex/client";
+import {
+  createPaymentIntent,
+  getAirwallexEnvironment,
+  normalizeAirwallexStatus,
+  retrievePaymentIntent,
+  type AirwallexPaymentAttempt,
+} from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -197,7 +203,16 @@ export async function updateRecordFromAirwallexIntent(
   options: { requestedMethod?: string } = {},
 ) {
   const intent = await retrievePaymentIntent(intentId);
-  const status = normalizeAirwallexStatus(intent.status);
+  const latestAttempt =
+    intent.latest_payment_attempt && typeof intent.latest_payment_attempt === "object"
+      ? (intent.latest_payment_attempt as AirwallexPaymentAttempt)
+      : null;
+  const attemptExpiresAt = latestAttempt?.expires_at ?? null;
+  const attemptExpired =
+    normalizeAirwallexStatus(intent.status) === "pending" &&
+    typeof attemptExpiresAt === "string" &&
+    Date.parse(attemptExpiresAt) <= Date.now();
+  const status = attemptExpired ? "failed" : normalizeAirwallexStatus(intent.status);
   const now = new Date().toISOString();
   const paidAt = status === "paid" ? now : null;
   const failedAt = status === "failed" ? now : null;
@@ -220,6 +235,9 @@ export async function updateRecordFromAirwallexIntent(
       metadata: mergeMetadata(current?.metadata, {
         intent_id: intent.id,
         intent_status: intent.status,
+        latest_attempt_status: latestAttempt?.status ?? null,
+        latest_attempt_expires_at: attemptExpiresAt,
+        expired_at: attemptExpired ? now : null,
         next_action: intent.next_action ?? null,
         ...(options.requestedMethod ? { requested_method: options.requestedMethod } : {}),
       }),
@@ -227,7 +245,13 @@ export async function updateRecordFromAirwallexIntent(
     .eq("id", recordId);
 
   if (error) throw new Error(error.message);
-  return { intent, status, paidAt: paidAt ?? current?.paid_at ?? null };
+  return {
+    intent,
+    status,
+    paidAt: paidAt ?? current?.paid_at ?? null,
+    attemptStatus: latestAttempt?.status ?? null,
+    attemptExpiresAt,
+  };
 }
 
 export async function handleAirwallexPaymentSucceeded(recordId: string, intentId: string): Promise<void> {
@@ -297,6 +321,7 @@ export function safePaymentResponse(record: AirwallexPaymentRecord, intent: Awai
     currency: record.currency,
     status: normalizeAirwallexStatus(intent.status),
     providerStatus: intent.status,
+    environment: getAirwallexEnvironment(),
     productId,
     productName,
     productKind:

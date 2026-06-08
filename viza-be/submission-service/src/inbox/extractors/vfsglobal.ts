@@ -1,4 +1,4 @@
-import type { ExtractorProfile } from "./types.js";
+import type { ExtractorProfile } from "./types";
 
 /**
  * VFS Global account confirmation mails (used by ZA, IT, IN consular
