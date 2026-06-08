@@ -1,6 +1,6 @@
 import { supabase } from "../supabase.js";
 import { artifact } from "../artifact.js";
-import { renderPdf, type PdfLine } from "./simple-pdf.js";
+import { renderPdf, type PdfLine } from "./simple-pdf";
 
 /**
  * Per-jurisdiction paper-channel PDF renderer (DOC-004).

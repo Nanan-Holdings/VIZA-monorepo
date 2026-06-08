@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { supabase } from "./supabase.js";
+import { supabase } from "./supabase";
 
 /**
  * Generic artefact bucket helper (INFRA-006).

@@ -3,7 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
-import { classifyPage, type AuRunnerError } from "./errors.js";
+import { classifyPage, type AuRunnerError } from "./errors";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 

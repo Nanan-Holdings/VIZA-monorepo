@@ -1,4 +1,4 @@
-import type { ExtractorProfile } from "./types.js";
+import type { ExtractorProfile } from "./types";
 
 /**
  * Last-resort fallback when no provider profile claims the sender.

@@ -32,6 +32,7 @@ interface CreateIntentResponse {
   currency: string;
   status: "pending" | "paid" | "failed";
   providerStatus: string;
+  environment?: "demo" | "prod";
   productId: string | null;
   productName: string | null;
   productKind: "monthly" | "pay_per_application" | null;
@@ -74,7 +75,7 @@ interface AirwallexComponentsSdk {
   createElement(
     type: "card",
     options: {
-      intent_id: string;
+      intent_id?: string;
       client_secret: string;
       currency: string;
       style?: Record<string, unknown>;
@@ -207,6 +208,7 @@ export function AirwallexCheckout({
   );
   const isMonthly = billing === "monthly" || intent?.productKind === "monthly";
   const canChooseMethod = !isMonthly || agreementAccepted;
+  const isAirwallexDemo = intent?.environment === "demo";
 
   useEffect(() => {
     setApplePayAvailable(Boolean(window.ApplePaySession?.canMakePayments?.()));
@@ -333,7 +335,12 @@ export function AirwallexCheckout({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ methodType }),
       });
-      const body = (await response.json()) as { nextAction?: unknown; status?: string; error?: string };
+      const body = (await response.json()) as {
+        nextAction?: unknown;
+        status?: string;
+        environment?: "demo" | "prod";
+        error?: string;
+      };
       if (!response.ok) throw new Error(body.error ? safeErrorMessage(body.error) : "确认支付方式失败。");
 
       const qrCode = findQrCodeValue(body.nextAction);
@@ -518,6 +525,12 @@ export function AirwallexCheckout({
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       扫码后返回本页或结果页刷新状态，VIZA 会查询最终结果。
                     </p>
+                    {isAirwallexDemo ? (
+                      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+                        当前连接 Airwallex sandbox，真实支付宝/微信扫码不会完成扣款。生产测试需要切换到
+                        Airwallex prod 密钥并确认对应支付方式已启用。
+                      </p>
+                    ) : null}
                   </div>
                   <Link
                     href={`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`}

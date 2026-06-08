@@ -1,4 +1,4 @@
-import type { ExtractorProfile } from "./types.js";
+import type { ExtractorProfile } from "./types";
 
 /**
  * Vietnam e-Visa confirmation mails from `evisa.xuatnhapcanh.gov.vn`.

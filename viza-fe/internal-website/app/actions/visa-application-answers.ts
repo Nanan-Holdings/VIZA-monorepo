@@ -19,6 +19,12 @@ interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
 const OPTIONAL_PROFILE_COLUMNS = [
   "full_name_zh",
   "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
   "place_of_birth_zh",
   "place_of_birth_en",
   "birth_country",
@@ -177,6 +183,8 @@ export async function saveUniversalProfileWithSharedAnswers(
     const baseProfilePayload = {
       auth_user_id: user.id,
       full_name: cleanOptional(input.profile.full_name),
+      surname: cleanOptional(input.profile.surname),
+      given_names: cleanOptional(input.profile.given_names),
       date_of_birth: cleanOptional(input.profile.date_of_birth),
       place_of_birth: cleanOptional(input.profile.place_of_birth),
       birth_country: cleanOptional(input.profile.birth_country),
@@ -199,6 +207,10 @@ export async function saveUniversalProfileWithSharedAnswers(
     const bilingualProfilePayload = {
       full_name_zh: cleanOptional(input.profile.full_name_zh),
       full_name_en: cleanOptional(input.profile.full_name_en),
+      surname_zh: cleanOptional(input.profile.surname_zh),
+      surname_en: cleanOptional(input.profile.surname_en),
+      given_names_zh: cleanOptional(input.profile.given_names_zh),
+      given_names_en: cleanOptional(input.profile.given_names_en),
       place_of_birth_zh: cleanOptional(input.profile.place_of_birth_zh),
       place_of_birth_en: cleanOptional(input.profile.place_of_birth_en),
       birth_province_or_state_zh: cleanOptional(input.profile.birth_province_or_state_zh),
@@ -226,9 +238,15 @@ export async function saveUniversalProfileWithSharedAnswers(
         birth_country: _birthCountry,
         birth_province_or_state: _birthProvinceOrState,
         birth_city: _birthCity,
+        surname: _surname,
+        given_names: _givenNames,
         ...legacyBaseProfilePayload
       } = baseProfilePayload;
       const {
+        surname_zh: _surnameZh,
+        surname_en: _surnameEn,
+        given_names_zh: _givenNamesZh,
+        given_names_en: _givenNamesEn,
         birth_province_or_state_zh: _birthProvinceOrStateZh,
         birth_province_or_state_en: _birthProvinceOrStateEn,
         birth_city_zh: _birthCityZh,

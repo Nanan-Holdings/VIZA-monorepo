@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { supabase } from "../supabase.js";
-import { resolveEgressCountry } from "./country-overrides.js";
+import { resolveEgressCountry } from "./country-overrides";
 
 /**
  * Bright Data residential proxy session helper (INFRA-004).

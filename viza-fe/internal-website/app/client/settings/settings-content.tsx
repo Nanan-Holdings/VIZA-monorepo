@@ -129,7 +129,7 @@ interface AirwallexComponentsSdk {
   createElement(
     type: "card",
     options: {
-      intent_id: string;
+      intent_id?: string;
       client_secret: string;
       currency: string;
       style?: Record<string, unknown>;

@@ -3,8 +3,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
-import { classifyPage, type LaRunnerError } from "./errors.js";
-import { LA_SELECTORS } from "./selectors.js";
+import { classifyPage, type LaRunnerError } from "./errors";
+import { LA_SELECTORS } from "./selectors";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 

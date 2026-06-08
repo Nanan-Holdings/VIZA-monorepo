@@ -26,6 +26,13 @@ export interface AirwallexPaymentIntent {
   latest_payment_attempt?: unknown;
 }
 
+export interface AirwallexPaymentAttempt {
+  id?: string;
+  status?: string;
+  expires_at?: string;
+  captured_amount?: number;
+}
+
 export interface AirwallexCustomer {
   id: string;
   client_secret?: string;
