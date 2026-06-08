@@ -46,11 +46,19 @@ function decodeQuotedPrintable(input: string): string {
 
 /** Pull the @ALIAS_DOMAIN recipient out of the preserved header block. */
 function aliasFromHeaders(headerBlock: string): string | null {
-  // Prefer Delivered-To / X-Forwarded-To / To / Cc lines, but a raw scan of
-  // the header block is the robust fallback — Cloudflare keeps the original
-  // recipient somewhere in the chain even after forwarding.
-  const match = ALIAS_RE.exec(headerBlock);
-  return match ? match[1].toLowerCase() : null;
+  // Only scan RECIPIENT header lines. Cloudflare SRS-rewrites the *sender* to
+  // <local>@haggstorm.com to pass SPF, so a naive whole-block scan would grab
+  // the rewritten From instead of the real applicant alias. The recipient is
+  // preserved in Delivered-To / X-Forwarded-To / To / Cc.
+  const RECIPIENT_LINE = /^(delivered-to|x-forwarded-to|to|cc):/i;
+  // Unfold folded header lines (continuation lines start with whitespace).
+  const lines = headerBlock.replace(/\r?\n[ \t]+/g, " ").split(/\r?\n/);
+  for (const line of lines) {
+    if (!RECIPIENT_LINE.test(line)) continue;
+    const match = ALIAS_RE.exec(line);
+    if (match) return match[1].toLowerCase();
+  }
+  return null;
 }
 
 /** Split a downloaded TEXT body into decoded text/html alternatives. */
@@ -83,6 +91,14 @@ async function alreadyIngested(messageId: string | null): Promise<boolean> {
  * One ingest pass: scan messages received since `sinceMs` ago, write any
  * addressed to an alias that we have not already stored.
  */
+// Forwarded mail frequently lands in Spam, so scan it too by default. A Gmail
+// filter that never-spams the alias domain is the production complement, but
+// the worker must not depend on that being configured.
+const MAILBOXES = (process.env.INBOX_MAILBOXES ?? "INBOX,[Gmail]/Spam")
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
+
 export async function ingestOnce(sinceMs = 24 * 60 * 60 * 1000): Promise<IngestResult> {
   const config = imapConfigFromEnv();
   const client = new ImapFlow({
@@ -96,7 +112,9 @@ export async function ingestOnce(sinceMs = 24 * 60 * 60 * 1000): Promise<IngestR
 
   await client.connect();
   try {
-    const lock = await client.getMailboxLock("INBOX");
+    for (const mailbox of MAILBOXES) {
+    const lock = await client.getMailboxLock(mailbox).catch(() => null);
+    if (!lock) continue;
     try {
       const since = new Date(Date.now() - sinceMs);
       const search = await client.search({ since }, { uid: true });
@@ -153,6 +171,7 @@ export async function ingestOnce(sinceMs = 24 * 60 * 60 * 1000): Promise<IngestR
       }
     } finally {
       lock.release();
+    }
     }
   } finally {
     await client.logout().catch(() => { /* best effort */ });
