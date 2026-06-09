@@ -158,6 +158,19 @@ export async function launchStealthBrowser(
 ): Promise<StealthBrowserHandles> {
   const hardening = options.hardening ?? "default";
 
+  // Anti-bot portals (VFS/Akamai, UKVI multi-step, Vietnam SPA) defeat plain
+  // residential proxy + stealth. When a Bright Data Scraping Browser CDP
+  // endpoint is configured, connect to it instead — it solves fingerprinting,
+  // CAPTCHA, and retries server-side. The endpoint already carries its own
+  // proxy + geo, so the BRIGHTDATA_PROXY_* launch args are not applied here.
+  const cdpWs = process.env.BRIGHTDATA_BROWSER_WS;
+  if (cdpWs) {
+    const browser = await playwrightChromium.connectOverCDP(cdpWs);
+    const context = browser.contexts()[0] ?? (await browser.newContext());
+    const page = context.pages()[0] ?? (await context.newPage());
+    return { browser, context, page };
+  }
+
   const launchOpts: Parameters<typeof playwrightChromium.launch>[0] = {
     headless: options.headless ?? true,
   };
