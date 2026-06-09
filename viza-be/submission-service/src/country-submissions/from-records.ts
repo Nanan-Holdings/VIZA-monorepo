@@ -15,6 +15,13 @@ function firstAnswer(
   return null;
 }
 
+function firstValue(values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (value?.trim()) return value.trim();
+  }
+  return null;
+}
+
 export function buildCountrySubmissionApplication(
   profile: ApplicantProfile,
   application: Application,
@@ -47,18 +54,69 @@ export function buildCountrySubmissionApplication(
       ]),
     },
     trip: {
-      destinationCountry: application.country,
+      destinationCountry: firstValue([
+        firstAnswer(answers, [
+          "destination_country",
+          "destination_country_schengen",
+          "member_state_main_destination",
+          "member_state_destination",
+        ]),
+        application.country,
+      ]) ?? application.country,
       destinationCity: firstAnswer(answers, [
         "destination_city",
         "city_of_stay",
         "uk_destination_city",
         "arrival_city",
+        "accommodation_city",
       ]) ?? application.port_of_entry,
-      arrivalDate: application.arrival_date,
-      departureDate: application.departure_date,
-      purpose: application.purpose,
-      accommodationName: application.accommodation_name,
-      accommodationAddress: application.accommodation_address,
+      arrivalDate: firstValue([
+        application.arrival_date,
+        firstAnswer(answers, [
+          "intended_arrival_date",
+          "arrival_date",
+          "planned_arrival_date",
+          "trip_start_date",
+        ]),
+      ]),
+      departureDate: firstValue([
+        application.departure_date,
+        firstAnswer(answers, [
+          "intended_departure_date",
+          "departure_date",
+          "planned_departure_date",
+          "trip_end_date",
+        ]),
+      ]),
+      purpose: firstValue([
+        application.purpose,
+        firstAnswer(answers, [
+          "purpose_of_journey",
+          "main_purpose_of_journey",
+          "purpose_of_stay",
+          "purpose_of_visit",
+        ]),
+      ]),
+      accommodationName: firstValue([
+        application.accommodation_name,
+        firstAnswer(answers, [
+          "accommodation_name",
+          "hotel_name",
+          "hotel_or_accommodation_name",
+          "host_name",
+          "business_company_name",
+        ]),
+      ]),
+      accommodationAddress: firstValue([
+        application.accommodation_address,
+        firstAnswer(answers, [
+          "accommodation_address_line_1",
+          "accommodation_address",
+          "hotel_address",
+          "host_address",
+          "business_company_address_line_1",
+        ]),
+      ]),
       funding: firstAnswer(answers, ["funding", "trip_funding", "funding_source"]),
       budget: firstAnswer(answers, ["travel_budget", "budget", "intended_expenses_usd"]),
     },

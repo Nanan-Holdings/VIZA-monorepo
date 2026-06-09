@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useLocale } from "next-intl";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
+import { normalizeBirthplace } from "@/lib/birthplace-options";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,12 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
   const compactNativeFullName = nativeFullName?.replace(/\s+/g, "") ?? "";
   const nativeSurname = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(0, 1) : null;
   const nativeGivenNames = /^[\u3400-\u9fff]{2,}$/.test(compactNativeFullName) ? compactNativeFullName.slice(1) : null;
+  const placeOfBirthValue = proposalValue(fields.placeOfBirth);
+  const normalizedBirthplace = normalizeBirthplace({
+    placeOfBirth: placeOfBirthValue,
+    country: placeOfBirthValue ? proposalValue(fields.nationality) : null,
+    nationality: placeOfBirthValue ? proposalValue(fields.nationality) : null,
+  });
 
   return {
     full_name: fullName ?? nativeFullName,
@@ -103,7 +110,16 @@ function buildProfileFields(payload: PassportOcrResponse): UniversalProfileSnaps
     given_names_zh: nativeGivenNames,
     given_names_en: givenNames,
     date_of_birth: proposalValue(fields.dateOfBirth),
-    place_of_birth: proposalValue(fields.placeOfBirth),
+    place_of_birth: placeOfBirthValue ? normalizedBirthplace.placeOfBirthEn || placeOfBirthValue : null,
+    place_of_birth_zh: normalizedBirthplace.placeOfBirthZh,
+    place_of_birth_en: normalizedBirthplace.placeOfBirthEn,
+    birth_country: normalizedBirthplace.country?.en ?? null,
+    birth_province_or_state: normalizedBirthplace.province.en || normalizedBirthplace.province.zh,
+    birth_province_or_state_zh: normalizedBirthplace.province.zh,
+    birth_province_or_state_en: normalizedBirthplace.province.en,
+    birth_city: normalizedBirthplace.city.en || normalizedBirthplace.city.zh,
+    birth_city_zh: normalizedBirthplace.city.zh,
+    birth_city_en: normalizedBirthplace.city.en,
     gender: proposalValue(fields.gender),
     nationality: proposalValue(fields.nationality),
     passport_number: proposalValue(fields.passportNumber),

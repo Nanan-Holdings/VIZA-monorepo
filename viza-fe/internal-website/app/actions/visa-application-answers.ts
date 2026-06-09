@@ -111,7 +111,7 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
     const result = await adminClient
       .from("applicant_profiles")
       .upsert(nextPayload, { onConflict: "auth_user_id" })
-      .select("id, auth_user_id")
+      .select("*")
       .single();
 
     if (!result.error) return result;
@@ -126,7 +126,7 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
   return adminClient
     .from("applicant_profiles")
     .upsert(nextPayload, { onConflict: "auth_user_id" })
-    .select("id, auth_user_id")
+    .select("*")
     .single();
 }
 
@@ -211,7 +211,7 @@ export async function saveUniversalProfileWithSharedAnswers(
     visaType?: string;
     preferExplicit?: boolean;
   },
-): Promise<{ applicationId?: string; answerCount?: number; error?: string }> {
+): Promise<{ applicationId?: string; answerCount?: number; profile?: UniversalProfileSnapshot; error?: string }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -298,7 +298,7 @@ export async function saveUniversalProfileWithSharedAnswers(
       applicationId = ensured.applicationId;
     }
 
-    return { applicationId, answerCount: 0 };
+    return { applicationId, answerCount: 0, profile: savedProfile as UniversalProfileSnapshot };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save profile" };
   }

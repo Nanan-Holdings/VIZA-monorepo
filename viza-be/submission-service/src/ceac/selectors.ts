@@ -110,9 +110,8 @@ export const CEAC_GATE_MARKERS = {
     /attention required/i,
   ] as readonly RegExp[],
   /**
-   * Solvable CAPTCHA selectors — the CEAC start-page image CAPTCHA.
-   * These are NOT treated as blocking gates; the worker solves them via
-   * 2captcha (see start-page-captcha.ts).
+   * Start-page CAPTCHA selectors. Live assisted DS-160 treats these as human
+   * checkpoints; do not route them to CAPTCHA-solving APIs.
    */
   solvableCaptchaSelectors: [
     'img[id*="Captcha"]',

@@ -1,6 +1,7 @@
 export interface SubmissionQueueItem {
   id: string;
   application_id: string;
+  user_id?: string | null;
   status:
     | "pending"
     | "processing"
@@ -32,7 +33,18 @@ export interface SubmissionQueueItem {
     | "au_prefill_failed"
     | "au_blocked";
   attempts: number;
+  mode?: "dry_run" | "live_assisted" | string | null;
+  provider?: string | null;
   last_error: string | null;
+  official_application_id_encrypted?: string | null;
+  official_confirmation_number_encrypted?: string | null;
+  official_security_question_encrypted?: string | null;
+  official_security_answer_encrypted?: string | null;
+  official_location?: string | null;
+  review_diff_status?: "not_run" | "passed" | "failed" | string | null;
+  final_user_confirmation_at?: string | null;
+  final_user_confirmation_ip_hash?: string | null;
+  final_user_confirmation_user_agent_hash?: string | null;
   /** Structured CEAC run result payload (JSON). Stores handoff_ready, failed,
    *  or blocked outcome metadata for operator diagnostics. */
   ceac_result_payload: Record<string, unknown> | null;

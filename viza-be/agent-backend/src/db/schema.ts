@@ -243,10 +243,22 @@ export const auAccounts = pgTable("au_accounts", {
 export const submissionQueue = pgTable("submission_queue", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
 	status: text("status").default("pending").notNull(),
+	mode: text("mode").default("dry_run"),
+	provider: text("provider"),
 	attempts: integer("attempts").default(0).notNull(),
 	lastError: text("last_error"),
 	pausedReason: text("paused_reason"),
+	officialApplicationIdEncrypted: text("official_application_id_encrypted"),
+	officialConfirmationNumberEncrypted: text("official_confirmation_number_encrypted"),
+	officialSecurityQuestionEncrypted: text("official_security_question_encrypted"),
+	officialSecurityAnswerEncrypted: text("official_security_answer_encrypted"),
+	officialLocation: text("official_location"),
+	reviewDiffStatus: text("review_diff_status").default("not_run"),
+	finalUserConfirmationAt: timestamp("final_user_confirmation_at", { withTimezone: true }),
+	finalUserConfirmationIpHash: text("final_user_confirmation_ip_hash"),
+	finalUserConfirmationUserAgentHash: text("final_user_confirmation_user_agent_hash"),
 	ceacResultPayload: jsonb("ceac_result_payload"),
 	fvResultPayload: jsonb("fv_result_payload"),
 	fvApplicationReference: text("fv_application_reference"),
@@ -259,6 +271,92 @@ export const submissionQueue = pgTable("submission_queue", {
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+export const ds160SubmissionJobs = pgTable("ds160_submission_jobs", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	countryCode: text("country_code").notNull().default("US"),
+	visaType: text("visa_type").notNull().default("DS160"),
+	mode: text("mode").notNull().default("dry_run"),
+	provider: text("provider").notNull().default("ceac_dry_run"),
+	status: text("status").notNull().default("pending"),
+	officialApplicationIdEncrypted: text("official_application_id_encrypted"),
+	officialConfirmationNumberEncrypted: text("official_confirmation_number_encrypted"),
+	officialSecurityQuestionEncrypted: text("official_security_question_encrypted"),
+	officialSecurityAnswerEncrypted: text("official_security_answer_encrypted"),
+	officialLocation: text("official_location"),
+	officialStartedAt: timestamp("official_started_at", { withTimezone: true }),
+	officialSubmittedAt: timestamp("official_submitted_at", { withTimezone: true }),
+	officialConfirmationPageUrl: text("official_confirmation_page_url"),
+	confirmationPdfUrl: text("confirmation_pdf_url"),
+	confirmationScreenshotUrl: text("confirmation_screenshot_url"),
+	reviewDiffStatus: text("review_diff_status").notNull().default("not_run"),
+	finalUserConfirmationAt: timestamp("final_user_confirmation_at", { withTimezone: true }),
+	finalUserConfirmationIpHash: text("final_user_confirmation_ip_hash"),
+	finalUserConfirmationUserAgentHash: text("final_user_confirmation_user_agent_hash"),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	applicationIdx: index("ds160_submission_jobs_application_idx").on(table.applicationId),
+	userIdx: index("ds160_submission_jobs_user_idx").on(table.userId),
+	statusIdx: index("ds160_submission_jobs_status_idx").on(table.status),
+	modeIdx: index("ds160_submission_jobs_mode_idx").on(table.mode),
+}));
+
+export const ds160OfficialReviewSnapshots = pgTable("ds160_official_review_snapshots", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	source: text("source").notNull(),
+	redactedSnapshotJson: jsonb("redacted_snapshot_json").notNull().default({}),
+	snapshotHash: text("snapshot_hash").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	jobIdx: index("ds160_review_snapshots_job_idx").on(table.jobId),
+	applicationIdx: index("ds160_review_snapshots_application_idx").on(table.applicationId),
+	sourceIdx: index("ds160_review_snapshots_source_idx").on(table.source),
+}));
+
+export const ds160ReviewDiffs = pgTable("ds160_review_diffs", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	applicationId: uuid("application_id").notNull(),
+	fieldId: text("field_id").notNull(),
+	vizaValueRedacted: text("viza_value_redacted"),
+	ceacValueRedacted: text("ceac_value_redacted"),
+	diffType: text("diff_type").notNull(),
+	severity: text("severity").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	jobIdx: index("ds160_review_diffs_job_idx").on(table.jobId),
+	applicationIdx: index("ds160_review_diffs_application_idx").on(table.applicationId),
+	fieldIdx: index("ds160_review_diffs_field_idx").on(table.fieldId),
+	severityIdx: index("ds160_review_diffs_severity_idx").on(table.severity),
+}));
+
+export const ds160LiveManualActions = pgTable("ds160_live_manual_actions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	actionType: text("action_type").notNull(),
+	status: text("status").notNull().default("pending"),
+	instruction: text("instruction"),
+	screenshotUrl: text("screenshot_url"),
+	redactedMetadataJson: jsonb("redacted_metadata_json").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+}, (table) => ({
+	jobIdx: index("ds160_live_manual_actions_job_idx").on(table.jobId),
+	applicationIdx: index("ds160_live_manual_actions_application_idx").on(table.applicationId),
+	statusIdx: index("ds160_live_manual_actions_status_idx").on(table.status),
+	typeIdx: index("ds160_live_manual_actions_type_idx").on(table.actionType),
+}));
 
 // =============================================================================
 // VISA CHAT SESSIONS

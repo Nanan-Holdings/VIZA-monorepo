@@ -87,6 +87,8 @@ export {
   ValidationFailedError,
   SessionBootstrapError,
   GateDetectedError,
+  ManualActionRequiredError,
+  isManualActionRequiredError,
   serializeError,
   type CeacErrorCode,
   type CeacErrorContext,

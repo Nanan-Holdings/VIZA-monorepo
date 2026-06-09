@@ -817,7 +817,11 @@ export function findDropdownDestinationContract(
     DROPDOWN_DESTINATION_CONTRACTS.find((destination) =>
       destination.aliases.some((alias) => {
         const aliasKey = normalizeDestinationContractKey(alias);
-        return aliasKey && (normalized.includes(aliasKey) || aliasKey.includes(normalized));
+        if (!aliasKey) return false;
+        if (/^[a-z0-9]+$/.test(aliasKey) && aliasKey.length <= 3) {
+          return normalized === aliasKey;
+        }
+        return normalized.includes(aliasKey) || aliasKey.includes(normalized);
       })
     ) ??
     null

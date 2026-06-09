@@ -81,38 +81,101 @@ export type DestinationTripHints = {
   preferences: string[];
 };
 
+export type TravelIntentKind =
+  | "plan_trip"
+  | "choose_destination"
+  | "edit_itinerary"
+  | "ask_question"
+  | "unknown";
+
+export type DestinationResolutionMethod =
+  | "exact_local"
+  | "alias_match"
+  | "localized_name_match"
+  | "fuzzy_match"
+  | "typo_alias_correction"
+  | "raw_extraction"
+  | "ambiguous"
+  | "unresolved";
+
+export type TravelIntentDuration = {
+  minDays: number;
+  maxDays: number;
+  raw: string;
+};
+
+export type TravelIntentDestinationCandidate = {
+  raw: string;
+  normalized: string;
+  canonicalName: string | null;
+  nameZh: string | null;
+  countryCode: string | null;
+  confidence: number;
+  resolutionMethod: DestinationResolutionMethod;
+};
+
+export type TravelIntentParseResult = {
+  intent: TravelIntentKind;
+  normalizedInput: string;
+  destinations: TravelIntentDestinationCandidate[];
+  duration: TravelIntentDuration | null;
+  dates: null;
+  travelers: null;
+  budget: null;
+  preferences: string[];
+  needsClarification: boolean;
+  clarificationQuestion: string | null;
+};
+
+export type TravelDestinationPipelineDebug = {
+  rawInput: string;
+  normalizedInput: string;
+  detectedIntent: TravelIntentKind;
+  extractedDestinations: TravelIntentDestinationCandidate[];
+  canonicalizedDestinations: TravelIntentDestinationCandidate[];
+  resolverResult: string;
+  localDb: "not_checked" | "local_index_hit" | "local_index_miss";
+  geocodeApi: "not_checked" | "not_available_in_sync_resolver";
+  fallbackReason: string | null;
+  cardSourceStatus: TravelCardSourceStatus | "none" | "temporary_resolver";
+};
+
+type DestinationResolutionDebug = {
+  debugTrace?: TravelDestinationPipelineDebug;
+};
+
 export type DestinationResolution =
-  | {
+  | (DestinationResolutionDebug & {
       status: "resolved";
       query: string;
       destinations: TravelDestinationSearchResult[];
       confidenceScore: number;
       tripHints: DestinationTripHints;
       cards: LazyTravelDestinationCard[];
-    }
-  | {
+    })
+  | (DestinationResolutionDebug & {
       status: "ambiguous";
       query: string;
       clarificationQuestion: string;
       options: TravelDestinationSearchResult[];
       tripHints: DestinationTripHints;
       cards: [];
-    }
-  | {
+    })
+  | (DestinationResolutionDebug & {
       status: "temporary";
       query: string;
       destination: TravelDestinationSearchResult;
       confidenceScore: number;
       tripHints: DestinationTripHints;
       cards: LazyTravelDestinationCard[];
-    }
-  | {
+    })
+  | (DestinationResolutionDebug & {
       status: "unresolved";
       query: string;
       message: string;
       tripHints: DestinationTripHints;
       cards: [];
-    };
+    });
 
 type LocalDestination = TravelDestinationSearchResult & {
   aliases: string[];
@@ -357,6 +420,62 @@ const LOCAL_DESTINATIONS: LocalDestination[] = [
     imageKey: "beijing",
   },
   {
+    id: "local-changsha",
+    canonicalName: "Changsha",
+    displayName: "Changsha",
+    normalizedName: "changsha",
+    nameEn: "Changsha",
+    nameZh: "长沙",
+    countryCode: "CN",
+    countryName: "China",
+    countryNameEn: "China",
+    countryNameZh: "中国",
+    region: "Hunan",
+    city: "Changsha",
+    placeType: "city",
+    latitude: 28.2282,
+    longitude: 112.9388,
+    popularityScore: 87,
+    source: "curated_fallback",
+    confidenceScore: 0.97,
+    isVerified: true,
+    aliases: ["changsha", "长沙", "长沙市", "hunan changsha", "湖南长沙"],
+    imageKey: "changsha",
+    dataQuality: "incomplete",
+    sourceStatus: "local_cached",
+    completenessScore: 45,
+    attractionCount: 0,
+    missingFields: ["cover_image", "attractions", "attraction_images"],
+  },
+  {
+    id: "local-changchun",
+    canonicalName: "Changchun",
+    displayName: "Changchun",
+    normalizedName: "changchun",
+    nameEn: "Changchun",
+    nameZh: "长春",
+    countryCode: "CN",
+    countryName: "China",
+    countryNameEn: "China",
+    countryNameZh: "中国",
+    region: "Jilin",
+    city: "Changchun",
+    placeType: "city",
+    latitude: 43.8171,
+    longitude: 125.3235,
+    popularityScore: 70,
+    source: "curated_fallback",
+    confidenceScore: 0.92,
+    isVerified: true,
+    aliases: ["changchun", "长春", "长春市"],
+    imageKey: "changchun",
+    dataQuality: "incomplete",
+    sourceStatus: "local_cached",
+    completenessScore: 40,
+    attractionCount: 0,
+    missingFields: ["cover_image", "attractions", "attraction_images"],
+  },
+  {
     id: "local-san-francisco",
     canonicalName: "San Francisco",
     displayName: "San Francisco",
@@ -513,6 +632,34 @@ const LOCAL_DESTINATIONS: LocalDestination[] = [
     isVerified: true,
     aliases: ["nara", "奈良"],
     imageKey: "nara",
+  },
+  {
+    id: "local-nagasaki",
+    canonicalName: "Nagasaki",
+    displayName: "Nagasaki",
+    normalizedName: "nagasaki",
+    nameEn: "Nagasaki",
+    nameZh: "长崎",
+    countryCode: "JP",
+    countryName: "Japan",
+    countryNameEn: "Japan",
+    countryNameZh: "日本",
+    region: "Nagasaki",
+    city: "Nagasaki",
+    placeType: "city",
+    latitude: 32.7503,
+    longitude: 129.8777,
+    popularityScore: 71,
+    source: "curated_fallback",
+    confidenceScore: 0.92,
+    isVerified: true,
+    aliases: ["nagasaki", "长崎", "長崎"],
+    imageKey: "nagasaki",
+    dataQuality: "incomplete",
+    sourceStatus: "local_cached",
+    completenessScore: 40,
+    attractionCount: 0,
+    missingFields: ["cover_image", "attractions", "attraction_images"],
   },
   {
     id: "local-macau",
@@ -962,17 +1109,26 @@ const STOP_WORDS = new Set([
   "weekend",
   "please",
   "帮我",
+  "帮",
   "计划",
+  "规划",
   "旅行",
+  "旅游",
   "路线",
+  "行程",
   "天",
   "做一个",
+  "怎么玩",
 ]);
 
 const RAW_PROMPT_DESTINATION_PATTERNS = [
   /^我想去(.+)$/,
+  /^我想要去(.+)$/,
+  /^我想要区(.+)$/,
+  /^我想要(.+)$/,
   /^想去(.+)$/,
   /^我要去(.+)$/,
+  /^我要区(.+)$/,
   /^我想去(.+)旅行$/,
   /^想去(.+)旅行$/,
   /^i want to (?:visit|go to|travel to) (.+)$/i,
@@ -987,6 +1143,37 @@ const UNDECIDED_DESTINATION_PATTERNS = [
   /do not know where to go/i,
   /don't know where to go/i,
 ];
+
+const EDIT_INTENT_PATTERNS = [
+  /(删除|删掉|移除|去掉|重排|调整|修改|换到|改成|刷新|重做|重新安排|第二天|第[一二三四五六七八九十\d]+天)/,
+  /\b(delete|remove|reorder|refresh|change|edit|revise|move|replace)\b/i,
+];
+
+const NON_DESTINATION_QUESTION_PATTERNS = [
+  /(签证|申根|保险|护照|材料|准备什么|需要买吗|可以带|安全吗|退改|报销)/,
+  /\b(visa|insurance|passport|document|documents|refund|question)\b/i,
+];
+
+const DESTINATION_CONTEXT_PATTERNS = [
+  /(想去|我要去|我想要去|我想要区|计划|规划|旅行|旅游|路线|行程|怎么玩|目的地|周末游)/,
+  /\b(plan|trip|travel|visit|go to|destination|itinerary|weekend)\b/i,
+];
+
+const DESTINATION_PREFIX_PATTERNS = [
+  /^(?:我想要去|我想要区|我想去|我要去|我要区|想去|去|想要去|想要区|想要|我要|我想要)\s*/u,
+  /^(?:请)?帮我(?:做|规划|计划)?(?:一个)?\s*/u,
+  /^(?:做|规划|计划)(?:一个)?\s*/u,
+  /^(?:i want to|i would like to|i'd like to|help me|please)?\s*(?:plan(?: a)?(?: trip)?(?: to)?|visit|go to|travel to)\s*/i,
+];
+
+const DESTINATION_SUFFIX_PATTERNS = [
+  /(?:旅行计划|旅游计划|旅行路线|旅游路线|行程规划|旅行|旅游|路线|行程|攻略|怎么玩|玩|周末游)$/u,
+  /\b(?:travel plan|trip plan|itinerary|travel|trip|city)$/i,
+];
+
+const SHORT_AMBIGUOUS_DESTINATION_IDS: Record<string, string[]> = {
+  长: ["local-changsha", "local-changchun", "local-nagasaki"],
+};
 
 function toNumber(value: string | number | null | undefined): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -1010,14 +1197,396 @@ export function normalizeDestinationText(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+function parseChineseNumber(value: string): number | null {
+  const digits: Record<string, number> = {
+    零: 0,
+    一: 1,
+    二: 2,
+    两: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+  };
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized === "十") return 10;
+  if (!normalized.includes("十")) {
+    return normalized.split("").reduce((total, char) => {
+      const digit = digits[char];
+      return typeof digit === "number" ? total * 10 + digit : Number.NaN;
+    }, 0);
+  }
+
+  const [tensText, onesText] = normalized.split("十");
+  const tens = tensText ? digits[tensText] : 1;
+  const ones = onesText ? digits[onesText] : 0;
+  if (typeof tens !== "number" || typeof ones !== "number") return null;
+  return tens * 10 + ones;
+}
+
+function unitMultiplier(unit: string): number {
+  return /week|周|星期/i.test(unit) ? 7 : 1;
+}
+
+function isOrdinalDurationMatch(value: string, index: number | undefined): boolean {
+  if (typeof index !== "number" || index <= 0) return false;
+  return value[index - 1] === "第";
+}
+
+export function extractTravelDuration(value: string): TravelIntentDuration | null {
+  const raw = value.trim();
+  const digitRange = raw.match(
+    /(\d{1,2})\s*(?:-|~|至|到|—|–)\s*(\d{1,2})\s*(天|日|days?|weeks?|周|星期)/i
+  );
+  if (digitRange && !isOrdinalDurationMatch(raw, digitRange.index)) {
+    const multiplier = unitMultiplier(digitRange[3] ?? "");
+    const left = Number.parseInt(digitRange[1] ?? "", 10) * multiplier;
+    const right = Number.parseInt(digitRange[2] ?? "", 10) * multiplier;
+    if (Number.isFinite(left) && Number.isFinite(right)) {
+      return {
+        minDays: Math.min(left, right),
+        maxDays: Math.max(left, right),
+        raw: digitRange[0],
+      };
+    }
+  }
+
+  const chineseRange = raw.match(
+    /([一二两三四五六七八九十]{1,3})\s*(?:-|~|至|到|—|–)\s*([一二两三四五六七八九十]{1,3})\s*(天|日|周|星期)/
+  );
+  if (chineseRange && !isOrdinalDurationMatch(raw, chineseRange.index)) {
+    const multiplier = unitMultiplier(chineseRange[3] ?? "");
+    const left = parseChineseNumber(chineseRange[1] ?? "");
+    const right = parseChineseNumber(chineseRange[2] ?? "");
+    if (left && right) {
+      return {
+        minDays: Math.min(left * multiplier, right * multiplier),
+        maxDays: Math.max(left * multiplier, right * multiplier),
+        raw: chineseRange[0],
+      };
+    }
+  }
+
+  const digitSingle = raw.match(/(\d{1,2})\s*(天|日|days?|weeks?|周|星期)/i);
+  if (digitSingle && !isOrdinalDurationMatch(raw, digitSingle.index)) {
+    const days = Number.parseInt(digitSingle[1] ?? "", 10) * unitMultiplier(digitSingle[2] ?? "");
+    if (Number.isFinite(days) && days > 0) {
+      return { minDays: days, maxDays: days, raw: digitSingle[0] };
+    }
+  }
+
+  const chineseSingle = raw.match(/([一二两三四五六七八九十]{1,3})\s*(天|日|周|星期)/);
+  if (chineseSingle && !isOrdinalDurationMatch(raw, chineseSingle.index)) {
+    const parsed = parseChineseNumber(chineseSingle[1] ?? "");
+    if (parsed) {
+      const days = parsed * unitMultiplier(chineseSingle[2] ?? "");
+      return { minDays: days, maxDays: days, raw: chineseSingle[0] };
+    }
+  }
+
+  if (/weekend|周末/i.test(raw)) {
+    const match = raw.match(/weekend|周末/i);
+    return { minDays: 2, maxDays: 2, raw: match?.[0] ?? "weekend" };
+  }
+
+  return null;
+}
+
+function removeDurationText(value: string): string {
+  return value
+    .replace(/\d{1,2}\s*(?:-|~|至|到|—|–)\s*\d{1,2}\s*(?:天|日|days?|weeks?|周|星期)/gi, " ")
+    .replace(/[一二两三四五六七八九十]{1,3}\s*(?:-|~|至|到|—|–)\s*[一二两三四五六七八九十]{1,3}\s*(?:天|日|周|星期)/g, " ")
+    .replace(/\d{1,2}\s*(?:天|日|days?|weeks?|周|星期)/gi, " ")
+    .replace(/[一二两三四五六七八九十]{1,3}\s*(?:天|日|周|星期)/g, " ")
+    .replace(/weekend|周末/gi, " ");
+}
+
+export function normalizeUserUtterance(value: string): string {
+  return value
+    .trim()
+    .replace(/[。.!！?？]+$/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/我想要区(?=[\u3400-\u9fffA-Za-z])/gu, "我想要去")
+    .replace(/我要区(?=[\u3400-\u9fffA-Za-z])/gu, "我要去")
+    .replace(/想区(?=[\u3400-\u9fffA-Za-z])/gu, "想去")
+    .trim();
+}
+
+export function normalizeDestinationCandidate(
+  raw: string,
+  locale: "zh" | "en" | string = "zh"
+): {
+  raw: string;
+  normalized: string;
+  confidence: number;
+  resolutionMethod: DestinationResolutionMethod;
+} {
+  const original = raw.trim();
+  let candidate = normalizeUserUtterance(original);
+  let method: DestinationResolutionMethod = "raw_extraction";
+  let confidence = /[A-Za-z\u3400-\u9fff]/.test(candidate) ? 0.68 : 0.2;
+
+  candidate = removeDurationText(candidate)
+    .replace(/[，,；;].*$/u, " ")
+    .replace(/\bfor\s*$/i, " ")
+    .trim();
+
+  let changed = true;
+  while (changed) {
+    const before = candidate;
+    for (const pattern of DESTINATION_PREFIX_PATTERNS) {
+      candidate = candidate.replace(pattern, "").trim();
+    }
+    changed = before !== candidate;
+  }
+
+  if (/^区(?=[\u3400-\u9fff]{2,})/u.test(candidate)) {
+    candidate = candidate.replace(/^区/u, "").trim();
+    method = "typo_alias_correction";
+    confidence = 0.92;
+  }
+
+  for (const pattern of DESTINATION_SUFFIX_PATTERNS) {
+    candidate = candidate.replace(pattern, "").trim();
+  }
+
+  candidate = candidate
+    .replace(/^(?:中国|日本|美国|英国|法国|韩国|泰国|新加坡)\s*(?=[\u3400-\u9fff]{2,})/u, (match) =>
+      locale === "zh" && match.length <= 2 ? match : ""
+    )
+    .replace(/\s+(?:city)$/i, "")
+    .replace(/市$/u, "")
+    .replace(/^[去到]\s*/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const compact = normalizeDestinationText(candidate);
+  return {
+    raw: original,
+    normalized: compact,
+    confidence: compact ? confidence : 0,
+    resolutionMethod: method,
+  };
+}
+
+function classifyTravelIntent(value: string): TravelIntentKind {
+  const normalized = normalizeUserUtterance(value);
+  if (EDIT_INTENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "edit_itinerary";
+  }
+  const hasNonDestinationQuestion = NON_DESTINATION_QUESTION_PATTERNS.some((pattern) =>
+    pattern.test(normalized)
+  );
+  const hasExplicitDestinationRequest =
+    /(想去|我要去|我想要去|我想要区|计划|规划|目的地)/.test(normalized) ||
+    /\b(plan|visit|go to|travel to|destination)\b/i.test(normalized);
+  if (hasNonDestinationQuestion && !hasExplicitDestinationRequest) {
+    return "ask_question";
+  }
+  if (DESTINATION_CONTEXT_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return /计划|规划|行程|路线|plan|itinerary/i.test(normalized)
+      ? "plan_trip"
+      : "choose_destination";
+  }
+  if (hasNonDestinationQuestion) {
+    return "ask_question";
+  }
+  if (normalized.split(/\s+/).filter(Boolean).length <= 4 && /[A-Za-z\u3400-\u9fff]/.test(normalized)) {
+    return "choose_destination";
+  }
+  return "unknown";
+}
+
+function rawMentionForDestination(
+  rawText: string,
+  destination: TravelDestinationSearchResult
+): string {
+  const aliases = destinationAliases(destination).sort((left, right) => right.length - left.length);
+  const normalizedRaw = normalizeDestinationText(rawText);
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeDestinationText(alias);
+    if (!normalizedAlias) continue;
+    if (normalizedRaw.includes(`区${normalizedAlias}`)) return `区${alias}`;
+    if (queryContainsAlias(normalizedRaw, normalizedAlias)) return alias;
+  }
+  return destination.displayName;
+}
+
+function toIntentDestinationCandidate(
+  raw: string,
+  destination: TravelDestinationSearchResult | null,
+  fallback: ReturnType<typeof normalizeDestinationCandidate>,
+  method: DestinationResolutionMethod
+): TravelIntentDestinationCandidate {
+  return {
+    raw,
+    normalized: fallback.normalized,
+    canonicalName: destination?.canonicalName ?? null,
+    nameZh: destination?.nameZh ?? null,
+    countryCode: destination?.countryCode ?? null,
+    confidence: destination
+      ? Math.max(fallback.confidence, destination.confidenceScore)
+      : fallback.confidence,
+    resolutionMethod: destination ? method : fallback.resolutionMethod,
+  };
+}
+
+function shortAmbiguousOptions(query: string): LocalDestination[] {
+  const normalized = normalizeDestinationText(query);
+  const ids = SHORT_AMBIGUOUS_DESTINATION_IDS[normalized];
+  if (!ids) return [];
+  return ids
+    .map((id) => ALL_LOCAL_DESTINATIONS.find((destination) => destination.id === id))
+    .filter((destination): destination is LocalDestination => Boolean(destination));
+}
+
+function clarificationForQuery(
+  query: string
+): { question: string; options: TravelDestinationSearchResult[] } | null {
+  const shortOptions = shortAmbiguousOptions(query);
+  if (shortOptions.length > 1) {
+    return {
+      question: "你是想去长沙、长春，还是长崎？",
+      options: shortOptions,
+    };
+  }
+
+  const ambiguous = ambiguousGroupForQuery(query);
+  if (!ambiguous) return null;
+  const group = ambiguous[0].ambiguousGroup ?? "destination";
+  return {
+    question:
+      AMBIGUOUS_QUERY_LABELS[group] ?? "这个目的地有多个可能选项，请先确认具体地区。",
+    options: ambiguous,
+  };
+}
+
+export function canonicalizeDestination(
+  rawCandidate: string,
+  locale: "zh" | "en" | string = "zh"
+): TravelIntentDestinationCandidate {
+  const normalized = normalizeDestinationCandidate(rawCandidate, locale);
+  if (!normalized.normalized) {
+    return toIntentDestinationCandidate(rawCandidate, null, normalized, "unresolved");
+  }
+
+  const mentioned = findMentionedDestinations(normalized.normalized)[0];
+  if (mentioned) {
+    const method =
+      normalized.resolutionMethod === "typo_alias_correction"
+        ? "typo_alias_correction"
+        : normalizeDestinationText(mentioned.canonicalName) === normalized.normalized
+          ? "exact_local"
+          : mentioned.nameZh && normalizeDestinationText(mentioned.nameZh) === normalized.normalized
+            ? "localized_name_match"
+            : "alias_match";
+    return toIntentDestinationCandidate(rawCandidate, mentioned, normalized, method);
+  }
+
+  const fuzzy = searchLocalDestinations(normalized.normalized, { limit: 1 })[0];
+  if (fuzzy) {
+    return toIntentDestinationCandidate(rawCandidate, fuzzy, normalized, "fuzzy_match");
+  }
+
+  if (clarificationForQuery(normalized.normalized)) {
+    return toIntentDestinationCandidate(rawCandidate, null, normalized, "ambiguous");
+  }
+
+  return toIntentDestinationCandidate(rawCandidate, null, normalized, "unresolved");
+}
+
+export function extractDestinationCandidates(
+  message: string,
+  locale: "zh" | "en" | string = "zh"
+): TravelIntentDestinationCandidate[] {
+  const intent = classifyTravelIntent(message);
+  if (intent === "edit_itinerary") return [];
+
+  const normalizedInput = normalizeUserUtterance(message);
+  if (
+    intent === "ask_question" &&
+    !DESTINATION_CONTEXT_PATTERNS.some((pattern) => pattern.test(normalizedInput))
+  ) {
+    return [];
+  }
+
+  const mentioned = findMentionedDestinations(normalizedInput);
+  if (mentioned.length > 0) {
+    return mentioned.slice(0, 6).map((destination) => {
+      const raw = rawMentionForDestination(message, destination);
+      const normalized = normalizeDestinationCandidate(raw, locale);
+      const method =
+        normalized.resolutionMethod === "typo_alias_correction"
+          ? "typo_alias_correction"
+          : destination.nameZh && normalizeDestinationText(raw).includes(normalizeDestinationText(destination.nameZh))
+            ? "localized_name_match"
+            : "alias_match";
+      return toIntentDestinationCandidate(raw, destination, normalized, method);
+    });
+  }
+
+  const fallbackLabel = extractDestinationIntentLabel(normalizedInput);
+  const normalized = normalizeDestinationCandidate(fallbackLabel, locale);
+  if (!normalized.normalized) return [];
+  if (
+    intent === "ask_question" &&
+    NON_DESTINATION_QUESTION_PATTERNS.some((pattern) => pattern.test(normalizedInput))
+  ) {
+    return [];
+  }
+
+  return [canonicalizeDestination(fallbackLabel, locale)];
+}
+
+export function parseTravelIntent(
+  message: string,
+  locale: "zh" | "en" | string = "zh"
+): TravelIntentParseResult {
+  const normalizedInput = normalizeUserUtterance(message);
+  let intent = classifyTravelIntent(normalizedInput);
+  const duration = extractTravelDuration(normalizedInput);
+  const preferences = extractDestinationTripHints(normalizedInput).preferences;
+  const destinations = extractDestinationCandidates(message, locale);
+  if (intent === "unknown" && destinations.length > 0) {
+    intent = duration ? "plan_trip" : "choose_destination";
+  }
+  const destinationQuery = destinations
+    .map((destination) => destination.normalized)
+    .filter(Boolean)
+    .join(" ");
+  const firstClarification =
+    destinations.find((candidate) => candidate.resolutionMethod === "ambiguous") ??
+    destinations.find((candidate) => candidate.confidence < 0.55);
+  const clarification =
+    clarificationForQuery(destinationQuery || normalizedInput) ??
+    (firstClarification ? clarificationForQuery(firstClarification.normalized) : null);
+
+  return {
+    intent,
+    normalizedInput,
+    destinations,
+    duration,
+    dates: null,
+    travelers: null,
+    budget: null,
+    preferences,
+    needsClarification: Boolean(clarification),
+    clarificationQuestion: clarification?.question ?? null,
+  };
+}
+
 export function extractDestinationIntentLabel(value: string): string {
-  const trimmed = value.trim().replace(/[。.!！?？]+$/g, "").trim();
+  const trimmed = normalizeUserUtterance(value);
   for (const pattern of RAW_PROMPT_DESTINATION_PATTERNS) {
     const match = trimmed.match(pattern);
     const candidate = match?.[1]?.trim();
-    if (candidate) return candidate.replace(/旅行$/u, "").trim();
+    if (candidate) return normalizeDestinationCandidate(candidate).normalized;
   }
-  return trimmed;
+  return normalizeDestinationCandidate(trimmed).normalized;
 }
 
 export function isRawDestinationPromptText(value: string): boolean {
@@ -1124,11 +1693,17 @@ function levenshteinDistance(left: string, right: string): number {
 }
 
 function destinationAliases(destination: TravelDestinationSearchResult): string[] {
+  const cityAlias =
+    destination.placeType === "city" ||
+    destination.placeType === "town" ||
+    destination.placeType === "island"
+      ? destination.city ?? ""
+      : "";
   return [
     destination.canonicalName,
     destination.displayName,
     destination.normalizedName,
-    destination.city ?? "",
+    cityAlias,
     destination.countryName ?? "",
     ...(destination.aliases ?? []),
   ].filter(Boolean);
@@ -1273,8 +1848,8 @@ function ambiguousGroupForQuery(query: string): LocalDestination[] | null {
 
 export function extractDestinationTripHints(rawText: string): DestinationTripHints {
   const preferences: string[] = [];
-  const dayMatch = rawText.match(/(\d{1,2})\s*(?:天|day|days|日)/i);
-  const travelDays = dayMatch ? Number.parseInt(dayMatch[1], 10) : undefined;
+  const duration = extractTravelDuration(rawText);
+  const travelDays = duration?.maxDays;
   const normalized = rawText.toLowerCase();
 
   const preferencePatterns: Array<[RegExp, string]> = [
@@ -1463,9 +2038,94 @@ export function generateLazyDestinationCards(
   }));
 }
 
+function resolutionQueryFromIntent(
+  rawText: string,
+  intent: TravelIntentParseResult
+): string {
+  if (intent.intent === "edit_itinerary" || intent.intent === "ask_question") {
+    return intent.normalizedInput;
+  }
+  const candidateQuery = intent.destinations
+    .map((destination) => destination.normalized)
+    .filter(Boolean)
+    .join(" ");
+  if (candidateQuery) return candidateQuery;
+  return extractDestinationIntentLabel(rawText);
+}
+
+function sourceStatusForDestination(
+  destination: TravelDestinationSearchResult | null
+): TravelDestinationPipelineDebug["cardSourceStatus"] {
+  if (!destination) return "none";
+  if (destination.source === "temporary_resolver") return "temporary_resolver";
+  return destination.sourceStatus ?? (destination.isVerified ? "local_verified" : "llm_generated");
+}
+
+function createPipelineDebug(options: {
+  rawInput: string;
+  intent: TravelIntentParseResult;
+  resolverResult: string;
+  localDb: TravelDestinationPipelineDebug["localDb"];
+  fallbackReason: string | null;
+  cardSourceStatus: TravelDestinationPipelineDebug["cardSourceStatus"];
+}): TravelDestinationPipelineDebug {
+  return {
+    rawInput: options.rawInput,
+    normalizedInput: options.intent.normalizedInput,
+    detectedIntent: options.intent.intent,
+    extractedDestinations: options.intent.destinations,
+    canonicalizedDestinations: options.intent.destinations,
+    resolverResult: options.resolverResult,
+    localDb: options.localDb,
+    geocodeApi: "not_available_in_sync_resolver",
+    fallbackReason: options.fallbackReason,
+    cardSourceStatus: options.cardSourceStatus,
+  };
+}
+
+function allowsTemporaryFallback(
+  rawText: string,
+  intent: TravelIntentParseResult,
+  query: string
+): { allowed: boolean; reason: string | null } {
+  if (!query) return { allowed: false, reason: "empty_destination_query" };
+  if (intent.intent === "edit_itinerary") {
+    return { allowed: false, reason: "edit_intent_does_not_create_destination" };
+  }
+  if (intent.intent === "ask_question") {
+    return { allowed: false, reason: "question_intent_does_not_create_destination" };
+  }
+  if (intent.needsClarification) {
+    return { allowed: false, reason: "awaiting_destination_clarification" };
+  }
+
+  const firstCandidate = intent.destinations[0];
+  if (firstCandidate && firstCandidate.confidence < 0.55) {
+    return { allowed: false, reason: "low_destination_confidence" };
+  }
+
+  const normalizedQuery = normalizeDestinationText(query);
+  const cjkLength = (normalizedQuery.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latinWords = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (cjkLength < 2 && latinWords.join("").length < 3) {
+    return { allowed: false, reason: "destination_query_too_short" };
+  }
+
+  const hasTravelContext = DESTINATION_CONTEXT_PATTERNS.some((pattern) =>
+    pattern.test(rawText)
+  );
+  const looksLikeShortPlaceName = latinWords.length > 0 && latinWords.length <= 4;
+  if (!hasTravelContext && !looksLikeShortPlaceName && cjkLength < 2) {
+    return { allowed: false, reason: "no_destination_context" };
+  }
+
+  return { allowed: true, reason: null };
+}
+
 export function resolveLocalDestinationText(rawText: string): DestinationResolution {
-  const query = extractDestinationIntentLabel(rawText);
-  const tripHints = extractDestinationTripHints(query);
+  const intent = parseTravelIntent(rawText);
+  const query = resolutionQueryFromIntent(rawText, intent);
+  const tripHints = extractDestinationTripHints(rawText);
   if (!query) {
     return {
       status: "unresolved",
@@ -1473,30 +2133,73 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
       message: "No destination text was provided.",
       tripHints,
       cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "not_checked",
+        fallbackReason: "empty_destination_query",
+        cardSourceStatus: "none",
+      }),
     };
   }
 
-  if (UNDECIDED_DESTINATION_PATTERNS.some((pattern) => pattern.test(query))) {
+  if (intent.intent === "edit_itinerary") {
     return {
       status: "unresolved",
       query,
-      message: "The user is asking for destination inspiration, not naming a destination.",
+      message: "The user is editing an itinerary, not naming a new destination.",
       tripHints,
       cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "not_checked",
+        fallbackReason: "edit_intent_does_not_create_destination",
+        cardSourceStatus: "none",
+      }),
     };
   }
 
-  const ambiguous = ambiguousGroupForQuery(query);
-  if (ambiguous) {
-    const group = ambiguous[0].ambiguousGroup ?? "destination";
+  if (
+    intent.intent === "ask_question" ||
+    UNDECIDED_DESTINATION_PATTERNS.some((pattern) => pattern.test(rawText))
+  ) {
+    return {
+      status: "unresolved",
+      query,
+      message: "The user is asking a travel question, not naming a destination.",
+      tripHints,
+      cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "not_checked",
+        fallbackReason: "question_intent_does_not_create_destination",
+        cardSourceStatus: "none",
+      }),
+    };
+  }
+
+  const clarification = clarificationForQuery(query);
+  if (clarification) {
     return {
       status: "ambiguous",
       query,
-      clarificationQuestion:
-        AMBIGUOUS_QUERY_LABELS[group] ?? "这个目的地有多个可能选项，请先确认具体地区。",
-      options: ambiguous,
+      clarificationQuestion: clarification.question,
+      options: clarification.options,
       tripHints,
       cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "ambiguous",
+        localDb: "local_index_hit",
+        fallbackReason: "awaiting_destination_clarification",
+        cardSourceStatus: "none",
+      }),
     };
   }
 
@@ -1512,6 +2215,14 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
       cards: destinations.flatMap((destination) =>
         generateLazyDestinationCards(destination, { source: "curated_fallback" })
       ),
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "resolved",
+        localDb: "local_index_hit",
+        fallbackReason: null,
+        cardSourceStatus: sourceStatusForDestination(destinations[0] ?? null),
+      }),
     };
   }
 
@@ -1526,6 +2237,33 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
       cards: generateLazyDestinationCards(fuzzy[0], {
         source: "curated_fuzzy_fallback",
       }),
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "resolved",
+        localDb: "local_index_hit",
+        fallbackReason: null,
+        cardSourceStatus: sourceStatusForDestination(fuzzy[0] ?? null),
+      }),
+    };
+  }
+
+  const fallbackGate = allowsTemporaryFallback(rawText, intent, query);
+  if (!fallbackGate.allowed) {
+    return {
+      status: "unresolved",
+      query,
+      message: fallbackGate.reason ?? "The text does not look like a resolvable destination yet.",
+      tripHints,
+      cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "local_index_miss",
+        fallbackReason: fallbackGate.reason,
+        cardSourceStatus: "none",
+      }),
     };
   }
 
@@ -1537,6 +2275,14 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
       message: "The text does not look like a resolvable destination yet.",
       tripHints,
       cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "local_index_miss",
+        fallbackReason: "temporary_destination_label_empty",
+        cardSourceStatus: "none",
+      }),
     };
   }
 
@@ -1548,6 +2294,14 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
     tripHints,
     cards: generateLazyDestinationCards(temporaryDestination, {
       source: "temporary_resolver",
+    }),
+    debugTrace: createPipelineDebug({
+      rawInput: rawText,
+      intent,
+      resolverResult: "temporary",
+      localDb: "local_index_miss",
+      fallbackReason: "all_local_resolution_attempts_failed",
+      cardSourceStatus: "temporary_resolver",
     }),
   };
 }

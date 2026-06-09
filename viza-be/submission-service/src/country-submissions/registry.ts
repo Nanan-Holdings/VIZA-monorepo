@@ -629,7 +629,8 @@ function buildDryRunConfirmation(
   prefix?: string,
 ): string {
   const compactId = applicationId.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
-  const timestamp = prefix === "DRYRUN-DS160"
+  const timestampedPrefixes = new Set(["DRYRUN-DS160", "DRYRUN-VIETNAM"]);
+  const timestamp = prefix && timestampedPrefixes.has(prefix)
     ? `-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`
     : "";
   return `${prefix ?? `MOCK-${countryCode}`}-${compactId || "APPLICATION"}${timestamp}`;

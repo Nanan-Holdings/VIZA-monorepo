@@ -6,6 +6,7 @@ import {
   type WizardStep,
   dbRowToFormField,
 } from "@/types/visa-form-fields";
+import { normalizeBilingualFormField, normalizeBilingualWizardSteps } from "@/lib/bilingual-schema-contract";
 import {
   getRagVisitorIntakeSteps,
   shouldUseRagVisitorIntakeFallback,
@@ -44,7 +45,7 @@ export async function getVisaFormSteps(visaType = "B211A"): Promise<WizardStep[]
 
     if (!data || data.length === 0) {
       return shouldUseRagVisitorIntakeFallback(visaType)
-        ? getRagVisitorIntakeSteps(visaType)
+        ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(visaType))
         : [];
     }
 
@@ -60,7 +61,7 @@ export async function getVisaFormSteps(visaType = "B211A"): Promise<WizardStep[]
           fields: [],
         });
       }
-      stepMap.get(step)!.fields.push(dbRowToFormField(row));
+      stepMap.get(step)!.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
     }
 
     return Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);

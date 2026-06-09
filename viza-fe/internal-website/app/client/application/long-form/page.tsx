@@ -60,6 +60,7 @@ import {
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
+import { queueStatusForVisaType } from "@/lib/submission-queue";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -130,32 +131,6 @@ const STEP_SECTION_ORDER: StepSectionKey[] = [
 ];
 
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "team", "status"] as const;
-
-/** Map a visa package's visa_type to the submission_queue status that
- *  routes the worker to the right autofill pipeline. Defaults to
- *  "pending" (legacy Indonesian e-visa path). */
-function queueStatusForPackage(visaType: string | null | undefined): string {
-  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
-  switch (normalized) {
-    case "DS160":
-    case "DS_160":
-    case "B1_B2":
-    case "B_1_B_2":
-    case "US_B1_B2":
-    case "US_DS160":
-      return "ds160_prefill_pending";
-    case "EU_SCHENGEN_C_SHORT_STAY":
-      return "fv_prefill_pending";
-    case "UK_STANDARD_VISITOR":
-      return "uk_prefill_pending";
-    case "VN_E_VISA":
-      return "vn_prefill_pending";
-    case "AU_VISITOR_600":
-      return "au_prefill_pending";
-    default:
-      return "pending";
-  }
-}
 
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
   return steps
@@ -1936,7 +1911,7 @@ export default function ApplicationPage() {
         // submission-service worker to drive the per-country portal.
         const { error: queueError } = await supabase.from("submission_queue").insert({
           application_id: applicationId,
-          status: queueStatusForPackage(resolvedVisaType),
+          status: queueStatusForVisaType(resolvedVisaType),
           attempts: 0,
           created_at: new Date().toISOString(),
         });
@@ -2029,7 +2004,7 @@ export default function ApplicationPage() {
 
       const { error: queueError } = await supabase.from("submission_queue").insert({
         application_id: applicationId,
-        status: queueStatusForPackage(resolvedVisaType),
+        status: queueStatusForVisaType(resolvedVisaType),
         attempts: 0,
         created_at: new Date().toISOString(),
       });
@@ -2279,6 +2254,7 @@ export default function ApplicationPage() {
                               country={activeCountry}
                               visaType={activeVisaType}
                               embedded
+                              onDataChange={setDocumentCenterData}
                               onContinue={handleDynamicDocumentsContinue}
                               continueLabel={t("dynamicButtons.continue")}
                             />
@@ -2378,6 +2354,7 @@ export default function ApplicationPage() {
                               country={activeCountry}
                               visaType={activeVisaType}
                               embedded
+                              onDataChange={setDocumentCenterData}
                               onContinue={handleFallbackDocumentsContinue}
                               continueLabel={t("dynamicButtons.continue")}
                             />

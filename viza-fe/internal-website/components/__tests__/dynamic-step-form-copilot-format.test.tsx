@@ -3,7 +3,7 @@ import { isValidElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
 import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefill";
-import { getChineseOptionText, getEnglishPlaceholder } from "@/lib/ds160-translations";
+import { getChineseLabel, getChineseOptionText, getEnglishPlaceholder } from "@/lib/ds160-translations";
 import enMessages from "@/messages/en.json";
 import zhMessages from "@/messages/zh.json";
 import { type WizardStep } from "@/types/visa-form-fields";
@@ -545,6 +545,19 @@ describe("DynamicStepForm copilot format", () => {
     expect(container).toHaveTextContent("Business");
     expect(container).toHaveTextContent("Cultural");
     expect(container).toHaveTextContent("Select...");
+  });
+
+  it("uses exact Chinese copy for Schengen declaration labels", () => {
+    const visConsentLabel =
+      "I am aware of and consent to the following: the collection of the data required by this application form and the taking of my photograph and, if applicable, the taking of fingerprints, are mandatory for the examination of the application; and any personal data concerning me which appear on the application form, as well as my fingerprints and my photograph, will be supplied to the relevant authorities of the Member States and processed by those authorities, for the purposes of a decision on my application. Such data will be entered into and stored in the Visa Information System (VIS) for a maximum period of five years.";
+
+    expect(getChineseLabel(
+      "Is the application being filled in by someone other than the applicant?",
+      "has_different_filler",
+    )).toBe("本申请表是否由申请人以外的其他人填写？");
+    expect(getChineseLabel("Place of application", "place_of_application")).toBe("申请提交地点");
+    expect(getChineseLabel(visConsentLabel, "declaration_vis_consent")).toContain("我知悉并同意");
+    expect(getChineseLabel(visConsentLabel, "declaration_vis_consent")).not.toBe("声明");
   });
 
   it("defaults France Schengen main destination and localizes country names per side", async () => {

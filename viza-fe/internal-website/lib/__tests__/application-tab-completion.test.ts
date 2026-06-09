@@ -95,6 +95,79 @@ function docs(status = "approved"): DocumentCenterData {
   };
 }
 
+function vietnamDocsWithRequiredUploads(): DocumentCenterData {
+  return {
+    ...docs(),
+    requirements: [
+      {
+        key: "passport_copy",
+        documentType: "passport_copy",
+        labelEn: "Passport data page image",
+        labelZh: "护照资料页图片",
+        description: null,
+        required: true,
+        sortOrder: 10,
+        accept: [],
+        source: "document_requirements",
+      },
+      {
+        key: "photo",
+        documentType: "photo",
+        labelEn: "Portrait photo",
+        labelZh: "本人证件照片",
+        description: null,
+        required: true,
+        sortOrder: 20,
+        accept: [],
+        source: "document_requirements",
+      },
+      {
+        key: "travel_itinerary",
+        documentType: "travel_itinerary",
+        labelEn: "Travel itinerary",
+        labelZh: "旅行行程（可选）",
+        description: null,
+        required: false,
+        sortOrder: 30,
+        accept: [],
+        source: "document_requirements",
+      },
+    ],
+    documents: [
+      {
+        id: "passport-doc",
+        applicationId: "application",
+        documentType: "passport_copy",
+        requirementKey: "passport_copy",
+        filename: "passport.jpg",
+        status: "uploaded",
+        rejectionReason: null,
+        required: true,
+        reviewNotes: null,
+        reviewedAt: null,
+        createdAt: null,
+        updatedAt: null,
+        source: "application_documents",
+      },
+      {
+        id: "photo-doc",
+        applicationId: "application",
+        documentType: "photo",
+        requirementKey: "photo",
+        filename: "photo.jpg",
+        status: "uploaded",
+        rejectionReason: null,
+        required: true,
+        reviewNotes: null,
+        reviewedAt: null,
+        createdAt: null,
+        updatedAt: null,
+        source: "application_documents",
+      },
+    ],
+  };
+}
+
 describe("computeAllTabCompletion", () => {
   test("marks tabs complete from loaded saved answers without visited state", () => {
     const result = computeAllTabCompletion({
@@ -201,5 +274,31 @@ describe("computeAllTabCompletion", () => {
 
     expect(result.completedStepIds).not.toContain(1);
     expect(result.missingFields.map((item) => item.fieldName)).toContain("supporting_documents");
+  });
+
+  test("Vietnam document completion accepts required passport and photo without optional itinerary", () => {
+    const result = computeAllTabCompletion({
+      dbSteps: steps,
+      effectiveSteps: stepRefs,
+      answers: {
+        has_specific_travel_plans: "no",
+        purpose_of_trip: "B",
+        purpose_of_trip_specify: "B1/B2",
+        intended_arrival_date: "2026-10-01",
+        intended_length_of_stay_value: "10",
+        intended_length_of_stay_unit: "DAY(S)",
+      },
+      documentCenterData: vietnamDocsWithRequiredUploads(),
+      country: "vietnam",
+      visaType: "VN_E_VISA",
+      documentStepId: 1,
+      reviewStepId: 2,
+      teamStepId: 3,
+      confirmationStepId: 4,
+      showTeamStep: true,
+    });
+
+    expect(result.missingFields.map((item) => item.fieldName)).not.toContain("supporting_documents");
+    expect(result.completedStepIds).toContain(1);
   });
 });

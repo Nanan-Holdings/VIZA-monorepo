@@ -10,8 +10,11 @@ diagnostics, `.dat` capture, and safe stop-at-sign handoff.
 
 ## Key Flow
 
-1. `session.ts` and `stealth-browser.ts` create the browser/session.
-2. `start-page-captcha.ts` and `captcha-solver.ts` handle the start page gate.
+1. `session.ts` creates a standard Playwright browser/session for compliant
+   live assisted runs. Start-page location/CAPTCHA is a manual checkpoint, not
+   an automated solver path.
+2. `start-page-captcha.ts` remains a legacy diagnostic helper only; do not use
+   CAPTCHA-solving APIs in the live assisted DS-160 flow.
 3. `pages.ts` detects the current DS-160 page.
 4. `orchestrator.ts` fills mapped pages and advances through the form.
 5. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
@@ -23,6 +26,9 @@ diagnostics, `.dat` capture, and safe stop-at-sign handoff.
 
 - Never fill the passport signature field.
 - Never solve the final sign/submit CAPTCHA.
+- Never use CAPTCHA-solving APIs for live assisted CEAC.
+- Never use stealth plugins, proxy rotation, fingerprint spoofing, or
+  bot-evasion tactics for live assisted CEAC.
 - Never click final "Sign and Submit Application".
 - Preserve application ID, last checkpoint, screenshots, and `.dat` artifacts
   on failure where available.

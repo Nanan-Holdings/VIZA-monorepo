@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildCountrySubmissionApplication,
   getCountrySubmissionProvider,
   listCountrySubmissionProviders,
   runDryRunSubmission,
 } from "../index";
 import type { CountrySubmissionApplication } from "../types";
+import type { ApplicantProfile, Application } from "../../types";
 
 function baseApplication(
   overrides: Partial<CountrySubmissionApplication> = {},
@@ -148,6 +150,82 @@ test("registry: US DS-160 dry-run uses DS-160 confirmation prefix", async () => 
   assert.match(result.confirmationNumber ?? "", /^DRYRUN-DS160-111111112222-\d{14}$/);
 });
 
+test("registry: France Schengen dry-run resolves to the Schengen provider", async () => {
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "france",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "France",
+        destinationCity: "Paris",
+      },
+    }),
+  );
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.mode, "dry_run");
+  assert.equal(result.targetCountry, "SCHENGEN");
+  assert.match(result.confirmationNumber ?? "", /^MOCK-SCHENGEN-111111112222$/);
+});
+
+test("from-records: maps Schengen dynamic answers into required dry-run trip fields", async () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "Alex Tan",
+    date_of_birth: "1999-01-15",
+    place_of_birth: "Singapore",
+    gender: "Male",
+    nationality: "Singapore",
+    occupation: "Student",
+    address: "1 Test Street, Singapore 000001",
+    passport_number: "TEST123456",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    issuing_country: "Singapore",
+    issuing_authority: "ICA",
+    email: "test.viza.user@example.com",
+    phone: "+6591234567",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "france",
+    visa_type: "EU_SCHENGEN_C_SHORT_STAY",
+    status: "submitted",
+    arrival_date: null,
+    departure_date: null,
+    port_of_entry: null,
+    purpose: null,
+    accommodation_name: null,
+    accommodation_address: null,
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const dryRunApplication = buildCountrySubmissionApplication(profile, application, {
+    intended_arrival_date: "2026-10-01",
+    intended_departure_date: "2026-10-10",
+    purpose_of_journey: "tourism",
+    accommodation_name: "Test Hotel",
+    accommodation_address_line_1: "1 Test Hotel Road",
+  });
+
+  assert.equal(dryRunApplication.trip.arrivalDate, "2026-10-01");
+  assert.equal(dryRunApplication.trip.departureDate, "2026-10-10");
+  assert.equal(dryRunApplication.trip.purpose, "tourism");
+  assert.equal(dryRunApplication.trip.accommodationName, "Test Hotel");
+
+  const result = await runDryRunSubmission(dryRunApplication);
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.targetCountry, "SCHENGEN");
+});
+
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
   const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
   assert.ok(provider);
@@ -186,7 +264,7 @@ test("registry: Vietnam dry-run uses deterministic Vietnam confirmation", async 
   assert.equal(result.status, "submitted_mock");
   assert.equal(result.mode, "dry_run");
   assert.equal(result.targetCountry, "VN");
-  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VIETNAM-111111112222$/);
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VIETNAM-111111112222-\d{14}$/);
 });
 
 test("registry: missing required fields fail validation cleanly", async () => {

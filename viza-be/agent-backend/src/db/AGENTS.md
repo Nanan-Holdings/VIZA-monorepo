@@ -21,6 +21,11 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0091_us_appointment_assistant.sql`: U.S. appointment
   assistant job, account, attempt, checkpoint, slot, confirmation, status-check,
   and audit-event schema.
+- `../../drizzle/0093_ds160_live_assisted_controls.sql`: DS-160 live assisted
+  queue/job controls, encrypted official retrieval fields, review
+  snapshot/diff records, and manual action checkpoints.
+- `../../drizzle/0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa
+  package document requirements and bilingual label metadata.
 
 ## Ownership Boundaries
 
@@ -71,6 +76,10 @@ For schema changes, also run any affected route/eval tests.
 - `appointment_confirmations`
 - `appointment_status_checks`
 - `appointment_audit_events`
+- `ds160_submission_jobs`
+- `ds160_official_review_snapshots`
+- `ds160_review_diffs`
+- `ds160_live_manual_actions`
 - `consent_events`
 - `application_signatures`
 - `application_packets`

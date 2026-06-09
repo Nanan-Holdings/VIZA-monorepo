@@ -14,6 +14,8 @@ the applicant.
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
+  startup safety validation. Dry-run is the default.
 - `src/form-mappings.ts`: Indonesian e-visa portal selectors.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
@@ -52,7 +54,7 @@ the applicant.
 
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
-| US DS-160 / CEAC | Phase 4 path wired | Stops at sign-and-submit; persists CEAC application ID and handoff payload. |
+| US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
 | France Schengen | Phase 4 path wired | Creates/finalizes draft, captures France-Visas reference and optional CERFA PDF; no applicant payment is clicked here. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
@@ -62,8 +64,8 @@ the applicant.
 
 ## Ownership Boundaries
 
-- Do not click final DS-160 sign/submit or solve the final submission gate.
-  CEAC automation stops at operator handoff.
+- Do not click final DS-160 sign/submit or solve CAPTCHA gates. CEAC live
+  assisted automation stops at applicant/operator handoff.
 - Do not click final applicant declaration, final submit, irreversible payment,
   or appointment confirmation unless the user explicitly reopens that scope and
   the legal/product boundary has been updated.
@@ -88,8 +90,7 @@ Smoke order for official-portal validation:
 ```powershell
 npm run install-browsers
 npx ts-node src/ceac/smoke.ts
-# Optional, spends 2captcha credit and requires TWOCAPTCHA_API_KEY:
-npx ts-node src/ceac/smoke.ts --solve-captcha
+# Do not use --solve-captcha for DS-160 live assisted validation.
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:

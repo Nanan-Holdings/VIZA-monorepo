@@ -20,6 +20,8 @@ ports directly.
 
 ## Related Files
 
+- `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
+- `viza-fe/internal-website/lib/submission-queue.ts`
 - `viza-be/agent-backend/src/routes/translation.routes.ts`

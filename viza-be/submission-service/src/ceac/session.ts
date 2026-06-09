@@ -6,13 +6,11 @@
  * use. Failures surface as structured `SessionBootstrapError` instances.
  */
 
-import type { Browser, BrowserContext, Page } from "@playwright/test";
-import { CEAC_URLS } from "./selectors";
+import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
-import { SessionBootstrapError } from "./errors";
+import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
-import { solveStartPageCaptchaWithRetry, type CaptchaSolveWithTelemetry } from "./start-page-captcha";
-import { launchStealthBrowser } from "./stealth-browser";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -38,18 +36,22 @@ export interface CeacSession {
   context: BrowserContext;
   page: Page;
   readonly runId?: string;
-  /** CAPTCHA solve result and telemetry from session bootstrap, if a CAPTCHA was present. */
-  captchaSolve?: CaptchaSolveWithTelemetry;
+  /**
+   * Deprecated compatibility field. Live assisted CEAC must not use CAPTCHA
+   * solving APIs; manual checkpoints replace automated telemetry.
+   */
+  captchaSolve?: { telemetry: Array<Record<string, unknown>> };
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
 }
 
 /**
- * Launch a browser, navigate to the CEAC DS-160 start page, solve the
- * start-page image CAPTCHA (if present), and return a session handle.
+ * Launch a browser and navigate to the CEAC DS-160 start page.
  *
- * After this function returns, the page has advanced past the start/CAPTCHA
- * surface. The CAPTCHA solve result (if any) is available on `session.captchaSolve`.
+ * Compliant live assisted mode must not solve CAPTCHA or hide automation
+ * signals. The CEAC start page normally requires a location selection and
+ * CAPTCHA, so this helper surfaces that as ManualActionRequiredError instead
+ * of trying to force through.
  *
  * Does **not** select embassies or begin a new application — those steps
  * belong to downstream helpers that build on this bootstrap.
@@ -65,18 +67,14 @@ export async function startCeacSession(
   let context: BrowserContext | null = null;
 
   try {
-    // Launch with puppeteer-extra-plugin-stealth applied. CEAC fingerprints
-    // automation via UA, client hints, `navigator.webdriver`, and numerous
-    // JS-surface tells (plugins/chrome-runtime/WebGL/permissions). The
-    // stealth bundle patches those at once; see `stealth-browser.ts`.
-    const handles = await launchStealthBrowser({
+    browser = await chromium.launch({
       headless,
-      acceptDownloads,
-      userAgent: options.userAgent,
     });
-    browser = handles.browser;
-    context = handles.context;
-    const page = handles.page;
+    context = await browser.newContext({
+      acceptDownloads,
+      ...(options.userAgent ? { userAgent: options.userAgent } : {}),
+    });
+    const page = await context.newPage();
 
     try {
       await page.goto(CEAC_URLS.START, {
@@ -123,34 +121,26 @@ export async function startCeacSession(
       );
     }
 
-    // ── CAPTCHA solve (US-023) ──────────────────────────────────────────
-    // The CEAC start page contains a solvable image CAPTCHA that must be
-    // completed before the worker can click "Start an Application" and
-    // advance to the DS-160 form pages. Solve it here so downstream code
-    // receives a session that is already past the start/CAPTCHA surface.
-    //
-    // Seam: AFTER assertPage("start") confirms page identity, BEFORE the
-    // session is returned to callers. The solver clicks the continue/start
-    // button as part of submission, advancing the page on success.
-    //
-    // If no CAPTCHA is present (e.g. resumed session), this is a no-op.
-    // On failure after retries, throws SessionBootstrapError.
-    let captchaSolve: CaptchaSolveWithTelemetry | undefined;
-    try {
-      // 10 attempts per session: 2captcha's BotDetect accuracy on the
-      // CEAC CAPTCHA is roughly 20–40% per solve and varies by image.
-      // 10 tries yields ≥90% session-level success; bad solves are
-      // reported for refund so the marginal cost of extra attempts is
-      // effectively zero.
-      const result = await solveStartPageCaptchaWithRetry(page, 10);
-      // A non-empty solveId means a real CAPTCHA was solved
-      if (result.solve.solveId) {
-        captchaSolve = result;
-      }
-    } catch (err) {
-      // solveStartPageCaptchaWithRetry already throws SessionBootstrapError
-      // on exhausted retries or hard failures — re-throw as-is.
-      throw err;
+    const captchaSelector = CEAC_GATE_MARKERS.solvableCaptchaSelectors.join(", ");
+    const captchaPresent = captchaSelector
+      ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
+      : false;
+    if (captchaPresent || /\/GenNIV\/Default\.aspx/i.test(page.url())) {
+      throw new ManualActionRequiredError(
+        captchaPresent ? "captcha" : "start_application",
+        captchaPresent
+          ? "CEAC requires a human to select the location and complete the start-page CAPTCHA. VIZA will not use CAPTCHA-solving APIs."
+          : "CEAC start page requires a human checkpoint before starting a live DS-160 application.",
+        {
+          detected: "start",
+          url: page.url(),
+          details: {
+            runId: options.runId,
+            captchaPresent,
+            checkpoint: "ceac_start",
+          },
+        },
+      );
     }
 
     const session: CeacSession = {
@@ -158,7 +148,6 @@ export async function startCeacSession(
       context,
       page,
       runId: options.runId,
-      captchaSolve,
       close: makeCloser(browser, context),
     };
 

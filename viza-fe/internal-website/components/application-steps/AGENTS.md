@@ -15,6 +15,8 @@ review, bilingual review helpers, and status confirmation.
 - `document-upload-step.tsx`: supporting document uploads.
 - `photo-upload-step.tsx`: country/visa-aware photo upload guidance and storage.
 - `dynamic-review-step.tsx`: DB-driven read-only review with translations.
+- `__tests__/dynamic-review-localization.test.tsx`: focused coverage for
+  bilingual review labels, enum display, and source/official values.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
 - `team-step.tsx`: manage companion applicants before final submission.
 - `frequent-traveler-profile-fields.tsx`: shared common-traveler profile

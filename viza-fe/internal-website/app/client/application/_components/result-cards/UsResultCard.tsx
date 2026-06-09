@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CalendarCheck, ExternalLink, Copy, Check, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 
 function CopyValue({ label, value }: { label: string; value: string }) {
@@ -42,6 +43,10 @@ export function UsResultCard({
 }) {
   const t = useTranslations("usAppointment.ds160Card");
   const nextT = useTranslations("usAppointment.nextStepCard");
+  const isZh = isChineseLocale(useLocale());
+  const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
+    ? result.securityAnswer
+    : null;
 
   return (
     <Card className="rounded-xl border-input">
@@ -72,7 +77,17 @@ export function UsResultCard({
           <div className="text-xs font-medium text-brand-500">{t("securityQuestion")}</div>
           <div className="mt-1 text-sm text-foreground">{result.securityQuestion}</div>
           <div className="mt-2 text-xs font-medium text-brand-500">{t("securityAnswer")}</div>
-          <div className="mt-1 font-mono text-sm text-foreground">{result.securityAnswer}</div>
+          <div className="mt-1 text-sm text-foreground">
+            {securityAnswer ? (
+              <span className="font-mono">{securityAnswer}</span>
+            ) : (
+              <span>
+                {isZh
+                  ? "已加密保存。需要取回 DS-160 时，请通过安全揭示流程查看。"
+                  : "Encrypted and hidden. Use secure reveal when retrieving the DS-160."}
+              </span>
+            )}
+          </div>
         </div>
 
         {applicationId && (

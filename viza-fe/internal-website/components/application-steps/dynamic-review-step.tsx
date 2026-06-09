@@ -5,11 +5,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import {
-  getChineseLabel,
-  getChineseOptionText,
-  getEnglishLabel,
+  toChineseSourceValue,
   translateLabel,
 } from "@/lib/ds160-translations";
+import {
+  resolveLocalizedFieldLabel,
+  resolveOptionDisplayLabel,
+} from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -29,24 +31,40 @@ function formatDateOfficial(value: string): string | null {
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 }
 
-function getRawOptionText(
+export function getReviewSourceLabel(field: WizardStep["fields"][number]): string {
+  return resolveLocalizedFieldLabel(field, "zh");
+}
+
+export function getReviewOfficialLabel(field: WizardStep["fields"][number]): string {
+  return resolveLocalizedFieldLabel(field, "en");
+}
+
+export function getLocalizedOptionText(
   value: string,
-  options?: Array<{ value: string; text: string } | string> | null,
+  options: WizardStep["fields"][number]["options"],
+  side: "zh" | "en",
 ): string | null {
-  if (!options || !Array.isArray(options)) return null;
+  return resolveOptionDisplayLabel(options, value, side);
+}
 
-  for (const option of options) {
-    if (typeof option === "string") {
-      if (option.toLowerCase() === value.toLowerCase()) return option;
-      continue;
-    }
+function isTextLikeReviewField(field: WizardStep["fields"][number]): boolean {
+  return field.fieldType === "text" || field.fieldType === "textarea";
+}
 
-    if (option.value.toLowerCase() === value.toLowerCase()) {
-      return option.text || option.value;
-    }
-  }
+export function getBilingualReviewValue(
+  dynamicAnswers: Record<string, string>,
+  answerKey: string,
+  value: string,
+  field: WizardStep["fields"][number],
+  side: "zh" | "en",
+): string {
+  if (!isTextLikeReviewField(field)) return value;
 
-  return null;
+  const explicit = dynamicAnswers[`${answerKey}_${side}`]?.trim();
+  if (explicit) return explicit;
+
+  if (side === "zh") return toChineseSourceValue(value);
+  return value;
 }
 
 function isRomanizationSensitive(fieldName: string, label: string): boolean {
@@ -116,20 +134,14 @@ export function DynamicReviewStep({
    */
   const formatValue = useCallback((
     value: string,
-    field?: { fieldType: string; options?: Array<{ value: string; text: string }> | null },
+    field?: WizardStep["fields"][number],
+    side: "zh" | "en" = "zh",
   ): string => {
     if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
     if (!field?.options || !Array.isArray(field.options)) return value;
 
-    // Find matching option text
-    const option = field.options.find(
-      (o) => o.value.toLowerCase() === value.toLowerCase(),
-    );
-    if (option) {
-      return isZh ? getChineseOptionText(option.text) : option.text;
-    }
-    return value;
-  }, [isZh, t]);
+    return getLocalizedOptionText(value, field.options, side) ?? value;
+  }, [t]);
 
   const getOfficialValue = useCallback((
     value: string,
@@ -140,7 +152,7 @@ export function DynamicReviewStep({
     }
 
     if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
-      return getRawOptionText(value, field.options as Array<{ value: string; text: string } | string> | null) ?? value;
+      return getLocalizedOptionText(value, field.options, "en") ?? value;
     }
 
     return value;
@@ -175,17 +187,21 @@ export function DynamicReviewStep({
           const value = dynamicAnswers[answerKey];
           if (!value?.trim()) continue;
 
-          const sourceLabel = getChineseLabel(field.label, field.fieldName);
-          const officialLabel = getEnglishLabel(field.label);
+          const sourceLabel = getReviewSourceLabel(field);
+          const officialLabel = getReviewOfficialLabel(field);
           const label = `${sourceLabel} / ${officialLabel}`;
           const displayLabel = answerKey === field.fieldName
             ? label
             : `${label} #${answerKey.split("__")[1]}`;
-          const sourceValue = formatValue(value, {
-            fieldType: field.fieldType,
-            options: field.options as Array<{ value: string; text: string }> | null,
-          });
-          const officialValue = getOfficialValue(value, field);
+          const sourceValue = formatValue(
+            getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "zh"),
+            field,
+            "zh",
+          );
+          const officialValue = getOfficialValue(
+            getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
+            field,
+          );
           const badges: string[] = [];
           const warnings: string[] = [];
 
