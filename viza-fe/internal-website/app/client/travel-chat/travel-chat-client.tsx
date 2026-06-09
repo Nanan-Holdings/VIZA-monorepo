@@ -3516,11 +3516,52 @@ export function TravelChatClient({
     if (!shouldShowCitySuggestions) return [];
 
     const targets: MapTarget[] = [];
+    const seenTargetKeys = new Set<string>();
+    messages.forEach((message) => {
+      message.parts.forEach((part) => {
+        if (part.type !== "destination_cards") return;
+        part.cards.forEach((card) => {
+          if (!card.map_marker) return;
+          const city = card.city ?? card.title;
+          const key = normalizeCityKey(city);
+          if (!key || selectedCityKeys.has(key) || seenTargetKeys.has(key)) {
+            return;
+          }
+          seenTargetKeys.add(key);
+          targets.push({
+            id: `destination-card-${card.destination_id ?? card.id ?? key}`,
+            kind: "city",
+            label: city,
+            subtitle:
+              card.source_status === "llm_generated"
+                ? "临时目的地候选"
+                : "目的地候选",
+            localName: getLocalDisplayName(city),
+            intro: buildMapIntro("city", city, city),
+            countryLabel: card.country
+              ? getLocalDisplayName(card.country)
+              : undefined,
+            recommendedDays: localizeSuggestedDays(
+              card.suggested_days,
+              interfaceLocale
+            ),
+            imageSrc: getDestinationCardImage(card, city),
+            lat: card.map_marker.lat,
+            lng: card.map_marker.lng,
+            city,
+          });
+        });
+      });
+    });
+
     WORLD_CITY_SUGGESTIONS.filter(
       (city) => !selectedCityKeys.has(normalizeCityKey(city))
-    ).forEach((city, index) => {
+    ).forEach((city) => {
       const coordinate = getGoogleCityCoordinates(city, googleCityCoordinates);
       if (!coordinate) return;
+      const key = normalizeCityKey(city);
+      if (seenTargetKeys.has(key)) return;
+      seenTargetKeys.add(key);
       const [lat, lng] = coordinate;
       const context = getCityContext(city);
       targets.push({
@@ -3541,7 +3582,13 @@ export function TravelChatClient({
       });
     });
     return targets;
-  }, [googleCityCoordinates, selectedCityKeys, shouldShowCitySuggestions]);
+  }, [
+    googleCityCoordinates,
+    interfaceLocale,
+    messages,
+    selectedCityKeys,
+    shouldShowCitySuggestions,
+  ]);
 
   const baseMapTargets = useMemo(() => {
     const targets: MapTarget[] = [];

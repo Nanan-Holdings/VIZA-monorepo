@@ -63,6 +63,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/seed-dropdown-destinations.ts`.
 - Travel local image relevance verification through
   `scripts/verify-travel-image-relevance.ts`.
+- Travel natural-language prompt QA through
+  `scripts/qa-travel-agent-prompts.ts`.
 
 ## Source Of Truth
 
@@ -153,6 +155,7 @@ Smoke URLs:
 - `lib/supabase/*`
 - `lib/document-upload-client.ts`
 - `lib/application-tab-completion.ts`
+- `lib/birthplace-options.ts`
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `supabase/migrations/*`
@@ -161,6 +164,7 @@ Smoke URLs:
 - `lib/frequent-traveler-profile.ts`
 - `lib/universal-profile-prefill.ts`
 - `lib/translation/*`
+- `lib/submission-queue.ts`
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`

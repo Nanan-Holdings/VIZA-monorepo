@@ -43,6 +43,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  getBirthCityOptions,
+  getBirthProvinceOptions,
+  findBirthCityOption,
+  findBirthProvinceOption,
+  normalizeBirthplace,
+  OTHER_BIRTHPLACE_OPTION,
+  type BirthplaceOption,
+} from "@/lib/birthplace-options";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -518,6 +527,15 @@ function parseLegacyBirthplace(value?: string | null) {
   return { country: "", provinceOrState: "", city: "" };
 }
 
+function optionToBilingualValue(option: BirthplaceOption | undefined): BilingualTextValue {
+  if (!option || option.code === OTHER_BIRTHPLACE_OPTION.code) return { zh: "", en: "" };
+  return { zh: option.zh, en: option.en };
+}
+
+function isOtherBirthplaceValue(value: string) {
+  return value === OTHER_BIRTHPLACE_OPTION.code;
+}
+
 function splitChineseFullName(value?: string | null) {
   const compact = value?.replace(/\s+/g, "").trim() ?? "";
   if (!/^[\u3400-\u9fff]{2,}$/.test(compact)) return { surname: "", givenNames: "" };
@@ -901,6 +919,16 @@ export default function UniversalInfoPage() {
     () => splitPhoneValue(form.phone, phoneCountryCode),
     [form.phone, phoneCountryCode],
   );
+  const birthProvinceOptions = useMemo(
+    () => getBirthProvinceOptions(form.birth_country),
+    [form.birth_country],
+  );
+  const birthCityOptions = useMemo(
+    () => getBirthCityOptions(form.birth_country, form.birth_province_or_state),
+    [form.birth_country, form.birth_province_or_state],
+  );
+  const isOtherBirthProvince = isOtherBirthplaceValue(form.birth_province_or_state);
+  const isOtherBirthCity = isOtherBirthplaceValue(form.birth_city);
 
   useEffect(() => {
     if (!shouldFocusPhoneError || !phoneError) return;
@@ -954,7 +982,7 @@ export default function UniversalInfoPage() {
         );
       }
 
-      const draftResult = await ensureDraftApplication("us", "b1_b2");
+      const draftResult = await ensureDraftApplication("us", "b1_b2", { preferExplicit: true });
       if (isMounted && draftResult.applicationId) {
         setPassportOcrApplicationId(draftResult.applicationId);
         const uploadResult = await loadUniversalProfilePassportUploadStatus(draftResult.applicationId);
@@ -970,9 +998,31 @@ export default function UniversalInfoPage() {
 
       const legacyBirthplace = parseLegacyBirthplace(typedProfile?.place_of_birth_en ?? typedProfile?.place_of_birth);
       const initialBilingual = toInitialBilingualForm(typedProfile);
-      const initialBirthCity = initialBilingual.birth_city.en || initialBilingual.birth_city.zh;
-      const initialBirthProvince = initialBilingual.birth_province_or_state.en || initialBilingual.birth_province_or_state.zh;
-      const initialBirthCountry = normalizeCountryCode(
+      const normalizedBirthplace = normalizeBirthplace({
+        placeOfBirth: typedProfile?.place_of_birth_en ?? typedProfile?.place_of_birth_zh ?? typedProfile?.place_of_birth,
+        country: typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
+        province: typedProfile?.birth_province_or_state ?? legacyBirthplace.provinceOrState,
+        provinceZh: initialBilingual.birth_province_or_state.zh,
+        provinceEn: initialBilingual.birth_province_or_state.en,
+        city: typedProfile?.birth_city ?? legacyBirthplace.city,
+        cityZh: initialBilingual.birth_city.zh,
+        cityEn: initialBilingual.birth_city.en,
+        nationality: typedProfile?.nationality,
+      });
+      const normalizedInitialBilingual: BilingualProfileState = {
+        ...initialBilingual,
+        place_of_birth: {
+          zh: normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.zh,
+          en: normalizedBirthplace.placeOfBirthEn || initialBilingual.place_of_birth.en,
+        },
+        birth_province_or_state: normalizedBirthplace.province.zh || normalizedBirthplace.province.en
+          ? normalizedBirthplace.province
+          : initialBilingual.birth_province_or_state,
+        birth_city: normalizedBirthplace.city.zh || normalizedBirthplace.city.en
+          ? normalizedBirthplace.city
+          : initialBilingual.birth_city,
+      };
+      const initialBirthCountry = normalizedBirthplace.countryCode || normalizeCountryCode(
         typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
       );
       const initialFullNameEn = composeEnglishFullName(initialBilingual.given_names.en, initialBilingual.surname.en);
@@ -985,10 +1035,10 @@ export default function UniversalInfoPage() {
         surname: initialBilingual.surname.en || initialBilingual.surname.zh,
         given_names: initialBilingual.given_names.en || initialBilingual.given_names.zh,
         date_of_birth: typedProfile?.date_of_birth ?? "",
-        place_of_birth: initialBirthCity || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
+        place_of_birth: normalizedBirthplace.placeOfBirthEn || normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
         birth_country: initialBirthCountry,
-        birth_province_or_state: initialBirthProvince,
-        birth_city: initialBirthCity,
+        birth_province_or_state: normalizedBirthplace.provinceCode,
+        birth_city: normalizedBirthplace.cityCode,
         gender: normalizeGender(typedProfile?.gender),
         nationality: normalizeCountryCode(typedProfile?.nationality),
         occupation: initialBilingual.occupation.en || initialBilingual.occupation.zh,
@@ -1002,7 +1052,7 @@ export default function UniversalInfoPage() {
         wechat: typedProfile?.wechat ?? "",
       });
       setPhoneCountryCode(initialPhoneParts.countryCode);
-      setBilingualForm(initialBilingual);
+      setBilingualForm(normalizedInitialBilingual);
       setManualEnglishFields({});
       setTranslationStatus({});
       setIsLoading(false);
@@ -1024,6 +1074,93 @@ export default function UniversalInfoPage() {
     }
     setMessage(null);
     setError(null);
+  }
+
+  function setBirthplaceBilingualField(field: "birth_province_or_state" | "birth_city", value: BilingualTextValue) {
+    setBilingualForm((current) => ({ ...current, [field]: value }));
+    setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
+    setMessage(null);
+    setError(null);
+  }
+
+  function updateBirthCountry(value: string) {
+    const nextCountry = normalizeCountryCode(value);
+    setForm((current) => ({
+      ...current,
+      birth_country: nextCountry,
+      birth_province_or_state: "",
+      birth_city: "",
+      ...(current.nationality ? {} : { nationality: nextCountry }),
+    }));
+    setBilingualForm((current) => ({
+      ...current,
+      birth_province_or_state: { zh: "", en: "" },
+      birth_city: { zh: "", en: "" },
+      place_of_birth: { zh: "", en: "" },
+    }));
+    setTranslationStatus((current) => ({
+      ...current,
+      birth_province_or_state: "idle",
+      birth_city: "idle",
+    }));
+    setMessage(null);
+    setError(null);
+  }
+
+  function updateBirthProvince(value: string) {
+    const option = findBirthProvinceOption(form.birth_country, value);
+    const nextValue = option?.code ?? value;
+    const nextBilingualValue = optionToBilingualValue(option);
+
+    setForm((current) => ({
+      ...current,
+      birth_province_or_state: nextValue,
+      birth_city: "",
+    }));
+    setBilingualForm((current) => ({
+      ...current,
+      birth_province_or_state: nextBilingualValue,
+      birth_city: { zh: "", en: "" },
+    }));
+    setTranslationStatus((current) => ({
+      ...current,
+      birth_province_or_state: "idle",
+      birth_city: "idle",
+    }));
+    setMessage(null);
+    setError(null);
+  }
+
+  function updateBirthCity(value: string) {
+    const option = findBirthCityOption(form.birth_country, form.birth_province_or_state, value);
+    const nextValue = option?.code ?? value;
+    setForm((current) => ({
+      ...current,
+      birth_city: nextValue,
+      place_of_birth: option && option.code !== OTHER_BIRTHPLACE_OPTION.code ? option.en : current.place_of_birth,
+    }));
+    setBirthplaceBilingualField("birth_city", optionToBilingualValue(option));
+  }
+
+  function updateBirthplaceFreeText(field: "birth_province_or_state" | "birth_city", side: "zh" | "en", value: string) {
+    const currentValue = bilingualForm[field];
+    const nextValue = side === "zh"
+      ? {
+          zh: value,
+          en: manualEnglishFields[field] && currentValue.en.trim() ? currentValue.en : toEnglishProfileValue(field, value),
+        }
+      : {
+          zh: toChineseSourceValue(value),
+          en: value,
+        };
+
+    if (side === "en") {
+      setManualEnglishFields((current) => ({ ...current, [field]: Boolean(value.trim()) }));
+    } else if (!value.trim()) {
+      setManualEnglishFields((current) => ({ ...current, [field]: false }));
+    }
+
+    setBirthplaceBilingualField(field, nextValue);
   }
 
   function updatePhoneCountry(countryCode: string) {
@@ -1164,22 +1301,50 @@ export default function UniversalInfoPage() {
 
   function applyPassportOcrFields(fields: UniversalProfileSnapshot) {
     const ocrBilingualFields = toInitialBilingualForm(fields as UniversalProfileRow);
-    const placeOfBirth = fields.place_of_birth ? toInitialBilingualValue(fields as UniversalProfileRow, "place_of_birth") : null;
+    const normalizedBirthplace = normalizeBirthplace({
+      placeOfBirth: fields.place_of_birth,
+      country: fields.birth_country || fields.nationality,
+      province: fields.birth_province_or_state,
+      provinceZh: fields.birth_province_or_state_zh,
+      provinceEn: fields.birth_province_or_state_en,
+      city: fields.birth_city,
+      cityZh: fields.birth_city_zh,
+      cityEn: fields.birth_city_en,
+      nationality: fields.nationality,
+    });
+    const hasOcrBirthplace = Boolean(
+      normalizedBirthplace.countryCode ||
+      normalizedBirthplace.province.zh ||
+      normalizedBirthplace.province.en ||
+      normalizedBirthplace.city.zh ||
+      normalizedBirthplace.city.en,
+    );
 
     setBilingualForm((current) => ({
       ...current,
       full_name: fields.full_name || fields.surname || fields.given_names ? ocrBilingualFields.full_name : current.full_name,
       surname: fields.full_name || fields.surname ? ocrBilingualFields.surname : current.surname,
       given_names: fields.full_name || fields.given_names ? ocrBilingualFields.given_names : current.given_names,
-      place_of_birth: placeOfBirth ?? current.place_of_birth,
-      birth_city: placeOfBirth ?? current.birth_city,
+      place_of_birth: hasOcrBirthplace && !current.place_of_birth.zh.trim() && !current.place_of_birth.en.trim()
+        ? {
+            zh: normalizedBirthplace.placeOfBirthZh,
+            en: normalizedBirthplace.placeOfBirthEn,
+          }
+        : current.place_of_birth,
+      birth_province_or_state: hasOcrBirthplace && !current.birth_province_or_state.zh.trim() && !current.birth_province_or_state.en.trim()
+        ? normalizedBirthplace.province
+        : current.birth_province_or_state,
+      birth_city: hasOcrBirthplace && !current.birth_city.zh.trim() && !current.birth_city.en.trim()
+        ? normalizedBirthplace.city
+        : current.birth_city,
     }));
     setForm((current) => {
       const nextFullName = fields.full_name || fields.surname || fields.given_names
         ? composeEnglishFullName(ocrBilingualFields.given_names.en, ocrBilingualFields.surname.en) ||
           composeChineseName(ocrBilingualFields.surname.zh, ocrBilingualFields.given_names.zh)
         : current.full_name;
-      const nextBirthCity = placeOfBirth ? placeOfBirth.en || placeOfBirth.zh : current.birth_city;
+      const shouldFillBirthProvince = hasOcrBirthplace && !current.birth_province_or_state;
+      const shouldFillBirthCity = hasOcrBirthplace && !current.birth_city;
 
       return {
         ...current,
@@ -1191,11 +1356,18 @@ export default function UniversalInfoPage() {
           ? ocrBilingualFields.given_names.en || ocrBilingualFields.given_names.zh
           : current.given_names,
         date_of_birth: fields.date_of_birth ?? current.date_of_birth,
-        place_of_birth: nextBirthCity || current.place_of_birth,
-        birth_city: nextBirthCity || current.birth_city,
+        place_of_birth: shouldFillBirthCity
+          ? normalizedBirthplace.placeOfBirthEn || normalizedBirthplace.placeOfBirthZh || current.place_of_birth
+          : current.place_of_birth,
+        birth_province_or_state: shouldFillBirthProvince
+          ? normalizedBirthplace.provinceCode || current.birth_province_or_state
+          : current.birth_province_or_state,
+        birth_city: shouldFillBirthCity
+          ? normalizedBirthplace.cityCode || current.birth_city
+          : current.birth_city,
         gender: normalizeGender(fields.gender) || current.gender,
         nationality: normalizeCountryCode(fields.nationality) || current.nationality,
-        birth_country: current.birth_country || normalizeCountryCode(fields.nationality) || current.nationality,
+        birth_country: current.birth_country || normalizedBirthplace.countryCode || normalizeCountryCode(fields.nationality) || current.nationality,
         passport_number: fields.passport_number ?? current.passport_number,
         passport_issue_date: fields.passport_issue_date ?? current.passport_issue_date,
         passport_expiry_date: fields.passport_expiry_date ?? current.passport_expiry_date,
@@ -1246,6 +1418,7 @@ export default function UniversalInfoPage() {
         applicationId: passportOcrApplicationId,
         country: "us",
         visaType: "b1_b2",
+        preferExplicit: true,
         profile: {
           full_name: cleanValue(fullNameEn || fullNameZh),
           full_name_zh: cleanValue(fullNameZh) ?? undefined,
@@ -1449,45 +1622,72 @@ export default function UniversalInfoPage() {
                   zhLabel="出生国家"
                   enLabel="Country of birth"
                   zhControl={
-                    <BilingualCountryControl
-                      side="zh"
-                      value={form.birth_country}
-                      placeholder="选择出生国家..."
-                      showSecondaryLabel={false}
-                      onChange={(value) => updateField("birth_country", value)}
-                    />
+                    <div data-testid="birth-country-zh-control">
+                      <BilingualCountryControl
+                        side="zh"
+                        value={form.birth_country}
+                        placeholder="选择出生国家..."
+                        showSecondaryLabel={false}
+                        onChange={updateBirthCountry}
+                      />
+                    </div>
                   }
                   enControl={
-                    <BilingualCountryControl
-                      side="en"
-                      value={form.birth_country}
-                      placeholder="Select country of birth..."
-                      showSecondaryLabel={false}
-                      onChange={(value) => updateField("birth_country", value)}
-                    />
+                    <div data-testid="birth-country-en-control">
+                      <BilingualCountryControl
+                        side="en"
+                        value={form.birth_country}
+                        placeholder="Select country of birth..."
+                        showSecondaryLabel={false}
+                        onChange={updateBirthCountry}
+                      />
+                    </div>
                   }
                 />
                 <ProfileBilingualRow
                   zhLabel="出生省/州"
                   enLabel="State/Province of birth"
                   zhControl={
-                    <BilingualTextControl
-                      side="zh"
-                      value={bilingualForm.birth_province_or_state.zh}
-                      placeholder="如：湖南"
-                      icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("birth_province_or_state", "zh", value)}
-                      onBlur={() => void translateBilingualField("birth_province_or_state")}
-                    />
+                    <div className="space-y-2" data-testid="birth-province-zh-control">
+                      <BilingualOptionControl
+                        side="zh"
+                        value={form.birth_province_or_state}
+                        options={birthProvinceOptions}
+                        placeholder="选择出生省/州"
+                        icon={<MapPin className="h-4 w-4" />}
+                        onChange={updateBirthProvince}
+                      />
+                      {isOtherBirthProvince ? (
+                        <BilingualTextControl
+                          side="zh"
+                          value={bilingualForm.birth_province_or_state.zh}
+                          placeholder="如：湖南"
+                          icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                          onChange={(value) => updateBirthplaceFreeText("birth_province_or_state", "zh", value)}
+                        />
+                      ) : null}
+                    </div>
                   }
                   enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={bilingualForm.birth_province_or_state.en}
-                      placeholder="For example: Hunan"
-                      icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("birth_province_or_state", "en", value)}
-                    />
+                    <div className="space-y-2" data-testid="birth-province-en-control">
+                      <BilingualOptionControl
+                        side="en"
+                        value={form.birth_province_or_state}
+                        options={birthProvinceOptions}
+                        placeholder="Select state/province"
+                        icon={<MapPin className="h-4 w-4" />}
+                        onChange={updateBirthProvince}
+                      />
+                      {isOtherBirthProvince ? (
+                        <BilingualTextControl
+                          side="en"
+                          value={bilingualForm.birth_province_or_state.en}
+                          placeholder="For example: Hunan"
+                          icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                          onChange={(value) => updateBirthplaceFreeText("birth_province_or_state", "en", value)}
+                        />
+                      ) : null}
+                    </div>
                   }
                   footer={<TranslationHint status={translationStatus.birth_province_or_state} isZh={isZh} />}
                 />
@@ -1495,23 +1695,46 @@ export default function UniversalInfoPage() {
                   zhLabel="出生城市"
                   enLabel="City of birth"
                   zhControl={
-                    <BilingualTextControl
-                      side="zh"
-                      value={bilingualForm.birth_city.zh}
-                      placeholder="如：长沙"
-                      icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("birth_city", "zh", value)}
-                      onBlur={() => void translateBilingualField("birth_city")}
-                    />
+                    <div className="space-y-2" data-testid="birth-city-zh-control">
+                      <BilingualOptionControl
+                        side="zh"
+                        value={form.birth_city}
+                        options={birthCityOptions}
+                        placeholder="选择出生城市"
+                        icon={<MapPin className="h-4 w-4" />}
+                        onChange={updateBirthCity}
+                      />
+                      {isOtherBirthCity ? (
+                        <BilingualTextControl
+                          side="zh"
+                          value={bilingualForm.birth_city.zh}
+                          placeholder="如：长沙"
+                          icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                          onChange={(value) => updateBirthplaceFreeText("birth_city", "zh", value)}
+                        />
+                      ) : null}
+                    </div>
                   }
                   enControl={
-                    <BilingualTextControl
-                      side="en"
-                      value={bilingualForm.birth_city.en}
-                      placeholder="For example: Changsha"
-                      icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                      onChange={(value) => updateBilingualField("birth_city", "en", value)}
-                    />
+                    <div className="space-y-2" data-testid="birth-city-en-control">
+                      <BilingualOptionControl
+                        side="en"
+                        value={form.birth_city}
+                        options={birthCityOptions}
+                        placeholder="Select city of birth"
+                        icon={<MapPin className="h-4 w-4" />}
+                        onChange={updateBirthCity}
+                      />
+                      {isOtherBirthCity ? (
+                        <BilingualTextControl
+                          side="en"
+                          value={bilingualForm.birth_city.en}
+                          placeholder="For example: Changsha"
+                          icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                          onChange={(value) => updateBirthplaceFreeText("birth_city", "en", value)}
+                        />
+                      ) : null}
+                    </div>
                   }
                   footer={<TranslationHint status={translationStatus.birth_city} isZh={isZh} />}
                 />

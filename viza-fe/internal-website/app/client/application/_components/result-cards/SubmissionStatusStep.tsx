@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useLocale } from "next-intl";
 import { AlertTriangle, FlaskConical } from "lucide-react";
 import type {
   GenericSubmissionResult,
@@ -9,6 +10,7 @@ import type {
 } from "@/lib/submission-result";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import { WaitingCard } from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
 import { UsResultCard } from "./UsResultCard";
@@ -25,8 +27,27 @@ interface SubmissionStatusStepProps {
 }
 
 function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
+  const isZh = isChineseLocale(useLocale());
   const unsupported = result.status === "unsupported";
+  const actionRequired = result.status === "action_required";
   const Icon = unsupported ? AlertTriangle : FlaskConical;
+  const title = actionRequired
+    ? (isZh ? "需要人工操作" : "Manual action required")
+    : unsupported
+      ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
+      : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
+  const badge = actionRequired
+    ? (isZh ? "需操作" : "Action required")
+    : unsupported
+      ? (isZh ? "暂不支持" : "Unsupported")
+      : "Dry run";
+  const body = unsupported
+    ? (isZh
+        ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
+        : "Automated submission is not available for this country yet. We can still organize documents and prepare the draft.")
+    : actionRequired
+      ? (result.actionInstructions ?? result.message)
+      : result.message;
 
   return (
     <Card className="rounded-xl border-input">
@@ -34,18 +55,16 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-3 text-foreground">
             <Icon className="h-5 w-5 text-brand-500" />
-            {unsupported ? "Automated submission unavailable" : "Dry-run submission complete"}
+            {title}
           </CardTitle>
-          <Badge variant={unsupported ? "secondary" : "default"}>
-            {unsupported ? "Unsupported" : "Dry run"}
+          <Badge variant={unsupported || actionRequired ? "secondary" : "default"}>
+            {badge}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {unsupported
-            ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
-            : result.message}
+          {body}
         </p>
 
         <div className="rounded-md border border-input bg-background px-3 py-2">
@@ -60,6 +79,15 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
             <div className="text-xs text-brand-500">Mock confirmation</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.confirmationNumber}
+            </div>
+          </div>
+        )}
+
+        {actionRequired && result.actionType && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
+            <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
+              {result.actionType}
             </div>
           </div>
         )}

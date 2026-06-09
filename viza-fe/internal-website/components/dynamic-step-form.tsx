@@ -8,15 +8,16 @@ import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
-  getChineseLabel,
-  getChineseOptionText,
   getChinesePlaceholder,
-  getEnglishLabel,
-  getEnglishOptionText,
   getEnglishPlaceholder,
   toChineseSourceValue,
   toOfficialEnglishValue,
 } from "@/lib/ds160-translations";
+import {
+  resolveLocalizedFieldLabel,
+  resolveLocalizedOptions,
+  resolveLocalizedPlaceholder,
+} from "@/lib/bilingual-schema-contract";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -217,51 +218,8 @@ function toInitialBilingualText(value?: string): BilingualTextValue {
   return { zh: toChineseSourceValue(storedValue), en: storedValue };
 }
 
-function getSideOptions(
-  options: VisaFormFieldRow["options"],
-  side: BilingualSide,
-): VisaFormFieldRow["options"] {
-  if (!options) return null;
-  return options.map((option) => {
-    if (typeof option === "string") {
-      return {
-        value: option,
-        text: side === "zh" ? getChineseOptionText(option) : getEnglishOptionText(option),
-      };
-    }
-
-    const value = option.value;
-    const sourceText = option.official_label ?? option.text ?? option.label_en ?? option.value;
-    const text = side === "zh"
-      ? (option.label_zh ?? getChineseOptionText(sourceText))
-      : (option.label_en ?? getEnglishOptionText(sourceText));
-    return {
-      value,
-      text,
-    };
-  });
-}
-
-function getValidationRuleText(
-  field: VisaFormFieldRow,
-  keys: string[],
-): string | null {
-  const rules = field.validationRules;
-  if (!rules) return null;
-  for (const key of keys) {
-    const value = rules[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return null;
-}
-
 function getLocalizedFieldLabel(field: VisaFormFieldRow, side: BilingualSide): string {
-  if (side === "zh") {
-    return getValidationRuleText(field, ["label_zh", "zh_label"])
-      ?? getChineseLabel(field.label, field.fieldName);
-  }
-  return getValidationRuleText(field, ["label_en", "official_label_en", "official_label"])
-    ?? getEnglishLabel(field.label);
+  return resolveLocalizedFieldLabel(field, side);
 }
 
 function getLocalizedPlaceholder(
@@ -269,10 +227,7 @@ function getLocalizedPlaceholder(
   side: BilingualSide,
   fallback: string | null,
 ): string | null {
-  return getValidationRuleText(
-    field,
-    side === "zh" ? ["placeholder_zh", "zh_placeholder"] : ["placeholder_en", "en_placeholder"],
-  ) ?? fallback;
+  return resolveLocalizedPlaceholder(field, side) ?? fallback;
 }
 
 function buildStrictDate(year: number, month: number, day: number): Date | null {
@@ -1340,7 +1295,7 @@ export function DynamicStepForm({
           side,
           side === "zh" ? zhPlaceholder : enPlaceholder,
         ),
-        options: getSideOptions(fieldOptions, side),
+        options: resolveLocalizedOptions(fieldOptions, side),
       };
 
       return (
@@ -1364,6 +1319,7 @@ export function DynamicStepForm({
 
     const guidanceField: VisaFormFieldRow = {
       ...field,
+      label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: fieldOptions ?? null,
     };
     const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
