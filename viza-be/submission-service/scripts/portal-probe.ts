@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   process.env.RECON_PROXY_COUNTRY = process.env.PROBE_COUNTRY ?? process.env.RECON_PROXY_COUNTRY ?? "in";
   const maxSteps = Number(process.env.PROBE_STEPS ?? 6);
 
-  const { browser, page } = await launchStealthBrowser({ headless: true });
+  const { browser, page } = await launchStealthBrowser({ headless: true, antiBot: process.env.PROBE_ANTIBOT === "1" });
   const snapshots: Snapshot[] = [];
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
