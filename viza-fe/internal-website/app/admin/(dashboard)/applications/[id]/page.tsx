@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/rbac";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { RealtimeApplicationStatus } from "./realtime-status";
@@ -229,13 +230,14 @@ function OverviewMetrics({
 
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">{copy.detail.metrics.overallProgress}</p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
-          <div
-            className="h-full rounded-full bg-brand-500"
-            style={{ width: `${applicant.completionPercent}%` }}
-          />
-        </div>
-        <p className="mt-2 text-2xl font-semibold text-[#232323]">{applicant.completionPercent}%</p>
+        <SmoothProgressMeter
+          serverProgress={applicant.completionPercent}
+          status={applicant.completionPercent >= 100 ? "completed" : "running"}
+          intervalMs={140}
+          className="mt-3"
+          valueClassName="text-2xl font-semibold text-[#232323]"
+          trackClassName="bg-[#edf1f6]"
+        />
       </div>
     </div>
   );
@@ -409,9 +411,14 @@ function ApplicationCard({
           <span>{copy.common.progress}</span>
           <span>{progress}%</span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
-          <div className="h-full rounded-full bg-brand-500" style={{ width: `${progress}%` }} />
-        </div>
+        <SmoothProgressMeter
+          serverProgress={progress}
+          status={progress >= 100 ? "completed" : "running"}
+          intervalMs={140}
+          className="mt-2"
+          valueClassName="text-xs font-medium text-[#6b6b6b]"
+          trackClassName="bg-[#edf1f6]"
+        />
       </div>
     </div>
   );

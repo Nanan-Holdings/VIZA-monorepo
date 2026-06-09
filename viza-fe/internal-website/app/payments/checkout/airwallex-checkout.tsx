@@ -14,6 +14,7 @@ import {
   Smartphone,
   WalletCards,
 } from "lucide-react";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
 
 interface AirwallexCheckoutProps {
@@ -497,9 +498,17 @@ export function AirwallexCheckout({
               {selectedMethod === "card" ? (
                 <div className="grid min-h-[340px] content-center gap-4">
                   {!scriptReady || !intent ? (
-                    <div className="flex items-center justify-center text-sm text-muted-foreground">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      正在准备银行卡安全组件
+                    <div className="mx-auto w-full max-w-sm space-y-3 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        正在准备银行卡安全组件
+                      </div>
+                      <SmoothProgressMeter
+                        serverProgress={62}
+                        status="running"
+                        intervalMs={120}
+                        label="准备进度"
+                      />
                     </div>
                   ) : null}
                   <div id="airwallex-card-element" className="rounded-lg border bg-white p-4" />
@@ -551,9 +560,17 @@ export function AirwallexCheckout({
               ) : null}
 
               {selectedMethod !== "card" && selectedMethod !== null && !qrCodeDataUrl ? (
-                <div className="flex min-h-[340px] items-center justify-center text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  正在打开安全支付页面
+                <div className="mx-auto flex min-h-[340px] w-full max-w-sm flex-col justify-center gap-3 text-sm text-muted-foreground">
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    正在打开安全支付页面
+                  </div>
+                  <SmoothProgressMeter
+                    serverProgress={88}
+                    status="running"
+                    intervalMs={120}
+                    label="处理进度"
+                  />
                 </div>
               ) : null}
             </div>

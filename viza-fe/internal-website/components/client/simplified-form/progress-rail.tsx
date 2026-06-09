@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 
 interface ProgressRailProps {
@@ -31,18 +32,12 @@ export function ProgressRail({ step, total, label, onBack, backLabel }: Progress
           {label}
         </span>
       </div>
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-brand-50"
-        role="progressbar"
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div
-          className="h-full rounded-full bg-brand-500 transition-[width] duration-300 ease-out"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
+      <SmoothProgressBar
+        displayedProgress={percent}
+        showValue={false}
+        trackClassName="bg-brand-50"
+        size="xs"
+      />
     </div>
   );
 }

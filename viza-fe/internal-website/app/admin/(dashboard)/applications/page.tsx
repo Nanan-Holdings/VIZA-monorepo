@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { getCurrentUser } from "@/lib/rbac";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import {
@@ -360,13 +361,15 @@ function UserCard({
               <CalendarClock className="h-4 w-4" />
               {copy.common.progress}
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf1f6]">
-              <div
-                className="h-full rounded-full bg-brand-500"
-                style={{ width: `${applicant.completionPercent}%` }}
-              />
-            </div>
-            <p className="mt-2 text-sm font-semibold text-[#232323]">{applicant.completionPercent}% {copy.common.complete}</p>
+            <SmoothProgressMeter
+              serverProgress={applicant.completionPercent}
+              status={applicant.completionPercent >= 100 ? "completed" : "running"}
+              intervalMs={140}
+              className="mt-3"
+              valueClassName="text-sm font-semibold text-[#232323]"
+              trackClassName="bg-[#edf1f6]"
+            />
+            <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">{copy.common.complete}</p>
             <p className="mt-1 text-xs leading-5 text-[#6b6b6b]">
               {copy.common.bestApplication}: {latestApplication ? getLifecycleProgressPercent(latestApplication) : 0}%
             </p>

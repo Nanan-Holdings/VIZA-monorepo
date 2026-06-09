@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -1215,20 +1216,15 @@ export function DocumentCenterClient({
                 embedded ? "lg:max-w-xs" : "lg:max-w-sm",
               )}
             >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold">
-                  {isZh ? "完成度" : "Progress"}
-                </span>
-                <span className="text-2xl font-semibold text-brand-500">
-                  {completionPercent}%
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-brand-500"
-                  style={{ width: `${completionPercent}%` }}
-                />
-              </div>
+              <SmoothProgressMeter
+                serverProgress={completionPercent}
+                status={completionPercent >= 100 ? "completed" : "running"}
+                intervalMs={140}
+                label={isZh ? "完成度" : "Progress"}
+                labelClassName="mb-1 text-sm font-semibold text-foreground"
+                valueClassName="text-2xl font-semibold text-brand-500"
+                trackClassName="bg-muted"
+              />
               <p className="mt-3 text-sm text-muted-foreground">
                 {isZh
                   ? `已完成 ${readyRequired} / ${totalRequired} 项必需材料上传或审核。`

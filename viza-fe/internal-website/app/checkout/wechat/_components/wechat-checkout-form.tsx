@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { startWechatCheckout } from "@/app/actions/wechat-checkout";
+import { SmoothProgressBar } from "@/components/smooth-progress";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 
 interface Props {
   country: string;
@@ -64,6 +66,14 @@ export function WechatCheckoutForm({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const {
+    displayedProgress,
+    isVisuallyComplete,
+  } = useSmoothProgress({
+    serverProgress: step === "paid" ? 100 : step === "qr" ? 92 : 0,
+    status: step === "paid" ? "completed" : step === "error" ? "failed" : step === "qr" ? "running" : "waiting_for_user",
+    intervalMs: 120,
+  });
 
   // Poll the status endpoint while waiting for the WeChat notify
   // callback to flip the order to paid. Stop polling on paid / error.
@@ -80,9 +90,6 @@ export function WechatCheckoutForm({
         if (stopped) return;
         if (body.status === "paid") {
           setStep("paid");
-          window.setTimeout(() => {
-            router.push(`/checkout/wechat/check-your-email?locale=${locale}`);
-          }, 1200);
         }
       } catch {
         // swallow — try again next tick
@@ -93,7 +100,12 @@ export function WechatCheckoutForm({
       stopped = true;
       window.clearInterval(id);
     };
-  }, [step, orderId, locale, router]);
+  }, [step, orderId]);
+
+  useEffect(() => {
+    if (step !== "paid" || !isVisuallyComplete) return;
+    router.push(`/checkout/wechat/check-your-email?locale=${locale}`);
+  }, [isVisuallyComplete, locale, router, step]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +138,11 @@ export function WechatCheckoutForm({
       <Shell>
         <h1 className="text-xl font-medium text-foreground">{t.paidTitle}</h1>
         <p className="text-sm text-muted-foreground mt-2">{t.paidBody}</p>
+        <SmoothProgressBar
+          displayedProgress={displayedProgress}
+          label={t.paidTitle}
+          className="mt-5"
+        />
       </Shell>
     );
   }
@@ -135,7 +152,6 @@ export function WechatCheckoutForm({
       <Shell>
         <h1 className="text-xl font-medium text-foreground">{t.qrTitle}</h1>
         <div className="mt-4 flex justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qrDataUrl}
             alt="WeChat Pay QR"
@@ -150,6 +166,11 @@ export function WechatCheckoutForm({
         <p className="text-xs text-muted-foreground mt-2 text-center">
           {t.waiting}
         </p>
+        <SmoothProgressBar
+          displayedProgress={displayedProgress}
+          label={t.waiting}
+          className="mt-5"
+        />
         <p className="text-xs text-muted-foreground mt-4 text-center">
           {t.emailFootnote} <span className="font-medium">{email}</span>
         </p>

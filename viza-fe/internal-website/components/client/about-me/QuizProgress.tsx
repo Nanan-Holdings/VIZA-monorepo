@@ -1,5 +1,7 @@
 "use client";
 
+import { SmoothProgressBar } from "@/components/smooth-progress";
+
 interface QuizProgressProps {
   sections: Array<{ id: string; name: string }>;
   currentSectionIndex: number;
@@ -14,12 +16,12 @@ export function QuizProgress({
   return (
     <div className="w-full space-y-4">
       {/* Progress bar */}
-      <div className="w-full h-2 bg-[#EFEFEF] rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-[#E8BFA7] to-[#A8644D] transition-all duration-300"
-          style={{ width: `${progressPercentage}%` }}
-        />
-      </div>
+      <SmoothProgressBar
+        displayedProgress={progressPercentage}
+        showValue={false}
+        trackClassName="bg-[#EFEFEF]"
+        barClassName="bg-gradient-to-r from-[#E8BFA7] to-[#A8644D]"
+      />
 
       {/* Section indicators - hidden on mobile */}
       <div className="hidden md:flex justify-between gap-2">

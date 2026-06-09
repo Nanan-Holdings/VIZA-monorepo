@@ -23,6 +23,7 @@ import {
   type ApplicationLifecycleStatus,
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
 import { getFormVisaType } from "@/lib/visa-destinations";
 
@@ -149,6 +150,10 @@ function formatDate(value: string | null, locale: string): string {
   }).format(new Date(value));
 }
 
+function getProgressStatus(status: ApplicationLifecycleStatus): "completed" | "running" {
+  return status === "approved" || status === "rejected" ? "completed" : "running";
+}
+
 function matchesDetailRequest(
   summary: ApplicationLifecycleSummary,
   applicationId?: string | null,
@@ -237,18 +242,13 @@ function SummaryCard({
             <StatusBadge status={summary.status} />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[12px] font-semibold text-[#526174]">
-              <span>{t("cardProgress")}</span>
-              <span>{summary.progressPercent}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#eef3fa]">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", tone.bar)}
-                style={{ width: `${summary.progressPercent}%` }}
-              />
-            </div>
-          </div>
+          <SmoothProgressMeter
+            serverProgress={summary.progressPercent}
+            status={getProgressStatus(summary.status)}
+            intervalMs={160}
+            label={t("cardProgress")}
+            barClassName={tone.bar}
+          />
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-2">
             <ChecklistItem done={summary.checklist.destination} label={t("checklist.destination")} />
@@ -580,18 +580,14 @@ function DetailView({
           </div>
         </div>
 
-        <div className="mt-6 space-y-2">
-          <div className="flex items-center justify-between text-[12px] font-semibold text-[#526174]">
-            <span>{t("fullCycleProgress")}</span>
-            <span>{summary.progressPercent}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#eef3fa]">
-            <div
-              className={cn("h-full rounded-full transition-all duration-500", tone.bar)}
-              style={{ width: `${summary.progressPercent}%` }}
-            />
-          </div>
-        </div>
+        <SmoothProgressMeter
+          serverProgress={summary.progressPercent}
+          status={getProgressStatus(summary.status)}
+          intervalMs={160}
+          label={t("fullCycleProgress")}
+          className="mt-6"
+          barClassName={tone.bar}
+        />
       </section>
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">

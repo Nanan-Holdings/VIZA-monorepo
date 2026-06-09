@@ -2,7 +2,9 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +67,21 @@ export function DocumentUpload({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [state, setState] = useState<UploadState>({ status: "idle", progress: 0 });
+  const {
+    displayedProgress,
+    isVisuallyComplete,
+  } = useSmoothProgress({
+    serverProgress: state.status === "succeeded" ? 100 : state.progress,
+    status:
+      state.status === "succeeded"
+        ? "completed"
+        : state.status === "failed"
+          ? "failed"
+          : state.status === "idle"
+            ? "waiting_for_user"
+            : "running",
+    intervalMs: 80,
+  });
 
   const validateFile = useCallback(
     async (file: File): Promise<string | null> => {
@@ -180,18 +197,22 @@ export function DocumentUpload({
           state.status === "succeeded" ? "border-brand-500/60 bg-brand-50/60" : "",
         )}
       >
-        {state.status === "succeeded" ? (
+        {state.status === "succeeded" && isVisuallyComplete ? (
           <>
             <CheckCircle2 className="h-6 w-6 text-brand-500" />
             <p className="text-foreground">Uploaded {state.uploadedFilename}</p>
           </>
-        ) : state.status === "uploading" || state.status === "validating" ? (
+        ) : state.status === "uploading" || state.status === "validating" || state.status === "succeeded" ? (
           <>
             <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
             <p>Uploading…</p>
-            <div className="h-1 w-40 overflow-hidden rounded-full bg-brand-50">
-              <div className="h-full bg-brand-500 transition-all" style={{ width: `${state.progress}%` }} />
-            </div>
+            <SmoothProgressBar
+              displayedProgress={displayedProgress}
+              showValue={false}
+              className="w-40"
+              size="xs"
+              trackClassName="bg-brand-50"
+            />
           </>
         ) : state.status === "failed" ? (
           <>

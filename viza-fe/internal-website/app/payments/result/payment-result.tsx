@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 interface PaymentResultProps {
   paymentId: string | null;
@@ -52,6 +53,8 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
   const paid = status === "paid";
   const failed = status === "failed";
   const Icon = paid ? CheckCircle2 : failed ? XCircle : Loader2;
+  const progressStatus = paid ? "completed" : failed ? "failed" : "running";
+  const serverProgress = paid ? 100 : failed ? 0 : 92;
 
   return (
     <main className="min-h-screen bg-[#fafafa] px-4 py-6">
@@ -80,6 +83,13 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
                   : "在线支付服务未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
                 : "如果你刚完成扫码或验证，页面会自动刷新最终状态。"}
           </p>
+          <SmoothProgressMeter
+            serverProgress={serverProgress}
+            status={progressStatus}
+            intervalMs={120}
+            label={paid ? "确认完成" : failed ? "确认已停止" : "确认进度"}
+            className="mx-auto mt-6 max-w-md"
+          />
           {providerStatus ? (
             <p className="mt-5 text-xs font-medium text-muted-foreground">支付服务状态：{providerStatus}</p>
           ) : null}

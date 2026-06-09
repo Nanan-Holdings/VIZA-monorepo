@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { saveDynamicAnswers } from "@/app/actions/visa-application-answers";
 import type { QuestionFieldRecord, QuestionSetRecord } from "@/app/actions/question-sets";
 
@@ -110,12 +111,12 @@ export function AnswerForm({ applicationId, questionSet, initialAnswers }: Answe
             {savingField ? `Saving ${savingField}…` : pending ? "Saving…" : "All changes saved"}
           </span>
         </div>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-brand-50">
-          <div
-            className="h-full bg-brand-500 transition-all"
-            style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
-          />
-        </div>
+        <SmoothProgressBar
+          displayedProgress={((stepIndex + 1) / steps.length) * 100}
+          showValue={false}
+          trackClassName="bg-brand-50"
+          size="xs"
+        />
 
         <div className="space-y-5">
           {visibleStepFields.map((field) => {

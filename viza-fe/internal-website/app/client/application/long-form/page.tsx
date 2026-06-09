@@ -28,6 +28,7 @@ import {
   type DocumentType,
 } from "@/components/application-steps";
 import { DynamicStepForm } from "@/components/dynamic-step-form";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
   saveDynamicAnswers,
@@ -605,6 +606,7 @@ function GroupedMobileStepBar({
     return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
   }, [completedStepIds, currentStep]);
   const completedStepCount = steps.filter((step) => completedStepIds.has(step.id)).length;
+  const progressPercent = Math.min(100, (completedStepCount / Math.max(steps.length, 1)) * 100);
 
   useEffect(() => {
     setExpandedSections((prev) => {
@@ -643,12 +645,16 @@ function GroupedMobileStepBar({
             {currentStepIndex !== undefined ? `${currentStepIndex + 1} / ${steps.length}` : `— / ${steps.length}`}
           </span>
         </div>
-        <div className="mt-3 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-[#03346E] transition-all duration-300"
-            style={{ width: `${Math.min(100, (completedStepCount / Math.max(steps.length, 1)) * 100)}%` }}
-          />
-        </div>
+        <SmoothProgressMeter
+          serverProgress={progressPercent}
+          status={progressPercent >= 100 ? "completed" : "running"}
+          intervalMs={140}
+          showValue={false}
+          className="mt-3"
+          trackClassName="bg-gray-100"
+          barClassName="bg-[#03346E]"
+          size="xs"
+        />
       </div>
 
       <div className="space-y-3">
