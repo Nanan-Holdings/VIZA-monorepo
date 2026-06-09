@@ -25,7 +25,8 @@ the applicant.
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
-  reference capture, optional CERFA PDF finalization, and typed failures.
+  reference capture, optional CERFA PDF finalization, standard Chromium launch,
+  manual CAPTCHA/account checkpoints, and typed failures.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
@@ -58,7 +59,7 @@ the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
-| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, opens visible France-Visas automation, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
+| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses standard Playwright Chromium with no stealth/CAPTCHA solver, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |

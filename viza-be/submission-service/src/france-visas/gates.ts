@@ -1,10 +1,9 @@
 /**
  * France-Visas anti-bot / blocking-gate detection.
  *
- * The Keycloak registration CAPTCHA is SOLVABLE and handled by
- * registration-captcha.ts. This module detects only unsolvable gates —
- * rate limits, WAF challenges, Cloudflare interstitials — so the worker
- * fails fast with a structured error instead of retrying blindly.
+ * France live-assisted mode does not solve CAPTCHA. This module detects
+ * CAPTCHA/manual gates plus anti-bot interstitials so the worker can stop
+ * with a structured manual checkpoint instead of retrying blindly.
  */
 
 import type { Page } from "@playwright/test";
@@ -41,7 +40,10 @@ export async function detectGate(page: Page): Promise<GateDetectionResult> {
   }
 
   const matchedCaptchaSelectors: string[] = [];
-  for (const selector of FV_GATE_MARKERS.blockingCaptchaSelectors) {
+  for (const selector of [
+    ...FV_GATE_MARKERS.manualCaptchaSelectors,
+    ...FV_GATE_MARKERS.blockingCaptchaSelectors,
+  ]) {
     try {
       const count = await page.locator(selector).count();
       if (count > 0) matchedCaptchaSelectors.push(selector);

@@ -7,6 +7,9 @@ export type SubmissionQueueStatus =
   | "ds160_prefill_processing"
   | "ds160_prefilled"
   | "ds160_prefill_failed"
+  | "ds160_live_assisted_pending"
+  | "ds160_live_assisted_processing"
+  | "ds160_live_assisted_failed"
   | "ds160_blocked"
   | "fv_prefill_pending"
   | "fv_prefill_processing"
@@ -61,6 +64,8 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "processing",
   "ds160_prefill_pending",
   "ds160_prefill_processing",
+  "ds160_live_assisted_pending",
+  "ds160_live_assisted_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
   "uk_prefill_pending",
@@ -75,6 +80,7 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   ...ACTIVE_SUBMISSION_QUEUE_STATUSES,
   "failed",
   "ds160_prefill_failed",
+  "ds160_live_assisted_failed",
   "ds160_blocked",
   "fv_prefill_failed",
   "fv_blocked",
@@ -128,9 +134,20 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
   }
 }
 
+export function queueStatusForSubmissionMode(
+  visaType: string | null | undefined,
+  mode: SubmissionMode,
+): SubmissionQueueStatus {
+  if (isDs160VisaType(visaType) && mode === "live_assisted") {
+    return "ds160_live_assisted_pending";
+  }
+  return queueStatusForVisaType(visaType);
+}
+
 export function queueStatusForApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
+  mode: SubmissionMode = "dry_run",
 ): SubmissionQueueStatus {
   const normalizedCountry = normalizeCountry(country);
   const normalizedVisaType = normalizeVisaType(visaType);
@@ -142,7 +159,7 @@ export function queueStatusForApplication(
     return "vn_prefill_pending";
   }
 
-  return queueStatusForVisaType(visaType);
+  return queueStatusForSubmissionMode(visaType, mode);
 }
 
 export function queueProviderForVisaType(
