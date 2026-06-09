@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { chromium, type Browser, type Page } from "@playwright/test";
-import { brightDataProxy } from "../shared/proxy-launch.js";
+import { type Page } from "@playwright/test";
+import { startAntiBotSession } from "../shared/anti-bot-session.js";
 import { artifact } from "../artifact.js";
 import { classifyPage, type ZaRunnerError } from "./errors.js";
 import { ZA_SELECTORS } from "./selectors.js";
@@ -129,16 +129,18 @@ async function detectAntiBotGate(page: Page): Promise<boolean> {
 }
 
 export async function runZaPrefill(input: ZaRunInput): Promise<ZaRunResult> {
-  const proxy = brightDataProxy("za");
-  const browser: Browser = await chromium.launch({ headless: input.headless ?? true, proxy });
+  // South Africa uses VFS Global (Akamai); prefer the Bright Data Scraping
+  // Browser when configured, else fall back to the residential proxy.
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "za-har-"));
   const harPath = path.join(tempHar, `za-${input.jobId}.har`);
-  const ctx = await browser.newContext({
-    locale: "en-ZA",
-    recordHar: { path: harPath, mode: "minimal" },
-    ignoreHTTPSErrors: Boolean(proxy),
+  const { browser, context: ctx, page } = await startAntiBotSession({
+    country: "za",
+    headless: input.headless ?? true,
+    contextOptions: {
+      locale: "en-ZA",
+      recordHar: { path: harPath, mode: "minimal" },
+    },
   });
-  const page = await ctx.newPage();
   const stepCtx: StepCtx = { page, jobId: input.jobId, artefactPaths: [], attemptCount: 0 };
 
   const result: ZaRunResult = {
