@@ -51,12 +51,16 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   city_of_birth: "出生城市",
   state_of_birth: "出生州/省（如适用）",
   country_of_birth: "出生国家/地区",
+  religion: "宗教信仰",
   current_nationality: "当前国籍",
   nationality: "国籍",
   nationality_at_birth: "出生时国籍",
   nationality_at_birth_different: "出生时国籍是否与当前国籍不同？",
+  identity_card_number: "身份证或本国身份号码（如有）",
   has_other_nationalities: "是否持有或曾持有其他国籍？",
+  has_multiple_nationalities: "是否还拥有或曾拥有其他国籍？",
   other_nationality: "其他国籍",
+  has_violated_vietnam_laws: "是否曾违反越南法律或法规？",
   sex: "性别",
   gender: "性别",
   marital_status: "婚姻状况",
@@ -74,6 +78,9 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   passport_issuing_country: "护照签发国家/地区",
   travel_document_issuing_country: "旅行证件签发国家/地区",
   passport_issuing_authority: "护照签发机关/签发地点",
+  visa_type_requested: "申请单次或多次入境电子签证",
+  visa_valid_from: "希望电子签证从哪一天开始生效？",
+  visa_valid_to: "希望电子签证有效期到哪一天结束？",
   email_address: "电子邮箱地址",
   re_enter_email_address: "再次输入电子邮箱地址",
   phone_number: "电话号码",
@@ -94,6 +101,10 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   position_course: "职位或课程名称",
   company_address: "公司/机构/学校地址",
   company_phone: "公司/机构/学校电话",
+  emergency_contact_full_name: "紧急联系人姓名",
+  emergency_contact_current_address: "紧急联系人当前住址",
+  emergency_contact_telephone: "紧急联系人电话",
+  emergency_contact_relationship: "紧急联系人关系",
   purpose_of_trip: "赴美目的",
   purpose_of_journey: "本次旅行目的",
   purpose_of_entry: "入境目的",
@@ -109,6 +120,28 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   intended_length_of_stay: "预计停留时间",
   intended_length_of_stay_value: "预计停留时间（数值）",
   intended_length_of_stay_unit: "预计停留时间单位",
+  phone_in_vietnam: "越南境内电话号码",
+  residential_address_in_vietnam: "在越南拟停留地址",
+  intended_province_city: "在越南拟停留省/市",
+  intended_ward_commune: "在越南拟停留坊/社",
+  intended_border_gate_of_entry: "预计入境口岸",
+  intended_border_gate_of_exit: "预计出境口岸",
+  declaration_temporary_residence: "是否承诺抵达后按越南法律申报临时居住？",
+  visited_vietnam_in_last_year: "过去一年是否曾到访越南？",
+  visited_vietnam_purpose_detail: "上次访问越南的目的和入境日期",
+  has_relatives_in_vietnam: "是否有亲属目前居住在越南？",
+  relative_full_name_in_vn: "在越亲属姓名",
+  relative_date_of_birth: "在越亲属出生日期",
+  relative_nationality: "在越亲属国籍",
+  relative_relationship: "与在越亲属的关系",
+  relative_address_in_vn: "在越亲属地址",
+  child_full_name: "同一本护照上同行的14岁以下儿童姓名",
+  child_sex: "同行儿童性别",
+  child_date_of_birth: "同行儿童出生日期",
+  intended_expenses_usd: "预计费用（美元）",
+  bought_travel_insurance: "是否已购买本次旅行保险？",
+  expense_coverage: "谁承担申请人的旅行费用？",
+  violation_of_vietnam_laws_details: "请说明违反越南法律或法规的具体情况",
   accommodation_name: "住宿地点或接待方名称",
   accommodation_address: "住宿地点或接待方地址",
   accommodation_type: "住宿类型",
@@ -190,6 +223,28 @@ const LABEL_ZH_OVERRIDES: Record<string, string> = {
   "Other": "其他情况（请具体说明）",
 };
 
+const FIELD_NAME_EN_OVERRIDES: Record<string, string> = {
+  identity_card_number: "Identity card number",
+  visa_valid_from: "Grant e-Visa valid from",
+  visa_valid_to: "Grant e-Visa valid to",
+  passport_number: "Passport number",
+  passport_type: "Passport type",
+  emergency_contact_full_name: "Emergency contact full name",
+  emergency_contact_current_address: "Emergency contact current residential address",
+  emergency_contact_telephone: "Emergency contact telephone number",
+  emergency_contact_relationship: "Emergency contact relationship",
+  occupation_info: "Current occupation details",
+  position_course: "Position or course of study",
+  company_phone: "Company/agency/school telephone number",
+  intended_province_city: "Intended province/city in Viet Nam",
+  intended_ward_commune: "Intended ward/commune in Viet Nam",
+  declaration_temporary_residence: "I commit to declare temporary residence according to Vietnamese law",
+  relative_relationship: "Relationship to the relative in Viet Nam",
+  bought_travel_insurance: "Have you bought travel insurance?",
+  expense_coverage: "Who will cover the applicant's trip expenses?",
+  violation_of_vietnam_laws_details: "Details of Vietnamese law/regulation violation",
+};
+
 const HELPER_ZH_BY_FIELD_NAME: Record<string, string> = {
   declaration_fee_not_refunded_awareness:
     "该项用于确认您理解官方签证费的退款规则。请仅在已阅读并同意该声明后选择“是”。",
@@ -232,7 +287,7 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   diplomatic: "外交护照",
   diplomatic_passport: "外交护照",
   service: "公务护照",
-  official: "公务护照",
+  official: "公务人员",
   official_passport: "公务护照",
   special: "特殊护照",
   passport: "护照",
@@ -604,6 +659,9 @@ export function deriveChineseFieldLabel(field: FieldLike): string {
 export function deriveEnglishFieldLabel(field: FieldLike): string {
   const metadataLabel = getRuleText(field, ["label_en", "official_label_en", "official_label", "en_label"]);
   if (metadataLabel && !hasCjk(metadataLabel)) return metadataLabel;
+
+  const direct = FIELD_NAME_EN_OVERRIDES[normalizeFieldName(field.fieldName)];
+  if (direct) return direct;
 
   const label = clean(field.label);
   if (label && !hasCjk(label)) return getEnglishLabel(label);
