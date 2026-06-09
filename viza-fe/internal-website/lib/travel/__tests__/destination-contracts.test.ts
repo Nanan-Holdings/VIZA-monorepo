@@ -79,6 +79,11 @@ describe("local-first destination contracts", () => {
     expect(getLocalizedAttractionName(attraction, "en")).toBe(attraction.nameEn);
   });
 
+  it("does not match short Latin aliases inside unrelated destination names", () => {
+    expect(findDropdownDestinationContract("LA")?.nameEn).toBe("Los Angeles");
+    expect(findDropdownDestinationContract("Blue Lantern Bay")).toBeNull();
+  });
+
   it("rejects placeholder or unrelated images as verified assets", () => {
     expect(
       verifyTravelImageRelevance({

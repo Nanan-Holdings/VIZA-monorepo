@@ -955,7 +955,7 @@ export function DocumentCenterClient({
     return () => {
       cancelled = true;
     };
-  }, [applicationId, country, data?.selectedApplication?.id, visaType]);
+  }, [applicationId, country, data?.selectedApplication?.id, onDataChange, visaType]);
 
   useEffect(() => {
     setTravelCandidates(
