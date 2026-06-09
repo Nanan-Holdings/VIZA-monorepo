@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
   queueProviderForVisaType,
+  queueStatusForApplication,
   queueStatusForVisaType,
 } from "@/lib/submission-queue";
 
@@ -16,6 +17,18 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForVisaType("UK_STANDARD_VISITOR")).toBe("uk_prefill_pending");
     expect(queueStatusForVisaType("VN_E_VISA")).toBe("vn_prefill_pending");
     expect(queueStatusForVisaType("AU_VISITOR_600")).toBe("au_prefill_pending");
+  });
+
+  it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {
+    expect(queueStatusForApplication("vietnam", "evisa_tourism")).toBe("vn_prefill_pending");
+    expect(queueStatusForApplication("Viet Nam", "tourist-e-visa")).toBe("vn_prefill_pending");
+    expect(queueStatusForApplication("egypt", "evisa_tourism")).toBe("pending");
+  });
+
+  it("preserves mode-specific DS-160 live assisted routing", () => {
+    expect(queueStatusForApplication("United States", "DS160", "live_assisted")).toBe(
+      "ds160_live_assisted_pending",
+    );
   });
 
   it("marks U.S. DS-160 submissions with the CEAC provider for each mode", () => {

@@ -55,6 +55,7 @@ import {
   fillFranceVisasApplication,
   normalizeFvAnswers,
   buildAnswerMap,
+  isGateError as isFvGateError,
   NormalizationError,
   type NormalizeInput,
 } from "./france-visas";
@@ -108,6 +109,8 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "processing",
   "ds160_prefill_pending",
   "ds160_prefill_processing",
+  "ds160_live_assisted_pending",
+  "ds160_live_assisted_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
   "uk_prefill_pending",
@@ -127,7 +130,11 @@ function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
 }
 
 function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
-  return item.mode === "live_assisted";
+  return item.mode === "live_assisted" || item.status.startsWith("ds160_live_assisted_");
+}
+
+function isDs160LiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
+  return item.mode === "live_assisted" || item.status === "ds160_live_assisted_pending";
 }
 
 function isLegacyRealSubmitEnabled(): boolean {
@@ -143,6 +150,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
     .in("status", [
       "pending",
       "ds160_prefill_pending",
+      "ds160_live_assisted_pending",
       "fv_prefill_pending",
       "uk_prefill_pending",
       "vn_prefill_pending",
@@ -155,7 +163,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
 }
 
 function isDs160Job(item: SubmissionQueueItem): boolean {
-  return item.status === "ds160_prefill_pending";
+  return item.status === "ds160_prefill_pending" || item.status === "ds160_live_assisted_pending";
 }
 
 function isFvJob(item: SubmissionQueueItem): boolean {
@@ -446,6 +454,7 @@ function applyEnglishAliases(answers: Record<string, string>): void {
 }
 
 function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {
+  if (status.startsWith("ds160_live_assisted_")) return "ds160_live_assisted_failed";
   if (status.startsWith("ds160_")) return "ds160_prefill_failed";
   if (status.startsWith("fv_")) return "fv_prefill_failed";
   if (status.startsWith("uk_")) return "uk_prefill_failed";
@@ -702,11 +711,15 @@ async function processDs160Item(
   config: Ds160SubmissionConfig,
 ): Promise<void> {
   const runId = `ds160-${item.application_id}-${Date.now()}`;
+  const liveAssisted = isDs160LiveAssistedQueueItem(item);
   console.log(`[ceac] Starting CEAC run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
 
   await supabase
     .from("submission_queue")
-    .update({ status: "ds160_prefill_processing", updated_at: new Date().toISOString() })
+    .update({
+      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", item.id);
   await setSubmissionStatus(item.application_id, "processing");
 
@@ -844,7 +857,9 @@ async function processDs160Item(
       console.error(`[ceac] Run ${runId} orchestration failed for ${item.application_id}:`, errorMsg);
 
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
+      const newStatus = newAttempts >= MAX_ATTEMPTS
+        ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
+        : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
       await supabase
         .from("submission_queue")
@@ -953,7 +968,9 @@ async function processDs160Item(
       }
 
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_prefill_failed" : "ds160_prefill_pending";
+      const newStatus = newAttempts >= MAX_ATTEMPTS
+        ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
+        : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
       await supabase
         .from("submission_queue")
@@ -1199,13 +1216,25 @@ async function processFvItem(
         frPayload,
         liveAssisted ? "action_required" : "stopped_at_pay",
       );
-      console.log(`[fv] Run ${runId} prefilled — ref=${result.applicationReference ?? "(none)"}, pdf=${pdfStoragePath ?? "(none)"}`);
+      const logReference = liveAssisted && officialReference
+        ? redactOfficialReference(officialReference)
+        : result.applicationReference ?? "(none)";
+      console.log(`[fv] Run ${runId} prefilled — ref=${logReference}, pdf=${pdfStoragePath ?? "(none)"}`);
     } else {
       const errorMsg = typeof result.error?.message === "string"
         ? result.error.message
         : `failed at ${result.failedStep}`;
+      const resultErrorCode = typeof result.error?.code === "string"
+        ? result.error.code
+        : "";
+      const isManualGateFailure =
+        liveAssisted &&
+        (resultErrorCode === "GATE_DETECTED" ||
+          /captcha|manual|account creation|email verification|login/i.test(errorMsg));
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
+      const newStatus = isManualGateFailure
+        ? "fv_blocked"
+        : newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
 
       await supabase
         .from("submission_queue")
@@ -1216,9 +1245,9 @@ async function processFvItem(
           ...(liveAssisted
             ? {
                 provider: "france_visas_live",
-                manual_action_status: "blocked",
-                official_status: "official_portal_error",
-                error_code: "france_visas_prefill_failed",
+                manual_action_status: isManualGateFailure ? "open" : "blocked",
+                official_status: isManualGateFailure ? "manual_action_required" : "official_portal_error",
+                error_code: isManualGateFailure ? "france_visas_manual_gate" : "france_visas_prefill_failed",
                 error_message: errorMsg,
               }
             : {}),
@@ -1227,7 +1256,17 @@ async function processFvItem(
         })
         .eq("id", item.id);
 
-      if (newAttempts >= MAX_ATTEMPTS) {
+      if (isManualGateFailure) {
+        await writeSubmissionResult(
+          item.application_id,
+          buildFranceActionRequiredResult(
+            item.application_id,
+            "captcha",
+            "France-Visas requires manual action before VIZA can continue. Complete CAPTCHA, login, or account verification on the official page, then retry live assisted mode.",
+          ),
+          "action_required",
+        );
+      } else if (newAttempts >= MAX_ATTEMPTS) {
         await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
       }
@@ -1236,11 +1275,14 @@ async function processFvItem(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     const isNormalizationFailure = err instanceof NormalizationError;
+    const isGateFailure = isFvGateError(err);
     const newAttempts = item.attempts + 1;
     // Normalization failures are data errors — don't burn retries on them.
     const newStatus = isNormalizationFailure
       ? "fv_prefill_failed"
-      : (newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending");
+      : isGateFailure
+        ? "fv_blocked"
+        : (newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending");
 
     await supabase
       .from("submission_queue")
@@ -1251,9 +1293,13 @@ async function processFvItem(
         ...(isLiveAssistedQueueItem(item)
           ? {
               provider: "france_visas_live",
-              manual_action_status: "blocked",
-              official_status: "official_portal_error",
-              error_code: isNormalizationFailure ? "france_visas_normalization_failed" : "france_visas_unhandled_error",
+              manual_action_status: isGateFailure ? "open" : "blocked",
+              official_status: isGateFailure ? "manual_action_required" : "official_portal_error",
+              error_code: isGateFailure
+                ? "france_visas_manual_gate"
+                : isNormalizationFailure
+                  ? "france_visas_normalization_failed"
+                  : "france_visas_unhandled_error",
               error_message: errorMsg,
             }
           : {}),
@@ -1261,7 +1307,17 @@ async function processFvItem(
       })
       .eq("id", item.id);
 
-    if (newStatus === "fv_prefill_failed") {
+    if (newStatus === "fv_blocked" && isLiveAssistedQueueItem(item)) {
+      await writeSubmissionResult(
+        item.application_id,
+        buildFranceActionRequiredResult(
+          item.application_id,
+          "captcha",
+          "France-Visas requires manual action before VIZA can continue. Complete CAPTCHA, login, or account verification on the official page, then retry live assisted mode.",
+        ),
+        "action_required",
+      );
+    } else if (newStatus === "fv_prefill_failed") {
       await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
     }
@@ -1915,10 +1971,17 @@ async function processDryRunItem(
       dryRun: true,
       idempotencyKey: `submission-queue:${item.id}`,
     });
+    const validationFailed =
+      result.status === "unsupported" &&
+      result.message.startsWith("Dry-run validation failed:");
     const resultStatus =
       result.status === "submitted_mock" ? "submitted_mock" : "unsupported";
 
-    await writeSubmissionResult(item.application_id, result, resultStatus);
+    if (validationFailed) {
+      await markSubmissionFailed(item.application_id, result.message);
+    } else {
+      await writeSubmissionResult(item.application_id, result, resultStatus);
+    }
 
     await supabase
       .from("submission_queue")
@@ -2008,9 +2071,18 @@ async function poll(): Promise<void> {
     if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160Job(item)) {
+      const liveRequested = isDs160LiveAssistedQueueItem(item);
+      if (!liveRequested) {
+        await processDryRunItem(item, "ds160_default_dry_run");
+        continue;
+      }
+
       const ds160Config = loadDs160SubmissionConfig();
       if (ds160Config.mode !== "live_assisted") {
-        await processDryRunItem(item, "ds160_default_dry_run");
+        await processDs160LiveConfigBlockedItem(
+          item,
+          "DS-160 live assisted was requested, but DS160_SUBMISSION_MODE is not live_assisted.",
+        );
         continue;
       }
 

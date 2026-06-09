@@ -12,7 +12,7 @@
  */
 
 import type { Browser, BrowserContext, Page } from "@playwright/test";
-import { launchStealthBrowser } from "../ceac/stealth-browser";
+import { launchFvBrowser } from "./browser";
 import { FV_URLS, FV_LOGIN_SELECTORS } from "./selectors";
 import { waitForPage } from "./pages";
 import { assertNoGate } from "./gates";
@@ -62,27 +62,17 @@ const ACCUEIL_WAIT_TIMEOUT_MS = 45_000;
 export async function restoreFvSession(
   options: FvRestoreSessionOptions,
 ): Promise<FvSessionHandles> {
-  const handles = await launchStealthBrowser({
+  const { browser, context, page } = await launchFvBrowser({
     headless: options.headless ?? true,
-    hardening: "france-visas",
-  });
-  // Re-create the context with the stored storageState. launchStealthBrowser
-  // gives us a default context; replace it so cookies hydrate properly.
-  await handles.context.close();
-  const context = await handles.browser.newContext({
     storageState: options.storageState,
-    viewport: { width: 1440, height: 900 },
-    locale: "en-US",
-    timezoneId: "Europe/Paris",
   });
-  const page = await context.newPage();
 
   try {
     await page.goto(FV_URLS.ACCUEIL, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await waitForPage(page, "accueil", { timeoutMs: ACCUEIL_WAIT_TIMEOUT_MS });
   } catch (err) {
     await context.close().catch(() => undefined);
-    await handles.browser.close().catch(() => undefined);
+    await browser.close().catch(() => undefined);
     throw new SessionBootstrapError(
       "Stored storageState did not restore an authenticated France-Visas session",
       {
@@ -96,11 +86,11 @@ export async function restoreFvSession(
   }
 
   return {
-    browser: handles.browser,
+    browser,
     context,
     page,
     runId: options.runId,
-    close: makeSessionCloser(handles.browser, context),
+    close: makeSessionCloser(browser, context),
   };
 }
 
@@ -122,9 +112,8 @@ export async function signInWithPassword(
   options: FvSignInOptions = {},
 ): Promise<FvSessionHandles> {
   const timeoutMs = options.timeoutMs ?? 60_000;
-  const handles = await launchStealthBrowser({
+  const handles = await launchFvBrowser({
     headless: options.headless ?? true,
-    hardening: "france-visas",
   });
   const { browser, context, page } = handles;
 

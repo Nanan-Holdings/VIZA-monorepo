@@ -4,9 +4,9 @@
  * Thin re-export barrel so callers can `import { ... } from "./france-visas"`
  * without reaching into individual modules.
  *
- * Shared low-level primitives (stealth browser, 2captcha client) currently
- * live under `../ceac/` — candidate for a future `src/shared/browser/` hoist
- * once three consumers (ceac, vietnam, france-visas) are confirmed stable.
+ * France live-assisted helpers use standard Playwright Chromium. CAPTCHA,
+ * account creation, email verification, final validation, payment, and
+ * appointment booking are applicant-controlled checkpoints.
  */
 
 export {
@@ -75,13 +75,6 @@ export {
   type FvGateKind,
   type GateDetectionResult,
 } from "./gates";
-
-export {
-  solveRegistrationCaptcha,
-  solveRegistrationCaptchaWithRetry,
-  type FvCaptchaOutcome,
-  type FvCaptchaSolveWithTelemetry,
-} from "./registration-captcha";
 
 export {
   pollInboxForVerificationLink,

@@ -65,6 +65,7 @@ import {
   isFranceVisasVisaType,
   queueProviderForVisaType,
   queueStatusForApplication,
+  queueStatusForSubmissionMode,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 
@@ -1138,6 +1139,64 @@ interface ApplicationState {
   submissionResultStatus: SubmissionResultStatus | null;
 }
 
+interface SubmissionQueueJobInput {
+  applicationId: string;
+  country: string;
+  visaType: string;
+  mode: SubmissionMode;
+  createdAt: string;
+}
+
+function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("submission_queue.mode") ||
+    message.includes("submission_queue.provider") ||
+    message.includes("column submission_queue.mode does not exist") ||
+    message.includes("column submission_queue.provider does not exist") ||
+    message.includes("could not find the 'mode' column") ||
+    message.includes("could not find the 'provider' column")
+  );
+}
+
+async function insertSubmissionQueueJob(
+  supabase: ReturnType<typeof createClient>,
+  input: SubmissionQueueJobInput,
+): Promise<void> {
+  const status = input.mode === "live_assisted"
+    ? queueStatusForSubmissionMode(input.visaType, input.mode)
+    : queueStatusForApplication(input.country, input.visaType);
+  const provider = queueProviderForVisaType(input.visaType, input.mode);
+
+  const enrichedPayload = {
+    application_id: input.applicationId,
+    status,
+    mode: input.mode,
+    provider,
+    attempts: 0,
+    created_at: input.createdAt,
+  };
+
+  const { error } = await supabase.from("submission_queue").insert(enrichedPayload);
+  if (!error) return;
+
+  const canUseLegacyPayload =
+    isMissingSubmissionModeColumnError(error) &&
+    (input.mode === "dry_run" || status === "ds160_live_assisted_pending");
+  if (!canUseLegacyPayload) {
+    throw new Error(error.message);
+  }
+
+  const { error: legacyError } = await supabase.from("submission_queue").insert({
+    application_id: input.applicationId,
+    status,
+    attempts: 0,
+    created_at: input.createdAt,
+  });
+  if (legacyError) throw new Error(legacyError.message);
+}
+
 type LoadedApplicantProfile = UniversalProfileSnapshot & {
   id?: string | null;
   place_of_birth?: string | null;
@@ -2117,15 +2176,13 @@ export default function ApplicationPage() {
       if (!isJpTourist) {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
-        const { error: queueError } = await supabase.from("submission_queue").insert({
-          application_id: applicationId,
-          status: queueStatusForApplication(resolvedCountry, resolvedVisaType),
+        await insertSubmissionQueueJob(supabase, {
+          applicationId,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
           mode,
-          provider: queueProviderForVisaType(resolvedVisaType, mode),
-          attempts: 0,
-          created_at: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         });
-        if (queueError) throw new Error(queueError.message);
       }
 
       const submittedAt = new Date().toISOString();
@@ -2224,15 +2281,13 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const { error: queueError } = await supabase.from("submission_queue").insert({
-        application_id: applicationId,
-        status: queueStatusForApplication(resolvedCountry, resolvedVisaType),
+      await insertSubmissionQueueJob(supabase, {
+        applicationId,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
         mode,
-        provider: queueProviderForVisaType(resolvedVisaType, mode),
-        attempts: 0,
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       });
-      if (queueError) throw new Error(queueError.message);
 
       const submittedAt = new Date().toISOString();
       const { error: submitError } = await supabase.from("applications").update({

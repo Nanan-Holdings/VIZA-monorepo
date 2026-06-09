@@ -267,6 +267,24 @@ test("registry: Vietnam dry-run uses deterministic Vietnam confirmation", async 
   assert.match(result.confirmationNumber ?? "", /^DRYRUN-VN-111111112222-\d{14}$/);
 });
 
+test("registry: Vietnam legacy evisa_tourism alias resolves to Vietnam dry-run", async () => {
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "vietnam",
+      visaType: "evisa_tourism",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Vietnam",
+        destinationCity: "Ho Chi Minh City",
+      },
+      answers: vietnamAnswers(),
+    }),
+  );
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.targetCountry, "VN");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VN-111111112222-\d{14}$/);
+});
+
 test("registry: missing required fields fail validation cleanly", async () => {
   const result = await runDryRunSubmission(
     baseApplication({

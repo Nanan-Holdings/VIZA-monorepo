@@ -1,28 +1,21 @@
 /**
- * France-Visas Keycloak registration flow — full implementation.
+ * France-Visas Keycloak registration flow — manual checkpoint scaffold.
  *
  * End-to-end:
- *   launch stealth browser
+ *   launch a standard Playwright Chromium browser
  *   → go to application entry URL (redirects to Keycloak login)
  *   → click "Create an account" to reach Keycloak registration
  *   → fill name / email / password / language
- *   → solve CAPTCHA (retries up to maxCaptchaAttempts)
- *   → submit → wait for check_mailbox
- *   → poll mailbox provider for verification link
- *   → click link → land on accueil
- *   → return storageState for downstream sign-in reuse
+ *   → stop before CAPTCHA / email verification and ask the applicant to
+ *     complete account creation manually.
  */
 
 import type { BrowserContext } from "@playwright/test";
-import { launchStealthBrowser, type StealthBrowserHandles } from "../ceac/stealth-browser";
+import { launchFvBrowser, type FvBrowserHandles } from "./browser";
 import { FV_URLS, FV_REGISTRATION_SELECTORS } from "./selectors";
 import { waitForPage } from "./pages";
 import { assertNoGate } from "./gates";
-import {
-  solveRegistrationCaptchaWithRetry,
-  type FvCaptchaSolveWithTelemetry,
-} from "./registration-captcha";
-import { pollInboxForVerificationLink, type MailboxProvider } from "./inbox-poller";
+import type { MailboxProvider } from "./inbox-poller";
 import { RegistrationFailedError } from "./errors";
 
 export interface FvRegistrationInput {
@@ -47,13 +40,14 @@ export interface FvRegistrationResult {
   password: string;
   verificationUrl: string;
   storageState: Awaited<ReturnType<BrowserContext["storageState"]>>;
-  captcha: FvCaptchaSolveWithTelemetry | null;
+  captcha: null;
   runId?: string;
 }
 
 /**
- * Run one end-to-end France-Visas registration. On success the returned
- * storageState is a fully-authenticated session sitting on accueil.xhtml.
+ * Walk to the France-Visas registration page and stop at the manual account
+ * creation checkpoint. Automated CAPTCHA solving and email verification are
+ * intentionally disabled for France live-assisted runs.
  *
  * Throws `RegistrationFailedError` (or other FvError subclasses) on
  * unrecoverable failure. Transient failures inside the CAPTCHA loop are
@@ -64,17 +58,13 @@ export async function registerFvAccount(
   options: FvRegistrationOptions,
 ): Promise<FvRegistrationResult> {
   const {
-    mailbox,
     headless = true,
-    maxCaptchaAttempts = 5,
-    verificationTimeoutMs = 120_000,
     runId,
   } = options;
   const language = input.language ?? "English";
 
-  const handles = await launchStealthBrowser({
+  const handles = await launchFvBrowser({
     headless,
-    hardening: "france-visas",
   });
   const { browser, context, page } = handles;
 
@@ -110,45 +100,10 @@ export async function registerFvAccount(
     };
 
     await fillRegistrationForm();
-    const captcha = await solveRegistrationCaptchaWithRetry(
-      page,
-      maxCaptchaAttempts,
-      fillRegistrationForm,
+    throw new RegistrationFailedError(
+      "France-Visas account creation requires manual CAPTCHA and email verification. Automated CAPTCHA solving is disabled for live assisted France runs.",
+      { url: page.url(), details: { runId, manualAction: "account_creation_required" } },
     );
-
-    // Submit. The submit button toggles from disabled → enabled once all
-    // client-side validations pass, which includes the CAPTCHA answer.
-    await page.locator(FV_REGISTRATION_SELECTORS.submit).first().click();
-    await waitForPage(page, "check_mailbox", { timeoutMs: 30_000 });
-
-    // Mailbox provider polls for the verification email and returns the URL.
-    const verificationUrl = await pollInboxForVerificationLink(mailbox, {
-      mailboxAddress: input.email,
-      timeoutMs: verificationTimeoutMs,
-    });
-
-    // Clicking the verification link authenticates the new account and
-    // redirects to the OAuth callback → accueil.
-    await page.goto(verificationUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await waitForPage(page, ["accueil", "email_verified"], { timeoutMs: 60_000 });
-
-    // Some Keycloak themes land on an intermediate "email verified, continue"
-    // page before the auth callback fires. Look for a Continue link.
-    const cont = page.locator('a:has-text("Continue"), button:has-text("Continue")').first();
-    if ((await cont.count()) > 0) {
-      await cont.click().catch(() => undefined);
-      await waitForPage(page, "accueil", { timeoutMs: 60_000 });
-    }
-
-    const storageState = await context.storageState();
-    return {
-      email: input.email,
-      password: input.password,
-      verificationUrl: verificationUrl.toString(),
-      storageState,
-      captcha,
-      runId,
-    };
   } catch (err) {
     throw err instanceof RegistrationFailedError
       ? err
@@ -162,4 +117,4 @@ export async function registerFvAccount(
   }
 }
 
-export type FvStealthHandles = StealthBrowserHandles;
+export type FvStealthHandles = FvBrowserHandles;

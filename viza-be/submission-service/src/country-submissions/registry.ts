@@ -243,7 +243,7 @@ const CONFIGS: ProviderConfig[] = [
     countryCode: "VN",
     countryAliases: ["vn", "vietnam"],
     displayName: "Vietnam e-Visa",
-    supportedVisaTypes: ["VN_E_VISA"],
+    supportedVisaTypes: ["VN_E_VISA", "EVISA_TOURISM", "E_VISA_TOURISM", "TOURIST_E_VISA"],
     implementationStatus: "partial",
     dryRunAvailable: true,
     sandboxAvailable: false,
