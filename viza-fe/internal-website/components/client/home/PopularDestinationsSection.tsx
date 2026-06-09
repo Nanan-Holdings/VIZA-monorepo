@@ -19,6 +19,7 @@ import {
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -174,25 +175,16 @@ export function PopularDestinationsSection({
             </p>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-[#526174]">
-              <span>{progressLabel}</span>
-              <span>{progress ? `${progress.percent}%` : selected ? "0%" : ""}</span>
-            </div>
-            <div
-              aria-label={t("progressAriaLabel", { country: countryName })}
-              aria-valuemax={100}
-              aria-valuemin={0}
-              aria-valuenow={progress?.percent ?? 0}
-              className="h-1.5 overflow-hidden rounded-full bg-[#eef3fa]"
-              role="progressbar"
-            >
-              <div
-                className="h-full rounded-full bg-[#03346E] transition-all duration-500"
-                style={{ width: `${progress?.percent ?? 0}%` }}
-              />
-            </div>
-          </div>
+          <SmoothProgressMeter
+            serverProgress={progress?.percent ?? 0}
+            status={progress && progress.percent >= 100 ? "completed" : progress || selected ? "running" : "waiting_for_user"}
+            intervalMs={140}
+            label={progressLabel}
+            ariaLabel={t("progressAriaLabel", { country: countryName })}
+            labelClassName="text-[12px] font-medium text-[#526174]"
+            valueClassName={progress || selected ? "text-[12px] font-medium text-[#526174]" : "hidden"}
+            size="xs"
+          />
 
           <div className="flex items-center justify-between gap-3">
             <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">

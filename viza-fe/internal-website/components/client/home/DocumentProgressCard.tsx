@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 interface Props {
   uploadedCount: number;
@@ -27,13 +28,15 @@ export function DocumentProgressCard({ uploadedCount, totalRequired }: Props) {
             <span className="font-heading font-normal text-[48px] leading-none text-white">{uploadedCount}</span>
             <span className="text-[rgba(255,255,255,0.55)] text-[14px]">{t("ofRequired", { total: totalRequired })}</span>
           </div>
-          <div className="w-full bg-[rgba(255,255,255,0.2)] rounded-full h-2">
-            <div
-              className="bg-white rounded-full h-2 transition-all duration-700"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="text-[rgba(255,255,255,0.55)] text-[13px]">{t("percentComplete", { pct })}</p>
+          <SmoothProgressMeter
+            serverProgress={pct}
+            status={pct >= 100 ? "completed" : "running"}
+            intervalMs={140}
+            labelClassName="text-[rgba(255,255,255,0.55)] text-[13px]"
+            valueClassName="text-[rgba(255,255,255,0.55)] text-[13px]"
+            trackClassName="bg-[rgba(255,255,255,0.2)]"
+            barClassName="bg-white"
+          />
         </div>
       </div>
     </motion.div>

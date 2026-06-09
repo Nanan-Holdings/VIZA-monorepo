@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { ABOUT_ME_SECTIONS } from "@/lib/forms/about-me-questions";
 
 interface QuizProgressProps {
@@ -20,15 +21,12 @@ export function QuizProgress({ sections, currentSectionIndex, activeProgress = 0
     <div className="flex-1 flex items-center justify-start">
       {/* Mobile: single continuous progress bar, no labels */}
       <div className="w-full md:hidden">
-        <div className="relative w-full h-[8px] rounded-full bg-[#EFEFEF] overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${overallProgress}%`,
-              background: "linear-gradient(90deg, #e8bfa7 0%, #a8644d 100%)",
-            }}
-          />
-        </div>
+        <SmoothProgressBar
+          displayedProgress={overallProgress}
+          showValue={false}
+          trackClassName="bg-[#EFEFEF]"
+          barClassName="bg-gradient-to-r from-[#e8bfa7] to-[#a8644d]"
+        />
       </div>
 
       {/* Desktop: per-section progress bars with labels */}
@@ -40,16 +38,23 @@ export function QuizProgress({ sections, currentSectionIndex, activeProgress = 0
 
           return (
             <div key={section.id} className="flex flex-col items-center gap-2 h-[35px] flex-1">
-              <div className="relative w-full h-[8px] rounded-full bg-[#EFEFEF] overflow-hidden">
+              <div className="w-full">
                 {(isActive || isComplete) && (
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${fillPercent}%`,
-                      background: "linear-gradient(90deg, #e8bfa7 0%, #a8644d 100%)",
-                    }}
+                  <SmoothProgressBar
+                    displayedProgress={fillPercent}
+                    showValue={false}
+                    trackClassName="bg-[#EFEFEF]"
+                    barClassName="bg-gradient-to-r from-[#e8bfa7] to-[#a8644d]"
                   />
                 )}
+                {!isActive && !isComplete ? (
+                  <SmoothProgressBar
+                    displayedProgress={0}
+                    showValue={false}
+                    trackClassName="bg-[#EFEFEF]"
+                    barClassName="bg-gradient-to-r from-[#e8bfa7] to-[#a8644d]"
+                  />
+                ) : null}
               </div>
               <span
                 className={`text-[12px] leading-[1.6] font-medium transition-colors whitespace-nowrap text-center ${
