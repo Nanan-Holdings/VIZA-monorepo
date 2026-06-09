@@ -22,6 +22,7 @@ export interface SmoothProgressBarProps {
   valueClassName?: string;
   trackClassName?: string;
   barClassName?: string;
+  transitionMs?: number;
   size?: ProgressSize;
 }
 
@@ -76,9 +77,11 @@ export function SmoothProgressBar({
   valueClassName,
   trackClassName,
   barClassName,
+  transitionMs = 0,
   size = "sm",
 }: SmoothProgressBarProps) {
   const progress = clampDisplayProgress(displayedProgress);
+  const transitionDuration = Math.max(0, Math.round(transitionMs));
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -101,8 +104,11 @@ export function SmoothProgressBar({
         role="progressbar"
       >
         <div
-          className={cn("h-full origin-left rounded-full", barClassName ?? TONE_BAR_CLASSES.default)}
-          style={{ transform: `scaleX(${progress / 100})` }}
+          className={cn("h-full origin-left rounded-full will-change-transform", barClassName ?? TONE_BAR_CLASSES.default)}
+          style={{
+            transform: `scaleX(${progress / 100})`,
+            transition: transitionDuration > 0 ? `transform ${transitionDuration}ms linear` : "none",
+          }}
         />
       </div>
     </div>
@@ -121,6 +127,7 @@ export function SmoothProgressMeter({
   maxBeforeComplete,
   initialProgress,
   onVisualComplete,
+  transitionMs,
   ...barProps
 }: SmoothProgressMeterProps) {
   const { displayedProgress } = useSmoothProgress({
@@ -137,7 +144,13 @@ export function SmoothProgressMeter({
     onVisualComplete,
   });
 
-  return <SmoothProgressBar displayedProgress={displayedProgress} {...barProps} />;
+  return (
+    <SmoothProgressBar
+      displayedProgress={displayedProgress}
+      transitionMs={transitionMs ?? 760}
+      {...barProps}
+    />
+  );
 }
 
 function getStepIcon(status: TaskProgressStep["status"]) {

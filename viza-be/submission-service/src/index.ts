@@ -91,6 +91,11 @@ import {
   validateDs160LiveStart,
   type Ds160SubmissionConfig,
 } from "./ds160-live-config";
+import {
+  loadFranceSubmissionConfig,
+  validateFranceLiveStart,
+  type FranceSubmissionConfig,
+} from "./france-live-config";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
@@ -115,6 +120,14 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
+}
+
+function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
+  return item.mode === "dry_run";
+}
+
+function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
+  return item.mode === "live_assisted";
 }
 
 function isLegacyRealSubmitEnabled(): boolean {
@@ -636,6 +649,25 @@ function buildDs160ActionRequiredResult(
   };
 }
 
+function buildFranceActionRequiredResult(
+  applicationId: string,
+  actionType: string,
+  message: string,
+): GenericSubmissionResult {
+  return {
+    country: "GENERIC",
+    targetCountry: "FR",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    status: "action_required",
+    mode: "live_assisted",
+    applicationId,
+    actionType,
+    actionInstructions: message,
+    implementationStatus: "implemented",
+    message,
+  };
+}
+
 async function processDs160LiveConfigBlockedItem(
   item: SubmissionQueueItem,
   reason: string,
@@ -980,13 +1012,60 @@ function decryptFvPassword(encrypted: string): string {
   return encrypted;
 }
 
-async function processFvItem(item: SubmissionQueueItem): Promise<void> {
-  const runId = `fv-${item.application_id}-${Date.now()}`;
-  console.log(`[fv] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+async function processFvConfigBlockedItem(
+  item: SubmissionQueueItem,
+  reason: string,
+): Promise<void> {
+  console.warn(`[fv] Live assisted blocked for ${item.application_id}: ${reason}`);
 
   await supabase
     .from("submission_queue")
-    .update({ status: "fv_prefill_processing", updated_at: new Date().toISOString() })
+    .update({
+      status: "fv_blocked",
+      mode: "live_assisted",
+      provider: "france_visas_live",
+      last_error: reason,
+      manual_action_status: "blocked",
+      official_status: "blocked_by_config",
+      error_code: "live_mode_config",
+      error_message: reason,
+      fv_result_payload: {
+        status: "blocked_by_config",
+        reason,
+        mode: "live_assisted",
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+
+  await writeSubmissionResult(
+    item.application_id,
+    buildFranceActionRequiredResult(item.application_id, "live_mode_config", reason),
+    "action_required",
+  );
+}
+
+function redactOfficialReference(reference: string): string {
+  if (reference.length <= 7) return "captured";
+  return `${reference.slice(0, 3)}...${reference.slice(-4)}`;
+}
+
+async function processFvItem(
+  item: SubmissionQueueItem,
+  config: FranceSubmissionConfig,
+): Promise<void> {
+  const runId = `fv-${item.application_id}-${Date.now()}`;
+  console.log(`[fv] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const liveAssisted = isLiveAssistedQueueItem(item);
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "fv_prefill_processing",
+      mode: liveAssisted ? "live_assisted" : "dry_run",
+      provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", item.id);
   await setSubmissionStatus(item.application_id, "processing");
 
@@ -1027,7 +1106,12 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
         },
         answers,
       },
-      { headless: true, runId },
+      {
+        headless: liveAssisted ? config.playwrightHeadless : true,
+        runId,
+        finalize: true,
+        stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
+      },
     );
 
     if (result.status === "prefilled") {
@@ -1057,12 +1141,26 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
         }
       }
 
+      const officialReference = result.applicationReference ?? result.draftReference ?? "";
+      const officialReferenceCipher = liveAssisted && officialReference
+        ? encryptSecret(officialReference)
+        : null;
+
       await supabase
         .from("submission_queue")
         .update({
           status: "fv_prefilled",
+          mode: liveAssisted ? "live_assisted" : "dry_run",
+          provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
           fv_result_payload: result as unknown as Record<string, unknown>,
-          fv_application_reference: result.applicationReference,
+          official_application_id_encrypted: officialReferenceCipher,
+          official_application_reference_encrypted: officialReferenceCipher,
+          review_diff_status: liveAssisted ? "not_run" : "not_run",
+          manual_action_status: liveAssisted ? "open" : null,
+          payment_status: "manual_required",
+          appointment_status: "manual_required",
+          official_status: liveAssisted ? "official_record_created" : "draft_prefilled",
+          fv_application_reference: liveAssisted ? null : result.applicationReference,
           fv_pdf_storage_path: pdfStoragePath,
           updated_at: new Date().toISOString(),
         })
@@ -1076,11 +1174,31 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
       // runner extension lands.
       const frPayload: FrSubmissionResult = {
         country: "FR",
-        status: "stopped_at_pay",
-        applicationReference: result.applicationReference ?? result.draftReference ?? "",
+        status: liveAssisted ? "final_review_required" : "stopped_at_pay",
+        mode: liveAssisted ? "live_assisted" : "dry_run",
+        provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
+        applicationReference: liveAssisted && officialReference
+          ? redactOfficialReference(officialReference)
+          : officialReference,
+        reviewDiffStatus: liveAssisted ? "not_run" : undefined,
+        manualAction: liveAssisted
+          ? {
+              type: "final_review_required",
+              status: "open",
+              instructions:
+                "Review the official France-Visas draft/CERFA yourself. VIZA stopped before final validation, payment, and appointment booking.",
+            }
+          : undefined,
+        paymentStatus: "manual_required",
+        appointmentStatus: "manual_required",
+        officialStatus: liveAssisted ? "official_record_created" : "draft_prefilled",
         ...(pdfStoragePath ? { printablePdfStoragePath: pdfStoragePath } : {}),
       };
-      await writeSubmissionResult(item.application_id, frPayload, "stopped_at_pay");
+      await writeSubmissionResult(
+        item.application_id,
+        frPayload,
+        liveAssisted ? "action_required" : "stopped_at_pay",
+      );
       console.log(`[fv] Run ${runId} prefilled — ref=${result.applicationReference ?? "(none)"}, pdf=${pdfStoragePath ?? "(none)"}`);
     } else {
       const errorMsg = typeof result.error?.message === "string"
@@ -1095,6 +1213,15 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
+          ...(liveAssisted
+            ? {
+                provider: "france_visas_live",
+                manual_action_status: "blocked",
+                official_status: "official_portal_error",
+                error_code: "france_visas_prefill_failed",
+                error_message: errorMsg,
+              }
+            : {}),
           fv_result_payload: result as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })
@@ -1121,6 +1248,15 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
+        ...(isLiveAssistedQueueItem(item)
+          ? {
+              provider: "france_visas_live",
+              manual_action_status: "blocked",
+              official_status: "official_portal_error",
+              error_code: isNormalizationFailure ? "france_visas_normalization_failed" : "france_visas_unhandled_error",
+              error_message: errorMsg,
+            }
+          : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
@@ -1392,11 +1528,9 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
 
 // ─── Vietnam e-Visa Job Processor ────────────────────────────────────
 //
-// Today: navigates to evisa.gov.vn landing page and stops with
-// `scaffolded_pending_walk`. The per-step fill implementation depends on
-// the recon walk (vietnam/form-recon-v3.ts output). When that lands and
-// fillVietnamApplication starts returning `submitted_pending_pay`, the
-// success branch below writes a VnSubmissionResult.
+// Drives evisa.gov.vn through the safe pre-pay checkpoint. A captured
+// registration code is a user-action handoff, not a background completion:
+// the applicant must still review/pay on the official portal.
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const runId = `vn-${item.application_id}-${Date.now()}`;
   console.log(`[vn] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
@@ -1419,7 +1553,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         submittedAtIso: result.submittedAtIso,
         noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
       };
-      await writeSubmissionResult(item.application_id, vnPayload, "stopped_at_pay");
+      await writeSubmissionResult(item.application_id, vnPayload, "needs_user_action");
       await supabase
         .from("submission_queue")
         .update({
@@ -1432,18 +1566,23 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     if (result.status === "scaffolded_pending_walk") {
-      // Scaffold reached but per-step fill not yet implemented. Mark
-      // queue row done so the scheduler doesn't loop, but don't write
-      // submission_result — the FE keeps showing WaitingCard until the
-      // real runner extension lands.
+      // Parser/selector gap after reaching the form/review surface. This is
+      // not a user checkpoint; surface it as a real failure so the UI cannot
+      // spin forever at confirming_result.
+      const reason =
+        result.reason ||
+        "Vietnam runner reached the portal but could not capture the registration code.";
       await supabase
         .from("submission_queue")
         .update({
-          status: "vn_blocked",
-          last_error: "Vietnam runner scaffold-only. Per-step fill pending recon walk integration.",
+          status: "vn_prefill_failed",
+          attempts: Math.max(item.attempts + 1, MAX_ATTEMPTS),
+          last_error: reason,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
+      await markSubmissionFailed(item.application_id, reason);
+      await sendFailureAlert(item.application_id, `[VN] ${reason}`);
       console.log(`[vn] Run ${runId} stopped at scaffold: ${result.reason}`);
       return;
     }
@@ -1461,8 +1600,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, errorMsg);
     if (newStatus === "vn_prefill_failed") {
-      await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
@@ -1479,8 +1618,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, errorMsg);
     if (newStatus === "vn_prefill_failed") {
-      await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
     }
     console.error(`[vn] Unhandled error in ${runId}:`, errorMsg);
@@ -1866,7 +2005,7 @@ async function poll(): Promise<void> {
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
   for (const item of items) {
-    if (isSubmissionDryRunMode()) {
+    if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160Job(item)) {
       const ds160Config = loadDs160SubmissionConfig();
@@ -1883,7 +2022,19 @@ async function poll(): Promise<void> {
 
       await processDs160Item(item, ds160Config);
     } else if (isFvJob(item)) {
-      await processFvItem(item);
+      const franceConfig = loadFranceSubmissionConfig();
+      if (!isLiveAssistedQueueItem(item)) {
+        await processDryRunItem(item, "global_dry_run");
+        continue;
+      }
+
+      const liveStartError = validateFranceLiveStart(franceConfig);
+      if (liveStartError) {
+        await processFvConfigBlockedItem(item, liveStartError);
+        continue;
+      }
+
+      await processFvItem(item, franceConfig);
     } else if (isUkJob(item)) {
       await processUkItem(item);
     } else if (isVnJob(item)) {

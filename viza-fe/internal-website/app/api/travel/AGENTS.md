@@ -10,7 +10,9 @@ service URL off the client.
 
 ## Key Flows
 
-- `itinerary/route.ts`: generate itinerary.
+- `itinerary/route.ts`: generate itinerary through the server-only fallback
+  pipeline in `lib/travel/itinerary-fallback.ts`, returning structured
+  fallback metadata and never raw backend errors.
 - `itinerary/revise/route.ts`: revise an existing itinerary.
 - `chat/route.ts`: Travel chat response endpoint.
 - `flights/route.ts`: flight option search.
@@ -33,9 +35,9 @@ service URL off the client.
 ## Ownership Boundaries
 
 - Use `lib/travel/backend.ts` for backend URL and JSON forwarding.
-- Do not duplicate itinerary generation in Next route handlers. External lookup
-  proxying is allowed here when it protects API keys from client-side itinerary
-  UI code.
+- Do not duplicate itinerary generation directly in route handlers. Use the
+  server-only `lib/travel/itinerary-fallback.ts` pipeline for Travel Service,
+  Google Places, and OpenAI fallback orchestration.
 - Validate payload shape lightly at the boundary; keep business state rules in
   `lib/travel/planner.ts`.
 

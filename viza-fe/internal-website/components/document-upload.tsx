@@ -211,6 +211,7 @@ export function DocumentUpload({
               showValue={false}
               className="w-40"
               size="xs"
+              transitionMs={760}
               trackClassName="bg-brand-50"
             />
           </>

@@ -48,7 +48,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
           <CheckCircle2 className="h-4 w-4" />
           支付已确认，可以返回订阅页查看状态。
         </div>
-        <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" />
+        <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" transitionMs={760} />
       </div>
     );
   }
@@ -64,6 +64,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
           displayedProgress={displayedProgress}
           label="确认进度"
           barClassName="bg-destructive"
+          transitionMs={760}
         />
       </div>
     );
@@ -75,7 +76,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
         <Loader2 className="h-4 w-4 animate-spin" />
         等待微信支付确认，页面会自动刷新状态。
       </div>
-      <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" />
+      <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" transitionMs={760} />
       <Button
         type="button"
         variant="outline"

@@ -3,6 +3,12 @@ import {
   type FieldGuidanceResponse,
   type FieldGuidanceSource,
 } from "@/types/field-guidance";
+import {
+  isEnglishOnlyText,
+  normalizeBilingualFormField,
+  resolveLocalizedFieldLabel,
+  resolveLocalizedOptions,
+} from "@/lib/bilingual-schema-contract";
 
 const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
@@ -14,7 +20,13 @@ const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_MODEL ??
   "gpt-4o-mini";
 
-type FieldOption = { value?: string; text?: string } | string;
+type FieldOption = {
+  value?: string;
+  text?: string;
+  label_zh?: string;
+  label_en?: string;
+  official_label?: string;
+} | string;
 type OpenAiResponsePayload = {
   output_text?: unknown;
   output?: Array<{
@@ -29,16 +41,46 @@ function getLocale(request: FieldGuidanceRequest): "zh" | "en" {
   return request.locale?.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
-function normalizeOptions(options: FieldGuidanceRequest["field"]["options"]): Array<{ value: string; text: string }> {
+function normalizeGuidanceRequest(request: FieldGuidanceRequest): FieldGuidanceRequest {
+  const side = getLocale(request);
+  const normalizedField = normalizeBilingualFormField(request.field);
+  return {
+    ...request,
+    field: {
+      ...normalizedField,
+      label: resolveLocalizedFieldLabel(normalizedField, side),
+      placeholder: resolveLocalizedPlaceholderForGuidance(normalizedField, side),
+      options: resolveLocalizedOptions(normalizedField.options, side),
+    },
+  };
+}
+
+function resolveLocalizedPlaceholderForGuidance(
+  field: FieldGuidanceRequest["field"],
+  side: "zh" | "en",
+): string | null {
+  const rules = field.validationRules;
+  const key = side === "zh" ? "placeholder_zh" : "placeholder_en";
+  const value = rules?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : field.placeholder;
+}
+
+function normalizeOptions(
+  options: FieldGuidanceRequest["field"]["options"],
+  locale: "zh" | "en",
+): Array<{ value: string; text: string }> {
   if (!Array.isArray(options)) return [];
   return (options as FieldOption[])
     .map((option) => {
       if (typeof option === "string") {
         return { value: option, text: option };
       }
+      const localizedText = locale === "zh"
+        ? option.label_zh?.trim() || option.text?.trim() || option.label_en?.trim() || option.official_label?.trim()
+        : option.label_en?.trim() || option.official_label?.trim() || option.text?.trim() || option.label_zh?.trim();
       return {
         value: option.value?.trim() ?? "",
-        text: option.text?.trim() || option.value?.trim() || "",
+        text: localizedText || option.value?.trim() || "",
       };
     })
     .filter((option) => option.value || option.text);
@@ -71,6 +113,10 @@ function isLikelyNonChineseSentence(content: string): boolean {
 }
 
 function localizedFieldLabel(request: FieldGuidanceRequest): string {
+  const normalized = normalizeBilingualFormField(request.field);
+  const contractLabel = resolveLocalizedFieldLabel(normalized, "zh").trim();
+  if (contractLabel && !isEnglishOnlyText(contractLabel)) return contractLabel;
+
   const name = request.field.fieldName.toLowerCase();
   const label = request.field.label.trim();
   if (name.includes("surname") || name.includes("family_name")) return "姓氏";
@@ -109,10 +155,11 @@ function getDirectOpenAiKey(): string | null {
 function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): FieldGuidanceResponse {
   const locale = getLocale(request);
   const field = request.field;
-  const label = field.label || field.fieldName || (locale === "zh" ? "当前字段" : "this field");
+  const normalized = normalizeBilingualFormField(field);
+  const label = resolveLocalizedFieldLabel(normalized, locale) || field.fieldName || (locale === "zh" ? "当前字段" : "this field");
   const fieldName = field.fieldName.toLowerCase();
   const fieldType = field.fieldType;
-  const options = normalizeOptions(field.options);
+  const options = normalizeOptions(field.options, locale);
   const selectedExamples = options.slice(0, 3).map((option) => option.text || option.value);
   const answer = request.answer?.trim() ?? "";
   const isMissingRequired = Boolean(field.required && !answer);
@@ -234,7 +281,7 @@ function isUnavailableText(value: string | null): boolean {
 
 function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuidanceResponse): string {
   const locale = getLocale(request);
-  const options = normalizeOptions(request.field.options)
+  const options = normalizeOptions(request.field.options, locale)
     .slice(0, 20)
     .map((option) => `${option.value}: ${option.text}`)
     .join("\n");
@@ -427,6 +474,8 @@ export async function POST(request: Request) {
   if (!requestBody.field?.fieldName) {
     return Response.json({ error: "field.fieldName is required." }, { status: 400 });
   }
+
+  requestBody = normalizeGuidanceRequest(requestBody);
 
   try {
     const guidance = await forwardToBackend(requestBody);

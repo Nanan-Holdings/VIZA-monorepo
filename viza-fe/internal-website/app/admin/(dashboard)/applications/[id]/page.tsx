@@ -11,7 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/rbac";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { RealtimeApplicationStatus } from "./realtime-status";
@@ -230,10 +230,8 @@ function OverviewMetrics({
 
       <div className="rounded-lg border border-[#efefef] bg-white px-4 py-3 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-[#6b6b6b]">{copy.detail.metrics.overallProgress}</p>
-        <SmoothProgressMeter
-          serverProgress={applicant.completionPercent}
-          status={applicant.completionPercent >= 100 ? "completed" : "running"}
-          intervalMs={140}
+        <SmoothProgressBar
+          displayedProgress={applicant.completionPercent}
           className="mt-3"
           valueClassName="text-2xl font-semibold text-[#232323]"
           trackClassName="bg-[#edf1f6]"
@@ -411,10 +409,8 @@ function ApplicationCard({
           <span>{copy.common.progress}</span>
           <span>{progress}%</span>
         </div>
-        <SmoothProgressMeter
-          serverProgress={progress}
-          status={progress >= 100 ? "completed" : "running"}
-          intervalMs={140}
+        <SmoothProgressBar
+          displayedProgress={progress}
           className="mt-2"
           valueClassName="text-xs font-medium text-[#6b6b6b]"
           trackClassName="bg-[#edf1f6]"

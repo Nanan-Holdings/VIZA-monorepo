@@ -60,6 +60,9 @@ export interface PassportOcrUploadProps {
   className?: string;
   initialFileName?: string | null;
   initialUploaded?: boolean;
+  documentScope?: "application" | "universal_profile";
+  documentType?: string;
+  requirementKey?: string;
   title?: string;
   description?: string;
   onFieldsApplied?: (fields: UniversalProfileSnapshot) => void;
@@ -291,6 +294,7 @@ function ScanProgressPanel({
           label={labels[stage]}
           ariaLabel={labels[stage]}
           size="md"
+          transitionMs={760}
           trackClassName="bg-white/70"
         />
         {SCAN_STAGES.map((item, index) => {
@@ -336,6 +340,9 @@ export function PassportOcrUpload({
   className,
   initialFileName,
   initialUploaded = false,
+  documentScope = "application",
+  documentType = "passport_copy",
+  requirementKey = documentType,
   title,
   description,
   onFieldsApplied,
@@ -398,8 +405,9 @@ export function PassportOcrUpload({
       const safeName = sanitizeFilename(file.name || `passport.${ext}`);
       const uploadForm = new FormData();
       uploadForm.set("applicationId", applicationId);
-      uploadForm.set("documentType", "passport_copy");
-      uploadForm.set("requirementKey", "passport_copy");
+      uploadForm.set("scope", documentScope);
+      uploadForm.set("documentType", documentType);
+      uploadForm.set("requirementKey", requirementKey);
       uploadForm.set("filename", safeName);
       uploadForm.set("required", "true");
       uploadForm.set("file", file);

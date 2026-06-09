@@ -148,20 +148,13 @@ export function WizardShell<TForm>({
         setApplicationCountry(country);
         setApplicationVisaType(visaType);
 
-        const { applicationId: draftId } = await ensureDraftApplication(
+        const { applicationId: draftId, created } = await ensureDraftApplication(
           country,
           visaType,
         );
         if (cancelled || !draftId) {
           if (userEmail && config.seedAuthEmail) {
-            setForm((prev) =>
-              mergeUniversalProfileIntoWizardForm(
-                config.seedAuthEmail!(prev, userEmail),
-                profile as UniversalProfileSnapshot | null,
-              ),
-            );
-          } else if (profile) {
-            setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, profile as UniversalProfileSnapshot));
+            setForm((prev) => config.seedAuthEmail!(prev, userEmail));
           }
           setLoading(false);
           return;
@@ -175,19 +168,15 @@ export function WizardShell<TForm>({
           const withEmail = config.seedAuthEmail
             ? config.seedAuthEmail(restored, userEmail)
             : restored;
-          const merged = mergeUniversalProfileIntoWizardForm(
-            withEmail,
-            profile as UniversalProfileSnapshot | null,
-          );
-          setForm(merged);
+          setForm(withEmail);
         } else if (userEmail && config.seedAuthEmail) {
-          setForm((prev) =>
-            mergeUniversalProfileIntoWizardForm(
-              config.seedAuthEmail!(prev, userEmail),
-              profile as UniversalProfileSnapshot | null,
-            ),
-          );
-        } else if (profile) {
+          setForm((prev) => {
+            const withEmail = config.seedAuthEmail!(prev, userEmail);
+            return created
+              ? mergeUniversalProfileIntoWizardForm(withEmail, profile as UniversalProfileSnapshot | null)
+              : withEmail;
+          });
+        } else if (created && profile) {
           setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, profile as UniversalProfileSnapshot));
         }
       } catch {
@@ -208,38 +197,6 @@ export function WizardShell<TForm>({
     params.set("visaType", applicationVisaType);
     setRecentApplicationFormHref(`/client/application/long-form?${params.toString()}`);
   }, [applicationCountry, applicationVisaType, loading]);
-
-  useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let cancelled = false;
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (cancelled || !user) return;
-      channel = supabase
-        .channel("simplified-form-universal-profile")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "applicant_profiles",
-            filter: `auth_user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            setForm((prev) =>
-              mergeUniversalProfileIntoWizardForm(prev, payload.new as UniversalProfileSnapshot),
-            );
-          },
-        )
-        .subscribe();
-    });
-
-    return () => {
-      cancelled = true;
-      if (channel) void supabase.removeChannel(channel);
-    };
-  }, []);
 
   // Debounced auto-save.
   useEffect(() => {

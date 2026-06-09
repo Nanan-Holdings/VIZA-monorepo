@@ -171,6 +171,28 @@ type TravelAgentChatResponse = {
   sources?: Array<{ id?: string; title?: string; type?: string }>;
 };
 
+type TravelItineraryApiError = {
+  code?: string;
+  stage?: string;
+  userMessageZh?: string;
+  userMessageEn?: string;
+  retryable?: boolean;
+  fallbackAttempted?: boolean;
+  fallbackUsed?: string[];
+  debugId?: string;
+};
+
+type TravelItineraryApiResponse = {
+  success?: boolean;
+  itinerary?: unknown;
+  reply?: unknown;
+  result?: unknown;
+  fallbackUsed?: string[];
+  warnings?: string[];
+  debugId?: string;
+  error?: TravelItineraryApiError | string;
+};
+
 type TravelFormCandidatePayload = Parameters<typeof createTravelFormMessage>[0];
 
 type ScrollThumbState = {
@@ -1520,6 +1542,88 @@ function parseItineraryFromResponse(raw: unknown): ItineraryDay[] {
       } satisfies ItineraryDay;
     })
     .filter((day): day is ItineraryDay => Boolean(day && day.city));
+}
+
+function extractItineraryApiMessage(
+  payload: unknown,
+  locale: InterfaceLocale
+): string | null {
+  if (!isRecord(payload)) return null;
+  const error = payload.error;
+  if (isRecord(error)) {
+    const localized =
+      locale === "zh" ? error.userMessageZh : error.userMessageEn;
+    if (typeof localized === "string" && localized.trim()) {
+      return localized.trim();
+    }
+  }
+  return null;
+}
+
+function sanitizeTravelGenerationDetail(
+  detail: string,
+  locale: InterfaceLocale
+): string {
+  const trimmed = detail.trim();
+  if (!trimmed) {
+    return locale === "zh"
+      ? "请稍后重试；如果仍失败，请联系 VIZA 支持。"
+      : "Please retry shortly; contact VIZA support if it keeps failing.";
+  }
+
+  if (
+    trimmed.startsWith("{") ||
+    trimmed.includes("fetch failed") ||
+    trimmed.includes("Internal Server Error")
+  ) {
+    return locale === "zh"
+      ? "旅行服务暂时不可用，已尝试备用生成路径。请稍后重试。"
+      : "The travel service is temporarily unavailable. Backup generation was attempted; please retry shortly.";
+  }
+
+  return trimmed;
+}
+
+function getTravelGenerationErrorMessage(
+  error: unknown,
+  locale: InterfaceLocale
+): string {
+  const detail = error instanceof Error ? error.message : "";
+  return sanitizeTravelGenerationDetail(detail, locale);
+}
+
+function buildItinerarySuccessIntro(
+  locale: InterfaceLocale,
+  result: TravelItineraryApiResponse
+): string {
+  const fallbackUsed = Array.isArray(result.fallbackUsed)
+    ? result.fallbackUsed
+    : [];
+  const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+
+  if (locale === "zh") {
+    if (fallbackUsed.includes("google_places")) {
+      const photoNote = warnings.includes("photos_pending")
+        ? " 暂时无法获取真实图片的位置会先使用占位图。"
+        : "";
+      return `行程已经生成，已使用备用目的地数据补全行程。${photoNote}之后可以直接在聊天里继续修改，我会保存成新版本。`;
+    }
+    if (fallbackUsed.includes("llm_text")) {
+      return "行程已经生成。旅行服务暂时不可用，所以我使用文字备用生成路径完成了初版；之后可以继续在聊天里修改。";
+    }
+    return "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。";
+  }
+
+  if (fallbackUsed.includes("google_places")) {
+    const photoNote = warnings.includes("photos_pending")
+      ? " Places without verified real photos use placeholders for now."
+      : "";
+    return `Your itinerary is ready. I used backup destination data to complete it.${photoNote} You can keep editing it in chat; I’ll save changes as new versions.`;
+  }
+  if (fallbackUsed.includes("llm_text")) {
+    return "Your itinerary is ready. The travel service was unavailable, so I used the text-only backup generator for this version.";
+  }
+  return "Your itinerary is ready. I organized each day into itinerary cards, and you can keep editing it in chat; I’ll save changes as new versions.";
 }
 
 function parseTravelRevisionResponse(
@@ -4823,8 +4927,25 @@ export function TravelChatClient({
           body: JSON.stringify({ ...payload, locale: travelAgentLocale }),
         });
 
-        if (!response.ok) {
-          const detail = await response.text();
+        const result = (await response.json().catch(() => ({}))) as
+          | TravelItineraryApiResponse
+          | Record<string, unknown>;
+
+        if (!response.ok || result.success === false) {
+          const detail =
+            extractItineraryApiMessage(result, interfaceLocale) ||
+            (interfaceLocale === "zh"
+              ? "旅行服务暂时不可用，已尝试备用生成路径。请稍后重试。"
+              : "The travel service is temporarily unavailable. Backup generation was attempted; please retry shortly.");
+          if (isRecord(result.error)) {
+            console.warn("[travel-itinerary] generation failed", {
+              debugId: result.error.debugId,
+              stage: result.error.stage,
+              code: result.error.code,
+              fallbackAttempted: result.error.fallbackAttempted,
+              fallbackUsed: result.error.fallbackUsed,
+            });
+          }
           throw new Error(
             detail ||
               (interfaceLocale === "zh"
@@ -4833,7 +4954,6 @@ export function TravelChatClient({
           );
         }
 
-        const result = (await response.json()) as unknown;
         const itinerary = parseItineraryFromResponse(result);
         if (itinerary.length === 0) {
           throw new Error(
@@ -4847,10 +4967,7 @@ export function TravelChatClient({
           itinerary,
           selectedFlights: payload.selected_flights,
           selectedHotels: payload.selected_hotels,
-          intro:
-            interfaceLocale === "zh"
-              ? "行程已经生成，我已经把每天安排整理到行程卡片里。之后可以直接在聊天里继续修改，我会保存成新版本。"
-              : "Your itinerary is ready. I organized each day into itinerary cards, and you can keep editing it in chat; I’ll save changes as new versions.",
+          intro: buildItinerarySuccessIntro(interfaceLocale, result),
           quickReplies:
             interfaceLocale === "zh"
               ? ITINERARY_REVISION_QUICK_REPLIES
@@ -4891,7 +5008,7 @@ export function TravelChatClient({
           };
         });
       } catch (error) {
-        const detail = error instanceof Error ? error.message : "未知错误";
+        const detail = getTravelGenerationErrorMessage(error, interfaceLocale);
         setSessionMessages(sessionId, (prev) => [
           ...prev,
           {
@@ -4902,8 +5019,8 @@ export function TravelChatClient({
                 type: "text",
                 text:
                   (interfaceLocale === "zh"
-                    ? "抱歉，暂时无法生成旅行计划。请检查 travel service 是否启动，以及 API key 是否已配置。\n\n"
-                    : "Sorry, I can’t generate the travel plan right now. Please check that the travel service is running and the API key is configured.\n\n") +
+                    ? "抱歉，暂时无法生成旅行计划。\n\n"
+                    : "Sorry, I can’t generate the travel plan right now.\n\n") +
                   detail,
               },
             ],
@@ -5466,6 +5583,7 @@ export function TravelChatClient({
                     className="mt-2"
                     trackClassName="bg-slate-100"
                     barClassName="bg-[#03346E]"
+                    transitionMs={760}
                     size="xs"
                   />
 

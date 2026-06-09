@@ -406,13 +406,17 @@ function findAnswerValue(
   return null;
 }
 
-function normaliseFieldOptions(options: VisaFormFieldRow["options"]): Array<{ value: string; text: string }> {
-  if (!options) return [];
-  return options.map((option) => {
+function normaliseFieldOptions(
+  options: VisaFormFieldRow["options"],
+  side: BilingualSide,
+): Array<{ value: string; text: string }> {
+  const localizedOptions = resolveLocalizedOptions(options, side);
+  if (!localizedOptions) return [];
+  return localizedOptions.map((option) => {
     if (typeof option === "string") return { value: option, text: option };
     return {
       value: option.value,
-      text: option.text ?? option.label_en ?? option.label_zh ?? option.official_label ?? option.value,
+      text: option.text ?? (side === "zh" ? option.label_zh : option.label_en) ?? option.official_label ?? option.value,
     };
   });
 }
@@ -480,7 +484,7 @@ function getLocalFieldIssue(
     }
   }
 
-  const options = normaliseFieldOptions(field.options);
+  const options = normaliseFieldOptions(field.options, isZh ? "zh" : "en");
   if (
     (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
     trimmed &&
@@ -1320,7 +1324,7 @@ export function DynamicStepForm({
     const guidanceField: VisaFormFieldRow = {
       ...field,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
-      options: fieldOptions ?? null,
+      options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
     const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
     const panelOpen = activeGuidanceKey === valueKey;

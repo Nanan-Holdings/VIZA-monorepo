@@ -175,6 +175,20 @@ interface ApplicationDocumentRow {
   updated_at: string | null;
 }
 
+interface UniversalProfileDocumentRow {
+  id: string;
+  applicant_id: string;
+  auth_user_id?: string | null;
+  document_type: string;
+  storage_path: string;
+  filename: string | null;
+  status: string;
+  source_application_id?: string | null;
+  metadata?: unknown;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface AnswerRow {
   field_name: string;
   value_text: string | null;
@@ -908,13 +922,38 @@ async function loadLatestReusablePassportDocument(applicantId: string): Promise<
   return normalizeDocument(data as ApplicationDocumentRow);
 }
 
-function toPassportUploadStatus(passportDocument: ApplicationDocument): UniversalProfilePassportUploadStatus {
+async function loadLatestUniversalProfilePassportDocument(
+  applicantId: string,
+): Promise<UniversalProfileDocumentRow | null> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("universal_profile_documents")
+    .select("id, applicant_id, auth_user_id, document_type, storage_path, filename, status, source_application_id, metadata, created_at, updated_at")
+    .eq("applicant_id", applicantId)
+    .in("document_type", [...PASSPORT_DOCUMENT_TYPES])
+    .neq("status", "missing")
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as UniversalProfileDocumentRow;
+}
+
+function toPassportUploadStatus(passportDocument: ApplicationDocument | UniversalProfileDocumentRow): UniversalProfilePassportUploadStatus {
+  const filename = "filename" in passportDocument ? passportDocument.filename : null;
+  const status = "status" in passportDocument ? passportDocument.status : null;
+  const updatedAt =
+    "updatedAt" in passportDocument
+      ? passportDocument.updatedAt ?? passportDocument.createdAt
+      : passportDocument.updated_at ?? passportDocument.created_at;
+
   return {
     ok: true,
-    uploaded: passportDocument.status !== "missing",
-    fileName: passportDocument.filename,
-    status: passportDocument.status,
-    updatedAt: passportDocument.updatedAt ?? passportDocument.createdAt,
+    uploaded: status !== "missing",
+    fileName: filename,
+    status,
+    updatedAt,
   };
 }
 
@@ -922,12 +961,15 @@ export async function loadUniversalProfilePassportUploadStatus(
   applicationId: string | null | undefined,
 ): Promise<UniversalProfilePassportUploadStatus> {
   try {
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const universalPassportDocument = await loadLatestUniversalProfilePassportDocument(contextResult.context.applicantId);
+    if (universalPassportDocument) return toPassportUploadStatus(universalPassportDocument);
+
     if (!applicationId) {
       return { ok: true, uploaded: false, fileName: null, status: null, updatedAt: null };
     }
-
-    const contextResult = await getApplicantContext();
-    if (!contextResult.ok) return contextResult;
 
     const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
@@ -1089,6 +1131,7 @@ export interface RecordDocumentUploadInput {
   storagePath: string;
   required: boolean;
   source?: "manual_upload" | "travel_ai";
+  scope?: "application" | "universal_profile";
 }
 
 const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
@@ -1119,6 +1162,18 @@ function isLegacyDocumentSchemaError(error: { code?: string; message?: string } 
     message.includes("requirement_key") ||
     message.includes("review_notes") ||
     message.includes("no unique or exclusion constraint")
+  );
+}
+
+function isMissingUniversalProfileDocumentsError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "PGRST204" ||
+    message.includes("universal_profile_documents") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("relation")
   );
 }
 
@@ -1171,6 +1226,7 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
     const documentType = getFormDataString(formData, "documentType");
     const requirementKey = getFormDataString(formData, "requirementKey") ?? documentType;
     const source = getFormDataString(formData, "source") === "travel_ai" ? "travel_ai" : "manual_upload";
+    const scope = getFormDataString(formData, "scope") === "universal_profile" ? "universal_profile" : "application";
     const file = formData.get("file");
 
     if (!applicationId || !documentType || !requirementKey || !(file instanceof File) || file.size === 0) {
@@ -1193,7 +1249,8 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
 
     const filename = sanitizeUploadFilename(getFormDataString(formData, "filename") ?? file.name);
     const ownerSegment = contextResult.context.authUserId ?? contextResult.context.applicantId;
-    const storagePath = `${ownerSegment}/${applicationId}/${documentType}/${Date.now()}-${filename}`;
+    const scopeSegment = scope === "universal_profile" ? "universal-profile" : applicationId;
+    const storagePath = `${ownerSegment}/${scopeSegment}/${documentType}/${Date.now()}-${filename}`;
     const { error: uploadError } = await adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).upload(storagePath, file, {
       upsert: true,
       contentType: file.type || undefined,
@@ -1209,6 +1266,7 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
       storagePath,
       required: getFormDataBoolean(formData, "required"),
       source,
+      scope,
     });
 
     if (!recordResult.ok) return recordResult;
@@ -1284,6 +1342,35 @@ async function saveApplicationDocumentRecord(
   return insertError?.message ?? null;
 }
 
+async function saveUniversalProfileDocumentRecord(
+  adminClient: ReturnType<typeof createAdminClient>,
+  context: ApplicantContext,
+  input: RecordDocumentUploadInput,
+): Promise<string | null> {
+  const now = new Date().toISOString();
+  const { error } = await adminClient.from("universal_profile_documents").upsert(
+    {
+      applicant_id: context.applicantId,
+      auth_user_id: context.authUserId,
+      document_type: input.documentType,
+      storage_path: input.storagePath,
+      filename: input.filename,
+      status: "uploaded",
+      source_application_id: input.applicationId,
+      metadata: {
+        requirementKey: input.requirementKey,
+        source: input.source ?? "manual_upload",
+      },
+      updated_at: now,
+    },
+    { onConflict: "applicant_id,document_type" },
+  );
+
+  if (!error) return null;
+  if (isMissingUniversalProfileDocumentsError(error)) return null;
+  return error.message;
+}
+
 export async function recordDocumentUpload(input: RecordDocumentUploadInput): Promise<DocumentMutationResult> {
   try {
     if (!input.applicationId || !input.documentType || !input.storagePath || !input.filename) {
@@ -1299,6 +1386,16 @@ export async function recordDocumentUpload(input: RecordDocumentUploadInput): Pr
     const adminClient = createAdminClient();
     const saveError = await saveApplicationDocumentRecord(adminClient, input);
     if (saveError) return { ok: false, code: "server_error", error: saveError };
+
+    if (input.scope === "universal_profile") {
+      const profileDocumentError = await saveUniversalProfileDocumentRecord(
+        adminClient,
+        contextResult.context,
+        input,
+      );
+      if (profileDocumentError) return { ok: false, code: "server_error", error: profileDocumentError };
+      revalidatePath("/client/universal-info");
+    }
 
     revalidatePath("/client/documents");
     revalidatePath("/client/status");
@@ -1503,6 +1600,7 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
 export async function confirmPassportOcrExtraction(input: {
   applicationId: string;
   extractionId: string;
+  saveToUniversalProfile?: boolean;
 }): Promise<DocumentMutationResult> {
   try {
     if (!input.applicationId || !input.extractionId) {
@@ -1528,7 +1626,7 @@ export async function confirmPassportOcrExtraction(input: {
 
     const extraction = extractionData as { extracted_fields: unknown; confirmed_at: string | null };
     const fields = isRecord(extraction.extracted_fields) ? extraction.extracted_fields : {};
-    const profileUpdates = buildPassportProfileUpdates(fields);
+    const profileUpdates = input.saveToUniversalProfile ? buildPassportProfileUpdates(fields) : {};
     const answerRows = buildPassportAnswerRows(input.applicationId, fields);
 
     if (Object.keys(profileUpdates).length === 0 && answerRows.length === 0) {

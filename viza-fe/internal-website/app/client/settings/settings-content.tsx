@@ -39,7 +39,7 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -1091,10 +1091,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   </p>
                 </div>
               </div>
-              <SmoothProgressMeter
-                serverProgress={profileCompletion}
-                status={profileCompletion >= 100 ? "completed" : "running"}
-                intervalMs={140}
+              <SmoothProgressBar
+                displayedProgress={profileCompletion}
                 className="mt-3"
                 labelClassName="justify-end"
                 valueClassName="text-2xl font-semibold text-brand-700"

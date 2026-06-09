@@ -41,6 +41,12 @@ interface SchemaSource {
   fields: VisaFormFieldRow[];
 }
 
+interface AdjacentSchemaSource {
+  sourceFile: string;
+  purpose: string;
+  coverage: string;
+}
+
 interface AuditIssue {
   country: string;
   schema: string;
@@ -117,6 +123,64 @@ function clean(value: unknown): string {
 
 function normalizePathForReport(filePath: string): string {
   return path.relative(ROOT, filePath).replace(/\\/g, "/");
+}
+
+function discoverAdjacentSchemaSources(): AdjacentSchemaSource[] {
+  const sources: AdjacentSchemaSource[] = [];
+  const seen = new Set<string>();
+
+  const add = (relativePath: string, purpose: string, coverage: string) => {
+    const normalized = relativePath.replace(/\\/g, "/");
+    const absolute = path.join(ROOT, normalized);
+    if (!fs.existsSync(absolute) || seen.has(normalized)) return;
+    seen.add(normalized);
+    sources.push({ sourceFile: normalized, purpose, coverage });
+  };
+
+  const addDirectoryFiles = (relativeDir: string, fileName: string, purpose: string, coverage: string) => {
+    const absoluteDir = path.join(ROOT, relativeDir);
+    if (!fs.existsSync(absoluteDir)) return;
+    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      add(path.join(relativeDir, entry.name, fileName), purpose, coverage);
+    }
+  };
+
+  add("viza-fe/internal-website/components/dynamic-step-form.tsx", "dynamic_form_renderer", "two-column form labels, options, validation hints, and Ask AI trigger payloads");
+  add("viza-fe/internal-website/components/dynamic-form-field.tsx", "dynamic_field_renderer", "date/country/select/radio/input display for localized labels and options");
+  add("viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx", "dynamic_review_renderer", "bilingual review labels and enum value display");
+  add("viza-fe/internal-website/components/application-steps/bilingual-review-panel.tsx", "dynamic_review_panel", "review column rendering for Chinese and English sides");
+  add("viza-fe/internal-website/components/application-steps/review-step.tsx", "legacy_review_renderer", "legacy validation and review rows");
+  add("viza-fe/internal-website/app/api/field-guidance/route.ts", "ai_help_text", "field guidance labels, examples, option labels, and local fallback text");
+  add("viza-fe/internal-website/app/actions/visa-form-fields.ts", "schema_loader", "Supabase visa_form_fields loader and bilingual normalization boundary");
+  add("viza-fe/internal-website/lib/bilingual-schema-contract.ts", "bilingual_contract", "curated labels, helpers, placeholders, option labels, and resolver functions");
+  add("viza-fe/internal-website/lib/ds160-translations.ts", "legacy_translation_map", "legacy DS-160 label/option/placeholder fallback translations");
+  add("viza-fe/internal-website/lib/rag-visitor-intake-form.ts", "future_country_registry_fallback", "RAG visitor intake fallback schema");
+  add("viza-fe/internal-website/lib/forms/about-me-questions.ts", "shared_profile_questions", "profile/question-set source adjacent to form prefill");
+  add("viza-fe/internal-website/app/actions/question-sets.ts", "question_set_loader", "question_field DB loader for future registry question sets");
+  add("viza-fe/internal-website/messages/en.json", "locale_messages_en", "simplified wizard English labels and review copy");
+  add("viza-fe/internal-website/messages/zh.json", "locale_messages_zh", "simplified wizard Chinese labels and review copy");
+  add("knowledge-base/scraped-form-fields.json", "scraped_schema_fragment", "Indonesia B211A scraped form fields");
+  add("vietnam-visa-helper-v1/content.js", "vietnam_helper_artifact", "Vietnam helper extension source used as historical schema evidence");
+  add("vietnam-visa-helper-v1/content-v2-1.js", "vietnam_helper_artifact", "Vietnam helper extension alternate content script");
+
+  addDirectoryFiles(
+    path.join("viza-fe", "internal-website", "components", "client", "wizards"),
+    "config.ts",
+    "simplified_wizard_config",
+    "country simplified-form fields, options, declaration items, payload keys, and review rows",
+  );
+
+  const journeyDir = path.join(ROOT, "viza-fe", "internal-website", "lib", "client", "visa-journeys");
+  if (fs.existsSync(journeyDir)) {
+    for (const entry of fs.readdirSync(journeyDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".ts")) {
+        add(path.join("viza-fe", "internal-website", "lib", "client", "visa-journeys", entry.name), "country_registry", "country/visa journey registry metadata");
+      }
+    }
+  }
+
+  return sources.sort((a, b) => a.sourceFile.localeCompare(b.sourceFile));
 }
 
 function optionCount(options: VisaFormFieldOption[] | null): number {
@@ -476,7 +540,12 @@ function escapeMd(value: unknown): string {
   return clean(value).replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
 
-function writeReports(sources: SchemaSource[], results: FieldResult[], issues: AuditIssue[]) {
+function writeReports(
+  sources: SchemaSource[],
+  adjacentSources: AdjacentSchemaSource[],
+  results: FieldResult[],
+  issues: AuditIssue[],
+) {
   const blocking = issues.filter((issue) => issue.severity === "blocking");
   const warnings = issues.filter((issue) => issue.severity === "warning");
   const info = issues.filter((issue) => issue.severity === "info");
@@ -485,7 +554,9 @@ function writeReports(sources: SchemaSource[], results: FieldResult[], issues: A
   const payload = {
     generatedAt: new Date().toISOString(),
     summary: {
-      schemaFilesScanned: sources.length,
+      schemaFilesScanned: sources.length + adjacentSources.length,
+      fieldSchemaSourcesScanned: sources.length,
+      adjacentSchemaFilesScanned: adjacentSources.length,
       countriesFormsScanned: Array.from(new Set(sources.map((source) => `${source.country}:${source.schema}`))).sort(),
       fieldsAudited: results.length,
       dropdownRadioOptionsAudited: optionTotal,
@@ -500,6 +571,7 @@ function writeReports(sources: SchemaSource[], results: FieldResult[], issues: A
       schema: source.schema,
       fields: source.fields.length,
     })),
+    adjacentSchemaFiles: adjacentSources,
     fields: results,
     issues,
   };
@@ -513,7 +585,9 @@ function writeReports(sources: SchemaSource[], results: FieldResult[], issues: A
   md.push("");
   md.push("## Summary");
   md.push("");
-  md.push(`- Schema files scanned: ${sources.length}`);
+  md.push(`- Schema files scanned: ${payload.summary.schemaFilesScanned}`);
+  md.push(`- Field schema sources scanned: ${sources.length}`);
+  md.push(`- Adjacent schema/rendering files listed: ${adjacentSources.length}`);
   md.push(`- Countries/forms scanned: ${payload.summary.countriesFormsScanned.length}`);
   md.push(`- Fields audited: ${results.length}`);
   md.push(`- Dropdown/radio/checkbox options audited: ${optionTotal}`);
@@ -527,6 +601,14 @@ function writeReports(sources: SchemaSource[], results: FieldResult[], issues: A
   md.push("| --- | --- | --- | ---: |");
   for (const source of payload.schemaFiles) {
     md.push(`| ${escapeMd(source.sourceFile)} | ${escapeMd(source.country)} | ${escapeMd(source.schema)} | ${source.fields} |`);
+  }
+  md.push("");
+  md.push("## Adjacent Schema And Rendering Sources");
+  md.push("");
+  md.push("| source | purpose | coverage |");
+  md.push("| --- | --- | --- |");
+  for (const source of payload.adjacentSchemaFiles) {
+    md.push(`| ${escapeMd(source.sourceFile)} | ${escapeMd(source.purpose)} | ${escapeMd(source.coverage)} |`);
   }
   md.push("");
   md.push("## Issues");
@@ -579,13 +661,15 @@ function writeReports(sources: SchemaSource[], results: FieldResult[], issues: A
 
 function main() {
   const sources = loadSchemaSources();
+  const adjacentSources = discoverAdjacentSchemaSources();
   const results = sources.flatMap((source) => source.fields.map((field) => auditField(source, field)));
   const issues = results.flatMap((result) => result.issues);
-  writeReports(sources, results, issues);
+  writeReports(sources, adjacentSources, results, issues);
 
   const blocking = issues.filter((issue) => issue.severity === "blocking");
   const optionTotal = results.reduce((sum, field) => sum + field.option_count, 0);
-  console.log(`Audited ${results.length} fields and ${optionTotal} options across ${sources.length} schema sources.`);
+  console.log(`Audited ${results.length} fields and ${optionTotal} options across ${sources.length} field schema sources.`);
+  console.log(`Listed ${adjacentSources.length} adjacent schema/rendering sources.`);
   console.log(`Reports written: ${normalizePathForReport(REPORT_JSON)}, ${normalizePathForReport(REPORT_MD)}`);
   console.log(`Blocking issues: ${blocking.length}`);
 

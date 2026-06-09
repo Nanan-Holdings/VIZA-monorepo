@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
-  ACTIVE_SUBMISSION_QUEUE_STATUSES,
+  isDs160VisaType,
+  isFranceVisasVisaType,
+  queueProviderForVisaType,
   queueStatusForVisaType,
+  RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
+  type SubmissionMode,
 } from "@/lib/submission-queue";
 
 type ApplicationForRetry = {
@@ -12,8 +16,41 @@ type ApplicationForRetry = {
   visa_type: string | null;
 };
 
+async function readRequestedMode(request: Request): Promise<SubmissionMode> {
+  try {
+    const body = (await request.json()) as { mode?: unknown };
+    return body.mode === "live_assisted" ? "live_assisted" : "dry_run";
+  } catch {
+    return "dry_run";
+  }
+}
+
+function envEnabled(...keys: string[]): boolean {
+  return keys.some((key) => process.env[key] === "true" || process.env[key] === "1");
+}
+
+function envModeLive(...keys: string[]): boolean {
+  return keys.some((key) => process.env[key] === "live_assisted");
+}
+
+function liveRetryEnabledForVisaType(visaType: string | null): boolean {
+  if (isFranceVisasVisaType(visaType)) {
+    return (
+      envEnabled("FRANCE_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED") &&
+      envModeLive("FRANCE_SUBMISSION_MODE", "NEXT_PUBLIC_FRANCE_SUBMISSION_MODE")
+    );
+  }
+  if (isDs160VisaType(visaType)) {
+    return (
+      envEnabled("DS160_LIVE_ASSISTED_ENABLED", "NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED") &&
+      envModeLive("DS160_SUBMISSION_MODE", "NEXT_PUBLIC_DS160_SUBMISSION_MODE")
+    );
+  }
+  return false;
+}
+
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -62,6 +99,54 @@ export async function POST(
 
   const now = new Date().toISOString();
   const queueStatus = queueStatusForVisaType(ownedApplication.visa_type);
+  const mode = await readRequestedMode(request);
+  const provider = queueProviderForVisaType(ownedApplication.visa_type, mode);
+
+  if (mode === "live_assisted") {
+    if (!provider) {
+      return NextResponse.json(
+        { error: "Live assisted retry is not supported for this visa type." },
+        { status: 400 },
+      );
+    }
+    if (!liveRetryEnabledForVisaType(ownedApplication.visa_type)) {
+      return NextResponse.json(
+        { error: "Live assisted retry is disabled by environment configuration." },
+        { status: 403 },
+      );
+    }
+    if (isFranceVisasVisaType(ownedApplication.visa_type)) {
+      const { data: existingOfficialRows, error: existingOfficialError } = await admin
+        .from("submission_queue")
+        .select("id, status, official_application_id_encrypted, official_application_reference_encrypted")
+        .eq("application_id", applicationId)
+        .eq("mode", "live_assisted")
+        .limit(20);
+
+      if (existingOfficialError) {
+        return NextResponse.json({ error: existingOfficialError.message }, { status: 500 });
+      }
+      const hasOfficialReference = (existingOfficialRows ?? []).some((row) => {
+        const bag = row as {
+          official_application_id_encrypted?: string | null;
+          official_application_reference_encrypted?: string | null;
+        };
+        return Boolean(
+          bag.official_application_id_encrypted ||
+          bag.official_application_reference_encrypted,
+        );
+      });
+      if (hasOfficialReference) {
+        return NextResponse.json(
+          {
+            error:
+              "A France-Visas live job already captured an official reference. Verify the existing official draft before retrying.",
+          },
+          { status: 409 },
+        );
+      }
+    }
+  }
 
   const { error: supersedeError } = await admin
     .from("submission_queue")
@@ -70,7 +155,7 @@ export async function POST(
       updated_at: now,
     })
     .eq("application_id", applicationId)
-    .in("status", ACTIVE_SUBMISSION_QUEUE_STATUSES);
+    .in("status", RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES);
 
   if (supersedeError) {
     return NextResponse.json({ error: supersedeError.message }, { status: 500 });
@@ -79,6 +164,8 @@ export async function POST(
   const { error: queueError } = await admin.from("submission_queue").insert({
     application_id: applicationId,
     status: queueStatus,
+    mode,
+    provider,
     attempts: 0,
     last_error: null,
     created_at: now,
@@ -94,6 +181,7 @@ export async function POST(
       status: "submitted",
       submission_result_status: "waiting",
       submission_result: null,
+      confirmation_number: null,
       submission_result_updated_at: now,
       updated_at: now,
     })
@@ -107,5 +195,7 @@ export async function POST(
     ok: true,
     applicationId,
     queueStatus,
+    mode,
+    provider,
   });
 }

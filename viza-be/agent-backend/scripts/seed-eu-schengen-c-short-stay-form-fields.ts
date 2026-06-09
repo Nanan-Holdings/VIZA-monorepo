@@ -25,6 +25,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
+import { toBilingualSeedRow } from "./bilingual-seed-row";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -475,20 +476,7 @@ async function seed() {
     console.log(`Cleared existing ${VISA_TYPE} fields`);
   }
 
-  const rows = FIELDS.map((f) => ({
-    visa_type: VISA_TYPE,
-    field_name: f.field_name,
-    label: f.label,
-    field_type: f.field_type,
-    required: f.required,
-    step_number: f.step_number,
-    step_name: f.step_name,
-    display_order: f.display_order,
-    placeholder: f.placeholder ?? null,
-    validation_rules: f.validation_rules ?? null,
-    options: f.options ?? null,
-    conditional_logic: f.conditional_logic ?? null,
-  }));
+  const rows = FIELDS.map((f) => toBilingualSeedRow(VISA_TYPE, f));
 
   const BATCH = 20;
   let total = 0;

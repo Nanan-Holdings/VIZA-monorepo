@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
-import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
+import { buildUniversalProfileAnswerPatch, type UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 import { getCanonicalVisaDestinationCountry, getFormVisaType } from "@/lib/visa-destinations";
 
 type ApplicationOwnerProfile = {
@@ -15,6 +15,51 @@ type ApplicationOwnerProfile = {
 interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
   wechat?: string | null;
 }
+type UniversalProfileSaveField = keyof UniversalProfileSaveInput;
+type SeedableUniversalProfile = UniversalProfileSnapshot & {
+  id?: string | null;
+  updated_at?: string | null;
+};
+type SupabaseErrorLike = { code?: string; message?: string } | null;
+
+const UNIVERSAL_PROFILE_SAVE_FIELDS: UniversalProfileSaveField[] = [
+  "full_name",
+  "full_name_zh",
+  "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
+  "date_of_birth",
+  "place_of_birth",
+  "place_of_birth_zh",
+  "place_of_birth_en",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_province_or_state_zh",
+  "birth_province_or_state_en",
+  "birth_city",
+  "birth_city_zh",
+  "birth_city_en",
+  "gender",
+  "nationality",
+  "occupation",
+  "occupation_zh",
+  "occupation_en",
+  "address",
+  "address_zh",
+  "address_en",
+  "passport_number",
+  "passport_issue_date",
+  "passport_expiry_date",
+  "passport_issuing_country",
+  "passport_issuing_authority",
+  "email",
+  "phone",
+  "wechat",
+];
 
 const PROFILE_SAVE_FALLBACK_COLUMNS = [
   "full_name_zh",
@@ -64,6 +109,17 @@ function isMissingColumnError(message: string, column: string) {
   const normalized = message.toLowerCase();
   return normalized.includes(column.toLowerCase()) &&
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("does not exist"));
+}
+
+function isMissingSchemaFeatureError(error: SupabaseErrorLike, featureNames: string[]) {
+  if (!error) return false;
+  const normalized = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "PGRST204" ||
+    normalized.includes("schema cache") ||
+    normalized.includes("does not exist") ||
+    normalized.includes("relation")
+  ) && featureNames.some((name) => normalized.includes(name.toLowerCase()));
 }
 
 async function loadApplicationOwnerProfile(
@@ -128,6 +184,76 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
     .upsert(nextPayload, { onConflict: "auth_user_id" })
     .select("*")
     .single();
+}
+
+async function seedNewApplicationFromUniversalProfile(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  applicantId: string,
+  profile: SeedableUniversalProfile,
+) {
+  const answerPatch = buildUniversalProfileAnswerPatch(profile);
+  const answerEntries = Object.entries(answerPatch).filter(([, value]) => value.trim() !== "");
+  if (answerEntries.length === 0 || !profile.id) return null;
+
+  const now = new Date().toISOString();
+  const sourceMetadata = {
+    source: "universal_profile",
+    profileId: profile.id,
+    seededAt: now,
+  };
+  const answerRows = answerEntries.map(([fieldName, value]) => ({
+    application_id: applicationId,
+    field_name: fieldName,
+    value_text: value,
+    updated_at: now,
+    source: "universal_profile",
+    source_profile_updated_at: profile.updated_at ?? null,
+    source_metadata: sourceMetadata,
+  }));
+
+  const { error: answerError } = await adminClient
+    .from("visa_application_answers")
+    .upsert(answerRows, { onConflict: "application_id,field_name" });
+
+  if (answerError) {
+    if (!isMissingSchemaFeatureError(answerError, ["source", "source_profile_updated_at", "source_metadata"])) {
+      return answerError.message;
+    }
+
+    const fallbackRows = answerEntries.map(([fieldName, value]) => ({
+      application_id: applicationId,
+      field_name: fieldName,
+      value_text: value,
+      updated_at: now,
+    }));
+    const { error: fallbackAnswerError } = await adminClient
+      .from("visa_application_answers")
+      .upsert(fallbackRows, { onConflict: "application_id,field_name" });
+    if (fallbackAnswerError) return fallbackAnswerError.message;
+  }
+
+  const { error: snapshotError } = await adminClient
+    .from("application_profile_snapshots")
+    .upsert(
+      {
+        application_id: applicationId,
+        applicant_id: applicantId,
+        profile_id: profile.id,
+        source: "universal_profile",
+        profile_updated_at: profile.updated_at ?? null,
+        snapshot_json: profile,
+        answer_keys: answerEntries.map(([fieldName]) => fieldName),
+        created_at: now,
+      },
+      { onConflict: "application_id" },
+    );
+
+  if (snapshotError && !isMissingSchemaFeatureError(snapshotError, ["application_profile_snapshots"])) {
+    return snapshotError.message;
+  }
+
+  return null;
 }
 
 /**
@@ -210,6 +336,7 @@ export async function saveUniversalProfileWithSharedAnswers(
     country?: string;
     visaType?: string;
     preferExplicit?: boolean;
+    clearedFields?: UniversalProfileSaveField[];
   },
 ): Promise<{ applicationId?: string; answerCount?: number; profile?: UniversalProfileSnapshot; error?: string }> {
   try {
@@ -218,53 +345,37 @@ export async function saveUniversalProfileWithSharedAnswers(
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const baseProfilePayload = {
+    const { data: existingProfile, error: existingProfileError } = await adminClient
+      .from("applicant_profiles")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (existingProfileError) return { error: existingProfileError.message };
+
+    const clearedFields = new Set(input.clearedFields ?? []);
+    const profilePatch: Record<string, string | null> = {
       auth_user_id: user.id,
-      full_name: cleanOptional(input.profile.full_name),
-      surname: cleanOptional(input.profile.surname),
-      given_names: cleanOptional(input.profile.given_names),
-      date_of_birth: cleanOptional(input.profile.date_of_birth),
-      place_of_birth: cleanOptional(input.profile.place_of_birth),
-      birth_country: cleanOptional(input.profile.birth_country),
-      birth_province_or_state: cleanOptional(input.profile.birth_province_or_state),
-      birth_city: cleanOptional(input.profile.birth_city),
-      gender: cleanOptional(input.profile.gender),
-      nationality: cleanOptional(input.profile.nationality),
-      occupation: cleanOptional(input.profile.occupation),
-      address: cleanOptional(input.profile.address),
-      passport_number: cleanOptional(input.profile.passport_number),
-      passport_issue_date: cleanOptional(input.profile.passport_issue_date),
-      passport_expiry_date: cleanOptional(input.profile.passport_expiry_date),
-      passport_issuing_country: cleanOptional(input.profile.passport_issuing_country),
-      passport_issuing_authority: cleanOptional(input.profile.passport_issuing_authority),
-      email: cleanOptional(input.profile.email) ?? user.email ?? null,
-      phone: cleanOptional(input.profile.phone),
-      wechat: cleanOptional(input.profile.wechat),
       updated_at: new Date().toISOString(),
     };
-    const bilingualProfilePayload = {
-      full_name_zh: cleanOptional(input.profile.full_name_zh),
-      full_name_en: cleanOptional(input.profile.full_name_en),
-      surname_zh: cleanOptional(input.profile.surname_zh),
-      surname_en: cleanOptional(input.profile.surname_en),
-      given_names_zh: cleanOptional(input.profile.given_names_zh),
-      given_names_en: cleanOptional(input.profile.given_names_en),
-      place_of_birth_zh: cleanOptional(input.profile.place_of_birth_zh),
-      place_of_birth_en: cleanOptional(input.profile.place_of_birth_en),
-      birth_province_or_state_zh: cleanOptional(input.profile.birth_province_or_state_zh),
-      birth_province_or_state_en: cleanOptional(input.profile.birth_province_or_state_en),
-      birth_city_zh: cleanOptional(input.profile.birth_city_zh),
-      birth_city_en: cleanOptional(input.profile.birth_city_en),
-      occupation_zh: cleanOptional(input.profile.occupation_zh),
-      occupation_en: cleanOptional(input.profile.occupation_en),
-      address_zh: cleanOptional(input.profile.address_zh),
-      address_en: cleanOptional(input.profile.address_en),
-    };
-    const hasBilingualPayload = Object.values(bilingualProfilePayload).some(Boolean);
+
+    for (const field of UNIVERSAL_PROFILE_SAVE_FIELDS) {
+      const rawValue = input.profile[field];
+      const value = cleanOptional(rawValue);
+      if (value !== null) {
+        profilePatch[field] = value;
+      } else if (clearedFields.has(field)) {
+        profilePatch[field] = null;
+      }
+    }
+
+    if (!existingProfile && !("email" in profilePatch)) {
+      profilePatch.email = user.email ?? null;
+    }
 
     const profileResult = await upsertApplicantProfileWithOptionalColumnFallback(
       adminClient,
-      hasBilingualPayload ? { ...baseProfilePayload, ...bilingualProfilePayload } : baseProfilePayload,
+      profilePatch,
     );
     const savedProfile = profileResult.data;
     const profileError = profileResult.error;
@@ -273,32 +384,7 @@ export async function saveUniversalProfileWithSharedAnswers(
       return { error: profileError?.message ?? "Failed to save profile" };
     }
 
-    let applicationId = input.applicationId ?? null;
-
-    if (applicationId) {
-      const { data: app, error: appError } = await adminClient
-        .from("applications")
-        .select("id, applicant_id")
-        .eq("id", applicationId)
-        .maybeSingle();
-
-      if (appError) return { error: appError.message };
-      if (!app || app.applicant_id !== savedProfile.id) {
-        return { error: "Application not found" };
-      }
-    } else {
-      const ensured = await ensureDraftApplication(
-        input.country ?? "us",
-        input.visaType ?? "b1_b2",
-        { preferExplicit: input.preferExplicit ?? false },
-      );
-      if (ensured.error || !ensured.applicationId) {
-        return { error: ensured.error ?? "Failed to create draft application" };
-      }
-      applicationId = ensured.applicationId;
-    }
-
-    return { applicationId, answerCount: 0, profile: savedProfile as UniversalProfileSnapshot };
+    return { applicationId: input.applicationId ?? undefined, answerCount: 0, profile: savedProfile as UniversalProfileSnapshot };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save profile" };
   }
@@ -312,7 +398,7 @@ export async function ensureDraftApplication(
   country: string,
   visaType: string,
   options: { preferExplicit?: boolean } = {}
-): Promise<{ applicationId?: string; error?: string }> {
+): Promise<{ applicationId?: string; created?: boolean; error?: string }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -320,13 +406,14 @@ export async function ensureDraftApplication(
 
     const adminClient = createAdminClient();
 
-    const { data: profile } = await adminClient
+    const { data: profileData } = await adminClient
       .from("applicant_profiles")
-      .select("id")
+      .select("*")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    if (!profile) return { error: "Profile not found" };
+    const profile = profileData as SeedableUniversalProfile | null;
+    if (!profile?.id) return { error: "Profile not found" };
 
     const { data: activePackage } = await adminClient
       .from("user_packages")
@@ -363,7 +450,7 @@ export async function ensureDraftApplication(
 
     const { data: existing } = await existingQuery.maybeSingle();
 
-    if (existing) return { applicationId: existing.id };
+    if (existing) return { applicationId: existing.id, created: false };
 
     const { data: newApp, error: appError } = await adminClient
       .from("applications")
@@ -378,7 +465,11 @@ export async function ensureDraftApplication(
       .single();
 
     if (appError) return { error: appError.message };
-    return { applicationId: newApp.id };
+
+    const seedError = await seedNewApplicationFromUniversalProfile(adminClient, newApp.id, profile.id, profile);
+    if (seedError) return { error: seedError };
+
+    return { applicationId: newApp.id, created: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create application" };
   }

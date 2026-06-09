@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/input-otp";
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import { resolveLocalizedOptions } from "@/lib/bilingual-schema-contract";
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -106,15 +107,19 @@ function FieldWrapper({ label, required, children }: { label: string; required: 
   );
 }
 
-function normaliseOptions(opts: VisaFormFieldRow["options"]): Array<{ value: string; text: string }> {
-  if (!opts || !Array.isArray(opts)) return [];
-  return opts.map((o) => {
+function normaliseOptions(
+  opts: VisaFormFieldRow["options"],
+  side: "zh" | "en",
+): Array<{ value: string; text: string }> {
+  const localizedOptions = resolveLocalizedOptions(opts, side);
+  if (!localizedOptions || !Array.isArray(localizedOptions)) return [];
+  return localizedOptions.map((o) => {
     if (typeof o === "string") return { value: o, text: o };
     if (typeof o === "object" && o !== null) {
       const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
       return {
         value: obj.value ?? "",
-        text: obj.text ?? obj.label_en ?? obj.label_zh ?? obj.official_label ?? obj.value ?? "",
+        text: obj.text ?? (side === "zh" ? obj.label_zh : obj.label_en) ?? obj.official_label ?? obj.value ?? "",
       };
     }
     return { value: String(o), text: String(o) };
@@ -299,7 +304,7 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
-      const opts = normaliseOptions(options);
+      const opts = normaliseOptions(options, sideLocale);
       return (
         <FieldWrapper label={label} required={required}>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
@@ -372,7 +377,7 @@ export function DynamicFormField({
       }
 
     case "radio": {
-      const opts = normaliseOptions(options);
+      const opts = normaliseOptions(options, sideLocale);
       return (
         <FieldWrapper label={label} required={required}>
           <div className={`flex ${opts.length <= 2 ? "flex-row gap-6" : "flex-col gap-2"}`}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Check, ChevronDown } from "lucide-react";
+import { AlertCircle, Loader2, Check, ChevronDown, PlayCircle, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -28,7 +28,7 @@ import {
   type DocumentType,
 } from "@/components/application-steps";
 import { DynamicStepForm } from "@/components/dynamic-step-form";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
   saveDynamicAnswers,
@@ -43,7 +43,6 @@ import type {
 } from "@/lib/submission-result";
 import {
   buildUniversalProfileAnswerPatch,
-  mergeUniversalProfileIntoAnswers,
   splitUniversalFullName,
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
@@ -61,7 +60,13 @@ import {
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
-import { queueStatusForVisaType } from "@/lib/submission-queue";
+import {
+  isDs160VisaType,
+  isFranceVisasVisaType,
+  queueProviderForVisaType,
+  queueStatusForVisaType,
+  type SubmissionMode,
+} from "@/lib/submission-queue";
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -77,6 +82,16 @@ interface StepDef {
 }
 
 type StepClickHandler = (stepId: number) => void | Promise<void>;
+
+const DS160_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED === "true" &&
+  process.env.NEXT_PUBLIC_DS160_SUBMISSION_MODE === "live_assisted";
+
+const FRANCE_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
+  process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
+
+type LiveAssistedTarget = "ds160" | "france" | null;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -645,10 +660,8 @@ function GroupedMobileStepBar({
             {currentStepIndex !== undefined ? `${currentStepIndex + 1} / ${steps.length}` : `— / ${steps.length}`}
           </span>
         </div>
-        <SmoothProgressMeter
-          serverProgress={progressPercent}
-          status={progressPercent >= 100 ? "completed" : "running"}
-          intervalMs={140}
+        <SmoothProgressBar
+          displayedProgress={progressPercent}
           showValue={false}
           className="mt-3"
           trackClassName="bg-gray-100"
@@ -828,19 +841,25 @@ function GroupedMobileStepBar({
 
 function FinalConfirmationPanel({
   isZh,
+  liveAssistedTarget,
+  liveAssistedEnabled,
   missingFields,
   requirementsLoading,
-  submitting,
+  submittingMode,
   onEdit,
   onSubmit,
 }: {
   isZh: boolean;
+  liveAssistedTarget: LiveAssistedTarget;
+  liveAssistedEnabled: boolean;
   missingFields: MissingApplicationField[];
   requirementsLoading: boolean;
-  submitting: boolean;
+  submittingMode: SubmissionMode | null;
   onEdit: StepClickHandler;
-  onSubmit: () => void | Promise<void>;
+  onSubmit: (mode: SubmissionMode) => void | Promise<void>;
 }) {
+  const [showLiveConsent, setShowLiveConsent] = useState(false);
+  const [liveConsentChecked, setLiveConsentChecked] = useState(false);
   const groupedMissing = useMemo(() => {
     const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
     for (const item of missingFields) {
@@ -855,6 +874,29 @@ function FinalConfirmationPanel({
   }, [missingFields]);
 
   const hasMissing = missingFields.length > 0;
+  const isSubmitting = submittingMode !== null;
+  const baseDisabled = isSubmitting || hasMissing || requirementsLoading;
+  const hasLiveAssistedTarget = liveAssistedTarget !== null;
+  const isFrance = liveAssistedTarget === "france";
+  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
+  const liveDisabledReason = !hasLiveAssistedTarget
+    ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
+    : !liveAssistedEnabled
+      ? isFrance
+        ? (isZh
+            ? "本地 France live assisted 环境未启用。请确认 FRANCE_LIVE_SUBMISSION_ENABLED 和 FRANCE_SUBMISSION_MODE。"
+            : "France live assisted is not enabled locally. Check FRANCE_LIVE_SUBMISSION_ENABLED and FRANCE_SUBMISSION_MODE.")
+        : (isZh
+            ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
+            : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
+      : null;
+
+  const dryRunLabel = hasLiveAssistedTarget
+    ? (isZh ? "Dry-run 测试提交" : "Dry-run test submission")
+    : (isZh ? "确认并提交申请" : "Confirm and submit application");
+  const liveLabel = isFrance
+    ? (isZh ? "Live assisted 官网辅助填写" : "Live assisted France-Visas fill")
+    : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
 
   return (
     <div className="space-y-6">
@@ -875,8 +917,12 @@ function FinalConfirmationPanel({
                     ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
                     : "Checking supporting documents and current form status. You can submit once this finishes."
                 : isZh
-                  ? "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。"
-                  : "All currently required information is ready. The background submission job is created only after you click below."}
+                  ? hasLiveAssistedTarget
+                    ? "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。当前表单可选择测试提交或真实官网辅助填写。"
+                    : "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。"
+                  : hasLiveAssistedTarget
+                    ? "All currently required information is ready. The background submission job is created only after you click below. This form can be started as a dry-run or live assisted official-site fill."
+                    : "All currently required information is ready. The background submission job is created only after you click below."}
             </p>
           </div>
         </div>
@@ -915,33 +961,160 @@ function FinalConfirmationPanel({
         </div>
       )}
 
-      <button
-        type="button"
-        disabled={submitting || hasMissing || requirementsLoading}
-        onClick={() => {
-          void onSubmit();
-        }}
-        className={cn(
-          "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
-          submitting || hasMissing || requirementsLoading
-            ? "cursor-not-allowed bg-gray-200 text-gray-500"
-            : "bg-[#03346E] text-white shadow-sm hover:bg-[#022b5c]",
+      <div className={cn("grid gap-3", hasLiveAssistedTarget ? "lg:grid-cols-2" : "grid-cols-1")}>
+        <button
+          type="button"
+          disabled={baseDisabled}
+          onClick={() => {
+            void onSubmit("dry_run");
+          }}
+          className={cn(
+            "flex min-h-12 w-full items-center justify-center rounded-full border px-5 text-base font-semibold transition-colors",
+            baseDisabled
+              ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500"
+              : hasLiveAssistedTarget
+                ? "border-brand-200 bg-white text-brand-500 shadow-sm hover:bg-brand-50"
+                : "border-brand-500 bg-brand-500 text-white shadow-sm hover:bg-brand-600",
+          )}
+        >
+          {requirementsLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isZh ? "正在检查" : "Checking"}
+            </>
+          ) : submittingMode === "dry_run" ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isZh ? "正在提交" : "Submitting"}
+            </>
+          ) : (
+            <>
+              {hasLiveAssistedTarget && <PlayCircle className="mr-2 h-4 w-4" />}
+              {dryRunLabel}
+            </>
+          )}
+        </button>
+
+        {hasLiveAssistedTarget && (
+          <button
+            type="button"
+            disabled={liveDisabled}
+            onClick={() => {
+              setLiveConsentChecked(false);
+              setShowLiveConsent(true);
+            }}
+            className={cn(
+              "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
+              liveDisabled
+                ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                : "bg-brand-500 text-white shadow-sm hover:bg-brand-600",
+            )}
+            title={liveDisabledReason ?? undefined}
+          >
+            {submittingMode === "live_assisted" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isZh ? "正在启动" : "Starting"}
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                {liveLabel}
+              </>
+            )}
+          </button>
         )}
-      >
-        {requirementsLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isZh ? "正在检查" : "Checking"}
-          </>
-        ) : submitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isZh ? "正在提交" : "Submitting"}
-          </>
-        ) : (
-          isZh ? "确认并提交申请" : "Confirm and submit application"
-        )}
-      </button>
+      </div>
+
+      {hasLiveAssistedTarget && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+          {liveDisabledReason ?? (isZh
+            ? isFrance
+              ? "真实辅助填写会打开 France-Visas 官方流程；验证码、登录、邮箱验证、官网页面核对、最终确认、支付和预约都必须由本人处理。VIZA 不会自动最终提交、付款或预约。"
+              : "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
+            : isFrance
+              ? "Live assisted mode opens the France-Visas official flow. CAPTCHA, login, email verification, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book."
+              : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.")}
+        </div>
+      )}
+
+      {showLiveConsent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
+          <div className="w-full max-w-xl rounded-xl border border-input bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {isZh
+                    ? isFrance
+                      ? "确认启动 France-Visas 官网辅助填写"
+                      : "确认启动真实官网辅助填写"
+                    : isFrance
+                      ? "Confirm live assisted France-Visas fill"
+                      : "Confirm live assisted CEAC fill"}
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {isZh
+                    ? isFrance
+                      ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。验证码、登录、邮箱验证、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
+                      : "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
+                    : isFrance
+                      ? "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. CAPTCHA, login, email verification, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual."
+                      : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step."}
+                </p>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-input bg-muted/30 p-3 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-input"
+                    checked={liveConsentChecked}
+                    onChange={(event) => setLiveConsentChecked(event.target.checked)}
+                  />
+                  <span>
+                    {isZh
+                      ? isFrance
+                        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并知道 VIZA 不会自动最终验证、付款或预约。"
+                        : "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
+                      : isFrance
+                        ? "I confirm this is my authorized France-Visas live assisted fill, and I understand VIZA will not automatically validate, pay, or book an appointment."
+                        : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation."}
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="min-h-11 rounded-full border border-input px-5 text-sm font-semibold text-foreground hover:bg-muted"
+                onClick={() => setShowLiveConsent(false)}
+              >
+                {isZh ? "取消" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                disabled={!liveConsentChecked || isSubmitting}
+                className={cn(
+                  "min-h-11 rounded-full px-5 text-sm font-semibold transition-colors",
+                  !liveConsentChecked || isSubmitting
+                    ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                    : "bg-brand-500 text-white hover:bg-brand-600",
+                )}
+                onClick={() => {
+                  setShowLiveConsent(false);
+                  void onSubmit("live_assisted");
+                }}
+              >
+                {submittingMode === "live_assisted"
+                  ? (isZh ? "正在启动" : "Starting")
+                  : (isZh
+                      ? isFrance
+                        ? "启动 France-Visas 辅助填写"
+                        : "启动真实辅助填写"
+                      : "Start live assisted fill")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1065,6 +1238,7 @@ export default function ApplicationPage() {
     submissionResultStatus: null,
   });
   const [saving, setSaving] = useState(false);
+  const [submittingMode, setSubmittingMode] = useState<SubmissionMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitMissingFields, setSubmitMissingFields] = useState<MissingApplicationField[]>([]);
   // Dynamic form answers keyed by field_name
@@ -1086,6 +1260,21 @@ export default function ApplicationPage() {
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+  const isDs160Application = isDs160VisaType(resolvedVisaType);
+  const normalizedCountryForLive = resolvedCountry.trim().toLowerCase();
+  const isFranceSchengenApplication =
+    isFranceVisasVisaType(resolvedVisaType) &&
+    ["france", "fr", "法国"].includes(normalizedCountryForLive);
+  const liveAssistedTarget: LiveAssistedTarget = isDs160Application
+    ? "ds160"
+    : isFranceSchengenApplication
+      ? "france"
+      : null;
+  const liveAssistedEnabled = liveAssistedTarget === "ds160"
+    ? DS160_LIVE_ASSISTED_ENABLED
+    : liveAssistedTarget === "france"
+      ? FRANCE_LIVE_ASSISTED_ENABLED
+      : false;
 
   useEffect(() => {
     const href = buildApplicationFormHref(
@@ -1351,8 +1540,8 @@ export default function ApplicationPage() {
         const { answers } = await loadDynamicAnswers(application.id);
         ds160Answers = answers;
       }
-      const universalAnswers = mergeUniversalProfileIntoAnswers({}, profile as UniversalProfileSnapshot);
-      const mergedDynamicAnswers = { ...universalAnswers, ...ds160Answers };
+      const mergedDynamicAnswers = { ...ds160Answers };
+      const profileFallback = application?.id ? null : profile;
 
       // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
       const a = ds160Answers;
@@ -1360,25 +1549,25 @@ export default function ApplicationPage() {
         ...prev,
         applicationId: application?.id ?? null,
         personal: {
-          surname: a.surname || profile.full_name?.split(" ").slice(-1)[0] || "",
-          givenNames: a.given_names || profile.full_name?.split(" ").slice(0, -1).join(" ") || "",
+          surname: a.surname || profileFallback?.full_name?.split(" ").slice(-1)[0] || "",
+          givenNames: a.given_names || profileFallback?.full_name?.split(" ").slice(0, -1).join(" ") || "",
           fullNameNativeAlphabet: a.full_name_native_alphabet || "",
-          sex: a.sex || profile.gender || "",
+          sex: a.sex || profileFallback?.gender || "",
           maritalStatus: a.marital_status || "",
-          dateOfBirth: a.date_of_birth || profile.date_of_birth || "",
-          cityOfBirth: a.city_of_birth || profile.place_of_birth || "",
+          dateOfBirth: a.date_of_birth || profileFallback?.date_of_birth || "",
+          cityOfBirth: a.city_of_birth || profileFallback?.place_of_birth || "",
           stateOfBirth: a.state_of_birth || "",
           countryOfBirth: a.country_of_birth || "",
-          nationality: a.nationality_country || profile.nationality || "",
+          nationality: a.nationality_country || profileFallback?.nationality || "",
         },
         passport: {
           passportDocumentType: a.passport_document_type || "",
-          passportNumber: a.passport_number || profile.passport_number || "",
+          passportNumber: a.passport_number || profileFallback?.passport_number || "",
           passportBookNumber: a.passport_book_number || "",
-          passportIssuingCountry: a.passport_issuing_country || profile.passport_issuing_country || "",
+          passportIssuingCountry: a.passport_issuing_country || profileFallback?.passport_issuing_country || "",
           passportIssuanceCity: a.passport_issuance_city || "",
-          passportIssuanceDate: a.passport_issuance_date || profile.passport_issue_date || "",
-          passportExpirationDate: a.passport_expiration_date || profile.passport_expiry_date || "",
+          passportIssuanceDate: a.passport_issuance_date || profileFallback?.passport_issue_date || "",
+          passportExpirationDate: a.passport_expiration_date || profileFallback?.passport_expiry_date || "",
         },
         travel: {
           purposeOfTrip: a.purpose_of_trip || application?.purpose || "",
@@ -1470,17 +1659,14 @@ export default function ApplicationPage() {
     }
   }, [currentStep, effectiveSteps, useDynamic]);
 
-  // US-040: Supabase Realtime — re-fetch data on profile or application UPDATE
+  // US-040: Supabase Realtime — re-fetch application data on application UPDATE.
+  // Universal Profile is a creation-time autofill source only, so profile
+  // updates must not silently re-merge into an existing application.
   useEffect(() => {
     const supabase = createClient();
 
     const channel = supabase
       .channel("application-page-realtime")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "applicant_profiles" },
-        () => { void loadData(); }
-      )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "applications" },
@@ -1592,24 +1778,42 @@ export default function ApplicationPage() {
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("errors.notAuthenticated"));
+      let applicationId = appState.applicationId;
+      if (!applicationId) {
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: true,
+        });
+        if (result.error || !result.applicationId) {
+          throw new Error(result.error ?? t("errors.noApplicationFound"));
+        }
+        applicationId = result.applicationId;
+      }
 
-      await supabase.from("applicant_profiles").upsert(
-        {
-          auth_user_id: user.id,
-          full_name: `${data.givenNames} ${data.surname}`.trim(),
-          date_of_birth: data.dateOfBirth || null,
-          place_of_birth: data.cityOfBirth || null,
-          gender: data.sex || null,
-          nationality: data.nationality,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "auth_user_id" }
-      );
+      const answerPatch: Record<string, string> = {
+        surname: data.surname,
+        last_name: data.surname,
+        family_name: data.surname,
+        given_names: data.givenNames,
+        givenNames: data.givenNames,
+        given_name: data.givenNames,
+        first_name: data.givenNames,
+        full_name: `${data.givenNames} ${data.surname}`.trim(),
+        fullName: `${data.givenNames} ${data.surname}`.trim(),
+        date_of_birth: data.dateOfBirth,
+        dob: data.dateOfBirth,
+        birth_date: data.dateOfBirth,
+        place_of_birth: data.cityOfBirth,
+        city_of_birth: data.cityOfBirth,
+        birth_city: data.cityOfBirth,
+        gender: data.sex,
+        sex: data.sex,
+        nationality: data.nationality,
+        nationality_country: data.nationality,
+      };
+      const saveResult = await saveDynamicAnswers(applicationId, answerPatch);
+      if (saveResult.error) throw new Error(saveResult.error);
 
-      setAppState((prev) => ({ ...prev, personal: data }));
+      setAppState((prev) => ({ ...prev, applicationId, personal: data }));
       setCompletedUpTo((c) => Math.max(c, 1));
       setCurrentStep(1);
     } catch (err) {
@@ -1623,23 +1827,34 @@ export default function ApplicationPage() {
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("errors.notAuthenticated"));
+      let applicationId = appState.applicationId;
+      if (!applicationId) {
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: true,
+        });
+        if (result.error || !result.applicationId) {
+          throw new Error(result.error ?? t("errors.noApplicationFound"));
+        }
+        applicationId = result.applicationId;
+      }
 
-      await supabase.from("applicant_profiles").upsert(
-        {
-          auth_user_id: user.id,
-          passport_number: data.passportNumber,
-          passport_issue_date: data.passportIssuanceDate || null,
-          passport_expiry_date: data.passportExpirationDate || null,
-          passport_issuing_country: data.passportIssuingCountry,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "auth_user_id" }
-      );
+      const saveResult = await saveDynamicAnswers(applicationId, {
+        passport_number: data.passportNumber,
+        passportNumber: data.passportNumber,
+        travel_document_number: data.passportNumber,
+        passport_issue_date: data.passportIssuanceDate,
+        passport_issuance_date: data.passportIssuanceDate,
+        date_of_issue: data.passportIssuanceDate,
+        passport_expiry_date: data.passportExpirationDate,
+        passport_expiration_date: data.passportExpirationDate,
+        valid_until: data.passportExpirationDate,
+        passport_issuing_country: data.passportIssuingCountry,
+        passport_issuance_country: data.passportIssuingCountry,
+        passport_country_of_issue: data.passportIssuingCountry,
+      });
+      if (saveResult.error) throw new Error(saveResult.error);
 
-      setAppState((prev) => ({ ...prev, passport: data }));
+      setAppState((prev) => ({ ...prev, applicationId, passport: data }));
       setCompletedUpTo((c) => Math.max(c, 2));
       setCurrentStep(2);
     } catch (err) {
@@ -1654,47 +1869,27 @@ export default function ApplicationPage() {
     setError(null);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("errors.notAuthenticated"));
-
-      const { data: profile } = await supabase
-        .from("applicant_profiles")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .single();
-
-      if (!profile) throw new Error(t("errors.profileNotFound"));
 
       let applicationId = appState.applicationId;
       if (!applicationId) {
-        const { data: newApp, error: appError } = await supabase
-          .from("applications")
-          .insert({
-            applicant_id: profile.id,
-            status: "draft",
-            country: resolvedCountry,
-            visa_type: resolvedVisaType,
-            arrival_date: data.arrivalDate || null,
-            departure_date: data.departureDate || null,
-            port_of_entry: data.arrivalCity || null,
-            purpose: data.purposeOfTrip || null,
-            accommodation_name: data.accommodationName || null,
-            accommodation_address: data.usAddressStreet1 || null,
-          })
-          .select("id")
-          .single();
-        if (appError) throw appError;
-        applicationId = newApp.id;
-      } else {
-        await supabase.from("applications").update({
-          arrival_date: data.arrivalDate || null,
-          departure_date: data.departureDate || null,
-          port_of_entry: data.arrivalCity || null,
-          purpose: data.purposeOfTrip || null,
-          accommodation_name: data.accommodationName || null,
-          accommodation_address: data.usAddressStreet1 || null,
-        }).eq("id", applicationId);
+        const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
+          preferExplicit: true,
+        });
+        if (result.error || !result.applicationId) {
+          throw new Error(result.error ?? t("errors.noApplicationFound"));
+        }
+        applicationId = result.applicationId;
       }
+
+      const { error: appError } = await supabase.from("applications").update({
+        arrival_date: data.arrivalDate || null,
+        departure_date: data.departureDate || null,
+        port_of_entry: data.arrivalCity || null,
+        purpose: data.purposeOfTrip || null,
+        accommodation_name: data.accommodationName || null,
+        accommodation_address: data.usAddressStreet1 || null,
+      }).eq("id", applicationId);
+      if (appError) throw appError;
 
       setAppState((prev) => ({ ...prev, travel: data, applicationId }));
       setCompletedUpTo((c) => Math.max(c, 3));
@@ -1874,10 +2069,17 @@ export default function ApplicationPage() {
   ]);
 
   // ── Dynamic-mode review complete handler ────────────────────────────
-  const handleDynamicReviewComplete = async () => {
+  const handleDynamicReviewComplete = async (mode: SubmissionMode = "dry_run") => {
     setSaving(true);
+    setSubmittingMode(mode);
     setError(null);
     try {
+      if (mode === "live_assisted" && !liveAssistedTarget) {
+        throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
+      }
+      if (mode === "live_assisted" && !liveAssistedEnabled) {
+        throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
+      }
       const supabase = createClient();
       let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
@@ -1918,6 +2120,8 @@ export default function ApplicationPage() {
         const { error: queueError } = await supabase.from("submission_queue").insert({
           application_id: applicationId,
           status: queueStatusForVisaType(resolvedVisaType),
+          mode,
+          provider: queueProviderForVisaType(resolvedVisaType, mode),
           attempts: 0,
           created_at: new Date().toISOString(),
         });
@@ -1931,6 +2135,8 @@ export default function ApplicationPage() {
         ...(!isJpTourist
           ? {
               submission_result_status: "waiting",
+              submission_result: null,
+              confirmation_number: null,
               submission_result_updated_at: submittedAt,
             }
           : {}),
@@ -1957,6 +2163,8 @@ export default function ApplicationPage() {
           ...prev,
           submittedAt,
           submissionResultStatus: "waiting",
+          submissionResult: null,
+          confirmationNumber: undefined,
         }));
       }
       setSubmitMissingFields([]);
@@ -1967,13 +2175,21 @@ export default function ApplicationPage() {
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
     } finally {
       setSaving(false);
+      setSubmittingMode(null);
     }
   };
 
-  const handleReviewComplete = async () => {
+  const handleReviewComplete = async (mode: SubmissionMode = "dry_run") => {
     setSaving(true);
+    setSubmittingMode(mode);
     setError(null);
     try {
+      if (mode === "live_assisted" && !liveAssistedTarget) {
+        throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
+      }
+      if (mode === "live_assisted" && !liveAssistedEnabled) {
+        throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
+      }
       const supabase = createClient();
       let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
@@ -2011,6 +2227,8 @@ export default function ApplicationPage() {
       const { error: queueError } = await supabase.from("submission_queue").insert({
         application_id: applicationId,
         status: queueStatusForVisaType(resolvedVisaType),
+        mode,
+        provider: queueProviderForVisaType(resolvedVisaType, mode),
         attempts: 0,
         created_at: new Date().toISOString(),
       });
@@ -2021,6 +2239,8 @@ export default function ApplicationPage() {
         status: "submitted",
         submitted_at: submittedAt,
         submission_result_status: "waiting",
+        submission_result: null,
+        confirmation_number: null,
         submission_result_updated_at: submittedAt,
       }).eq("id", applicationId);
       if (submitError) throw new Error(submitError.message);
@@ -2029,6 +2249,8 @@ export default function ApplicationPage() {
         ...prev,
         submittedAt,
         submissionResultStatus: "waiting",
+        submissionResult: null,
+        confirmationNumber: undefined,
       }));
       setSubmitMissingFields([]);
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
@@ -2037,6 +2259,7 @@ export default function ApplicationPage() {
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
     } finally {
       setSaving(false);
+      setSubmittingMode(null);
     }
   };
 
@@ -2315,9 +2538,11 @@ export default function ApplicationPage() {
                           ) : (
                             <FinalConfirmationPanel
                               isZh={isZhInterface}
+                              liveAssistedTarget={liveAssistedTarget}
+                              liveAssistedEnabled={liveAssistedEnabled}
                               missingFields={visibleMissingFields}
                               requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                              submitting={saving}
+                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
                               onEdit={handleStepNavigation}
                               onSubmit={handleDynamicReviewComplete}
                             />
@@ -2411,9 +2636,11 @@ export default function ApplicationPage() {
                           ) : (
                             <FinalConfirmationPanel
                               isZh={isZhInterface}
+                              liveAssistedTarget={liveAssistedTarget}
+                              liveAssistedEnabled={liveAssistedEnabled}
                               missingFields={visibleMissingFields}
                               requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
-                              submitting={saving}
+                              submittingMode={saving ? submittingMode ?? "dry_run" : null}
                               onEdit={handleStepNavigation}
                               onSubmit={handleReviewComplete}
                             />

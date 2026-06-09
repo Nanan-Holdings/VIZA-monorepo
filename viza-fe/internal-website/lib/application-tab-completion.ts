@@ -42,7 +42,10 @@ const LT24_VALUES = new Set(["less_than_24_hours", "less than 24 hours", "h"]);
 const TERMINAL_SUBMISSION_STATUSES = new Set([
   "submitted",
   "submitted_mock",
+  "completed",
   "unsupported",
+  "action_required",
+  "needs_user_action",
   "stopped_at_pay",
   "stopped_at_review",
   "form_ready_for_agency",

@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -1216,10 +1216,8 @@ export function DocumentCenterClient({
                 embedded ? "lg:max-w-xs" : "lg:max-w-sm",
               )}
             >
-              <SmoothProgressMeter
-                serverProgress={completionPercent}
-                status={completionPercent >= 100 ? "completed" : "running"}
-                intervalMs={140}
+              <SmoothProgressBar
+                displayedProgress={completionPercent}
                 label={isZh ? "完成度" : "Progress"}
                 labelClassName="mb-1 text-sm font-semibold text-foreground"
                 valueClassName="text-2xl font-semibold text-brand-500"

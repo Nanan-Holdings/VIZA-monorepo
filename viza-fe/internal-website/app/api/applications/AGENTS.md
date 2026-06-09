@@ -16,11 +16,14 @@ ports directly.
 - Use `createAdminClient()` only after route-level authorization.
 - Prefer graceful JSON fallbacks for optional services such as translation so
   review pages remain usable when the agent backend is offline.
-- Keep official submission automation out of these routes.
+- Keep official submission automation out of these routes. Status routes may
+  read queue/application state, but runner execution remains in
+  `viza-be/submission-service`.
 
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
 - `viza-fe/internal-website/lib/submission-queue.ts`

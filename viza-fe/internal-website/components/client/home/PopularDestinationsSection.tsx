@@ -19,7 +19,7 @@ import {
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -175,10 +175,8 @@ export function PopularDestinationsSection({
             </p>
           </div>
 
-          <SmoothProgressMeter
-            serverProgress={progress?.percent ?? 0}
-            status={progress && progress.percent >= 100 ? "completed" : progress || selected ? "running" : "waiting_for_user"}
-            intervalMs={140}
+          <SmoothProgressBar
+            displayedProgress={progress?.percent ?? 0}
             label={progressLabel}
             ariaLabel={t("progressAriaLabel", { country: countryName })}
             labelClassName="text-[12px] font-medium text-[#526174]"

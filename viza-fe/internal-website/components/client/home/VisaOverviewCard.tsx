@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type { JourneyOverview, JourneyVisaPackage } from "@/app/actions/application-journey";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 
 interface Props {
   visaPackage: JourneyVisaPackage | null;
@@ -55,10 +55,8 @@ export function VisaOverviewCard({ visaPackage, overview, hasApplication }: Prop
         </div>
 
         <div className="w-full space-y-3">
-          <SmoothProgressMeter
-            serverProgress={progress}
-            status={progress >= 100 ? "completed" : hasApplication ? "running" : "waiting_for_user"}
-            intervalMs={140}
+          <SmoothProgressBar
+            displayedProgress={progress}
             label={
               hasApplication
                 ? t("home.overview.phaseOfTotal", {

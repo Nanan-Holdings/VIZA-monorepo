@@ -1,5 +1,9 @@
 {
   "scripts": {
+    "dev:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1",
+    "dev:all:with-db": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -WithDb",
+    "dev:all:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -Stop",
+    "dev:all:reset": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -Reset",
     "dev:help-internal": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1",
     "dev:help-internal:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1 -Stop",
     "audit:bilingual-schema": "node viza-fe/internal-website/node_modules/tsx/dist/cli.mjs scripts/audit-bilingual-schema-clarity.ts",

@@ -12,7 +12,7 @@ import {
   saveUniversalProfileWithSharedAnswers,
 } from "@/app/actions/visa-application-answers";
 import { loadUniversalProfilePassportUploadStatus } from "@/app/client/documents/actions";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -135,6 +135,7 @@ interface PhoneNumberRule {
 
 type BilingualProfileState = Record<BilingualProfileField, BilingualTextValue>;
 type UniversalProfileRow = Partial<UniversalProfileForm> & Partial<Record<BilingualProfileColumn, string | null>>;
+type UniversalProfileDirtyField = keyof UniversalProfileSnapshot | "wechat";
 
 const EMPTY_FORM: UniversalProfileForm = {
   full_name: "",
@@ -903,6 +904,7 @@ export default function UniversalInfoPage() {
   const [passportUpload, setPassportUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
 
   const completedProfileFieldCount = useMemo(() => {
     return PROFILE_FIELDS.filter((field) => {
@@ -1054,6 +1056,7 @@ export default function UniversalInfoPage() {
       });
       setPhoneCountryCode(initialPhoneParts.countryCode);
       setBilingualForm(normalizedInitialBilingual);
+      setDirtyProfileFields(new Set());
       setManualEnglishFields({});
       setTranslationStatus({});
       setIsLoading(false);
@@ -1064,6 +1067,7 @@ export default function UniversalInfoPage() {
   }, [isZh, router]);
 
   function updateField(field: keyof UniversalProfileForm, value: string) {
+    markProfileFieldsDirty(field as UniversalProfileDirtyField);
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -1077,7 +1081,16 @@ export default function UniversalInfoPage() {
     setError(null);
   }
 
+  function markProfileFieldsDirty(...fields: UniversalProfileDirtyField[]) {
+    setDirtyProfileFields((current) => {
+      const next = new Set(current);
+      for (const field of fields) next.add(field);
+      return next;
+    });
+  }
+
   function setBirthplaceBilingualField(field: "birth_province_or_state" | "birth_city", value: BilingualTextValue) {
+    markProfileFieldsDirty(field, `${field}_zh` as UniversalProfileDirtyField, `${field}_en` as UniversalProfileDirtyField);
     setBilingualForm((current) => ({ ...current, [field]: value }));
     setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
@@ -1086,6 +1099,18 @@ export default function UniversalInfoPage() {
 
   function updateBirthCountry(value: string) {
     const nextCountry = normalizeCountryCode(value);
+    markProfileFieldsDirty(
+      "birth_country",
+      "birth_province_or_state",
+      "birth_province_or_state_zh",
+      "birth_province_or_state_en",
+      "birth_city",
+      "birth_city_zh",
+      "birth_city_en",
+      "place_of_birth",
+      "place_of_birth_zh",
+      "place_of_birth_en",
+    );
     setForm((current) => ({
       ...current,
       birth_country: nextCountry,
@@ -1112,6 +1137,17 @@ export default function UniversalInfoPage() {
     const option = findBirthProvinceOption(form.birth_country, value);
     const nextValue = option?.code ?? value;
     const nextBilingualValue = optionToBilingualValue(option);
+    markProfileFieldsDirty(
+      "birth_province_or_state",
+      "birth_province_or_state_zh",
+      "birth_province_or_state_en",
+      "birth_city",
+      "birth_city_zh",
+      "birth_city_en",
+      "place_of_birth",
+      "place_of_birth_zh",
+      "place_of_birth_en",
+    );
 
     setForm((current) => ({
       ...current,
@@ -1135,6 +1171,7 @@ export default function UniversalInfoPage() {
   function updateBirthCity(value: string) {
     const option = findBirthCityOption(form.birth_country, form.birth_province_or_state, value);
     const nextValue = option?.code ?? value;
+    markProfileFieldsDirty("birth_city", "birth_city_zh", "birth_city_en", "place_of_birth", "place_of_birth_zh", "place_of_birth_en");
     setForm((current) => ({
       ...current,
       birth_city: nextValue,
@@ -1191,6 +1228,10 @@ export default function UniversalInfoPage() {
   }
 
   function updateBilingualField(field: BilingualProfileField, side: "zh" | "en", value: string) {
+    markProfileFieldsDirty(field, `${field}_zh` as UniversalProfileDirtyField, `${field}_en` as UniversalProfileDirtyField);
+    if (field === "surname" || field === "given_names") {
+      markProfileFieldsDirty("full_name", "full_name_zh", "full_name_en");
+    }
     const currentValue = bilingualForm[field];
     const nextValue =
       side === "zh"
@@ -1301,6 +1342,34 @@ export default function UniversalInfoPage() {
   }
 
   function applyPassportOcrFields(fields: UniversalProfileSnapshot) {
+    markProfileFieldsDirty(
+      "full_name",
+      "full_name_zh",
+      "full_name_en",
+      "surname",
+      "surname_zh",
+      "surname_en",
+      "given_names",
+      "given_names_zh",
+      "given_names_en",
+      "date_of_birth",
+      "place_of_birth",
+      "place_of_birth_zh",
+      "place_of_birth_en",
+      "birth_country",
+      "birth_province_or_state",
+      "birth_province_or_state_zh",
+      "birth_province_or_state_en",
+      "birth_city",
+      "birth_city_zh",
+      "birth_city_en",
+      "gender",
+      "nationality",
+      "passport_number",
+      "passport_issue_date",
+      "passport_expiry_date",
+      "passport_issuing_country",
+    );
     const ocrBilingualFields = toInitialBilingualForm(fields as UniversalProfileRow);
     const normalizedBirthplace = normalizeBirthplace({
       placeOfBirth: fields.place_of_birth,
@@ -1415,52 +1484,59 @@ export default function UniversalInfoPage() {
         birthCity.en || bilingualForm.place_of_birth.en,
       ]);
 
+      const profilePayload: UniversalProfileSnapshot & { wechat?: string | null } = {
+        full_name: cleanValue(fullNameEn || fullNameZh),
+        full_name_zh: cleanValue(fullNameZh) ?? undefined,
+        full_name_en: cleanValue(fullNameEn) ?? undefined,
+        surname: cleanValue(surname.en || surname.zh),
+        surname_zh: cleanValue(surname.zh) ?? undefined,
+        surname_en: cleanValue(surname.en) ?? undefined,
+        given_names: cleanValue(givenNames.en || givenNames.zh),
+        given_names_zh: cleanValue(givenNames.zh) ?? undefined,
+        given_names_en: cleanValue(givenNames.en) ?? undefined,
+        date_of_birth: cleanValue(form.date_of_birth),
+        place_of_birth: cleanValue(legacyPlaceOfBirthEn || legacyPlaceOfBirthZh),
+        place_of_birth_zh: isZh ? cleanValue(legacyPlaceOfBirthZh) : undefined,
+        place_of_birth_en: isZh ? cleanValue(legacyPlaceOfBirthEn) : undefined,
+        birth_country: cleanValue(birthCountryEn),
+        birth_province_or_state: cleanValue(birthProvince.en || birthProvince.zh),
+        birth_province_or_state_zh: isZh ? cleanValue(birthProvince.zh) : undefined,
+        birth_province_or_state_en: isZh ? cleanValue(birthProvince.en) : undefined,
+        birth_city: cleanValue(birthCity.en || birthCity.zh),
+        birth_city_zh: isZh ? cleanValue(birthCity.zh) : undefined,
+        birth_city_en: isZh ? cleanValue(birthCity.en) : undefined,
+        gender: cleanValue(form.gender),
+        nationality: cleanValue(countryEnglishName(form.nationality)),
+        occupation: cleanValue(bilingualForm.occupation.en || bilingualForm.occupation.zh),
+        occupation_zh: isZh ? cleanValue(bilingualForm.occupation.zh) : undefined,
+        occupation_en: isZh ? cleanValue(bilingualForm.occupation.en) : undefined,
+        address: cleanValue(bilingualForm.address.en || bilingualForm.address.zh),
+        address_zh: isZh ? cleanValue(bilingualForm.address.zh) : undefined,
+        address_en: isZh ? cleanValue(bilingualForm.address.en) : undefined,
+        passport_number: cleanValue(form.passport_number),
+        passport_issue_date: cleanValue(form.passport_issue_date),
+        passport_expiry_date: cleanValue(form.passport_expiry_date),
+        passport_issuing_country: cleanValue(countryEnglishName(form.passport_issuing_country)),
+        email: cleanValue(form.email) ?? user.email ?? null,
+        phone: cleanValue(form.phone),
+        wechat: cleanValue(form.wechat),
+      };
+      const clearedFields = Object.entries(profilePayload)
+        .filter(([field, value]) => dirtyProfileFields.has(field as UniversalProfileDirtyField) && value === null)
+        .map(([field]) => field as UniversalProfileDirtyField);
+
       const result = await saveUniversalProfileWithSharedAnswers({
         applicationId: passportOcrApplicationId,
         country: "us",
         visaType: "b1_b2",
         preferExplicit: true,
-        profile: {
-          full_name: cleanValue(fullNameEn || fullNameZh),
-          full_name_zh: cleanValue(fullNameZh) ?? undefined,
-          full_name_en: cleanValue(fullNameEn) ?? undefined,
-          surname: cleanValue(surname.en || surname.zh),
-          surname_zh: cleanValue(surname.zh) ?? undefined,
-          surname_en: cleanValue(surname.en) ?? undefined,
-          given_names: cleanValue(givenNames.en || givenNames.zh),
-          given_names_zh: cleanValue(givenNames.zh) ?? undefined,
-          given_names_en: cleanValue(givenNames.en) ?? undefined,
-          date_of_birth: cleanValue(form.date_of_birth),
-          place_of_birth: cleanValue(legacyPlaceOfBirthEn || legacyPlaceOfBirthZh),
-          place_of_birth_zh: isZh ? cleanValue(legacyPlaceOfBirthZh) : undefined,
-          place_of_birth_en: isZh ? cleanValue(legacyPlaceOfBirthEn) : undefined,
-          birth_country: cleanValue(birthCountryEn),
-          birth_province_or_state: cleanValue(birthProvince.en || birthProvince.zh),
-          birth_province_or_state_zh: isZh ? cleanValue(birthProvince.zh) : undefined,
-          birth_province_or_state_en: isZh ? cleanValue(birthProvince.en) : undefined,
-          birth_city: cleanValue(birthCity.en || birthCity.zh),
-          birth_city_zh: isZh ? cleanValue(birthCity.zh) : undefined,
-          birth_city_en: isZh ? cleanValue(birthCity.en) : undefined,
-          gender: cleanValue(form.gender),
-          nationality: cleanValue(countryEnglishName(form.nationality)),
-          occupation: cleanValue(bilingualForm.occupation.en || bilingualForm.occupation.zh),
-          occupation_zh: isZh ? cleanValue(bilingualForm.occupation.zh) : undefined,
-          occupation_en: isZh ? cleanValue(bilingualForm.occupation.en) : undefined,
-          address: cleanValue(bilingualForm.address.en || bilingualForm.address.zh),
-          address_zh: isZh ? cleanValue(bilingualForm.address.zh) : undefined,
-          address_en: isZh ? cleanValue(bilingualForm.address.en) : undefined,
-          passport_number: cleanValue(form.passport_number),
-          passport_issue_date: cleanValue(form.passport_issue_date),
-          passport_expiry_date: cleanValue(form.passport_expiry_date),
-          passport_issuing_country: cleanValue(countryEnglishName(form.passport_issuing_country)),
-          email: cleanValue(form.email) ?? user.email ?? null,
-          phone: cleanValue(form.phone),
-          wechat: cleanValue(form.wechat),
-        },
+        profile: profilePayload,
+        clearedFields,
       });
 
       if (result.error) throw new Error(result.error);
       if (result.applicationId) setPassportOcrApplicationId(result.applicationId);
+      setDirtyProfileFields(new Set());
       setMessage(
         isZh
           ? "已保存通用资料。之后新进入相似签证表单时会优先用这里的信息预填。"
@@ -1516,10 +1592,8 @@ export default function UniversalInfoPage() {
               </div>
             </div>
             <div className="min-w-[180px] rounded-[14px] border border-[#d7e3f2] bg-white p-4">
-              <SmoothProgressMeter
-                serverProgress={completionPercent}
-                status={completionPercent >= 100 ? "completed" : "running"}
-                intervalMs={140}
+              <SmoothProgressBar
+                displayedProgress={completionPercent}
                 label={copy(isZh, "完整度", "Completeness")}
                 labelClassName="text-[13px] font-medium text-[#526174]"
                 trackClassName="bg-[#edf2f7]"
@@ -1538,6 +1612,9 @@ export default function UniversalInfoPage() {
                 applicationId={passportOcrApplicationId}
                 initialUploaded={passportUpload.uploaded}
                 initialFileName={passportUpload.fileName}
+                documentScope="universal_profile"
+                documentType="passport_bio_page"
+                requirementKey="passport_bio_page"
                 onFieldsApplied={applyPassportOcrFields}
                 onUploaded={(fileName) => {
                   setPassportUpload({
@@ -2015,6 +2092,11 @@ export default function UniversalInfoPage() {
                 </p>
               )}
               {error && <p className="text-[14px] font-medium text-red-600">{error}</p>}
+              {!message && !error && dirtyProfileFields.size > 0 ? (
+                <p className="text-[14px] font-medium text-amber-700">
+                  {copy(isZh, "有未保存更改", "Unsaved changes")}
+                </p>
+              ) : null}
             </div>
             <BrandActionButton
               type="button"

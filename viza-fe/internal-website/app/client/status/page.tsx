@@ -36,7 +36,7 @@ import {
   type StatusStepKey,
   type StatusStepState,
 } from "./status-data";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 
 type SearchParams = Promise<{
   applicationId?: string | string[];
@@ -213,10 +213,6 @@ function StatusBadge({
   );
 }
 
-function getProgressStatus(state: ClientStatusState): "completed" | "running" {
-  return state === "approved" || state === "rejected" ? "completed" : "running";
-}
-
 function StatPanel({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <div className="rounded-[8px] border border-[#e7edf5] bg-white p-4 shadow-sm">
@@ -267,10 +263,8 @@ function ApplicationCard({
         <StatusBadge state={application.state} t={t} />
       </div>
 
-      <SmoothProgressMeter
-        serverProgress={application.progressPercent}
-        status={getProgressStatus(application.state)}
-        intervalMs={160}
+      <SmoothProgressBar
+        displayedProgress={application.progressPercent}
         label={t("progress")}
         className="mt-4"
       />
@@ -467,10 +461,8 @@ function DetailView({
           </div>
         </div>
 
-        <SmoothProgressMeter
-          serverProgress={application.progressPercent}
-          status={getProgressStatus(application.state)}
-          intervalMs={160}
+        <SmoothProgressBar
+          displayedProgress={application.progressPercent}
           label={t("progress")}
           className="mt-6"
         />
