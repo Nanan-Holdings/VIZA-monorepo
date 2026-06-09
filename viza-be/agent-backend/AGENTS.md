@@ -104,6 +104,7 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `scripts/import-geonames-aliases.ts`
 - `scripts/enrich-destinations-wikidata.ts`
 - `scripts/recalculate-destination-popularity.ts`
+- `scripts/bilingual-seed-row.ts`
 - `scripts/seed-*-form-fields.ts`
 - `tests/setup.ts`
 - `drizzle/*.sql`

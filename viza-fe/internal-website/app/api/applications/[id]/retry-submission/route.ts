@@ -42,7 +42,11 @@ function liveRetryEnabledForVisaType(visaType: string | null): boolean {
   }
   if (isDs160VisaType(visaType)) {
     return (
-      envEnabled("DS160_LIVE_ASSISTED_ENABLED", "NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED") &&
+      envEnabled(
+        "DS160_LIVE_SUBMISSION_ENABLED",
+        "DS160_LIVE_ASSISTED_ENABLED",
+        "NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED",
+      ) &&
       envModeLive("DS160_SUBMISSION_MODE", "NEXT_PUBLIC_DS160_SUBMISSION_MODE")
     );
   }

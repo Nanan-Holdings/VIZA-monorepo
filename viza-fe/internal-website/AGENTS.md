@@ -158,6 +158,7 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/application-tab-completion.ts`
 - `lib/birthplace-options.ts`
+- `lib/__tests__/universal-profile-prefill.test.ts`
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `supabase/migrations/*`

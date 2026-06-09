@@ -41,6 +41,21 @@ const DS160_VISA_TYPES = new Set([
   "US_DS160",
 ]);
 
+const VIETNAM_COUNTRY_ALIASES = new Set([
+  "VN",
+  "VIETNAM",
+  "VIET_NAM",
+]);
+
+const VIETNAM_EVISA_TYPES = new Set([
+  "VN_E_VISA",
+  "VIETNAM_E_VISA",
+  "E_VISA_TOURISM",
+  "EVISA_TOURISM",
+  "TOURIST_E_VISA",
+  "TOURIST_EVISA",
+]);
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -75,6 +90,10 @@ function normalizeVisaType(visaType: string | null | undefined): string {
   return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
 
+function normalizeCountry(country: string | null | undefined): string {
+  return (country ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
 export function isDs160VisaType(visaType: string | null | undefined): boolean {
   return DS160_VISA_TYPES.has(normalizeVisaType(visaType));
 }
@@ -107,6 +126,23 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     default:
       return "pending";
   }
+}
+
+export function queueStatusForApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): SubmissionQueueStatus {
+  const normalizedCountry = normalizeCountry(country);
+  const normalizedVisaType = normalizeVisaType(visaType);
+
+  if (
+    VIETNAM_COUNTRY_ALIASES.has(normalizedCountry) &&
+    VIETNAM_EVISA_TYPES.has(normalizedVisaType)
+  ) {
+    return "vn_prefill_pending";
+  }
+
+  return queueStatusForVisaType(visaType);
 }
 
 export function queueProviderForVisaType(

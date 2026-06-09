@@ -85,6 +85,9 @@ export function validateFranceLiveStart(config: FranceSubmissionConfig): string 
   if (config.appointmentLiveEnabled) {
     return "France live assisted is blocked: FRANCE_APPOINTMENT_LIVE_ENABLED must remain false unless appointment booking scope is explicitly reopened.";
   }
+  if (!/^https:\/\/application-form\.france-visas\.gouv\.fr\/?$/i.test(config.officialBaseUrl)) {
+    return "France live assisted is blocked: FRANCE_OFFICIAL_BASE_URL must point to the official France-Visas origin.";
+  }
   if (!config.officialReferenceEncryptionConfigured) {
     return "France live assisted is blocked: SUBMISSION_RESULT_SECRET_KEY must be set to encrypt official references.";
   }

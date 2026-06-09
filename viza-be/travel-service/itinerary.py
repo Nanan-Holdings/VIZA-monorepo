@@ -225,6 +225,46 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "雍和宫",
         "国家博物馆",
     ],
+    "changsha": [
+        "岳麓山与岳麓书院",
+        "橘子洲头",
+        "湖南博物院",
+        "太平老街",
+        "坡子街与黄兴路步行街",
+        "杜甫江阁",
+        "开福寺",
+        "梅溪湖国际文化艺术中心",
+    ],
+    "guangzhou": [
+        "广州塔",
+        "沙面岛",
+        "陈家祠",
+        "越秀公园与五羊石像",
+        "北京路步行街",
+        "珠江夜游",
+        "广东省博物馆",
+        "永庆坊",
+    ],
+    "hangzhou": [
+        "西湖苏堤与白堤",
+        "灵隐寺",
+        "雷峰塔",
+        "河坊街",
+        "西溪国家湿地公园",
+        "中国茶叶博物馆",
+        "京杭大运河杭州段",
+        "龙井村",
+    ],
+    "zhangjiajie": [
+        "张家界国家森林公园",
+        "天门山国家森林公园",
+        "袁家界",
+        "金鞭溪",
+        "黄石寨",
+        "大峡谷玻璃桥",
+        "宝峰湖",
+        "溪布街",
+    ],
     "sanfrancisco": [
         "金门大桥游客中心",
         "渔人码头 39 号码头",
@@ -264,6 +304,10 @@ SPECIFIC_FOOD_BY_KEY = {
     "bangkok": ["耀华力路街头小吃", "ICONSIAM 水上市场美食"],
     "hongkong": ["中环茶餐厅", "庙街煲仔饭"],
     "beijing": ["什刹海京味小吃", "前门烤鸭"],
+    "changsha": ["坡子街臭豆腐", "文和友小龙虾"],
+    "guangzhou": ["泮溪酒家早茶", "北京路糖水铺"],
+    "hangzhou": ["湖滨杭帮菜", "龙井村茶点"],
+    "zhangjiajie": ["三下锅", "土家腊肉"],
     "sanfrancisco": ["渡轮大厦市场", "渔人码头酸面包海鲜汤"],
     "pisa": ["骑士广场意式小馆", "阿诺河岸 Gelato"],
 }
@@ -346,6 +390,46 @@ SPECIFIC_ATTRACTIONS_EN_BY_KEY = {
         "Darling Harbour",
         "Royal Botanic Garden and Mrs Macquarie's Chair",
     ],
+    "changsha": [
+        "Yuelu Mountain and Yuelu Academy",
+        "Orange Isle",
+        "Hunan Museum",
+        "Taiping Old Street",
+        "Pozi Street and Huangxing Road Pedestrian Street",
+        "Du Fu River Pavilion",
+        "Kaifu Temple",
+        "Meixihu International Culture and Arts Centre",
+    ],
+    "guangzhou": [
+        "Canton Tower",
+        "Shamian Island",
+        "Chen Clan Ancestral Hall",
+        "Yuexiu Park and Five Rams Statue",
+        "Beijing Road Pedestrian Street",
+        "Pearl River night cruise",
+        "Guangdong Museum",
+        "Yongqing Fang",
+    ],
+    "hangzhou": [
+        "West Lake Su Causeway and Bai Causeway",
+        "Lingyin Temple",
+        "Leifeng Pagoda",
+        "Hefang Street",
+        "Xixi National Wetland Park",
+        "National Tea Museum",
+        "Hangzhou section of the Grand Canal",
+        "Longjing Village",
+    ],
+    "zhangjiajie": [
+        "Zhangjiajie National Forest Park",
+        "Tianmen Mountain National Forest Park",
+        "Yuanjiajie Scenic Area",
+        "Golden Whip Stream",
+        "Huangshi Village",
+        "Grand Canyon Glass Bridge",
+        "Baofeng Lake",
+        "Xibu Street",
+    ],
     "bali": [
         "Uluwatu Temple",
         "Tegallalang Rice Terrace",
@@ -389,6 +473,10 @@ SPECIFIC_FOOD_EN_BY_KEY = {
     "rome": ["Trastevere pasta", "Campo de' Fiori pizza"],
     "singapore": ["Lau Pa Sat satay", "Maxwell Food Centre chicken rice"],
     "sydney": ["The Rocks brunch", "Bondi Beach seafood"],
+    "changsha": ["Pozi Street stinky tofu", "Wenheyou crayfish"],
+    "guangzhou": ["Panxi Restaurant dim sum", "Beijing Road dessert shop"],
+    "hangzhou": ["Hubin Hangzhou cuisine", "Longjing Village tea snacks"],
+    "zhangjiajie": ["Sanxiaguo hot pot", "Tujia cured pork"],
     "bali": ["Jimbaran seafood dinner", "Ubud cafe lunch"],
     "denpasar": ["Badung Market local lunch", "Sanur seafood dinner"],
     "naples": ["Spaccanapoli pizza", "Via Toledo espresso and pastry"],
@@ -411,6 +499,13 @@ def _lookup_key(value: str) -> str:
 def _canonical_city_key(city: str) -> str:
     key = _lookup_key(city)
     return CITY_ALIASES.get(key, key)
+
+
+def _allowed_city_keys(state):
+    cities = (state or {}).get("travel_order") or (state or {}).get("cities") or []
+    if not isinstance(cities, list):
+        return set()
+    return {_canonical_city_key(str(city)) for city in cities if str(city).strip()}
 
 
 def _safe_positive_int(value, default=1):
@@ -522,6 +617,7 @@ def _sanitize_itinerary(parsed, state):
     fallback_by_day = {
         item.get("day"): item for item in fallback if isinstance(item, dict)
     }
+    allowed_city_keys = _allowed_city_keys(state)
     sanitized = []
 
     for index, item in enumerate(parsed):
@@ -532,11 +628,18 @@ def _sanitize_itinerary(parsed, state):
             fallback[index] if index < len(fallback) else {}
         )
         day = item.get("day") or fallback_day.get("day") or index + 1
-        city = str(item.get("city") or fallback_day.get("city") or "目的地").strip()
+        fallback_city = str(fallback_day.get("city") or "目的地").strip()
+        city = str(item.get("city") or fallback_city).strip()
+        city_was_replaced = False
+        if allowed_city_keys and _canonical_city_key(city) not in allowed_city_keys:
+            city = fallback_city
+            city_was_replaced = True
 
         activities = [
             activity
-            for activity in _clean_string_list(item.get("activities"))
+            for activity in (
+                [] if city_was_replaced else _clean_string_list(item.get("activities"))
+            )
             if not _is_vague_activity(activity)
         ]
         if len(activities) < 2:
@@ -548,7 +651,7 @@ def _sanitize_itinerary(parsed, state):
                 if len(activities) >= 2:
                     break
 
-        food = _clean_string_list(item.get("food"))
+        food = [] if city_was_replaced else _clean_string_list(item.get("food"))
         if not food or any(_is_vague_activity(food_item) for food_item in food):
             food = _specific_food_for_city(city, index, language)
 
