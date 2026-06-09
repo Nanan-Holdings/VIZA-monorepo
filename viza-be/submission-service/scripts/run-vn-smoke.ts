@@ -7,9 +7,12 @@
  *
  * Optional env:
  *   VN_SMOKE_HEADFUL=1
+ *   VN_SMOKE_TRACE=1
  */
 
 import "dotenv/config";
+import fs from "node:fs";
+import path from "node:path";
 import { fillVietnamApplication } from "../src/vietnam";
 
 const answers: Record<string, string> = {
@@ -66,19 +69,34 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 async function main(): Promise<void> {
+  const runId = `vn-smoke-${Date.now()}`;
+  const diagnosticsEnabled = process.env.VN_SMOKE_TRACE === "1";
+  const diagnosticsDir = path.resolve("diag-out", "vn-smoke", runId);
+  const tracePath = path.join(diagnosticsDir, "trace.zip");
+  const finalScreenshotPath = path.join(diagnosticsDir, "final.png");
+  if (diagnosticsEnabled) {
+    fs.mkdirSync(diagnosticsDir, { recursive: true });
+    console.log(`[vn-smoke] Diagnostics: ${diagnosticsDir}`);
+  }
+
   const result = await withTimeout(
     fillVietnamApplication(
       { answers },
       {
         headless: process.env.VN_SMOKE_HEADFUL !== "1",
-        runId: `vn-smoke-${Date.now()}`,
+        runId,
         stepTimeoutMs: 60_000,
+        ...(diagnosticsEnabled ? { tracePath, finalScreenshotPath } : {}),
       },
     ),
     120_000,
   );
 
   console.log(JSON.stringify(result, null, 2));
+  if (diagnosticsEnabled) {
+    console.log(`[vn-smoke] Trace: ${tracePath}`);
+    console.log(`[vn-smoke] Final screenshot: ${finalScreenshotPath}`);
+  }
   if (result.status === "submitted_pending_pay") {
     console.log("[vn-smoke] Pre-pay checkpoint reached; Pay/Submit was not clicked.");
     process.exit(0);
