@@ -8,6 +8,7 @@
  * Optional env:
  *   VN_SMOKE_HEADFUL=1
  *   VN_SMOKE_TRACE=1
+ *   VN_SMOKE_TIMEOUT_MS=240000
  */
 
 import "dotenv/config";
@@ -68,9 +69,17 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   ]);
 }
 
+function readTimeoutMs(): number {
+  const raw = process.env.VN_SMOKE_TIMEOUT_MS;
+  if (!raw) return 120_000;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 120_000;
+}
+
 async function main(): Promise<void> {
   const runId = `vn-smoke-${Date.now()}`;
   const diagnosticsEnabled = process.env.VN_SMOKE_TRACE === "1";
+  const timeoutMs = readTimeoutMs();
   const diagnosticsDir = path.resolve("diag-out", "vn-smoke", runId);
   const tracePath = path.join(diagnosticsDir, "trace.zip");
   const finalScreenshotPath = path.join(diagnosticsDir, "final.png");
@@ -89,7 +98,7 @@ async function main(): Promise<void> {
         ...(diagnosticsEnabled ? { tracePath, finalScreenshotPath } : {}),
       },
     ),
-    120_000,
+    timeoutMs,
   );
 
   console.log(JSON.stringify(result, null, 2));
