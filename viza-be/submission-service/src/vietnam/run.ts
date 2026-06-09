@@ -231,18 +231,55 @@ async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
     const formItems = await page.locator(".ant-form-item").count();
     if (formItems >= 10) return;
 
+    await page
+      .evaluate(() => {
+        const doc = (globalThis as unknown as { document?: Document }).document;
+        const modal = doc?.querySelector(".ant-modal");
+        const scrollables = [
+          modal?.querySelector(".ant-modal-body"),
+          modal?.querySelector(".ant-modal-content"),
+        ].filter(Boolean) as HTMLElement[];
+        for (const el of scrollables) {
+          el.scrollTop = el.scrollHeight;
+        }
+      })
+      .catch(() => undefined);
+
     // Tick all visible Ant checkboxes inside the modal.
-    const checkboxes = page.locator(".ant-modal .ant-checkbox-input");
+    const checkboxes = page.locator(".ant-modal input[type='checkbox']");
     const count = await checkboxes.count().catch(() => 0);
     for (let i = 0; i < count; i++) {
-      await checkboxes.nth(i).check({ force: true, timeout: 2_000 }).catch(() => undefined);
+      const checkbox = checkboxes.nth(i);
+      await checkbox.check({ force: true, timeout: 2_000 }).catch(async () => {
+        await checkbox.click({ force: true, timeout: 2_000 }).catch(() => undefined);
+      });
     }
+    await page
+      .locator(".ant-modal .ant-checkbox, .ant-modal .ant-checkbox-wrapper")
+      .evaluateAll((nodes) => {
+        for (const node of nodes) {
+          const el = node as HTMLElement;
+          const input = el.querySelector("input[type='checkbox']") as HTMLInputElement | null;
+          if (!input || !input.checked) {
+            el.click();
+          }
+        }
+      })
+      .catch(() => undefined);
 
     const nextBtn = page
       .locator(".ant-modal button", { hasText: /next|tiếp|continue|i agree/i })
       .first();
     if ((await nextBtn.count()) > 0) {
-      await nextBtn.click({ timeout: 5_000 }).catch(() => undefined);
+      const disabled = await nextBtn
+        .evaluate((button) => {
+          const el = button as HTMLButtonElement;
+          return el.disabled || el.getAttribute("aria-disabled") === "true";
+        })
+        .catch(() => true);
+      if (!disabled) {
+        await nextBtn.click({ timeout: 5_000 }).catch(() => undefined);
+      }
     }
 
     await page.waitForTimeout(1_000);
