@@ -16,6 +16,9 @@ the applicant.
   per-country dispatch, retry/failure handling, queue status transitions.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
+- `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
+  flags and safety validation. Dry-run is the default; live assisted is visible
+  browser only and blocks final validation, payment, and appointment booking.
 - `src/form-mappings.ts`: Indonesian e-visa portal selectors.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
@@ -55,7 +58,7 @@ the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
-| France Schengen | Phase 4 path wired | Creates/finalizes draft, captures France-Visas reference and optional CERFA PDF; no applicant payment is clicked here. |
+| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, opens visible France-Visas automation, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
