@@ -120,12 +120,31 @@ Probed each portal's entry through the residential proxy:
 sufficient for old server-rendered portals (India ✅) but **not** for modern
 anti-bot SPAs (VFS/Akamai, Vietnam) or fragile multi-step POST flows (UKVI).
 
-**Fix — Bright Data Scraping Browser.** `launchStealthBrowser` now connects
-over CDP to a Scraping Browser endpoint when `BRIGHTDATA_BROWSER_WS` is set
-(it solves fingerprint/CAPTCHA/retries server-side and carries its own
-proxy+geo). Provision a Scraping Browser zone, set `BRIGHTDATA_BROWSER_WS` to
-its `wss://…` endpoint, and the UK / VFS / Vietnam runners route through it
-with no code change. This is the unblock for the anti-bot tier.
+**Fix — Bright Data Scraping Browser (VERIFIED).** Set `BRIGHTDATA_BROWSER_WS`
+to a Scraping Browser `wss://…:9222` endpoint. Two integration points:
+- `src/shared/anti-bot-session.ts` (`startAntiBotSession`) — used by the VFS
+  runners (`italy-vfs-cn`, `za`); always prefers the Scraping Browser.
+- `launchStealthBrowser({ antiBot: true })` — opt-in per call.
+
+**Important — gov-domain policy.** Bright Data's Scraping Browser **refuses
+`.gov` domains** by policy (verified: `evisa.gov.vn` → "blocked by Bright Data
+usage policy"). So it is **opt-in, not global**: VFS (commercial Akamai) uses
+it; `.gov` portals (India/UK/CEAC) must stay on the residential proxy, which
+Bright Data permits for them. A global setting would break every gov runner.
+
+Verified results through the Scraping Browser:
+
+| Portal | Residential | Scraping Browser |
+|---|---|---|
+| VFS Italy | blank (bodyLen 0) | ✅ renders (bodyLen 1715, 35 controls) |
+| VFS South Africa | blank | ✅ renders (bodyLen 1473) |
+| Vietnam (.gov.vn) | blank | ❌ refused (Bright Data gov policy) |
+| India (.gov.in) | ✅ renders (2988) | n/a — stays residential |
+
+VFS is account-gated like UK, so the next step per VFS country is the same
+register → inbox-OTP → login → fill flow as `src/uk/register.ts`. Vietnam needs
+gov-domain access enabled on a Bright Data zone (KYC) — blocked on both paths
+until then.
 
 `src/uk/register.ts` is the gated-portal register template (alias → register →
 inbox OTP → encrypted `uk_accounts` row); it reaches the live UKVI portal and

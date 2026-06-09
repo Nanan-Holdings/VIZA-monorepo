@@ -1,8 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { chromium, type Browser, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
+import { startAntiBotSession } from "../shared/anti-bot-session.js";
 import { normalizeItVfsAnswers, type ItVfsAnswers } from "./normalize.js";
 import { IT_VFS_URLS, IT_VFS_PERSONAL_FIELDS, IT_VFS_TRAVEL_DOC_FIELDS, IT_VFS_CONTACT_FIELDS } from "./selectors.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
@@ -93,13 +94,17 @@ export async function runItRunner(input: ItRunInput): Promise<ItRunResult> {
   // RUN-CORE-007: non-fatal translation gate (VFS-CN expects Latin input).
   softTranslationGate("italy", input.answers as Record<string, string>);
 
-  const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
+  // VFS Global is Akamai-fronted; route through the Bright Data Scraping
+  // Browser (anti-bot solved server-side) when configured, else residential.
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "it-har-"));
-  const ctx = await browser.newContext({
-    locale: "zh-CN",
-    recordHar: { path: path.join(tempHar, `it-${input.jobId}.har`), mode: "minimal" },
+  const { browser, context: ctx, page } = await startAntiBotSession({
+    country: "cn",
+    headless: input.headless ?? true,
+    contextOptions: {
+      locale: "zh-CN",
+      recordHar: { path: path.join(tempHar, `it-${input.jobId}.har`), mode: "minimal" },
+    },
   });
-  const page = await ctx.newPage();
   const artefacts: string[] = [];
   let reachedStep = "landing";
 
