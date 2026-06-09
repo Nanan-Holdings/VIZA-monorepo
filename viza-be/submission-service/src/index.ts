@@ -30,6 +30,7 @@ import {
   buildFailureResult,
   serializeError,
   isGateError,
+  isManualActionRequiredError,
   orchestrateFill,
   isSuccessResult,
   handleConfirmApplicationPage,
@@ -45,6 +46,7 @@ import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
   FrSubmissionResult,
+  GenericSubmissionResult,
   UkSubmissionResult,
   UsSubmissionResult,
   VnSubmissionResult,
@@ -84,6 +86,11 @@ import {
   VisaApplicationAnswer,
 } from "./types";
 import type { AuSubmissionResult } from "./submission-result";
+import {
+  loadDs160SubmissionConfig,
+  validateDs160LiveStart,
+  type Ds160SubmissionConfig,
+} from "./ds160-live-config";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
@@ -610,9 +617,58 @@ async function updateDs160Metadata(
     .eq("id", dbApplicationId);
 }
 
+function buildDs160ActionRequiredResult(
+  applicationId: string,
+  actionType: string,
+  message: string,
+): GenericSubmissionResult {
+  return {
+    country: "GENERIC",
+    targetCountry: "US",
+    visaType: "DS160",
+    status: "action_required",
+    mode: "live_assisted",
+    applicationId,
+    actionType,
+    actionInstructions: message,
+    implementationStatus: "implemented",
+    message,
+  };
+}
+
+async function processDs160LiveConfigBlockedItem(
+  item: SubmissionQueueItem,
+  reason: string,
+): Promise<void> {
+  console.warn(`[ceac] Live assisted blocked for ${item.application_id}: ${reason}`);
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "ds160_blocked",
+      last_error: reason,
+      ceac_result_payload: {
+        status: "blocked_by_config",
+        reason,
+        mode: "live_assisted",
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+
+  await writeSubmissionResult(
+    item.application_id,
+    buildDs160ActionRequiredResult(item.application_id, "live_mode_config", reason),
+    "action_required",
+  );
+}
+
 // ─── DS-160 Job Processor (CEAC runtime pipeline) ──────────────────────────
 
-async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
+async function processDs160Item(
+  item: SubmissionQueueItem,
+  config: Ds160SubmissionConfig,
+): Promise<void> {
   const runId = `ds160-${item.application_id}-${Date.now()}`;
   console.log(`[ceac] Starting CEAC run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
 
@@ -629,7 +685,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
 
   try {
     session = await startCeacSession({
-      headless: true,
+      headless: config.playwrightHeadless,
       acceptDownloads: true,
       runId,
     });
@@ -736,7 +792,7 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
         surnameFirst5: surnameFirstFive,
         yearOfBirth: Number(yearOfBirth) || 0,
         securityQuestion: confirm.securityQuestionText,
-        securityAnswer: confirm.securityAnswer,
+        securityAnswerCipher: encryptSecret(confirm.securityAnswer),
         embassyOrConsulate:
           answers["consular_post"] ??
           answers["embassy_or_consulate"] ??
@@ -744,8 +800,9 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
           "Pending — confirm at appointment",
         retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId ?? confirm.applicationId}`,
         ...(storagePath ? { datStoragePath: storagePath } : {}),
+        finalSubmissionMode: "applicant_handoff",
       };
-      await writeSubmissionResult(item.application_id, usPayload, "submitted");
+      await writeSubmissionResult(item.application_id, usPayload, "stopped_at_sign");
 
       console.log(`[ceac] Run ${runId} handoff_ready for ${item.application_id}`);
     } else {
@@ -799,7 +856,33 @@ async function processDs160Item(item: SubmissionQueueItem): Promise<void> {
     // Gate errors (anti-bot, captcha, manual intervention) are external CEAC
     // blockers — retrying won't help. Mark as blocked immediately with
     // operator-facing context and alert.
-    if (isGateError(err)) {
+    if (isManualActionRequiredError(err)) {
+      console.warn(`[ceac] Run ${runId} waiting for manual action for ${item.application_id}:`, errorMsg);
+
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "ds160_blocked",
+          last_error: `[CEAC manual action: ${err.actionType}] ${errorMsg}`,
+          ceac_result_payload: {
+            ...result as unknown as Record<string, unknown>,
+            manualAction: {
+              actionType: err.actionType,
+              instruction: err.instruction,
+              context: err.context,
+            },
+            ...exceptionCaptchaTelemetry,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      await writeSubmissionResult(
+        item.application_id,
+        buildDs160ActionRequiredResult(item.application_id, err.actionType, err.instruction),
+        "action_required",
+      );
+    } else if (isGateError(err)) {
       console.error(`[ceac] Run ${runId} GATED for ${item.application_id}:`, errorMsg);
 
       // Persist Application ID if captured before gate
@@ -905,6 +988,7 @@ async function processFvItem(item: SubmissionQueueItem): Promise<void> {
     .from("submission_queue")
     .update({ status: "fv_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
@@ -1089,6 +1173,7 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
     .from("submission_queue")
     .update({ status: "uk_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   const { profile, application } = await loadApplicantData(item.application_id);
   let account = await loadUkAccount(application.applicant_id);
@@ -1320,6 +1405,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     .from("submission_queue")
     .update({ status: "vn_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   try {
     const answers = await loadDs160Answers(item.application_id);
@@ -1437,6 +1523,7 @@ async function processAuItem(item: SubmissionQueueItem): Promise<void> {
     .from("submission_queue")
     .update({ status: "au_prefill_processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "au-run-"));
   let handles: Awaited<ReturnType<typeof launchStealthBrowser>> | null = null;
@@ -1661,7 +1748,7 @@ function requireAnswer(map: Record<string, string | null>, field: string): strin
 
 async function processDryRunItem(
   item: SubmissionQueueItem,
-  source: "global_dry_run" | "legacy_fallback",
+  source: "global_dry_run" | "legacy_fallback" | "ds160_default_dry_run",
 ): Promise<void> {
   console.log(
     `[dry-run] Processing ${item.application_id} via ${source} (attempt ${item.attempts + 1})`,
@@ -1671,6 +1758,7 @@ async function processDryRunItem(
     .from("submission_queue")
     .update({ status: "processing", updated_at: new Date().toISOString() })
     .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
 
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
@@ -1781,7 +1869,19 @@ async function poll(): Promise<void> {
     if (isSubmissionDryRunMode()) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160Job(item)) {
-      await processDs160Item(item);
+      const ds160Config = loadDs160SubmissionConfig();
+      if (ds160Config.mode !== "live_assisted") {
+        await processDryRunItem(item, "ds160_default_dry_run");
+        continue;
+      }
+
+      const liveStartError = validateDs160LiveStart(ds160Config);
+      if (liveStartError) {
+        await processDs160LiveConfigBlockedItem(item, liveStartError);
+        continue;
+      }
+
+      await processDs160Item(item, ds160Config);
     } else if (isFvJob(item)) {
       await processFvItem(item);
     } else if (isUkJob(item)) {

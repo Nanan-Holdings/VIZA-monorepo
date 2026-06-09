@@ -98,6 +98,8 @@ export function BilingualReviewPanel({
   onEditSection,
 }: BilingualReviewPanelProps) {
   const t = useTranslations("applicationSteps.translation");
+  const locale = useLocale();
+  const isZh = isChineseLocale(locale);
   const sections = groupRows(rows);
 
   if (loading) {
@@ -152,7 +154,7 @@ export function BilingualReviewPanel({
                   onClick={() => onEditSection(section.editStepIndex!)}
                 >
                   <Pencil className="mr-1 h-4 w-4" />
-                  修改
+                  {isZh ? "修改" : "Edit"}
                 </Button>
               ) : null}
             </div>

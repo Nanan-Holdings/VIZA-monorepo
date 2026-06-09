@@ -39,10 +39,16 @@ export interface UsSubmissionResult {
   surnameFirst5: string;        // uppercased first 5 chars of surname
   yearOfBirth: number;
   securityQuestion: string;
-  securityAnswer: string;
+  /**
+   * Legacy plaintext field kept optional for old rows only. New live-assisted
+   * rows must write securityAnswerCipher and display a redacted placeholder.
+   */
+  securityAnswer?: string;
+  securityAnswerCipher?: string;
   embassyOrConsulate: string;
   retrievalUrl: string;         // canonical CEAC retrieval entry URL
   datStoragePath?: string;      // bucket path; FE mints signed URL on demand
+  finalSubmissionMode?: "applicant_handoff" | "external_verified";
 }
 
 export interface FrSubmissionResult {
@@ -116,10 +122,12 @@ export interface GenericSubmissionResult {
   country: "GENERIC";
   targetCountry: string;
   visaType: string;
-  status: "submitted_mock" | "unsupported";
-  mode: "dry_run";
+  status: "submitted_mock" | "unsupported" | "action_required";
+  mode: "dry_run" | "live_assisted";
   applicationId: string;
   confirmationNumber?: string;
+  actionType?: string;
+  actionInstructions?: string;
   implementationStatus:
     | "implemented"
     | "sandbox_only"
@@ -136,6 +144,8 @@ export type SubmissionResultStatus =
   | "submitted"
   | "submitted_mock"
   | "unsupported"
+  | "action_required"
+  | "stopped_at_sign"
   | "stopped_at_pay"
   | "stopped_at_review"
   | "form_ready_for_agency"

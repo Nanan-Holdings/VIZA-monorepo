@@ -58,11 +58,19 @@ The current internal automation migrations are:
 - `0092_travel_local_first_enrichment.sql`: local-first Travel destination
   localization fields, attraction/assets tables, destination-card source
   metadata, and enrichment job/event history.
+- `0093_ds160_live_assisted_controls.sql`: DS-160 live assisted queue/job,
+  encrypted official retrieval fields, review snapshot/diff tables, and manual
+  checkpoint tables. Dry-run remains the default and final applicant
+  Sign/Submit remains outside automation.
+- `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
+  requirements and bilingual label metadata so the app uses official materials
+  instead of generic fallback requirements.
 
 ## Guardrails
 
-- Do not add runner/Playwright/submission-service tables or real official-site
-  payment/booking automation to this automation scope.
+- Do not add final official-site payment/booking/submission automation to this
+  automation scope. DS-160 live assisted tables may store audited handoff,
+  review-diff, and manual-checkpoint state only.
 - U.S. appointment tables may track dry-run/manual checkpoint state only. Keep
   sensitive official-portal credentials, cookies, CAPTCHA answers, MFA codes,
   payment card data, and raw screenshots out of these migrations.

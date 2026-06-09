@@ -14,6 +14,7 @@
     "travel:audit-dropdown": "tsx scripts/audit-travel-dropdown-destinations.ts",
     "travel:seed-dropdown": "tsx scripts/seed-dropdown-destinations.ts",
     "travel:verify-images": "tsx scripts/verify-travel-image-relevance.ts",
+    "travel:qa-prompts": "tsx scripts/qa-travel-agent-prompts.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",

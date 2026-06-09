@@ -3,6 +3,8 @@ import {
   buildTravelCandidatePayload,
   resolveLocalDestinationText,
   toTravelDestinationChatCard,
+  type DestinationResolution,
+  type TravelDestinationPipelineDebug,
   type TravelDestinationSearchResult,
 } from "@/lib/travel/destination-resolver";
 import type { TravelDestinationCard } from "@/lib/travel/chat-types";
@@ -14,6 +16,9 @@ type TravelAgentChatResponse = {
   cards?: TravelDestinationCard[];
   candidate_payload?: Record<string, unknown>;
   sources?: Array<{ id?: string; title?: string; type?: string }>;
+  debug?: {
+    travel_pipeline?: TravelDestinationPipelineDebug;
+  };
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,6 +109,24 @@ function buildResolvedDestinationCards(
   });
 }
 
+function withTravelPipelineDebug(
+  response: TravelAgentChatResponse,
+  resolution: DestinationResolution
+): TravelAgentChatResponse {
+  if (process.env.NODE_ENV === "production" || !resolution.debugTrace) {
+    return response;
+  }
+
+  console.debug("Travel destination pipeline", resolution.debugTrace);
+  return {
+    ...response,
+    debug: {
+      ...(response.debug ?? {}),
+      travel_pipeline: resolution.debugTrace,
+    },
+  };
+}
+
 function enrichTravelChatResponse(
   payload: unknown,
   response: TravelAgentChatResponse
@@ -113,23 +136,26 @@ function enrichTravelChatResponse(
 
   const resolution = resolveLocalDestinationText(userText);
   if (resolution.status === "ambiguous") {
-    return {
-      reply: resolution.clarificationQuestion,
-      mode: "collect_slots",
-      quick_replies: resolution.options.slice(0, 4).map((option) => ({
-        label: option.displayName,
-        value: `我说的是 ${option.displayName}`,
-      })),
-      cards: [],
-      candidate_payload: {},
-      sources: [
-        {
-          id: "destination_resolver",
-          title: "Destination resolver clarification",
-          type: "resolver",
-        },
-      ],
-    };
+    return withTravelPipelineDebug(
+      {
+        reply: resolution.clarificationQuestion,
+        mode: "collect_slots",
+        quick_replies: resolution.options.slice(0, 4).map((option) => ({
+          label: option.displayName,
+          value: `我说的是 ${option.displayName}`,
+        })),
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          {
+            id: "destination_resolver",
+            title: "Destination resolver clarification",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
   if (resolution.status === "resolved") {
@@ -145,63 +171,69 @@ function enrichTravelChatResponse(
     const resolvedNames = resolution.destinations
       .map((destination) => destination.displayName)
       .join("、");
-    return {
-      ...response,
-      reply: hasMatchingBackendCard
-        ? response.reply
-        : `我已经识别到目的地：${resolvedNames}。我会先用已解析的目的地、天数和偏好继续规划；如果坐标或资料缺失，会用临时卡片和后续补全流程兜底。`,
-      mode: response.mode === "welcome" ? "destination_detail" : response.mode,
-      quick_replies: hasMatchingBackendCard
-        ? response.quick_replies
-        : resolution.destinations.slice(0, 3).map((destination) => ({
-            label: `加入计划：${destination.displayName}`,
-            value: `加入计划：${destination.displayName}`,
-          })),
-      cards: buildResolvedDestinationCards(
-        response.cards,
-        resolution.destinations,
-        userText
-      ),
-      candidate_payload: {
-        ...(response.candidate_payload ?? {}),
-        ...candidatePayload,
-      },
-      sources: [
-        ...(response.sources ?? []),
-        {
-          id: "destination_resolver",
-          title: "Destination resolver exact/alias/fuzzy match",
-          type: "resolver",
+    return withTravelPipelineDebug(
+      {
+        ...response,
+        reply: hasMatchingBackendCard
+          ? response.reply
+          : `我已经识别到目的地：${resolvedNames}。我会先用已解析的目的地、天数和偏好继续规划；如果坐标或资料缺失，会用占位图和后续补全流程兜底。`,
+        mode: response.mode === "welcome" ? "destination_detail" : response.mode,
+        quick_replies: hasMatchingBackendCard
+          ? response.quick_replies
+          : resolution.destinations.slice(0, 3).map((destination) => ({
+              label: `加入计划：${destination.displayName}`,
+              value: `加入计划：${destination.displayName}`,
+            })),
+        cards: buildResolvedDestinationCards(
+          response.cards,
+          resolution.destinations,
+          userText
+        ),
+        candidate_payload: {
+          ...(response.candidate_payload ?? {}),
+          ...candidatePayload,
         },
-      ],
-    };
+        sources: [
+          ...(response.sources ?? []),
+          {
+            id: "destination_resolver",
+            title: "Destination resolver exact/alias/fuzzy match",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
   if (resolution.status === "temporary") {
     const card = toTravelDestinationChatCard(resolution.destination, userText);
-    return {
-      reply:
-        response.reply ||
-        "我先把这个目的地作为临时未验证地点继续规划；后续会补充坐标和目的地资料。",
-      mode: "destination_detail",
-      quick_replies: response.quick_replies ?? [],
-      cards: mergeDestinationCards(response.cards, [card]),
-      candidate_payload: buildTravelCandidatePayload(
-        [resolution.destination],
-        userText
-      ),
-      sources: [
-        ...(response.sources ?? []),
-        {
-          id: "destination_resolver",
-          title: "Temporary unverified destination",
-          type: "resolver",
-        },
-      ],
-    };
+    return withTravelPipelineDebug(
+      {
+        reply:
+          response.reply ||
+          "我先把这个目的地作为临时未验证地点继续规划；后续会补充坐标和目的地资料。",
+        mode: "destination_detail",
+        quick_replies: response.quick_replies ?? [],
+        cards: mergeDestinationCards(response.cards, [card]),
+        candidate_payload: buildTravelCandidatePayload(
+          [resolution.destination],
+          userText
+        ),
+        sources: [
+          ...(response.sources ?? []),
+          {
+            id: "destination_resolver",
+            title: "Temporary unverified destination",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
-  return response;
+  return withTravelPipelineDebug(response, resolution);
 }
 
 function buildImmediateLocalFirstResponse(
@@ -212,23 +244,26 @@ function buildImmediateLocalFirstResponse(
 
   const resolution = resolveLocalDestinationText(userText);
   if (resolution.status === "ambiguous") {
-    return {
-      reply: resolution.clarificationQuestion,
-      mode: "collect_slots",
-      quick_replies: resolution.options.slice(0, 4).map((option) => ({
-        label: option.displayName,
-        value: `我说的是 ${option.displayName}`,
-      })),
-      cards: [],
-      candidate_payload: {},
-      sources: [
-        {
-          id: "destination_resolver",
-          title: "Local-first destination clarification",
-          type: "resolver",
-        },
-      ],
-    };
+    return withTravelPipelineDebug(
+      {
+        reply: resolution.clarificationQuestion,
+        mode: "collect_slots",
+        quick_replies: resolution.options.slice(0, 4).map((option) => ({
+          label: option.displayName,
+          value: `我说的是 ${option.displayName}`,
+        })),
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          {
+            id: "destination_resolver",
+            title: "Local-first destination clarification",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
   if (resolution.status === "resolved") {
@@ -239,49 +274,103 @@ function buildImmediateLocalFirstResponse(
     const resolvedNames = resolution.destinations
       .map((destination) => destination.displayName)
       .join("、");
-    return {
-      reply: `我已经从本地目的地库识别到：${resolvedNames}。先展示本地已验证资料；缺失图片或景点时会进入补全流程，未验证图片会保持占位图。`,
-      mode: "destination_detail",
-      quick_replies: resolution.destinations.slice(0, 3).map((destination) => ({
-        label: `加入计划：${destination.displayName}`,
-        value: `加入计划：${destination.displayName}`,
-      })),
-      cards: buildResolvedDestinationCards(
-        undefined,
-        resolution.destinations,
-        userText
-      ),
-      candidate_payload: candidatePayload,
-      sources: [
-        {
-          id: "local_first_destination_contract",
-          title: "Local-first destination contract",
-          type: "resolver",
-        },
-      ],
-    };
+    return withTravelPipelineDebug(
+      {
+        reply: `我已经从本地目的地库识别到：${resolvedNames}。先展示本地已验证资料；缺失图片或景点时会进入补全流程，未验证图片会保持占位图。`,
+        mode: "destination_detail",
+        quick_replies: resolution.destinations.slice(0, 3).map((destination) => ({
+          label: `加入计划：${destination.displayName}`,
+          value: `加入计划：${destination.displayName}`,
+        })),
+        cards: buildResolvedDestinationCards(
+          undefined,
+          resolution.destinations,
+          userText
+        ),
+        candidate_payload: candidatePayload,
+        sources: [
+          {
+            id: "local_first_destination_contract",
+            title: "Local-first destination contract",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
   if (resolution.status === "temporary" && looksLikeDestinationDraftText(userText)) {
     const card = toTravelDestinationChatCard(resolution.destination, userText);
-    return {
-      reply:
-        "这个目的地暂时不在本地下拉库中。我会先创建文字草稿卡，并保持图片为占位图，直到后续 API 找到可信资料。",
-      mode: "destination_detail",
-      quick_replies: [],
-      cards: [card],
-      candidate_payload: buildTravelCandidatePayload(
-        [resolution.destination],
-        userText
-      ),
-      sources: [
-        {
-          id: "local_first_generated_draft",
-          title: "Generated text-only destination draft",
-          type: "resolver",
-        },
-      ],
-    };
+    return withTravelPipelineDebug(
+      {
+        reply:
+          "这个目的地暂时无法通过本地库确认。我会先创建低置信度文字草稿卡，并保持图片为占位图，直到后续 API 找到可信资料。",
+        mode: "destination_detail",
+        quick_replies: [],
+        cards: [card],
+        candidate_payload: buildTravelCandidatePayload(
+          [resolution.destination],
+          userText
+        ),
+        sources: [
+          {
+            id: "local_first_generated_draft",
+            title: "Generated text-only destination draft",
+            type: "resolver",
+          },
+        ],
+      },
+      resolution
+    );
+  }
+
+  if (
+    resolution.status === "unresolved" &&
+    resolution.debugTrace?.detectedIntent === "ask_question"
+  ) {
+    return withTravelPipelineDebug(
+      {
+        reply:
+          "这个问题更像旅行准备或签证咨询，我不会为它创建目的地卡。签证和保险要求请以官方来源为准；如果要继续问签证材料，可以切换到 VIZA AI。",
+        mode: "collect_slots",
+        quick_replies: [],
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          {
+            id: "travel_intent_parser",
+            title: "Non-destination travel question",
+            type: "parser",
+          },
+        ],
+      },
+      resolution
+    );
+  }
+
+  if (
+    resolution.status === "unresolved" &&
+    resolution.debugTrace?.detectedIntent === "edit_itinerary"
+  ) {
+    return withTravelPipelineDebug(
+      {
+        reply:
+          "我识别到这是行程编辑指令，不会创建新的目的地卡。请先生成行程后再告诉我要删除、调整或替换哪一天。",
+        mode: "collect_slots",
+        quick_replies: [],
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          {
+            id: "travel_intent_parser",
+            title: "Itinerary edit intent",
+            type: "parser",
+          },
+        ],
+      },
+      resolution
+    );
   }
 
   return null;

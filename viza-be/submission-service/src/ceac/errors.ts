@@ -14,7 +14,8 @@ export type CeacErrorCode =
   | "NAVIGATION_FAILED"
   | "VALIDATION_FAILED"
   | "SESSION_BOOTSTRAP_FAILED"
-  | "GATE_DETECTED";
+  | "GATE_DETECTED"
+  | "MANUAL_ACTION_REQUIRED";
 
 export interface CeacErrorContext {
   /** The page identity the worker expected to be on. */
@@ -126,6 +127,34 @@ export class GateDetectedError extends CeacError {
     super("GATE_DETECTED", message, context);
     this.name = "GateDetectedError";
   }
+}
+
+export class ManualActionRequiredError extends CeacError {
+  readonly actionType: string;
+  readonly instruction: string;
+
+  constructor(
+    actionType: string,
+    instruction: string,
+    context: CeacErrorContext = {},
+  ) {
+    super("MANUAL_ACTION_REQUIRED", instruction, {
+      ...context,
+      details: {
+        ...(context.details ?? {}),
+        actionType,
+      },
+    });
+    this.name = "ManualActionRequiredError";
+    this.actionType = actionType;
+    this.instruction = instruction;
+  }
+}
+
+export function isManualActionRequiredError(
+  err: unknown,
+): err is ManualActionRequiredError {
+  return err instanceof ManualActionRequiredError;
 }
 
 /**

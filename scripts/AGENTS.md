@@ -24,3 +24,5 @@ smoke-test helpers for the VIZA monorepo.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the
   internal portal on separate local ports.
+- `audit-bilingual-schema-clarity.ts`: scans visa form schema seed sources and
+  fallback form definitions, then writes bilingual schema clarity reports.

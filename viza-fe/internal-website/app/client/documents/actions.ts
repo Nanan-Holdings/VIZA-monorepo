@@ -13,6 +13,7 @@ import {
   getVisaTypeDisplayName,
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
+import { normalizeBirthplace } from "@/lib/birthplace-options";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -260,6 +261,8 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     source: "fallback",
   },
 ];
+
+const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -825,6 +828,42 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
   return ((baseData ?? []) as ApplicationDocumentRow[]).map(normalizeDocument);
 }
 
+async function loadLatestReusablePassportDocument(applicantId: string): Promise<ApplicationDocument | null> {
+  const adminClient = createAdminClient();
+  const { data: applications, error: applicationsError } = await adminClient
+    .from("applications")
+    .select("id")
+    .eq("applicant_id", applicantId);
+
+  if (applicationsError || !applications?.length) return null;
+
+  const applicationIds = (applications as Array<{ id: string }>).map((application) => application.id).filter(Boolean);
+  if (applicationIds.length === 0) return null;
+
+  const { data, error } = await adminClient
+    .from("application_documents")
+    .select("id, application_id, document_type, filename, status, rejection_reason, created_at, updated_at")
+    .in("application_id", applicationIds)
+    .in("document_type", [...PASSPORT_DOCUMENT_TYPES])
+    .neq("status", "missing")
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return normalizeDocument(data as ApplicationDocumentRow);
+}
+
+function toPassportUploadStatus(passportDocument: ApplicationDocument): UniversalProfilePassportUploadStatus {
+  return {
+    ok: true,
+    uploaded: passportDocument.status !== "missing",
+    fileName: passportDocument.filename,
+    status: passportDocument.status,
+    updatedAt: passportDocument.updatedAt ?? passportDocument.createdAt,
+  };
+}
+
 export async function loadUniversalProfilePassportUploadStatus(
   applicationId: string | null | undefined,
 ): Promise<UniversalProfilePassportUploadStatus> {
@@ -840,21 +879,19 @@ export async function loadUniversalProfilePassportUploadStatus(
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
 
     const documents = await loadDocuments(applicationId);
-    const passportDocument = documents.find((document) =>
-      ["passport_copy", "passport_bio_page", "passport_scan", "passport"].includes(document.documentType),
+    const passportDocuments = documents.filter((document) =>
+      PASSPORT_DOCUMENT_TYPES.includes(document.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number]),
     );
+    const passportDocument = passportDocuments.find((document) => document.status !== "missing") ?? passportDocuments[0];
 
-    if (!passportDocument) {
-      return { ok: true, uploaded: false, fileName: null, status: null, updatedAt: null };
+    if (!passportDocument || passportDocument.status === "missing") {
+      const reusablePassportDocument = await loadLatestReusablePassportDocument(contextResult.context.applicantId);
+      return reusablePassportDocument
+        ? toPassportUploadStatus(reusablePassportDocument)
+        : { ok: true, uploaded: false, fileName: null, status: null, updatedAt: null };
     }
 
-    return {
-      ok: true,
-      uploaded: passportDocument.status !== "missing",
-      fileName: passportDocument.filename,
-      status: passportDocument.status,
-      updatedAt: passportDocument.updatedAt ?? passportDocument.createdAt,
-    };
+    return toPassportUploadStatus(passportDocument);
   } catch (error) {
     return {
       ok: false,
@@ -1246,6 +1283,15 @@ const OCR_BILINGUAL_PROFILE_COLUMNS = [
   "given_names",
   "given_names_zh",
   "given_names_en",
+  "place_of_birth_zh",
+  "place_of_birth_en",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_province_or_state_zh",
+  "birth_province_or_state_en",
+  "birth_city",
+  "birth_city_zh",
+  "birth_city_en",
 ] as const;
 
 function isMissingOcrBilingualColumnError(message: string) {
@@ -1287,6 +1333,51 @@ function buildPassportProfileUpdates(fields: JsonRecord) {
   if (nativeSurname) updates.surname_zh = nativeSurname;
   if (nativeGivenNames) updates.given_names_zh = nativeGivenNames;
 
+  const placeOfBirth = pickExtractedField(fields, ["place_of_birth", "placeOfBirth", "birth_place", "place_of_birth_raw"]);
+  const birthCountry = pickExtractedField(fields, ["birth_country", "birthCountry", "country_of_birth", "countryOfBirth"]);
+  const birthProvince = pickExtractedField(fields, [
+    "birth_province_or_state",
+    "birthProvinceOrState",
+    "birth_province",
+    "birth_state",
+    "state_of_birth",
+    "province_of_birth",
+  ]);
+  const birthProvinceZh = pickExtractedField(fields, ["birth_province_or_state_zh", "birthProvinceOrStateZh"]);
+  const birthProvinceEn = pickExtractedField(fields, ["birth_province_or_state_en", "birthProvinceOrStateEn"]);
+  const birthCity = pickExtractedField(fields, ["birth_city", "birthCity", "city_of_birth", "cityOfBirth"]);
+  const birthCityZh = pickExtractedField(fields, ["birth_city_zh", "birthCityZh"]);
+  const birthCityEn = pickExtractedField(fields, ["birth_city_en", "birthCityEn"]);
+  const nationality = pickExtractedField(fields, ["nationality", "citizenship"]);
+  const normalizedBirthplace = normalizeBirthplace({
+    placeOfBirth,
+    country: birthCountry || (placeOfBirth ? nationality : null),
+    province: birthProvince,
+    provinceZh: birthProvinceZh,
+    provinceEn: birthProvinceEn,
+    city: birthCity,
+    cityZh: birthCityZh,
+    cityEn: birthCityEn,
+    nationality: placeOfBirth ? nationality : null,
+  });
+  if (placeOfBirth || birthCountry || birthProvince || birthProvinceZh || birthProvinceEn || birthCity || birthCityZh || birthCityEn) {
+    const normalizedPlaceOfBirth = normalizedBirthplace.placeOfBirthEn || placeOfBirth || "";
+    if (normalizedPlaceOfBirth) updates.place_of_birth = normalizedPlaceOfBirth;
+    if (normalizedBirthplace.placeOfBirthZh) updates.place_of_birth_zh = normalizedBirthplace.placeOfBirthZh;
+    if (normalizedBirthplace.placeOfBirthEn) updates.place_of_birth_en = normalizedBirthplace.placeOfBirthEn;
+    if (normalizedBirthplace.country?.en) updates.birth_country = normalizedBirthplace.country.en;
+    if (normalizedBirthplace.province.en || normalizedBirthplace.province.zh) {
+      updates.birth_province_or_state = normalizedBirthplace.province.en || normalizedBirthplace.province.zh;
+    }
+    if (normalizedBirthplace.province.zh) updates.birth_province_or_state_zh = normalizedBirthplace.province.zh;
+    if (normalizedBirthplace.province.en) updates.birth_province_or_state_en = normalizedBirthplace.province.en;
+    if (normalizedBirthplace.city.en || normalizedBirthplace.city.zh) {
+      updates.birth_city = normalizedBirthplace.city.en || normalizedBirthplace.city.zh;
+    }
+    if (normalizedBirthplace.city.zh) updates.birth_city_zh = normalizedBirthplace.city.zh;
+    if (normalizedBirthplace.city.en) updates.birth_city_en = normalizedBirthplace.city.en;
+  }
+
   const mappings: Array<[string, string[]]> = [
     ["date_of_birth", ["date_of_birth", "dateOfBirth", "birth_date", "dob"]],
     ["gender", ["gender", "sex"]],
@@ -1322,6 +1413,16 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
     ["fullName_en", profileUpdates.full_name_en],
     ["full_name_native_alphabet", profileUpdates.full_name_zh],
     ["date_of_birth", profileUpdates.date_of_birth],
+    ["place_of_birth", profileUpdates.place_of_birth],
+    ["place_of_birth_zh", profileUpdates.place_of_birth_zh],
+    ["place_of_birth_en", profileUpdates.place_of_birth_en],
+    ["birth_country", profileUpdates.birth_country],
+    ["birth_province_or_state", profileUpdates.birth_province_or_state],
+    ["birth_province_or_state_zh", profileUpdates.birth_province_or_state_zh],
+    ["birth_province_or_state_en", profileUpdates.birth_province_or_state_en],
+    ["birth_city", profileUpdates.birth_city],
+    ["birth_city_zh", profileUpdates.birth_city_zh],
+    ["birth_city_en", profileUpdates.birth_city_en],
     ["gender", profileUpdates.gender],
     ["sex", profileUpdates.gender],
     ["nationality", profileUpdates.nationality],
@@ -1397,6 +1498,15 @@ export async function confirmPassportOcrExtraction(input: {
             given_names: _givenNames,
             given_names_zh: _givenNamesZh,
             given_names_en: _givenNamesEn,
+            place_of_birth_zh: _placeOfBirthZh,
+            place_of_birth_en: _placeOfBirthEn,
+            birth_country: _birthCountry,
+            birth_province_or_state: _birthProvinceOrState,
+            birth_province_or_state_zh: _birthProvinceOrStateZh,
+            birth_province_or_state_en: _birthProvinceOrStateEn,
+            birth_city: _birthCity,
+            birth_city_zh: _birthCityZh,
+            birth_city_en: _birthCityEn,
             ...baseProfileUpdates
           } = profileUpdates;
           const { error: fallbackProfileError } = await adminClient

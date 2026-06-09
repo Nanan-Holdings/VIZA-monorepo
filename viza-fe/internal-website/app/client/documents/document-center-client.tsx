@@ -53,6 +53,7 @@ interface DocumentCenterClientProps {
   visaType?: string | null;
   embedded?: boolean;
   hideApplicationSelector?: boolean;
+  onDataChange?: (data: DocumentCenterData | null) => void;
   onContinue?: () => void;
   continueLabel?: string;
 }
@@ -885,6 +886,7 @@ export function DocumentCenterClient({
   visaType,
   embedded = false,
   hideApplicationSelector = embedded,
+  onDataChange,
   onContinue,
   continueLabel,
 }: DocumentCenterClientProps) {
@@ -898,6 +900,11 @@ export function DocumentCenterClient({
   >([]);
   const [travelPickerOpen, setTravelPickerOpen] = useState(false);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    setData(initialData);
+    setError(initialError);
+  }, [initialData, initialError]);
 
   const selectedApplication = data?.selectedApplication ?? null;
   const documentViews = useMemo(
@@ -933,9 +940,11 @@ export function DocumentCenterClient({
         if (cancelled) return;
         if (result.ok) {
           setData(result.data);
+          onDataChange?.(result.data);
           setError(null);
         } else {
           setData(null);
+          onDataChange?.(null);
           setError(result.error);
         }
       })
@@ -964,6 +973,7 @@ export function DocumentCenterClient({
     });
     if (result.ok) {
       setData(result.data);
+      onDataChange?.(result.data);
       setError(null);
     } else {
       setError(result.error);

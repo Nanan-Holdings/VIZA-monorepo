@@ -40,6 +40,8 @@ explicitly reintroduces another provider.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
+- Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
+  verifies the Vietnam seed has clear bilingual labels and localized options.
 
 ## Ownership Boundaries
 

@@ -187,15 +187,16 @@ export async function POST(request: Request) {
     }
 
     const localResolution = resolveLocalDestinationText(rawText);
+    const databaseQuery = localResolution.query || rawText;
     if (localResolution.status === "ambiguous") {
       return Response.json(localResolution, { status: 200 });
     }
 
     try {
-      const databaseDestination = await resolveFromDatabase(rawText);
+      const databaseDestination = await resolveFromDatabase(databaseQuery);
       if (databaseDestination) {
         return Response.json(
-          resolutionWithDatabaseDestination(rawText, databaseDestination),
+          resolutionWithDatabaseDestination(databaseQuery, databaseDestination),
           { status: 200 }
         );
       }
