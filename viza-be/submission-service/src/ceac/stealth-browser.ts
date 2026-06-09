@@ -61,6 +61,13 @@ export interface StealthBrowserOptions {
    * suppression needed to pass Keycloak's headless detection.
    */
   hardening?: "default" | "france-visas";
+  /**
+   * Route through the Bright Data Scraping Browser (CDP) instead of the
+   * residential proxy. Required for commercial anti-bot SPAs (VFS/Akamai).
+   * Do NOT enable for `.gov` portals — Bright Data's Scraping Browser refuses
+   * government domains by policy; those must use the residential proxy.
+   */
+  antiBot?: boolean;
 }
 
 export interface StealthBrowserHandles {
@@ -164,7 +171,7 @@ export async function launchStealthBrowser(
   // CAPTCHA, and retries server-side. The endpoint already carries its own
   // proxy + geo, so the BRIGHTDATA_PROXY_* launch args are not applied here.
   const cdpWs = process.env.BRIGHTDATA_BROWSER_WS;
-  if (cdpWs) {
+  if (options.antiBot && cdpWs) {
     const browser = await playwrightChromium.connectOverCDP(cdpWs);
     const context = browser.contexts()[0] ?? (await browser.newContext());
     const page = context.pages()[0] ?? (await context.newPage());
