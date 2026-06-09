@@ -64,7 +64,7 @@ import {
   isDs160VisaType,
   isFranceVisasVisaType,
   queueProviderForVisaType,
-  queueStatusForVisaType,
+  queueStatusForApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 
@@ -2119,7 +2119,7 @@ export default function ApplicationPage() {
         // submission-service worker to drive the per-country portal.
         const { error: queueError } = await supabase.from("submission_queue").insert({
           application_id: applicationId,
-          status: queueStatusForVisaType(resolvedVisaType),
+          status: queueStatusForApplication(resolvedCountry, resolvedVisaType),
           mode,
           provider: queueProviderForVisaType(resolvedVisaType, mode),
           attempts: 0,
@@ -2226,7 +2226,7 @@ export default function ApplicationPage() {
 
       const { error: queueError } = await supabase.from("submission_queue").insert({
         application_id: applicationId,
-        status: queueStatusForVisaType(resolvedVisaType),
+        status: queueStatusForApplication(resolvedCountry, resolvedVisaType),
         mode,
         provider: queueProviderForVisaType(resolvedVisaType, mode),
         attempts: 0,
