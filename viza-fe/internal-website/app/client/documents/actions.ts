@@ -262,6 +262,42 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
   },
 ];
 
+const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
+  {
+    key: "passport_copy",
+    documentType: "passport_copy",
+    labelEn: "Passport data page image",
+    labelZh: "护照资料页图片",
+    description: "Clear image of the passport bio-data page used for the Vietnam e-Visa application.",
+    required: true,
+    sortOrder: 10,
+    accept: [".jpg", ".jpeg", ".png", ".webp"],
+    source: "fallback",
+  },
+  {
+    key: "photo",
+    documentType: "photo",
+    labelEn: "Portrait photo",
+    labelZh: "本人证件照片",
+    description: "Recent portrait photo suitable for the Vietnam e-Visa portal upload.",
+    required: true,
+    sortOrder: 20,
+    accept: [".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+  {
+    key: "travel_itinerary",
+    documentType: "travel_itinerary",
+    labelEn: "Travel itinerary",
+    labelZh: "旅行行程（可选）",
+    description: "Optional VIZA review aid. Vietnam official e-Visa intake does not require this upload by default.",
+    required: false,
+    sortOrder: 30,
+    accept: [".pdf", ".doc", ".docx", ".json"],
+    source: "fallback",
+  },
+];
+
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -309,6 +345,20 @@ function getStringArray(record: JsonRecord, keys: string[]): string[] {
     }
   }
   return [];
+}
+
+function isVietnamEVisaApplication(application: ApplicationRow): boolean {
+  return (
+    application.country.trim().toLowerCase() === "vietnam" &&
+    getFormVisaType(application.visa_type).toUpperCase() === "VN_E_VISA"
+  );
+}
+
+function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
+  return requirements.map((requirement) => ({
+    ...requirement,
+    accept: [...requirement.accept],
+  }));
 }
 
 function fallbackLabelFor(key: string): Pick<DocumentRequirement, "labelEn" | "labelZh" | "description" | "accept"> {
@@ -800,6 +850,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
   const metadataRequirements = normalizeMetadataChecklist(packageRow?.metadata);
   if (metadataRequirements.length > 0) {
     return { source: "package_metadata" as const, requirements: metadataRequirements };
+  }
+
+  if (isVietnamEVisaApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(VIETNAM_E_VISA_REQUIREMENTS) };
   }
 
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };
