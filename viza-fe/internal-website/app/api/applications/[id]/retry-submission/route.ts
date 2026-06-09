@@ -5,7 +5,8 @@ import {
   isDs160VisaType,
   isFranceVisasVisaType,
   queueProviderForVisaType,
-  queueStatusForVisaType,
+  queueStatusForApplication,
+  queueStatusForSubmissionMode,
   RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   type SubmissionMode,
 } from "@/lib/submission-queue";
@@ -13,6 +14,7 @@ import {
 type ApplicationForRetry = {
   id: string;
   applicant_id: string;
+  country: string | null;
   visa_type: string | null;
 };
 
@@ -53,6 +55,57 @@ function liveRetryEnabledForVisaType(visaType: string | null): boolean {
   return false;
 }
 
+function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("submission_queue.mode") ||
+    message.includes("submission_queue.provider") ||
+    message.includes("column submission_queue.mode does not exist") ||
+    message.includes("column submission_queue.provider does not exist") ||
+    message.includes("could not find the 'mode' column") ||
+    message.includes("could not find the 'provider' column")
+  );
+}
+
+async function insertRetryQueueRow(
+  admin: ReturnType<typeof createAdminClient>,
+  input: {
+    applicationId: string;
+    queueStatus: string;
+    mode: SubmissionMode;
+    provider: string | null;
+    now: string;
+  },
+): Promise<string | null> {
+  const { error } = await admin.from("submission_queue").insert({
+    application_id: input.applicationId,
+    status: input.queueStatus,
+    mode: input.mode,
+    provider: input.provider,
+    attempts: 0,
+    last_error: null,
+    created_at: input.now,
+    updated_at: input.now,
+  });
+  if (!error) return null;
+
+  const canUseLegacyPayload =
+    isMissingSubmissionModeColumnError(error) &&
+    (input.mode === "dry_run" || input.queueStatus === "ds160_live_assisted_pending");
+  if (!canUseLegacyPayload) return error.message;
+
+  const { error: legacyError } = await admin.from("submission_queue").insert({
+    application_id: input.applicationId,
+    status: input.queueStatus,
+    attempts: 0,
+    last_error: null,
+    created_at: input.now,
+    updated_at: input.now,
+  });
+  return legacyError?.message ?? null;
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -86,7 +139,7 @@ export async function POST(
 
   const { data: application, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, visa_type")
+    .select("id, applicant_id, country, visa_type")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -102,8 +155,10 @@ export async function POST(
   }
 
   const now = new Date().toISOString();
-  const queueStatus = queueStatusForVisaType(ownedApplication.visa_type);
   const mode = await readRequestedMode(request);
+  const queueStatus = mode === "live_assisted"
+    ? queueStatusForSubmissionMode(ownedApplication.visa_type, mode)
+    : queueStatusForApplication(ownedApplication.country, ownedApplication.visa_type);
   const provider = queueProviderForVisaType(ownedApplication.visa_type, mode);
 
   if (mode === "live_assisted") {
@@ -165,18 +220,15 @@ export async function POST(
     return NextResponse.json({ error: supersedeError.message }, { status: 500 });
   }
 
-  const { error: queueError } = await admin.from("submission_queue").insert({
-    application_id: applicationId,
-    status: queueStatus,
+  const queueError = await insertRetryQueueRow(admin, {
+    applicationId,
+    queueStatus,
     mode,
     provider,
-    attempts: 0,
-    last_error: null,
-    created_at: now,
-    updated_at: now,
+    now,
   });
   if (queueError) {
-    return NextResponse.json({ error: queueError.message }, { status: 500 });
+    return NextResponse.json({ error: queueError }, { status: 500 });
   }
 
   const { error: appUpdateError } = await admin

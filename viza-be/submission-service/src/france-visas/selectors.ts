@@ -366,9 +366,9 @@ export const FV_CHECK_MAILBOX_MARKERS: readonly RegExp[] = [
 ];
 
 /**
- * Anti-bot / unsolvable gates. The Keycloak image CAPTCHA is SOLVABLE and
- * handled by registration-captcha.ts, so it lives in `solvableCaptchaSelectors`
- * and must never trigger `GateDetectedError`.
+ * Anti-bot / manual gates. The Keycloak image CAPTCHA is not solved by VIZA
+ * in France live-assisted mode; account creation and CAPTCHA are manual
+ * checkpoints.
  */
 export const FV_GATE_MARKERS = {
   textPatterns: [
@@ -380,7 +380,7 @@ export const FV_GATE_MARKERS = {
     /attention required/i,
     /checking your browser/i,
   ] as readonly RegExp[],
-  solvableCaptchaSelectors: [
+  manualCaptchaSelectors: [
     FV_REGISTRATION_SELECTORS.captchaImage,
   ] as readonly string[],
   blockingCaptchaSelectors: [
