@@ -93,3 +93,40 @@ that requires an account to view. Extending fill+halt to the login-gated
 portals requires provisioning **real test accounts per portal** (a
 product/legal decision), at which point filling crosses into real submission
 territory. Until then, those runners stay blocked on data, not code.
+
+## Inbox keystone (gated-portal verification)
+
+Gated portals email an OTP/verification link during signup. The chain:
+per-applicant alias `appl-<ulid>@haggstorm.com` → Cloudflare Email Routing
+catch-all → forwards to the IMAP mailbox → **`src/email/inbound-ingest.ts`**
+recovers the alias from the recipient headers and writes `inbound_email` →
+`inbox.waitForMessage()` (and the per-provider extractors) read it. Run the
+ingest with `npx tsx scripts/inbox-ingest.ts --loop`. Setup runbook:
+`docs/setup-haggstorm-email-routing.md`. Verified end-to-end.
+
+## Gated-portal feasibility (live-probed via `scripts/portal-probe.ts`)
+
+Probed each portal's entry through the residential proxy:
+
+| Portal | Renders | Verdict | Reality |
+|---|---|---|---|
+| UK (UKVI) | yes | tractable* | server-rendered GOV.UK; *but the multi-step POST flow intermittently returns "Webpage not available" through the plain residential proxy |
+| US (CEAC) | yes | hard | ASP.NET WebForms postback nav + CAPTCHA at `/GenNIV/` |
+| VFS (Italy) | no | blocked | silent Akamai bot-wall — title resolves, body never hydrates |
+| VFS (South Africa) | no | hard | Akamai SPA; only the OneTrust cookie overlay hydrates |
+| Vietnam e-Visa | no | blocked | blank/geo-block through the proxy |
+
+**Root cause:** plain residential proxy + playwright-extra stealth is
+sufficient for old server-rendered portals (India ✅) but **not** for modern
+anti-bot SPAs (VFS/Akamai, Vietnam) or fragile multi-step POST flows (UKVI).
+
+**Fix — Bright Data Scraping Browser.** `launchStealthBrowser` now connects
+over CDP to a Scraping Browser endpoint when `BRIGHTDATA_BROWSER_WS` is set
+(it solves fingerprint/CAPTCHA/retries server-side and carries its own
+proxy+geo). Provision a Scraping Browser zone, set `BRIGHTDATA_BROWSER_WS` to
+its `wss://…` endpoint, and the UK / VFS / Vietnam runners route through it
+with no code change. This is the unblock for the anti-bot tier.
+
+`src/uk/register.ts` is the gated-portal register template (alias → register →
+inbox OTP → encrypted `uk_accounts` row); it reaches the live UKVI portal and
+is the first to benefit from the Scraping Browser switch.
