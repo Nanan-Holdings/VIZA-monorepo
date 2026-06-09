@@ -56,6 +56,7 @@ describe("dynamic review localization", () => {
 
     expect(getLocalizedOptionText("single", options, "zh")).toBe("单次入境");
     expect(getLocalizedOptionText("single", options, "en")).toBe("Single-entry");
+    expect(getLocalizedOptionText("official", [{ value: "official", text: "Official" }], "zh")).toBe("公务人员");
   });
 
   test("prefers explicit Chinese companion values on the review left side", () => {
