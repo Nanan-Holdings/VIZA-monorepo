@@ -35,8 +35,17 @@ function envModeLive(...keys: string[]): boolean {
   return keys.some((key) => process.env[key] === "live_assisted");
 }
 
-function liveRetryEnabledForVisaType(visaType: string | null): boolean {
-  if (isFranceVisasVisaType(visaType)) {
+function isFranceCountry(country: string | null): boolean {
+  const normalized = (country ?? "").trim().toLowerCase();
+  return normalized === "france" || normalized === "fr" || normalized === "法国";
+}
+
+function isFranceLiveRetryApplication(country: string | null, visaType: string | null): boolean {
+  return isFranceCountry(country) && isFranceVisasVisaType(visaType);
+}
+
+function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
+  if (isFranceLiveRetryApplication(country, visaType)) {
     return (
       envEnabled("FRANCE_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED") &&
       envModeLive("FRANCE_SUBMISSION_MODE", "NEXT_PUBLIC_FRANCE_SUBMISSION_MODE")
@@ -162,19 +171,22 @@ export async function POST(
   const provider = queueProviderForVisaType(ownedApplication.visa_type, mode);
 
   if (mode === "live_assisted") {
-    if (!provider) {
+    const supportsLiveAssisted =
+      isDs160VisaType(ownedApplication.visa_type) ||
+      isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type);
+    if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },
         { status: 400 },
       );
     }
-    if (!liveRetryEnabledForVisaType(ownedApplication.visa_type)) {
+    if (!liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type)) {
       return NextResponse.json(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
     }
-    if (isFranceVisasVisaType(ownedApplication.visa_type)) {
+    if (isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const { data: existingOfficialRows, error: existingOfficialError } = await admin
         .from("submission_queue")
         .select("id, status, official_application_id_encrypted, official_application_reference_encrypted")

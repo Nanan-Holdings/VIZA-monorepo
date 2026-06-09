@@ -13,6 +13,8 @@
  */
 
 import type { Page } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 import { launchStealthBrowser } from "../ceac/stealth-browser";
 import {
   getVnPortalOptionText,
@@ -33,6 +35,10 @@ export interface FillVietnamOptions {
   runId?: string;
   /** Per-step advance timeout (ms). Default 60s. */
   stepTimeoutMs?: number;
+  /** Optional Playwright trace path for smoke diagnostics. */
+  tracePath?: string;
+  /** Optional final screenshot path for smoke diagnostics. */
+  finalScreenshotPath?: string;
 }
 
 export type FillVietnamResult =
@@ -70,12 +76,18 @@ export async function fillVietnamApplication(
   let page: Page | null = null;
   let browser: Awaited<ReturnType<typeof launchStealthBrowser>>["browser"] | null = null;
   let context: Awaited<ReturnType<typeof launchStealthBrowser>>["context"] | null = null;
+  let traceStarted = false;
 
   try {
     const handles = await launchStealthBrowser({ headless, acceptDownloads: false });
     browser = handles.browser;
     context = handles.context;
     page = handles.page;
+    if (options.tracePath) {
+      fs.mkdirSync(path.dirname(options.tracePath), { recursive: true });
+      await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+      traceStarted = true;
+    }
 
     // ── Landing → form route ───────────────────────────────────────────
     await page.goto(VN_LANDING_URL, { waitUntil: "domcontentloaded", timeout: stepTimeoutMs });
@@ -164,6 +176,21 @@ export async function fillVietnamApplication(
       url: page?.url() ?? VN_LANDING_URL,
     };
   } finally {
+    if (options.finalScreenshotPath && page) {
+      try {
+        fs.mkdirSync(path.dirname(options.finalScreenshotPath), { recursive: true });
+        await page.screenshot({ path: options.finalScreenshotPath, fullPage: true });
+      } catch {
+        /* best-effort diagnostics */
+      }
+    }
+    if (traceStarted && context && options.tracePath) {
+      try {
+        await context.tracing.stop({ path: options.tracePath });
+      } catch {
+        /* best-effort diagnostics */
+      }
+    }
     try {
       if (context) await context.close();
     } catch {
