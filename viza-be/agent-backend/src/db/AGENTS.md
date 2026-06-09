@@ -26,6 +26,8 @@ Supabase service-role client setup for the agent backend.
   snapshot/diff records, and manual action checkpoints.
 - `../../drizzle/0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa
   package document requirements and bilingual label metadata.
+- `../../drizzle/0095_france_live_assisted_controls.sql`: France-Visas live
+  assisted queue fields and manual checkpoint table.
 
 ## Ownership Boundaries
 
@@ -80,6 +82,7 @@ For schema changes, also run any affected route/eval tests.
 - `ds160_official_review_snapshots`
 - `ds160_review_diffs`
 - `ds160_live_manual_actions`
+- `france_live_manual_actions`
 - `consent_events`
 - `application_signatures`
 - `application_packets`

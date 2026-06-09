@@ -142,6 +142,7 @@ export function WechatCheckoutForm({
           displayedProgress={displayedProgress}
           label={t.paidTitle}
           className="mt-5"
+          transitionMs={760}
         />
       </Shell>
     );
@@ -170,6 +171,7 @@ export function WechatCheckoutForm({
           displayedProgress={displayedProgress}
           label={t.waiting}
           className="mt-5"
+          transitionMs={760}
         />
         <p className="text-xs text-muted-foreground mt-4 text-center">
           {t.emailFootnote} <span className="font-medium">{email}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { CheckCircle2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
@@ -9,6 +9,7 @@ import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 interface ReviewStepProps {
   applicationId: string;
@@ -135,8 +136,25 @@ interface ValidationResult {
   blocked: boolean;
 }
 
-export function ValidationPanel({ applicationId, onProceed }: { applicationId: string; onProceed: () => void }) {
+interface ValidationPanelProps {
+  applicationId: string;
+  onProceed: () => void;
+  fieldLabels?: Record<string, { zh: string; en: string }>;
+}
+
+function displayValidationField(
+  field: string,
+  fieldLabels: ValidationPanelProps["fieldLabels"],
+  side: "zh" | "en",
+): string {
+  const baseField = field.replace(/__\d+$/, "");
+  return fieldLabels?.[field]?.[side] ?? fieldLabels?.[baseField]?.[side] ?? field;
+}
+
+export function ValidationPanel({ applicationId, onProceed, fieldLabels }: ValidationPanelProps) {
   const t = useTranslations("applicationSteps");
+  const locale = useLocale();
+  const side = isChineseLocale(locale) ? "zh" : "en";
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +194,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
           </div>
           <ul className="flex flex-col gap-1">
             {result!.errors.map((e, i) => (
-              <li key={i} className="text-xs text-red-600">• <span className="font-medium">{e.field}:</span> {e.message}</li>
+              <li key={i} className="text-xs text-red-600">• <span className="font-medium">{displayValidationField(e.field, fieldLabels, side)}:</span> {e.message}</li>
             ))}
           </ul>
         </div>
@@ -191,7 +209,7 @@ export function ValidationPanel({ applicationId, onProceed }: { applicationId: s
           </div>
           <ul className="flex flex-col gap-1">
             {result!.warnings.map((w, i) => (
-              <li key={i} className="text-xs text-amber-700">• <span className="font-medium">{w.field}:</span> {w.message}</li>
+              <li key={i} className="text-xs text-amber-700">• <span className="font-medium">{displayValidationField(w.field, fieldLabels, side)}:</span> {w.message}</li>
             ))}
           </ul>
         </div>

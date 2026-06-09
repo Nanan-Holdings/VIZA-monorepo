@@ -11,6 +11,25 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
 
+export type SubmissionVisualStatus =
+  | "queued"
+  | "running"
+  | "needs_user_action"
+  | "completed"
+  | "failed"
+  | "stalled"
+  | SubmissionResultStatus;
+
+export type SubmissionVisualStage =
+  | "preparing"
+  | "mapping_answers"
+  | "filling_form"
+  | "submitting_form"
+  | "confirming_result"
+  | "payment_handoff"
+  | "completed"
+  | "failed";
+
 interface Phase {
   id: "preparing" | "filling" | "confirming";
   labelEn: string;
@@ -20,25 +39,60 @@ interface Phase {
 const PHASES: Phase[] = [
   {
     id: "preparing",
-    labelEn: "Preparing English answers",
-    labelZh: "正在整理英文版答案",
+    labelEn: "Validating English answers",
+    labelZh: "正在校验英文版答案",
   },
   {
     id: "filling",
-    labelEn: "Filling the government form",
-    labelZh: "正在填写政府表单",
+    labelEn: "Filling the official form",
+    labelZh: "正在填写官网表单",
   },
   {
     id: "confirming",
-    labelEn: "Confirming submission",
-    labelZh: "正在确认提交结果",
+    labelEn: "Waiting for checkpoint or result",
+    labelZh: "正在等待检查点或结果",
   },
 ];
 
 const PHASE_PROGRESS = [34, 67, 99] as const;
 
-function isTerminalStatus(status: SubmissionResultStatus | null): boolean {
-  return Boolean(status && status !== "waiting" && status !== "processing" && status !== "failed");
+function normalizeStatus(status: SubmissionVisualStatus | null | undefined): string {
+  return (status ?? "").trim().toLowerCase();
+}
+
+function isCompletionStatus(status: SubmissionVisualStatus | null | undefined): boolean {
+  return [
+    "completed",
+    "submitted",
+    "submitted_mock",
+    "form_ready_for_agency",
+  ].includes(normalizeStatus(status));
+}
+
+function isFailedStatus(status: SubmissionVisualStatus | null | undefined): boolean {
+  return normalizeStatus(status) === "failed";
+}
+
+function isWaitingForUserStatus(status: SubmissionVisualStatus | null | undefined): boolean {
+  return ["needs_user_action", "action_required"].includes(normalizeStatus(status));
+}
+
+function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): number | null {
+  switch (stage) {
+    case "preparing":
+    case "mapping_answers":
+      return 0;
+    case "filling_form":
+    case "submitting_form":
+      return 1;
+    case "confirming_result":
+    case "payment_handoff":
+    case "completed":
+    case "failed":
+      return 2;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -49,44 +103,93 @@ function isTerminalStatus(status: SubmissionResultStatus | null): boolean {
  */
 export function WaitingCard({
   status,
+  stage,
+  serverProgress,
+  message,
+  error,
   onVisualComplete,
 }: {
-  status: SubmissionResultStatus | null;
+  status: SubmissionVisualStatus | null;
+  stage?: SubmissionVisualStage | null;
+  serverProgress?: number | null;
+  message?: string | null;
+  error?: string | null;
   onVisualComplete?: () => void;
 }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
-  const terminalStatus = isTerminalStatus(status);
-  const serverProgress = terminalStatus ? 100 : PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+  const completeStatus = isCompletionStatus(status);
+  const failedStatus = isFailedStatus(status);
+  const waitingForUser = isWaitingForUserStatus(status);
+  const visualServerProgress =
+    typeof serverProgress === "number"
+      ? serverProgress
+      : completeStatus
+        ? 100
+        : PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
   const {
     displayedProgress,
     isVisuallyComplete,
   } = useSmoothProgress({
-    serverProgress,
-    status: terminalStatus ? "completed" : status === "failed" ? "failed" : "running",
-    intervalMs: 350,
-    initialProgress: terminalStatus ? 92 : 0,
+    serverProgress: visualServerProgress,
+    status: completeStatus
+      ? "completed"
+      : failedStatus
+        ? "failed"
+        : waitingForUser
+          ? "needs_user_action"
+          : "running",
+    intervalMs: 800,
+    initialProgress: 0,
     onVisualComplete,
   });
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
 
   useEffect(() => {
-    if (terminalStatus) {
+    const stagePhaseIndex = phaseIndexForStage(stage);
+    if (stagePhaseIndex !== null) {
+      setActivePhaseIdx(stagePhaseIndex);
+    } else if (completeStatus || failedStatus || waitingForUser) {
       setActivePhaseIdx(PHASES.length - 1);
     } else if (status === "processing") {
       setActivePhaseIdx(1);
     } else if (status === "waiting") {
       setActivePhaseIdx(0);
     }
-  }, [status, terminalStatus]);
+  }, [completeStatus, failedStatus, stage, status, waitingForUser]);
 
-  // Soft auto-advance so the UI doesn't feel frozen if status updates lag.
+  // Soft auto-advance only when no backend stage/progress has arrived yet.
   useEffect(() => {
+    if (stage || typeof serverProgress === "number") return;
+    if (completeStatus || failedStatus || waitingForUser) return;
     if (activePhaseIdx >= PHASES.length - 1) return;
     const id = setTimeout(() => setActivePhaseIdx((i) => Math.min(i + 1, PHASES.length - 1)), 12_000);
     return () => clearTimeout(id);
-  }, [activePhaseIdx]);
+  }, [activePhaseIdx, completeStatus, failedStatus, serverProgress, stage, waitingForUser]);
+
+  const progressMessage = (() => {
+    if (failedStatus && error) return error;
+    if (normalizeStatus(status) === "stalled") {
+      return isZh
+        ? "仍在等待检查点或结果，但后台任务最近没有更新。请稍后重试或联系支持。"
+        : "Still waiting for a checkpoint or result, but the background worker has not updated recently.";
+    }
+    if (waitingForUser) {
+      return isZh
+        ? "流程已暂停，等待您或工作人员完成官网上的必要操作。"
+        : "The flow is paused while a required official-portal action is completed.";
+    }
+    if (message) return message;
+    if (activePhase.id === "confirming" && !isVisuallyComplete) {
+      return isZh
+        ? "仍在等待检查点或结果，请稍候。"
+        : "Still waiting for a checkpoint or result. Please wait.";
+    }
+    return isZh
+      ? "该进度会随后台状态自动推进；如果需要你本人操作，会切换到检查点提示。"
+      : "This progress updates with the background worker. If your action is needed, this card will switch to a checkpoint prompt.";
+  })();
 
   return (
     <Card className="rounded-xl border-input">
@@ -99,8 +202,8 @@ export function WaitingCard({
       <CardContent className="space-y-6">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {isZh
-            ? "VIZA 正在代表您处理政府门户的提交流程。确认结果准备好后，本页面会自动更新。"
-            : "We're working with the government portal on your behalf. This page will update automatically when your confirmation is ready."}
+            ? "VIZA 正在使用英文版答案处理官网填写流程。遇到验证码、人工检查点或结果准备好后，本页面会自动更新。"
+            : "VIZA is using your English answers for the official fill flow. This page will update when a CAPTCHA, manual checkpoint, or result is ready."}
         </p>
 
         <div aria-live="polite" className="space-y-3">
@@ -109,23 +212,18 @@ export function WaitingCard({
             label={isZh ? activePhase.labelZh : activePhase.labelEn}
             ariaLabel={isZh ? "提交进度" : "Submission progress"}
             size="md"
+            transitionMs={760}
             trackClassName="bg-muted"
             valueClassName="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"
           />
           <p className="text-xs text-muted-foreground">
-            {activePhase.id === "confirming" && !isVisuallyComplete
-              ? isZh
-                ? "仍在确认提交结果，请稍候。"
-                : "Still confirming the submission result. Please wait."
-              : isZh
-                ? "该进度会随后台状态自动推进，确认码或结果生成后会切换到结果页面。"
-                : "This progress updates with the background worker. When the confirmation or result is ready, this card will switch to the result page."}
+            {progressMessage}
           </p>
         </div>
 
         <ol className="grid gap-2 sm:grid-cols-3" aria-label={isZh ? "提交阶段" : "Submission phases"}>
           {PHASES.map((phase, i) => {
-            const done = i < activePhaseIdx || (terminalStatus && isVisuallyComplete);
+            const done = i < activePhaseIdx || (completeStatus && isVisuallyComplete);
             const active = !done && i === activePhaseIdx;
             return (
               <motion.li

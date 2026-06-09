@@ -23,7 +23,7 @@ import {
   type ApplicationLifecycleStatus,
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
-import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
 import { getFormVisaType } from "@/lib/visa-destinations";
 
@@ -150,10 +150,6 @@ function formatDate(value: string | null, locale: string): string {
   }).format(new Date(value));
 }
 
-function getProgressStatus(status: ApplicationLifecycleStatus): "completed" | "running" {
-  return status === "approved" || status === "rejected" ? "completed" : "running";
-}
-
 function matchesDetailRequest(
   summary: ApplicationLifecycleSummary,
   applicationId?: string | null,
@@ -242,10 +238,8 @@ function SummaryCard({
             <StatusBadge status={summary.status} />
           </div>
 
-          <SmoothProgressMeter
-            serverProgress={summary.progressPercent}
-            status={getProgressStatus(summary.status)}
-            intervalMs={160}
+          <SmoothProgressBar
+            displayedProgress={summary.progressPercent}
             label={t("cardProgress")}
             barClassName={tone.bar}
           />
@@ -580,10 +574,8 @@ function DetailView({
           </div>
         </div>
 
-        <SmoothProgressMeter
-          serverProgress={summary.progressPercent}
-          status={getProgressStatus(summary.status)}
-          intervalMs={160}
+        <SmoothProgressBar
+          displayedProgress={summary.progressPercent}
           label={t("fullCycleProgress")}
           className="mt-6"
           barClassName={tone.bar}

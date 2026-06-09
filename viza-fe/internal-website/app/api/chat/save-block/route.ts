@@ -9,6 +9,54 @@ interface SaveBlockBody {
   applicationId?: string;
   blockType: string;
   data: Record<string, string>;
+  confirmUniversalProfile?: boolean;
+}
+
+const UNIVERSAL_PROFILE_CHAT_SAVE_FIELDS = new Set([
+  "full_name",
+  "full_name_zh",
+  "full_name_en",
+  "surname",
+  "surname_zh",
+  "surname_en",
+  "given_names",
+  "given_names_zh",
+  "given_names_en",
+  "date_of_birth",
+  "place_of_birth",
+  "place_of_birth_zh",
+  "place_of_birth_en",
+  "birth_country",
+  "birth_province_or_state",
+  "birth_province_or_state_zh",
+  "birth_province_or_state_en",
+  "birth_city",
+  "birth_city_zh",
+  "birth_city_en",
+  "gender",
+  "nationality",
+  "occupation",
+  "occupation_zh",
+  "occupation_en",
+  "address",
+  "address_zh",
+  "address_en",
+  "passport_number",
+  "passport_issue_date",
+  "passport_expiry_date",
+  "passport_issuing_country",
+  "passport_issuing_authority",
+  "email",
+  "phone",
+  "wechat",
+]);
+
+function buildConfirmedUniversalProfilePatch(data: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(data)
+      .map(([fieldName, value]) => [fieldName, value.trim()] as const)
+      .filter(([fieldName, value]) => UNIVERSAL_PROFILE_CHAT_SAVE_FIELDS.has(fieldName) && value !== ""),
+  );
 }
 
 async function getAuthUserId(): Promise<string | null> {
@@ -44,10 +92,25 @@ export async function POST(req: NextRequest) {
 
   try {
     if (saveTarget === "applicant_profile") {
+      if (!body.confirmUniversalProfile) {
+        return NextResponse.json(
+          { message: "Explicit Universal Profile confirmation is required" },
+          { status: 400 },
+        );
+      }
+
+      const profilePatch = buildConfirmedUniversalProfilePatch(data);
+      if (Object.keys(profilePatch).length === 0) {
+        return NextResponse.json(
+          { message: "No valid Universal Profile fields to save" },
+          { status: 400 },
+        );
+      }
+
       // Update applicant_profiles where auth_user_id = userId
       const { error } = await supabase
         .from("applicant_profiles")
-        .update(data)
+        .update({ ...profilePatch, updated_at: new Date().toISOString() })
         .eq("auth_user_id", userId);
 
       if (error) {

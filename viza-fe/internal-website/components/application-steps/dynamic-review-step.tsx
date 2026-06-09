@@ -127,6 +127,18 @@ export function DynamicReviewStep({
   const isZh = isChineseLocale(locale);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const actionLabel = continueLabel ?? t("review.continueToTeam");
+  const validationFieldLabels = useMemo(() => {
+    const labels: Record<string, { zh: string; en: string }> = {};
+    for (const step of dbSteps) {
+      for (const field of step.fields) {
+        labels[field.fieldName] = {
+          zh: getReviewSourceLabel(field),
+          en: getReviewOfficialLabel(field),
+        };
+      }
+    }
+    return labels;
+  }, [dbSteps]);
 
   /**
    * Format a field's stored value for display.
@@ -279,6 +291,7 @@ export function DynamicReviewStep({
           <ValidationPanel
             applicationId={applicationId}
             onProceed={() => setDisclaimerOpen(true)}
+            fieldLabels={validationFieldLabels}
           />
           <SubmissionDisclaimerDialog
             open={disclaimerOpen}

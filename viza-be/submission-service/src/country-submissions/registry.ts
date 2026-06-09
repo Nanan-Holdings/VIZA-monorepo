@@ -259,7 +259,7 @@ const CONFIGS: ProviderConfig[] = [
       ...VN_REQUIRED_FIELDS,
     ],
     includeAllAnswersInPayload: true,
-    dryRunConfirmationPrefix: "DRYRUN-VIETNAM",
+    dryRunConfirmationPrefix: "DRYRUN-VN",
     notes: "Dry-run validates the VN_E_VISA answer schema and runner is designed to halt before pay/submit; email-PDF capture remains deferred.",
   },
   {
@@ -629,7 +629,7 @@ function buildDryRunConfirmation(
   prefix?: string,
 ): string {
   const compactId = applicationId.replace(/[^a-z0-9]/gi, "").slice(0, 12).toUpperCase();
-  const timestampedPrefixes = new Set(["DRYRUN-DS160", "DRYRUN-VIETNAM"]);
+  const timestampedPrefixes = new Set(["DRYRUN-DS160", "DRYRUN-VN"]);
   const timestamp = prefix && timestampedPrefixes.has(prefix)
     ? `-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`
     : "";
