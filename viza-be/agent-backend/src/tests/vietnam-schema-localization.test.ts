@@ -52,8 +52,9 @@ describe("Vietnam e-Visa schema localization seed", () => {
   });
 
   test("Vietnam option seeding writes bilingual display labels without changing values", () => {
-    expect(seedSource).toContain("label_zh: OPTION_LABEL_ZH[option.value]");
-    expect(seedSource).toContain("label_en: option.text");
+    expect(seedSource).toContain("label_zh:");
+    expect(seedSource).toContain("OPTION_LABEL_ZH[option.value]");
+    expect(seedSource).toContain("label_en: option.label_en ?? option.text");
     expect(seedSource).toContain("official_label: option.official_label ?? option.text");
     expect(seedSource).toContain('single: "单次入境"');
     expect(seedSource).toContain('ordinary_passport: "普通护照"');
