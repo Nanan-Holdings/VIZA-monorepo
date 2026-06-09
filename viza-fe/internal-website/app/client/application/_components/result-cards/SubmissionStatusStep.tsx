@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import { AlertTriangle, FlaskConical } from "lucide-react";
 import type {
@@ -11,7 +11,11 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { WaitingCard } from "./WaitingCard";
+import {
+  WaitingCard,
+  type SubmissionVisualStage,
+  type SubmissionVisualStatus,
+} from "./WaitingCard";
 import { FailureCard } from "./FailureCard";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
@@ -19,6 +23,7 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
+import type { SubmissionMode } from "@/lib/submission-queue";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -26,11 +31,83 @@ interface SubmissionStatusStepProps {
   result: SubmissionResult | null;
 }
 
+interface SubmissionStatusSnapshot {
+  status: SubmissionVisualStatus;
+  stage: SubmissionVisualStage;
+  progress: number;
+  message: string | null;
+  result: SubmissionResult | null;
+  error: string | null;
+  updatedAt: string | null;
+  applicationStatus: SubmissionResultStatus | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeStatus(status: string | null | undefined): string {
+  return (status ?? "").trim().toLowerCase();
+}
+
+function visualStatusFromApplication(status: SubmissionResultStatus | null): SubmissionVisualStatus {
+  const normalized = normalizeStatus(status);
+  if (!normalized || normalized === "waiting") return "queued";
+  if (normalized === "processing") return "running";
+  if (normalized === "failed") return "failed";
+  if (normalized === "stalled") return "stalled";
+  if (
+    normalized === "needs_user_action" ||
+    normalized === "action_required" ||
+    normalized === "stopped_at_sign" ||
+    normalized === "stopped_at_pay" ||
+    normalized === "stopped_at_review" ||
+    normalized === "unsupported"
+  ) {
+    return "needs_user_action";
+  }
+  return "completed";
+}
+
+function fallbackProgressForStatus(status: SubmissionVisualStatus): number {
+  switch (status) {
+    case "completed":
+      return 100;
+    case "needs_user_action":
+    case "stalled":
+      return 99;
+    case "running":
+      return 67;
+    case "queued":
+      return 12;
+    case "failed":
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function extractError(result: SubmissionResult | null, fallback?: string | null): string | undefined {
+  if (isRecord(result) && typeof result.error === "string" && result.error.trim()) {
+    return result.error.trim();
+  }
+  return fallback?.trim() || undefined;
+}
+
+function isSnapshot(value: unknown): value is SubmissionStatusSnapshot {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.status === "string" &&
+    typeof value.stage === "string" &&
+    typeof value.progress === "number"
+  );
+}
+
 function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
-  const Icon = unsupported ? AlertTriangle : FlaskConical;
+  const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = actionRequired
     ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
@@ -103,50 +180,170 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
 }
 
 /**
- * Drives the final wizard step based on `applications.submission_result_status`
- * and `applications.submission_result`. The realtime subscription on
- * `applications` (page.tsx loadData) refreshes both whenever the runner
- * writes them, so this component re-renders without polling.
+ * Drives the final wizard step from the same-origin submission-status API,
+ * with the parent application's realtime props as a terminal-state fallback.
+ * Completed results wait until the visual progress reaches 100; failed and
+ * needs_user_action states stop immediately.
  */
 export function SubmissionStatusStep({
   applicationId,
   status,
   result,
 }: SubmissionStatusStepProps) {
-  const [showTerminalResult, setShowTerminalResult] = useState(false);
+  const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
+  const [showCompletedResult, setShowCompletedResult] = useState(false);
+
   const handleRetry = useCallback(async () => {
     if (!applicationId) return;
+    const retrySource = snapshot?.result ?? result;
+    const retryMode: SubmissionMode =
+      retrySource && "mode" in retrySource && retrySource.mode === "live_assisted"
+        ? "live_assisted"
+        : "dry_run";
     await fetch(`/api/applications/${applicationId}/retry-submission`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: retryMode }),
     });
-  }, [applicationId]);
+    setSnapshot(null);
+    setShowCompletedResult(false);
+  }, [applicationId, result, snapshot?.result]);
 
-  const hasTerminalResult = Boolean(
-    result && status !== "waiting" && status !== "processing" && status !== null && status !== "failed",
+  const fallbackVisualStatus = useMemo(
+    () => visualStatusFromApplication(status),
+    [status],
   );
+  const terminalPropsAvailable =
+    Boolean(result) && fallbackVisualStatus !== "queued" && fallbackVisualStatus !== "running";
+  const effectiveStatus = terminalPropsAvailable
+    ? fallbackVisualStatus
+    : snapshot?.status ?? fallbackVisualStatus;
+  const effectiveStage =
+    snapshot?.stage ??
+    (effectiveStatus === "queued"
+      ? "preparing"
+      : effectiveStatus === "running"
+        ? "filling_form"
+        : effectiveStatus === "failed"
+          ? "failed"
+          : effectiveStatus === "completed"
+            ? "completed"
+            : "confirming_result");
+  const effectiveProgress =
+    snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus);
+  const effectiveResult = terminalPropsAvailable ? result : snapshot?.result ?? result;
+  const effectiveError = extractError(effectiveResult, snapshot?.error);
+  const effectiveApplicationStatus = terminalPropsAvailable
+    ? status
+    : snapshot?.applicationStatus ?? status;
+  const completedWithResult = effectiveStatus === "completed" && Boolean(effectiveResult);
+  const actionWithResult = effectiveStatus === "needs_user_action" && Boolean(effectiveResult);
+  const failed = effectiveStatus === "failed" || effectiveApplicationStatus === "failed";
 
   useEffect(() => {
-    if (!hasTerminalResult) setShowTerminalResult(false);
-  }, [hasTerminalResult, status]);
+    setSnapshot(null);
+    setShowCompletedResult(false);
+  }, [applicationId]);
 
-  if (status === "failed") {
-    const errBag = result as unknown as Record<string, unknown> | null;
-    const errMessage =
-      errBag && typeof errBag.error === "string" ? errBag.error : undefined;
+  useEffect(() => {
+    if (effectiveStatus !== "completed") {
+      setShowCompletedResult(false);
+    }
+  }, [effectiveStatus]);
+
+  useEffect(() => {
+    if (!applicationId) return;
+    if (completedWithResult || actionWithResult || failed) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/applications/${applicationId}/submission-status`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(`submission-status returned ${response.status}`);
+        }
+        const body: unknown = await response.json();
+        if (!isSnapshot(body)) return;
+        if (!cancelled) {
+          setSnapshot({
+            status: body.status,
+            stage: body.stage,
+            progress: body.progress,
+            message: typeof body.message === "string" ? body.message : null,
+            result: (body.result as SubmissionResult | null) ?? null,
+            error: typeof body.error === "string" ? body.error : null,
+            updatedAt: typeof body.updatedAt === "string" ? body.updatedAt : null,
+            applicationStatus:
+              typeof body.applicationStatus === "string"
+                ? (body.applicationStatus as SubmissionResultStatus)
+                : null,
+          });
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setSnapshot((current) => ({
+          status: "stalled",
+          stage: "confirming_result",
+          progress: Math.max(current?.progress ?? 0, 99),
+          message: "Still confirming the submission result.",
+          result: current?.result ?? result,
+          error: message,
+          updatedAt: current?.updatedAt ?? null,
+          applicationStatus: current?.applicationStatus ?? status,
+        }));
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    actionWithResult,
+    applicationId,
+    completedWithResult,
+    failed,
+    result,
+    status,
+  ]);
+
+  if (failed) {
     return (
       <FailureCard
         applicationId={applicationId ?? undefined}
-        errorMessage={errMessage}
+        errorMessage={effectiveError}
         onRetry={handleRetry}
       />
     );
   }
 
-  if (!result || !hasTerminalResult || !showTerminalResult) {
-    return <WaitingCard status={status} onVisualComplete={() => setShowTerminalResult(true)} />;
+  if (actionWithResult || (completedWithResult && showCompletedResult)) {
+    return renderSubmissionResultCard(applicationId, effectiveResult);
   }
 
-  // Terminal status renders the per-country card or a generic dry-run card.
+  return (
+    <WaitingCard
+      status={effectiveStatus}
+      stage={effectiveStage}
+      serverProgress={effectiveProgress}
+      message={snapshot?.message}
+      error={effectiveError}
+      onVisualComplete={() => setShowCompletedResult(true)}
+    />
+  );
+}
+
+function renderSubmissionResultCard(
+  applicationId: string | null,
+  result: SubmissionResult | null,
+) {
+  if (!result) return <WaitingCard status="running" />;
+
   switch (result.country) {
     case "US":
       return <UsResultCard applicationId={applicationId ?? undefined} result={result} />;
@@ -171,6 +368,6 @@ export function SubmissionStatusStep({
     case "GENERIC":
       return <GenericResultCard result={result} />;
     default:
-      return <WaitingCard status={status} />;
+      return <WaitingCard status="running" />;
   }
 }

@@ -209,6 +209,24 @@ export const applicationDocuments = pgTable("application_documents", {
 	hashIdx: index("application_documents_hash_idx").on(table.documentHash),
 }));
 
+export const universalProfileDocuments = pgTable("universal_profile_documents", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id"),
+	documentType: text("document_type").notNull(),
+	storagePath: text("storage_path").notNull(),
+	filename: text("filename"),
+	status: text("status").default("uploaded").notNull(),
+	sourceApplicationId: uuid("source_application_id"),
+	metadata: jsonb("metadata"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	applicantTypeIdx: uniqueIndex("universal_profile_documents_applicant_type_idx").on(table.applicantId, table.documentType),
+	authUserIdx: index("universal_profile_documents_auth_user_idx").on(table.authUserId),
+	sourceApplicationIdx: index("universal_profile_documents_source_app_idx").on(table.sourceApplicationId),
+}));
+
 // =============================================================================
 // SUBMISSION QUEUE
 // Tracks automation submissions to evisa.imigrasi.go.id
@@ -251,11 +269,25 @@ export const submissionQueue = pgTable("submission_queue", {
 	lastError: text("last_error"),
 	pausedReason: text("paused_reason"),
 	officialApplicationIdEncrypted: text("official_application_id_encrypted"),
+	officialApplicationReferenceEncrypted: text("official_application_reference_encrypted"),
 	officialConfirmationNumberEncrypted: text("official_confirmation_number_encrypted"),
 	officialSecurityQuestionEncrypted: text("official_security_question_encrypted"),
 	officialSecurityAnswerEncrypted: text("official_security_answer_encrypted"),
 	officialLocation: text("official_location"),
+	officialAccountEmailEncrypted: text("official_account_email_encrypted"),
+	officialReceiptUrl: text("official_receipt_url"),
+	officialCerfaPdfUrl: text("official_cerfa_pdf_url"),
+	officialConfirmationScreenshotUrl: text("official_confirmation_screenshot_url"),
+	officialReviewSnapshotId: uuid("official_review_snapshot_id"),
 	reviewDiffStatus: text("review_diff_status").default("not_run"),
+	manualActionStatus: text("manual_action_status"),
+	filingLocation: text("filing_location"),
+	externalServiceProvider: text("external_service_provider"),
+	appointmentStatus: text("appointment_status"),
+	paymentStatus: text("payment_status"),
+	officialStatus: text("official_status"),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
 	finalUserConfirmationAt: timestamp("final_user_confirmation_at", { withTimezone: true }),
 	finalUserConfirmationIpHash: text("final_user_confirmation_ip_hash"),
 	finalUserConfirmationUserAgentHash: text("final_user_confirmation_user_agent_hash"),
@@ -356,6 +388,26 @@ export const ds160LiveManualActions = pgTable("ds160_live_manual_actions", {
 	applicationIdx: index("ds160_live_manual_actions_application_idx").on(table.applicationId),
 	statusIdx: index("ds160_live_manual_actions_status_idx").on(table.status),
 	typeIdx: index("ds160_live_manual_actions_type_idx").on(table.actionType),
+}));
+
+export const franceLiveManualActions = pgTable("france_live_manual_actions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	actionType: text("action_type").notNull(),
+	status: text("status").notNull().default("pending"),
+	instruction: text("instruction"),
+	screenshotUrl: text("screenshot_url"),
+	redactedMetadataJson: jsonb("redacted_metadata_json").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+}, (table) => ({
+	jobIdx: index("france_live_manual_actions_job_idx").on(table.jobId),
+	applicationIdx: index("france_live_manual_actions_application_idx").on(table.applicationId),
+	statusIdx: index("france_live_manual_actions_status_idx").on(table.status),
+	typeIdx: index("france_live_manual_actions_type_idx").on(table.actionType),
 }));
 
 // =============================================================================
@@ -645,6 +697,9 @@ export type NewApplication = typeof applications.$inferInsert;
 export type ApplicationDocument = typeof applicationDocuments.$inferSelect;
 export type NewApplicationDocument = typeof applicationDocuments.$inferInsert;
 
+export type UniversalProfileDocument = typeof universalProfileDocuments.$inferSelect;
+export type NewUniversalProfileDocument = typeof universalProfileDocuments.$inferInsert;
+
 export type SubmissionQueueItem = typeof submissionQueue.$inferSelect;
 export type NewSubmissionQueueItem = typeof submissionQueue.$inferInsert;
 
@@ -903,12 +958,33 @@ export const visaApplicationAnswers = pgTable("visa_application_answers", {
   fieldName: text("field_name").notNull(),
   valueText: text("value_text"),
   valueJson: jsonb("value_json"),
+  source: text("source"),
+  sourceProfileUpdatedAt: timestamp("source_profile_updated_at", { withTimezone: true }),
+  sourceMetadata: jsonb("source_metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export type VisaApplicationAnswer = typeof visaApplicationAnswers.$inferSelect;
 export type NewVisaApplicationAnswer = typeof visaApplicationAnswers.$inferInsert;
+
+export const applicationProfileSnapshots = pgTable("application_profile_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  applicantId: uuid("applicant_id").notNull(),
+  profileId: uuid("profile_id").notNull(),
+  source: text("source").notNull().default("universal_profile"),
+  profileUpdatedAt: timestamp("profile_updated_at", { withTimezone: true }),
+  snapshotJson: jsonb("snapshot_json").notNull().default({}),
+  answerKeys: text("answer_keys").array().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  applicationIdx: uniqueIndex("application_profile_snapshots_application_idx").on(table.applicationId),
+  applicantIdx: index("application_profile_snapshots_applicant_idx").on(table.applicantId),
+}));
+
+export type ApplicationProfileSnapshot = typeof applicationProfileSnapshots.$inferSelect;
+export type NewApplicationProfileSnapshot = typeof applicationProfileSnapshots.$inferInsert;
 
 // =============================================================================
 // SHARED PROFILE FIELDS

@@ -264,7 +264,7 @@ test("registry: Vietnam dry-run uses deterministic Vietnam confirmation", async 
   assert.equal(result.status, "submitted_mock");
   assert.equal(result.mode, "dry_run");
   assert.equal(result.targetCountry, "VN");
-  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VIETNAM-111111112222-\d{14}$/);
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VN-111111112222-\d{14}$/);
 });
 
 test("registry: missing required fields fail validation cleanly", async () => {

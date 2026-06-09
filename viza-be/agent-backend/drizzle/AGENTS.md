@@ -65,6 +65,12 @@ The current internal automation migrations are:
 - `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
   requirements and bilingual label metadata so the app uses official materials
   instead of generic fallback requirements.
+- `0095_france_live_assisted_controls.sql`: France-Visas live assisted queue
+  fields and manual checkpoint table. Dry-run remains default and final
+  validation, payment, and appointment booking remain applicant-controlled.
+- `0095_universal_profile_documents.sql`: reusable Universal Profile passport
+  document records, creation-time application profile snapshots, and answer
+  source metadata for profile autofill provenance.
 
 ## Guardrails
 

@@ -16,9 +16,13 @@
  *                            externally; PDF arrives by email post-approval
  *   - registered             UK: account registered, application not yet started
  *   - appointment_held       FR: appointment slot tentatively held pre-payment
+ *   - final_review_required FR: official draft created; applicant/operator
+ *                            must review before final validation/payment
  *   - submitted_mock         Dry-run only: internal lifecycle completed without
  *                            touching an official portal
  *   - unsupported            Controlled unsupported-country state
+ *   - needs_user_action      Safe halt at a human checkpoint such as payment,
+ *                            CAPTCHA, final review, or applicant submit
  */
 
 export type SubmissionResult =
@@ -47,8 +51,34 @@ export interface UsSubmissionResult {
 
 export interface FrSubmissionResult {
   country: "FR";
-  status: "appointment_held" | "stopped_at_pay";
+  status: "appointment_held" | "stopped_at_pay" | "final_review_required";
+  mode?: "dry_run" | "live_assisted";
+  provider?: "france_visas_dry_run" | "france_visas_live";
   applicationReference: string;
+  reviewDiffStatus?: "not_run" | "passed" | "failed";
+  manualAction?: {
+    type:
+      | "captcha"
+      | "login_required"
+      | "account_creation_required"
+      | "email_verification_required"
+      | "final_review_required"
+      | "final_validation_required"
+      | "payment_required"
+      | "appointment_required"
+      | "layout_changed"
+      | "official_portal_error";
+    status: "open" | "completed";
+    instructions: string;
+  };
+  paymentStatus?: "not_required" | "manual_required" | "blocked" | "paid";
+  appointmentStatus?: "not_required" | "manual_required" | "blocked" | "booked";
+  officialStatus?:
+    | "draft_prefilled"
+    | "official_record_created"
+    | "appointment_required"
+    | "payment_required"
+    | "lodged_at_visa_centre";
   appointment?: {
     centerName: string;
     address: string;
@@ -129,6 +159,9 @@ export interface GenericSubmissionResult {
 export type SubmissionResultStatus =
   | "waiting"
   | "processing"
+  | "needs_user_action"
+  | "completed"
+  | "stalled"
   | "submitted"
   | "submitted_mock"
   | "unsupported"
@@ -136,5 +169,6 @@ export type SubmissionResultStatus =
   | "stopped_at_sign"
   | "stopped_at_pay"
   | "stopped_at_review"
+  | "final_review_required"
   | "form_ready_for_agency"
   | "failed";

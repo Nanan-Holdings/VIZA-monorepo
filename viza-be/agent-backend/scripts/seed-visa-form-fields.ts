@@ -9,6 +9,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
+import { toBilingualSeedRow } from "./bilingual-seed-row";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,8 +69,7 @@ async function seed() {
       );
     }
 
-    return {
-      visa_type: "B211A",
+    return toBilingualSeedRow("B211A", {
       field_name: f.field_name,
       label: f.label || f.field_name,
       field_type: f.field_type,
@@ -81,7 +81,7 @@ async function seed() {
       validation_rules: f.validation_rules ?? null,
       options: options ?? null,
       conditional_logic: f.conditional_logic ? { description: f.conditional_logic } : null,
-    };
+    });
   });
 
   const BATCH = 10;
