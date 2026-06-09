@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useLocale } from "next-intl";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
+import { SmoothProgressBar } from "@/components/smooth-progress";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { normalizeBirthplace } from "@/lib/birthplace-options";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -235,8 +237,17 @@ const SCAN_STAGES: ScanStage[] = ["reading", "extracting", "verifying"];
 
 function stageFromStatus(status: UploadStatus): ScanStage {
   if (status === "uploading") return "reading";
-  if (status === "verifying") return "verifying";
+  if (status === "verifying" || status === "done") return "verifying";
   return "extracting";
+}
+
+function progressFromStatus(status: UploadStatus): number {
+  if (status === "uploading") return 24;
+  if (status === "uploaded") return 36;
+  if (status === "ocr") return 72;
+  if (status === "verifying") return 92;
+  if (status === "done") return 100;
+  return 0;
 }
 
 function ScanDocumentPreview() {
@@ -258,9 +269,11 @@ function ScanDocumentPreview() {
 function ScanProgressPanel({
   stage,
   copy,
+  displayedProgress,
 }: {
   stage: ScanStage;
   copy: typeof PASSPORT_OCR_COPY.en | typeof PASSPORT_OCR_COPY.zh;
+  displayedProgress: number;
 }) {
   const activeIndex = SCAN_STAGES.indexOf(stage);
   const labels: Record<ScanStage, string> = {
@@ -273,6 +286,13 @@ function ScanProgressPanel({
     <div className="grid gap-8 rounded-xl border border-brand-100 bg-gradient-to-br from-brand-50/60 to-brand-100/70 p-6 sm:grid-cols-[180px,1fr] sm:items-center">
       <ScanDocumentPreview />
       <div className="flex min-w-0 flex-col gap-3">
+        <SmoothProgressBar
+          displayedProgress={displayedProgress}
+          label={labels[stage]}
+          ariaLabel={labels[stage]}
+          size="md"
+          trackClassName="bg-white/70"
+        />
         {SCAN_STAGES.map((item, index) => {
           const done = activeIndex > index;
           const active = activeIndex === index;
@@ -336,6 +356,23 @@ export function PassportOcrUpload({
   const [isDragging, setIsDragging] = useState(false);
 
   const busy = status === "uploading" || status === "ocr" || status === "verifying";
+  const {
+    displayedProgress,
+    isVisuallyComplete,
+  } = useSmoothProgress({
+    serverProgress: progressFromStatus(status),
+    status:
+      status === "done"
+        ? "completed"
+        : status === "error"
+          ? "failed"
+          : status === "needs_review"
+            ? "needs_user_action"
+            : busy || status === "uploaded"
+              ? "running"
+              : "waiting_for_user",
+    intervalMs: 100,
+  });
 
   useEffect(() => {
     if (!initialUploaded || busy) return;
@@ -452,8 +489,8 @@ export function PassportOcrUpload({
         ) : null}
       </header>
 
-      {busy ? (
-        <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} />
+      {busy || (status === "done" && !isVisuallyComplete) ? (
+        <ScanProgressPanel stage={stageFromStatus(status)} copy={copy} displayedProgress={displayedProgress} />
       ) : status === "done" || status === "uploaded" || status === "needs_review" ? (
         <div className="flex flex-col gap-5">
           <div

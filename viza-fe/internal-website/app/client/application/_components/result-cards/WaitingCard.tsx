@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
@@ -33,7 +35,11 @@ const PHASES: Phase[] = [
   },
 ];
 
-const PHASE_PROGRESS = [34, 67, 92] as const;
+const PHASE_PROGRESS = [34, 67, 99] as const;
+
+function isTerminalStatus(status: SubmissionResultStatus | null): boolean {
+  return Boolean(status && status !== "waiting" && status !== "processing" && status !== "failed");
+}
 
 /**
  * WaitingCard — renders while applications.submission_result_status is
@@ -41,20 +47,39 @@ const PHASE_PROGRESS = [34, 67, 92] as const;
  * subscription on `applications` will cut the user over to a result card
  * the moment the runner writes the terminal payload.
  */
-export function WaitingCard({ status }: { status: SubmissionResultStatus | null }) {
+export function WaitingCard({
+  status,
+  onVisualComplete,
+}: {
+  status: SubmissionResultStatus | null;
+  onVisualComplete?: () => void;
+}) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
-  const progressPercent = PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+  const terminalStatus = isTerminalStatus(status);
+  const serverProgress = terminalStatus ? 100 : PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+  const {
+    displayedProgress,
+    isVisuallyComplete,
+  } = useSmoothProgress({
+    serverProgress,
+    status: terminalStatus ? "completed" : status === "failed" ? "failed" : "running",
+    intervalMs: 350,
+    initialProgress: terminalStatus ? 92 : 0,
+    onVisualComplete,
+  });
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
 
   useEffect(() => {
-    if (status === "processing") {
+    if (terminalStatus) {
+      setActivePhaseIdx(PHASES.length - 1);
+    } else if (status === "processing") {
       setActivePhaseIdx(1);
     } else if (status === "waiting") {
       setActivePhaseIdx(0);
     }
-  }, [status]);
+  }, [status, terminalStatus]);
 
   // Soft auto-advance so the UI doesn't feel frozen if status updates lag.
   useEffect(() => {
@@ -79,40 +104,29 @@ export function WaitingCard({ status }: { status: SubmissionResultStatus | null 
         </p>
 
         <div aria-live="polite" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">
-              {isZh ? activePhase.labelZh : activePhase.labelEn}
-            </p>
-            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
-              {progressPercent}%
-            </span>
-          </div>
-          <div
-            aria-label={isZh ? "提交进度" : "Submission progress"}
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={progressPercent}
-            className="h-2.5 overflow-hidden rounded-full bg-muted"
-            role="progressbar"
-          >
-            <motion.div
-              animate={{ width: `${progressPercent}%` }}
-              className="h-full rounded-full bg-brand-500"
-              initial={false}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
-          </div>
+          <SmoothProgressBar
+            displayedProgress={displayedProgress}
+            label={isZh ? activePhase.labelZh : activePhase.labelEn}
+            ariaLabel={isZh ? "提交进度" : "Submission progress"}
+            size="md"
+            trackClassName="bg-muted"
+            valueClassName="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"
+          />
           <p className="text-xs text-muted-foreground">
-            {isZh
-              ? "该进度会随后台状态自动推进，确认码或结果生成后会切换到结果页面。"
-              : "This progress updates with the background worker. When the confirmation or result is ready, this card will switch to the result page."}
+            {activePhase.id === "confirming" && !isVisuallyComplete
+              ? isZh
+                ? "仍在确认提交结果，请稍候。"
+                : "Still confirming the submission result. Please wait."
+              : isZh
+                ? "该进度会随后台状态自动推进，确认码或结果生成后会切换到结果页面。"
+                : "This progress updates with the background worker. When the confirmation or result is ready, this card will switch to the result page."}
           </p>
         </div>
 
         <ol className="grid gap-2 sm:grid-cols-3" aria-label={isZh ? "提交阶段" : "Submission phases"}>
           {PHASES.map((phase, i) => {
-            const done = i < activePhaseIdx;
-            const active = i === activePhaseIdx;
+            const done = i < activePhaseIdx || (terminalStatus && isVisuallyComplete);
+            const active = !done && i === activePhaseIdx;
             return (
               <motion.li
                 key={phase.id}

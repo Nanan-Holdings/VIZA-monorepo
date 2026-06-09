@@ -12,6 +12,7 @@ import {
   saveUniversalProfileWithSharedAnswers,
 } from "@/app/actions/visa-application-answers";
 import { loadUniversalProfilePassportUploadStatus } from "@/app/client/documents/actions";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -1515,16 +1516,14 @@ export default function UniversalInfoPage() {
               </div>
             </div>
             <div className="min-w-[180px] rounded-[14px] border border-[#d7e3f2] bg-white p-4">
-              <div className="flex items-center justify-between text-[13px] font-medium text-[#526174]">
-                <span>{copy(isZh, "完整度", "Completeness")}</span>
-                <span>{completionPercent}%</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#edf2f7]">
-                <div
-                  className="h-full rounded-full bg-[#03346E] transition-all duration-500"
-                  style={{ width: `${completionPercent}%` }}
-                />
-              </div>
+              <SmoothProgressMeter
+                serverProgress={completionPercent}
+                status={completionPercent >= 100 ? "completed" : "running"}
+                intervalMs={140}
+                label={copy(isZh, "完整度", "Completeness")}
+                labelClassName="text-[13px] font-medium text-[#526174]"
+                trackClassName="bg-[#edf2f7]"
+              />
               <p className="mt-2 text-[12px] text-[#667085]">
                 {isZh
                   ? `${completedCount}/${completionTotal} 项已保存`

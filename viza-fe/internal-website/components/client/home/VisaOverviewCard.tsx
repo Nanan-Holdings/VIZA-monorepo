@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type { JourneyOverview, JourneyVisaPackage } from "@/app/actions/application-journey";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 interface Props {
   visaPackage: JourneyVisaPackage | null;
@@ -54,23 +55,23 @@ export function VisaOverviewCard({ visaPackage, overview, hasApplication }: Prop
         </div>
 
         <div className="w-full space-y-3">
-          <div className="flex items-baseline justify-between text-white">
-            <span className="text-[13px] text-[rgba(255,255,255,0.65)]">
-              {hasApplication
+          <SmoothProgressMeter
+            serverProgress={progress}
+            status={progress >= 100 ? "completed" : hasApplication ? "running" : "waiting_for_user"}
+            intervalMs={140}
+            label={
+              hasApplication
                 ? t("home.overview.phaseOfTotal", {
                     current: overview.currentPhaseIndex + 1,
                     total: overview.totalPhases,
                   })
-                : t("home.overview.notStartedYet")}
-            </span>
-            <span className="text-[13px] font-medium">{progress}%</span>
-          </div>
-          <div className="w-full bg-[rgba(255,255,255,0.2)] rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-white rounded-full h-2 transition-all duration-700"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+                : t("home.overview.notStartedYet")
+            }
+            labelClassName="text-[13px] text-[rgba(255,255,255,0.65)]"
+            valueClassName="text-[13px] font-medium text-white"
+            trackClassName="bg-[rgba(255,255,255,0.2)]"
+            barClassName="bg-white"
+          />
           <p className="font-heading text-white text-[15px] leading-tight truncate">{phaseTitle}</p>
           <p className="text-[rgba(255,255,255,0.65)] text-[13px]">
             {hasApplication ? t("home.overview.etaLabel") : t("home.overview.estimatedTotal")}

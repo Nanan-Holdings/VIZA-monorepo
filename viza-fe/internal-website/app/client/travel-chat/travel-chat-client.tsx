@@ -53,10 +53,12 @@ import {
   TripRouteMap,
   type TripMapPoint,
 } from "@/components/client/travel/trip-route-map";
+import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import {
   FORM_PAYLOAD_PREFIX,
   buildTravelStateFromMessages,
@@ -3026,7 +3028,7 @@ function getHotspotsForCity(city: string): string[] {
 }
 
 function buildProgressItems(
-  progressPercent: number,
+  displayedProgress: number,
   state: ReturnType<typeof buildTravelStateFromMessages>,
   isZh: boolean
 ): ProgressItem[] {
@@ -3088,10 +3090,10 @@ function buildProgressItems(
     {
       id: "final",
       label: isZh ? "整体进度" : "Overall progress",
-      done: progressPercent >= 100,
+      done: displayedProgress >= 100,
       detail: isZh
-        ? `完成 ${progressPercent}%`
-        : `${progressPercent}% complete`,
+        ? `完成 ${displayedProgress}%`
+        : `${displayedProgress}% complete`,
     },
   ];
 }
@@ -3305,6 +3307,11 @@ export function TravelChatClient({
     () => Math.round((stageIndex / TRAVEL_STAGE_ORDER.length) * 100),
     [stageIndex]
   );
+  const { displayedProgress } = useSmoothProgress({
+    serverProgress: progressPercent,
+    status: progressPercent >= 100 ? "completed" : "running",
+    intervalMs: 140,
+  });
   const orderedCities = useMemo(() => {
     const order = travelState.travel_order.filter((city) =>
       travelState.cities.includes(city)
@@ -3405,8 +3412,8 @@ export function TravelChatClient({
   ]);
 
   const progressItems = useMemo(
-    () => buildProgressItems(progressPercent, displayTravelState, isZh),
-    [displayTravelState, isZh, progressPercent]
+    () => buildProgressItems(displayedProgress, displayTravelState, isZh),
+    [displayTravelState, displayedProgress, isZh]
   );
   const completedProgressCount = useMemo(
     () => progressItems.filter((item) => item.done).length,
@@ -5449,16 +5456,18 @@ export function TravelChatClient({
                       </p>
                     </div>
                     <Badge className="shrink-0 bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
-                      {progressPercent}%
+                      {displayedProgress}%
                     </Badge>
                   </div>
 
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-[#03346E]"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
+                  <SmoothProgressBar
+                    displayedProgress={displayedProgress}
+                    showValue={false}
+                    className="mt-2"
+                    trackClassName="bg-slate-100"
+                    barClassName="bg-[#03346E]"
+                    size="xs"
+                  />
 
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                     <Badge variant="outline">

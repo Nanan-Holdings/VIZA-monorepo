@@ -36,6 +36,7 @@ import {
   type StatusStepKey,
   type StatusStepState,
 } from "./status-data";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 type SearchParams = Promise<{
   applicationId?: string | string[];
@@ -212,6 +213,10 @@ function StatusBadge({
   );
 }
 
+function getProgressStatus(state: ClientStatusState): "completed" | "running" {
+  return state === "approved" || state === "rejected" ? "completed" : "running";
+}
+
 function StatPanel({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <div className="rounded-[8px] border border-[#e7edf5] bg-white p-4 shadow-sm">
@@ -262,15 +267,13 @@ function ApplicationCard({
         <StatusBadge state={application.state} t={t} />
       </div>
 
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center justify-between text-[12px] font-semibold text-[#526174]">
-          <span>{t("progress")}</span>
-          <span>{application.progressPercent}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#eef3fa]">
-          <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${application.progressPercent}%` }} />
-        </div>
-      </div>
+      <SmoothProgressMeter
+        serverProgress={application.progressPercent}
+        status={getProgressStatus(application.state)}
+        intervalMs={160}
+        label={t("progress")}
+        className="mt-4"
+      />
 
       <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#66758a]">
         <span>{t("updated")}</span>
@@ -464,15 +467,13 @@ function DetailView({
           </div>
         </div>
 
-        <div className="mt-6 space-y-2">
-          <div className="flex items-center justify-between text-[12px] font-semibold text-[#526174]">
-            <span>{t("progress")}</span>
-            <span>{application.progressPercent}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#eef3fa]">
-            <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${application.progressPercent}%` }} />
-          </div>
-        </div>
+        <SmoothProgressMeter
+          serverProgress={application.progressPercent}
+          status={getProgressStatus(application.state)}
+          intervalMs={160}
+          label={t("progress")}
+          className="mt-6"
+        />
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">

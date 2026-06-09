@@ -39,6 +39,7 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -1089,16 +1090,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                     {t("profile.completionHint")}
                   </p>
                 </div>
-                <span className="text-2xl font-semibold text-brand-700">
-                  {profileCompletion}%
-                </span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                <div
-                  className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                  style={{ width: `${profileCompletion}%` }}
-                />
-              </div>
+              <SmoothProgressMeter
+                serverProgress={profileCompletion}
+                status={profileCompletion >= 100 ? "completed" : "running"}
+                intervalMs={140}
+                className="mt-3"
+                labelClassName="justify-end"
+                valueClassName="text-2xl font-semibold text-brand-700"
+                trackClassName="bg-white"
+              />
             </div>
           </div>
         </motion.div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { AlertTriangle, FlaskConical } from "lucide-react";
 import type {
@@ -113,12 +113,21 @@ export function SubmissionStatusStep({
   status,
   result,
 }: SubmissionStatusStepProps) {
+  const [showTerminalResult, setShowTerminalResult] = useState(false);
   const handleRetry = useCallback(async () => {
     if (!applicationId) return;
     await fetch(`/api/applications/${applicationId}/retry-submission`, {
       method: "POST",
     });
   }, [applicationId]);
+
+  const hasTerminalResult = Boolean(
+    result && status !== "waiting" && status !== "processing" && status !== null && status !== "failed",
+  );
+
+  useEffect(() => {
+    if (!hasTerminalResult) setShowTerminalResult(false);
+  }, [hasTerminalResult, status]);
 
   if (status === "failed") {
     const errBag = result as unknown as Record<string, unknown> | null;
@@ -133,8 +142,8 @@ export function SubmissionStatusStep({
     );
   }
 
-  if (!result || status === "waiting" || status === "processing" || status === null) {
-    return <WaitingCard status={status} />;
+  if (!result || !hasTerminalResult || !showTerminalResult) {
+    return <WaitingCard status={status} onVisualComplete={() => setShowTerminalResult(true)} />;
   }
 
   // Terminal status renders the per-country card or a generic dry-run card.

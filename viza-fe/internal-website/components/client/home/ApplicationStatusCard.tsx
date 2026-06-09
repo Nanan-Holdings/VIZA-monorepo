@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 import {
   getDestinationDisplayNameForLocale,
   getDestinationFlag,
@@ -74,18 +75,18 @@ export function ApplicationStatusCard({
             </div>
           </div>
           {typeof progressPercent === "number" && (
-            <div className="mb-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[12px] text-[rgba(255,255,255,0.62)]">
-                <span>{t("applicationProgress")}</span>
-                <span>{progressPercent}%</span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
-                <div
-                  className="h-full rounded-full bg-white transition-all duration-700"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
+            <SmoothProgressMeter
+              serverProgress={progressPercent}
+              status={status === "approved" || status === "rejected" ? "completed" : "running"}
+              intervalMs={140}
+              label={t("applicationProgress")}
+              className="mb-3"
+              labelClassName="text-[12px] text-[rgba(255,255,255,0.62)]"
+              valueClassName="text-[12px] text-[rgba(255,255,255,0.62)]"
+              trackClassName="bg-white/20"
+              barClassName="bg-white"
+              size="xs"
+            />
           )}
           {submittedAt && (
             <p className="text-[rgba(255,255,255,0.5)] text-[12px]">

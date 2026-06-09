@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight, Database, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 interface Props {
   completedCount: number;
@@ -56,12 +57,15 @@ export function UniversalInfoCard({ completedCount, totalCount }: Props) {
           </div>
 
           <div className="space-y-2">
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
-              <div
-                className="h-full rounded-full bg-white transition-all duration-700"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
+            <SmoothProgressMeter
+              serverProgress={percent}
+              status={percent >= 100 ? "completed" : "running"}
+              intervalMs={140}
+              showValue={false}
+              trackClassName="bg-white/20"
+              barClassName="bg-white"
+              size="xs"
+            />
             <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-white">
               {t("edit")}
               <ArrowRight className="h-4 w-4" />

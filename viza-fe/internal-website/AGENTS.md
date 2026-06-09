@@ -145,6 +145,7 @@ Smoke URLs:
 - `app/api/stripe/*`
 - `app/api/travel/*`
 - `components/ui/*`
+- `components/smooth-progress.tsx`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
 - `components/client/us-appointment/*`
@@ -152,6 +153,7 @@ Smoke URLs:
 - `components/dynamic-step-form.tsx`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
+- `hooks/use-smooth-progress.ts`
 - `lib/supabase/*`
 - `lib/document-upload-client.ts`
 - `lib/application-tab-completion.ts`
