@@ -102,6 +102,7 @@ import {
   type TravelPlaceCard,
   type TravelPlaceDetails,
 } from "@/lib/travel/google-places";
+import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places-enrichment-types";
 
 type TravelChatClientProps = {
   applicationId?: string | null;
@@ -190,6 +191,14 @@ type TravelItineraryApiResponse = {
   fallbackUsed?: string[];
   warnings?: string[];
   debugId?: string;
+  enrichment?: TravelGoogleEnrichedDestination | null;
+  diagnostics?: {
+    googleFallbackAttempted?: boolean;
+    googleFallbackSucceeded?: boolean;
+    localQualityReasons?: string[];
+    finalDestination?: Record<string, unknown>;
+    googleCallEvidence?: Record<string, unknown>;
+  };
   error?: TravelItineraryApiError | string;
 };
 

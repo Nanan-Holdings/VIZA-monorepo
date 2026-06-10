@@ -21,6 +21,12 @@ export type SubmissionQueueStatus =
   | "uk_prefilled"
   | "uk_prefill_failed"
   | "uk_blocked"
+  | "vn_dry_run_pending"
+  | "vn_dry_run_processing"
+  | "vn_dry_run_failed"
+  | "vn_live_assisted_pending"
+  | "vn_live_assisted_processing"
+  | "vn_live_assisted_failed"
   | "vn_prefill_pending"
   | "vn_prefill_processing"
   | "vn_prefilled"
@@ -70,6 +76,10 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "fv_prefill_processing",
   "uk_prefill_pending",
   "uk_prefill_processing",
+  "vn_dry_run_pending",
+  "vn_dry_run_processing",
+  "vn_live_assisted_pending",
+  "vn_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -86,6 +96,8 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "fv_blocked",
   "uk_prefill_failed",
   "uk_blocked",
+  "vn_dry_run_failed",
+  "vn_live_assisted_failed",
   "vn_prefill_failed",
   "vn_blocked",
   "au_prefill_failed",
@@ -108,6 +120,16 @@ export function isFranceVisasVisaType(visaType: string | null | undefined): bool
   return queueStatusForVisaType(visaType) === "fv_prefill_pending";
 }
 
+export function isVietnamEVisaApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    VIETNAM_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    VIETNAM_EVISA_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 /** Map a visa package's visa_type to the submission_queue status that
  * routes the worker to the right autofill pipeline. */
 export function queueStatusForVisaType(visaType: string | null | undefined): SubmissionQueueStatus {
@@ -126,7 +148,8 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "UK_STANDARD_VISITOR":
       return "uk_prefill_pending";
     case "VN_E_VISA":
-      return "vn_prefill_pending";
+    case "VIETNAM_E_VISA":
+      return "vn_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";
     default:
@@ -149,14 +172,8 @@ export function queueStatusForApplication(
   visaType: string | null | undefined,
   mode: SubmissionMode = "dry_run",
 ): SubmissionQueueStatus {
-  const normalizedCountry = normalizeCountry(country);
-  const normalizedVisaType = normalizeVisaType(visaType);
-
-  if (
-    VIETNAM_COUNTRY_ALIASES.has(normalizedCountry) &&
-    VIETNAM_EVISA_TYPES.has(normalizedVisaType)
-  ) {
-    return "vn_prefill_pending";
+  if (isVietnamEVisaApplication(country, visaType)) {
+    return mode === "live_assisted" ? "vn_live_assisted_pending" : "vn_dry_run_pending";
   }
 
   return queueStatusForSubmissionMode(visaType, mode);
@@ -172,5 +189,19 @@ export function queueProviderForVisaType(
   if (isFranceVisasVisaType(visaType)) {
     return mode === "live_assisted" ? "france_visas_live" : "france_visas_dry_run";
   }
+  if (VIETNAM_EVISA_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
+  }
   return null;
+}
+
+export function queueProviderForApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+  mode: SubmissionMode,
+): string | null {
+  if (isVietnamEVisaApplication(country, visaType)) {
+    return mode === "live_assisted" ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
+  }
+  return queueProviderForVisaType(visaType, mode);
 }

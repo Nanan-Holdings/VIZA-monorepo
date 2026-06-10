@@ -562,7 +562,7 @@ function composeChineseName(surname: string, givenNames: string) {
 }
 
 function composeEnglishFullName(givenNames: string, surname: string) {
-  return [givenNames.trim(), surname.trim()].filter(Boolean).join(" ");
+  return [surname.trim(), givenNames.trim()].filter(Boolean).join(" ");
 }
 
 function isTranslatableProfileField(field: BilingualProfileField) {
@@ -667,6 +667,68 @@ function toInitialBilingualForm(profile: UniversalProfileRow | null): BilingualP
         },
     occupation: toInitialBilingualValue(profile, "occupation"),
     address: toInitialBilingualValue(profile, "address"),
+  };
+}
+
+function buildProfileViewState(profile: UniversalProfileRow | null, fallbackEmail = "") {
+  const legacyBirthplace = parseLegacyBirthplace(profile?.place_of_birth_en ?? profile?.place_of_birth);
+  const initialBilingual = toInitialBilingualForm(profile);
+  const normalizedBirthplace = normalizeBirthplace({
+    placeOfBirth: profile?.place_of_birth_en ?? profile?.place_of_birth_zh ?? profile?.place_of_birth,
+    country: profile?.birth_country || legacyBirthplace.country || profile?.nationality,
+    province: profile?.birth_province_or_state ?? legacyBirthplace.provinceOrState,
+    provinceZh: initialBilingual.birth_province_or_state.zh,
+    provinceEn: initialBilingual.birth_province_or_state.en,
+    city: profile?.birth_city ?? legacyBirthplace.city,
+    cityZh: initialBilingual.birth_city.zh,
+    cityEn: initialBilingual.birth_city.en,
+    nationality: profile?.nationality,
+  });
+  const bilingualForm: BilingualProfileState = {
+    ...initialBilingual,
+    place_of_birth: {
+      zh: normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.zh,
+      en: normalizedBirthplace.placeOfBirthEn || initialBilingual.place_of_birth.en,
+    },
+    birth_province_or_state: normalizedBirthplace.province.zh || normalizedBirthplace.province.en
+      ? normalizedBirthplace.province
+      : initialBilingual.birth_province_or_state,
+    birth_city: normalizedBirthplace.city.zh || normalizedBirthplace.city.en
+      ? normalizedBirthplace.city
+      : initialBilingual.birth_city,
+  };
+  const initialBirthCountry = normalizedBirthplace.countryCode || normalizeCountryCode(
+    profile?.birth_country || legacyBirthplace.country || profile?.nationality,
+  );
+  const initialFullNameEn = composeEnglishFullName(initialBilingual.given_names.en, initialBilingual.surname.en);
+  const initialFullNameZh = composeChineseName(initialBilingual.surname.zh, initialBilingual.given_names.zh);
+  const initialPhone = profile?.phone ?? "";
+  const initialPhoneParts = splitPhoneValue(initialPhone, DEFAULT_PHONE_COUNTRY_CODE);
+
+  return {
+    form: {
+      full_name: initialFullNameEn || initialFullNameZh || initialBilingual.full_name.en || initialBilingual.full_name.zh,
+      surname: initialBilingual.surname.en || initialBilingual.surname.zh,
+      given_names: initialBilingual.given_names.en || initialBilingual.given_names.zh,
+      date_of_birth: profile?.date_of_birth ?? "",
+      place_of_birth: normalizedBirthplace.placeOfBirthEn || normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
+      birth_country: initialBirthCountry,
+      birth_province_or_state: normalizedBirthplace.provinceCode,
+      birth_city: normalizedBirthplace.cityCode,
+      gender: normalizeGender(profile?.gender),
+      nationality: normalizeCountryCode(profile?.nationality),
+      occupation: initialBilingual.occupation.en || initialBilingual.occupation.zh,
+      address: initialBilingual.address.en || initialBilingual.address.zh,
+      passport_number: profile?.passport_number ?? "",
+      passport_issue_date: profile?.passport_issue_date ?? "",
+      passport_expiry_date: profile?.passport_expiry_date ?? "",
+      passport_issuing_country: normalizeCountryCode(profile?.passport_issuing_country),
+      email: profile?.email ?? fallbackEmail,
+      phone: initialPhone,
+      wechat: profile?.wechat ?? "",
+    } satisfies UniversalProfileForm,
+    bilingualForm,
+    phoneCountryCode: initialPhoneParts.countryCode,
   };
 }
 
@@ -999,63 +1061,10 @@ export default function UniversalInfoPage() {
         }
       }
 
-      const legacyBirthplace = parseLegacyBirthplace(typedProfile?.place_of_birth_en ?? typedProfile?.place_of_birth);
-      const initialBilingual = toInitialBilingualForm(typedProfile);
-      const normalizedBirthplace = normalizeBirthplace({
-        placeOfBirth: typedProfile?.place_of_birth_en ?? typedProfile?.place_of_birth_zh ?? typedProfile?.place_of_birth,
-        country: typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
-        province: typedProfile?.birth_province_or_state ?? legacyBirthplace.provinceOrState,
-        provinceZh: initialBilingual.birth_province_or_state.zh,
-        provinceEn: initialBilingual.birth_province_or_state.en,
-        city: typedProfile?.birth_city ?? legacyBirthplace.city,
-        cityZh: initialBilingual.birth_city.zh,
-        cityEn: initialBilingual.birth_city.en,
-        nationality: typedProfile?.nationality,
-      });
-      const normalizedInitialBilingual: BilingualProfileState = {
-        ...initialBilingual,
-        place_of_birth: {
-          zh: normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.zh,
-          en: normalizedBirthplace.placeOfBirthEn || initialBilingual.place_of_birth.en,
-        },
-        birth_province_or_state: normalizedBirthplace.province.zh || normalizedBirthplace.province.en
-          ? normalizedBirthplace.province
-          : initialBilingual.birth_province_or_state,
-        birth_city: normalizedBirthplace.city.zh || normalizedBirthplace.city.en
-          ? normalizedBirthplace.city
-          : initialBilingual.birth_city,
-      };
-      const initialBirthCountry = normalizedBirthplace.countryCode || normalizeCountryCode(
-        typedProfile?.birth_country || legacyBirthplace.country || typedProfile?.nationality,
-      );
-      const initialFullNameEn = composeEnglishFullName(initialBilingual.given_names.en, initialBilingual.surname.en);
-      const initialFullNameZh = composeChineseName(initialBilingual.surname.zh, initialBilingual.given_names.zh);
-      const initialPhone = typedProfile?.phone ?? "";
-      const initialPhoneParts = splitPhoneValue(initialPhone, DEFAULT_PHONE_COUNTRY_CODE);
-
-      setForm({
-        full_name: initialFullNameEn || initialFullNameZh || initialBilingual.full_name.en || initialBilingual.full_name.zh,
-        surname: initialBilingual.surname.en || initialBilingual.surname.zh,
-        given_names: initialBilingual.given_names.en || initialBilingual.given_names.zh,
-        date_of_birth: typedProfile?.date_of_birth ?? "",
-        place_of_birth: normalizedBirthplace.placeOfBirthEn || normalizedBirthplace.placeOfBirthZh || initialBilingual.place_of_birth.en || initialBilingual.place_of_birth.zh,
-        birth_country: initialBirthCountry,
-        birth_province_or_state: normalizedBirthplace.provinceCode,
-        birth_city: normalizedBirthplace.cityCode,
-        gender: normalizeGender(typedProfile?.gender),
-        nationality: normalizeCountryCode(typedProfile?.nationality),
-        occupation: initialBilingual.occupation.en || initialBilingual.occupation.zh,
-        address: initialBilingual.address.en || initialBilingual.address.zh,
-        passport_number: typedProfile?.passport_number ?? "",
-        passport_issue_date: typedProfile?.passport_issue_date ?? "",
-        passport_expiry_date: typedProfile?.passport_expiry_date ?? "",
-        passport_issuing_country: normalizeCountryCode(typedProfile?.passport_issuing_country),
-        email: typedProfile?.email ?? user.email ?? "",
-        phone: initialPhone,
-        wechat: typedProfile?.wechat ?? "",
-      });
-      setPhoneCountryCode(initialPhoneParts.countryCode);
-      setBilingualForm(normalizedInitialBilingual);
+      const viewState = buildProfileViewState(typedProfile, user.email ?? "");
+      setForm(viewState.form);
+      setPhoneCountryCode(viewState.phoneCountryCode);
+      setBilingualForm(viewState.bilingualForm);
       setDirtyProfileFields(new Set());
       setManualEnglishFields({});
       setTranslationStatus({});
@@ -1536,13 +1545,18 @@ export default function UniversalInfoPage() {
 
       if (result.error) throw new Error(result.error);
       if (result.applicationId) setPassportOcrApplicationId(result.applicationId);
+      if (result.profile) {
+        const viewState = buildProfileViewState(result.profile as UniversalProfileRow, user.email ?? "");
+        setForm(viewState.form);
+        setPhoneCountryCode(viewState.phoneCountryCode);
+        setBilingualForm(viewState.bilingualForm);
+      }
       setDirtyProfileFields(new Set());
       setMessage(
         isZh
-          ? "已保存通用资料。之后新进入相似签证表单时会优先用这里的信息预填。"
-          : "Universal profile saved. New similar visa forms will use this profile for initial prefilling.",
+          ? "已保存通用资料。"
+          : "Universal profile saved.",
       );
-      router.push("/client/home");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
     } finally {

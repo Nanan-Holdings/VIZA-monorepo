@@ -12,8 +12,8 @@ import {
 import {
   enrichDestinationWithGooglePlaces,
   isGooglePlacesFallbackEnabled,
-  type TravelGoogleEnrichedDestination,
 } from "./googlePlacesEnrichmentService";
+import type { TravelGoogleEnrichedDestination } from "./google-places-enrichment-types";
 import type { ItineraryDay } from "./planner";
 import {
   createTravelDebugId,
@@ -34,12 +34,30 @@ export type TravelItineraryFallbackResponse = {
   diagnostics: {
     localDestinationHit: boolean;
     localDestinationSufficient: boolean;
+    localQualityReasons: string[];
     primaryTravelServiceStatus: "success" | "failed" | "skipped";
     googleFallbackAttempted: boolean;
     googleFallbackSucceeded: boolean;
     llmFallbackAttempted: boolean;
     llmFallbackSucceeded: boolean;
     finalSource: "primary_travel_service" | "llm_text";
+    finalDestination?: {
+      canonicalName: string;
+      nameZh: string;
+      countryCode: string | null;
+      adminAreaEn?: string | null;
+      adminAreaZh?: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      source: "google_places";
+      dataQuality: "api_enriched";
+      coverImageProvider: string;
+      coverImagePlaceholder: boolean;
+      attractionCount: number;
+      attractionPhotoCount: number;
+      googlePlaceId?: string | null;
+    };
+    googleCallEvidence?: TravelGoogleEnrichedDestination["calls"];
   };
 };
 
@@ -175,6 +193,30 @@ function getCountry(payload: Record<string, unknown>): string | null {
     : null;
 }
 
+function finalDestinationDiagnostics(
+  enrichment: TravelGoogleEnrichedDestination | null
+): TravelItineraryFallbackResponse["diagnostics"]["finalDestination"] | undefined {
+  if (!enrichment) return undefined;
+  return {
+    canonicalName: enrichment.canonicalName,
+    nameZh: enrichment.nameZh,
+    countryCode: enrichment.countryCode,
+    adminAreaEn: enrichment.adminAreaEn,
+    adminAreaZh: enrichment.adminAreaZh,
+    latitude: enrichment.latitude,
+    longitude: enrichment.longitude,
+    source: enrichment.source,
+    dataQuality: enrichment.dataQuality,
+    coverImageProvider: enrichment.coverImage.provider,
+    coverImagePlaceholder: enrichment.coverImage.isPlaceholder,
+    attractionCount: enrichment.attractions.length,
+    attractionPhotoCount: enrichment.attractions.filter(
+      (item) => !item.photo.isPlaceholder
+    ).length,
+    googlePlaceId: enrichment.placeId,
+  };
+}
+
 function buildAllowedCityKeys(cities: string[]): Set<string> {
   const keys = new Set<string>();
   cities.forEach((city) => {
@@ -205,6 +247,49 @@ function itineraryUsesOnlyRequestedCities(
   return itinerary.every((day) => allowedKeys.has(normalizeDestinationContractKey(day.city)));
 }
 
+function localImageIsReal(imageUrl: string | null | undefined): boolean {
+  const normalized = imageUrl?.toLowerCase() ?? "";
+  return Boolean(
+    normalized &&
+      !normalized.includes("travel-fallback") &&
+      !normalized.includes("placeholder")
+  );
+}
+
+function isCoordinateInChina(latitude: number | null, longitude: number | null): boolean {
+  return (
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    latitude >= 18 &&
+    latitude <= 54 &&
+    longitude >= 73 &&
+    longitude <= 135
+  );
+}
+
+function isChangshaLike(value: string | null | undefined): boolean {
+  const key = normalizeDestinationContractKey(value);
+  return [
+    "changsha",
+    "长沙",
+    "长沙市",
+    "湖南长沙",
+    "hunanchangsha",
+    "changshahunan",
+  ].includes(key);
+}
+
+function isCoordinateInChangsha(latitude: number | null, longitude: number | null): boolean {
+  return (
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    latitude >= 27.4 &&
+    latitude <= 29.4 &&
+    longitude >= 111.5 &&
+    longitude <= 114.3
+  );
+}
+
 function getLocalDestinationState(payload: Record<string, unknown>) {
   const city = getPrimaryCity(payload);
   const contract = city ? findDropdownDestinationContract(city) : null;
@@ -213,17 +298,63 @@ function getLocalDestinationState(payload: Record<string, unknown>) {
       hit: false,
       sufficient: false,
       needsGoogle: true,
+      reasons: ["local_missing"],
     };
   }
   const localPayload = buildLocalFirstDestinationPayload(contract);
-  const sufficient =
-    localPayload.completenessScore >= 70 &&
-    localPayload.attractionCards.length >= 3 &&
-    !localPayload.coverImage?.imageUrl.includes("travel-fallback");
+  const reasons: string[] = [];
+  const realCover = localImageIsReal(localPayload.coverImage?.imageUrl);
+  const attractionCards = localPayload.attractionCards;
+  const attractionPhotoCount = attractionCards.filter((item) =>
+    localImageIsReal(item.image?.imageUrl)
+  ).length;
+  const attractionsWithCoordinatesAndDescriptions = attractionCards.filter(
+    (item) =>
+      typeof item.latitude === "number" &&
+      Number.isFinite(item.latitude) &&
+      typeof item.longitude === "number" &&
+      Number.isFinite(item.longitude) &&
+      Boolean(item.descriptionZh || item.descriptionEn)
+  ).length;
+  const coordinateValid =
+    contract.countryCode === "CN"
+      ? isCoordinateInChina(contract.latitude, contract.longitude)
+      : typeof contract.latitude === "number" &&
+        Number.isFinite(contract.latitude) &&
+        typeof contract.longitude === "number" &&
+        Number.isFinite(contract.longitude);
+  const changshaCoordinateValid =
+    isChangshaLike(contract.nameEn) || isChangshaLike(contract.nameZh)
+      ? isCoordinateInChangsha(contract.latitude, contract.longitude)
+      : true;
+
+  if (!coordinateValid || !changshaCoordinateValid) {
+    reasons.push("local_bad_coordinates");
+  }
+  if (!realCover) {
+    reasons.push("local_placeholder_only");
+  }
+  if (attractionCards.length < 5) {
+    reasons.push("local_attractions_insufficient");
+  }
+  if (attractionsWithCoordinatesAndDescriptions < 5) {
+    reasons.push("local_attraction_detail_insufficient");
+  }
+  if (attractionPhotoCount < 3) {
+    reasons.push("local_attraction_images_insufficient");
+  }
+  if (!["verified", "enriched"].includes(localPayload.dataQuality)) {
+    reasons.push("local_incomplete");
+  }
+  if (!["local_verified", "api_enriched"].includes(localPayload.sourceStatus)) {
+    reasons.push("local_source_not_complete");
+  }
+  const sufficient = reasons.length === 0 && localPayload.completenessScore >= 85;
   return {
     hit: true,
     sufficient,
     needsGoogle: !sufficient,
+    reasons: sufficient ? ["local_complete"] : Array.from(new Set(reasons)),
   };
 }
 
@@ -397,16 +528,19 @@ export async function generateItineraryWithFallback(
   const diagnostics = {
     localDestinationHit: false,
     localDestinationSufficient: false,
+    localQualityReasons: [] as string[],
     primaryTravelServiceStatus: "skipped" as "success" | "failed" | "skipped",
     googleFallbackAttempted: false,
     googleFallbackSucceeded: false,
     llmFallbackAttempted: false,
     llmFallbackSucceeded: false,
+    googleCallEvidence: undefined as TravelGoogleEnrichedDestination["calls"] | undefined,
   };
 
   const localState = getLocalDestinationState(payload);
   diagnostics.localDestinationHit = localState.hit;
   diagnostics.localDestinationSufficient = localState.sufficient;
+  diagnostics.localQualityReasons = localState.reasons;
 
   logTravelPipelineEvent({
     debugId,
@@ -416,8 +550,66 @@ export async function generateItineraryWithFallback(
       cities: stringArray(payload.cities),
       localDestinationHit: localState.hit,
       localDestinationSufficient: localState.sufficient,
+      localQualityReasons: localState.reasons,
     },
   });
+
+  let enrichment: TravelGoogleEnrichedDestination | null = null;
+  const city = getPrimaryCity(payload);
+  if (city && localState.needsGoogle && isGooglePlacesFallbackEnabled()) {
+    diagnostics.googleFallbackAttempted = true;
+    try {
+      enrichment = await (dependencies.googleEnricher ??
+        ((requestPayload, requestDebugId) =>
+          enrichDestinationWithGooglePlaces({
+            city,
+            country: getCountry(requestPayload),
+            locale:
+              typeof requestPayload.locale === "string"
+                ? requestPayload.locale
+                : "zh-CN",
+            debugId: requestDebugId,
+          })))(payload, debugId);
+      diagnostics.googleFallbackSucceeded = true;
+      diagnostics.googleCallEvidence = enrichment.calls;
+      fallbackUsed.push("google_places");
+      if (enrichment.coverImage.isPlaceholder) warnings.push("photos_pending");
+      if (!enrichment.cache.stored) warnings.push("destination_cache_pending");
+      logTravelPipelineEvent({
+        debugId,
+        stage: "google_places_search",
+        message: "Google Places enrichment succeeded.",
+        details: {
+          city,
+          canonicalName: enrichment.canonicalName,
+          countryCode: enrichment.countryCode,
+          adminAreaEn: enrichment.adminAreaEn,
+          adminAreaZh: enrichment.adminAreaZh,
+          latitude: enrichment.latitude,
+          longitude: enrichment.longitude,
+          placeId: enrichment.placeId,
+          attractions: enrichment.attractions.length,
+          attractionPhotoCount: enrichment.attractions.filter(
+            (item) => !item.photo.isPlaceholder
+          ).length,
+          coverImageProvider: enrichment.coverImage.provider,
+          coverImagePlaceholder: enrichment.coverImage.isPlaceholder,
+          cache: enrichment.cache,
+          calls: enrichment.calls,
+        },
+      });
+    } catch (error) {
+      warnings.push("google_places_unavailable");
+      logTravelPipelineEvent({
+        debugId,
+        stage: "google_places_search",
+        message: "Google Places enrichment failed; continuing to itinerary generation.",
+        details: { city, error: getErrorMessage(error) },
+      });
+    }
+  } else if (city && localState.needsGoogle) {
+    warnings.push("google_places_disabled_or_missing_key");
+  }
 
   try {
     const primary = await (dependencies.primaryGenerator ?? generateWithPrimaryBackend)(
@@ -437,10 +629,11 @@ export async function generateItineraryWithFallback(
       fallbackUsed,
       warnings,
       debugId,
-      enrichment: null,
+      enrichment,
       diagnostics: {
         ...diagnostics,
         finalSource: "primary_travel_service",
+        finalDestination: finalDestinationDiagnostics(enrichment),
       },
     };
   } catch (error) {
@@ -452,50 +645,6 @@ export async function generateItineraryWithFallback(
       message: "Primary travel service failed; continuing to fallback.",
       details: { error: getErrorMessage(error) },
     });
-  }
-
-  let enrichment: TravelGoogleEnrichedDestination | null = null;
-  const city = getPrimaryCity(payload);
-  if (city && localState.needsGoogle && isGooglePlacesFallbackEnabled()) {
-    diagnostics.googleFallbackAttempted = true;
-    try {
-      enrichment = await (dependencies.googleEnricher ??
-        ((requestPayload, requestDebugId) =>
-          enrichDestinationWithGooglePlaces({
-            city,
-            country: getCountry(requestPayload),
-            locale:
-              typeof requestPayload.locale === "string"
-                ? requestPayload.locale
-                : "zh-CN",
-            debugId: requestDebugId,
-          })))(payload, debugId);
-      diagnostics.googleFallbackSucceeded = true;
-      fallbackUsed.push("google_places");
-      if (enrichment.coverImage.isPlaceholder) warnings.push("photos_pending");
-      if (!enrichment.cache.stored) warnings.push("destination_cache_pending");
-      logTravelPipelineEvent({
-        debugId,
-        stage: "google_places_search",
-        message: "Google Places fallback succeeded.",
-        details: {
-          city,
-          attractions: enrichment.attractions.length,
-          photoProvider: enrichment.coverImage.provider,
-          cache: enrichment.cache,
-        },
-      });
-    } catch (error) {
-      warnings.push("google_places_unavailable");
-      logTravelPipelineEvent({
-        debugId,
-        stage: "google_places_search",
-        message: "Google Places fallback failed; continuing to LLM fallback.",
-        details: { city, error: getErrorMessage(error) },
-      });
-    }
-  } else if (city && localState.needsGoogle) {
-    warnings.push("google_places_disabled_or_missing_key");
   }
 
   try {
@@ -530,6 +679,7 @@ export async function generateItineraryWithFallback(
       diagnostics: {
         ...diagnostics,
         finalSource: "llm_text",
+        finalDestination: finalDestinationDiagnostics(enrichment),
       },
     };
   } catch (error) {
