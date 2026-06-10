@@ -7,6 +7,9 @@
     "dev:help-internal": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1",
     "dev:help-internal:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1 -Stop",
     "audit:bilingual-schema": "node viza-fe/internal-website/node_modules/tsx/dist/cli.mjs scripts/audit-bilingual-schema-clarity.ts",
+    "db:verify": "cd viza-fe/internal-website && npm run db:verify",
+    "db:migrate:viza": "cd viza-fe/internal-website && npm run db:migrate:viza",
+    "doctor:env": "powershell -ExecutionPolicy Bypass -File scripts/doctor-env.ps1",
     "security:install-hooks": "./scripts/install-git-hooks.sh",
     "security:gitleaks": "gitleaks detect --source . --config .gitleaks.toml --redact --no-banner"
   },

@@ -1,0 +1,26 @@
+# Local Agent Skills Guide
+
+Scope: this file applies to `.agents/**`.
+
+## Purpose
+
+This directory contains repository-local Agent Skills installed for VIZA. Skills
+are instructions and supporting references for AI coding tools; they are not
+runtime application code.
+
+## Current Skills
+
+- `skills/brand-style-guide`: VIZA brand and voice rules.
+- `skills/supabase`: Supabase workflow, MCP, CLI, security, and verification
+  guidance.
+- `skills/supabase-postgres-best-practices`: Postgres schema, query,
+  connection, RLS, and performance guidance.
+
+## Conventions
+
+- Treat installed skills as third-party guidance unless the file explicitly
+  belongs to VIZA.
+- Review skill instructions before relying on them for a task.
+- Do not store secrets or generated credentials in `.agents/**`.
+- Update `skills-lock.json` when installing or updating skills through
+  `npx skills`.

@@ -66,6 +66,7 @@ docs/                     PRDs, developer guides, user guides, gap reports,
 
 shared/                   Shared placeholder/types area
 scripts/                  Local runners, Ralph runner, Playwright smoke scripts
+.agents/                  Local agent skills installed for this repo
 prd.json                  Current PRD/story queue for autonomous story work
 progress.txt              Append-only implementation log
 ```
@@ -170,6 +171,7 @@ guides include:
 - `docs/AGENTS.md`
 - `docs/internal-automation/AGENTS.md`
 - `scripts/AGENTS.md`
+- `.agents/AGENTS.md`
 
 When a file is added, deleted, moved, or renamed, update the nearest relevant
 module `AGENTS.md`. If no module file exists and the change completes a coherent
@@ -242,6 +244,7 @@ checks:
   numbered.
 - Server actions: `viza-fe/internal-website/app/actions/*`.
 - RAG country seeds: `knowledge-base/visa-rag-seeds/countries/*.json`.
+- Local agent skills: `.agents/skills/*`.
 - No new `any` types. No unused imports.
 - Do not run `npm install` unless dependencies are missing or a new dependency
   is intentionally required.
