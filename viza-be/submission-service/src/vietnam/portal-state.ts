@@ -10,11 +10,31 @@ export type VietnamPortalStateId =
   | "upload_passport_visible"
   | "upload_portrait_visible"
   | "payment_page_visible"
+  | "final_submit_visible"
   | "registration_code_visible"
   | "white_screen"
   | "portal_error"
   | "network_blocked"
   | "layout_changed";
+
+export type VietnamPortalCheckpoint =
+  | "form_ready"
+  | "note_modal_required"
+  | "captcha_required"
+  | "upload_required"
+  | "payment_required"
+  | "final_submit_required"
+  | "official_portal_error"
+  | "layout_changed"
+  | "needs_manual_verification";
+
+export interface VietnamPortalCheckpointResult {
+  checkpoint: VietnamPortalCheckpoint;
+  state: VietnamPortalStateId;
+  expected: "any" | VietnamPortalCheckpoint[];
+  snapshot: VietnamPortalSnapshot;
+  timedOut: boolean;
+}
 
 export interface VietnamPortalSnapshot {
   url: string;
@@ -34,6 +54,7 @@ export interface VietnamPortalSnapshot {
   hasPassportUpload: boolean;
   hasPortraitUpload: boolean;
   hasPayment: boolean;
+  hasFinalSubmit: boolean;
   registrationCode: string | null;
   failedRequestCount: number;
   mainRequestFailed: boolean;
@@ -67,6 +88,7 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
     return "portal_error";
   }
   if (snapshot.registrationCode) return "registration_code_visible";
+  if (snapshot.hasFinalSubmit) return "final_submit_visible";
   if (snapshot.hasPayment) return "payment_page_visible";
   if (snapshot.hasCaptcha) return "captcha_visible";
   if (
@@ -149,6 +171,13 @@ export async function readVietnamPortalSnapshot(
         /\/(?:payment|pay)(?:\/|$)/i.test(location.pathname) ||
         buttons.some((text) => /^(pay|pay now|make payment|thanh toán|submit payment)$/i.test(text)) ||
         /payment gateway\s*[:#-]|transaction\s*(?:reference|id)|card number|payment amount/i.test(normalizedText),
+      hasFinalSubmit:
+        buttons.some((text) =>
+          /^(submit|submit application|final submit|confirm submission|send application|nộp hồ sơ|gửi hồ sơ|xác nhận nộp)$/i.test(text),
+        ) ||
+        /\b(final\s+submit|submit\s+application|confirm\s+submission)\b|nộp hồ sơ|gửi hồ sơ|xác nhận nộp/i.test(
+          combinedText,
+        ),
       registrationCode: registrationMatch?.[1] ?? null,
     };
   });
@@ -171,8 +200,111 @@ export async function readVietnamPortalSnapshot(
     hasPassportUpload: evaluated.hasPassportUpload,
     hasPortraitUpload: evaluated.hasPortraitUpload,
     hasPayment: evaluated.hasPayment,
+    hasFinalSubmit: evaluated.hasFinalSubmit,
     registrationCode: evaluated.registrationCode ?? extractVietnamRegistrationCode(evaluated.bodyText),
     failedRequestCount,
     mainRequestFailed,
+  };
+}
+
+export function checkpointForVietnamPortalState(
+  state: VietnamPortalStateId,
+): VietnamPortalCheckpoint {
+  switch (state) {
+    case "application_form_visible":
+      return "form_ready";
+    case "note_modal_visible":
+      return "note_modal_required";
+    case "captcha_visible":
+      return "captcha_required";
+    case "upload_passport_visible":
+    case "upload_portrait_visible":
+      return "upload_required";
+    case "payment_page_visible":
+    case "registration_code_visible":
+      return "payment_required";
+    case "final_submit_visible":
+      return "final_submit_required";
+    case "white_screen":
+    case "portal_error":
+    case "network_blocked":
+      return "official_portal_error";
+    case "layout_changed":
+      return "layout_changed";
+    case "landing_page_loaded":
+    case "language_switch_visible":
+    case "apply_now_visible":
+      return "needs_manual_verification";
+  }
+}
+
+export async function waitForVietnamPortalCheckpoint(
+  page: Page,
+  expected: "any" | VietnamPortalCheckpoint | VietnamPortalCheckpoint[],
+  options: {
+    timeoutMs: number;
+    pollMs?: number;
+    failedRequestCount?: () => number;
+    mainRequestFailed?: () => boolean;
+    onSnapshot?: (snapshot: VietnamPortalSnapshot) => void;
+  },
+): Promise<VietnamPortalCheckpointResult> {
+  const expectedList =
+    expected === "any" ? "any" : Array.isArray(expected) ? expected : [expected];
+  const expectedSet = expectedList === "any" ? null : new Set(expectedList);
+  const deadline = Date.now() + Math.max(options.timeoutMs, 1);
+  const pollMs = options.pollMs ?? 750;
+  let lastResult: VietnamPortalCheckpointResult | null = null;
+
+  while (Date.now() <= deadline) {
+    const snapshot = await readVietnamPortalSnapshot(
+      page,
+      options.failedRequestCount?.() ?? 0,
+      options.mainRequestFailed?.() ?? false,
+    );
+    options.onSnapshot?.(snapshot);
+
+    const state = classifyVietnamPortalSnapshot(snapshot);
+    const checkpoint = checkpointForVietnamPortalState(state);
+    const result: VietnamPortalCheckpointResult = {
+      checkpoint,
+      state,
+      expected: expectedList,
+      snapshot,
+      timedOut: false,
+    };
+    lastResult = result;
+
+    if (expectedSet === null || expectedSet.has(checkpoint) || checkpoint !== "needs_manual_verification") {
+      return result;
+    }
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await page.waitForTimeout(Math.min(pollMs, remaining));
+  }
+
+  if (lastResult) {
+    return {
+      ...lastResult,
+      checkpoint: expectedSet?.has(lastResult.checkpoint)
+        ? lastResult.checkpoint
+        : "needs_manual_verification",
+      timedOut: true,
+    };
+  }
+
+  const snapshot = await readVietnamPortalSnapshot(
+    page,
+    options.failedRequestCount?.() ?? 0,
+    options.mainRequestFailed?.() ?? false,
+  );
+  options.onSnapshot?.(snapshot);
+  return {
+    checkpoint: "needs_manual_verification",
+    state: classifyVietnamPortalSnapshot(snapshot),
+    expected: expectedList,
+    snapshot,
+    timedOut: true,
   };
 }

@@ -26,6 +26,7 @@ import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } f
 import {
   classifyVietnamPortalSnapshot,
   readVietnamPortalSnapshot,
+  waitForVietnamPortalCheckpoint,
   type VietnamPortalSnapshot,
   type VietnamPortalStateId,
 } from "./portal-state";
@@ -65,10 +66,12 @@ export type FillVietnamResult =
       actionType:
         | "note_modal_required"
         | "captcha_required"
+        | "upload_required"
         | "payment_required"
         | "final_submit_required"
         | "layout_changed"
-        | "official_portal_error";
+        | "official_portal_error"
+        | "needs_manual_verification";
       checkpoint: VietnamPortalStateId;
       instruction: string;
       url: string;
@@ -245,6 +248,18 @@ export async function fillVietnamApplication(
         diagnostics: diagnostics(),
       };
     }
+    if (reviewState === "upload_passport_visible" || reviewState === "upload_portrait_visible") {
+      return {
+        status: "action_required",
+        runId,
+        actionType: "upload_required",
+        checkpoint: reviewState,
+        instruction:
+          "The official Vietnam e-Visa portal is asking for a passport or portrait upload. Upload the required file manually on the official page, then continue from VIZA.",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
     if (reviewState === "payment_page_visible") {
       return {
         status: "action_required",
@@ -253,6 +268,18 @@ export async function fillVietnamApplication(
         checkpoint: "payment_page_visible",
         instruction:
           "The official Vietnam e-Visa portal reached payment. VIZA stopped before Pay/Submit; complete payment manually only if you intend to proceed.",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
+    if (reviewState === "final_submit_visible") {
+      return {
+        status: "action_required",
+        runId,
+        actionType: "final_submit_required",
+        checkpoint: "final_submit_visible",
+        instruction:
+          "The official Vietnam e-Visa portal is at a final submission confirmation. VIZA stopped before the irreversible submit action; review and submit manually only if you intend to proceed.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -325,10 +352,12 @@ type VietnamBootstrapResult =
       actionType:
         | "note_modal_required"
         | "captcha_required"
+        | "upload_required"
         | "payment_required"
         | "final_submit_required"
         | "layout_changed"
-        | "official_portal_error";
+        | "official_portal_error"
+        | "needs_manual_verification";
       checkpoint: VietnamPortalStateId;
       instruction: string;
     }
@@ -372,16 +401,20 @@ async function reachVietnamFormCheckpoint(
   const openBase = async (baseUrl: string): Promise<VietnamPortalStateId> => {
     options.setMainRequestFailed(false);
     await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.stepTimeoutMs }).catch(() => undefined);
-    await waitForHydrate(page, options.stepTimeoutMs);
-    await page.waitForLoadState("networkidle", { timeout: Math.min(options.stepTimeoutMs, 30_000) }).catch(() => undefined);
-    return readState();
+    const checkpoint = await waitForVietnamPortalCheckpoint(page, "any", {
+      timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+      failedRequestCount: options.failedRequestCount,
+      mainRequestFailed: options.mainRequestFailed,
+      onSnapshot: options.onSnapshot,
+    });
+    lastState = checkpoint.state;
+    return checkpoint.state;
   };
 
   let state = await openBase(bases[0] ?? VN_LANDING_URL);
   if (state === "white_screen" || state === "network_blocked") {
     options.setMainRequestFailed(false);
     await page.reload({ waitUntil: "domcontentloaded", timeout: Math.min(options.stepTimeoutMs, 45_000) }).catch(() => undefined);
-    await waitForHydrate(page, options.stepTimeoutMs);
     state = await readState();
   }
   if ((state === "white_screen" || state === "network_blocked") && bases.length > 1) {
@@ -399,18 +432,13 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (state === "note_modal_visible") {
-      await dismissIntroModal(page, options.stepTimeoutMs);
-      state = await readState();
-      if (state === "note_modal_visible") {
-        return {
-          kind: "action_required",
-          actionType: "note_modal_required",
-          checkpoint: state,
-          instruction:
-            "The official Vietnam e-Visa page is showing a NOTE dialog. Read it in the official browser and confirm/continue manually, then retry live assisted mode if needed.",
-        };
-      }
-      continue;
+      return {
+        kind: "action_required",
+        actionType: "note_modal_required",
+        checkpoint: state,
+        instruction:
+          "The official Vietnam e-Visa page is showing a NOTE declaration dialog. Read and acknowledge it manually in the official browser, then click Continue in VIZA.",
+      };
     }
 
     if (state === "captcha_visible") {
@@ -423,6 +451,16 @@ async function reachVietnamFormCheckpoint(
       };
     }
 
+    if (state === "upload_passport_visible" || state === "upload_portrait_visible") {
+      return {
+        kind: "action_required",
+        actionType: "upload_required",
+        checkpoint: state,
+        instruction:
+          "The official Vietnam e-Visa page is asking for a passport or portrait upload. Upload the required file manually on the official page, then continue from VIZA.",
+      };
+    }
+
     if (state === "payment_page_visible" || state === "registration_code_visible") {
       return {
         kind: "action_required",
@@ -430,6 +468,16 @@ async function reachVietnamFormCheckpoint(
         checkpoint: state,
         instruction:
           "The official Vietnam e-Visa portal reached a payment/reference checkpoint. VIZA stopped before Pay/Submit.",
+      };
+    }
+
+    if (state === "final_submit_visible") {
+      return {
+        kind: "action_required",
+        actionType: "final_submit_required",
+        checkpoint: state,
+        instruction:
+          "The official Vietnam e-Visa portal reached a final submission confirmation. VIZA stopped before the irreversible submit action.",
       };
     }
 
@@ -468,7 +516,7 @@ async function reachVietnamFormCheckpoint(
       if (!clicked) {
         return {
           kind: "action_required",
-          actionType: "layout_changed",
+          actionType: "needs_manual_verification",
           checkpoint: state,
           instruction:
             "The official Vietnam e-Visa landing page loaded, but the worker could not find a reliable Apply link. Continue manually on the official page or retry after selectors are updated.",
@@ -477,8 +525,27 @@ async function reachVietnamFormCheckpoint(
       await page
         .waitForURL(new RegExp(FORM_ROUTE_FRAGMENT.replace(/\//g, "\\/")), { timeout: 15_000 })
         .catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: Math.min(options.stepTimeoutMs, 30_000) }).catch(() => undefined);
-      state = await readState();
+      const checkpoint = await waitForVietnamPortalCheckpoint(
+        page,
+        [
+          "form_ready",
+          "note_modal_required",
+          "captcha_required",
+          "upload_required",
+          "payment_required",
+          "final_submit_required",
+          "official_portal_error",
+          "layout_changed",
+          "needs_manual_verification",
+        ],
+        {
+          timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+          failedRequestCount: options.failedRequestCount,
+          mainRequestFailed: options.mainRequestFailed,
+          onSnapshot: options.onSnapshot,
+        },
+      );
+      state = checkpoint.state;
       continue;
     }
 
@@ -517,95 +584,6 @@ async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
       return true;
     })
     .catch(() => false);
-}
-
-async function waitForHydrate(page: Page, timeoutMs: number): Promise<void> {
-  await page
-    .waitForFunction(
-      () => {
-        const doc = (globalThis as unknown as {
-          document?: {
-            getElementById: (id: string) => { innerHTML: string } | null;
-          };
-        }).document;
-        const app = doc?.getElementById("app");
-        return !!app && app.innerHTML.length > 40_000;
-      },
-      null,
-      { timeout: timeoutMs },
-    )
-    .catch(() => undefined);
-  await page.waitForTimeout(2_500);
-}
-
-async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
-  // The modal has 1–3 acknowledgement checkboxes + a Next/Tiếp button.
-  // Tick anything checkbox-shaped, then click anything that looks like Next.
-  const deadline = Date.now() + Math.min(timeoutMs, 30_000);
-  while (Date.now() < deadline) {
-    const formItems = await page.locator(".ant-form-item").count();
-    if (formItems >= 10) return;
-
-    await page
-      .evaluate(() => {
-        const doc = (globalThis as unknown as { document?: Document }).document;
-        const modal = doc?.querySelector(".ant-modal");
-        const scrollables = [
-          modal?.querySelector(".ant-modal-body"),
-          modal?.querySelector(".ant-modal-content"),
-        ].filter(Boolean) as HTMLElement[];
-        for (const el of scrollables) {
-          el.scrollTop = el.scrollHeight;
-        }
-      })
-      .catch(() => undefined);
-
-    // Tick all visible Ant checkboxes inside the modal.
-    const checkboxes = page.locator(".ant-modal input[type='checkbox']");
-    const count = await checkboxes.count().catch(() => 0);
-    for (let i = 0; i < count; i++) {
-      const checkbox = checkboxes.nth(i);
-      await checkbox.check({ force: true, timeout: 2_000 }).catch(async () => {
-        await checkbox.click({ force: true, timeout: 2_000 }).catch(() => undefined);
-      });
-    }
-    await page
-      .locator(".ant-modal .ant-checkbox, .ant-modal .ant-checkbox-wrapper")
-      .evaluateAll((nodes) => {
-        for (const node of nodes) {
-          const el = node as HTMLElement;
-          const input = el.querySelector("input[type='checkbox']") as HTMLInputElement | null;
-          if (!input || !input.checked) {
-            el.click();
-          }
-        }
-      })
-      .catch(() => undefined);
-
-    const nextBtn = page
-      .locator(".ant-modal button, [role='dialog'] button", {
-        hasText: /^(ok|agree|i agree|close|continue|next|tiếp|đồng ý|x)$/i,
-      })
-      .first();
-    if ((await nextBtn.count()) > 0) {
-      const disabled = await nextBtn
-        .evaluate((button) => {
-          const el = button as HTMLButtonElement;
-          return el.disabled || el.getAttribute("aria-disabled") === "true";
-        })
-        .catch(() => true);
-      if (!disabled) {
-        await nextBtn.click({ timeout: 5_000 }).catch(() => undefined);
-      }
-    }
-    await page
-      .locator(".ant-modal-close, [aria-label='Close'], [aria-label='close']")
-      .first()
-      .click({ timeout: 2_000 })
-      .catch(() => undefined);
-
-    await page.waitForTimeout(1_000);
-  }
 }
 
 async function fillByType(
