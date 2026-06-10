@@ -1,0 +1,26 @@
+# CI-004: typecheck + tests for the submission service.
+# NOTE: submission-service has no lint script — type-check only (no lint step).
+name: ci-submission-service
+on:
+  pull_request:
+    paths: ["viza-be/submission-service/**", ".github/workflows/ci-submission-service.yml"]
+  push:
+    branches: [main]
+    paths: ["viza-be/submission-service/**"]
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: viza-be/submission-service } }
+    env:
+      # Dummy values so module-load (src/supabase.ts) doesn't throw in unit tests.
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: viza-be/submission-service/package-lock.json }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm test

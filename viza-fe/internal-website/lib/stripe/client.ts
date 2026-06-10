@@ -85,6 +85,13 @@ export interface CreateCheckoutInput {
   applicationId: string;
   orderId: string;
   customerEmail?: string;
+  /**
+   * Tags the session as an unauthenticated marketing-funnel checkout.
+   * Adds `metadata[guest_checkout]=1` so the webhook can route it to the
+   * order-model guest handler (account provisioning + magic-link mail)
+   * instead of the authenticated payment_records path.
+   */
+  guestCheckout?: boolean;
 }
 
 export interface RefundResult {
@@ -142,6 +149,9 @@ export async function createCheckoutSession(
     "metadata[order_id]": input.orderId,
     "metadata[application_id]": input.applicationId,
   };
+  if (input.guestCheckout) {
+    form["metadata[guest_checkout]"] = "1";
+  }
   if (input.customerEmail) {
     form.customer_email = input.customerEmail;
   }

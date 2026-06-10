@@ -714,36 +714,15 @@
     display: flex; gap: 12px;
     margin-top: 8px;
   }
-  .site-foot .app-btn {
-    height: 48px; padding: 0 20px 0 18px;
-    background: #03110A;
-    color: #fff;
-    border: 1px solid #1a1a1a;
-    border-radius: 10px;
-    display: inline-flex; align-items: center; gap: 12px;
+  .site-foot .app-badge {
+    display: inline-flex;
     text-decoration: none;
-    transition: background .15s, transform .15s;
+    transition: transform .15s;
   }
-  .site-foot .app-btn:hover {
-    background: #111;
-    transform: translateY(-1px);
-    color: #fff;
-  }
-  .site-foot .app-btn svg { flex: 0 0 auto; }
-  .site-foot .app-btn .ab-text {
-    display: flex; flex-direction: column; line-height: 1.1;
-  }
-  .site-foot .app-btn .ab-pre {
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 3px;
-  }
-  .site-foot .app-btn .ab-name {
-    font: 500 15px/1 var(--font-heading);
-    letter-spacing: -0.2px;
-    color: #fff;
+  .site-foot .app-badge:hover { transform: translateY(-1px); }
+  .site-foot .app-badge img {
+    height: 48px; width: auto; display: block;
+    border-radius: 10px;
   }
 
   .site-foot .foot-bottom {

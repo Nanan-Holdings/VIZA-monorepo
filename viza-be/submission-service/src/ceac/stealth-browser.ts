@@ -17,6 +17,7 @@
  * Use via `launchStealthBrowser()` — returns the same shape as a
  * Playwright `{ browser, context, page }` tuple plus a `close()` helper.
  */
+import { randomBytes } from "node:crypto";
 import { chromium as playwrightChromium } from "@playwright/test";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import PlaywrightExtraDefault from "playwright-extra";
@@ -60,6 +61,13 @@ export interface StealthBrowserOptions {
    * suppression needed to pass Keycloak's headless detection.
    */
   hardening?: "default" | "france-visas";
+  /**
+   * Route through the Bright Data Scraping Browser (CDP) instead of the
+   * residential proxy. Required for commercial anti-bot SPAs (VFS/Akamai).
+   * Do NOT enable for `.gov` portals — Bright Data's Scraping Browser refuses
+   * government domains by policy; those must use the residential proxy.
+   */
+  antiBot?: boolean;
 }
 
 export interface StealthBrowserHandles {
@@ -157,11 +165,41 @@ export async function launchStealthBrowser(
 ): Promise<StealthBrowserHandles> {
   const hardening = options.hardening ?? "default";
 
+  // Anti-bot portals (VFS/Akamai, UKVI multi-step, Vietnam SPA) defeat plain
+  // residential proxy + stealth. When a Bright Data Scraping Browser CDP
+  // endpoint is configured, connect to it instead — it solves fingerprinting,
+  // CAPTCHA, and retries server-side. The endpoint already carries its own
+  // proxy + geo, so the BRIGHTDATA_PROXY_* launch args are not applied here.
+  const cdpWs = process.env.BRIGHTDATA_BROWSER_WS;
+  if (options.antiBot && cdpWs) {
+    const browser = await playwrightChromium.connectOverCDP(cdpWs);
+    const context = browser.contexts()[0] ?? (await browser.newContext());
+    const page = context.pages()[0] ?? (await context.newPage());
+    return { browser, context, page };
+  }
+
   const launchOpts: Parameters<typeof playwrightChromium.launch>[0] = {
     headless: options.headless ?? true,
   };
   if (hardening === "france-visas") {
     launchOpts.args = [...FV_LAUNCH_ARGS];
+  }
+  // Route through Bright Data residential proxy when configured. Recon +
+  // runners share this launcher; setting BRIGHTDATA_PROXY_HOST is enough to
+  // egress from a residential IP. RECON_PROXY_COUNTRY pins the exit country
+  // (gov portals geo-gate); a per-launch session id keeps the IP sticky.
+  const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
+  if (proxyHost) {
+    const port = process.env.BRIGHTDATA_PROXY_PORT ?? "33335";
+    const baseUser = process.env.BRIGHTDATA_USERNAME ?? "";
+    const password = process.env.BRIGHTDATA_PASSWORD ?? "";
+    const country = (process.env.RECON_PROXY_COUNTRY ?? "in").toLowerCase();
+    const session = randomBytes(6).toString("hex");
+    launchOpts.proxy = {
+      server: `http://${proxyHost}:${port}`,
+      username: `${baseUser}-country-${country}-session-${session}`,
+      password,
+    };
   }
   const browser = await extra.chromium.launch(launchOpts);
 
@@ -169,6 +207,8 @@ export async function launchStealthBrowser(
     acceptDownloads: options.acceptDownloads ?? true,
     userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
     extraHTTPHeaders: DEFAULT_CLIENT_HINTS,
+    // Bright Data presents a MITM cert; tolerate it when egressing via proxy.
+    ignoreHTTPSErrors: Boolean(launchOpts.proxy),
   };
   if (hardening === "france-visas") {
     contextOpts.viewport = { width: 1440, height: 900 };

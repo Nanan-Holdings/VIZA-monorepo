@@ -5,6 +5,9 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 import { artifact } from "../artifact.js";
 import { classifyPage, type InRunnerError } from "./errors";
 import { IN_SELECTORS } from "./selectors";
+import { solveImageCaptcha } from "../shared/captcha.js";
+import { forceFill, chosenSelect } from "../shared/form-helpers.js";
+import { brightDataProxy } from "../shared/proxy-launch.js";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
 
@@ -38,7 +41,32 @@ export async function waitForInConfirmationEmail(
   return { message, reference: parsed.reference ?? null };
 }
 
-const BASE_URL = process.env.IN_PORTAL_URL ?? "https://indianvisaonline.gov.in/evisa";
+// Public e-Visa landing. The "Apply" link to /evisa/Registration is
+// Referer-gated, so we must click through from this page rather than
+// deep-linking. Matches the recon walker (src/in/form-recon.ts).
+const LANDING_URL = process.env.IN_PORTAL_URL ?? "https://indianvisaonline.gov.in/evisa/tvoa.html";
+
+/**
+ * India e-Visa Registration page bindings — harvested live (see
+ * recon-out/in/fields.json, promoted into selectors.generated.ts).
+ * The registration step is the first data-entry form; the safe
+ * fill+halt checkpoint is *before* submitting it, since submission
+ * mints a government Temporary Application ID.
+ */
+const REG = {
+  nationality: 'select[name="appl.nationality"]',
+  passportType: 'select[name="appl.ppt_type_id"]',
+  visaType: 'select[name="appl.visa_type_id"]',
+  mission: 'select[name="appl.missioncode"]',
+  birthdate: 'input[name="appl.birthdate"]',
+  email: 'input[name="appl.email"]',
+  emailRe: 'input[name="appl.email_re"]',
+  journeydate: 'input[name="appl.journeydate"]',
+  visaPurpose: 'select[name="evisa_purpose"]',
+  instructions: '#read_instructions_check',
+  captchaInput: '#captcha',
+  captchaImg: '#capt',
+} as const;
 
 export type InVisaSubPurpose =
   | "tourism"
@@ -60,6 +88,10 @@ export interface InCanonicalAnswers {
   intended_arrival_date: string;
   port_of_arrival?: string;
   occupation?: string;
+  /** Registration page: passport class. Defaults to "Ordinary Passport". */
+  passport_type?: string;
+  /** Registration page: nearest Indian mission/embassy option value. */
+  mission_code?: string;
   visa_purpose: InVisaSubPurpose;
   /** Required when visa_purpose='medical' or 'medical_attendant'. */
   hospital_name?: string;
@@ -128,6 +160,20 @@ async function safeClick(page: Page, selector: string, label: string): Promise<b
   }
 }
 
+/** Select an <option> by value first, then by visible label. Tolerant. */
+async function safeSelect(page: Page, selector: string, value: string | undefined, label: string): Promise<void> {
+  if (!value) return;
+  try {
+    await page.selectOption(selector, { value }, { timeout: 5_000 });
+  } catch {
+    try {
+      await page.selectOption(selector, { label: value }, { timeout: 5_000 });
+    } catch (err) {
+      console.warn(`[in] select ${label} (${selector}) failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+}
+
 /** Sub-journey gating per visa_purpose. Surfaces extra fields for medical / conference. */
 function gateExtraFields(answers: InCanonicalAnswers): string[] {
   const missing: string[] = [];
@@ -141,12 +187,18 @@ function gateExtraFields(answers: InCanonicalAnswers): string[] {
 }
 
 export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
-  const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
+  // Egress through the Bright Data residential proxy when configured so the
+  // gov portal sees an in-country residential IP rather than a datacenter one.
+  const proxy = brightDataProxy("in");
+  const browser: Browser = await chromium.launch({ headless: input.headless ?? true, proxy });
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "in-har-"));
   const harPath = path.join(tempHar, `in-${input.jobId}.har`);
   const ctx = await browser.newContext({
     locale: "en-IN",
     recordHar: { path: harPath, mode: "minimal" },
+    // Bright Data residential proxy presents a MITM cert; tolerate it when
+    // egressing through the proxy (equivalent to curl --proxy ... -k).
+    ignoreHTTPSErrors: Boolean(proxy),
   });
   const page = await ctx.newPage();
   const stepCtx: StepCtx = { page, jobId: input.jobId, artefactPaths: [], attemptCount: 0 };
@@ -181,68 +233,65 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
   };
 
   try {
-    await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    // 1) Landing — public e-Visa page.
+    await page.goto(LANDING_URL, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await captureStep(stepCtx, "landing");
     result.reachedStep = "landing";
     const landingErr = await probe();
     if (landingErr) return dispatchError(landingErr);
 
+    // 2) Referer-gated click into /evisa/Registration. Deep-linking
+    //    redirects back to the landing, so the click is mandatory.
     const opened =
-      (await safeClick(page, 'a:has-text("Apply")', "apply-link")) ||
-      (await safeClick(page, 'a[href*="apply"]', "apply-href"));
+      (await safeClick(page, 'a[href="Registration"]', "registration-link")) ||
+      (await safeClick(page, 'a[title="e-Visa Application"]', "registration-title"));
     if (!opened) {
-      await page.goto(`${BASE_URL}/apply`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      result.status = "blocked";
+      result.reason = "could not open the Registration page from the landing";
+      await captureStep(stepCtx, "no-registration");
+      return result;
     }
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    await captureStep(stepCtx, "apply");
-    result.reachedStep = "apply";
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => {});
+    await page.waitForSelector(REG.nationality, { timeout: 20_000 });
+    await captureStep(stepCtx, "registration");
+    result.reachedStep = "registration";
+    const regErr = await probe();
+    if (regErr) return dispatchError(regErr);
 
-    // Personal info
-    await safeFill(page, IN_SELECTORS.given_names, input.answers.given_names, "given_names");
-    await safeFill(page, IN_SELECTORS.surname, input.answers.surname, "surname");
-    await safeFill(page, IN_SELECTORS.email, input.answers.email, "email");
-    await safeFill(page, IN_SELECTORS.phone, input.answers.phone, "phone");
-    await safeFill(page, IN_SELECTORS.date_of_birth, input.answers.date_of_birth, "dob");
-    await safeFill(page, IN_SELECTORS.nationality, input.answers.nationality, "nationality");
-    await captureStep(stepCtx, "personal");
-    result.reachedStep = "personal_filled";
+    // 3) Fill the registration form with real harvested selectors.
+    // Selects are jQuery-Chosen wrapped (hidden native <select>); dates are
+    // readonly datepickers — both need the in-page helpers, not page.fill.
+    await chosenSelect(page, REG.nationality, input.answers.nationality, "nationality");
+    await chosenSelect(page, REG.passportType, input.answers.passport_type ?? "Ordinary Passport", "passport_type");
+    await chosenSelect(page, REG.mission, input.answers.mission_code, "mission");
+    await forceFill(page, REG.birthdate, input.answers.date_of_birth, "birthdate");
+    await safeFill(page, REG.email, input.answers.email, "email");
+    await safeFill(page, REG.emailRe, input.answers.email, "email_re");
+    await forceFill(page, REG.journeydate, input.answers.intended_arrival_date, "journeydate");
+    await chosenSelect(page, REG.visaPurpose, input.answers.visa_purpose, "visa_purpose");
+    await page.check(REG.instructions, { timeout: 5_000 }).catch(() => {});
+    await captureStep(stepCtx, "registration_filled");
+    result.reachedStep = "registration_filled";
 
-    // Advance to passport page
-    if (await safeClick(page, IN_SELECTORS.next_button, "next-personal")) {
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await safeFill(page, IN_SELECTORS.passport_number, input.answers.passport_number, "passport_number");
-      await safeFill(page, IN_SELECTORS.passport_expiry, input.answers.passport_expiry_date, "passport_expiry");
-      await safeFill(
-        page,
-        'select[name="passport_issuing_country"]',
-        input.answers.passport_issuing_country,
-        "passport_issuing_country",
-      );
-      await captureStep(stepCtx, "passport");
-      result.reachedStep = "passport_filled";
+    // 4) Solve the image captcha via 2Captcha (fills #captcha; does NOT submit).
+    try {
+      const img = await page.locator(REG.captchaImg).screenshot({ timeout: 10_000 });
+      const code = await solveImageCaptcha(img, { hint: "in-evisa" });
+      if (code) {
+        await page.fill(REG.captchaInput, code, { timeout: 5_000 });
+        result.reachedStep = "captcha_solved";
+      }
+    } catch (capErr) {
+      // Captcha failure is non-fatal for fill+halt — the form is still
+      // filled; we just stop before submit either way.
+      console.warn(`[in] captcha solve skipped: ${capErr instanceof Error ? capErr.message : capErr}`);
     }
+    await captureStep(stepCtx, "pre_submit");
 
-    // Visa details (purpose + arrival)
-    if (await safeClick(page, IN_SELECTORS.next_button, "next-passport")) {
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await safeFill(page, IN_SELECTORS.visa_purpose, input.answers.visa_purpose, "visa_purpose");
-      await safeFill(page, IN_SELECTORS.arrival_date, input.answers.intended_arrival_date, "arrival_date");
-      await safeFill(page, IN_SELECTORS.port_of_arrival, input.answers.port_of_arrival, "port_of_arrival");
-      await safeFill(page, IN_SELECTORS.hospital_name, input.answers.hospital_name, "hospital_name");
-      await safeFill(page, IN_SELECTORS.conference_name, input.answers.conference_name, "conference_name");
-      await captureStep(stepCtx, "visa_details");
-      result.reachedStep = "visa_details_filled";
-    }
-
-    // Advance to review
-    if (await safeClick(page, 'button:has-text("Review")', "review-btn")) {
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-      await captureStep(stepCtx, "review");
-      result.reachedStep = "review";
-    }
-
+    // 5) HALT. Submitting registration would mint a government Temporary
+    //    Application ID — that is the line we never cross in fill+halt QA.
     result.status = "stopped_before_pay";
-    result.reason = "runner halted at the review step before payment";
+    result.reason = "filled e-Visa registration; halted before submit (no government record created)";
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -271,3 +320,6 @@ export async function runInPrefill(input: InRunInput): Promise<InRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-IN-001: dispatch runOne (loads answers, maps result). See runners/legacy-prefill-adapters.ts.
+export { runIndia as runOne } from "../runners/legacy-prefill-adapters.js";

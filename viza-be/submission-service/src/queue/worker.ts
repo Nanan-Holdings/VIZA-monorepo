@@ -1,6 +1,7 @@
 import { supabase } from "../supabase.js";
 import { sendAlert } from "../alerts/dispatch.js";
 import { emitRunnerMetric } from "../metrics/emit.js";
+import { getMaxConcurrent, isPaused } from "./concurrency.js";
 
 /**
  * runner_job consumer (INFRA-002).
@@ -68,18 +69,11 @@ export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
   const candidate = candidates?.[0];
   if (!candidate) return null;
 
-  // INFRA-003: per-country concurrency cap. Decline the claim if the
-  // country is paused or already at cap.
-  const { data: cap, error: capErr } = await supabase
-    .from("runner_concurrency_cap")
-    .select("max_concurrent, paused")
-    .eq("country", candidate.country)
-    .maybeSingle();
-  if (capErr) {
-    throw new Error(`runner_concurrency_cap read: ${capErr.message}`);
-  }
-  if (cap?.paused) return null;
-  const max = cap?.max_concurrent ?? 1;
+  // QUE-006: per-country concurrency cap + pause, sourced from env config
+  // (src/queue/concurrency.ts). Decline the claim if the country is paused
+  // or already at its in-flight cap.
+  if (isPaused(candidate.country)) return null;
+  const max = getMaxConcurrent(candidate.country);
   const { count: running, error: countErr } = await supabase
     .from("runner_job")
     .select("id", { count: "exact", head: true })

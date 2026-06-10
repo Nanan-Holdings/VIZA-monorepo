@@ -3,15 +3,19 @@ services:
     name: viza-agent-backend
     runtime: node
     region: singapore
-    plan: free
+    # CI-005: 'free' spins down on idle and drops the Socket.IO WebSocket —
+    # use 'starter' (always-on) for this persistent WS service.
+    plan: starter
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      # CI-005: match the Dockerfile EXPOSE/ENV (8080). The app listens on
+      # process.env.PORT, so this is the single source for the port.
       - key: PORT
-        value: "10000"
+        value: "8080"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: SUPABASE_URL
