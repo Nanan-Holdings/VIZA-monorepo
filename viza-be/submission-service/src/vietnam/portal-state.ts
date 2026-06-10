@@ -95,7 +95,8 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
     (snapshot.hasVisibleModal &&
       (/\b(note|notice|attention|important|warning)\b/i.test(lowerModal) ||
         /lưu ý|thông báo|chú ý/i.test(lowerModal))) ||
-    /\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text)
+    /\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text) ||
+    /lưu ý|hướng dẫn khai báo|xác nhận đã đọc kỹ|xác nhận tuân thủ pháp luật/i.test(lowerText)
   ) {
     return "note_modal_visible";
   }
@@ -275,7 +276,11 @@ export async function waitForVietnamPortalCheckpoint(
     };
     lastResult = result;
 
-    if (expectedSet === null || expectedSet.has(checkpoint) || checkpoint !== "needs_manual_verification") {
+    const stillHydrating = state === "white_screen";
+    if (
+      !stillHydrating &&
+      (expectedSet === null || expectedSet.has(checkpoint) || checkpoint !== "needs_manual_verification")
+    ) {
       return result;
     }
 

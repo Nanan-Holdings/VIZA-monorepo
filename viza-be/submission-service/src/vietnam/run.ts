@@ -423,11 +423,7 @@ async function reachVietnamFormCheckpoint(
   }
 
   for (let step = 0; step < 8; step++) {
-    if (
-      state === "application_form_visible" ||
-      state === "upload_passport_visible" ||
-      state === "upload_portrait_visible"
-    ) {
+    if (state === "application_form_visible") {
       return { kind: "ready", checkpoint: state };
     }
 
