@@ -23,6 +23,10 @@ reports, and workflow documentation for VIZA.
 - `pitch/**`: pitch-deck-ready product/module summaries and bilingual investor
   narrative material.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
+- `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
+  and troubleshooting workflow for agents.
+- `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
+  persistence-related completion claims.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
   assistant dry-run architecture, provider mapping, and compliance boundaries.

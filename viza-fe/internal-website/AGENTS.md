@@ -66,6 +66,13 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/verify-travel-image-relevance.ts`.
 - Travel natural-language prompt QA through
   `scripts/qa-travel-agent-prompts.ts`.
+- Supabase remote schema verification through
+  `scripts/verify-supabase-schema.ts`.
+- Targeted VIZA-only Supabase migration through
+  `scripts/migrate-viza-required.ts`.
+- Internal wrapper for the repo env doctor through `scripts/doctor-env.ts`.
+- VIZA-required Supabase migrations under `supabase/migrations/20260610_*` and
+  the SQL Editor bundle under `supabase/manual/viza_required_schema.sql`.
 
 ## Source Of Truth
 
@@ -164,6 +171,7 @@ Smoke URLs:
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `supabase/migrations/*`
+- `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
 - `lib/frequent-traveler-profile.ts`
