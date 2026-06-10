@@ -8,6 +8,10 @@ import {
   getLocalizedDestinationName,
   verifyTravelImageRelevance,
 } from "@/lib/travel/destination-contracts";
+import {
+  findTravelAttraction,
+  getTravelAttractionsForCity,
+} from "@/components/client/travel/travel-attraction-knowledge";
 
 const requiredCities = [
   "London",
@@ -106,5 +110,38 @@ describe("local-first destination contracts", () => {
 
   it("treats the dropdown list as the product contract", () => {
     expect(getDropdownDestinationContracts().length).toBeGreaterThan(100);
+  });
+
+  it("gives every dropdown destination at least ten map-ready attraction cards", () => {
+    for (const destination of getDropdownDestinationContracts()) {
+      expect(destination.attractions.length, destination.nameEn).toBeGreaterThanOrEqual(10);
+      expect(destination.attractions.slice(0, 10).every((attraction) => {
+        return (
+          typeof attraction.latitude === "number" &&
+          Number.isFinite(attraction.latitude) &&
+          typeof attraction.longitude === "number" &&
+          Number.isFinite(attraction.longitude) &&
+          Boolean(attraction.image?.verified) &&
+          Boolean(attraction.nameEn) &&
+          Boolean(attraction.nameZh) &&
+          Boolean(attraction.descriptionEn) &&
+          Boolean(attraction.descriptionZh)
+        );
+      }), destination.nameEn).toBe(true);
+    }
+  });
+
+  it("covers Changsha itinerary landmarks and food matching from the shared attraction layer", () => {
+    const destination = findDropdownDestinationContract("Changsha");
+    expect(destination?.attractions.length).toBeGreaterThanOrEqual(10);
+    expect(destination?.attractions.map((item) => item.nameZh)).toEqual(
+      expect.arrayContaining(["岳麓山", "橘子洲头", "长沙博物馆"])
+    );
+
+    expect(findTravelAttraction("长沙", "岳麓山")?.name).toBe("岳麓山");
+    expect(findTravelAttraction("长沙", "橘子洲")?.name).toBe("橘子洲头");
+    expect(findTravelAttraction("长沙", "长沙博物馆")?.name).toBe("长沙博物馆");
+    expect(findTravelAttraction("长沙", "臭豆腐")?.name).toBe("坡子街 / 火宫殿");
+    expect(getTravelAttractionsForCity("长沙").length).toBeGreaterThanOrEqual(10);
   });
 });

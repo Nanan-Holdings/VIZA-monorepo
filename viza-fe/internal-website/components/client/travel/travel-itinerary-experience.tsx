@@ -2964,7 +2964,7 @@ function buildAttractionMapPoints(
           getSpecificAttraction(city, 1, 0, language),
         ];
 
-  return pointNames.slice(0, 8).map((activity, index) => {
+  return pointNames.slice(0, 10).map((activity, index) => {
     const activityLabel = getTravelTextForLanguage(
       activity,
       language,
