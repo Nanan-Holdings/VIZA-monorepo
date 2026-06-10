@@ -205,6 +205,28 @@
     },
     {
       "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Orange_Isle%2C_Changsha_8.jpg/640px-Orange_Isle%2C_Changsha_8.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Orange_Isle"
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Changchun_Montage_2019.png",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changchun_Montage_2019.png"
+    },
+    {
+      "cityKeys": [
         "Xi'an",
         "西安",
         "xian"
@@ -252,6 +274,17 @@
       "cityLabel": "福冈",
       "imageSrc": "/travel/cities/fukuoka.jpg",
       "sourceUrl": "https://en.wikipedia.org/wiki/Fukuoka"
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki_City_view_from_Hamahira01s3.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki_City_view_from_Hamahira01s3.jpg"
     },
     {
       "cityKeys": [
@@ -30913,6 +30946,751 @@
       ],
       "lat": 41.8972,
       "lng": -87.6212
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "岳麓山",
+      "location": "Yuelu Mountain, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Yulu-Moutains2-en.jpg/640px-Yulu-Moutains2-en.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Yuelu_Mountain",
+      "description": "岳麓山位于湘江西岸，可串联岳麓书院、爱晚亭和山林步道，是长沙经典半日景点。",
+      "aliases": [
+        "Yuelu Mountain",
+        "Mount Yuelu",
+        "岳麓山风景名胜区",
+        "岳麓山景区"
+      ],
+      "lat": 28.1854,
+      "lng": 112.9438
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "橘子洲头",
+      "location": "Orange Isle, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Orange_Isle%2C_Changsha_8.jpg/640px-Orange_Isle%2C_Changsha_8.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Orange_Isle",
+      "description": "橘子洲头位于湘江江心，适合傍晚散步、看江景并衔接市中心夜游。",
+      "aliases": [
+        "Orange Isle",
+        "Juzizhou",
+        "橘子洲",
+        "橘子洲景区"
+      ],
+      "lat": 28.1891,
+      "lng": 112.9613
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "湖南博物院",
+      "location": "Hunan Museum, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Entrance_of_Hunan_Museum%2C_2018-09-28.jpg/640px-Entrance_of_Hunan_Museum%2C_2018-09-28.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Hunan_Museum",
+      "description": "湖南博物院以马王堆汉墓和湖南历史文物闻名，适合安排在上午或雨天行程。",
+      "aliases": [
+        "Hunan Museum",
+        "Hunan Provincial Museum",
+        "湖南省博物馆",
+        "省博"
+      ],
+      "lat": 28.2137,
+      "lng": 112.9824
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "长沙博物馆",
+      "location": "Changsha Museum, Kaifu District",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Far_view_of_Changsha_Museum%2C_picture2.jpg/640px-Far_view_of_Changsha_Museum%2C_picture2.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Changsha_Museum",
+      "description": "长沙博物馆展示长沙城市史和区域考古成果，适合与滨江、北辰三角洲动线组合。",
+      "aliases": [
+        "Changsha Museum",
+        "长沙市博物馆"
+      ],
+      "lat": 28.2356,
+      "lng": 112.9786
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "五一广场",
+      "location": "Wuyi Square, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Wuyi_Square_Station_Concourse.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wuyi_Square_Station_Concourse.jpg",
+      "description": "五一广场是长沙市中心换乘和商圈核心，适合作为黄兴路、坡子街和IFS动线起点。",
+      "aliases": [
+        "Wuyi Square",
+        "May Day Square",
+        "五一商圈"
+      ],
+      "lat": 28.1977,
+      "lng": 112.9767
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "黄兴路步行街",
+      "location": "Huangxing Road Walking Street, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/b/be/Huangxing_road_in_Changsha.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Huangxing_road_in_Changsha.jpg",
+      "description": "黄兴路步行街是长沙人气商业步行街，适合安排小吃、购物和夜间街区体验。",
+      "aliases": [
+        "Huangxing Road Walking Street",
+        "Huangxing Road Pedestrian Street",
+        "黄兴南路步行街"
+      ],
+      "lat": 28.1943,
+      "lng": 112.9763
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "太平老街",
+      "location": "Taiping Old Street, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/6/67/Changsha_Taiping_Old_Street.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changsha_Taiping_Old_Street.jpg",
+      "description": "太平老街保留老长沙街巷肌理，适合串联文和友、坡子街和湘江夜景。",
+      "aliases": [
+        "Taiping Old Street",
+        "Taiping Street",
+        "太平街"
+      ],
+      "lat": 28.1976,
+      "lng": 112.9699
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "杜甫江阁",
+      "location": "Du Fu River Pavilion, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Changsha_Dufu_Pavilion.jpg/640px-Changsha_Dufu_Pavilion.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Du_Fu_River_Pavilion",
+      "description": "杜甫江阁临近湘江，是长沙夜景、古典建筑和江岸散步的代表节点。",
+      "aliases": [
+        "Du Fu River Pavilion",
+        "Dufu Pavilion",
+        "杜甫江阁景区"
+      ],
+      "lat": 28.1841,
+      "lng": 112.9702
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "梅溪湖国际文化艺术中心",
+      "location": "Meixihu International Culture and Arts Centre, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/%E6%A2%85%E6%BA%AA%E6%B9%96%E5%9B%BD%E9%99%85%E6%96%87%E5%8C%96%E8%89%BA%E6%9C%AF%E4%B8%AD%E5%BF%83.jpg/640px-%E6%A2%85%E6%BA%AA%E6%B9%96%E5%9B%BD%E9%99%85%E6%96%87%E5%8C%96%E8%89%BA%E6%9C%AF%E4%B8%AD%E5%BF%83.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Changsha_Meixihu_International_Culture_and_Arts_Centre",
+      "description": "梅溪湖国际文化艺术中心是扎哈设计的文化综合体，适合安排建筑摄影和剧场周边漫步。",
+      "aliases": [
+        "Meixihu International Culture and Arts Centre",
+        "Changsha Meixihu International Culture and Arts Centre",
+        "梅溪湖大剧院"
+      ],
+      "lat": 28.1963,
+      "lng": 112.9005
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "开福寺",
+      "location": "Kaifu Temple, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/KaiFuSi.JPG/640px-KaiFuSi.JPG",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Kaifu_Temple",
+      "description": "开福寺是长沙代表性佛寺，适合安排安静半小时到一小时的文化停靠。",
+      "aliases": [
+        "Kaifu Temple",
+        "Kaifu Monastery",
+        "开福禅寺"
+      ],
+      "lat": 28.2172,
+      "lng": 112.9796
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "烈士公园",
+      "location": "Hunan Martyrs' Park, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/5/5a/Martyrs%27_Monument%2C_Hunan_Martyrs%27_Park_2023040204.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Martyrs%27_Monument,_Hunan_Martyrs%27_Park_2023040204.jpg",
+      "description": "烈士公园有湖区、纪念建筑和城市公园步道，适合放慢节奏或亲子散步。",
+      "aliases": [
+        "Hunan Martyrs' Park",
+        "Martyrs Park",
+        "湖南烈士公园"
+      ],
+      "lat": 28.214,
+      "lng": 112.9935
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "谢子龙影像艺术馆",
+      "location": "Xie Zilong Photography Museum, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Xie_Zilong_Photography_Museum_2023040111.jpg/640px-Xie_Zilong_Photography_Museum_2023040111.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Xie_Zilong_Photography_Museum",
+      "description": "谢子龙影像艺术馆聚焦摄影与影像展览，适合与洋湖片区和李自健美术馆一并安排。",
+      "aliases": [
+        "Xie Zilong Photography Museum",
+        "XPM",
+        "谢子龙摄影博物馆"
+      ],
+      "lat": 28.1304,
+      "lng": 112.9488
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "李自健美术馆",
+      "location": "Li Zijian Art Museum, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Li_Zijian_Art_Museum_2023040113.jpg/640px-Li_Zijian_Art_Museum_2023040113.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Li_Zijian_Art_Museum",
+      "description": "李自健美术馆位于洋湖片区，适合安排美术展览、建筑空间和湖畔休闲。",
+      "aliases": [
+        "Li Zijian Art Museum",
+        "Li Zijian Museum"
+      ],
+      "lat": 28.1296,
+      "lng": 112.9507
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "IFS国金中心",
+      "location": "Changsha IFS, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/b/b2/Changsha_IFS_Tower_T1.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changsha_IFS_Tower_T1.jpg",
+      "description": "长沙IFS国金中心位于五一商圈，是购物、餐饮和城市高空地标的核心节点。",
+      "aliases": [
+        "Changsha IFS",
+        "Changsha IFS Tower T1",
+        "长沙IFS",
+        "长沙国金中心"
+      ],
+      "lat": 28.1946,
+      "lng": 112.9768
+    },
+    {
+      "cityKeys": [
+        "Changsha",
+        "长沙",
+        "changsha",
+        "Hunan Changsha",
+        "湖南长沙"
+      ],
+      "cityLabel": "长沙",
+      "name": "坡子街 / 火宫殿",
+      "location": "Pozi Street and Huogongdian, Changsha",
+      "imageSrc": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Gate_of_Huogongdian_%2820180222180148%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gate_of_Huogongdian_(20180222180148).jpg",
+      "description": "坡子街和火宫殿适合安排臭豆腐、小吃和老长沙夜市体验。",
+      "aliases": [
+        "Pozi Street",
+        "Huogongdian",
+        "Fire God Palace",
+        "臭豆腐",
+        "长沙臭豆腐"
+      ],
+      "lat": 28.1931,
+      "lng": 112.9706
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "净月潭国家森林公园",
+      "location": "Jingyuetan National Forest Park, Changchun",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/%E5%87%80%E6%9C%88%E6%BD%AD_jing_yue_tan_-_panoramio_%281%29.jpg",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Jingyuetan_National_Forest_Park",
+      "description": "净月潭国家森林公园适合森林步道、湖边骑行和四季户外体验。",
+      "aliases": [
+        "Jingyuetan National Forest Park",
+        "Jingyuetan",
+        "净月潭"
+      ],
+      "lat": 43.7819,
+      "lng": 125.4437
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "伪满皇宫博物院",
+      "location": "Museum of the Imperial Palace of Manchukuo, Changchun",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/25238-Changchun%2C_Museum_of_the_Imperial_Palace_of_Manchukuo.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:25238-Changchun,_Museum_of_the_Imperial_Palace_of_Manchukuo.jpg",
+      "description": "伪满皇宫博物院是长春重要历史博物馆，适合了解近代东北历史。",
+      "aliases": [
+        "Museum of the Imperial Palace of Manchukuo",
+        "Puppet Emperor's Palace Museum",
+        "Puppet Manchurian Palace Museum"
+      ],
+      "lat": 43.9041,
+      "lng": 125.3426
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "长影旧址博物馆",
+      "location": "Former Site Museum of Changchun Film Studio",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Mao_Statue_at_Former_Site_Museum_Of_Changchun_Film_Studio_%E9%95%BF%E5%BD%B1%E6%97%A7%E5%9D%80%E5%8D%9A%E7%89%A9%E9%A6%86.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mao_Statue_at_Former_Site_Museum_Of_Changchun_Film_Studio_%E9%95%BF%E5%BD%B1%E6%97%A7%E5%9D%80%E5%8D%9A%E7%89%A9%E9%A6%86.jpg",
+      "description": "长影旧址博物馆展示中国电影工业记忆，适合电影主题和城市文化体验。",
+      "aliases": [
+        "Former Site Museum of Changchun Film Studio",
+        "Changchun Film Studio Museum",
+        "Changying Site Museum"
+      ],
+      "lat": 43.8656,
+      "lng": 125.2895
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "南湖公园",
+      "location": "Nanhu Park, Changchun",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nanhu-See_im_Nanhu-Park%2C_Changchun.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nanhu-See_im_Nanhu-Park,_Changchun.jpg",
+      "description": "南湖公园是长春市区大型湖滨公园，适合散步、赏雪和城市慢行。",
+      "aliases": [
+        "Nanhu Park",
+        "South Lake Park",
+        "南湖"
+      ],
+      "lat": 43.8522,
+      "lng": 125.3046
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "长春世界雕塑园",
+      "location": "Changchun World Sculpture Park",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/25340-Changchun_%2849052555647%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:25340-Changchun_(49052555647).jpg",
+      "description": "长春世界雕塑园适合户外雕塑、园林步道和城市艺术主题行程。",
+      "aliases": [
+        "Changchun World Sculpture Park",
+        "World Sculpture Park"
+      ],
+      "lat": 43.7976,
+      "lng": 125.3303
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "长春文化广场",
+      "location": "Changchun Cultural Square",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Changchun_Cultural_Square.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changchun_Cultural_Square.JPG",
+      "description": "长春文化广场是城市核心公共空间，可结合周边建筑和夜景安排短停。",
+      "aliases": [
+        "Changchun Cultural Square",
+        "Changchun Culture Square",
+        "文化广场"
+      ],
+      "lat": 43.8789,
+      "lng": 125.3014
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "长春动植物公园",
+      "location": "Changchun Zoological and Botanical Park",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Changchun_Zoological_and_Botanical_Park.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changchun_Zoological_and_Botanical_Park.jpg",
+      "description": "长春动植物公园适合亲子游和轻松步行，是市区内自然体验节点。",
+      "aliases": [
+        "Changchun Zoological and Botanical Park",
+        "Changchun Zoo and Botanical Garden"
+      ],
+      "lat": 43.8665,
+      "lng": 125.3403
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "长春基督教堂",
+      "location": "Changchun Christian Church",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Changchun_Christian_Church.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Changchun_Christian_Church.jpg",
+      "description": "长春基督教堂是城市历史建筑节点，适合与文化广场、老街区组合步行。",
+      "aliases": [
+        "Changchun Christian Church",
+        "Changchun Church"
+      ],
+      "lat": 43.8888,
+      "lng": 125.3297
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "苏联红军烈士纪念塔",
+      "location": "Soviet Martyr Monument of Changchun",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Soviet_martyr_monument_of_Changchun.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Soviet_martyr_monument_of_Changchun.jpg",
+      "description": "苏联红军烈士纪念塔是长春近现代历史地标，可作为市区历史步行节点。",
+      "aliases": [
+        "Soviet Martyr Monument of Changchun",
+        "Soviet martyr monument",
+        "苏军烈士纪念塔"
+      ],
+      "lat": 43.88,
+      "lng": 125.313
+    },
+    {
+      "cityKeys": [
+        "Changchun",
+        "长春",
+        "changchun"
+      ],
+      "cityLabel": "长春",
+      "name": "伪满洲国务院旧址",
+      "location": "Former Manchukuo State Department, Changchun",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/The_Puppet_Manchukuo_government%27s_State_Department_%E4%BC%AA%E6%BB%A1%E6%B4%B2%E5%9B%BD%E5%8A%A1%E9%99%A2.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Puppet_Manchukuo_government%27s_State_Department_%E4%BC%AA%E6%BB%A1%E6%B4%B2%E5%9B%BD%E5%8A%A1%E9%99%A2.jpg",
+      "description": "伪满洲国务院旧址是长春近代建筑与历史教育节点，适合与伪满皇宫主题串联。",
+      "aliases": [
+        "Former Manchukuo State Department",
+        "Puppet Manchukuo State Department"
+      ],
+      "lat": 43.895,
+      "lng": 125.307
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "长崎和平公园",
+      "location": "Nagasaki Peace Park",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/20190202_Nagasaki_Peace_Park_Peace_Bell.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:20190202_Nagasaki_Peace_Park_Peace_Bell.jpg",
+      "description": "长崎和平公园纪念原子弹爆炸历史，适合与原爆资料馆安排同一半日。",
+      "aliases": [
+        "Nagasaki Peace Park",
+        "Peace Park",
+        "和平公园"
+      ],
+      "lat": 32.7757,
+      "lng": 129.864
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "长崎原爆资料馆",
+      "location": "Nagasaki Atomic Bomb Museum",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki_Atomic_Bomb_Museum_in_2013.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki_Atomic_Bomb_Museum_in_2013.jpg",
+      "description": "长崎原爆资料馆系统展示二战与和平主题资料，建议预留充足参观时间。",
+      "aliases": [
+        "Nagasaki Atomic Bomb Museum",
+        "Atomic Bomb Museum",
+        "长崎原子弹爆炸资料馆"
+      ],
+      "lat": 32.7737,
+      "lng": 129.8631
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "哥拉巴园",
+      "location": "Glover Garden, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki-Glover-Garden-5349.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki-Glover-Garden-5349.jpg",
+      "description": "哥拉巴园位于南山手，可眺望港口并了解长崎开港时期的洋馆历史。",
+      "aliases": [
+        "Glover Garden",
+        "Glover House",
+        "グラバー園"
+      ],
+      "lat": 32.7342,
+      "lng": 129.8694
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "大浦天主堂",
+      "location": "Oura Church, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Oura_Church_Nagasaki.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Oura_Church_Nagasaki.JPG",
+      "description": "大浦天主堂是长崎代表性历史教堂，适合与哥拉巴园和南山手坡道一起游览。",
+      "aliases": [
+        "Oura Church",
+        "Oura Cathedral",
+        "Oura Catholic Church",
+        "大浦教堂"
+      ],
+      "lat": 32.7345,
+      "lng": 129.8702
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "出岛",
+      "location": "Dejima, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Dejima_Nagasaki_Japan09bs5.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dejima_Nagasaki_Japan09bs5.jpg",
+      "description": "出岛保留江户时期贸易史记忆，适合安排在市中心历史街区步行线中。",
+      "aliases": [
+        "Dejima",
+        "Deshima",
+        "出島"
+      ],
+      "lat": 32.7448,
+      "lng": 129.8736
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "眼镜桥",
+      "location": "Megane Bridge, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Megane_Bridge%2C_Nagasaki_04.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Megane_Bridge,_Nagasaki_04.jpg",
+      "description": "眼镜桥横跨中岛川，是长崎最具辨识度的石桥景点之一。",
+      "aliases": [
+        "Megane Bridge",
+        "Meganebashi",
+        "Spectacles Bridge",
+        "眼鏡橋"
+      ],
+      "lat": 32.7478,
+      "lng": 129.8792
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "稻佐山",
+      "location": "Mount Inasa, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki_panorama_from_Mount_Inasa_04.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki_panorama_from_Mount_Inasa_04.jpg",
+      "description": "稻佐山是长崎夜景和港湾全景观景点，适合安排傍晚到夜间。",
+      "aliases": [
+        "Mount Inasa",
+        "Mt. Inasa",
+        "Inasayama",
+        "稲佐山"
+      ],
+      "lat": 32.7527,
+      "lng": 129.8495
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "崇福寺",
+      "location": "Sofuku-ji, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki-Sofukuji-Daiyuhoden-M5601.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki-Sofukuji-Daiyuhoden-M5601.jpg",
+      "description": "崇福寺是长崎唐寺文化的重要节点，可与寺町和眼镜桥周边步行串联。",
+      "aliases": [
+        "Sofuku-ji",
+        "Sofukuji",
+        "Sōfuku-ji",
+        "崇福寺"
+      ],
+      "lat": 32.7445,
+      "lng": 129.8836
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "新地中华街",
+      "location": "Nagasaki Shinchi Chinatown",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Nagasaki_Shinchi_Chinatown.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nagasaki_Shinchi_Chinatown.jpg",
+      "description": "新地中华街适合安排长崎什锦面、街区夜游和港口附近美食体验。",
+      "aliases": [
+        "Nagasaki Shinchi Chinatown",
+        "Shinchi Chinatown",
+        "Nagasaki Chinatown",
+        "長崎新地中華街"
+      ],
+      "lat": 32.7419,
+      "lng": 129.8758
+    },
+    {
+      "cityKeys": [
+        "Nagasaki",
+        "长崎",
+        "nagasaki",
+        "長崎"
+      ],
+      "cityLabel": "长崎",
+      "name": "诹访神社",
+      "location": "Suwa Shrine, Nagasaki",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Suwa_Shrine_Nagasaki_%28232420237%29.jpeg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Suwa_Shrine_Nagasaki_(232420237).jpeg",
+      "description": "诹访神社位于山坡上，可结合城市眺望和长崎传统祭礼文化安排游览。",
+      "aliases": [
+        "Suwa Shrine",
+        "Nagasaki Suwa Shrine",
+        "諏訪神社"
+      ],
+      "lat": 32.7532,
+      "lng": 129.8831
     }
   ]
 }
