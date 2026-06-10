@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 type QueueRow = {
   id: string;
   application_id: string;
+  status: string | null;
   mode: string | null;
   provider: string | null;
 };
@@ -18,15 +19,25 @@ type ApplicationRow = {
   visa_type: string | null;
 };
 
-type ManualActionRow = {
+type ManualActionTable = {
+  tableName: string;
+  queueColumn: "submission_queue_id" | "job_id";
+  metadataColumn: "metadata" | "redacted_metadata_json";
+  hasCountryColumn?: boolean;
+};
+
+type RawManualActionRow = {
   id: string;
-  job_id: string | null;
-  application_id: string;
+  submission_queue_id?: string | null;
+  job_id?: string | null;
+  application_id: string | null;
+  country?: string | null;
   action_type: string;
-  status: string;
+  status: string | null;
   instruction: string | null;
   screenshot_url: string | null;
-  redacted_metadata_json: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  redacted_metadata_json?: Record<string, unknown> | null;
   created_at: string | null;
   completed_at: string | null;
   expires_at: string | null;
@@ -39,8 +50,103 @@ function isMissingManualActionSchema(error: { message?: string; code?: string })
     message.includes("could not find the") ||
     message.includes("schema cache") ||
     message.includes("does not exist") ||
+    message.includes("submission_manual_actions") ||
+    message.includes("ds160_live_manual_actions") ||
+    message.includes("france_live_manual_actions") ||
     message.includes("vietnam_live_manual_actions")
   );
+}
+
+function normalizeCountry(country: string | null | undefined): string {
+  return (country ?? "").trim().toLowerCase();
+}
+
+function normalizeVisaType(visaType: string | null | undefined): string {
+  return (visaType ?? "").trim().toLowerCase();
+}
+
+function isDs160Job(queue: QueueRow, application: ApplicationRow): boolean {
+  const country = normalizeCountry(application.country);
+  const visaType = normalizeVisaType(application.visa_type);
+  return (
+    queue.provider === "ceac_live" ||
+    queue.status?.startsWith("ds160_") === true ||
+    visaType === "ds160" ||
+    country === "united_states" ||
+    country === "united states" ||
+    country === "us" ||
+    country === "美国"
+  );
+}
+
+function isFranceJob(queue: QueueRow, application: ApplicationRow): boolean {
+  const country = normalizeCountry(application.country);
+  return (
+    queue.provider === "france_visas_live" ||
+    country === "france" ||
+    country === "fr" ||
+    country === "法国"
+  );
+}
+
+function isVietnamJob(queue: QueueRow, application: ApplicationRow): boolean {
+  const country = normalizeCountry(application.country);
+  return (
+    queue.provider === "vietnam_evisa_live" ||
+    country === "vietnam" ||
+    country === "vn" ||
+    country === "viet_nam"
+  );
+}
+
+function manualActionTables(queue: QueueRow, application: ApplicationRow): ManualActionTable[] {
+  const tables: ManualActionTable[] = [
+    {
+      tableName: "submission_manual_actions",
+      queueColumn: "submission_queue_id",
+      metadataColumn: "metadata",
+      hasCountryColumn: true,
+    },
+  ];
+
+  if (isFranceJob(queue, application)) {
+    tables.push({
+      tableName: "france_live_manual_actions",
+      queueColumn: "job_id",
+      metadataColumn: "redacted_metadata_json",
+    });
+  }
+  if (isVietnamJob(queue, application)) {
+    tables.push({
+      tableName: "vietnam_live_manual_actions",
+      queueColumn: "job_id",
+      metadataColumn: "redacted_metadata_json",
+    });
+  }
+  if (isDs160Job(queue, application)) {
+    tables.push({
+      tableName: "ds160_live_manual_actions",
+      queueColumn: "job_id",
+      metadataColumn: "redacted_metadata_json",
+    });
+  }
+
+  return tables;
+}
+
+function redactMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactMetadata);
+  if (typeof value !== "object" || value === null) return value;
+
+  const redacted: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (/answer|captcha|password|cookie|token|secret|passport|reference/i.test(key)) {
+      redacted[key] = "<redacted>";
+    } else {
+      redacted[key] = redactMetadata(nested);
+    }
+  }
+  return redacted;
 }
 
 async function authorizeSubmissionJob(jobId: string): Promise<
@@ -76,7 +182,7 @@ async function authorizeSubmissionJob(jobId: string): Promise<
 
   const { data: queueData, error: queueError } = await admin
     .from("submission_queue")
-    .select("id, application_id, mode, provider")
+    .select("id, application_id, status, mode, provider")
     .eq("id", jobId)
     .maybeSingle();
 
@@ -120,37 +226,61 @@ export async function GET(
   const authorized = await authorizeSubmissionJob(jobId);
   if (!authorized.ok) return authorized.response;
 
-  const { data, error } = await authorized.admin
-    .from("vietnam_live_manual_actions")
-    .select(
-      "id, job_id, application_id, action_type, status, instruction, screenshot_url, redacted_metadata_json, created_at, completed_at, expires_at",
-    )
-    .eq("job_id", jobId)
-    .order("created_at", { ascending: false, nullsFirst: false });
+  const allActions: Array<RawManualActionRow & { sourceTable: string }> = [];
+  const missingTables: string[] = [];
 
-  if (error) {
-    if (isMissingManualActionSchema(error)) {
-      return NextResponse.json(
-        {
-          error:
-            "Vietnam manual actions are not available because migration 0096_vietnam_live_assisted_controls.sql has not been applied.",
-          code: "vietnam_manual_actions_schema_not_ready",
-        },
-        { status: 503 },
-      );
+  for (const table of manualActionTables(authorized.queue, authorized.application)) {
+    const countrySelect = table.hasCountryColumn ? ", country" : "";
+    const selectColumns =
+      table.queueColumn === "submission_queue_id"
+        ? `id, submission_queue_id, application_id${countrySelect}, action_type, status, instruction, screenshot_url, metadata, created_at, completed_at, expires_at`
+        : "id, job_id, application_id, action_type, status, instruction, screenshot_url, redacted_metadata_json, created_at, completed_at, expires_at";
+
+    const { data, error } = await authorized.admin
+      .from(table.tableName)
+      .select(selectColumns)
+      .eq(table.queueColumn, jobId)
+      .order("created_at", { ascending: false, nullsFirst: false });
+
+    if (error) {
+      if (isMissingManualActionSchema(error)) {
+        missingTables.push(table.tableName);
+        continue;
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    allActions.push(
+      ...((data ?? []) as unknown as RawManualActionRow[]).map((action) => ({
+        ...action,
+        sourceTable: table.tableName,
+      })),
+    );
   }
 
-  const manualActions = ((data ?? []) as ManualActionRow[]).map((action) => ({
+  if (allActions.length === 0 && missingTables.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Manual actions are not available because the live-assisted manual action schema has not been applied.",
+        code: "manual_actions_schema_not_ready",
+        missingTables,
+      },
+      { status: 503 },
+    );
+  }
+
+  const manualActions = allActions.map((action) => ({
     id: action.id,
-    jobId: action.job_id,
+    jobId: action.submission_queue_id ?? action.job_id ?? null,
     applicationId: action.application_id,
+    country: action.country ?? authorized.application.country,
     actionType: action.action_type,
-    status: action.status,
+    status: action.status ?? "pending",
     instruction: action.instruction,
     screenshotUrl: action.screenshot_url,
-    metadata: action.redacted_metadata_json ?? {},
+    metadata: redactMetadata(action.metadata ?? action.redacted_metadata_json ?? {}),
+    sourceTable: action.sourceTable,
     createdAt: action.created_at,
     completedAt: action.completed_at,
     expiresAt: action.expires_at,

@@ -42,6 +42,10 @@ const PLAN: MigrationPlanItem[] = [
     fileName: "20260610_france_live_assisted_controls.sql",
     purpose: "France live-assisted official reference, manual action, review snapshot, and diff controls",
   },
+  {
+    fileName: "20260610_submission_manual_action_bridge.sql",
+    purpose: "Generic submission manual action, review snapshot, and review diff bridge",
+  },
 ];
 
 function isDirectRun(): boolean {

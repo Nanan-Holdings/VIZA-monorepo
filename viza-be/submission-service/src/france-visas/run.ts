@@ -50,6 +50,8 @@ export interface FillFranceVisasOptions {
   finalize?: boolean;
   /** Where to save the downloaded PDF. Default: a fresh temp dir. */
   pdfOutputDir?: string;
+  /** Optional heartbeat invoked once a signed-in official portal page is open. */
+  onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
 }
 
 export type FillFranceVisasResult =
@@ -109,6 +111,7 @@ export async function fillFranceVisasApplication(
       headless: options.headless ?? true,
       runId,
     });
+    await options.onOfficialPortalOpened?.({ url: session.page.url() });
 
     // ── Start a fresh application ────────────────────────────────────────
     await startNewApplication(session.page, { timeoutMs: stepTimeoutMs });
