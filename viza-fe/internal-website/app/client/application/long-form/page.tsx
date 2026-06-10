@@ -1190,6 +1190,27 @@ async function insertSubmissionQueueJob(
   supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
 ): Promise<void> {
+  if (input.mode === "live_assisted") {
+    const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: input.mode,
+        country: input.country,
+        visaType: input.visaType,
+      }),
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      throw new Error(
+        typeof payload?.error === "string"
+          ? payload.error
+          : `Live assisted queue creation failed with ${response.status}`,
+      );
+    }
+    return;
+  }
+
   const status = queueStatusForApplication(input.country, input.visaType, input.mode);
   const provider = queueProviderForApplication(input.country, input.visaType, input.mode);
 

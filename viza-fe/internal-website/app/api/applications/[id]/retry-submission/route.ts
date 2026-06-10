@@ -118,6 +118,56 @@ function isMissingSubmissionModeColumnError(error: { message?: string; code?: st
   );
 }
 
+function isMissingVietnamLiveSchemaError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("could not find the") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("submission_queue.current_stage") ||
+    message.includes("submission_queue.heartbeat_at") ||
+    message.includes("submission_queue.vn_result_payload") ||
+    message.includes("submission_queue.official_portal_url") ||
+    message.includes("submission_queue.official_trace_url") ||
+    message.includes("submission_queue.error_code") ||
+    message.includes("submission_queue.error_message") ||
+    message.includes("vietnam_live_manual_actions")
+  );
+}
+
+async function getVietnamLiveSchemaBlocker(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<string | null> {
+  const { error: queueError } = await admin
+    .from("submission_queue")
+    .select(
+      "id,current_stage,heartbeat_at,vn_result_payload,official_portal_url,official_trace_url,error_code,error_message",
+    )
+    .limit(1);
+
+  if (queueError) {
+    if (isMissingVietnamLiveSchemaError(queueError)) {
+      return "Vietnam live assisted is not ready: database migration 0096_vietnam_live_assisted_controls.sql has not been applied to submission_queue.";
+    }
+    return queueError.message;
+  }
+
+  const { error: manualActionError } = await admin
+    .from("vietnam_live_manual_actions")
+    .select("id")
+    .limit(1);
+
+  if (manualActionError) {
+    if (isMissingVietnamLiveSchemaError(manualActionError)) {
+      return "Vietnam live assisted is not ready: vietnam_live_manual_actions is missing. Apply migration 0096_vietnam_live_assisted_controls.sql before starting live assisted.";
+    }
+    return manualActionError.message;
+  }
+
+  return null;
+}
+
 async function insertRetryQueueRow(
   admin: ReturnType<typeof createAdminClient>,
   input: {
@@ -261,6 +311,18 @@ export async function POST(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const schemaBlocker = await getVietnamLiveSchemaBlocker(admin);
+      if (schemaBlocker) {
+        return NextResponse.json(
+          {
+            error: schemaBlocker,
+            code: "vietnam_live_schema_not_ready",
+          },
+          { status: 503 },
+        );
+      }
     }
     if (isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const { data: existingOfficialRows, error: existingOfficialError } = await admin

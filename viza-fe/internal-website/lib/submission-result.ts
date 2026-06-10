@@ -102,7 +102,11 @@ export interface VnSubmissionResult {
     | "official_landing_reached"
     | "note_modal_required"
     | "captcha_required"
+    | "upload_required"
     | "official_form_reached"
+    | "layout_changed"
+    | "official_portal_error"
+    | "needs_manual_verification"
     | "stopped_at_pay"
     | "submitted_pending_email";
   mode?: "dry_run" | "live_assisted";
@@ -116,10 +120,12 @@ export interface VnSubmissionResult {
     type:
       | "note_modal_required"
       | "captcha_required"
+      | "upload_required"
       | "payment_required"
       | "final_submit_required"
       | "layout_changed"
-      | "official_portal_error";
+      | "official_portal_error"
+      | "needs_manual_verification";
     status: "open" | "completed";
     instructions: string;
     screenshotUrl?: string;

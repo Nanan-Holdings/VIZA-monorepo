@@ -1806,13 +1806,20 @@ async function updateVnQueueRow(
   }
 }
 
+function redactVnDiagnosticText(value: string): string {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "<email>")
+    .replace(/([?&](?:access_token|token|code|captcha|security_answer|password|key)=)[^&\s]+/gi, "$1<redacted>")
+    .replace(/\b[A-Z0-9]{8,}\b/g, "<id>");
+}
+
 function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknown> | null {
   const diagnostics = "diagnostics" in result ? result.diagnostics : undefined;
   if (!diagnostics) return null;
   const snapshot = diagnostics.lastSnapshot;
   return {
-    consoleErrors: diagnostics.consoleErrors,
-    failedRequests: diagnostics.failedRequests,
+    consoleErrors: diagnostics.consoleErrors.map(redactVnDiagnosticText),
+    failedRequests: diagnostics.failedRequests.map(redactVnDiagnosticText),
     tracePath: diagnostics.tracePath,
     finalScreenshotPath: diagnostics.finalScreenshotPath,
     lastSnapshot: snapshot
@@ -1883,9 +1890,13 @@ type VietnamActionRequiredRunResult = Extract<FillVietnamResult, { status: "acti
 function vietnamStatusForAction(result: VietnamActionRequiredRunResult): VnSubmissionResult["status"] {
   if (result.actionType === "note_modal_required") return "note_modal_required";
   if (result.actionType === "captcha_required") return "captcha_required";
+  if (result.actionType === "upload_required") return "upload_required";
   if (result.actionType === "payment_required" || result.actionType === "final_submit_required") {
     return "stopped_at_pay";
   }
+  if (result.actionType === "official_portal_error") return "official_portal_error";
+  if (result.actionType === "needs_manual_verification") return "needs_manual_verification";
+  if (result.actionType === "layout_changed") return "layout_changed";
   if (result.checkpoint === "application_form_visible") return "official_form_reached";
   return "official_landing_reached";
 }
@@ -2013,7 +2024,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           vn_registration_code_encrypted: encryptSecret(result.registrationCode),
           official_status: "registration_code_captured",
           current_stage: "payment_required",
-          manual_action_status: "open",
+          manual_action_status: "pending",
           payment_status: "manual_required",
           official_portal_url: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
           official_trace_url: tracePath ?? null,
@@ -2040,10 +2051,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           status: "vn_blocked",
           mode: "live_assisted",
           provider: "vietnam_evisa_live",
-          attempts: item.attempts + 1,
+          attempts: item.attempts,
           last_error: result.instruction,
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
-          manual_action_status: "open",
+          manual_action_status: "pending",
           official_status: "manual_action_required",
           error_code: result.actionType,
           error_message: result.instruction,
@@ -2055,7 +2066,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         },
         {
           status: "vn_blocked",
-          attempts: item.attempts + 1,
+          attempts: item.attempts,
           last_error: result.instruction,
           updated_at: actionAt,
         },
@@ -2104,7 +2115,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
     // status === "failed"
     const errorMsg = typeof result.error?.message === "string" ? result.error.message : `failed at ${result.failedStep}`;
-    const newAttempts = item.attempts + 1;
+    const errorCode = typeof result.error?.code === "string" ? result.error.code : "vietnam_prefill_failed";
+    const officialPortalFailure =
+      errorCode.startsWith("official_portal") ||
+      result.checkpoint === "white_screen" ||
+      result.checkpoint === "network_blocked" ||
+      result.checkpoint === "portal_error";
+    const newAttempts = officialPortalFailure ? MAX_ATTEMPTS : item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
       : (liveAssisted ? "vn_live_assisted_pending" : "vn_prefill_pending");
@@ -2117,7 +2134,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         last_error: errorMsg,
         vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
         official_status: "official_portal_error",
-        error_code: typeof result.error?.code === "string" ? result.error.code : "vietnam_prefill_failed",
+        error_code: errorCode,
         error_message: errorMsg,
         current_stage: result.checkpoint ?? "failed",
         official_portal_url: result.url,
